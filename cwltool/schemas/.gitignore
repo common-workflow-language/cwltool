@@ -1,0 +1,8 @@
+*~
+*.pyc
+*.egg
+*.egg-info
+.idea/*
+reference/build/*
+reference/setup.cfg
+conformance/conformance_test_tmp

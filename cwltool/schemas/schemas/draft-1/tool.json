@@ -1,0 +1,162 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id" : "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/tool.json",
+    "description": "Common tool description schema",
+    "type": "object",
+    "definitions": {
+        "expression": {
+            "type": "object",
+            "required": ["$expr"],
+            "properties": {
+                "$expr": {
+                    "type": "string"
+                }
+            }
+        },
+        "import": {
+            "type": "object",
+            "required": ["$import"],
+            "properties": {
+                "$import": {
+                    "type": "string"
+                },
+                "checksum": {
+                    "type": "string"
+                }
+            }
+        },
+        "apply": {
+            "type": "object",
+            "required": ["$apply"],
+            "properties": {
+                "$apply": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            { "type": "string" },
+                            { "$ref": "#definitions/expression" },
+                            { "$ref": "#definitions/import" }
+                        ]
+                    }
+                }
+            }
+        },
+        "strOrExpr": {
+            "oneOf": [
+                { "type": "string" },
+                { "$ref": "#definitions/expression" },
+                { "$ref": "#definitions/import" },
+                { "$ref": "#definitions/apply" },
+                { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/$job" }
+            ]
+        },
+        "numOrExpr": {
+            "oneOf": [
+                { "type": "number" },
+                { "$ref": "#definitions/expression" },
+                { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/$job" }
+            ]
+        },
+        "intOrExpr": {
+            "oneOf": [
+                { "type": "integer" },
+                { "$ref": "#definitions/expression" },
+                { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/$job" }
+            ]
+        },
+        "boolOrExpr": {
+            "oneOf": [
+                { "type": "boolean" },
+                { "$ref": "#definitions/expression" },
+                { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/$job" }
+            ]
+        }
+    },
+    "properties": {
+        "documentAuthor": {
+            "oneOf": [
+                { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/stringArray" },
+                { "type": "string" }
+            ]
+        },
+        "documentDescription": { "type": "string" },
+        "softwareDescription": { "type": "object" },
+        "softwareRelease": { "type": "object" },
+        "inputs": { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json" },
+        "outputs": { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json" },
+        "requirements": {
+            "type": "object",
+            "properties": {
+                "platformFeatures": { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/stringArray" },
+                "environment": {
+                    "type": "object",
+                    "properties": {
+                        "container": {
+                            "type": "object",
+                            "properties": {
+                                "imageId": { "type": "string" },
+                                "type": { "type": "string" },
+                                "uri": { "type": "string" }
+                            }
+                        }
+                    }
+                },
+                "resources": {
+                    "type": "object",
+                    "properties": {
+                        "cpu": { "$ref": "#definitions/intOrExpr" },
+                        "diskSpace": { "$ref": "#definitions/intOrExpr" },
+                        "mem": { "$ref": "#definitions/intOrExpr" },
+                        "network": { "$ref": "#definitions/boolOrExpr" }
+                    }
+                },
+                "expressionlib": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            { "type": "string" },
+                            { "$ref": "#definitions/import" }
+                        ]
+                    }
+                }
+            }
+        },
+        "adapter": {
+            "type": "object",
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "prefix": { "type": "string" },
+                            "order": { "type": "integer" },
+                            "separator": { "type": "string" },
+                            "itemSeparator": { "type": "string" },
+                            "value": { "$ref": "#definitions/strOrExpr" }
+                        }
+                    }
+                },
+                "baseCmd": {
+                    "oneOf": [
+                        { "$ref": "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/draft-1/schemas/metaschema.json#definitions/stringArray" },
+                        { "type": "string" },
+                        { "$ref": "#definitions/expression" }
+                    ]
+                },
+                "stdout": { "$ref": "#definitions/strOrExpr" },
+                "stdin": { "$ref": "#definitions/strOrExpr" },
+                "generatefiles": {
+                    "type":"array",
+                    "items": {
+                        "type":"object",
+                        "properties": {
+                            "name": {"$ref": "#definitions/strOrExpr"},
+                            "value": {"$ref": "#definitions/strOrExpr"}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
