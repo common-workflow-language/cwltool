@@ -124,7 +124,10 @@ class CommandLineTool(Process):
             if os.path.isabs(j.stdout) or ".." in j.stdout:
                 raise validate.ValidationException("stdout must be a relative path")
 
-        builder.pathmapper = self.makePathMapper(reffiles, input_basedir, **kwargs)
+        try:
+            builder.pathmapper = self.makePathMapper(reffiles, input_basedir, **kwargs)
+        except OSError as e:
+            raise validate.ValidationException(str(e))
         builder.requirements = j.requirements
 
         for f in builder.files:
