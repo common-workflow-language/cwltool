@@ -26,7 +26,7 @@ setup(name='cwltool',
       download_url="https://github.com/common-workflow-language/common-workflow-language",
       license='Apache 2.0',
       packages=["cwltool"],
-      package_data={'cwltool': ['schemas/draft-1/*', 'schemas/draft-2/*', 'schemas/draft-3/*']},
+      package_data={'cwltool': ['schemas/draft-2/cwl-avro.yml', 'schemas/draft-3/cwl-avro.yml']},
       install_requires=[
           'requests',
           'PyYAML',
