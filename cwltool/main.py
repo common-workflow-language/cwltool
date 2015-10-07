@@ -152,6 +152,8 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
                     r.run(**kwargs)
                 else:
                     raise workflow.WorkflowException("Workflow cannot make any more progress.")
+        except workflow.WorkflowException:
+            raise
         except Exception as e:
             _logger.exception("Got workflow error")
             raise workflow.WorkflowException("%s" % e, )

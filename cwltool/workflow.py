@@ -201,6 +201,8 @@ class WorkflowJob(object):
 
             for j in jobs:
                 yield j
+        except WorkflowException:
+            raise
         except Exception as e:
             _logger.exception("Unhandled exception")
             self.processStatus = "permanentFail"
@@ -404,8 +406,11 @@ class WorkflowStep(Process):
         kwargs["requirements"] = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         kwargs["hints"] = kwargs.get("hints", []) + self.tool.get("hints", [])
 
-        for t in self.embedded_tool.job(joborder, basedir, functools.partial(self.receive_output, output_callback), **kwargs):
-            yield t
+        try:
+            for t in self.embedded_tool.job(joborder, basedir, functools.partial(self.receive_output, output_callback), **kwargs):
+                yield t
+        except Exception as e:
+            raise WorkflowException(str(e))
 
 
 class ReceiveScatterOutput(object):
