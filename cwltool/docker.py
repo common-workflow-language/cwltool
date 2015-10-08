@@ -71,6 +71,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             _logger.info(str(cmd))
             if not dry_run:
                 subprocess.check_call(cmd, stdout=sys.stderr)
+                found = True
 
     return found
 

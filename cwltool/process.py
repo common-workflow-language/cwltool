@@ -65,6 +65,33 @@ class StdFsAccess(object):
     def exists(self, fn):
         return os.path.exists(self._abs(fn))
 
+def checkRequirements(rec, supportedProcessRequirements):
+    if isinstance(rec, dict):
+        if "requirements" in rec:
+            for r in rec["requirements"]:
+                if r["class"] not in supportedProcessRequirements:
+                    raise Exception("Unsupported requirement %s" % r["class"])
+        if "scatter" in rec:
+            if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
+                raise Exception("Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
+        for d in rec:
+            checkRequirements(rec[d], supportedProcessRequirements)
+    if isinstance(rec, list):
+        for d in rec:
+            checkRequirements(d, supportedProcessRequirements)
+
+def adjustFiles(rec, op):
+    """Apply a mapping function to each File path in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            rec["path"] = op(rec["path"])
+        for d in rec:
+            adjustFiles(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFiles(d, op)
+
 class Process(object):
     def __init__(self, toolpath_object, validateAs, do_validate=True, **kwargs):
         (_, self.names, _) = get_schema()
