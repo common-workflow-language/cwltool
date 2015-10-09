@@ -9,6 +9,7 @@ import process
 import yaml
 import schema_salad.validate as validate
 import schema_salad.ref_resolver
+import sandboxjs
 
 _logger = logging.getLogger("cwltool")
 
@@ -19,6 +20,14 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             return schema_salad.ref_resolver.resolve_json_pointer(obj, ex["script"])
         except ValueError as v:
             raise WorkflowException("%s in %s" % (v,  obj))
+
+    if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
+        engineConfig = []
+        for r in reversed(requirements):
+            if r["class"] == "ExpressionEngineRequirement" and r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
+                engineConfig = r.get("engineConfig", [])
+                break
+        return sandboxjs.execjs(ex["script"], "\n".join(engineConfig))
 
     for r in reversed(requirements):
         if r["class"] == "ExpressionEngineRequirement" and r["id"] == ex["engine"]:
@@ -37,17 +46,9 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             if img_id:
                 runtime = ["docker", "run", "-i", "--rm", img_id]
 
-            exdefs = []
-            for exdef in r.get("engineConfig", []):
-                if isinstance(exdef, dict) and "ref" in exdef:
-                    with open(exdef["ref"][7:]) as f:
-                        exdefs.append(f.read())
-                elif isinstance(exdef, basestring):
-                    exdefs.append(exdef)
-
             inp = {
                 "script": ex["script"],
-                "engineConfig": exdefs,
+                "engineConfig": r.get("engineConfig", []),
                 "job": jobinput,
                 "context": context,
                 "outdir": outdir,
@@ -75,5 +76,8 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image=True):
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
-    else:
-        return ex
+    if isinstance(ex, basestring) and process.get_feature(requirements):
+        for r in requirements:
+            if r["class"] == "InlineJavascriptRequirement":
+                return sandboxjs.interpolate(ex, "\n".join(r.get("engineConfig", [])))
+    return ex
