@@ -93,17 +93,9 @@ def adjustFiles(rec, op):
             adjustFiles(d, op)
 
 class Process(object):
-    def __init__(self, toolpath_object, validateAs, do_validate=True, **kwargs):
+    def __init__(self, toolpath_object, **kwargs):
         (_, self.names, _) = get_schema()
         self.tool = toolpath_object
-
-        if do_validate:
-            try:
-                # Validate tool documument
-                validate.validate_ex(self.names.get_name(validateAs, ""), self.tool, strict=kwargs.get("strict"))
-            except validate.ValidationException as v:
-                raise validate.ValidationException("Could not validate %s as %s:\n%s" % (self.tool.get("id"), validateAs, validate.indent(str(v))))
-
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
 

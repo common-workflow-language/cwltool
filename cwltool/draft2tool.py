@@ -25,7 +25,7 @@ _logger = logging.getLogger("cwltool")
 
 class ExpressionTool(Process):
     def __init__(self, toolpath_object, **kwargs):
-        super(ExpressionTool, self).__init__(toolpath_object, "ExpressionTool", **kwargs)
+        super(ExpressionTool, self).__init__(toolpath_object, **kwargs)
 
     class ExpressionJob(object):
         def run(self, **kwargs):
@@ -51,7 +51,7 @@ class ExpressionTool(Process):
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
-        super(CommandLineTool, self).__init__(toolpath_object, "CommandLineTool", **kwargs)
+        super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
     def makeJobRunner(self):
         return CommandLineJob()

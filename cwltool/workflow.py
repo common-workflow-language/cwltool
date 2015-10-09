@@ -297,7 +297,7 @@ class WorkflowJob(object):
 
 class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
-        super(Workflow, self).__init__(toolpath_object, "Workflow", **kwargs)
+        super(Workflow, self).__init__(toolpath_object, **kwargs)
 
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints
@@ -347,7 +347,7 @@ class WorkflowStep(Process):
                     raise WorkflowException("Parameter '%s' of %s in workflow step %s does not correspond to parameter in %s" % (p, field, self.id, self.embedded_tool.tool.get("id")))
                 i["id"] = inputid
 
-        super(WorkflowStep, self).__init__(toolpath_object, "Process", do_validate=False, **kwargs)
+        super(WorkflowStep, self).__init__(toolpath_object, **kwargs)
 
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
