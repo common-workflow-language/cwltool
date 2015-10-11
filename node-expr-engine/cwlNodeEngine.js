@@ -34,6 +34,8 @@ process.stdin.on('end', function() {
 
     fn += "var $job = " + JSON.stringify(j.job) + ";\n";
     fn += "var $self = " + JSON.stringify(j.context) + ";\n"
+    fn += "var $tmpdir = " + JSON.stringify(j.tmpdir) + ";\n"
+    fn += "var $outdir = " + JSON.stringify(j.outdir) + ";\n"
 
     fn += "(function()" + exp + ")()";
 

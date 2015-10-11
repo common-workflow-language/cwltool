@@ -39,6 +39,7 @@ def scanner(scan):
     BRACE = 3
     SINGLE_QUOTE = 4
     DOUBLE_QUOTE = 5
+    BACKSLASH = 6
 
     i = 0
     stack = [DEFAULT]
@@ -47,11 +48,15 @@ def scanner(scan):
         state = stack[-1]
         c = scan[i]
 
-        if c == '\\':
-            return [i, i+2]
-        elif state == DEFAULT:
+        if state == DEFAULT:
             if c == '$':
                 stack.append(DOLLAR)
+            elif c == '\\':
+                stack.append(BACKSLASH)
+        elif state == BACKSLASH:
+            stack.pop()
+            if stack[-1] == DEFAULT:
+                return [i-1, i+1]
         elif state == DOLLAR:
             if c == '(':
                 start = i-1
@@ -84,9 +89,13 @@ def scanner(scan):
         elif state == SINGLE_QUOTE:
             if c == "'":
                 stack.pop()
+            elif c == '\\':
+                stack.append(BACKSLASH)
         elif state == DOUBLE_QUOTE:
             if c == '"':
                 stack.pop()
+            elif c == '\\':
+                stack.append(BACKSLASH)
         i += 1
 
     if len(stack) > 1:
@@ -99,15 +108,17 @@ def interpolate(scan, jslib):
     w = scanner(scan)
     while w:
         parts.append(scan[0:w[0]])
+
         if scan[w[0]] == '$':
             e = execjs(scan[w[0]+1:w[1]], jslib)
+            print w, len(scan)
+            if w[0] == 0 and w[1] == len(scan):
+                return e
+            parts.append(json.dumps(e))
         elif scan[w[0]] == '\\':
             e = scan[w[1]-1]
+            parts.append(e)
 
-        if w[0] == 0 and w[1] == len(scan):
-            return e
-
-        parts.append(json.dumps(e))
         scan = scan[w[1]:]
         w = scanner(scan)
     parts.append(scan)

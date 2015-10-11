@@ -76,8 +76,14 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image=True):
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
-    if isinstance(ex, basestring) and process.get_feature(requirements):
+    if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
-                return sandboxjs.interpolate(ex, "\n".join(r.get("engineConfig", [])))
+                head = "%s\nvar $job=%s;\nvar $self=%s;\nvar $tmpdir=%s;var $outdir=%s;" % ("\n".join(r.get("engineConfig", [])),
+                                                                                            json.dumps(jobinput, indent=4),
+                                                                                            json.dumps(context, indent=4),
+                                                                                            json.dumps(tmpdir, indent=4),
+                                                                                            json.dumps(outdir, indent=4))
+
+                return sandboxjs.interpolate(ex, head)
     return ex
