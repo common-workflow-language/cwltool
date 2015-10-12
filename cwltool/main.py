@@ -344,17 +344,24 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    if len(args.job_order) == 1 and args.job_order[0][0] != "-":
-        job_order_file = args.job_order[0]
-    else:
-        job_order_file = None
+    job_order_object = None
 
     if args.conformance_test:
         loader = Loader({})
     else:
         loader = Loader({"id": "@id", "path": {"@type": "@id"}})
 
-    if job_order_file:
+    if len(args.job_order) == 1 and args.job_order[0][0] != "-":
+        job_order_file = args.job_order[0]
+    elif len(args.job_order) == 1 and args.job_order[0] == "-":
+        job_order_object = yaml.load(sys.stdin)
+        job_order_object, _ = loader.resolve_all(job_order_object, "")
+    else:
+        job_order_file = None
+
+    if job_order_object:
+        input_basedir = args.basedir if args.basedir else os.getcwd()
+    elif job_order_file:
         input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file)
