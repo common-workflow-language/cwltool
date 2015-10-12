@@ -92,6 +92,18 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
+def checkFormat(actualFile, inputFormats, requirements):
+    for af in aslist(actualFile):
+        if "format" not in af:
+            raise validate.ValidationException("Missing required 'format' for File")
+        match = False
+        for inpf in aslist(inputFormats):
+            if af["format"] == inpf:
+                match = True
+                break
+        if not match:
+            raise validate.ValidationException("Incompatible file format %s with require format(s) %s" % (af["format"], inputFormats))
+
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
         (_, self.names, _) = get_schema()
@@ -158,15 +170,20 @@ class Process(object):
             if d not in builder.job and "default" in i:
                 builder.job[d] = i["default"]
 
+        for r in self.requirements:
+            if r["class"] not in supportedProcessRequirements:
+                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
+
         # Validate job order
         try:
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
         except validate.ValidationException as e:
             raise WorkflowException("Error validating input record, " + str(e))
 
-        for r in self.requirements:
-            if r["class"] not in supportedProcessRequirements:
-                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
+        for i in self.tool["inputs"]:
+            d = shortname(i["id"])
+            if d in builder.job and i.get("format"):
+                checkFormat(builder.job[d].get("format"), i["format"], self.requirements)
 
         builder.files = []
         builder.bindings = []
