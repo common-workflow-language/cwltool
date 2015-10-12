@@ -94,6 +94,7 @@ def arg_parser():
     exgroup.add_argument("--print-rdf", action="store_true",
                         help="Print corresponding RDF graph for workflow and exit")
     exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
+    exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
@@ -250,7 +251,7 @@ def generate_parser(toolparser, tool, namemap):
 
     return toolparser
 
-def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
+def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
     uri = "file://" + os.path.abspath(argsworkflow)
@@ -272,6 +273,10 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
     except (schema_salad.validate.ValidationException, RuntimeError) as e:
         _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1
+
+    if print_pre:
+        print json.dumps(processobj, indent=4)
+        return 0
 
     if urifrag:
         processobj, _ = document_loader.resolve_ref(uri)
@@ -317,7 +322,7 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
         _logger.error("CWL document required")
         return 1
 
-    t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug)
+    t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
 
     if type(t) == int:
         return t
