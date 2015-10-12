@@ -253,6 +253,9 @@ def generate_parser(toolparser, tool, namemap):
 def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
+    if isinstance(avsc_names, Exception):
+        raise avsc_names
+
     uri = "file://" + os.path.abspath(argsworkflow)
     fileuri, urifrag = urlparse.urldefrag(uri)
     workflowobj = document_loader.fetch(fileuri)
