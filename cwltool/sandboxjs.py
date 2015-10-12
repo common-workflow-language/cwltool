@@ -111,7 +111,6 @@ def interpolate(scan, jslib):
 
         if scan[w[0]] == '$':
             e = execjs(scan[w[0]+1:w[1]], jslib)
-            print w, len(scan)
             if w[0] == 0 and w[1] == len(scan):
                 return e
             parts.append(json.dumps(e))
