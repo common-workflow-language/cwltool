@@ -13,6 +13,18 @@ import sandboxjs
 
 _logger = logging.getLogger("cwltool")
 
+def jshead(engineConfig, jobinput, context, tmpdir, outdir):
+    return """
+%s
+var $job=%s;
+var $self=%s;
+var $tmpdir=%s;
+var $outdir=%s;""" % ("\n".join(engineConfig),
+                      json.dumps(jobinput, indent=4),
+                      json.dumps(context, indent=4),
+                      json.dumps(tmpdir, indent=4),
+                      json.dumps(outdir, indent=4))
+
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
     if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
         try:
@@ -27,7 +39,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             if r["class"] == "ExpressionEngineRequirement" and r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
                 engineConfig = r.get("engineConfig", [])
                 break
-        return sandboxjs.execjs(ex["script"], "\n".join(engineConfig))
+        return sandboxjs.execjs(ex["script"], jshead(engineConfig, jobinput, context, tmpdir, outdir))
 
     for r in reversed(requirements):
         if r["class"] == "ExpressionEngineRequirement" and r["id"] == ex["engine"]:
@@ -79,11 +91,5 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image
     if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
-                head = "%s\nvar $job=%s;\nvar $self=%s;\nvar $tmpdir=%s;var $outdir=%s;" % ("\n".join(r.get("engineConfig", [])),
-                                                                                            json.dumps(jobinput, indent=4),
-                                                                                            json.dumps(context, indent=4),
-                                                                                            json.dumps(tmpdir, indent=4),
-                                                                                            json.dumps(outdir, indent=4))
-
-                return sandboxjs.interpolate(ex, head)
+                return sandboxjs.interpolate(ex, jshead(r.get("engineConfig", []), jobinput, context, tmpdir, outdir))
     return ex
