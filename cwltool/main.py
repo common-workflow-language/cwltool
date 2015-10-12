@@ -352,7 +352,7 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
     if args.conformance_test:
         loader = Loader({})
     else:
-        loader = Loader({"id": "@id", "path": {"@type": "@id"}})
+        loader = Loader({"id": "@id", "path": {"@type": "@id"}, "format": {"@type": "@id"}})
 
     if job_order_file:
         input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))

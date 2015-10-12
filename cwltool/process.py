@@ -95,14 +95,14 @@ def adjustFiles(rec, op):
 def checkFormat(actualFile, inputFormats, requirements):
     for af in aslist(actualFile):
         if "format" not in af:
-            raise validate.ValidationException("Missing required 'format' for File")
+            raise validate.ValidationException("Missing required 'format' for File %s" % af)
         match = False
         for inpf in aslist(inputFormats):
             if af["format"] == inpf:
                 match = True
                 break
         if not match:
-            raise validate.ValidationException("Incompatible file format %s with require format(s) %s" % (af["format"], inputFormats))
+            raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
@@ -183,7 +183,7 @@ class Process(object):
         for i in self.tool["inputs"]:
             d = shortname(i["id"])
             if d in builder.job and i.get("format"):
-                checkFormat(builder.job[d].get("format"), i["format"], self.requirements)
+                checkFormat(builder.job[d], i["format"], self.requirements)
 
         builder.files = []
         builder.bindings = []
