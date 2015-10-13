@@ -438,7 +438,8 @@ def main(args=None,
                        tmpdir_prefix=args.tmpdir_prefix,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
-                       move_outputs=args.move_outputs
+                       move_outputs=args.move_outputs,
+                       enable_docker_socket=args.enable_docker_socket
                        )
         # This is the workflow output, it needs to be written
         stdout.write(json.dumps(out, indent=4))

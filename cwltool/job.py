@@ -57,12 +57,15 @@ class CommandLineJob(object):
 
         (docker_socket_req, _) = get_feature(self, "DockerSocketRequirement")
 
+        gid = os.getgid()
+
         if docker_socket_req:
             if kwargs.get("enable_docker_socket") is not True:
                 raise WorkflowException("DockerSocketRequirement is present but enable_docker_socket is not True")
-            if docker_socket_req["additionalDockerImages"]:
+            if docker_socket_req.get("additionalDockerImages"):
                 for d in docker_socket_req["additionalDockerImages"]:
                     docker.get_from_requirements(docker_req, True, pull_image)
+            gid = os.stat("/var/run/docker.sock").st_gid
 
         if docker_is_req and img_id is None:
             raise WorkflowException("Docker is required for running this tool.")
@@ -76,7 +79,7 @@ class CommandLineJob(object):
             runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp/job_tmp"))
             runtime.append("--workdir=%s" % ("/tmp/job_output"))
             euid = docker_vm_uid() or os.geteuid()
-            runtime.append("--user=%s" % (euid))
+            runtime.append("--user=%s:%s" % (euid, gid))
 
             if rm_container:
                 runtime.append("--rm")
@@ -87,7 +90,7 @@ class CommandLineJob(object):
                 runtime.append("--env=%s=%s" % (t, v))
 
             if docker_socket_req:
-                runtime.append("--volume=/var/run/docker.sock:/var/run/docker.sock")
+                runtime.append("--volume=/var/run/docker.sock:/var/run/docker.sock:rw")
 
             runtime.append(img_id)
         else:
