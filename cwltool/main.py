@@ -294,7 +294,13 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
 
     return t
 
-def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeTool, parser=None):
+def main(args=None,
+         executor=single_job_executor,
+         makeTool=workflow.defaultMakeTool,
+         parser=None,
+         stdin=sys.stdin,
+         stdout=sys.stdout):
+
     if args is None:
         args = sys.argv[1:]
 
@@ -359,7 +365,7 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.load(sys.stdin)
+        job_order_object = yaml.load(stdin)
         job_order_object, _ = loader.resolve_all(job_order_object, "")
     else:
         job_order_file = None
@@ -425,7 +431,8 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
                        move_outputs=args.move_outputs
                        )
         # This is the workflow output, it needs to be written
-        sys.stdout.write(json.dumps(out, indent=4))
+        stdout.write(json.dumps(out, indent=4))
+        stdout.flush()
     except (validate.ValidationException) as e:
         _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1
