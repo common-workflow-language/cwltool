@@ -28,7 +28,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "CreateFileRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
-                                "MultipleInputFeatureRequirement"]
+                                "MultipleInputFeatureRequirement",
+                                "DockerSocketRequirement"]
 
 def get_schema():
     f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')
@@ -167,6 +168,8 @@ class Process(object):
         for r in self.requirements:
             if r["class"] not in supportedProcessRequirements:
                 raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
+            if r["class"] == "DockerSocketRequirement" and kwargs.get("enable_docker_socket") is not True:
+                raise WorkflowException("DockerSocketRequirement is present but enable_docker_socket is not True")
 
         builder.files = []
         builder.bindings = []

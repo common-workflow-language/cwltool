@@ -55,6 +55,15 @@ class CommandLineJob(object):
             env = os.environ
             img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
 
+        (docker_socket_req, _) = get_feature(self, "DockerSocketRequirement")
+
+        if docker_socket_req:
+            if kwargs.get("enable_docker_socket") is not True:
+                raise WorkflowException("DockerSocketRequirement is present but enable_docker_socket is not True")
+            if docker_socket_req["additionalDockerImages"]:
+                for d in docker_socket_req["additionalDockerImages"]:
+                    docker.get_from_requirements(docker_req, True, pull_image)
+
         if docker_is_req and img_id is None:
             raise WorkflowException("Docker is required for running this tool.")
 
@@ -76,6 +85,9 @@ class CommandLineJob(object):
 
             for t,v in self.environment.items():
                 runtime.append("--env=%s=%s" % (t, v))
+
+            if docker_socket_req:
+                runtime.append("--volume=/var/run/docker.sock:/var/run/docker.sock")
 
             runtime.append(img_id)
         else:

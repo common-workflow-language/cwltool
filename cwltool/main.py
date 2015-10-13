@@ -77,7 +77,14 @@ def arg_parser():
                         dest="move_outputs")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--enable-pull", default=True, action="store_true",
+    exgroup.add_argument("--enable-docker-socket", default=False, action="store_true",
+                        help="Permit DockerSocketRequirement", dest="enable_docker_socket")
+
+    exgroup.add_argument("--disable-docker-socket", default=False, action="store_false",
+                        help="Disallow DockerSocketRequirement", dest="enable_docker_socket")
+
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--enable-", default=True, action="store_true",
                         help="Try to pull Docker images", dest="enable_pull")
 
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
