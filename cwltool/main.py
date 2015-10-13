@@ -299,7 +299,10 @@ def main(args=None,
          makeTool=workflow.defaultMakeTool,
          parser=None,
          stdin=sys.stdin,
-         stdout=sys.stdout):
+         stdout=sys.stdout,
+         stderr=sys.stderr):
+
+    _logger.addHandler(logging.StreamHandler(stderr))
 
     if args is None:
         args = sys.argv[1:]
