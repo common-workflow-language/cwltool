@@ -22,7 +22,9 @@ import update
 from process import shortname
 
 _logger = logging.getLogger("cwltool")
-_logger.addHandler(logging.StreamHandler())
+
+defaultStreamHandler = logging.StreamHandler()
+_logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 
 def arg_parser():
@@ -302,6 +304,7 @@ def main(args=None,
          stdout=sys.stdout,
          stderr=sys.stderr):
 
+    _logger.removeHandler(defaultStreamHandler)
     _logger.addHandler(logging.StreamHandler(stderr))
 
     if args is None:
