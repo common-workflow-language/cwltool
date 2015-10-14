@@ -18,6 +18,8 @@ import tempfile
 import glob
 from errors import WorkflowException
 from pathmapper import abspath
+from rdflib import URIRef
+from rdflib.namespace import RDFS
 
 _logger = logging.getLogger("cwltool")
 
@@ -28,7 +30,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "CreateFileRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
-                                "MultipleInputFeatureRequirement"]
+                                "MultipleInputFeatureRequirement",
+                                "FormatOntologyRequirement"]
 
 def get_schema():
     f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')
@@ -92,17 +95,28 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
-def checkFormat(actualFile, inputFormats, requirements):
+def formatSubclassOf(fmt, cls, ontology):
+    if ontology is None:
+        return False
+
+    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
+        if o == cls:
+            return True
+
+    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
+        if formatSubclassOf(o, cls, ontology):
+            return True
+
+    return False
+
+def checkFormat(actualFile, inputFormats, requirements, ontology):
     for af in aslist(actualFile):
         if "format" not in af:
             raise validate.ValidationException("Missing required 'format' for File %s" % af)
-        match = False
         for inpf in aslist(inputFormats):
-            if af["format"] == inpf:
-                match = True
-                break
-        if not match:
-            raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+            if af["format"] == inpf or formatSubclassOf(inpf, af["format"], ontology):
+                return
+        raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
@@ -180,10 +194,18 @@ class Process(object):
         except validate.ValidationException as e:
             raise WorkflowException("Error validating input record, " + str(e))
 
+        formatReq, _ = self.get_requirement("FormatOntologyRequirement")
+        ontology = None
+        if formatReq:
+            import rdflib
+            ontology = rdflib.Graph()
+            for a in aslist(formatReq.get("formatOntologies", [])):
+                ontology.parse(a)
+
         for i in self.tool["inputs"]:
             d = shortname(i["id"])
             if d in builder.job and i.get("format"):
-                checkFormat(builder.job[d], i["format"], self.requirements)
+                checkFormat(builder.job[d], i["format"], self.requirements, ontology)
 
         builder.files = []
         builder.bindings = []
