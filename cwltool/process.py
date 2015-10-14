@@ -186,7 +186,8 @@ class Process(object):
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
-        builder.resources = self.evalResources(builder)
+        builder.resources = {}
+        builder.resources = self.evalResources(builder, kwargs)
 
         return builder
 
@@ -199,7 +200,7 @@ class Process(object):
             "ramMax": 1024,
             "tmpdirMin": 1024,
             "tmpdirMax": 1024,
-            "outdirMin": 1024
+            "outdirMin": 1024,
             "outdirMax": 1024
         }
         for a in ("cores", "ram", "tmpdir", "outdir"):
@@ -225,7 +226,7 @@ class Process(object):
                 "cores": request["coresMin"],
                 "ram":   request["ramMin"],
                 "tmpdir": request["tmpdirMin"],
-                "outdir": request["outdirMiax"],
+                "outdir": request["outdirMin"],
             }
 
     def validate_hints(self, hints, strict):

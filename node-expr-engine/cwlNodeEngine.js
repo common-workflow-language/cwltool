@@ -34,6 +34,7 @@ process.stdin.on('end', function() {
 
     fn += "var $job = " + JSON.stringify(j.job) + ";\n";
     fn += "var $self = " + JSON.stringify(j.context) + ";\n"
+    fn += "var $resources = " + JSON.stringify(j.resources) + ";\n"
 
     fn += "(function()" + exp + ")()";
 
