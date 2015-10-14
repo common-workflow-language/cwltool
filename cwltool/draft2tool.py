@@ -202,6 +202,8 @@ class CommandLineTool(Process):
                             contents = f.read(1024*1024)
                     files["checksum"] = "sha1$%s" % checksum.hexdigest()
                     files["size"] = filesize
+                    if "format" in schema:
+                        files["format"] = builder.do_eval(schema["format"], context=files)
 
             if "outputEval" in binding:
                 r = builder.do_eval(binding["outputEval"], context=r)

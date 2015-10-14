@@ -102,7 +102,6 @@ def formatSubclassOf(fmt, cls, ontology):
     fmt = URIRef(fmt)
 
     for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
-        print s,p,o
         if o == URIRef(cls):
             return True
 
