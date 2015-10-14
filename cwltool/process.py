@@ -200,6 +200,16 @@ class Process(object):
         builder.names = self.names
         builder.requirements = self.requirements
 
+        dockerReq, _ = self.get_requirement("DockerRequirement")
+        if dockerReq and kwargs.get("use_container"):
+            builder.outdir = kwargs.get("docker_outdir") or "/tmp/job_output"
+            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp/job_tmp"
+        else:
+            builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
+            builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
+
+        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
+
         formatReq, _ = self.get_requirement("FormatOntologyRequirement")
         ontology = None
         if formatReq:
@@ -212,16 +222,6 @@ class Process(object):
             d = shortname(i["id"])
             if d in builder.job and i.get("format"):
                 checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, ontology)
-
-        dockerReq, _ = self.get_requirement("DockerRequirement")
-        if dockerReq and kwargs.get("use_container"):
-            builder.outdir = kwargs.get("docker_outdir") or "/tmp/job_output"
-            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp/job_tmp"
-        else:
-            builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
-            builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
-
-        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
