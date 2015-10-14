@@ -186,8 +186,47 @@ class Process(object):
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
+        builder.resources = self.evalResources(builder)
+
         return builder
 
+    def evalResources(self, builder, kwargs):
+        resourceReq, _ = self.get_requirement("ResourceRequirement")
+        request = {
+            "coresMin": 1,
+            "coresMax": 1,
+            "ramMin": 1024,
+            "ramMax": 1024,
+            "tmpdirMin": 1024,
+            "tmpdirMax": 1024,
+            "outdirMin": 1024
+            "outdirMax": 1024
+        }
+        for a in ("cores", "ram", "tmpdir", "outdir"):
+            mn = None
+            mx = None
+            if resourceReq.get(a+"Min"):
+                mn = builder.do_eval(resourceReq[a+"Min"])
+            if resourceReq.get(a+"Max"):
+                mx = builder.do_eval(resourceReq[a+"Max"])
+            if mn is None:
+                mn = mx
+            elif mx is None:
+                mx = mn
+
+            if mn:
+                request[a+"Min"] = mn
+                request[a+"Max"] = mx
+
+        if kwargs.get("select_resources"):
+            return kwargs["select_resources"](request)
+        else:
+            return {
+                "cores": request["coresMin"],
+                "ram":   request["ramMin"],
+                "tmpdir": request["tmpdirMin"],
+                "outdir": request["outdirMiax"],
+            }
 
     def validate_hints(self, hints, strict):
         for r in hints:
