@@ -99,8 +99,11 @@ def formatSubclassOf(fmt, cls, ontology):
     if ontology is None:
         return False
 
+    fmt = URIRef(fmt)
+
     for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
-        if o == cls:
+        print s,p,o
+        if o == URIRef(cls):
             return True
 
     for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
@@ -114,7 +117,7 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
         if "format" not in af:
             raise validate.ValidationException("Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(inpf, af["format"], ontology):
+            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology):
                 return
         raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
