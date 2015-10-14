@@ -156,4 +156,7 @@ class Builder(object):
         return [a for a in args if a is not None]
 
     def do_eval(self, ex, context=None, pull_image=True):
-        return expression.do_eval(ex, self.job, self.requirements, self.outdir, self.tmpdir, context=context, pull_image=pull_image)
+        return expression.do_eval(ex, self.job, self.requirements,
+                                  self.outdir, self.tmpdir,
+                                  self.resources,
+                                  context=context, pull_image=pull_image)

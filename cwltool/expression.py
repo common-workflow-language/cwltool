@@ -12,10 +12,10 @@ import schema_salad.ref_resolver
 
 _logger = logging.getLogger("cwltool")
 
-def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
+def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image, resources):
     if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
         try:
-            obj = {"job": jobinput, "context": context, "outdir": outdir, "tmpdir": tmpdir}
+            obj = {"job": jobinput, "context": context, "outdir": outdir, "tmpdir": tmpdir, "resources": resources}
             return schema_salad.ref_resolver.resolve_json_pointer(obj, ex["script"])
         except ValueError as v:
             raise WorkflowException("%s in %s" % (v,  obj))
@@ -52,6 +52,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
                 "context": context,
                 "outdir": outdir,
                 "tmpdir": tmpdir,
+                "resources": resources
             }
 
             _logger.debug("Invoking expression engine %s with %s",
@@ -72,8 +73,8 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
     raise WorkflowException("Unknown expression engine '%s'" % ex["engine"])
 
-def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image=True):
+def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources, context=None, pull_image=True):
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
-        return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
+        return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image, resources)
     else:
         return ex
