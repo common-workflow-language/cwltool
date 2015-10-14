@@ -194,6 +194,12 @@ class Process(object):
         except validate.ValidationException as e:
             raise WorkflowException("Error validating input record, " + str(e))
 
+        builder.files = []
+        builder.bindings = []
+        builder.schemaDefs = self.schemaDefs
+        builder.names = self.names
+        builder.requirements = self.requirements
+
         formatReq, _ = self.get_requirement("FormatOntologyRequirement")
         ontology = None
         if formatReq:
@@ -205,13 +211,7 @@ class Process(object):
         for i in self.tool["inputs"]:
             d = shortname(i["id"])
             if d in builder.job and i.get("format"):
-                checkFormat(builder.job[d], i["format"], self.requirements, ontology)
-
-        builder.files = []
-        builder.bindings = []
-        builder.schemaDefs = self.schemaDefs
-        builder.names = self.names
-        builder.requirements = self.requirements
+                checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, ontology)
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
