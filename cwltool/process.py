@@ -193,6 +193,8 @@ class Process(object):
 
     def evalResources(self, builder, kwargs):
         resourceReq, _ = self.get_requirement("ResourceRequirement")
+        if resourceReq is None:
+            resourceReq = {}
         request = {
             "coresMin": 1,
             "coresMax": 1,
