@@ -188,7 +188,10 @@ class CommandLineTool(Process):
                 r = []
                 bg = builder.do_eval(binding["glob"])
                 for gb in aslist(bg):
-                    r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                    try:
+                        r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                    except (OSError, IOError) as e:
+                        _logger.warn(str(e))
                 for files in r:
                     checksum = hashlib.sha1()
                     with builder.fs_access.open(files["path"], "rb") as f:
