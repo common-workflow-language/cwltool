@@ -334,7 +334,11 @@ def main(args=None,
         _logger.error("CWL document required")
         return 1
 
-    t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
+    try:
+        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
+    except Exception as e:
+        _logger.error("I'm sorry, I couldn't load this CWL file.\n%s", e, exc_info=(e if args.debug else False))
+        return 1
 
     if type(t) == int:
         return t
