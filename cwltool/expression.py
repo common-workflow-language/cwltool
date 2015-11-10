@@ -91,5 +91,5 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image
     if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
-                return sandboxjs.interpolate(ex, jshead(r.get("engineConfig", []), jobinput, context, tmpdir, outdir))
+                return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), jobinput, context, tmpdir, outdir))
     return ex

@@ -2,6 +2,7 @@ import sys
 import urlparse
 import json
 import re
+from aslist import aslist
 
 def findId(doc, frg):
     if isinstance(doc, dict):
@@ -41,7 +42,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
                 if frag:
                     frag = "#" + frag
                     r = findId(r, frag)
-                return _draft2toDraft3(r, loader, imp)
+                return _draft2toDraft3dev1(r, loader, imp)
 
             if "include" in doc:
                 return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
@@ -83,36 +84,58 @@ def draft2toDraft3dev1(doc, loader, baseuri):
 
 digits = re.compile("\d+")
 
+def updateScript(sc):
+    sc = sc.replace("$job", "inputs")
+    sc = sc.replace("$tmpdir", "runtime.tmpdir")
+    sc = sc.replace("$outdir", "runtime.outdir")
+    sc = sc.replace("$self", "self")
+    return sc
+
 def _draftDraft3dev1toDev2(doc):
     # Convert expressions
     if isinstance(doc, dict):
         for a in doc:
             ent = doc[a]
-            if "engine" in ent:
+            if isinstance(ent, dict) and "engine" in ent:
                 if ent["engine"] == "cwl:JsonPointer":
                     sp = ent["script"].split("/")
                     if sp[0] in ("tmpdir", "outdir"):
                         doc[a] = "$(runtime.%s)" % sp[0]
                     else:
+                        if not sp[0]:
+                            sp.pop(0)
                         sp.pop(0)
                         sp = [str(i) if digits.match(i) else "'"+i+"'"
                               for i in sp]
                         doc[a] = "$(inputs[%s])" % ']['.join(sp)
                 else:
-                    if ent["script"][0] == "{":
-                        doc[a] = "$" + ent["script"]
+                    sc = updateScript(ent["script"])
+                    if sc == "{":
+                        doc[a] = "$" + sc
                     else:
-                        doc[a] = "$(%s)" % ent["script"]
+                        doc[a] = "$(%s)" % sc
             else:
                 doc[a] = _draftDraft3dev1toDev2(doc[a])
 
+        if "class" in doc and (doc["class"] == "CommandLineTool" or doc["class"] == "Workflow"):
+            found = False
+            if "requirements" in doc:
+                for r in doc["requirements"]:
+                    if r["class"] == "ExpressionEngineRequirement" and "engineConfig" in r:
+                        doc["requirements"].append({
+                            "class":"InlineJavascriptRequirement",
+                            "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
+                        })
+                        doc["requirements"] = [rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
+                        found = True
+                        break
+            else:
+                doc["requirements"] = []
+            if not found:
+                doc["requirements"].append({"class":"InlineJavascriptRequirement"})
+
     elif isinstance(doc, list):
         return [_draftDraft3dev1toDev2(a) for a in doc]
-
-    if "class" in doc and doc["class"] == "CommandLineTool":
-        if "requirements" not in doc:
-            doc["requirements"] = []
-        doc["requirements"].append({"class":"InlineJavascriptRequirement"})
 
     return doc
 
