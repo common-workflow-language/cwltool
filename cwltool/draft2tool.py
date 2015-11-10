@@ -20,6 +20,7 @@ import re
 import urlparse
 import tempfile
 from builder import CONTENT_LIMIT, substitute
+import shellescape
 
 _logger = logging.getLogger("cwltool")
 
@@ -155,7 +156,18 @@ class CommandLineTool(Process):
             for t in evr["envDef"]:
                 j.environment[t["envName"]] = builder.do_eval(t["envValue"])
 
-        j.command_line = flatten(map(builder.generate_arg, builder.bindings))
+        shellcmd, _ = self.get_requirement("ShellCommandRequirement")
+        if shellcmd:
+            cmd = []
+            for b in builder.bindings:
+                arg = builder.generate_arg(b)
+                if b.get("shellQuote", True):
+                    arg = [shellescape.quote(a) for a in aslist(arg)]
+                cmd.extend(aslist(arg))
+            j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
+            print j.command_line
+        else:
+            j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = functools.partial(self.collect_output_ports, self.tool["outputs"], builder)
