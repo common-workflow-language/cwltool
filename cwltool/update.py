@@ -1,5 +1,6 @@
 import sys
 import urlparse
+import json
 
 def findId(doc, frg):
     if isinstance(doc, dict):
@@ -27,44 +28,54 @@ def fixType(doc):
     return doc
 
 def _draft2toDraft3(doc, loader, baseuri):
-    if isinstance(doc, dict):
-        if "import" in doc:
-            imp = urlparse.urljoin(baseuri, doc["import"])
-            r = loader.fetch(imp)
-            if isinstance(r, list):
-                r = {"@graph": r}
-            r["id"] = imp
-            _, frag = urlparse.urldefrag(imp)
-            if frag:
-                frag = "#" + frag
-                r = findId(r, frag)
-            return _draft2toDraft3(r, loader, imp)
+    try:
+        if isinstance(doc, dict):
+            if "import" in doc:
+                imp = urlparse.urljoin(baseuri, doc["import"])
+                r = loader.fetch(imp)
+                if isinstance(r, list):
+                    r = {"@graph": r}
+                r["id"] = imp
+                _, frag = urlparse.urldefrag(imp)
+                if frag:
+                    frag = "#" + frag
+                    r = findId(r, frag)
+                return _draft2toDraft3(r, loader, imp)
 
-        if "include" in doc:
-            return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
+            if "include" in doc:
+                return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
 
-        for t in ("type", "items"):
-            if t in doc:
-                doc[t] = fixType(doc[t])
+            for t in ("type", "items"):
+                if t in doc:
+                    doc[t] = fixType(doc[t])
 
-        if "steps" in doc:
-            for i, s in enumerate(doc["steps"]):
-                if "id" not in s:
-                    s["id"] = "step%i" % i
-                for inp in s.get("inputs", []):
-                    if isinstance(inp.get("source"), list):
-                        if "requirements" not in doc:
-                            doc["requirements"] = []
-                        doc["requirements"].append({"class": "MultipleInputFeatureRequirement"})
+            if "steps" in doc:
+                if not isinstance(doc["steps"], list):
+                    raise Exception("Value of 'steps' must be a list")
+                for i, s in enumerate(doc["steps"]):
+                    if "id" not in s:
+                        s["id"] = "step%i" % i
+                    for inp in s.get("inputs", []):
+                        if isinstance(inp.get("source"), list):
+                            if "requirements" not in doc:
+                                doc["requirements"] = []
+                            doc["requirements"].append({"class": "MultipleInputFeatureRequirement"})
 
 
-        for a in doc:
-            doc[a] = _draft2toDraft3(doc[a], loader, baseuri)
+            for a in doc:
+                doc[a] = _draft2toDraft3(doc[a], loader, baseuri)
 
-    if isinstance(doc, list):
-        return [_draft2toDraft3(a, loader, baseuri) for a in doc]
+        if isinstance(doc, list):
+            return [_draft2toDraft3(a, loader, baseuri) for a in doc]
 
-    return doc
+        return doc
+    except Exception as e:
+        err = json.dumps(doc, indent=4)
+        if "id" in doc:
+            err = doc["id"]
+        elif "name" in doc:
+            err = doc["name"]
+        raise Exception("Error updating '%s'\n  %s" % (err, e))
 
 def draft2toDraft3(doc, loader, baseuri):
     return (_draft2toDraft3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")

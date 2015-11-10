@@ -59,7 +59,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                     n = 0
                     for chunk in req.iter_content(1024*1024):
                         n += len(chunk)
-                        _logger.info(str(n))
+                        _logger.info("\r%i bytes" % (n))
                         loadproc.stdin.write(chunk)
                     loadproc.stdin.close()
                 rcode = loadproc.wait()

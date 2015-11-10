@@ -30,7 +30,11 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
                                 "MultipleInputFeatureRequirement",
+<<<<<<< HEAD
                                 "InlineJavascriptRequirement"]
+=======
+                                "ShellCommandRequirement"]
+>>>>>>> master
 
 def get_schema():
     f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')

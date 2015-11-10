@@ -19,15 +19,15 @@ default CWL interpreter installed on a host.
 Install
 -------
 
-From source::
-
-  git clone https://github.com/common-workflow-language/common-workflow-language.git
-  cd common-workflow-language/reference && python setup.py install
-  cd cwl-runner && python setup.py install
-
-Or installing the official package from PyPi (will install "cwltool" package as well)::
+Installing the official package from PyPi (will install "cwltool" package as well)::
 
   pip install cwl-runner
+
+Or from source::
+
+  git clone https://github.com/common-workflow-language/cwltool.git
+  cd cwltool && python setup.py install
+  cd cwl-runner && python setup.py install
 
 Run on the command line
 -----------------------
