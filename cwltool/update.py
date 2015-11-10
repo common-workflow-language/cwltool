@@ -1,6 +1,7 @@
 import sys
 import urlparse
 import json
+import re
 
 def findId(doc, frg):
     if isinstance(doc, dict):
@@ -27,7 +28,7 @@ def fixType(doc):
             return "#" + doc
     return doc
 
-def _draft2toDraft3(doc, loader, baseuri):
+def _draft2toDraft3dev1(doc, loader, baseuri):
     try:
         if isinstance(doc, dict):
             if "import" in doc:
@@ -63,10 +64,10 @@ def _draft2toDraft3(doc, loader, baseuri):
 
 
             for a in doc:
-                doc[a] = _draft2toDraft3(doc[a], loader, baseuri)
+                doc[a] = _draft2toDraft3dev1(doc[a], loader, baseuri)
 
         if isinstance(doc, list):
-            return [_draft2toDraft3(a, loader, baseuri) for a in doc]
+            return [_draft2toDraft3dev1(a, loader, baseuri) for a in doc]
 
         return doc
     except Exception as e:
@@ -77,13 +78,41 @@ def _draft2toDraft3(doc, loader, baseuri):
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s" % (err, e))
 
-def draft2toDraft3(doc, loader, baseuri):
-    return (_draft2toDraft3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+def draft2toDraft3dev1(doc, loader, baseuri):
+    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+
+digits = re.compile("\d+")
+
+def _draftDraft3dev1toDev2(doc):
+    # Convert expressions
+    if isinstance(doc, dict):
+        ent = doc[a]
+        for a in doc:
+            if "engine" in ent:
+                if ent["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
+                    sp = ent["script"].split("/")
+                    sp.pop(0)
+                    sp = [str(i) if digits.match(i) else "'"+i+"'"
+                          for i in sp]
+                    doc[a] = "$(inputs[%s])" % ']['.join(sp)
+                else:
+                    if ent["script"][0] == "{":
+                        doc[a] = "$" + ent["script"]
+                    else:
+                        doc[a] = "$(%s)" % ent["script"]
+            else:
+                doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
+
+    return doc
+
+def draftDraft3dev1toDev2(doc, loader, baseuri):
+    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
 
 def update(doc, loader, baseuri):
     updates = {
-        "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3,
-        "https://w3id.org/cwl/cwl#draft-3.dev1": None
+        "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
+        "https://w3id.org/cwl/cwl#draft-3.dev1": draftDraft3dev1toDev2,
+        "https://w3id.org/cwl/cwl#draft-3.dev2": None
     }
 
     def identity(doc, loader, baseuri):
