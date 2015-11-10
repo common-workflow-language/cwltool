@@ -104,6 +104,7 @@ def scanner(scan):
         return None
 
 def interpolate(scan, jslib):
+    scan = scan.strip()
     parts = []
     w = scanner(scan)
     while w:

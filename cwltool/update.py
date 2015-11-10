@@ -110,28 +110,29 @@ def _draftDraft3dev1toDev2(doc):
                         doc[a] = "$(inputs[%s])" % ']['.join(sp)
                 else:
                     sc = updateScript(ent["script"])
-                    if sc == "{":
+                    if sc[0] == "{":
                         doc[a] = "$" + sc
                     else:
                         doc[a] = "$(%s)" % sc
             else:
                 doc[a] = _draftDraft3dev1toDev2(doc[a])
 
-        if "class" in doc and (doc["class"] == "CommandLineTool" or doc["class"] == "Workflow"):
-            found = False
+        if "class" in doc and (doc["class"] in ("CommandLineTool", "Workflow", "ExpressionTool")):
+            added = False
             if "requirements" in doc:
                 for r in doc["requirements"]:
-                    if r["class"] == "ExpressionEngineRequirement" and "engineConfig" in r:
-                        doc["requirements"].append({
-                            "class":"InlineJavascriptRequirement",
-                            "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
-                        })
+                    if r["class"] == "ExpressionEngineRequirement":
+                        if "engineConfig" in r:
+                            doc["requirements"].append({
+                                "class":"InlineJavascriptRequirement",
+                                "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
+                            })
+                            added = True
                         doc["requirements"] = [rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
-                        found = True
                         break
             else:
                 doc["requirements"] = []
-            if not found:
+            if not added:
                 doc["requirements"].append({"class":"InlineJavascriptRequirement"})
 
     elif isinstance(doc, list):
