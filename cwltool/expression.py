@@ -16,10 +16,10 @@ _logger = logging.getLogger("cwltool")
 def jshead(engineConfig, jobinput, context, tmpdir, outdir):
     return """
 %s
-var $job=%s;
-var $self=%s;
-var $tmpdir=%s;
-var $outdir=%s;""" % ("\n".join(engineConfig),
+var inputs=%s;
+var self=%s;
+var runtime={'tmpdir': %s, 'outdir': %s};
+""" % ("\n".join(engineConfig),
                       json.dumps(jobinput, indent=4),
                       json.dumps(context, indent=4),
                       json.dumps(tmpdir, indent=4),

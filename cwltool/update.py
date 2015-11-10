@@ -86,27 +86,38 @@ digits = re.compile("\d+")
 def _draftDraft3dev1toDev2(doc):
     # Convert expressions
     if isinstance(doc, dict):
-        ent = doc[a]
         for a in doc:
+            ent = doc[a]
             if "engine" in ent:
-                if ent["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
+                if ent["engine"] == "cwl:JsonPointer":
                     sp = ent["script"].split("/")
-                    sp.pop(0)
-                    sp = [str(i) if digits.match(i) else "'"+i+"'"
-                          for i in sp]
-                    doc[a] = "$(inputs[%s])" % ']['.join(sp)
+                    if sp[0] in ("tmpdir", "outdir"):
+                        doc[a] = "$(runtime.%s)" % sp[0]
+                    else:
+                        sp.pop(0)
+                        sp = [str(i) if digits.match(i) else "'"+i+"'"
+                              for i in sp]
+                        doc[a] = "$(inputs[%s])" % ']['.join(sp)
                 else:
                     if ent["script"][0] == "{":
                         doc[a] = "$" + ent["script"]
                     else:
                         doc[a] = "$(%s)" % ent["script"]
             else:
-                doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
+                doc[a] = _draftDraft3dev1toDev2(doc[a])
+
+    elif isinstance(doc, list):
+        return [_draftDraft3dev1toDev2(a) for a in doc]
+
+    if "class" in doc and doc["class"] == "CommandLineTool":
+        if "requirements" not in doc:
+            doc["requirements"] = []
+        doc["requirements"].append({"class":"InlineJavascriptRequirement"})
 
     return doc
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
-    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
+    return (_draftDraft3dev1toDev2(doc), "https://w3id.org/cwl/cwl#draft-3.dev2")
 
 def update(doc, loader, baseuri):
     updates = {
