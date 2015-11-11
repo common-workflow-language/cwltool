@@ -104,10 +104,13 @@ def _draftDraft3dev1toDev2(doc):
                     else:
                         if not sp[0]:
                             sp.pop(0)
-                        sp.pop(0)
+                        front = sp.pop(0)
                         sp = [str(i) if digits.match(i) else "'"+i+"'"
                               for i in sp]
-                        doc[a] = "$(inputs[%s])" % ']['.join(sp)
+                        if front == "job":
+                            doc[a] = "$(inputs[%s])" % ']['.join(sp)
+                        elif front == "context":
+                            doc[a] = "$(self[%s])" % ']['.join(sp)
                 else:
                     sc = updateScript(ent["script"])
                     if sc[0] == "{":
