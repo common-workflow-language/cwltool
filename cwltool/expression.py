@@ -10,6 +10,7 @@ import yaml
 import schema_salad.validate as validate
 import schema_salad.ref_resolver
 import sandboxjs
+import re
 
 _logger = logging.getLogger("cwltool")
 
@@ -85,6 +86,42 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
     raise WorkflowException("Unknown expression engine '%s'" % ex["engine"])
 
+seg_symbol = r"""[^[\].(){} ]+"""
+seg_single = r"""\['([^']|\\')+'\]"""
+seg_double = r"""\["([^"]|\\")+"\]"""
+seg_index  = r"""\[[0-9]+\]"""
+segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
+segment_re = re.compile(segments)
+param_re = re.compile(r"\$\((%s)%s*\)" % (seg_symbol, segments))
+
+def next_seg(remain, obj):
+    if remain:
+        print remain
+        m = segment_re.match(remain)
+        if m.group(0)[0] == '.':
+            return next_seg(remain[m.end(0):], obj[m.group(0)[1:]])
+        else:
+            key = m.group(0)[2:-2].replace("\\'", "'").replace('\\"', '"')
+            return next_seg(remain[m.end(0):], obj[key])
+    else:
+        return obj
+
+def param_interpolate(ex, obj, strip=True):
+    m = param_re.search(ex)
+    if m:
+        print "=", m.group(0), "/", m.group(0)[m.end(1) - m.start(0):-1]
+        leaf = next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
+        if strip and len(ex.strip()) == len(m.group(0)):
+            return leaf
+        else:
+            leaf = json.dumps(leaf)
+            if leaf[0] == '"':
+                leaf = leaf[1:-1]
+            return ex[0:m.start(0)] + leaf + param_interpolate(ex[m.end(0):], obj, False)
+    else:
+        return ex
+
+
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image=True):
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
@@ -92,4 +129,12 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
                 return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), jobinput, context, tmpdir, outdir))
+        return param_interpolate(ex, {
+            "inputs": jobinput,
+            "self": context,
+            "runtime": {
+                "tmpdir": tmpdir,
+                "outdir": outdir
+            }
+        })
     return ex
