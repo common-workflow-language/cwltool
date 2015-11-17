@@ -96,20 +96,21 @@ param_re = re.compile(r"\$\((%s)%s*\)" % (seg_symbol, segments))
 
 def next_seg(remain, obj):
     if remain:
-        print remain
         m = segment_re.match(remain)
         if m.group(0)[0] == '.':
             return next_seg(remain[m.end(0):], obj[m.group(0)[1:]])
-        else:
+        elif m.group(0)[1] in ("'", '"'):
             key = m.group(0)[2:-2].replace("\\'", "'").replace('\\"', '"')
             return next_seg(remain[m.end(0):], obj[key])
+        else:
+            key = m.group(0)[1:-1]
+            return next_seg(remain[m.end(0):], obj[int(key)])
     else:
         return obj
 
 def param_interpolate(ex, obj, strip=True):
     m = param_re.search(ex)
     if m:
-        print "=", m.group(0), "/", m.group(0)[m.end(1) - m.start(0):-1]
         leaf = next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
         if strip and len(ex.strip()) == len(m.group(0)):
             return leaf

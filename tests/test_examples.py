@@ -59,7 +59,7 @@ class TestParamMatching(unittest.TestCase):
 
         self.assertEqual(expr.param_interpolate("$(foo['b ar'].baz)", inputs), 2)
         self.assertEqual(expr.param_interpolate("$(foo['b\\'ar'].baz)", inputs), True)
-        self.assertEqual(expr.param_interpolate("$(foo[\"b\\'ar\"].baz)", inputs), True)
+        self.assertEqual(expr.param_interpolate("$(foo[\"b'ar\"].baz)", inputs), True)
         self.assertEqual(expr.param_interpolate("$(foo['b\\\"ar'].baz)", inputs), None)
 
 

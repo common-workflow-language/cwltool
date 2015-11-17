@@ -32,7 +32,8 @@ class ExpressionTool(Process):
         def run(self, **kwargs):
             try:
                 self.output_callback(self.builder.do_eval(self.script), "success")
-            except Exception:
+            except Exception as e:
+                _logger.warn("Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
