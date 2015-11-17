@@ -1,12 +1,8 @@
 import subprocess
 import os
-import tempfile
-import glob
 import json
-import yaml
 import logging
 import sys
-import requests
 import docker
 from process import get_feature, empty_subtree
 from errors import WorkflowException
@@ -19,6 +15,7 @@ from docker_uid import docker_vm_uid
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting = re.compile(r"""(^$|[\s|&;()<>\'"$@])""").search
+
 
 def deref_links(outputs):
     if isinstance(outputs, dict):
@@ -33,12 +30,13 @@ def deref_links(outputs):
         for v in outputs:
             deref_links(v)
 
+
 class CommandLineJob(object):
     def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, **kwargs):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
-        #with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
+        # with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
         #    json.dump(self.joborder, fp)
 
         runtime = []
@@ -74,7 +72,7 @@ class CommandLineJob(object):
 
             runtime.append("--env=TMPDIR=/tmp/job_tmp")
 
-            for t,v in self.environment.items():
+            for t, v in self.environment.items():
                 runtime.append("--env=%s=%s" % (t, v))
 
             runtime.append(img_id)

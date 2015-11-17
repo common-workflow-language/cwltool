@@ -5,12 +5,14 @@ import stat
 
 _logger = logging.getLogger("cwltool")
 
+
 def abspath(src, basedir):
     if src.startswith("file://"):
         ab = src[7:]
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
+
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
@@ -29,9 +31,10 @@ class PathMapper(object):
         return self._pathmap.keys()
 
     def reversemap(self, target):
-        for k,v in self._pathmap.items():
+        for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
+
 
 class DockerPathMapper(PathMapper):
     def __init__(self, referenced_files, basedir):
@@ -44,8 +47,8 @@ class DockerPathMapper(PathMapper):
             subdir = False
             for d in self.dirs:
                 if dir.startswith(d):
-                  subdir = True
-                  break
+                    subdir = True
+                    break
 
             if not subdir:
                 for d in list(self.dirs):

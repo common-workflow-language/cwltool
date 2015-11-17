@@ -9,6 +9,7 @@ import tempfile
 
 _logger = logging.getLogger("cwltool")
 
+
 def get_image(dockerRequirement, pull_image, dry_run=False):
     found = False
 

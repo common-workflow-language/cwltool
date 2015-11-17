@@ -1,25 +1,21 @@
-import job
 import draft2tool
 from aslist import aslist
-from process import Process, get_feature, empty_subtree, shortname
+from process import Process, empty_subtree, shortname
 from errors import WorkflowException
 import copy
 import logging
 import random
 import os
 from collections import namedtuple
-import pprint
 import functools
 import schema_salad.validate as validate
-import urlparse
-import pprint
 import tempfile
 import shutil
-import json
 
 _logger = logging.getLogger("cwltool")
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value'])
+
 
 def defaultMakeTool(toolpath_object, **kwargs):
     if not isinstance(toolpath_object, dict):
@@ -33,6 +29,7 @@ def defaultMakeTool(toolpath_object, **kwargs):
             return Workflow(toolpath_object, **kwargs)
 
     raise WorkflowException("Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"])
+
 
 def findfiles(wo, fn=None):
     if fn is None:
@@ -100,7 +97,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput):
             for src in connections:
                 if src in state and state[src] is not None:
                     if not match_types(inp["type"], state[src], iid, inputobj,
-                                            inp.get("linkMerge", ("merge_nested" if len(connections) > 1 else None))):
+                                       inp.get("linkMerge", ("merge_nested" if len(connections) > 1 else None))):
                         raise WorkflowException("Type mismatch between source '%s' (%s) and sink '%s' (%s)" % (src, state[src].parameter["type"], inp["id"], inp["type"]))
                 elif src not in state:
                     raise WorkflowException("Connect source '%s' on parameter '%s' does not exist" % (src, inp["id"]))
@@ -125,6 +122,7 @@ class WorkflowJobStep(object):
         kwargs["part_of"] = "step %s" % id(self)
         for j in self.step.job(joborder, basedir, output_callback, **kwargs):
             yield j
+
 
 class WorkflowJob(object):
     def __init__(self, workflow, **kwargs):
@@ -203,7 +201,7 @@ class WorkflowJob(object):
                 yield j
         except WorkflowException:
             raise
-        except Exception as e:
+        except Exception:
             _logger.exception("Unhandled exception")
             self.processStatus = "permanentFail"
             step.completed = True
@@ -264,7 +262,7 @@ class WorkflowJob(object):
                 for a in output_dirs:
                     if f["path"].startswith(a):
                         src = f["path"]
-                        dst = os.path.join(self.outdir, src[len(a)+1:])
+                        dst = os.path.join(self.outdir, src[len(a) + 1:])
                         if dst in targets:
                             conflicts.add(dst)
                         else:
@@ -274,7 +272,7 @@ class WorkflowJob(object):
                 for a in output_dirs:
                     if f["path"].startswith(a):
                         src = f["path"]
-                        dst = os.path.join(self.outdir, src[len(a)+1:])
+                        dst = os.path.join(self.outdir, src[len(a) + 1:])
                         if dst in conflicts:
                             sp = os.path.splitext(dst)
                             dst = "%s-%s%s" % (sp[0], str(random.randint(1, 1000000000)), sp[1])
@@ -302,8 +300,8 @@ class Workflow(Process):
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints
 
-        makeTool = kwargs.get("makeTool")
-        self.steps = [WorkflowStep(step, n, **kwargs) for n,step in enumerate(self.tool.get("steps", []))]
+        kwargs.get("makeTool")
+        self.steps = [WorkflowStep(step, n, **kwargs) for n, step in enumerate(self.tool.get("steps", []))]
         random.shuffle(self.steps)
 
         # TODO: statically validate data links instead of doing it at runtime.
@@ -386,7 +384,7 @@ class WorkflowStep(Process):
             self.tool["outputs"] = outputparms
 
     def receive_output(self, output_callback, jobout, processStatus):
-        #_logger.debug("WorkflowStep output from run is %s", jobout)
+        # _logger.debug("WorkflowStep output from run is %s", jobout)
         output = {}
         for i in self.tool["outputs"]:
             field = shortname(i["id"])
@@ -422,7 +420,7 @@ class ReceiveScatterOutput(object):
         self.output_callback = output_callback
 
     def receive_scatter_output(self, index, jobout, processStatus):
-        for k,v in jobout.items():
+        for k, v in jobout.items():
             self.dest[k][index] = v
 
         if processStatus != "success":
@@ -499,6 +497,7 @@ def crossproduct_size(joborder, scatter_keys):
             jo[scatter_key] = joborder[scatter_key][n]
             sum += crossproduct_size(joborder, scatter_keys[1:])
     return sum
+
 
 def flat_crossproduct_scatter(process, joborder, basedir, scatter_keys, output_callback, startindex, **kwargs):
     scatter_key = scatter_keys[0]

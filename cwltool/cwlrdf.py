@@ -1,11 +1,12 @@
 import json
-from rdflib import Graph, plugin
-from rdflib.serializer import Serializer
+from rdflib import Graph
+
 
 def printrdf(workflow, wf, ctx, sr):
     wf["@context"] = ctx
     g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow)
     print(g.serialize(format=sr))
+
 
 def printdot(workflow, wf, ctx, sr):
     wf["@context"] = ctx
@@ -13,12 +14,12 @@ def printdot(workflow, wf, ctx, sr):
 
     print "digraph {"
 
-    #g.namespace_manager.qname(predicate)
+    # g.namespace_manager.qname(predicate)
 
     def lastpart(uri):
         uri = str(uri)
         if "/" in uri:
-            return uri[uri.rindex("/")+1:]
+            return uri[uri.rindex("/") + 1:]
         else:
             return uri
 
@@ -75,6 +76,5 @@ def printdot(workflow, wf, ctx, sr):
 
     for (inp,) in qres:
         print '"%s" [shape=octagon]' % (lastpart(inp))
-
 
     print "}"
