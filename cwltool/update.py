@@ -1,6 +1,6 @@
-import sys
 import urlparse
 import json
+
 
 def findId(doc, frg):
     if isinstance(doc, dict):
@@ -18,6 +18,7 @@ def findId(doc, frg):
                 return f
     return None
 
+
 def fixType(doc):
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
@@ -26,6 +27,7 @@ def fixType(doc):
         if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
+
 
 def _draft2toDraft3(doc, loader, baseuri):
     try:
@@ -61,7 +63,6 @@ def _draft2toDraft3(doc, loader, baseuri):
                                 doc["requirements"] = []
                             doc["requirements"].append({"class": "MultipleInputFeatureRequirement"})
 
-
             for a in doc:
                 doc[a] = _draft2toDraft3(doc[a], loader, baseuri)
 
@@ -77,8 +78,10 @@ def _draft2toDraft3(doc, loader, baseuri):
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s" % (err, e))
 
+
 def draft2toDraft3(doc, loader, baseuri):
     return (_draft2toDraft3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+
 
 def update(doc, loader, baseuri):
     updates = {

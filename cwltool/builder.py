@@ -3,14 +3,17 @@ from aslist import aslist
 import expression
 import avro
 import schema_salad.validate as validate
+from .errors import WorkflowException
 
 CONTENT_LIMIT = 64 * 1024
+
 
 def substitute(value, replace):
     if replace[0] == "^":
         return substitute(value[0:value.rindex('.')], replace[1:])
     else:
         return value + replace
+
 
 class Builder(object):
 

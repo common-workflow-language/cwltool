@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import draft2tool
 import argparse
 from schema_salad.ref_resolver import Loader
 import json
@@ -15,7 +14,6 @@ import schema_salad.makedoc
 import yaml
 import urlparse
 import process
-import job
 from cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
 import update
@@ -26,6 +24,7 @@ _logger = logging.getLogger("cwltool")
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
+
 
 def arg_parser():
     parser = argparse.ArgumentParser()
@@ -40,17 +39,17 @@ def arg_parser():
 
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
-                        metavar=("VAR1","VAR2"),
+                        metavar=("VAR1", "VAR2"),
                         dest="preserve_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-container", action="store_true", default=True,
-                        help="Delete Docker container used by jobs after they exit (default)",
-                        dest="rm_container")
+                         help="Delete Docker container used by jobs after they exit (default)",
+                         dest="rm_container")
 
     exgroup.add_argument("--leave-container", action="store_false",
-                        default=True, help="Do not delete Docker container used by jobs after they exit",
-                        dest="rm_container")
+                         default=True, help="Do not delete Docker container used by jobs after they exit",
+                         dest="rm_container")
 
     parser.add_argument("--tmpdir-prefix", type=str,
                         help="Path prefix for temporary directories",
@@ -62,28 +61,28 @@ def arg_parser():
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
-                        help="Delete intermediate temporary directories (default)",
-                        dest="rm_tmpdir")
+                         help="Delete intermediate temporary directories (default)",
+                         dest="rm_tmpdir")
 
     exgroup.add_argument("--leave-tmpdir", action="store_false",
-                        default=True, help="Do not delete intermediate temporary directories",
-                        dest="rm_tmpdir")
+                         default=True, help="Do not delete intermediate temporary directories",
+                         dest="rm_tmpdir")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--move-outputs", action="store_true", default=True,
-                        help="Move output files to the workflow output directory and delete intermediate output directories (default).",
-                        dest="move_outputs")
+                         help="Move output files to the workflow output directory and delete intermediate output directories (default).",
+                         dest="move_outputs")
 
     exgroup.add_argument("--leave-outputs", action="store_false", default=True,
-                        help="Leave output files in intermediate output directories.",
-                        dest="move_outputs")
+                         help="Leave output files in intermediate output directories.",
+                         dest="move_outputs")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
-                        help="Try to pull Docker images", dest="enable_pull")
+                         help="Try to pull Docker images", dest="enable_pull")
 
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
-                        help="Do not try to pull Docker images", dest="enable_pull")
+                         help="Do not try to pull Docker images", dest="enable_pull")
 
     parser.add_argument("--dry-run", action="store_true",
                         help="Load and validate but do not execute")
@@ -94,7 +93,7 @@ def arg_parser():
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
-                        help="Print corresponding RDF graph for workflow and exit")
+                         help="Print corresponding RDF graph for workflow and exit")
     exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
     exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
@@ -113,6 +112,7 @@ def arg_parser():
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
+
 
 def single_job_executor(t, job_order, input_basedir, args, **kwargs):
     final_output = []
@@ -166,6 +166,7 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
 
         return final_output[0]
 
+
 def create_loader(ctx):
     loader = Loader()
     url_fields = []
@@ -176,25 +177,31 @@ def create_loader(ctx):
     loader.idx["cwl:JsonPointer"] = {}
     return loader
 
+
 class FileAction(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAction, self).__init__(option_strings, dest, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, {"class": "File", "path": values})
+
 
 class FileAppendAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAppendAction, self).__init__(option_strings, dest, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
         g = getattr(namespace, self.dest)
         if not g:
             g = []
             setattr(namespace, self.dest, g)
         g.append({"class": "File", "path": values})
+
 
 def generate_parser(toolparser, tool, namemap):
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
@@ -253,6 +260,7 @@ def generate_parser(toolparser, tool, namemap):
 
     return toolparser
 
+
 def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
@@ -295,6 +303,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
         return 1
 
     return t
+
 
 def main(args=None,
          executor=single_job_executor,
@@ -410,7 +419,7 @@ def main(args=None,
             else:
                 job_order_object = {}
 
-            job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
+            job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
             _logger.debug("Parsed job order from command line: %s", job_order_object)
         else:
             job_order_object = None

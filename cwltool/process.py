@@ -4,13 +4,10 @@ import json
 import schema_salad.validate as validate
 import copy
 import yaml
-import copy
 import logging
-import pprint
 from aslist import aslist
 import schema_salad.schema
 import urlparse
-import pprint
 from pkg_resources import resource_stream
 import stat
 from builder import Builder
@@ -31,11 +28,13 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "ShellCommandRequirement"]
 
+
 def get_schema():
     f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')
     j = yaml.load(f)
     j["name"] = "https://w3id.org/cwl/cwl"
     return schema_salad.schema.load_schema(j)
+
 
 def get_feature(self, feature):
     for t in reversed(self.requirements):
@@ -46,9 +45,11 @@ def get_feature(self, feature):
             return (t, False)
     return (None, None)
 
+
 def shortname(inputid):
     (_, d) = urlparse.urldefrag(inputid)
     return d.split("/")[-1].split(".")[-1]
+
 
 class StdFsAccess(object):
     def __init__(self, basedir):
@@ -66,6 +67,7 @@ class StdFsAccess(object):
     def exists(self, fn):
         return os.path.exists(self._abs(fn))
 
+
 def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, dict):
         if "requirements" in rec:
@@ -81,6 +83,7 @@ def checkRequirements(rec, supportedProcessRequirements):
         for d in rec:
             checkRequirements(d, supportedProcessRequirements)
 
+
 def adjustFiles(rec, op):
     """Apply a mapping function to each File path in the object `rec`."""
 
@@ -92,6 +95,7 @@ def adjustFiles(rec, op):
     if isinstance(rec, list):
         for d in rec:
             adjustFiles(d, op)
+
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
@@ -149,7 +153,6 @@ class Process(object):
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException("Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
-
     def _init_job(self, joborder, input_basedir, **kwargs):
         builder = Builder()
         builder.job = copy.deepcopy(joborder)
@@ -189,7 +192,6 @@ class Process(object):
 
         return builder
 
-
     def validate_hints(self, hints, strict):
         for r in hints:
             try:
@@ -202,6 +204,7 @@ class Process(object):
 
     def get_requirement(self, feature):
         return get_feature(self, feature)
+
 
 def empty_subtree(dirpath):
     # Test if a directory tree contains any files (does not count empty

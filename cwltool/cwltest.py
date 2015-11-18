@@ -17,6 +17,7 @@ _logger.setLevel(logging.INFO)
 
 UNSUPPORTED_FEATURE = 33
 
+
 def compare(a, b):
     try:
         if isinstance(a, dict):
@@ -46,6 +47,7 @@ def compare(a, b):
             return a == b
     except:
         return False
+
 
 def run_test(args, i, t):
     out = {}
@@ -92,7 +94,7 @@ def run_test(args, i, t):
         _logger.error(outstr)
         _logger.error("Parse error %s", str(e))
 
-    pwd = os.path.abspath(os.path.dirname(t["job"]))
+    os.path.abspath(os.path.dirname(t["job"]))
     # t["args"] = map(lambda x: x.replace("$PWD", pwd), t["args"])
     # if "stdin" in t:
     #     t["stdin"] = t["stdin"].replace("$PWD", pwd)
@@ -110,9 +112,9 @@ def run_test(args, i, t):
                 _logger.warn(t.get("doc"))
                 failed = True
             _logger.warn("%s expected %s\n%s      got %s", key,
-                                                            t.get(key),
-                                                            " " * len(key),
-                                                            out.get(key))
+                         t.get(key),
+                         " " * len(key),
+                         out.get(key))
 
     if outdir:
         shutil.rmtree(outdir)
@@ -144,14 +146,14 @@ def main():
 
     if args.n is not None:
         sys.stderr.write("\rTest [%i/%i] " % (args.n, len(tests)))
-        rt = run_test(args, args.n-1, tests[args.n-1])
+        rt = run_test(args, args.n - 1, tests[args.n - 1])
         if rt == 1:
             failures += 1
         elif rt == UNSUPPORTED_FEATURE:
             unsupported += 1
     else:
         for i, t in enumerate(tests):
-            sys.stderr.write("\rTest [%i/%i] " % (i+1, len(tests)))
+            sys.stderr.write("\rTest [%i/%i] " % (i + 1, len(tests)))
             sys.stderr.flush()
             rt = run_test(args, i, t)
             if rt == 1:
@@ -160,8 +162,8 @@ def main():
                 unsupported += 1
 
     if failures == 0 and unsupported == 0:
-         _logger.info("All tests passed")
-         return 0
+        _logger.info("All tests passed")
+        return 0
     else:
         _logger.warn("%i failures, %i unsupported features", failures, unsupported)
         return 1

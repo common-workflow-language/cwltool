@@ -1,4 +1,3 @@
-import avro.schema
 import json
 import copy
 from flatten import flatten
@@ -7,22 +6,18 @@ import os
 from pathmapper import PathMapper, DockerPathMapper
 from job import CommandLineJob
 import yaml
-import glob
 import logging
 import hashlib
-import random
 from process import Process, shortname
 from errors import WorkflowException
 import schema_salad.validate as validate
 from aslist import aslist
-import expression
-import re
-import urlparse
 import tempfile
 from builder import CONTENT_LIMIT, substitute
 import shellescape
 
 _logger = logging.getLogger("cwltool")
+
 
 class ExpressionTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -106,11 +101,10 @@ class CommandLineTool(Process):
         j.hints = self.hints
 
         _logger.debug("[job %s] initializing from %s%s",
-                     id(j),
-                     self.tool.get("id", ""),
-                     " as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
+                      id(j),
+                      self.tool.get("id", ""),
+                      " as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
         _logger.debug("[job %s] %s", id(j), json.dumps(joborder, indent=4))
-
 
         builder.pathmapper = None
 
@@ -245,7 +239,6 @@ class CommandLineTool(Process):
                 for sf in r["secondaryFiles"]:
                     if not builder.fs_access.exists(sf["path"]):
                         raise WorkflowException("Missing secondary file of '%s' of primary file '%s'" % (sf["path"], r["path"]))
-
 
         if not r and schema["type"] == "record":
             r = {}

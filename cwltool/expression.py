@@ -3,14 +3,12 @@ import subprocess
 import json
 from aslist import aslist
 import logging
-import os
 from errors import WorkflowException
 import process
-import yaml
-import schema_salad.validate as validate
 import schema_salad.ref_resolver
 
 _logger = logging.getLogger("cwltool")
+
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
     if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
@@ -18,7 +16,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             obj = {"job": jobinput, "context": context, "outdir": outdir, "tmpdir": tmpdir}
             return schema_salad.ref_resolver.resolve_json_pointer(obj, ex["script"])
         except ValueError as v:
-            raise WorkflowException("%s in %s" % (v,  obj))
+            raise WorkflowException("%s in %s" % (v, obj))
 
     for r in reversed(requirements):
         if r["class"] == "ExpressionEngineRequirement" and r["id"] == ex["engine"]:
@@ -56,13 +54,13 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
             _logger.debug("Invoking expression engine %s with %s",
                           runtime + aslist(r["engineCommand"]),
-                                           json.dumps(inp, indent=4))
+                          json.dumps(inp, indent=4))
 
             sp = subprocess.Popen(runtime + aslist(r["engineCommand"]),
-                             shell=False,
-                             close_fds=True,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE)
+                                  shell=False,
+                                  close_fds=True,
+                                  stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
 
             (stdoutdata, stderrdata) = sp.communicate(json.dumps(inp) + "\n\n")
             if sp.returncode != 0:
@@ -71,6 +69,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             return json.loads(stdoutdata)
 
     raise WorkflowException("Unknown expression engine '%s'" % ex["engine"])
+
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image=True):
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
