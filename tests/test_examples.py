@@ -13,6 +13,7 @@ class TestParamMatching(unittest.TestCase):
         self.assertTrue(expr.param_re.match("$(foo['bar']['baz'])"))
         self.assertTrue(expr.param_re.match("$(foo['b\\'ar']['baz'])"))
         self.assertTrue(expr.param_re.match("$(foo['b ar']['baz'])"))
+        self.assertTrue(expr.param_re.match("$(foo_bar)"))
 
         self.assertFalse(expr.param_re.match("$(foo.[\"bar\"])"))
         self.assertFalse(expr.param_re.match("$(.foo[\"bar\"])"))
@@ -26,6 +27,8 @@ class TestParamMatching(unittest.TestCase):
         self.assertFalse(expr.param_re.match("$foo.bar)"))
         self.assertFalse(expr.param_re.match("$foo.b ar)"))
         self.assertFalse(expr.param_re.match("$foo.b\'ar)"))
+        self.assertFalse(expr.param_re.match("$(foo+bar"))
+        self.assertFalse(expr.param_re.match("$(foo bar"))
 
         inputs = {
             "foo": {

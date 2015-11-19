@@ -103,6 +103,7 @@ def scanner(scan):
     else:
         return None
 
+
 def interpolate(scan, jslib):
     scan = scan.strip()
     parts = []
@@ -114,7 +115,10 @@ def interpolate(scan, jslib):
             e = execjs(scan[w[0]+1:w[1]], jslib)
             if w[0] == 0 and w[1] == len(scan):
                 return e
-            parts.append(json.dumps(e))
+            leaf = json.dumps(e, sort_keys=True)
+            if leaf[0] == '"':
+                leaf = leaf[1:-1]
+            parts.append(leaf)
         elif scan[w[0]] == '\\':
             e = scan[w[1]-1]
             parts.append(e)

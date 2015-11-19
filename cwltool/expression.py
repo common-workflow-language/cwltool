@@ -86,13 +86,13 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
     raise WorkflowException("Unknown expression engine '%s'" % ex["engine"])
 
-seg_symbol = r"""[^[\].(){} ]+"""
+seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index  = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
-segment_re = re.compile(segments)
-param_re = re.compile(r"\$\((%s)%s*\)" % (seg_symbol, segments))
+segment_re = re.compile(segments, flags=re.UNICODE)
+param_re = re.compile(r"\$\((%s)%s*\)" % (seg_symbol, segments), flags=re.UNICODE)
 
 def next_seg(remain, obj):
     if remain:
@@ -115,11 +115,13 @@ def param_interpolate(ex, obj, strip=True):
         if strip and len(ex.strip()) == len(m.group(0)):
             return leaf
         else:
-            leaf = json.dumps(leaf)
+            leaf = json.dumps(leaf, sort_keys=True)
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
             return ex[0:m.start(0)] + leaf + param_interpolate(ex[m.end(0):], obj, False)
     else:
+        if "$(" in ex:
+            _logger.warn("Possible bug: found '$(' in '%s' but did not match valid parameter reference.")
         return ex
 
 
