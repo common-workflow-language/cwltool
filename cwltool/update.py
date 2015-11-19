@@ -1,6 +1,8 @@
 import sys
 import urlparse
 import json
+import re
+from aslist import aslist
 
 def findId(doc, frg):
     if isinstance(doc, dict):
@@ -27,7 +29,7 @@ def fixType(doc):
             return "#" + doc
     return doc
 
-def _draft2toDraft3(doc, loader, baseuri):
+def _draft2toDraft3dev1(doc, loader, baseuri):
     try:
         if isinstance(doc, dict):
             if "import" in doc:
@@ -40,7 +42,7 @@ def _draft2toDraft3(doc, loader, baseuri):
                 if frag:
                     frag = "#" + frag
                     r = findId(r, frag)
-                return _draft2toDraft3(r, loader, imp)
+                return _draft2toDraft3dev1(r, loader, imp)
 
             if "include" in doc:
                 return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
@@ -63,10 +65,10 @@ def _draft2toDraft3(doc, loader, baseuri):
 
 
             for a in doc:
-                doc[a] = _draft2toDraft3(doc[a], loader, baseuri)
+                doc[a] = _draft2toDraft3dev1(doc[a], loader, baseuri)
 
         if isinstance(doc, list):
-            return [_draft2toDraft3(a, loader, baseuri) for a in doc]
+            return [_draft2toDraft3dev1(a, loader, baseuri) for a in doc]
 
         return doc
     except Exception as e:
@@ -77,13 +79,78 @@ def _draft2toDraft3(doc, loader, baseuri):
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s" % (err, e))
 
-def draft2toDraft3(doc, loader, baseuri):
-    return (_draft2toDraft3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+def draft2toDraft3dev1(doc, loader, baseuri):
+    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+
+digits = re.compile("\d+")
+
+def updateScript(sc):
+    sc = sc.replace("$job", "inputs")
+    sc = sc.replace("$tmpdir", "runtime.tmpdir")
+    sc = sc.replace("$outdir", "runtime.outdir")
+    sc = sc.replace("$self", "self")
+    return sc
+
+def _draftDraft3dev1toDev2(doc):
+    # Convert expressions
+    if isinstance(doc, dict):
+        for a in doc:
+            ent = doc[a]
+            if isinstance(ent, dict) and "engine" in ent:
+                if ent["engine"] == "cwl:JsonPointer":
+                    sp = ent["script"].split("/")
+                    if sp[0] in ("tmpdir", "outdir"):
+                        doc[a] = "$(runtime.%s)" % sp[0]
+                    else:
+                        if not sp[0]:
+                            sp.pop(0)
+                        front = sp.pop(0)
+                        sp = [str(i) if digits.match(i) else "'"+i+"'"
+                              for i in sp]
+                        if front == "job":
+                            doc[a] = "$(inputs[%s])" % ']['.join(sp)
+                        elif front == "context":
+                            doc[a] = "$(self[%s])" % ']['.join(sp)
+                else:
+                    sc = updateScript(ent["script"])
+                    if sc[0] == "{":
+                        doc[a] = "$" + sc
+                    else:
+                        doc[a] = "$(%s)" % sc
+            else:
+                doc[a] = _draftDraft3dev1toDev2(doc[a])
+
+        if "class" in doc and (doc["class"] in ("CommandLineTool", "Workflow", "ExpressionTool")):
+            added = False
+            if "requirements" in doc:
+                for r in doc["requirements"]:
+                    if r["class"] == "ExpressionEngineRequirement":
+                        if "engineConfig" in r:
+                            doc["requirements"].append({
+                                "class":"InlineJavascriptRequirement",
+                                "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
+                            })
+                            added = True
+                        doc["requirements"] = [rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
+                        break
+            else:
+                doc["requirements"] = []
+            if not added:
+                doc["requirements"].append({"class":"InlineJavascriptRequirement"})
+
+    elif isinstance(doc, list):
+        return [_draftDraft3dev1toDev2(a) for a in doc]
+
+    return doc
+
+def draftDraft3dev1toDev2(doc, loader, baseuri):
+    return (_draftDraft3dev1toDev2(doc), "https://w3id.org/cwl/cwl#draft-3.dev2")
 
 def update(doc, loader, baseuri):
     updates = {
-        "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3,
-        "https://w3id.org/cwl/cwl#draft-3.dev1": None
+        "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
+        "https://w3id.org/cwl/cwl#draft-3.dev1": draftDraft3dev1toDev2,
+        "https://w3id.org/cwl/cwl#draft-3.dev2": None
     }
 
     def identity(doc, loader, baseuri):
