@@ -230,8 +230,8 @@ class Process(object):
             return {
                 "cores": request["coresMin"],
                 "ram":   request["ramMin"],
-                "tmpdir": request["tmpdirMin"],
-                "outdir": request["outdirMin"],
+                "tmpdirSize": request["tmpdirMin"],
+                "outdirSize": request["outdirMin"],
             }
 
     def validate_hints(self, hints, strict):
