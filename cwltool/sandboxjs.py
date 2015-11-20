@@ -6,10 +6,23 @@ class JavascriptException(Exception):
     pass
 
 def execjs(js, jslib):
-    nodejs = subprocess.Popen(["nodejs"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        nodejs = subprocess.Popen(["nodejs"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError as e:
+        if e.errno == 2:
+            nodejs = subprocess.Popen(["docker", "run",
+                                       "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
+                                       "--interactive",
+                                       "--rm",
+                                       "commonworkflowlanguage/nodejs-engine", "nodejs"],
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
+        else:
+            raise
 
     fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
-    script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})))" % json.dumps(fn)
+    script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
 
     def term():
         try:
@@ -24,8 +37,8 @@ def execjs(js, jslib):
     stdoutdata, stderrdata = nodejs.communicate(script)
     tm.cancel()
 
-    if stderrdata.strip() or nodejs.returncode != 0:
-        raise JavascriptException(script + "\n" + stderrdata)
+    if nodejs.returncode != 0:
+        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, script, stdoutdata, stderrdata))
     else:
         return json.loads(stdoutdata)
 
