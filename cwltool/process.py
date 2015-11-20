@@ -18,6 +18,7 @@ import tempfile
 import glob
 from errors import WorkflowException
 from pathmapper import abspath
+import errno
 
 _logger = logging.getLogger("cwltool")
 
@@ -28,7 +29,9 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "CreateFileRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
-                                "MultipleInputFeatureRequirement"]
+                                "MultipleInputFeatureRequirement",
+                                "InlineJavascriptRequirement",
+                                "ShellCommandRequirement"]
 
 def get_schema():
     f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')
@@ -249,9 +252,15 @@ def empty_subtree(dirpath):
     # subdirectories)
     for d in os.listdir(dirpath):
         d = os.path.join(dirpath, d)
-        if stat.S_ISDIR(os.stat(d).st_mode):
-            if empty_subtree(d) is False:
+        try:
+            if stat.S_ISDIR(os.stat(d).st_mode):
+                if empty_subtree(d) is False:
+                    return False
+            else:
                 return False
-        else:
-            return False
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise
     return True

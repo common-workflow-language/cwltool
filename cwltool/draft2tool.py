@@ -20,6 +20,7 @@ import re
 import urlparse
 import tempfile
 from builder import CONTENT_LIMIT, substitute
+import shellescape
 
 _logger = logging.getLogger("cwltool")
 
@@ -31,7 +32,8 @@ class ExpressionTool(Process):
         def run(self, **kwargs):
             try:
                 self.output_callback(self.builder.do_eval(self.script), "success")
-            except Exception:
+            except Exception as e:
+                _logger.warn("Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
@@ -155,7 +157,18 @@ class CommandLineTool(Process):
             for t in evr["envDef"]:
                 j.environment[t["envName"]] = builder.do_eval(t["envValue"])
 
-        j.command_line = flatten(map(builder.generate_arg, builder.bindings))
+        shellcmd, _ = self.get_requirement("ShellCommandRequirement")
+        if shellcmd:
+            cmd = []
+            for b in builder.bindings:
+                arg = builder.generate_arg(b)
+                if b.get("shellQuote", True):
+                    arg = [shellescape.quote(a) for a in aslist(arg)]
+                cmd.extend(aslist(arg))
+            j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
+            print j.command_line
+        else:
+            j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = functools.partial(self.collect_output_ports, self.tool["outputs"], builder)
@@ -188,7 +201,10 @@ class CommandLineTool(Process):
                 r = []
                 bg = builder.do_eval(binding["glob"])
                 for gb in aslist(bg):
-                    r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                    try:
+                        r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                    except (OSError, IOError) as e:
+                        _logger.warn(str(e))
                 for files in r:
                     checksum = hashlib.sha1()
                     with builder.fs_access.open(files["path"], "rb") as f:
@@ -218,7 +234,7 @@ class CommandLineTool(Process):
             if schema["type"] == "File" and "secondaryFiles" in binding:
                 r["secondaryFiles"] = []
                 for sf in aslist(binding["secondaryFiles"]):
-                    if isinstance(sf, dict):
+                    if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                         sfpath = builder.do_eval(sf, context=r["path"])
                     else:
                         sfpath = {"path": substitute(r["path"], sf), "class": "File"}

@@ -256,6 +256,9 @@ def generate_parser(toolparser, tool, namemap):
 def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
+    if isinstance(avsc_names, Exception):
+        raise avsc_names
+
     uri = "file://" + os.path.abspath(argsworkflow)
     fileuri, urifrag = urlparse.urldefrag(uri)
     workflowobj = document_loader.fetch(fileuri)
@@ -335,7 +338,11 @@ def main(args=None,
         _logger.error("CWL document required")
         return 1
 
-    t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
+    try:
+        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
+    except Exception as e:
+        _logger.error("I'm sorry, I couldn't load this CWL file.\n%s", e, exc_info=(e if args.debug else False))
+        return 1
 
     if type(t) == int:
         return t
@@ -367,7 +374,7 @@ def main(args=None,
     if args.conformance_test:
         loader = Loader({})
     else:
-        loader = Loader({"id": "@id", "path": {"@type": "@id"}})
+        loader = Loader({"path": {"@type": "@id"}})
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
@@ -408,11 +415,18 @@ def main(args=None,
                 job_order_object = {}
 
             job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
+
             _logger.debug("Parsed job order from command line: %s", job_order_object)
         else:
             job_order_object = None
 
-    if not job_order_object:
+    for inp in t.tool["inputs"]:
+        if "default" in inp and (not job_order_object or shortname(inp["id"]) not in job_order_object):
+            if not job_order_object:
+                job_order_object = {}
+            job_order_object[shortname(inp["id"])] = inp["default"]
+
+    if not job_order_object and len(t.tool["inputs"]) > 0:
         parser.print_help()
         if toolparser:
             print "\nOptions for %s " % args.workflow
