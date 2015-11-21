@@ -95,7 +95,7 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
     # Convert expressions
     if isinstance(doc, dict):
         if "@import" in doc:
-            r, _ = loader.resolve_ref(doc["@import"])
+            r, _ = loader.resolve_ref(doc["@import"], base_url=baseuri)
             return _draftDraft3dev1toDev2(r, loader, r["id"])
 
         for a in doc:
