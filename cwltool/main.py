@@ -100,7 +100,11 @@ def arg_parser():
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
-    parser.add_argument("--strict", action="store_true", help="Strict validation (error on unrecognized fields)")
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
+                         default=True, dest="strict")
+    exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
+                         default=True, dest="strict")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
