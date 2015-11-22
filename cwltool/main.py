@@ -306,6 +306,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
 def main(args=None,
          executor=single_job_executor,
          makeTool=workflow.defaultMakeTool,
+         selectResources=None,
          parser=None,
          stdin=sys.stdin,
          stdout=sys.stdout,
@@ -452,7 +453,8 @@ def main(args=None,
                        tmpdir_prefix=args.tmpdir_prefix,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
-                       move_outputs=args.move_outputs
+                       move_outputs=args.move_outputs,
+                       select_resources=selectResources
                        )
         # This is the workflow output, it needs to be written
         stdout.write(json.dumps(out, indent=4))

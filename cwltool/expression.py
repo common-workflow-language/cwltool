@@ -14,17 +14,8 @@ import re
 
 _logger = logging.getLogger("cwltool")
 
-def jshead(engineConfig, jobinput, context, tmpdir, outdir):
-    return """
-%s
-var inputs=%s;
-var self=%s;
-var runtime={'tmpdir': %s, 'outdir': %s};
-""" % ("\n".join(engineConfig),
-                      json.dumps(jobinput, indent=4),
-                      json.dumps(context, indent=4),
-                      json.dumps(tmpdir, indent=4),
-                      json.dumps(outdir, indent=4))
+def jshead(engineConfig, rootvars):
+    return "\n".join(engineConfig + ["var %s = %s;" % (k, json.dumps(v)) for k, v in rootvars.items()])
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
     if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
@@ -125,19 +116,22 @@ def param_interpolate(ex, obj, strip=True):
         return ex
 
 
-def do_eval(ex, jobinput, requirements, outdir, tmpdir, context=None, pull_image=True):
+def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources, context=None, pull_image=True):
+    runtime = resources.copy()
+    runtime["tmpdir"] = tmpdir
+    runtime["outdir"] = outdir
+
+    rootvars = {
+            "inputs": jobinput,
+            "self": context,
+            "runtime": runtime
+        }
+
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
     if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
-                return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), jobinput, context, tmpdir, outdir))
-        return param_interpolate(ex, {
-            "inputs": jobinput,
-            "self": context,
-            "runtime": {
-                "tmpdir": tmpdir,
-                "outdir": outdir
-            }
-        })
+                return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), rootvars))
+        return param_interpolate(ex, rootvars)
     return ex
