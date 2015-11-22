@@ -91,9 +91,13 @@ def updateScript(sc):
     sc = sc.replace("$self", "self")
     return sc
 
-def _draftDraft3dev1toDev2(doc):
+def _draftDraft3dev1toDev2(doc, loader, baseuri):
     # Convert expressions
     if isinstance(doc, dict):
+        if "@import" in doc:
+            r, _ = loader.resolve_ref(doc["@import"], base_url=baseuri)
+            return _draftDraft3dev1toDev2(r, loader, r["id"])
+
         for a in doc:
             ent = doc[a]
             if isinstance(ent, dict) and "engine" in ent:
@@ -118,7 +122,7 @@ def _draftDraft3dev1toDev2(doc):
                     else:
                         doc[a] = "$(%s)" % sc
             else:
-                doc[a] = _draftDraft3dev1toDev2(doc[a])
+                doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
 
         if "class" in doc and (doc["class"] in ("CommandLineTool", "Workflow", "ExpressionTool")):
             added = False
@@ -139,12 +143,12 @@ def _draftDraft3dev1toDev2(doc):
                 doc["requirements"].append({"class":"InlineJavascriptRequirement"})
 
     elif isinstance(doc, list):
-        return [_draftDraft3dev1toDev2(a) for a in doc]
+        return [_draftDraft3dev1toDev2(a, loader, baseuri) for a in doc]
 
     return doc
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
-    return (_draftDraft3dev1toDev2(doc), "https://w3id.org/cwl/cwl#draft-3.dev2")
+    return (_draftDraft3dev1toDev2(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
 
 def update(doc, loader, baseuri):
     updates = {
