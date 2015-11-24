@@ -193,5 +193,5 @@ class CommandLineJob(object):
             shutil.rmtree(self.tmpdir, True)
 
         if move_outputs and empty_subtree(self.outdir):
-            _logger.debug("[job %s] Removing empty output directory %s", id(self), self.tmpdir)
+            _logger.debug("[job %s] Removing empty output directory %s", id(self), self.outdir)
             shutil.rmtree(self.outdir, True)
