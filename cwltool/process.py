@@ -18,8 +18,11 @@ import tempfile
 import glob
 from errors import WorkflowException
 from pathmapper import abspath
+
 from rdflib import URIRef
 from rdflib.namespace import RDFS
+
+import errno
 
 _logger = logging.getLogger("cwltool")
 
@@ -31,7 +34,9 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
                                 "MultipleInputFeatureRequirement",
-                                "FormatOntologyRequirement"]
+                                "FormatOntologyRequirement",
+                                "InlineJavascriptRequirement",
+                                "ShellCommandRequirement"]
 
 def get_schema():
     f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')
@@ -227,8 +232,50 @@ class Process(object):
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
+        builder.resources = {}
+        builder.resources = self.evalResources(builder, kwargs)
+
         return builder
 
+    def evalResources(self, builder, kwargs):
+        resourceReq, _ = self.get_requirement("ResourceRequirement")
+        if resourceReq is None:
+            resourceReq = {}
+        request = {
+            "coresMin": 1,
+            "coresMax": 1,
+            "ramMin": 1024,
+            "ramMax": 1024,
+            "tmpdirMin": 1024,
+            "tmpdirMax": 1024,
+            "outdirMin": 1024,
+            "outdirMax": 1024
+        }
+        for a in ("cores", "ram", "tmpdir", "outdir"):
+            mn = None
+            mx = None
+            if resourceReq.get(a+"Min"):
+                mn = builder.do_eval(resourceReq[a+"Min"])
+            if resourceReq.get(a+"Max"):
+                mx = builder.do_eval(resourceReq[a+"Max"])
+            if mn is None:
+                mn = mx
+            elif mx is None:
+                mx = mn
+
+            if mn:
+                request[a+"Min"] = mn
+                request[a+"Max"] = mx
+
+        if kwargs.get("select_resources"):
+            return kwargs["select_resources"](request)
+        else:
+            return {
+                "cores": request["coresMin"],
+                "ram":   request["ramMin"],
+                "tmpdirSize": request["tmpdirMin"],
+                "outdirSize": request["outdirMin"],
+            }
 
     def validate_hints(self, hints, strict):
         for r in hints:
@@ -248,9 +295,15 @@ def empty_subtree(dirpath):
     # subdirectories)
     for d in os.listdir(dirpath):
         d = os.path.join(dirpath, d)
-        if stat.S_ISDIR(os.stat(d).st_mode):
-            if empty_subtree(d) is False:
+        try:
+            if stat.S_ISDIR(os.stat(d).st_mode):
+                if empty_subtree(d) is False:
+                    return False
+            else:
                 return False
-        else:
-            return False
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise
     return True

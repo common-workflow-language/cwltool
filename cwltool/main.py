@@ -22,7 +22,9 @@ import update
 from process import shortname
 
 _logger = logging.getLogger("cwltool")
-_logger.addHandler(logging.StreamHandler())
+
+defaultStreamHandler = logging.StreamHandler()
+_logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 
 def arg_parser():
@@ -94,10 +96,15 @@ def arg_parser():
     exgroup.add_argument("--print-rdf", action="store_true",
                         help="Print corresponding RDF graph for workflow and exit")
     exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
+    exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
-    parser.add_argument("--strict", action="store_true", help="Strict validation (error on unrecognized fields)")
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
+                         default=True, dest="strict")
+    exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
+                         default=True, dest="strict")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
@@ -250,8 +257,11 @@ def generate_parser(toolparser, tool, namemap):
 
     return toolparser
 
-def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
+def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
+
+    if isinstance(avsc_names, Exception):
+        raise avsc_names
 
     uri = "file://" + os.path.abspath(argsworkflow)
     fileuri, urifrag = urlparse.urldefrag(uri)
@@ -260,6 +270,12 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
         workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
                        "id": fileuri,
                        "@graph": workflowobj}
+
+    jobobj = None
+    if "cwl:tool" in workflowobj:
+        jobobj = workflowobj
+        workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
+
     workflowobj = update.update(workflowobj, document_loader, fileuri)
     document_loader.idx.clear()
 
@@ -272,6 +288,10 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
     except (schema_salad.validate.ValidationException, RuntimeError) as e:
         _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1
+
+    if print_pre:
+        print json.dumps(processobj, indent=4)
+        return 0
 
     if urifrag:
         processobj, _ = document_loader.resolve_ref(uri)
@@ -287,9 +307,25 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug):
         _logger.error("Tool definition failed initialization:\n%s", e, exc_info=(e if debug else False))
         return 1
 
+    if jobobj:
+        for inp in t.tool["inputs"]:
+            if shortname(inp["id"]) in jobobj:
+                inp["default"] = jobobj[shortname(inp["id"])]
+
     return t
 
-def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeTool, parser=None):
+def main(args=None,
+         executor=single_job_executor,
+         makeTool=workflow.defaultMakeTool,
+         selectResources=None,
+         parser=None,
+         stdin=sys.stdin,
+         stdout=sys.stdout,
+         stderr=sys.stderr):
+
+    _logger.removeHandler(defaultStreamHandler)
+    _logger.addHandler(logging.StreamHandler(stderr))
+
     if args is None:
         args = sys.argv[1:]
 
@@ -317,7 +353,11 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
         _logger.error("CWL document required")
         return 1
 
-    t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug)
+    try:
+        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
+    except Exception as e:
+        _logger.error("I'm sorry, I couldn't load this CWL file.\n%s", e, exc_info=(e if args.debug else False))
+        return 1
 
     if type(t) == int:
         return t
@@ -344,17 +384,24 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    if len(args.job_order) == 1 and args.job_order[0][0] != "-":
-        job_order_file = args.job_order[0]
-    else:
-        job_order_file = None
+    job_order_object = None
 
     if args.conformance_test:
         loader = Loader({})
     else:
-        loader = Loader({"id": "@id", "path": {"@type": "@id"}, "format": {"@type": "@id"}})
+        loader = Loader({"path": {"@type": "@id"}, "format": {"@type": "@id"}})
 
-    if job_order_file:
+    if len(args.job_order) == 1 and args.job_order[0][0] != "-":
+        job_order_file = args.job_order[0]
+    elif len(args.job_order) == 1 and args.job_order[0] == "-":
+        job_order_object = yaml.load(stdin)
+        job_order_object, _ = loader.resolve_all(job_order_object, "")
+    else:
+        job_order_file = None
+
+    if job_order_object:
+        input_basedir = args.basedir if args.basedir else os.getcwd()
+    elif job_order_file:
         input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file)
@@ -383,11 +430,18 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
                 job_order_object = {}
 
             job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
+
             _logger.debug("Parsed job order from command line: %s", job_order_object)
         else:
             job_order_object = None
 
-    if not job_order_object:
+    for inp in t.tool["inputs"]:
+        if "default" in inp and (not job_order_object or shortname(inp["id"]) not in job_order_object):
+            if not job_order_object:
+                job_order_object = {}
+            job_order_object[shortname(inp["id"])] = inp["default"]
+
+    if not job_order_object and len(t.tool["inputs"]) > 0:
         parser.print_help()
         if toolparser:
             print "\nOptions for %s " % args.workflow
@@ -410,10 +464,12 @@ def main(args=None, executor=single_job_executor, makeTool=workflow.defaultMakeT
                        tmpdir_prefix=args.tmpdir_prefix,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
-                       move_outputs=args.move_outputs
+                       move_outputs=args.move_outputs,
+                       select_resources=selectResources
                        )
         # This is the workflow output, it needs to be written
-        sys.stdout.write(json.dumps(out, indent=4))
+        stdout.write(json.dumps(out, indent=4))
+        stdout.flush()
     except (validate.ValidationException) as e:
         _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1
