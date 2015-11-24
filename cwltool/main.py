@@ -270,6 +270,12 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
         workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
                        "id": fileuri,
                        "@graph": workflowobj}
+
+    jobobj = None
+    if "cwl:tool" in workflowobj:
+        jobobj = workflowobj
+        workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
+
     workflowobj = update.update(workflowobj, document_loader, fileuri)
     document_loader.idx.clear()
 
@@ -300,6 +306,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
     except (RuntimeError, workflow.WorkflowException) as e:
         _logger.error("Tool definition failed initialization:\n%s", e, exc_info=(e if debug else False))
         return 1
+
+    if jobobj:
+        for inp in t.tool["inputs"]:
+            if shortname(inp["id"]) in jobobj:
+                inp["default"] = jobobj[shortname(inp["id"])]
 
     return t
 
