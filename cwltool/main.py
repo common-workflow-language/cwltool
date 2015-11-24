@@ -263,7 +263,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    uri = "file://" + os.path.abspath(argsworkflow)
+    split = urlparse.urlsplit(argsworkflow)
+    if split.scheme:
+        uri = argsworkflow
+    else:
+        uri = "file://" + os.path.abspath(argsworkflow)
     fileuri, urifrag = urlparse.urldefrag(uri)
     workflowobj = document_loader.fetch(fileuri)
     if isinstance(workflowobj, list):
