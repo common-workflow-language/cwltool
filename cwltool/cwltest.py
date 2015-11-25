@@ -17,35 +17,41 @@ _logger.setLevel(logging.INFO)
 
 UNSUPPORTED_FEATURE = 33
 
+class CompareFail(Exception):
+    pass
+
 def compare(a, b):
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
                 if not b["path"].endswith("/" + a["path"]):
-                    return False
+                    raise CompareFail("%s does not end with %s" %(b["path"], a["path"]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
             if len(a) != len(b):
-                return False
+                raise CompareFail("expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in a:
                 if a.get("class") != "File" or c != "path":
                     if c not in b:
-                        return False
+                        raise CompareFail("%s not in %s" % (c, b))
                     if not compare(a[c], b[c]):
                         return False
             return True
         elif isinstance(a, list):
             if len(a) != len(b):
-                return False
+                raise CompareFail("expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in xrange(0, len(a)):
                 if not compare(a[c], b[c]):
                     return False
             return True
         else:
-            return a == b
-    except:
-        return False
+            if a != b:
+                raise CompareFail("%s != %s" % (a, b))
+            else:
+                return True
+    except Exception as e:
+        raise CompareFail(str(e))
 
 def run_test(args, i, t):
     out = {}
@@ -104,15 +110,16 @@ def run_test(args, i, t):
         checkkeys = ["args", "stdin", "stdout", "createfiles"]
 
     for key in checkkeys:
-        if not compare(t.get(key), out.get(key)):
-            if not failed:
-                _logger.warn("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
-                _logger.warn(t.get("doc"))
-                failed = True
-            _logger.warn("%s expected %s\n%s      got %s", key,
+        try:
+            compare(t.get(key), out.get(key))
+        except CompareFail as ex:
+            _logger.warn("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+            _logger.warn(t.get("doc"))
+            _logger.warn("%s expected %s\n got %s", key,
                                                             json.dumps(t.get(key), indent=4, sort_keys=True),
-                                                            " " * len(key),
                                                             json.dumps(out.get(key), indent=4, sort_keys=True))
+            _logger.warn("Compare failure %s", ex)
+            failed = True
 
     if outdir:
         shutil.rmtree(outdir, True)
