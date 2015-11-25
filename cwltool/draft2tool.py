@@ -203,11 +203,13 @@ class CommandLineTool(Process):
         r = None
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
+            globpatterns = []
             if "glob" in binding:
                 r = []
                 for gb in aslist(binding["glob"]):
                     try:
                         gb = builder.do_eval(gb)
+                        globpatterns.append(gb)
                         r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
@@ -245,7 +247,7 @@ class CommandLineTool(Process):
 
             if singlefile:
                 if not r and not optional:
-                    raise WorkflowException("No matches for output file with glob: '{}'".format(bg))
+                    raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
                     pass
                 elif len(r) > 1:
