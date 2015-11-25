@@ -21,6 +21,7 @@ import urlparse
 import tempfile
 from builder import CONTENT_LIMIT, substitute
 import shellescape
+import errno
 
 _logger = logging.getLogger("cwltool")
 
@@ -60,10 +61,14 @@ class CommandLineTool(Process):
 
     def makePathMapper(self, reffiles, input_basedir, **kwargs):
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        if dockerReq and kwargs.get("use_container"):
-            return DockerPathMapper(reffiles, input_basedir)
-        else:
-            return PathMapper(reffiles, input_basedir)
+        try:
+            if dockerReq and kwargs.get("use_container"):
+                return DockerPathMapper(reffiles, input_basedir)
+            else:
+                return PathMapper(reffiles, input_basedir)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                raise WorkflowException("Missing input file %s" % e)
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
         builder = self._init_job(joborder, input_basedir, **kwargs)
@@ -254,7 +259,9 @@ class CommandLineTool(Process):
                         primary["secondaryFiles"] = []
                         for sf in aslist(binding["secondaryFiles"]):
                             if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                                sfpath = builder.do_eval(sf, context=r["path"])
+                                sfpath = builder.do_eval(sf, context=r)
+                                if isinstance(sfpath, basestring):
+                                    sfpath = {"path": sfpath, "class": "File"}
                             else:
                                 sfpath = {"path": substitute(r["path"], sf), "class": "File"}
 

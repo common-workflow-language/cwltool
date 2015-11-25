@@ -176,6 +176,7 @@ class Process(object):
         builder.schemaDefs = self.schemaDefs
         builder.names = self.names
         builder.requirements = self.requirements
+        builder.resources = {}
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
@@ -189,7 +190,6 @@ class Process(object):
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
-        builder.resources = {}
         builder.resources = self.evalResources(builder, kwargs)
 
         return builder

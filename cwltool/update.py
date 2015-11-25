@@ -77,7 +77,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        raise Exception("Error updating '%s'\n  %s" % (err, e))
+        import traceback
+        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
 
 def draft2toDraft3dev1(doc, loader, baseuri):
     return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
