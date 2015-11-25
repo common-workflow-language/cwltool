@@ -185,6 +185,7 @@ class CommandLineTool(Process):
                 return outputdoc
 
             ret = {}
+
             for port in ports:
                 fragment = shortname(port["id"])
                 ret[fragment] = self.collect_output(port, builder, outdir)
@@ -195,6 +196,7 @@ class CommandLineTool(Process):
 
     def collect_output(self, schema, builder, outdir):
         r = None
+        _type = None
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
             if "glob" in binding:
@@ -219,19 +221,26 @@ class CommandLineTool(Process):
                     files["checksum"] = "sha1$%s" % checksum.hexdigest()
                     files["size"] = filesize
 
+            if isinstance(schema["type"], list):
+                for t in schema["type"]:
+                    if t == "null" and (not r or len(r) == 0):
+                        return None
+                    if t == "File" and len(r) == 1:
+                        _type = "File"
+
             if "outputEval" in binding:
                 r = builder.do_eval(binding["outputEval"], context=r)
-                if schema["type"] == "File" and (not isinstance(r, dict) or "path" not in r):
+                if (schema["type"] == "File" or _type == "File") and (not isinstance(r, dict) or "path" not in r):
                     raise WorkflowException("Expression must return a file object.")
 
-            if schema["type"] == "File":
+            if schema["type"] == "File" or _type == "File":
                 if not r:
                     raise WorkflowException("No matches for output file with glob: '{}'".format(bg))
                 if len(r) > 1:
                     raise WorkflowException("Multiple matches for output item that is a single file.")
                 r = r[0]
 
-            if schema["type"] == "File" and "secondaryFiles" in binding:
+            if (schema["type"] == "File" or _type == "File") and "secondaryFiles" in binding:
                 r["secondaryFiles"] = []
                 for sf in aslist(binding["secondaryFiles"]):
                     if isinstance(sf, dict) or "$(" in sf or "${" in sf:
@@ -246,7 +255,6 @@ class CommandLineTool(Process):
                 for sf in r["secondaryFiles"]:
                     if not builder.fs_access.exists(sf["path"]):
                         raise WorkflowException("Missing secondary file of '%s' of primary file '%s'" % (sf["path"], r["path"]))
-
 
         if not r and schema["type"] == "record":
             r = {}
