@@ -170,16 +170,6 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
 
         return final_output[0]
 
-def create_loader(ctx):
-    loader = Loader()
-    url_fields = []
-    for c in ctx:
-        if c != "id" and (ctx[c] == "@id") or (isinstance(ctx[c], dict) and ctx[c].get("@type") == "@id"):
-            url_fields.append(c)
-    loader.url_fields = url_fields
-    loader.idx["cwl:JsonPointer"] = {}
-    return loader
-
 class FileAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -257,7 +247,12 @@ def generate_parser(toolparser, tool, namemap):
 
     return toolparser
 
-def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False):
+
+def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
+              print_pre=False,
+              print_rdf=False,
+              print_dot=False,
+              rdf_serializer=None):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
     if isinstance(avsc_names, Exception):
@@ -297,10 +292,21 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
         print json.dumps(processobj, indent=4)
         return 0
 
+    if print_rdf:
+        printrdf(argsworkflow, processobj, document_loader.ctx, rdf_serializer)
+        return 0
+
+    if print_dot:
+        printdot(argsworkflow, processobj, document_loader.ctx, rdf_serializer)
+        return 0
+
     if urifrag:
         processobj, _ = document_loader.resolve_ref(uri)
     elif isinstance(processobj, list):
-        processobj, _ = document_loader.resolve_ref(urlparse.urljoin(argsworkflow, "#main"))
+        _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
+                      ", #".join(urlparse.urldefrag(i["id"])[1]
+                                 for i in processobj if "id" in i))
+        return 1
 
     try:
         t = makeTool(processobj, strict=strict, makeTool=makeTool)
@@ -358,21 +364,17 @@ def main(args=None,
         return 1
 
     try:
-        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug, args.print_pre)
+        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug,
+                      print_pre=args.print_pre,
+                      print_rdf=args.print_rdf,
+                      print_dot=args.print_dot,
+                      rdf_serializer=args.rdf_serializer)
     except Exception as e:
         _logger.error("I'm sorry, I couldn't load this CWL file.\n%s", e, exc_info=(e if args.debug else False))
         return 1
 
     if type(t) == int:
         return t
-
-    if args.print_rdf:
-        printrdf(args.workflow, processobj, ctx, args.rdf_serializer)
-        return 0
-
-    if args.print_dot:
-        printdot(args.workflow, processobj, ctx, args.rdf_serializer)
-        return 0
 
     if args.tmp_outdir_prefix != 'tmp':
         # Use user defined temp directory (if it exists)
