@@ -21,6 +21,7 @@ import urlparse
 import tempfile
 from builder import CONTENT_LIMIT, substitute
 import shellescape
+import errno
 
 _logger = logging.getLogger("cwltool")
 
@@ -60,10 +61,14 @@ class CommandLineTool(Process):
 
     def makePathMapper(self, reffiles, input_basedir, **kwargs):
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        if dockerReq and kwargs.get("use_container"):
-            return DockerPathMapper(reffiles, input_basedir)
-        else:
-            return PathMapper(reffiles, input_basedir)
+        try:
+            if dockerReq and kwargs.get("use_container"):
+                return DockerPathMapper(reffiles, input_basedir)
+            else:
+                return PathMapper(reffiles, input_basedir)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                raise WorkflowException("Missing input file %s" % e)
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
         builder = self._init_job(joborder, input_basedir, **kwargs)
@@ -185,6 +190,7 @@ class CommandLineTool(Process):
                 return outputdoc
 
             ret = {}
+
             for port in ports:
                 fragment = shortname(port["id"])
                 ret[fragment] = self.collect_output(port, builder, outdir)
@@ -197,12 +203,15 @@ class CommandLineTool(Process):
         r = None
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
+            globpatterns = []
             if "glob" in binding:
                 r = []
-                bg = builder.do_eval(binding["glob"])
-                for gb in aslist(bg):
+                for gb in aslist(binding["glob"]):
                     try:
-                        r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                        gb = builder.do_eval(gb)
+                        globpatterns.append(gb)
+                        if gb:
+                            r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
                 for files in r:
@@ -221,34 +230,52 @@ class CommandLineTool(Process):
                     if "format" in schema:
                         files["format"] = builder.do_eval(schema["format"], context=files)
 
+            optional = False
+            singlefile = False
+            if isinstance(schema["type"], list):
+                if "null" in schema["type"]:
+                    optional = True
+                if "File" in schema["type"]:
+                    singlefile = True
+            elif schema["type"] == "File":
+                singlefile = True
+
             if "outputEval" in binding:
                 r = builder.do_eval(binding["outputEval"], context=r)
-                if schema["type"] == "File" and (not isinstance(r, dict) or "path" not in r):
-                    raise WorkflowException("Expression must return a file object.")
+                if singlefile:
+                    if optional and r is None:
+                        pass
+                    if (not isinstance(r, dict) or "path" not in r):
+                        raise WorkflowException("Expression must return a file object.")
 
-            if schema["type"] == "File":
-                if not r:
-                    raise WorkflowException("No matches for output file with glob: '{}'".format(bg))
-                if len(r) > 1:
+            if singlefile:
+                if not r and not optional:
+                    raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
+                elif not r and optional:
+                    pass
+                elif len(r) > 1:
                     raise WorkflowException("Multiple matches for output item that is a single file.")
-                r = r[0]
+                else:
+                    r = r[0]
 
-            if schema["type"] == "File" and "secondaryFiles" in binding:
-                r["secondaryFiles"] = []
-                for sf in aslist(binding["secondaryFiles"]):
-                    if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                        sfpath = builder.do_eval(sf, context=r["path"])
-                    else:
-                        sfpath = {"path": substitute(r["path"], sf), "class": "File"}
-                    if isinstance(sfpath, list):
-                        r["secondaryFiles"].extend(sfpath)
-                    else:
-                        r["secondaryFiles"].append(sfpath)
+            if "secondaryFiles" in binding:
+                for primary in aslist(r):
+                    if isinstance(primary, dict):
+                        primary["secondaryFiles"] = []
+                        for sf in aslist(binding["secondaryFiles"]):
+                            if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                                sfpath = builder.do_eval(sf, context=r)
+                                if isinstance(sfpath, basestring):
+                                    sfpath = {"path": sfpath, "class": "File"}
+                            else:
+                                sfpath = {"path": substitute(r["path"], sf), "class": "File"}
 
-                for sf in r["secondaryFiles"]:
-                    if not builder.fs_access.exists(sf["path"]):
-                        raise WorkflowException("Missing secondary file of '%s' of primary file '%s'" % (sf["path"], r["path"]))
+                            for sfitem in aslist(sfpath):
+                                if builder.fs_access.exists(sfitem["path"]):
+                                    primary["secondaryFiles"].append(sfitem)
 
+            if not r and optional:
+                r = None
 
         if not r and schema["type"] == "record":
             r = {}

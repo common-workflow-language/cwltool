@@ -90,8 +90,10 @@ class Builder(object):
                         if "secondaryFiles" not in datum:
                             datum["secondaryFiles"] = []
                         for sf in aslist(binding["secondaryFiles"]):
-                            if isinstance(sf, dict):
-                                sfpath = self.do_eval(sf, context=datum["path"])
+                            if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                                sfpath = self.do_eval(sf, context=datum)
+                                if isinstance(sfpath, basestring):
+                                    sfpath = {"path": sfpath, "class": "File"}
                             else:
                                 sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
                             if isinstance(sfpath, list):

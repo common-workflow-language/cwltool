@@ -77,7 +77,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        raise Exception("Error updating '%s'\n  %s" % (err, e))
+        import traceback
+        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
 
 def draft2toDraft3dev1(doc, loader, baseuri):
     return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
@@ -91,7 +92,36 @@ def updateScript(sc):
     sc = sc.replace("$self", "self")
     return sc
 
+def _updateDev2Script(ent):
+    if isinstance(ent, dict) and "engine" in ent:
+        if ent["engine"] == "cwl:JsonPointer":
+            sp = ent["script"].split("/")
+            if sp[0] in ("tmpdir", "outdir"):
+                return "$(runtime.%s)" % sp[0]
+            else:
+                if not sp[0]:
+                    sp.pop(0)
+                front = sp.pop(0)
+                sp = [str(i) if digits.match(i) else "'"+i+"'"
+                      for i in sp]
+                if front == "job":
+                    return "$(inputs[%s])" % ']['.join(sp)
+                elif front == "context":
+                    return "$(self[%s])" % ']['.join(sp)
+        else:
+            sc = updateScript(ent["script"])
+            if sc[0] == "{":
+                return "$" + sc
+            else:
+                return "$(%s)" % sc
+    else:
+        return ent
+
 def _draftDraft3dev1toDev2(doc, loader, baseuri):
+    doc = _updateDev2Script(doc)
+    if isinstance(doc, basestring):
+        return doc
+
     # Convert expressions
     if isinstance(doc, dict):
         if "@import" in doc:
@@ -99,30 +129,7 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
             return _draftDraft3dev1toDev2(r, loader, r["id"])
 
         for a in doc:
-            ent = doc[a]
-            if isinstance(ent, dict) and "engine" in ent:
-                if ent["engine"] == "cwl:JsonPointer":
-                    sp = ent["script"].split("/")
-                    if sp[0] in ("tmpdir", "outdir"):
-                        doc[a] = "$(runtime.%s)" % sp[0]
-                    else:
-                        if not sp[0]:
-                            sp.pop(0)
-                        front = sp.pop(0)
-                        sp = [str(i) if digits.match(i) else "'"+i+"'"
-                              for i in sp]
-                        if front == "job":
-                            doc[a] = "$(inputs[%s])" % ']['.join(sp)
-                        elif front == "context":
-                            doc[a] = "$(self[%s])" % ']['.join(sp)
-                else:
-                    sc = updateScript(ent["script"])
-                    if sc[0] == "{":
-                        doc[a] = "$" + sc
-                    else:
-                        doc[a] = "$(%s)" % sc
-            else:
-                doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
+            doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
 
         if "class" in doc and (doc["class"] in ("CommandLineTool", "Workflow", "ExpressionTool")):
             added = False
