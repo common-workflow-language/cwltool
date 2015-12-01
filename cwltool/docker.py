@@ -33,17 +33,22 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             cmd = ["docker", "pull", dockerRequirement["dockerPull"]]
             _logger.info(str(cmd))
             if not dry_run:
-                subprocess.check_call(cmd, stdout=sys.stderr)
-                found = True
+                try:
+                    subprocess.check_call(cmd, stdout=sys.stderr)
+                    found = True
+                except Exception as e:
+                    pass
         if "dockerFile" in dockerRequirement and not found:
             dockerfile_dir = tempfile.mkdtemp()
             with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as df:
                 df.write(dockerRequirement["dockerFile"])
             cmd = ["docker", "build", "--tag=%s" % dockerRequirement["dockerImageId"], dockerfile_dir]
             _logger.info(str(cmd))
-            if not dry_run:
+            try:
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
+            except Exception as e:
+                pass
         if "dockerLoad" in dockerRequirement and not found:
             cmd = ["docker", "load"]
             _logger.info(str(cmd))
