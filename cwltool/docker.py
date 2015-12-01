@@ -35,7 +35,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             if not dry_run:
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
-        elif "dockerFile" in dockerRequirement:
+        if "dockerFile" in dockerRequirement and not found:
             dockerfile_dir = tempfile.mkdtemp()
             with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as df:
                 df.write(dockerRequirement["dockerFile"])
@@ -44,7 +44,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             if not dry_run:
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
-        elif "dockerLoad" in dockerRequirement:
+        if "dockerLoad" in dockerRequirement and not found:
             cmd = ["docker", "load"]
             _logger.info(str(cmd))
             if not dry_run:
@@ -66,7 +66,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 if rcode != 0:
                     raise process.WorkflowException("Docker load returned non-zero exit status %i" % (rcode))
                 found = True
-        elif "dockerImport" in dockerRequirement:
+        if "dockerImport" in dockerRequirement and not found:
             cmd = ["docker", "import", dockerRequirement["dockerImport"], dockerRequirement["dockerImageId"]]
             _logger.info(str(cmd))
             if not dry_run:

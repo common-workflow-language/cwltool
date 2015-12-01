@@ -210,7 +210,7 @@ class CommandLineTool(Process):
                     try:
                         gb = builder.do_eval(gb)
                         globpatterns.append(gb)
-                        if not gb or len(gb) < 1:
+                        if not gb:
                             continue
                         r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
