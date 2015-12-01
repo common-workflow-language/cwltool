@@ -299,7 +299,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug, print_pre=False
         processobj, _ = document_loader.resolve_ref(urlparse.urljoin(argsworkflow, "#main"))
 
     try:
-        t = makeTool(processobj, strict=strict, makeTool=makeTool)
+        t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader)
     except (schema_salad.validate.ValidationException) as e:
         _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1

@@ -34,7 +34,6 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
                                 "MultipleInputFeatureRequirement",
-                                "FormatOntologyRequirement",
                                 "InlineJavascriptRequirement",
                                 "ShellCommandRequirement"]
 
@@ -131,6 +130,7 @@ class Process(object):
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
+        self.loader = kwargs.get("loader")
 
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
@@ -217,18 +217,10 @@ class Process(object):
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
 
-        formatReq, _ = self.get_requirement("FormatOntologyRequirement")
-        ontology = None
-        if formatReq:
-            import rdflib
-            ontology = rdflib.Graph()
-            for a in aslist(formatReq.get("formatOntologies", [])):
-                ontology.parse(a)
-
         for i in self.tool["inputs"]:
             d = shortname(i["id"])
             if d in builder.job and i.get("format"):
-                checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, ontology)
+                checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, self.loader.graph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
