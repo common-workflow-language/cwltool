@@ -9,9 +9,11 @@ import tempfile
 
 _logger = logging.getLogger("cwltool")
 
+ImageBuilded = False
+
 def get_image(dockerRequirement, pull_image, dry_run=False):
     found = False
-
+    global ImageBuilded
     if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
         dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
 
@@ -47,6 +49,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             try:
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
+                ImageBuilded = True
             except Exception as e:
                 pass
         if "dockerLoad" in dockerRequirement and not found:

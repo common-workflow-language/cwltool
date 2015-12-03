@@ -34,7 +34,7 @@ def deref_links(outputs):
             deref_links(v)
 
 class CommandLineJob(object):
-    def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, **kwargs):
+    def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, push_image=False, **kwargs):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -184,6 +184,35 @@ class CommandLineJob(object):
             _logger.warn("[job %s] completed %s", id(self), processStatus)
         else:
             _logger.debug("[job %s] completed %s", id(self), processStatus)
+
+            # Push image if it was build and job is succeed
+            if docker.ImageBuilded and push_image:
+                _logger.warn("[job %s] pushing image %s", id(self), img_id)
+                try:
+                    sp = subprocess.Popen(["docker", "push", img_id],
+                                          shell=False,
+                                          close_fds=True,
+                                          stdout=stdout,
+                                          env=env)
+
+                    rcode = sp.wait()
+
+                    if stdout is not sys.stderr:
+                        stdout.close()
+
+                    if rcode == 0:
+                        _logger.warn("[job %s] image %s pushed", id(self), img_id)
+
+                except OSError as e:
+                    if e.errno == 2:
+                        _logger.error("Docker not found")
+                    else:
+                        _logger.exception("Exception while pushing")
+                    pass
+                except Exception as e:
+                    _logger.exception("Exception while pushing")
+                    pass
+
         _logger.debug("[job %s] %s", id(self), json.dumps(outputs, indent=4))
 
         self.output_callback(outputs, processStatus)

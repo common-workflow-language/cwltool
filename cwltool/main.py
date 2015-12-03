@@ -38,6 +38,10 @@ def arg_parser():
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
 
+    parser.add_argument("--push-image", action="store_true", default=False,
+                        help="Push a Docker image after build from Dockerfile",
+                        dest="push_image")
+
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
                         metavar=("VAR1","VAR2"),
@@ -471,7 +475,8 @@ def main(args=None,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
-                       select_resources=selectResources
+                       select_resources=selectResources,
+                       push_image=args.push_image
                        )
         # This is the workflow output, it needs to be written
         stdout.write(json.dumps(out, indent=4))
