@@ -20,6 +20,7 @@ from cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
 import update
 from process import shortname
+import rdflib
 
 _logger = logging.getLogger("cwltool")
 
