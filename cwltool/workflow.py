@@ -16,6 +16,7 @@ import pprint
 import tempfile
 import shutil
 import json
+import schema_salad
 
 _logger = logging.getLogger("cwltool")
 
@@ -324,7 +325,15 @@ class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, **kwargs):
         try:
             makeTool = kwargs.get("makeTool")
-            self.embedded_tool = makeTool(toolpath_object["run"], **kwargs)
+            runobj = None
+            if isinstance(toolpath_object["run"], basestring):
+                runobj, _ = schema_salad.schema.load_and_validate(kwargs["loader"],
+                                                                  kwargs["avsc_names"],
+                                                                  toolpath_object["run"],
+                                                                  True)
+            else:
+                runobj = toolpath_object["run"]
+            self.embedded_tool = makeTool(runobj, **kwargs)
         except validate.ValidationException as v:
             raise WorkflowException("Tool definition %s failed validation:\n%s" % (toolpath_object["run"]["id"], validate.indent(str(v))))
 

@@ -161,16 +161,19 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
     try:
         if isinstance(doc, dict):
             if "@import" in doc:
-                imp = urlparse.urljoin(baseuri, doc["@import"])
-                r = loader.fetch(imp)
-                if isinstance(r, list):
-                    r = {"@graph": r}
-                r["id"] = imp
-                _, frag = urlparse.urldefrag(imp)
-                if frag:
-                    frag = "#" + frag
-                    r = findId(r, frag)
-                return _draftDraft3dev2toDev3(r, loader, imp)
+                if doc["@import"][0] == "#":
+                    return doc["@import"]
+                else:
+                    imp = urlparse.urljoin(baseuri, doc["@import"])
+                    r = loader.fetch(imp)
+                    if isinstance(r, list):
+                        r = {"@graph": r}
+                    r["id"] = imp
+                    _, frag = urlparse.urldefrag(imp)
+                    if frag:
+                        frag = "#" + frag
+                        r = findId(r, frag)
+                    return _draftDraft3dev2toDev3(r, loader, imp)
 
             if "@include" in doc:
                 return loader.fetch_text(urlparse.urljoin(baseuri, doc["@include"]))

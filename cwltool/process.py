@@ -131,6 +131,7 @@ class Process(object):
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         self.loader = kwargs.get("loader")
+        self.avsc_names = kwargs.get("avsc_names")
 
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
