@@ -18,6 +18,10 @@ import tempfile
 import glob
 from errors import WorkflowException
 from pathmapper import abspath
+
+from rdflib import URIRef
+from rdflib.namespace import RDFS
+
 import errno
 
 _logger = logging.getLogger("cwltool")
@@ -95,12 +99,39 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
+def formatSubclassOf(fmt, cls, ontology):
+    if ontology is None:
+        return False
+
+    fmt = URIRef(fmt)
+
+    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
+        if o == URIRef(cls):
+            return True
+
+    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
+        if formatSubclassOf(o, cls, ontology):
+            return True
+
+    return False
+
+def checkFormat(actualFile, inputFormats, requirements, ontology):
+    for af in aslist(actualFile):
+        if "format" not in af:
+            raise validate.ValidationException("Missing required 'format' for File %s" % af)
+        for inpf in aslist(inputFormats):
+            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology):
+                return
+        raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
         (_, self.names, _) = get_schema()
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
+        self.loader = kwargs.get("loader")
+        self.avsc_names = kwargs.get("avsc_names")
 
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
@@ -161,15 +192,15 @@ class Process(object):
             if d not in builder.job and "default" in i:
                 builder.job[d] = i["default"]
 
+        for r in self.requirements:
+            if r["class"] not in supportedProcessRequirements:
+                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
+
         # Validate job order
         try:
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
         except validate.ValidationException as e:
             raise WorkflowException("Error validating input record, " + str(e))
-
-        for r in self.requirements:
-            if r["class"] not in supportedProcessRequirements:
-                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
 
         builder.files = []
         builder.bindings = []
@@ -187,6 +218,11 @@ class Process(object):
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
+
+        for i in self.tool["inputs"]:
+            d = shortname(i["id"])
+            if d in builder.job and i.get("format"):
+                checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, self.loader.graph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 

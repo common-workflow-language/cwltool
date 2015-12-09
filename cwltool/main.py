@@ -20,6 +20,7 @@ from cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
 import update
 from process import shortname
+import rdflib
 
 _logger = logging.getLogger("cwltool")
 
@@ -313,7 +314,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         return 1
 
     try:
-        t = makeTool(processobj, strict=strict, makeTool=makeTool)
+        t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names)
     except (schema_salad.validate.ValidationException) as e:
         _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1
@@ -326,7 +327,85 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
             if shortname(inp["id"]) in jobobj:
                 inp["default"] = jobobj[shortname(inp["id"])]
 
+    if metadata:
+        t.metadata = metadata
+    else:
+        t.metadata = {"$namespaces": t.tool.get("$namespaces", {}), "$schemas": t.tool.get("$schemas", [])}
+
     return t
+
+def load_job_order(args, t, parser):
+
+    job_order_object = None
+
+    if args.conformance_test:
+        loader = Loader({})
+    else:
+        jobloaderctx = {"path": {"@type": "@id"}, "format": {"@type": "@id"}}
+        jobloaderctx.update(t.metadata.get("$namespaces", {}))
+        loader = Loader(jobloaderctx)
+
+    if len(args.job_order) == 1 and args.job_order[0][0] != "-":
+        job_order_file = args.job_order[0]
+    elif len(args.job_order) == 1 and args.job_order[0] == "-":
+        job_order_object = yaml.load(stdin)
+        job_order_object, _ = loader.resolve_all(job_order_object, "")
+    else:
+        job_order_file = None
+
+    if job_order_object:
+        input_basedir = args.basedir if args.basedir else os.getcwd()
+    elif job_order_file:
+        input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
+        try:
+            job_order_object, _ = loader.resolve_ref(job_order_file)
+        except Exception as e:
+            _logger.error(e, exc_info=(e if args.debug else False))
+            return 1
+        toolparser = None
+    else:
+        input_basedir = args.basedir if args.basedir else os.getcwd()
+        namemap = {}
+        toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
+        if toolparser:
+            if args.tool_help:
+                toolparser.print_help()
+                return 0
+            cmd_line = vars(toolparser.parse_args(args.job_order))
+
+            if cmd_line["job_order"]:
+                try:
+                    input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
+                    job_order_object = loader.resolve_ref(cmd_line["job_order"])
+                except Exception as e:
+                    _logger.error(e, exc_info=(e if args.debug else False))
+                    return 1
+            else:
+                job_order_object = {}
+
+            job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
+
+            _logger.debug("Parsed job order from command line: %s", job_order_object)
+        else:
+            job_order_object = None
+
+    for inp in t.tool["inputs"]:
+        if "default" in inp and (not job_order_object or shortname(inp["id"]) not in job_order_object):
+            if not job_order_object:
+                job_order_object = {}
+            job_order_object[shortname(inp["id"])] = inp["default"]
+
+    if not job_order_object and len(t.tool["inputs"]) > 0:
+        parser.print_help()
+        if toolparser:
+            print "\nOptions for %s " % args.workflow
+            toolparser.print_help()
+        _logger.error("")
+        _logger.error("Input object required")
+        return 1
+
+    return (job_order_object, input_basedir)
+
 
 def main(args=None,
          executor=single_job_executor,
@@ -394,75 +473,14 @@ def main(args=None,
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    job_order_object = None
+    job_order_object = load_job_order(args, t, parser)
 
-    if args.conformance_test:
-        loader = Loader({})
-    else:
-        loader = Loader({"path": {"@type": "@id"}})
-
-    if len(args.job_order) == 1 and args.job_order[0][0] != "-":
-        job_order_file = args.job_order[0]
-    elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.load(stdin)
-        job_order_object, _ = loader.resolve_all(job_order_object, "")
-    else:
-        job_order_file = None
-
-    if job_order_object:
-        input_basedir = args.basedir if args.basedir else os.getcwd()
-    elif job_order_file:
-        input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
-        try:
-            job_order_object, _ = loader.resolve_ref(job_order_file)
-        except Exception as e:
-            _logger.error(e, exc_info=(e if args.debug else False))
-            return 1
-        toolparser = None
-    else:
-        input_basedir = args.basedir if args.basedir else os.getcwd()
-        namemap = {}
-        toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
-        if toolparser:
-            if args.tool_help:
-                toolparser.print_help()
-                return 0
-            cmd_line = vars(toolparser.parse_args(args.job_order))
-
-            if cmd_line["job_order"]:
-                try:
-                    input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
-                    job_order_object = loader.resolve_ref(cmd_line["job_order"])
-                except Exception as e:
-                    _logger.error(e, exc_info=(e if args.debug else False))
-                    return 1
-            else:
-                job_order_object = {}
-
-            job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
-
-            _logger.debug("Parsed job order from command line: %s", job_order_object)
-        else:
-            job_order_object = None
-
-    for inp in t.tool["inputs"]:
-        if "default" in inp and (not job_order_object or shortname(inp["id"]) not in job_order_object):
-            if not job_order_object:
-                job_order_object = {}
-            job_order_object[shortname(inp["id"])] = inp["default"]
-
-    if not job_order_object and len(t.tool["inputs"]) > 0:
-        parser.print_help()
-        if toolparser:
-            print "\nOptions for %s " % args.workflow
-            toolparser.print_help()
-        _logger.error("")
-        _logger.error("Input object required")
-        return 1
+    if type(job_order_object) == int:
+        return job_order_object
 
     try:
-        out = executor(t, job_order_object,
-                       input_basedir, args,
+        out = executor(t, job_order_object[0],
+                       job_order_object[1], args,
                        conformance_test=args.conformance_test,
                        dry_run=args.dry_run,
                        outdir=args.outdir,

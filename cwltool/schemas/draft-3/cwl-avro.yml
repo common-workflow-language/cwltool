@@ -1,12 +1,14 @@
 "@context":
   "@base": "https://w3id.org/cwl/cwl#"
-  "cwl": "https://w3id.org/cwl/cwl#"
-  "sld": "https://w3id.org/cwl/salad#"
-  "avro": "https://w3id.org/cwl/avro#"
-  "dct": "http://purl.org/dc/terms/"
-  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-  "rdfs": "http://www.w3.org/2000/01/rdf-schema#"
-  "foaf": http://xmlns.com/foaf/0.1/
+
+$namespaces:
+  cwl: "https://w3id.org/cwl/cwl#"
+  sld: "https://w3id.org/cwl/salad#"
+  avro: "https://w3id.org/cwl/avro#"
+  dct: "http://purl.org/dc/terms/"
+  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#"
+  foaf: http://xmlns.com/foaf/0.1/
 
 "dct:creator":
   "@id": "http://orcid.org/0000-0003-3566-7705"
@@ -480,6 +482,12 @@
     operation; if so, it must provide `cwl-runner` as an alias for the
     platform's CWL implementation.
 
+    A CWL input object document may similarly begin with `#!/usr/bin/env
+    cwl-runner` and be marked as executable.  In this case, the input object
+    must include the field "cwl:tool" supplying a URI to the default CWL
+    document that should be executed with the fields of the input object as
+    input parameters.
+
     # Sample CWL workflow
 
     revtool.cwl:
@@ -657,12 +665,12 @@
   type: documentation
   doc: This section specifies the core object types that make up a CWL document.
 
-- "@import": "https://w3id.org/cwl/salad#PrimitiveType"
-- "@import": "https://w3id.org/cwl/salad#Any"
-- "@import": "https://w3id.org/cwl/salad#RecordField"
-- "@import": "https://w3id.org/cwl/salad#RecordSchema"
-- "@import": "https://w3id.org/cwl/salad#EnumSchema"
-- "@import": "https://w3id.org/cwl/salad#ArraySchema"
+- $import: "https://w3id.org/cwl/salad#PrimitiveType"
+- $import: "https://w3id.org/cwl/salad#Any"
+- $import: "https://w3id.org/cwl/salad#RecordField"
+- $import: "https://w3id.org/cwl/salad#RecordSchema"
+- $import: "https://w3id.org/cwl/salad#EnumSchema"
+- $import: "https://w3id.org/cwl/salad#ArraySchema"
 
 - name: CWLType
   type: enum
@@ -713,6 +721,26 @@
         included when loading primary document.  A file object listed in
         `secondaryFiles` may itself include `secondaryFiles` for which the same
         rules apply.
+    - name: format
+      type: ["null", string]
+      jsonldPredicate:
+        _id: cwl:format
+        _type: "@id"
+        identity: true
+      doc: |
+        The format of the file.  This must be a URI of a concept node that
+        represents the file format, preferrably defined within an ontology.
+        If no ontology is available, file formats may be tested by exact match.
+
+        Reasoning about format compatability must be done by checking that an
+        input file format is the same or `rdfs:subClassOf` the format required
+        by the input parameter.
+
+        If no ontologies are specified in `formatOntologies`, the runtime may
+        perform exact file format matches.
+
+        File format ontologies are provided in the "@schema" section of the
+        file's "@context".
 
 
 - name: Parameter
@@ -768,7 +796,29 @@
       doc: |
         The default value for this parameter if not provided in the input
         object.
+    - name: format
+      type:
+        - "null"
+        - string
+        - type: array
+          items: string
+        - "#Expression"
+      jsonldPredicate:
+        _id: cwl:format
+        _type: "@id"
+        identity: true
+      doc: |
+        Only applies if `type` is `File` or array of `File`.
 
+        For input parameters, this must be one or more URIs of a concept nodes
+        that represents file formats which are allowed as input to this
+        parameter, preferrably defined within an ontology.  If no ontology is
+        available, file formats may be tested by exact match.  See
+        (FormatOntologyRequirement)[#formatontologyrequirement] for more
+        information.
+
+        For output parameters, this is the file format that will be assigned to
+        the output parameter.
 
 - type: enum
   name: Expression
@@ -813,6 +863,7 @@
             period `.` and all following characters).  If there are no file
             extensions, the path is unchanged.
           2. Append the remainder of the string to the end of the file path.
+
 
 - name: InputRecordField
   type: record
@@ -1113,6 +1164,7 @@
   symbols:
     - draft-3.dev1
     - draft-3.dev2
+    - draft-3.dev3
 
 - type: record
   name: CommandLineBinding
@@ -1865,7 +1917,7 @@
       jsonldPredicate: "rdfs:comment"
       doc: "A long, human-readable description of this process object."
     - name: run
-      type: ["#Process", string]
+      type: [string, "#Process"]
       jsonldPredicate:
         "_id": "cwl:steps"
         "_type": "@id"

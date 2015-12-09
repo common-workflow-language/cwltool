@@ -210,9 +210,8 @@ class CommandLineTool(Process):
                     try:
                         gb = builder.do_eval(gb)
                         globpatterns.append(gb)
-                        if not gb:
-                            continue
-                        r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                        if gb:
+                            r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
                 for files in r:
@@ -228,6 +227,8 @@ class CommandLineTool(Process):
                             contents = f.read(1024*1024)
                     files["checksum"] = "sha1$%s" % checksum.hexdigest()
                     files["size"] = filesize
+                    if "format" in schema:
+                        files["format"] = builder.do_eval(schema["format"], context=files)
 
             optional = False
             singlefile = False
