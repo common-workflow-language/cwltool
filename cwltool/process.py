@@ -130,8 +130,8 @@ class Process(object):
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
-        self.loader = kwargs.get("loader")
-        self.avsc_names = kwargs.get("avsc_names")
+        if "loader" in kwargs:
+            self.formatgraph = kwargs["loader"].graph
 
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
@@ -219,10 +219,11 @@ class Process(object):
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
 
-        for i in self.tool["inputs"]:
-            d = shortname(i["id"])
-            if d in builder.job and i.get("format"):
-                checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, self.loader.graph)
+        if self.formatgraph:
+            for i in self.tool["inputs"]:
+                d = shortname(i["id"])
+                if d in builder.job and i.get("format"):
+                    checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, self.formatgraph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
