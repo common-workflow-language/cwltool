@@ -108,7 +108,11 @@ class CommandLineJob(object):
         try:
             for t in self.generatefiles:
                 if isinstance(self.generatefiles[t], dict):
-                    os.symlink(self.generatefiles[t]["path"], os.path.join(self.outdir, t))
+                    src = self.generatefiles[t]["path"]
+                    dst = os.path.join(self.outdir, t)
+                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
+                        _logger.debug("symlinking %s to %s", dst, src)
+                        os.symlink(src, dst)
                 else:
                     with open(os.path.join(self.outdir, t), "w") as f:
                         f.write(self.generatefiles[t])
@@ -159,8 +163,11 @@ class CommandLineJob(object):
 
             for t in self.generatefiles:
                 if isinstance(self.generatefiles[t], dict):
-                    os.remove(os.path.join(self.outdir, t))
-                    os.symlink(self.pathmapper.reversemap(self.generatefiles[t]["path"])[1], os.path.join(self.outdir, t))
+                    src = self.generatefiles[t]["path"]
+                    dst = os.path.join(self.outdir, t)
+                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
+                        os.remove(dst)
+                        os.symlink(self.pathmapper.reversemap(src)[1], dst)
 
             outputs = self.collect_outputs(self.outdir)
 
