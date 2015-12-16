@@ -335,7 +335,7 @@ class WorkflowStep(Process):
                 runobj = toolpath_object["run"]
             self.embedded_tool = makeTool(runobj, **kwargs)
         except validate.ValidationException as v:
-            raise WorkflowException("Tool definition %s failed validation:\n%s" % (toolpath_object["run"]["id"], validate.indent(str(v))))
+            raise WorkflowException("Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
 
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
