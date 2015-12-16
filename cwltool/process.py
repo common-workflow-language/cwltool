@@ -38,10 +38,12 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ShellCommandRequirement"]
 
 def get_schema():
-    f = resource_stream(__name__, 'schemas/draft-3/cwl-avro.yml')
-    j = yaml.load(f)
-    j["name"] = "https://w3id.org/cwl/cwl"
-    return schema_salad.schema.load_schema(j)
+    cache = {}
+    for f in ("Workflow.yml", "CommandLineTool.yml", "Process.yml"):
+        with resource_stream(__name__, 'schemas/draft-3/' + f) as rs:
+            cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+
+    return schema_salad.schema.load_schema("https://w3id.org/cwl/cwl/Workflow.yml", cache=cache)
 
 def get_feature(self, feature):
     for t in reversed(self.requirements):
