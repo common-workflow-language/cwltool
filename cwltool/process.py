@@ -39,7 +39,12 @@ supportedProcessRequirements = ["DockerRequirement",
 
 def get_schema():
     cache = {}
-    for f in ("Workflow.yml", "CommandLineTool.yml", "Process.yml"):
+    for f in ("Workflow.yml",
+              "CommandLineTool.yml",
+              "Process.yml",
+              "concepts.md",
+              "contrib.md",
+              "intro.md"):
         with resource_stream(__name__, 'schemas/draft-3/' + f) as rs:
             cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
 
