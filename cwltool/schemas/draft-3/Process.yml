@@ -6,6 +6,10 @@ $namespaces:
 
 $graph:
 
+- name: "Common Workflow Language, Draft 3"
+  type: documentation
+  doc: {$include: concepts.md}
+
 - $import: "https://w3id.org/cwl/salad#PrimitiveType"
 - $import: "https://w3id.org/cwl/salad#Any"
 - $import: "https://w3id.org/cwl/salad#RecordField"
@@ -21,6 +25,7 @@ $graph:
     - draft-3.dev2
     - draft-3.dev3
     - draft-3.dev4
+    - draft-3
 
 - name: CWLType
   type: enum

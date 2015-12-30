@@ -1,25 +1,51 @@
 #!/usr/bin/env cwl-runner
 {
     "cwl:tool": "cwlsite.cwl",
-    "index_in": {
-        "class": "File",
-        "path": "../README.md"
-    },
-    "index_target": "index.html",
-    "title": "Common Workflow Language",
 
-    "schema_in": [{
+    "schema_in": {
         "class": "File",
         "path": "../draft-3/Workflow.yml"
-    }],
+    },
+    "context_target": "draft-3/cwl-context.json",
+    "rdfs_target": "draft-3/cwl-rdfs.ttl",
 
-    "schema_target": [
-        "draft-3/index.html"
-    ],
-    "context_target": [
-        "draft-3/cwl-context.jsonld"
-    ],
-    "rdfs_target": [
-        "draft-3/cwl.ttl"
+    "render": [
+        {
+            "source": {
+                "class": "File",
+                "path": "../README.md"
+            },
+            "target": "index.html"
+        },
+        {
+            "source": {
+                "class": "File",
+                "path": "../draft-3/Workflow.yml"
+            },
+            "target": "draft-3/CommandLineTool.html",
+            "renderlist": [
+                "https://w3id.org/cwl/cwl#CommandLineToolDoc"
+            ]
+        },
+        {
+            "source": {
+                "class": "File",
+                "path": "../draft-3/Workflow.yml"
+            },
+            "target": "draft-3/Workflow.html",
+            "renderlist": [
+                "https://w3id.org/cwl/cwl#WorkflowDoc"
+            ]
+        },
+        {
+            "source": {
+                "class": "File",
+                "path": "../draft-3/salad/schema_salad/metaschema.yml"
+            },
+            "target": "draft-3/schema_salad.html",
+            "renderlist": [
+                "https://w3id.org/cwl/cwl#WorkflowDoc"
+            ]
+        }
     ]
 }

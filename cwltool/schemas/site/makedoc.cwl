@@ -1,11 +1,14 @@
-cwlVersion: "cwl:draft-3.dev3"
+cwlVersion: "cwl:draft-3.dev4"
 class: CommandLineTool
 inputs:
   - id: source
     type: File
     inputBinding: {position: 1}
-  - id: title
-    type: ["null", string]
+  - id: renderlist
+    type:
+      - "null"
+      - type: array
+        items: string
     inputBinding: {position: 2}
   - id: target
     type: string
