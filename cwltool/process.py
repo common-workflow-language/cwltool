@@ -35,7 +35,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "SubworkflowFeatureRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "InlineJavascriptRequirement",
-                                "ShellCommandRequirement"]
+                                "ShellCommandRequirement",
+                                "StepInputExpressionRequirement"]
 
 def get_schema():
     cache = {}

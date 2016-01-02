@@ -56,7 +56,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
     if isinstance(sinktype, list):
         # Sink is union type
         for st in sinktype:
-            if match_types(st, src, iid, inputobj, linkMerge):
+            if match_types(st, src, iid, inputobj, linkMerge, valueFrom):
                 return True
     elif isinstance(src.parameter["type"], list):
         # Source is union type
@@ -64,7 +64,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
         for st in src.parameter["type"]:
             srccopy = copy.deepcopy(src)
             srccopy.parameter["type"] = st
-            if not match_types(st, srccopy, iid, inputobj, linkMerge):
+            if not match_types(st, srccopy, iid, inputobj, linkMerge, valueFrom):
                 return False
         return True
     else:
@@ -186,6 +186,9 @@ class WorkflowJob(object):
             callback = functools.partial(self.receive_output, step, outputparms)
 
             valueFrom = {i["id"]: i["valueFrom"] for i in step.tool["inputs"] if "valueFrom" in i}
+
+            if len(valueFrom) > 0 and not bool(self.workflow.get_requirement("StepInputExpressionRequirement")[0]):
+                raise WorkflowException("Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
             def valueFromFunc(k, v):
                 if k in valueFrom:
@@ -378,12 +381,12 @@ class WorkflowStep(Process):
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
             if not feature:
-                raise WorkflowException("Workflow contains embedded workflow but SubworkflowFeatureRequirement not declared")
+                raise WorkflowException("Workflow contains embedded workflow but SubworkflowFeatureRequirement not in requirements")
 
         if "scatter" in self.tool:
             (feature, _) = self.get_requirement("ScatterFeatureRequirement")
             if not feature:
-                raise WorkflowException("Workflow contains scatter but ScatterFeatureRequirement not declared")
+                raise WorkflowException("Workflow contains scatter but ScatterFeatureRequirement not in requirements")
 
             inputparms = copy.deepcopy(self.tool["inputs"])
             outputparms = copy.deepcopy(self.tool["outputs"])
