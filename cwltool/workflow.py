@@ -81,11 +81,24 @@ def match_types(sinktype, src, iid, inputobj, linkMerge):
             else:
                 raise WorkflowException("Unrecognized linkMerge enum '%s'" % linkMerge)
             return True
-        elif src.parameter["type"] == sinktype:
+        elif are_same_type(src.parameter["type"], sinktype):
             # simply assign the value from state to input
             inputobj[iid] = copy.deepcopy(src.value)
             return True
     return False
+
+def are_same_type(one, two):
+    """Check for identical type specifications, ignoring extra keys like inputBinding.
+    """
+    if isinstance(one, dict) and isinstance(two, dict):
+        if one["type"] == "array" and two["type"] == "array":
+            return are_same_type(one["items"], two["items"])
+        elif one["type"] == two["type"]:
+            return True
+        else:
+            return False
+    else:
+        return one == two
 
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput):
@@ -288,8 +301,9 @@ class WorkflowJob(object):
 
             for a in output_dirs:
                 if os.path.exists(a) and empty_subtree(a):
-                    _logger.debug("[workflow %s] Removing intermediate output directory %s", id(self), a)
-                    shutil.rmtree(a, True)
+                    if kwargs.get("rm_tmpdir", True):
+                        _logger.debug("[workflow %s] Removing intermediate output directory %s", id(self), a)
+                        shutil.rmtree(a, True)
 
         _logger.info("[workflow %s] outdir is %s", id(self), self.outdir)
 
