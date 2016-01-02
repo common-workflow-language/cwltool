@@ -45,7 +45,8 @@ def get_schema():
               "Process.yml",
               "concepts.md",
               "contrib.md",
-              "intro.md"):
+              "intro.md",
+              "invocation.md"):
         with resource_stream(__name__, 'schemas/draft-3/' + f) as rs:
             cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
 
