@@ -9,16 +9,16 @@ $graph:
   type: documentation
   doc:
     - |
-      Common Workflow Language (CWL) Workflow Description, draft 3
+      # Common Workflow Language (CWL) Workflow Description, draft 3
 
       This version:
         * https://w3id.org/cwl/draft-3/
 
       Current version:
         * https://w3id.org/cwl/
-
+    - "\n\n"
     - {$include: contrib.md}
-
+    - "\n\n"
     - |
       # Abstract
 
@@ -68,8 +68,6 @@ $graph:
       doc: |
         The expression to execute.  The expression must return a JSON object which
         matches the output parameters of the ExpressionTool.
-
-- $import: CommandLineTool.yml
 
 - name: LinkMergeMethod
   type: enum
@@ -175,12 +173,17 @@ $graph:
         - "#Expression"
       jsonldPredicate: "cwl:valueFrom"
       doc: |
+        To use scatter/gather, [Must declare
+        StepInputExpressionRequirement](#StepInputExpressionRequirement) must
+        be specified in the workflow or workflow step requirements.
+
         If `valueFrom` is a constant string value, use this as the value for
         this input parameter.
 
-        If `valueFrom` is an expression, evaluate the expression to yield the
-        actual value to be assiged to the input field.  The "context" of the
-        expression will be the value of the source parameter.
+        If `valueFrom` is an expression, evaluate for a parameter reference or
+        expression to yield the actual value to be assiged to the input field.
+        The "context" of the expression will be the value of the source
+        parameter.
 
 - type: record
   name: WorkflowStepOutput
@@ -431,8 +434,6 @@ $graph:
     Indicates that the workflow platform must support nested workflows in
     the `run` field of (WorkflowStep)(#workflowstep).
 
-
-
 - name: ScatterFeatureRequirement
   type: record
   extends: "#ProcessRequirement"
@@ -445,4 +446,11 @@ $graph:
   extends: "#ProcessRequirement"
   doc: |
     Indicates that the workflow platform must support multiple inbound data links
-    listed in the `source` field of [WorkflowStepInput](#workflowstepinput).
+    listed in the `source` field of [WorkflowStepInput](#WorkflowStepInput).
+
+- type: record
+  name: StepInputExpressionRequirement
+  extends: "#ProcessRequirement"
+  doc: |
+    Indicate that the workflow platform must support the `valueFrom` field
+    of [WorkflowStepInput](#WorkflowStepInput).

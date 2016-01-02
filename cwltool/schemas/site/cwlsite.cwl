@@ -3,29 +3,35 @@ cwlVersion: "cwl:draft-3.dev4"
 
 class: Workflow
 inputs:
-  - id: readme_in
-    type: File
-  - id: readme_target
-    type: string
-
   - id: render
     type:
       type: array
       items:
+        name: render
         type: record
         fields:
           - name: source
             type: File
           - name: renderlist
             type:
-              - type: array
-                items: string
+              type: array
+              items: string
+          - name: redirect
+            type:
+              type: array
+              items: string
           - name: target
             type: string
+          - name: brandlink
+            type: string
 
+  - id: schema_in
+    type: File
   - id: context_target
     type: string
   - id: rdfs_target
+    type: string
+  - id: brand
     type: string
 
 outputs:
@@ -43,6 +49,7 @@ outputs:
 
 requirements:
   - class: ScatterFeatureRequirement
+  - class: StepInputExpressionRequirement
 
 hints:
   - class: DockerRequirement
@@ -70,7 +77,11 @@ steps:
       - { id: source, source: "#render", valueFrom: $(self.source) }
       - { id: target, source: "#render", valueFrom: $(self.target) }
       - { id: renderlist, source: "#render", valueFrom: $(self.renderlist) }
+      - { id: redirect, source: "#render", valueFrom: $(self.redirect) }
+      - { id: brandlink, source: "#render", valueFrom: $(self.brandlink) }
+      - { id: brand, source: "#brand" }
     outputs:
       - { id: out }
-    scatter: ["#docs/source", "#docs/target", "#docs/renderlist"]
+    scatter: ["#docs/source", "#docs/target", "#docs/renderlist", "#docs/redirect", "#docs/brandlink"]
+    scatterMethod: dotproduct
     run:  makedoc.cwl
