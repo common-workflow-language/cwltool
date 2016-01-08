@@ -20,7 +20,8 @@
             "target": "index.html",
             "renderlist": [],
             "redirect": [],
-            "brandlink": "index.html"
+            "brandlink": "index.html",
+            "primtype": null
         },
         {
             "source": {
@@ -30,7 +31,8 @@
             "target": "draft-3/index.html",
             "renderlist": [],
             "redirect": [],
-            "brandlink": "../index.html"
+            "brandlink": "../index.html",
+            "primtype": null
         },
         {
             "source": {
@@ -43,7 +45,8 @@
                 "https://w3id.org/cwl/cwl#CommandLineTool"
             ],
             "redirect": [],
-            "brandlink": "index.html"
+            "brandlink": "index.html",
+            "primtype": "#CWLType"
         },
         {
             "source": {
@@ -63,7 +66,8 @@
                 "https://w3id.org/cwl/cwl#ShellCommandRequirement=CommandLineTool.html#ShellCommandRequirement",
                 "https://w3id.org/cwl/cwl#ResourceRequirement=CommandLineTool.html#ResourceRequirement",
             ],
-            "brandlink": "index.html"
+            "brandlink": "index.html",
+            "primtype": "#CWLType"
         },
         {
             "source": {
@@ -71,9 +75,26 @@
                 "path": "../draft-3/salad/schema_salad/metaschema.yml"
             },
             "target": "draft-3/SchemaSalad.html",
+            "renderlist": [
+                "https://w3id.org/cwl/salad#Semantic_Annotations_for_Linked_Avro_Data",
+                "https://w3id.org/cwl/salad#SaladRecordSchema",
+                "https://w3id.org/cwl/salad#SaladEnumSchema",
+                "https://w3id.org/cwl/salad#Documentation"
+            ],
+            "redirect": [],
+            "brandlink": "index.html",
+            "primtype": null
+        },
+        {
+            "source": {
+                "class": "File",
+                "path": "../draft-3/UserGuide.yml"
+            },
+            "target": "draft-3/UserGuide.html",
             "renderlist": [],
             "redirect": [],
-            "brandlink": "index.html"
+            "brandlink": "index.html",
+            "primtype": null
         }
     ]
 }

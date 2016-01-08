@@ -37,7 +37,17 @@ $graph:
       This specification represents the third milestone of the CWL group.  Since
       draft-2, this draft introduces the following changes and additions:
 
-        * ...
+        * Greatly simplified naming within a document with scoped identifiers, as
+          described in the [Schema Salad specification](SchemaSalad.html).
+        * The draft-2 concept of pluggable expression engines has been replaced
+          by a [streamlined expression syntax)[#Parameter_references]
+          and standardization on [Javascript](#Expressions).
+        * [File](#File) objects can now include a `format` field to indicate
+          the file type.
+        * The addition of [MultipleInputFeatureRequirement](#MultipleInputFeatureRequirement).
+        * The addition of [StepInputExpressionRequirement](#StepInputExpressionRequirement).
+        * The separation of Workflow and CommandLineTool components into
+          separate specifications.
 
       ## Purpose
 
@@ -72,7 +82,7 @@ $graph:
 - name: LinkMergeMethod
   type: enum
   docParent: "#WorkflowStepInput"
-  doc: The input link merge method, described in [WorkflowStepInput](#workflowstepinput).
+  doc: The input link merge method, described in [WorkflowStepInput](#WorkflowStepInput).
   symbols:
     - merge_nested
     - merge_flattened
@@ -131,11 +141,11 @@ $graph:
     ## Merging
 
     To merge multiple inbound data links,
-    [MultipleInputFeatureRequirement](#multipleinputfeaturerequirement) must be specified
+    [MultipleInputFeatureRequirement](#MultipleInputFeatureRequirement) must be specified
     in the workflow or workflow step requirements.
 
     If the sink parameter is an array, or named in a [workflow
-    scatter](#workflowstep) operation, there may be multiple inbound data links
+    scatter](#WorkflowStep) operation, there may be multiple inbound data links
     listed in the `source` field.  The values from the input links are merged
     depending on the method specified in the `linkMerge` field.  If not
     specified, the default method is "merge_nested".
@@ -206,7 +216,7 @@ $graph:
 - name: ScatterMethod
   type: enum
   docParent: "#WorkflowStep"
-  doc: The scatter method, as described in [workflow step scatter](#workflowstep).
+  doc: The scatter method, as described in [workflow step scatter](#WorkflowStep).
   symbols:
     - dotproduct
     - nested_crossproduct
@@ -225,7 +235,7 @@ $graph:
     # Scatter/gather
 
     To use scatter/gather,
-    [ScatterFeatureRequirement](#scatterfeaturerequirement) must be specified
+    [ScatterFeatureRequirement](#ScatterFeatureRequirement) must be specified
     in the workflow or workflow step requirements.
 
     A "scatter" operation specifies that the associated workflow step or
@@ -262,7 +272,7 @@ $graph:
     # Subworkflows
 
     To specify a nested workflow as part of a workflow step,
-    [SubworkflowFeatureRequirement](#subworkflowfeaturerequirement) must be
+    [SubworkflowFeatureRequirement](#SubworkflowFeatureRequirement) must be
     specified in the workflow or workflow step requirements.
 
   fields:
@@ -376,8 +386,8 @@ $graph:
     workflow is complete when all steps have been executed.
 
     Dependencies between parameters are expressed using the `source` field on
-    [workflow step input parameters](#workflowstepinput) and [workflow output
-    parameters](#workflowoutputparameter).
+    [workflow step input parameters](#WorkflowStepInput) and [workflow output
+    parameters](#WorkflowOutputParameter).
 
     The `source` field expresses the dependency of one parameter on another
     such that when a value is associated with the parameter specified by
@@ -385,7 +395,7 @@ $graph:
     data links inbound to a given step are fufilled, the step is ready to
     execute.
 
-    ## Success and failure
+    ## Workflow success and failure
 
     A completed process must result in one of `success`, `temporaryFailure` or
     `permanentFailure` states.  An implementation may choose to retry a process
@@ -405,8 +415,8 @@ $graph:
 
     # Extensions
 
-    [ScatterFeatureRequirement](#scatterfeaturerequirement) and
-    [SubworkflowFeatureRequirement](#subworkflowfeaturerequirement) are
+    [ScatterFeatureRequirement](#ScatterFeatureRequirement) and
+    [SubworkflowFeatureRequirement](#SubworkflowFeatureRequirement) are
     available as standard extensions to core workflow semantics.
 
   fields:
@@ -432,14 +442,14 @@ $graph:
   extends: "#ProcessRequirement"
   doc: |
     Indicates that the workflow platform must support nested workflows in
-    the `run` field of (WorkflowStep)(#workflowstep).
+    the `run` field of (WorkflowStep)(#WorkflowStep).
 
 - name: ScatterFeatureRequirement
   type: record
   extends: "#ProcessRequirement"
   doc: |
     Indicates that the workflow platform must support the `scatter` and
-    `scatterMethod` fields of [WorkflowStep](#workflowstep).
+    `scatterMethod` fields of [WorkflowStep](#WorkflowStep).
 
 - name: MultipleInputFeatureRequirement
   type: record
