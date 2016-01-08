@@ -439,6 +439,7 @@ class WorkflowStep(Process):
             for t in self.embedded_tool.job(joborder, basedir, functools.partial(self.receive_output, output_callback), **kwargs):
                 yield t
         except Exception as e:
+            _logger.exception("Unexpected exception")
             raise WorkflowException(str(e))
 
 
