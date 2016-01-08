@@ -16,37 +16,29 @@ try:
 except ImportError:
     tagger = egg_info_cmd.egg_info
 
-setup(name='cwltool',
-      version='1.0',
-      description='Common workflow language reference implementation',
+setup(name='schema-salad',
+      version='1.3',
+      description='Schema Annotations for Linked Avro Data (SALAD)',
       long_description=open(README).read(),
       author='Common workflow language working group',
       author_email='common-workflow-language@googlegroups.com',
       url="https://github.com/common-workflow-language/common-workflow-language",
       download_url="https://github.com/common-workflow-language/common-workflow-language",
       license='Apache 2.0',
-      packages=["cwltool"],
-      package_data={'cwltool': ['schemas/draft-2/cwl-avro.yml',
-                                'schemas/draft-3/Process.yml',
-                                'schemas/draft-3/CommandLineTool.yml',
-                                'schemas/draft-3/Workflow.yml',
-                                'schemas/draft-3/CommonWorkflowLanguage.yml',
-                                'schemas/draft-3/concepts.md',
-                                'schemas/draft-3/intro.md',
-                                'schemas/draft-3/contrib.md',
-                                'schemas/draft-3/invocation.md']},
+      packages=["schema_salad"],
+      package_data={'schema_salad': ['metaschema.yml']},
       install_requires=[
           'requests',
           'PyYAML',
+          'avro',
           'rdflib >= 4.2.0',
           'rdflib-jsonld >= 0.3.0',
-          'shellescape',
-          'schema_salad == 1.4.20160108152457'
+          'mistune'
         ],
       test_suite='tests',
       tests_require=[],
       entry_points={
-          'console_scripts': [ "cwltool=cwltool.main:main", "cwltest=cwltool.cwltest:main" ]
+          'console_scripts': [ "schema-salad-tool=schema_salad.main:main" ]
       },
       zip_safe=True,
       cmdclass={'egg_info': tagger},

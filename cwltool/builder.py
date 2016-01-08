@@ -98,10 +98,10 @@ class Builder(object):
                                 sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
                             if isinstance(sfpath, list):
                                 datum["secondaryFiles"].extend(sfpath)
-                                self.files.extend(sfpath)
                             else:
                                 datum["secondaryFiles"].append(sfpath)
-                                self.files.append(sfpath)
+                    for sf in datum.get("secondaryFiles", []):
+                        self.files.append(sf)
 
         # Position to front of the sort key
         if binding:
@@ -132,6 +132,7 @@ class Builder(object):
             if binding.get("itemSeparator"):
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("do_eval"):
+                value = [v["path"] if isinstance(v, dict) and v.get("class") == "File" else v for v in value]
                 return ([prefix] if prefix else []) + value
             elif prefix:
                 return [prefix]

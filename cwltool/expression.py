@@ -111,8 +111,8 @@ def param_interpolate(ex, obj, strip=True):
                 leaf = leaf[1:-1]
             return ex[0:m.start(0)] + leaf + param_interpolate(ex[m.end(0):], obj, False)
     else:
-        if "$(" in ex:
-            _logger.warn("Warning possible workflow bug: found '$(' in '%s' but did not match valid parameter reference and InlineJavascriptRequirement not specified.", ex)
+        if "$(" in ex or "${" in ex:
+            _logger.warn("Warning possible workflow bug: found '$(' or '${' in '%s' but did not match valid parameter reference and InlineJavascriptRequirement not specified.", ex)
         return ex
 
 

@@ -198,12 +198,56 @@ def draftDraft3dev2toDev3(doc, loader, baseuri):
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
 
 
+def _draftDraft3dev3toDev4(doc, loader, baseuri):
+    try:
+        if isinstance(doc, dict):
+            if "$import" in doc:
+                if doc["$import"][0] == "#":
+                    return doc["$import"]
+                else:
+                    imp = urlparse.urljoin(baseuri, doc["$import"])
+                    r = loader.fetch(imp)
+                    if isinstance(r, list):
+                        r = {"$graph": r}
+                    r["id"] = imp
+                    _, frag = urlparse.urldefrag(imp)
+                    if frag:
+                        frag = "#" + frag
+                        r = findId(r, frag)
+                    return _draftDraft3dev3toDev4(r, loader, imp)
+
+            if "@graph" in doc:
+                doc["$graph"] = doc["@graph"]
+                del doc["@graph"]
+
+            for a in doc:
+                doc[a] = _draftDraft3dev3toDev4(doc[a], loader, baseuri)
+
+        if isinstance(doc, list):
+            return [_draftDraft3dev3toDev4(a, loader, baseuri) for a in doc]
+
+        return doc
+    except Exception as e:
+        err = json.dumps(doc, indent=4)
+        if "id" in doc:
+            err = doc["id"]
+        elif "name" in doc:
+            err = doc["name"]
+        import traceback
+        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+
+
+def draftDraft3dev3toDev4(doc, loader, baseuri):
+    return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
+
+
 def update(doc, loader, baseuri):
     updates = {
         "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
         "https://w3id.org/cwl/cwl#draft-3.dev1": draftDraft3dev1toDev2,
         "https://w3id.org/cwl/cwl#draft-3.dev2": draftDraft3dev2toDev3,
-        "https://w3id.org/cwl/cwl#draft-3.dev3": None
+        "https://w3id.org/cwl/cwl#draft-3.dev3": draftDraft3dev3toDev4,
+        "https://w3id.org/cwl/cwl#draft-3.dev4": None
     }
 
     def identity(doc, loader, baseuri):
