@@ -98,10 +98,10 @@ class Builder(object):
                                 sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
                             if isinstance(sfpath, list):
                                 datum["secondaryFiles"].extend(sfpath)
-                                self.files.extend(sfpath)
                             else:
                                 datum["secondaryFiles"].append(sfpath)
-                                self.files.append(sfpath)
+                    for sf in datum.get("secondaryFiles", []):
+                        self.files.append(sf)
 
         # Position to front of the sort key
         if binding:
