@@ -67,9 +67,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
             if not match_types(st, srccopy, iid, inputobj, linkMerge, valueFrom):
                 return False
         return True
-    else:
-        is_array = isinstance(sinktype, dict) and sinktype["type"] == "array"
-        if is_array and linkMerge:
+    elif linkMerge:
             if iid not in inputobj:
                 inputobj[iid] = []
             if linkMerge == "merge_nested":
@@ -82,10 +80,10 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
             else:
                 raise WorkflowException("Unrecognized linkMerge enum '%s'" % linkMerge)
             return True
-        elif valueFrom is not None or src.parameter["type"] == sinktype:
-            # simply assign the value from state to input
-            inputobj[iid] = copy.deepcopy(src.value)
-            return True
+    elif valueFrom is not None or src.parameter["type"] == sinktype or sinktype == "Any":
+        # simply assign the value from state to input
+        inputobj[iid] = copy.deepcopy(src.value)
+        return True
     return False
 
 
@@ -111,6 +109,8 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput):
                     return None
         elif "default" in inp:
             inputobj[iid] = inp["default"]
+        elif "valueFrom" in inp:
+            inputobj[iid] = None
         else:
             raise WorkflowException("Value for %s not specified" % (inp["id"]))
     return inputobj
@@ -190,9 +190,10 @@ class WorkflowJob(object):
             if len(valueFrom) > 0 and not bool(self.workflow.get_requirement("StepInputExpressionRequirement")[0]):
                 raise WorkflowException("Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
+            vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
             def valueFromFunc(k, v):
                 if k in valueFrom:
-                    return expression.do_eval(valueFrom[k], None, self.workflow.requirements,
+                    return expression.do_eval(valueFrom[k], vfinputs, self.workflow.requirements,
                                        None, None, {}, context=v)
                 else:
                     return v
@@ -215,7 +216,9 @@ class WorkflowJob(object):
                                                      scatter, callback, 0,
                                                      valueFrom=valueFromFunc, **kwargs)
             else:
+                _logger.debug("[workflow %s] Job is input %s", id(self), json.dumps(inputobj, indent=4))
                 inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
+                _logger.debug("[workflow %s] Evaluated job input to %s", id(self), json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, basedir, callback, **kwargs)
 
             step.submitted = True
@@ -373,7 +376,8 @@ class WorkflowStep(Process):
                         i.update(a)
                         found = True
                 if not found:
-                    raise WorkflowException("Parameter '%s' of %s in workflow step %s does not correspond to parameter in %s" % (p, field, self.id, self.embedded_tool.tool.get("id")))
+                    i["type"] = "Any"
+                    #raise WorkflowException("Parameter '%s' of %s in workflow step %s does not correspond to parameter in %s" % (p, field, self.id, self.embedded_tool.tool.get("id")))
                 i["id"] = inputid
 
         super(WorkflowStep, self).__init__(toolpath_object, **kwargs)
