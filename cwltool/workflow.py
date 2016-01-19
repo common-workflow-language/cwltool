@@ -80,17 +80,10 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
             else:
                 raise WorkflowException("Unrecognized linkMerge enum '%s'" % linkMerge)
             return True
-<<<<<<< HEAD
-        elif are_same_type(src.parameter["type"], sinktype):
-            # simply assign the value from state to input
-            inputobj[iid] = copy.deepcopy(src.value)
-            return True
-=======
-    elif valueFrom is not None or src.parameter["type"] == sinktype or sinktype == "Any":
+    elif valueFrom is not None or are_same_type(src.parameter["type"], sinktype) or sinktype == "Any":
         # simply assign the value from state to input
         inputobj[iid] = copy.deepcopy(src.value)
         return True
->>>>>>> 611498c74326c942d81c75c9e3127751776adf4f
     return False
 
 def are_same_type(one, two):
@@ -223,7 +216,6 @@ class WorkflowJob(object):
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
-
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, basedir, scatter,
                                               callback, valueFrom=valueFromFunc, **kwargs)
