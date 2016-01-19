@@ -277,9 +277,9 @@ class CommandLineTool(Process):
             if not r and optional:
                 r = None
 
-        if not r and schema["type"] == "record":
+        if not r and isinstance(schema["type"], dict) and schema["type"]["type"] == "record":
             r = {}
-            for f in schema["fields"]:
-                r[f["name"]] = self.collect_output(f, builder, outdir)
+            for f in schema["type"]["fields"]:
+                r[shortname(f["name"])] = self.collect_output(f, builder, outdir)
 
         return r
