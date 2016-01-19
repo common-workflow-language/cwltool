@@ -216,17 +216,17 @@ class WorkflowJob(object):
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
+                if "valueFrom" not in kwargs:
+                    kwargs["valueFrom"] = valueFromFunc
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, basedir, scatter,
-                                              callback, valueFrom=valueFromFunc, **kwargs)
+                                              callback, **kwargs)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(step, inputobj,
-                                                       basedir, scatter, callback,
-                                                       valueFrom=valueFromFunc, **kwargs)
+                                                       basedir, scatter, callback, **kwargs)
                 elif method == "flat_crossproduct":
                     jobs = flat_crossproduct_scatter(step, inputobj, basedir,
-                                                     scatter, callback, 0,
-                                                     valueFrom=valueFromFunc, **kwargs)
+                                                     scatter, callback, 0, **kwargs)
             else:
                 _logger.debug("[workflow %s] Job is input %s", id(self), json.dumps(inputobj, indent=4))
                 inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
