@@ -1,6 +1,7 @@
 import unittest
 import cwltool.draft2tool as tool
 import cwltool.expression as expr
+import cwltool.factory
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -98,6 +99,12 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.param_interpolate("$(foo['b\\'ar'].baz) $(foo['b\\'ar'].baz)", inputs), "true true")
         self.assertEqual(expr.param_interpolate("$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs), "true true")
         self.assertEqual(expr.param_interpolate("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
+
+class TestFactory(unittest.TestCase):
+    def test_factory(self):
+        f = cwltool.factory.Factory()
+        echo = f.make("tests/echo.cwl")
+        self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
 if __name__ == '__main__':
     unittest.main()

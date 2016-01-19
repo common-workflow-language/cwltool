@@ -1,9 +1,8 @@
-cwlVersion: "cwl:draft-3.dev1"
+cwlVersion: "cwl:draft-3.dev4"
 class: Workflow
 
 inputs:
-  - {id: "#schema_in", type: File}
-  - {id: "#schema_target", type: string}
+  - {id: "#schema_in", type: string}
   - {id: "#context_target", type: string}
   - {id: "#rdfs_target", type: string}
 
@@ -21,16 +20,8 @@ outputs:
     source: "#rdfs/out"
 
 steps:
-  - id: doc
-    run: {"@import": "makedoc.cwl"}
-    inputs:
-      - { id: source, source: "#schema_in" }
-      - { id: target, source: "#schema_target" }
-    outputs:
-      - { id: out }
-
   - id: context
-    run: {"@import": "makecontext.cwl#makecontext"}
+    run: "makecontext.cwl#makecontext"
     inputs:
       - { id: schema, source: "#schema_in" }
       - { id: target, source: "#context_target"}
@@ -38,7 +29,7 @@ steps:
       - { id: out}
 
   - id: rdfs
-    run: {"@import": "makecontext.cwl#makerdfs"}
+    run: "makecontext.cwl#makerdfs"
     inputs:
       - { id: schema, source: "#schema_in" }
       - { id: target, source: "#rdfs_target"}

@@ -1,44 +1,58 @@
 #!/usr/bin/env cwl-runner
-cwlVersion: "cwl:draft-3.dev1"
+cwlVersion: "cwl:draft-3.dev4"
 
 class: Workflow
 inputs:
-  - {id: index_in, type: File}
-  - {id: index_target, type: string}
-  - {id: title, type: string}
-
-  - id: index_strip_lines
-    type: int
-    default: 3
+  - id: render
+    type:
+      type: array
+      items:
+        name: render
+        type: record
+        fields:
+          - name: source
+            type: File
+          - name: renderlist
+            type:
+              type: array
+              items: string
+          - name: redirect
+            type:
+              type: array
+              items: string
+          - name: target
+            type: string
+          - name: brandlink
+            type: string
 
   - id: schema_in
-    type: { type: array, items: File }
-
-  - id: schema_target
-    type: { type: array, items: string }
-
+    type: File
   - id: context_target
-    type: { type: array, items: string }
-
+    type: string
   - id: rdfs_target
-    type: { type: array, items: string }
+    type: string
+  - id: brand
+    type: string
 
 outputs:
-  - id: readme_out
+  - id: doc_out
+    type:
+      type: array
+      items: File
+    source: "#docs/out"
+  - id: report
     type: File
-    source: "#readme/out"
-  - id: index
-    type: { type: array, items: File }
-    source: "#spec/index_out"
+    source: "#report/out"
   - id: context
-    type: { type: array, items: File }
-    source: "#spec/context_out"
+    type: File
+    source: "#context/out"
   - id: rdfs
-    type: { type: array, items: File }
-    source: "#spec/rdfs_out"
+    type: File
+    source: "#rdfs/out"
 
 requirements:
   - class: ScatterFeatureRequirement
+  - class: StepInputExpressionRequirement
   - class: SubworkflowFeatureRequirement
 
 hints:
@@ -46,33 +60,42 @@ hints:
     dockerPull: commonworkflowlanguage/cwltool_module
 
 steps:
-  - id: spec
+  - id: rdfs
     inputs:
-      - {id: schema_in, source: "#schema_in" }
-      - {id: schema_target, source: "#schema_target" }
-      - {id: context_target, source: "#context_target" }
-      - {id: rdfs_target, source: "#rdfs_target" }
-
-    outputs:
-      - { id: index_out }
-      - { id: context_out }
-      - { id: rdfs_out }
-
-    scatter:
-      - "#spec/schema_in"
-      - "#spec/schema_target"
-      - "#spec/context_target"
-      - "#spec/rdfs_target"
-
-    scatterMethod: dotproduct
-
-    run: {"@import": "makespec.cwl"}
-
-  - id: readme
-    inputs:
-      - { id: source, source: "#index_in" }
-      - { id: target, source: "#index_target" }
-      - { id: title, source: "#title" }
+      - {id: schema, source: "#schema_in" }
+      - {id: target, source: "#rdfs_target" }
     outputs:
       - { id: out }
-    run:  {"@import": "makedoc.cwl"}
+    run: makerdfs.cwl
+
+  - id: context
+    inputs:
+      - {id: schema, source: "#schema_in" }
+      - {id: target, source: "#context_target" }
+    outputs:
+      - { id: out }
+    run: makecontext.cwl
+
+  - id: docs
+    inputs:
+      - { id: source, source: "#render", valueFrom: $(self.source) }
+      - { id: target, source: "#render", valueFrom: $(self.target) }
+      - { id: renderlist, source: "#render", valueFrom: $(self.renderlist) }
+      - { id: redirect, source: "#render", valueFrom: $(self.redirect) }
+      - { id: brandlink, source: "#render", valueFrom: $(self.brandlink) }
+      - { id: primtype, source: "#render", valueFrom: $(self.primtype) }
+      - { id: brand, source: "#brand" }
+    outputs:
+      - { id: out }
+    scatter: ["#docs/source", "#docs/target", "#docs/renderlist",
+      "#docs/redirect", "#docs/brandlink", "#docs/primtype"]
+    scatterMethod: dotproduct
+    run:  makedoc.cwl
+
+  - id: report
+    inputs:
+      - {id: inp, source: "#docs/out"}
+      - {id: target, default: "linkchecker-report.txt"}
+    outputs:
+      - id: out
+    run: linkchecker.cwl

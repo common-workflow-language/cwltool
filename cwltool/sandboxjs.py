@@ -40,7 +40,10 @@ def execjs(js, jslib):
     if nodejs.returncode != 0:
         raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, script, stdoutdata, stderrdata))
     else:
-        return json.loads(stdoutdata)
+        try:
+            return json.loads(stdoutdata)
+        except ValueError:
+            raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, script, stdoutdata, stderrdata))
 
 class SubstitutionError(Exception):
     pass

@@ -18,7 +18,7 @@ from docker_uid import docker_vm_uid
 
 _logger = logging.getLogger("cwltool")
 
-needs_shell_quoting = re.compile(r"""(^$|[\s|&;()<>\'"$@])""").search
+needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 def deref_links(outputs):
     if isinstance(outputs, dict):
@@ -93,10 +93,17 @@ class CommandLineJob(object):
         stdin = None
         stdout = None
 
+        scr, _  = get_feature(self, "ShellCommandRequirement")
+
+        if scr:
+            shouldquote = lambda x: False
+        else:
+            shouldquote = needs_shell_quoting_re.search
+
         _logger.info("[job %s] %s$ %s%s%s",
                      id(self),
                      self.outdir,
-                     " ".join([shellescape.quote(str(arg)) if needs_shell_quoting(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
+                     " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
                      ' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
 
