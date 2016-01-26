@@ -72,15 +72,15 @@ def get_schema():
     cache = {}
     for f in cwl_files:
         rs = resource_stream(__name__, 'schemas/draft-3/' + f)
-        cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+        cache["https://w3id.org/cwl/" + f] = rs.read()
         rs.close()
 
     for f in salad_files:
         rs = resource_stream(__name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
-        cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+        cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
         rs.close()
 
-    return schema_salad.schema.load_schema("https://w3id.org/cwl/cwl/CommonWorkflowLanguage.yml", cache=cache)
+    return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
 def get_feature(self, feature):
     for t in reversed(self.requirements):
