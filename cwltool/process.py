@@ -38,19 +38,47 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ShellCommandRequirement",
                                 "StepInputExpressionRequirement"]
 
-def get_schema():
-    cache = {}
-    for f in ("Workflow.yml",
+cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
               "CommonWorkflowLanguage.yml",
               "Process.yml",
               "concepts.md",
               "contrib.md",
               "intro.md",
-              "invocation.md",
-              "salad/schema_salad/metaschema.yml"):
-        with resource_stream(__name__, 'schemas/draft-3/' + f) as rs:
-            cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+              "invocation.md")
+
+salad_files = ('metaschema.yml',
+              'salad.md',
+              'field_name.yml',
+              'import_include.md',
+              'link_res.yml',
+              'ident_res.yml',
+              'vocab_res.yml',
+              'vocab_res.yml',
+              'field_name_schema.yml',
+              'field_name_src.yml',
+              'field_name_proc.yml',
+              'ident_res_schema.yml',
+              'ident_res_src.yml',
+              'ident_res_proc.yml',
+              'link_res_schema.yml',
+              'link_res_src.yml',
+              'link_res_proc.yml',
+              'vocab_res_schema.yml',
+              'vocab_res_src.yml',
+              'vocab_res_proc.yml')
+
+def get_schema():
+    cache = {}
+    for f in cwl_files:
+        rs = resource_stream(__name__, 'schemas/draft-3/' + f)
+        cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+        rs.close()
+
+    for f in salad_files:
+        rs = resource_stream(__name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
+        cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+        rs.close()
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
