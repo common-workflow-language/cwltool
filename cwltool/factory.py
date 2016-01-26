@@ -18,8 +18,8 @@ class Factory(object):
         self.executor = executor
         self.execkwargs = execkwargs
 
-    def make(self, cwl):
-        l = main.load_tool(cwl, False, True, self.makeTool, False)
+    def make(self, cwl, frag=None, debug=False):
+        l = main.load_tool(cwl, False, True, self.makeTool, debug, urifrag=frag)
         if type(l) == int:
-            raise Exception()
+            raise Exception("Error loading tool")
         return Callable(l, self)

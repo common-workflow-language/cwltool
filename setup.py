@@ -42,7 +42,7 @@ setup(name='cwltool',
           'rdflib >= 4.2.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          'schema_salad == 1.4.20160108200836'
+          'schema_salad == 1.5.20160126150511'
         ],
       test_suite='tests',
       tests_require=[],

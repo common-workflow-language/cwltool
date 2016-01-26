@@ -253,10 +253,11 @@ class CommandLineTool(Process):
                     raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
                     pass
-                elif len(r) > 1:
-                    raise WorkflowException("Multiple matches for output item that is a single file.")
-                else:
-                    r = r[0]
+                elif isinstance(r, list):
+                    if len(r) > 1:
+                        raise WorkflowException("Multiple matches for output item that is a single file.")
+                    else:
+                        r = r[0]
 
             if "secondaryFiles" in binding:
                 for primary in aslist(r):

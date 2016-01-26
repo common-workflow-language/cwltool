@@ -253,35 +253,42 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               print_pre=False,
               print_rdf=False,
               print_dot=False,
-              rdf_serializer=None):
+              rdf_serializer=None,
+              urifrag=None):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    split = urlparse.urlsplit(argsworkflow)
-    if split.scheme:
-        uri = argsworkflow
-    else:
-        uri = "file://" + os.path.abspath(argsworkflow)
-    fileuri, urifrag = urlparse.urldefrag(uri)
-    workflowobj = document_loader.fetch(fileuri)
-    if isinstance(workflowobj, list):
-        workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
-                       "id": fileuri,
-                       "@graph": workflowobj}
-
     jobobj = None
-    if "cwl:tool" in workflowobj:
-        jobobj = workflowobj
-        workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
+    if isinstance(argsworkflow, basestring):
+        split = urlparse.urlsplit(argsworkflow)
+        if split.scheme:
+            uri = argsworkflow
+        else:
+            uri = "file://" + os.path.abspath(argsworkflow)
+        fileuri, urifrag = urlparse.urldefrag(uri)
+        workflowobj = document_loader.fetch(fileuri)
+        if isinstance(workflowobj, list):
+            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
+                           "id": fileuri,
+                           "@graph": workflowobj}
 
-    workflowobj = update.update(workflowobj, document_loader, fileuri)
-    document_loader.idx.clear()
+        if "cwl:tool" in workflowobj:
+            jobobj = workflowobj
+            workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
 
-    if updateonly:
-        print json.dumps(workflowobj, indent=4)
-        return 0
+        workflowobj = update.update(workflowobj, document_loader, fileuri)
+        document_loader.idx.clear()
+
+        if updateonly:
+            print json.dumps(workflowobj, indent=4)
+            return 0
+    elif isinstance(argsworkflow, dict):
+        workflowobj = argsworkflow
+        uri = urifrag
+    else:
+        raise schema_salad.validate.ValidationException("Must be URI or dict")
 
     try:
         processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
