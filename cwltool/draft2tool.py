@@ -171,7 +171,6 @@ class CommandLineTool(Process):
                     arg = [shellescape.quote(a) for a in aslist(arg)]
                 cmd.extend(aslist(arg))
             j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
-            print j.command_line
         else:
             j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
