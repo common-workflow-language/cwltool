@@ -258,11 +258,11 @@ class CommandLineTool(Process):
                     else:
                         r = r[0]
 
-            if "secondaryFiles" in binding:
+            if "secondaryFiles" in schema:
                 for primary in aslist(r):
                     if isinstance(primary, dict):
                         primary["secondaryFiles"] = []
-                        for sf in aslist(binding["secondaryFiles"]):
+                        for sf in aslist(schema["secondaryFiles"]):
                             if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                 sfpath = builder.do_eval(sf, context=r)
                                 if isinstance(sfpath, basestring):

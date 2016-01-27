@@ -198,23 +198,28 @@ def draftDraft3dev2toDev3(doc, loader, baseuri):
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
 
 
+def traverseImport(doc, loader, baseuri, func):
+    if "$import" in doc:
+        if doc["$import"][0] == "#":
+            return doc["$import"]
+        else:
+            imp = urlparse.urljoin(baseuri, doc["$import"])
+            r = loader.fetch(imp)
+            if isinstance(r, list):
+                r = {"$graph": r}
+            r["id"] = imp
+            _, frag = urlparse.urldefrag(imp)
+            if frag:
+                frag = "#" + frag
+                r = findId(r, frag)
+            return func(r, loader, imp)
+
 def _draftDraft3dev3toDev4(doc, loader, baseuri):
     try:
         if isinstance(doc, dict):
-            if "$import" in doc:
-                if doc["$import"][0] == "#":
-                    return doc["$import"]
-                else:
-                    imp = urlparse.urljoin(baseuri, doc["$import"])
-                    r = loader.fetch(imp)
-                    if isinstance(r, list):
-                        r = {"$graph": r}
-                    r["id"] = imp
-                    _, frag = urlparse.urldefrag(imp)
-                    if frag:
-                        frag = "#" + frag
-                        r = findId(r, frag)
-                    return _draftDraft3dev3toDev4(r, loader, imp)
+            r = traverseImport(doc, loader, baseuri, _draftDraft3dev3toDev4)
+            if r is not None:
+                return r
 
             if "@graph" in doc:
                 doc["$graph"] = doc["@graph"]
@@ -240,6 +245,38 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
 def draftDraft3dev3toDev4(doc, loader, baseuri):
     return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
 
+def _draftDraft3dev4toDev5(doc, loader, baseuri):
+    try:
+        if isinstance(doc, dict):
+            r = traverseImport(doc, loader, baseuri, _draftDraft3dev4toDev5)
+            if r is not None:
+                return r
+
+            for b in ("inputBinding", "outputBinding"):
+                if b in doc and "secondaryFiles" in doc[b]:
+                    doc["secondaryFiles"] = doc[b]["secondaryFiles"]
+                    del doc[b]["secondaryFiles"]
+
+            for a in doc:
+                doc[a] = _draftDraft3dev4toDev5(doc[a], loader, baseuri)
+
+        if isinstance(doc, list):
+            return [_draftDraft3dev4toDev5(a, loader, baseuri) for a in doc]
+
+        return doc
+    except Exception as e:
+        err = json.dumps(doc, indent=4)
+        if "id" in doc:
+            err = doc["id"]
+        elif "name" in doc:
+            err = doc["name"]
+        import traceback
+        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+
+
+def draftDraft3dev4toDev5(doc, loader, baseuri):
+    return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
+
 
 def update(doc, loader, baseuri):
     updates = {
@@ -247,7 +284,8 @@ def update(doc, loader, baseuri):
         "https://w3id.org/cwl/cwl#draft-3.dev1": draftDraft3dev1toDev2,
         "https://w3id.org/cwl/cwl#draft-3.dev2": draftDraft3dev2toDev3,
         "https://w3id.org/cwl/cwl#draft-3.dev3": draftDraft3dev3toDev4,
-        "https://w3id.org/cwl/cwl#draft-3.dev4": None
+        "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
+        "https://w3id.org/cwl/cwl#draft-3.dev5": None
     }
 
     def identity(doc, loader, baseuri):

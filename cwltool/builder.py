@@ -81,27 +81,26 @@ class Builder(object):
 
             if schema["type"] == "File":
                 self.files.append(datum)
-                if binding:
-                    if binding.get("loadContents"):
-                        with self.fs_access.open(datum["path"], "rb") as f:
-                            datum["contents"] = f.read(CONTENT_LIMIT)
+                if binding and binding.get("loadContents"):
+                    with self.fs_access.open(datum["path"], "rb") as f:
+                        datum["contents"] = f.read(CONTENT_LIMIT)
 
-                    if "secondaryFiles" in binding:
-                        if "secondaryFiles" not in datum:
-                            datum["secondaryFiles"] = []
-                        for sf in aslist(binding["secondaryFiles"]):
-                            if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                                sfpath = self.do_eval(sf, context=datum)
-                                if isinstance(sfpath, basestring):
-                                    sfpath = {"path": sfpath, "class": "File"}
-                            else:
-                                sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
-                            if isinstance(sfpath, list):
-                                datum["secondaryFiles"].extend(sfpath)
-                            else:
-                                datum["secondaryFiles"].append(sfpath)
-                    for sf in datum.get("secondaryFiles", []):
-                        self.files.append(sf)
+                if "secondaryFiles" in schema:
+                    if "secondaryFiles" not in datum:
+                        datum["secondaryFiles"] = []
+                    for sf in aslist(schema["secondaryFiles"]):
+                        if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                            sfpath = self.do_eval(sf, context=datum)
+                            if isinstance(sfpath, basestring):
+                                sfpath = {"path": sfpath, "class": "File"}
+                        else:
+                            sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
+                        if isinstance(sfpath, list):
+                            datum["secondaryFiles"].extend(sfpath)
+                        else:
+                            datum["secondaryFiles"].append(sfpath)
+                for sf in datum.get("secondaryFiles", []):
+                    self.files.append(sf)
 
         # Position to front of the sort key
         if binding:
