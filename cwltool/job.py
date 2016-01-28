@@ -103,7 +103,7 @@ class CommandLineJob(object):
         _logger.info("[job %s] %s$ %s%s%s",
                      id(self),
                      self.outdir,
-                     " ".join([shellescape.quote(arg) if shouldquote(arg) else arg for arg in (runtime + self.command_line)]),
+                     " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
                      ' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
 
@@ -138,7 +138,7 @@ class CommandLineJob(object):
             else:
                 stdout = sys.stderr
 
-            sp = subprocess.Popen(runtime + self.command_line,
+            sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,

@@ -242,10 +242,13 @@ class CommandLineTool(Process):
             if "outputEval" in binding:
                 r = builder.do_eval(binding["outputEval"], context=r)
                 if singlefile:
+                    # Handle single file outputs not wrapped in a list
+                    if r is not None and not isinstance(r, (list, tuple)):
+                        r = [r]
                     if optional and r is None:
                         pass
-                    if (not isinstance(r, dict) or "path" not in r):
-                        raise WorkflowException("Expression must return a file object.")
+                    elif (r is None or len(r) != 1 or not isinstance(r[0], dict) or "path" not in r[0]):
+                        raise WorkflowException("Expression must return a file object for %s." % schema["id"])
 
             if singlefile:
                 if not r and not optional:
@@ -268,7 +271,7 @@ class CommandLineTool(Process):
                                 if isinstance(sfpath, basestring):
                                     sfpath = {"path": sfpath, "class": "File"}
                             else:
-                                sfpath = {"path": substitute(r["path"], sf), "class": "File"}
+                                sfpath = {"path": substitute(primary["path"], sf), "class": "File"}
 
                             for sfitem in aslist(sfpath):
                                 if builder.fs_access.exists(sfitem["path"]):

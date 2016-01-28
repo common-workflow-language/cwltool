@@ -80,11 +80,24 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
             else:
                 raise WorkflowException("Unrecognized linkMerge enum '%s'" % linkMerge)
             return True
-    elif valueFrom is not None or src.parameter["type"] == sinktype or sinktype == "Any":
+    elif valueFrom is not None or are_same_type(src.parameter["type"], sinktype) or sinktype == "Any":
         # simply assign the value from state to input
         inputobj[iid] = copy.deepcopy(src.value)
         return True
     return False
+
+def are_same_type(one, two):
+    """Check for identical type specifications, ignoring extra keys like inputBinding.
+    """
+    if isinstance(one, dict) and isinstance(two, dict):
+        if one["type"] == "array" and two["type"] == "array":
+            return are_same_type(one["items"], two["items"])
+        elif one["type"] == two["type"]:
+            return True
+        else:
+            return False
+    else:
+        return one == two
 
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput):
@@ -203,18 +216,17 @@ class WorkflowJob(object):
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
-
+                if "valueFrom" not in kwargs:
+                    kwargs["valueFrom"] = valueFromFunc
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, basedir, scatter,
-                                              callback, valueFrom=valueFromFunc, **kwargs)
+                                              callback, **kwargs)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(step, inputobj,
-                                                       basedir, scatter, callback,
-                                                       valueFrom=valueFromFunc, **kwargs)
+                                                       basedir, scatter, callback, **kwargs)
                 elif method == "flat_crossproduct":
                     jobs = flat_crossproduct_scatter(step, inputobj, basedir,
-                                                     scatter, callback, 0,
-                                                     valueFrom=valueFromFunc, **kwargs)
+                                                     scatter, callback, 0, **kwargs)
             else:
                 _logger.debug("[workflow %s] Job is input %s", id(self), json.dumps(inputobj, indent=4))
                 inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
@@ -311,8 +323,9 @@ class WorkflowJob(object):
 
             for a in output_dirs:
                 if os.path.exists(a) and empty_subtree(a):
-                    _logger.debug("[workflow %s] Removing intermediate output directory %s", id(self), a)
-                    shutil.rmtree(a, True)
+                    if kwargs.get("rm_tmpdir", True):
+                        _logger.debug("[workflow %s] Removing intermediate output directory %s", id(self), a)
+                        shutil.rmtree(a, True)
 
         _logger.info("[workflow %s] outdir is %s", id(self), self.outdir)
 
