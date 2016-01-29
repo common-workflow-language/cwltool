@@ -11,7 +11,7 @@ import glob
 import logging
 import hashlib
 import random
-from process import Process, shortname
+from process import Process, shortname, uniquename
 from errors import WorkflowException
 import schema_salad.validate as validate
 from aslist import aslist
@@ -110,12 +110,13 @@ class CommandLineTool(Process):
         j.permanentFailCodes = self.tool.get("permanentFailCodes")
         j.requirements = self.requirements
         j.hints = self.hints
+        j.name = uniquename(kwargs.get("name", str(id(j))))
 
         _logger.debug("[job %s] initializing from %s%s",
-                     id(j),
+                     j.name,
                      self.tool.get("id", ""),
                      " as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
-        _logger.debug("[job %s] %s", id(j), json.dumps(joborder, indent=4))
+        _logger.debug("[job %s] %s", j.name, json.dumps(joborder, indent=4))
 
 
         builder.pathmapper = None
@@ -137,8 +138,8 @@ class CommandLineTool(Process):
         for f in builder.files:
             f["path"] = builder.pathmapper.mapper(f["path"])[1]
 
-        _logger.debug("[job %s] command line bindings is %s", id(j), json.dumps(builder.bindings, indent=4))
-        _logger.debug("[job %s] path mappings is %s", id(j), json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+        _logger.debug("[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
+        _logger.debug("[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):

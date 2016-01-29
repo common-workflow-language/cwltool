@@ -1,7 +1,7 @@
 import job
 import draft2tool
 from aslist import aslist
-from process import Process, get_feature, empty_subtree, shortname
+from process import Process, get_feature, empty_subtree, shortname, uniquename
 from errors import WorkflowException
 import copy
 import logging
@@ -136,9 +136,11 @@ class WorkflowJobStep(object):
         self.id = step.id
         self.submitted = False
         self.completed = False
+        self.name = uniquename("step %s" % shortname(self.id))
 
     def job(self, joborder, basedir, output_callback, **kwargs):
-        kwargs["part_of"] = "step %s" % id(self)
+        kwargs["part_of"] = self.name
+        kwargs["name"] = shortname(self.id)
         for j in self.step.job(joborder, basedir, output_callback, **kwargs):
             yield j
 
@@ -156,10 +158,12 @@ class WorkflowJob(object):
             # tmp_outdir_prefix defaults to tmp, so this is unlikely to be used
             self.outdir = tempfile.mkdtemp()
 
-        _logger.debug("[workflow %s] initialized from %s", id(self), self.tool["id"])
+        self.name = uniquename(kwargs.get("name", shortname(self.workflow.tool["id"])))
+
+        _logger.debug("[workflow %s] initialized from %s", self.name, self.tool["id"])
 
     def receive_output(self, step, outputparms, jobout, processStatus):
-        _logger.debug("[workflow %s] step %s completed", id(self), id(step))
+        _logger.debug("[workflow %s] step %s completed", self.name, id(step))
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -188,7 +192,7 @@ class WorkflowJob(object):
         try:
             inputobj = object_from_state(self.state, inputparms, False, supportsMultipleInput)
             if inputobj is None:
-                _logger.debug("[workflow %s] job step %s not ready", id(self), step.id)
+                _logger.debug("[workflow %s] job step %s not ready", self.name, step.id)
                 return
 
             _logger.debug("[step %s] starting job step %s of workflow %s", id(step), step.id, id(self))
@@ -228,9 +232,9 @@ class WorkflowJob(object):
                     jobs = flat_crossproduct_scatter(step, inputobj, basedir,
                                                      scatter, callback, 0, **kwargs)
             else:
-                _logger.debug("[workflow %s] Job is input %s", id(self), json.dumps(inputobj, indent=4))
+                _logger.debug("[workflow %s] Job is input %s", self.name, json.dumps(inputobj, indent=4))
                 inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
-                _logger.debug("[workflow %s] Evaluated job input to %s", id(self), json.dumps(inputobj, indent=4))
+                _logger.debug("[workflow %s] Evaluated job input to %s", self.name, json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, basedir, callback, **kwargs)
 
             step.submitted = True
@@ -245,7 +249,7 @@ class WorkflowJob(object):
             step.completed = True
 
     def run(self, **kwargs):
-        _logger.debug("[workflow %s] starting", id(self))
+        _logger.debug("[workflow %s] starting", self.name)
 
     def job(self, joborder, basedir, output_callback, move_outputs=True, **kwargs):
         self.state = {}
@@ -290,6 +294,9 @@ class WorkflowJob(object):
 
         wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput)
 
+        if wo is None:
+            raise WorkflowException("Output for workflow not available")
+
         if move_outputs:
             targets = set()
             conflicts = set()
@@ -317,17 +324,17 @@ class WorkflowJob(object):
                         dirname = os.path.dirname(dst)
                         if not os.path.exists(dirname):
                             os.makedirs(dirname)
-                        _logger.debug("[workflow %s] Moving '%s' to '%s'", id(self), src, dst)
+                        _logger.debug("[workflow %s] Moving '%s' to '%s'", self.name, src, dst)
                         shutil.move(src, dst)
                         f["path"] = dst
 
             for a in output_dirs:
                 if os.path.exists(a) and empty_subtree(a):
                     if kwargs.get("rm_tmpdir", True):
-                        _logger.debug("[workflow %s] Removing intermediate output directory %s", id(self), a)
+                        _logger.debug("[workflow %s] Removing intermediate output directory %s", self.name, a)
                         shutil.rmtree(a, True)
 
-        _logger.info("[workflow %s] outdir is %s", id(self), self.outdir)
+        _logger.info("[workflow %s] outdir is %s", self.name, self.outdir)
 
         output_callback(wo, self.processStatus)
 
@@ -347,11 +354,10 @@ class Workflow(Process):
 
     def job(self, joborder, basedir, output_callback, **kwargs):
         builder = self._init_job(joborder, basedir, **kwargs)
-
-        kwargs["part_of"] = "workflow %s" % (id(self))
         wj = WorkflowJob(self, **kwargs)
-
         yield wj
+
+        kwargs["part_of"] = "workflow %s" % wj.name
 
         for w in wj.job(builder.job, basedir, output_callback, **kwargs):
             yield w
@@ -359,6 +365,11 @@ class Workflow(Process):
 
 class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, **kwargs):
+        if "id" in toolpath_object:
+            self.id = toolpath_object["id"]
+        else:
+            self.id = "#step" + str(pos)
+
         try:
             makeTool = kwargs.get("makeTool")
             runobj = None
@@ -372,11 +383,6 @@ class WorkflowStep(Process):
             self.embedded_tool = makeTool(runobj, **kwargs)
         except validate.ValidationException as v:
             raise WorkflowException("Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
-
-        if "id" in toolpath_object:
-            self.id = toolpath_object["id"]
-        else:
-            self.id = "#step" + str(pos)
 
         for field in ("inputs", "outputs"):
             for i in toolpath_object[field]:
@@ -453,8 +459,12 @@ class WorkflowStep(Process):
         kwargs["hints"] = kwargs.get("hints", []) + self.tool.get("hints", [])
 
         try:
-            for t in self.embedded_tool.job(joborder, basedir, functools.partial(self.receive_output, output_callback), **kwargs):
+            for t in self.embedded_tool.job(joborder, basedir,
+                                            functools.partial(self.receive_output, output_callback),
+                                            **kwargs):
                 yield t
+        except WorkflowException:
+            raise
         except Exception as e:
             _logger.exception("Unexpected exception")
             raise WorkflowException(str(e))

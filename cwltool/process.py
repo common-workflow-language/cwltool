@@ -92,8 +92,11 @@ def get_feature(self, feature):
     return (None, None)
 
 def shortname(inputid):
-    (_, d) = urlparse.urldefrag(inputid)
-    return d.split("/")[-1].split(".")[-1]
+    d = urlparse.urlparse(inputid)
+    if d.fragment:
+        return d.fragment.split("/")[-1].split(".")[-1]
+    else:
+        return d.path.split("/")[-1]
 
 class StdFsAccess(object):
     def __init__(self, basedir):
@@ -340,3 +343,13 @@ def empty_subtree(dirpath):
             else:
                 raise
     return True
+
+_names = set()
+def uniquename(stem):
+    c = 1
+    u = stem
+    while u in _names:
+        c += 1
+        u = "%s_%s" % (stem, c)
+    _names.add(u)
+    return u

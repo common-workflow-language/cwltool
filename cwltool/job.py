@@ -101,7 +101,7 @@ class CommandLineJob(object):
             shouldquote = needs_shell_quoting_re.search
 
         _logger.info("[job %s] %s$ %s%s%s",
-                     id(self),
+                     self.name,
                      self.outdir,
                      " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
@@ -195,17 +195,17 @@ class CommandLineJob(object):
             processStatus = "permanentFail"
 
         if processStatus != "success":
-            _logger.warn("[job %s] completed %s", id(self), processStatus)
+            _logger.warn("[job %s] completed %s", self.name, processStatus)
         else:
-            _logger.debug("[job %s] completed %s", id(self), processStatus)
-        _logger.debug("[job %s] %s", id(self), json.dumps(outputs, indent=4))
+            _logger.debug("[job %s] completed %s", self.name, processStatus)
+        _logger.debug("[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
         self.output_callback(outputs, processStatus)
 
         if rm_tmpdir:
-            _logger.debug("[job %s] Removing temporary directory %s", id(self), self.tmpdir)
+            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
         if move_outputs and empty_subtree(self.outdir):
-            _logger.debug("[job %s] Removing empty output directory %s", id(self), self.outdir)
+            _logger.debug("[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
