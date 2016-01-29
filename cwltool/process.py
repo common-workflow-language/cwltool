@@ -253,8 +253,8 @@ class Process(object):
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = kwargs.get("docker_outdir") or "/tmp/job_output"
-            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp/job_tmp"
+            builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
+            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
         else:
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
