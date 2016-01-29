@@ -63,9 +63,9 @@ class CommandLineJob(object):
             for src in self.pathmapper.files():
                 vol = self.pathmapper.mapper(src)
                 runtime.append("--volume=%s:%s:ro" % vol)
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/tmp/job_output"))
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp/job_tmp"))
-            runtime.append("--workdir=%s" % ("/tmp/job_output"))
+            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
+            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
+            runtime.append("--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
             euid = docker_vm_uid() or os.geteuid()
             runtime.append("--user=%s" % (euid))
@@ -73,7 +73,7 @@ class CommandLineJob(object):
             if rm_container:
                 runtime.append("--rm")
 
-            runtime.append("--env=TMPDIR=/tmp/job_tmp")
+            runtime.append("--env=TMPDIR=/tmp")
 
             for t,v in self.environment.items():
                 runtime.append("--env=%s=%s" % (t, v))
