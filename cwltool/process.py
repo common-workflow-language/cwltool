@@ -20,7 +20,7 @@ from errors import WorkflowException
 from pathmapper import abspath
 
 from rdflib import URIRef
-from rdflib.namespace import RDFS
+from rdflib.namespace import RDFS, OWL
 
 import errno
 
@@ -141,18 +141,35 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
-def formatSubclassOf(fmt, cls, ontology):
+def formatSubclassOf(fmt, cls, ontology, visited):
+    """Determine if `fmt` is a subclass of `cls`."""
+
+    if URIRef(fmt) == URIRef(cls):
+        return True
+
     if ontology is None:
         return False
+
+    if fmt in visited:
+        return
+
+    visited.add(fmt)
 
     fmt = URIRef(fmt)
 
     for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
-        if o == URIRef(cls):
+        # Find parent classes of `fmt` and search upward
+        if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
-        if formatSubclassOf(o, cls, ontology):
+    for s,p,o in ontology.triples( (fmt, OWL.equivalentClass, None) ):
+        # Find equivalent classes of `fmt` and search horizontally
+        if formatSubclassOf(o, cls, ontology, visited):
+            return True
+
+    for s,p,o in ontology.triples( (None, OWL.equivalentClass, fmt) ):
+        # Find equivalent classes of `fmt` and search horizontally
+        if formatSubclassOf(s, cls, ontology, visited):
             return True
 
     return False
@@ -162,7 +179,7 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
         if "format" not in af:
             raise validate.ValidationException("Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology):
+            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
