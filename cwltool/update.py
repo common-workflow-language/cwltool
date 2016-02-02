@@ -277,6 +277,9 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
 def draftDraft3dev4toDev5(doc, loader, baseuri):
     return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
 
+def draftDraft3dev5toFinal(doc, loader, baseuri):
+    return (doc, "https://w3id.org/cwl/cwl#draft-3")
+
 
 def update(doc, loader, baseuri):
     updates = {
@@ -285,7 +288,7 @@ def update(doc, loader, baseuri):
         "https://w3id.org/cwl/cwl#draft-3.dev2": draftDraft3dev2toDev3,
         "https://w3id.org/cwl/cwl#draft-3.dev3": draftDraft3dev3toDev4,
         "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
-        "https://w3id.org/cwl/cwl#draft-3.dev5": None
+        "https://w3id.org/cwl/cwl#draft-3.dev5": draftDraft3dev5toFinal
     }
 
     def identity(doc, loader, baseuri):

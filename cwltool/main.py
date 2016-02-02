@@ -42,6 +42,7 @@ def arg_parser():
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
                         metavar=("VAR1","VAR2"),
+                        default=("PATH",),
                         dest="preserve_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -270,9 +271,9 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         fileuri, urifrag = urlparse.urldefrag(uri)
         workflowobj = document_loader.fetch(fileuri)
         if isinstance(workflowobj, list):
-            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
+            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-3",
                            "id": fileuri,
-                           "@graph": workflowobj}
+                           "$graph": workflowobj}
 
         if "cwl:tool" in workflowobj:
             jobobj = workflowobj
