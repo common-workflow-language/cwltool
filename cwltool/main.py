@@ -271,9 +271,10 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         fileuri, urifrag = urlparse.urldefrag(uri)
         workflowobj = document_loader.fetch(fileuri)
         if isinstance(workflowobj, list):
-            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-3",
+            # bare list without a version must be treated as draft-2
+            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
                            "id": fileuri,
-                           "$graph": workflowobj}
+                           "@graph": workflowobj}
 
         if "cwl:tool" in workflowobj:
             jobobj = workflowobj
