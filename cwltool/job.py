@@ -67,6 +67,7 @@ class CommandLineJob(object):
             runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append("--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
+            runtime.append("--net=none")
             euid = docker_vm_uid() or os.geteuid()
             runtime.append("--user=%s" % (euid))
 
