@@ -99,6 +99,7 @@ def arg_parser():
                         help="Print corresponding RDF graph for workflow and exit")
     exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
     exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
+    exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies from $import, $include, $schemas")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
@@ -412,6 +413,42 @@ def load_job_order(args, t, parser):
     return (job_order_object, input_basedir)
 
 
+def scandeps(base, doc):
+    r = []
+    if isinstance(doc, dict):
+        if "$import" in doc:
+            p = os.path.join(base, doc["$import"])
+            with open(p) as f:
+                r.append({
+                    "class": "File",
+                    "path": p,
+                    "secondaryFiles": scandeps(os.path.dirname(p), yaml.load(f))
+                })
+        elif "$include" in doc:
+            p = os.path.join(base, doc["$include"])
+            r.append({
+                "class": "File",
+                "path": p
+            })
+        elif "$schemas" in doc:
+            for s in doc["$schemas"]:
+                p = os.path.join(base, s)
+                r.append({
+                    "class": "File",
+                    "path": p
+                })
+        else:
+            for d in doc.itervalues():
+                r.extend(scandeps(base, d))
+    elif isinstance(doc, list):
+        for d in doc:
+            r.extend(scandeps(base, d))
+    return r
+
+def print_deps(fn):
+    with open(fn) as f:
+        print json.dumps(scandeps(os.path.dirname(fn), yaml.load(f)), indent=4)
+
 def main(args=None,
          executor=single_job_executor,
          makeTool=workflow.defaultMakeTool,
@@ -450,6 +487,10 @@ def main(args=None,
         _logger.error("")
         _logger.error("CWL document required")
         return 1
+
+    if args.print_deps:
+        print_deps(args.workflow)
+        return 0
 
     try:
         t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug,
