@@ -131,7 +131,7 @@ def run_test(args, i, t):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Compliance tests for cwltool')
     parser.add_argument("--test", type=str, help="YAML file describing test cases", required=True)
     parser.add_argument("--basedir", type=str, help="Basedir to use for tests", default=".")
     parser.add_argument("-n", type=int, default=None, help="Run a specific test")

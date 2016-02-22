@@ -29,7 +29,7 @@ _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 
 def arg_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
     parser.add_argument("--conformance-test", action="store_true")
     parser.add_argument("--basedir", type=str)
     parser.add_argument("--outdir", type=str, default=os.path.abspath('.'),
