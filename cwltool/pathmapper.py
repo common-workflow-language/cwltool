@@ -32,6 +32,7 @@ class PathMapper(object):
         for k,v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
+        return None
 
 class DockerPathMapper(PathMapper):
     def __init__(self, referenced_files, basedir):

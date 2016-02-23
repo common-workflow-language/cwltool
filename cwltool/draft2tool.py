@@ -51,6 +51,20 @@ class ExpressionTool(Process):
 
         yield j
 
+def revmap_file(builder, outdir, f):
+    """Remap a file back to original path. For Docker, this is outside the container.
+
+    Uses either files in the pathmapper or remaps internal output directories
+    to the external directory.
+    """
+    revmap_f = builder.pathmapper.reversemap(f)
+    if revmap_f:
+        return revmap_f[1]
+    elif f.startswith(builder.outdir):
+        return os.path.join(outdir, f[len(builder.outdir)+1:])
+    else:
+        raise WorkflowException("Output file path %s must be within designated output directory or an input file pass through." % f)
+
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -183,13 +197,15 @@ class CommandLineTool(Process):
 
     def collect_output_ports(self, ports, builder, outdir):
         try:
+            ret = {}
             custom_output = os.path.join(outdir, "cwl.output.json")
             if builder.fs_access.exists(custom_output):
-                outputdoc = yaml.load(custom_output)
-                validate.validate_ex(self.names.get_name("outputs_record_schema", ""), outputdoc)
-                return outputdoc
-
-            ret = {}
+                with builder.fs_access.open(custom_output, "r") as f:
+                    ret = yaml.load(f)
+                _logger.debug("Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
+                adjustFiles(ret, functools.partial(revmap_file, builder, outdir))
+                validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
+                return ret
 
             for port in ports:
                 fragment = shortname(port["id"])
@@ -200,20 +216,6 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir):
-        def revmap_file(f):
-            """Remap a file back to original path. For Docker, this is outside the container.
-
-            Uses either files in the pathmapper or remaps internal output directories
-            to the external directory.
-            """
-            revmap_f = builder.pathmapper.reversemap(f)
-            if revmap_f:
-                return revmap_f[-1]
-            elif f.startswith(builder.outdir):
-                return f.replace(builder.outdir, outdir)
-            else:
-                return f
-
         r = None
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
@@ -276,9 +278,10 @@ class CommandLineTool(Process):
                     else:
                         r = r[0]
 
+            # Ensure files point to local references outside of the run environment
+            adjustFiles(r, functools.partial(revmap_file, builder, outdir))
+
             if "secondaryFiles" in schema:
-                # remap secondaryFiles since we check if they exist
-                adjustFiles(r, revmap_file)
                 for primary in aslist(r):
                     if isinstance(primary, dict):
                         primary["secondaryFiles"] = []
@@ -301,6 +304,5 @@ class CommandLineTool(Process):
             r = {}
             for f in schema["type"]["fields"]:
                 r[shortname(f["name"])] = self.collect_output(f, builder, outdir)
-        # Ensure files point to local references outside of the run environment
-        adjustFiles(r, revmap_file)
+
         return r
