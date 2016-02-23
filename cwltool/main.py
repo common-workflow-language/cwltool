@@ -314,10 +314,13 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     if urifrag:
         processobj, _ = document_loader.resolve_ref(uri)
     elif isinstance(processobj, list):
-        _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
-                      ", #".join(urlparse.urldefrag(i["id"])[1]
-                                 for i in processobj if "id" in i))
-        return 1
+        if 1 == len(processobj):
+            processobj = processobj[0]
+        else:
+            _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
+                          ", #".join(urlparse.urldefrag(i["id"])[1]
+                                     for i in processobj if "id" in i))
+            return 1
 
     try:
         t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names)
