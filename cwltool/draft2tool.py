@@ -11,7 +11,7 @@ import glob
 import logging
 import hashlib
 import random
-from process import Process, shortname, uniquename
+from process import Process, shortname, uniquename, adjustFiles
 from errors import WorkflowException
 import schema_salad.validate as validate
 from aslist import aslist
@@ -200,6 +200,20 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir):
+        def revmap_file(f):
+            """Remap a file back to original path. For Docker, this is outside the container.
+
+            Uses either files in the pathmapper or remaps internal output directories
+            to the external directory.
+            """
+            revmap_f = builder.pathmapper.reversemap(f)
+            if revmap_f:
+                return revmap_f[-1]
+            elif f.startswith(builder.outdir):
+                return f.replace(builder.outdir, outdir)
+            else:
+                return f
+
         r = None
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
@@ -263,6 +277,8 @@ class CommandLineTool(Process):
                         r = r[0]
 
             if "secondaryFiles" in schema:
+                # remap secondaryFiles since we check if they exist
+                adjustFiles(r, revmap_file)
                 for primary in aslist(r):
                     if isinstance(primary, dict):
                         primary["secondaryFiles"] = []
@@ -285,5 +301,6 @@ class CommandLineTool(Process):
             r = {}
             for f in schema["type"]["fields"]:
                 r[shortname(f["name"])] = self.collect_output(f, builder, outdir)
-
+        # Ensure files point to local references outside of the run environment
+        adjustFiles(r, revmap_file)
         return r
