@@ -223,13 +223,16 @@ class CommandLineTool(Process):
             if "glob" in binding:
                 r = []
                 for gb in aslist(binding["glob"]):
+                    gb = builder.do_eval(gb)
+                    if gb:
+                        globpatterns.extend(aslist(gb))
+
+                for gb in globpatterns:
                     try:
-                        gb = builder.do_eval(gb)
-                        globpatterns.append(gb)
-                        if gb:
-                            r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                        r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
+
                 for files in r:
                     checksum = hashlib.sha1()
                     with builder.fs_access.open(files["path"], "rb") as f:
