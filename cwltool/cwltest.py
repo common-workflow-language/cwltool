@@ -10,8 +10,9 @@ import tempfile
 import yaml
 import pipes
 import logging
+import schema_salad.ref_resolver
 
-_logger = logging.getLogger("cwltool")
+_logger = logging.getLogger("cwltest")
 _logger.addHandler(logging.StreamHandler())
 _logger.setLevel(logging.INFO)
 
@@ -137,6 +138,8 @@ def main():
     parser.add_argument("-n", type=int, default=None, help="Run a specific test")
     parser.add_argument("--tool", type=str, default="cwl-runner",
                         help="CWL runner executable to use (default 'cwl-runner'")
+    parser.add_argument("--only-tools", action="store_true", help="Only test tools")
+
     args = parser.parse_args()
 
     if not args.test:
@@ -148,6 +151,15 @@ def main():
 
     failures = 0
     unsupported = 0
+
+    if args.only_tools:
+        alltests = tests
+        tests = []
+        for t in alltests:
+            loader = schema_salad.ref_resolver.Loader({"id": "@id"})
+            cwl, _ = loader.resolve_ref(t["tool"])
+            if cwl["class"] == "CommandLineTool":
+                tests.append(t)
 
     if args.n is not None:
         sys.stderr.write("\rTest [%i/%i] " % (args.n, len(tests)))
