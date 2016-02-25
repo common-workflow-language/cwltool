@@ -545,8 +545,11 @@ def main(args=None,
                        select_resources=selectResources
                        )
         # This is the workflow output, it needs to be written
-        stdout.write(json.dumps(out, indent=4))
-        stdout.flush()
+        if out is not None:
+            stdout.write(json.dumps(out, indent=4))
+            stdout.flush()
+        else:
+            return 1
     except (validate.ValidationException) as e:
         _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1

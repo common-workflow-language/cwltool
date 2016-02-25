@@ -75,7 +75,7 @@ def revmap_file(builder, outdir, f):
         f["hostfs"] = True
         return f
     else:
-        raise WorkflowException("Output file path %s must be within designated output directory (%s) or an input file pass through." % (f, builder.outdir))
+        raise WorkflowException("Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
 
 
 class CommandLineTool(Process):
@@ -128,6 +128,7 @@ class CommandLineTool(Process):
         reffiles = set((f["path"] for f in builder.files))
 
         j = self.makeJobRunner()
+        j.builder = builder
         j.joborder = builder.job
         j.stdin = None
         j.stdout = None
