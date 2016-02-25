@@ -1,25 +1,30 @@
 import subprocess
 import json
 import threading
+import errno
 
 class JavascriptException(Exception):
     pass
 
 def execjs(js, jslib):
-    try:
-        nodejs = subprocess.Popen(["nodejs"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError as e:
-        if e.errno == 2:
-            nodejs = subprocess.Popen(["docker", "run",
+    nodejs = None
+    trynodes = (["xnodejs"], ["node"], ["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
                                        "--interactive",
                                        "--rm",
-                                       "commonworkflowlanguage/nodejs-engine", "nodejs"],
-                                      stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
-        else:
-            raise
+                                       "node:slim"])
+    for n in trynodes:
+        try:
+            nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise
+
+    if nodejs is None:
+        raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
+
 
     fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
