@@ -343,7 +343,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
 
     return t
 
-def load_job_order(args, t, parser):
+def load_job_order(args, t, parser, stdin):
 
     job_order_object = None
 
@@ -522,7 +522,7 @@ def main(args=None,
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    job_order_object = load_job_order(args, t, parser)
+    job_order_object = load_job_order(args, t, parser, stdin)
 
     if type(job_order_object) == int:
         return job_order_object
