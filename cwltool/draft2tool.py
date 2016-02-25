@@ -163,14 +163,14 @@ class CommandLineTool(Process):
 
         # map files to assigned path inside a container. We need to also explicitly
         # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-        for f in builder.files:
-            f["path"] = builder.pathmapper.mapper(f["path"])[1]
         def _check_adjust(f):
-            try:
-                return builder.pathmapper.mapper(f)[1]
-            except KeyError:
-                return f
-        adjustFiles(builder.bindings, _check_adjust)
+            if not f.get("containerfs"):
+                f["path"] = builder.pathmapper.mapper(f["path"])[1]
+                f["containerfs"] = True
+            return f
+
+        adjustFileObjs(builder.files, _check_adjust)
+        adjustFileObjs(builder.bindings, _check_adjust)
 
         _logger.debug("[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
         _logger.debug("[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
