@@ -16,6 +16,7 @@ def execjs(js, jslib):
     for n in trynodes:
         try:
             nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            break
         except OSError as e:
             if e.errno == errno.ENOENT:
                 pass
