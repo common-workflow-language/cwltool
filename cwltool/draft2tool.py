@@ -11,7 +11,7 @@ import glob
 import logging
 import hashlib
 import random
-from process import Process, shortname, uniquename, adjustFiles
+from process import Process, shortname, uniquename, adjustFileObjs
 from errors import WorkflowException
 import schema_salad.validate as validate
 from aslist import aslist
@@ -51,19 +51,31 @@ class ExpressionTool(Process):
 
         yield j
 
+def remove_hostfs(f):
+    if "hostfs" in f:
+        del f["hostfs"]
+
 def revmap_file(builder, outdir, f):
     """Remap a file back to original path. For Docker, this is outside the container.
 
     Uses either files in the pathmapper or remaps internal output directories
     to the external directory.
     """
-    revmap_f = builder.pathmapper.reversemap(f)
+
+    if f.get("hostfs"):
+        return
+
+    revmap_f = builder.pathmapper.reversemap(f["path"])
     if revmap_f:
-        return revmap_f[1]
-    elif f.startswith(builder.outdir):
-        return os.path.join(outdir, f[len(builder.outdir)+1:])
+        f["path"] = revmap_f[1]
+        f["hostfs"] = True
+        return f
+    elif f["path"].startswith(builder.outdir):
+        f["path"] = os.path.join(outdir, f["path"][len(builder.outdir)+1:])
+        f["hostfs"] = True
+        return f
     else:
-        raise WorkflowException("Output file path %s must be within designated output directory or an input file pass through." % f)
+        raise WorkflowException("Output file path %s must be within designated output directory (%s) or an input file pass through." % (f, builder.outdir))
 
 
 class CommandLineTool(Process):
@@ -203,13 +215,17 @@ class CommandLineTool(Process):
                 with builder.fs_access.open(custom_output, "r") as f:
                     ret = yaml.load(f)
                 _logger.debug("Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
-                adjustFiles(ret, functools.partial(revmap_file, builder, outdir))
+                adjustFileObjs(ret, remove_hostfs)
+                adjustFileObjs(ret, functools.partial(revmap_file, builder, outdir))
+                adjustFileObjs(ret, remove_hostfs)
                 validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
                 return ret
 
             for port in ports:
                 fragment = shortname(port["id"])
                 ret[fragment] = self.collect_output(port, builder, outdir)
+            if ret:
+                adjustFileObjs(ret, remove_hostfs)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
@@ -220,6 +236,9 @@ class CommandLineTool(Process):
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
             globpatterns = []
+
+            revmap = functools.partial(revmap_file, builder, outdir)
+
             if "glob" in binding:
                 r = []
                 for gb in aslist(binding["glob"]):
@@ -228,8 +247,11 @@ class CommandLineTool(Process):
                         globpatterns.extend(aslist(gb))
 
                 for gb in globpatterns:
+                    if gb.startswith("/"):
+                        raise WorkflowError("glob patterns must not start with '/'")
                     try:
-                        r.extend([{"path": g, "class": "File"} for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                        r.extend([{"path": g, "class": "File", "hostfs": True}
+                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
@@ -282,7 +304,7 @@ class CommandLineTool(Process):
                         r = r[0]
 
             # Ensure files point to local references outside of the run environment
-            adjustFiles(r, functools.partial(revmap_file, builder, outdir))
+            adjustFileObjs(r, revmap)
 
             if "secondaryFiles" in schema:
                 for primary in aslist(r):
@@ -292,9 +314,9 @@ class CommandLineTool(Process):
                             if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                 sfpath = builder.do_eval(sf, context=r)
                                 if isinstance(sfpath, basestring):
-                                    sfpath = {"path": sfpath, "class": "File"}
+                                    sfpath = revmap({"path": sfpath, "class": "File"})
                             else:
-                                sfpath = {"path": substitute(primary["path"], sf), "class": "File"}
+                                sfpath = {"path": substitute(primary["path"], sf), "class": "File", "hostfs": True}
 
                             for sfitem in aslist(sfpath):
                                 if builder.fs_access.exists(sfitem["path"]):

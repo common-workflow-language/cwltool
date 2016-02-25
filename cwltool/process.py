@@ -141,6 +141,18 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
+def adjustFileObjs(rec, op):
+    """Apply an update function to each File object in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            op(rec)
+        for d in rec:
+            adjustFileObjs(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFileObjs(d, op)
+
 def formatSubclassOf(fmt, cls, ontology, visited):
     """Determine if `fmt` is a subclass of `cls`."""
 
