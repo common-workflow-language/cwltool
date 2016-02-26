@@ -6,9 +6,9 @@ requirements:
 cwlVersion: cwl:draft-3
 
 inputs:
-  - { id: file1, type: File, inputBinding: { loadContents: true } }
+  - { id: i1, type: Any }
 
 outputs:
   - { id: output, type: int }
 
-expression: "$({'output': parseInt(inputs.file1.contents)})"
+expression: "$({'output': (inputs.i1 == 'the-default' ? 1 : 2)})"
