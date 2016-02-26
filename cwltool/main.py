@@ -308,7 +308,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         return 0
 
     if print_dot:
-        printdot(argsworkflow, processobj, document_loader.ctx, rdf_serializer)
+        printdot(argsworkflow, processobj, document_loader.ctx)
         return 0
 
     if urifrag:
