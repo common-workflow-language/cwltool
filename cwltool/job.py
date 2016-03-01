@@ -20,6 +20,7 @@ _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
+
 def deref_links(outputs):
     if isinstance(outputs, dict):
         if outputs.get("class") == "File":
@@ -33,12 +34,13 @@ def deref_links(outputs):
         for v in outputs:
             deref_links(v)
 
+
 class CommandLineJob(object):
     def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, **kwargs):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
-        #with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
+        # with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
         #    json.dump(self.joborder, fp)
 
         runtime = []
@@ -48,23 +50,30 @@ class CommandLineJob(object):
 
         for f in self.pathmapper.files():
             if not os.path.isfile(self.pathmapper.mapper(f)[0]):
-                raise WorkflowException("Required input file %s not found or is not a regular file." % self.pathmapper.mapper(f)[0])
+                raise WorkflowException(
+                        "Required input file %s not found "
+                        "or is not a regular file."
+                        % self.pathmapper.mapper(f)[0])
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
             env = os.environ
-            img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
+            img_id = docker.get_from_requirements(
+                docker_req, docker_is_req, pull_image)
 
         if docker_is_req and img_id is None:
-            raise WorkflowException("Docker is required for running this tool.")
+            raise WorkflowException(
+                "Docker is required for running this tool.")
 
         if img_id:
             runtime = ["docker", "run", "-i"]
             for src in self.pathmapper.files():
                 vol = self.pathmapper.mapper(src)
                 runtime.append("--volume=%s:%s:ro" % vol)
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
+            runtime.append("--volume=%s:%s:rw" %
+                           (os.path.abspath(self.outdir), "/var/spool/cwl"))
+            runtime.append("--volume=%s:%s:rw" %
+                           (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append("--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
             if kwargs.get("enable_net") is not True:
@@ -81,7 +90,7 @@ class CommandLineJob(object):
 
             runtime.append("--env=TMPDIR=/tmp")
 
-            for t,v in self.environment.items():
+            for t, v in self.environment.items():
                 runtime.append("--env=%s=%s" % (t, v))
 
             runtime.append(img_id)
@@ -99,7 +108,7 @@ class CommandLineJob(object):
         stdin = None
         stdout = None
 
-        scr, _  = get_feature(self, "ShellCommandRequirement")
+        scr, _ = get_feature(self, "ShellCommandRequirement")
 
         if scr:
             shouldquote = lambda x: False
@@ -109,7 +118,8 @@ class CommandLineJob(object):
         _logger.info("[job %s] %s$ %s%s%s",
                      self.name,
                      self.outdir,
-                     " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
+                     " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg)
+                               for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
                      ' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
 
@@ -144,13 +154,14 @@ class CommandLineJob(object):
             else:
                 stdout = sys.stderr
 
-            sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
-                                  shell=False,
-                                  close_fds=True,
-                                  stdin=stdin,
-                                  stdout=stdout,
-                                  env=env,
-                                  cwd=self.outdir)
+            sp = subprocess.Popen(
+                [str(x) for x in runtime + self.command_line],
+                shell=False,
+                close_fds=True,
+                stdin=stdin,
+                stdout=stdout,
+                env=env,
+                cwd=self.outdir)
 
             if stdin == subprocess.PIPE:
                 sp.stdin.close()
@@ -209,9 +220,11 @@ class CommandLineJob(object):
         self.output_callback(outputs, processStatus)
 
         if rm_tmpdir:
-            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
+            _logger.debug(
+                "[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
         if move_outputs and empty_subtree(self.outdir):
-            _logger.debug("[job %s] Removing empty output directory %s", self.name, self.outdir)
+            _logger.debug(
+                "[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)

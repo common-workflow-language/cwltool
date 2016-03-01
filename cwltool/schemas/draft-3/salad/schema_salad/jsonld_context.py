@@ -17,6 +17,7 @@ from aslist import aslist
 
 _logger = logging.getLogger("salad")
 
+
 def pred(datatype, field, name, context, defaultBase, namespaces):
     split = urlparse.urlsplit(name)
 
@@ -33,7 +34,7 @@ def pred(datatype, field, name, context, defaultBase, namespaces):
     if field and "jsonldPredicate" in field:
         if isinstance(field["jsonldPredicate"], dict):
             v = {("@"+k[1:] if k.startswith("_") else k): v
-                 for k,v in field["jsonldPredicate"].items() }
+                 for k,v in field["jsonldPredicate"].items()}
         else:
             v = field["jsonldPredicate"]
     elif "jsonldPredicate" in datatype:
@@ -51,12 +52,14 @@ def pred(datatype, field, name, context, defaultBase, namespaces):
 
     if name in context:
         if context[name] != v:
-            raise Exception("Predicate collision on %s, '%s' != '%s'" % (name, context[name], v))
+            raise Exception("Predicate collision on %s, '%s' != '%s'" %
+                            (name, context[name], v))
     else:
         _logger.debug("Adding to context '%s' %s (%s)", name, v, type(v))
         context[name] = v
 
     return v
+
 
 def process_type(t, g, context, defaultBase, namespaces, defaultPrefix):
     if t["type"] == "record":
@@ -78,12 +81,14 @@ def process_type(t, g, context, defaultBase, namespaces, defaultPrefix):
             predicate = "%s:%s" % (defaultPrefix, recordname)
 
         if context.get(recordname, predicate) != predicate:
-            raise Exception("Predicate collision on '%s', '%s' != '%s'" % (recordname, context[t["name"]], predicate))
+            raise Exception("Predicate collision on '%s', '%s' != '%s'" %
+                            (recordname, context[t["name"]], predicate))
 
         if not recordname:
             raise Exception()
 
-        _logger.debug("Adding to context '%s' %s (%s)", recordname, predicate, type(predicate))
+        _logger.debug("Adding to context '%s' %s (%s)",
+                      recordname, predicate, type(predicate))
         context[recordname] = predicate
 
         for i in t.get("fields", []):
@@ -111,7 +116,8 @@ def process_type(t, g, context, defaultBase, namespaces, defaultPrefix):
                 # TODO generate range from datatype.
 
             if isinstance(i["type"], dict) and "name" in i["type"]:
-                process_type(i["type"], g, context, defaultBase, namespaces, defaultPrefix)
+                process_type(
+                    i["type"], g, context, defaultBase, namespaces, defaultPrefix)
 
         if "extends" in t:
             for e in aslist(t["extends"]):

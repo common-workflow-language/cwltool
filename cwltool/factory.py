@@ -2,6 +2,7 @@ import main
 import workflow
 import os
 
+
 class Callable(object):
     def __init__(self, t, factory):
         self.t = t
@@ -9,6 +10,7 @@ class Callable(object):
 
     def __call__(self, **kwargs):
         return self.factory.executor(self.t, kwargs, os.getcwd(), None, **self.factory.execkwargs)
+
 
 class Factory(object):
     def __init__(self, makeTool=workflow.defaultMakeTool,
@@ -19,7 +21,8 @@ class Factory(object):
         self.execkwargs = execkwargs
 
     def make(self, cwl, frag=None, debug=False):
-        l = main.load_tool(cwl, False, True, self.makeTool, debug, urifrag=frag)
+        l = main.load_tool(
+            cwl, False, True, self.makeTool, debug, urifrag=frag)
         if type(l) == int:
             raise Exception("Error loading tool")
         return Callable(l, self)

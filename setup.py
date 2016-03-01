@@ -37,12 +37,12 @@ setup(name='cwltool',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
           'schema_salad == 1.6.20160202222448'
-        ],
+      ],
       test_suite='tests',
       tests_require=[],
       entry_points={
-          'console_scripts': [ "cwltool=cwltool.main:main", "cwltest=cwltool.cwltest:main" ]
+          'console_scripts': ["cwltool=cwltool.main:main", "cwltest=cwltool.cwltest:main"]
       },
       zip_safe=True,
       cmdclass={'egg_info': tagger},
-)
+      )

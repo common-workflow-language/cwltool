@@ -29,8 +29,10 @@ defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 
+
 def arg_parser():
-    parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
+    parser = argparse.ArgumentParser(
+        description='Reference executor for Common Workflow Language')
     parser.add_argument("--conformance-test", action="store_true")
     parser.add_argument("--basedir", type=str)
     parser.add_argument("--outdir", type=str, default=os.path.abspath('.'),
@@ -42,18 +44,18 @@ def arg_parser():
 
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
-                        metavar=("VAR1","VAR2"),
+                        metavar=("VAR1", "VAR2"),
                         default=("PATH",),
                         dest="preserve_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-container", action="store_true", default=True,
-                        help="Delete Docker container used by jobs after they exit (default)",
-                        dest="rm_container")
+                         help="Delete Docker container used by jobs after they exit (default)",
+                         dest="rm_container")
 
     exgroup.add_argument("--leave-container", action="store_false",
-                        default=True, help="Do not delete Docker container used by jobs after they exit",
-                        dest="rm_container")
+                         default=True, help="Do not delete Docker container used by jobs after they exit",
+                         dest="rm_container")
 
     parser.add_argument("--tmpdir-prefix", type=str,
                         help="Path prefix for temporary directories",
@@ -65,28 +67,28 @@ def arg_parser():
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
-                        help="Delete intermediate temporary directories (default)",
-                        dest="rm_tmpdir")
+                         help="Delete intermediate temporary directories (default)",
+                         dest="rm_tmpdir")
 
     exgroup.add_argument("--leave-tmpdir", action="store_false",
-                        default=True, help="Do not delete intermediate temporary directories",
-                        dest="rm_tmpdir")
+                         default=True, help="Do not delete intermediate temporary directories",
+                         dest="rm_tmpdir")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--move-outputs", action="store_true", default=True,
-                        help="Move output files to the workflow output directory and delete intermediate output directories (default).",
-                        dest="move_outputs")
+                         help="Move output files to the workflow output directory and delete intermediate output directories (default).",
+                         dest="move_outputs")
 
     exgroup.add_argument("--leave-outputs", action="store_false", default=True,
-                        help="Leave output files in intermediate output directories.",
-                        dest="move_outputs")
+                         help="Leave output files in intermediate output directories.",
+                         dest="move_outputs")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
-                        help="Try to pull Docker images", dest="enable_pull")
+                         help="Try to pull Docker images", dest="enable_pull")
 
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
-                        help="Do not try to pull Docker images", dest="enable_pull")
+                         help="Do not try to pull Docker images", dest="enable_pull")
 
     parser.add_argument("--dry-run", action="store_true",
                         help="Load and validate but do not execute")
@@ -101,25 +103,36 @@ def arg_parser():
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
-                        help="Print corresponding RDF graph for workflow and exit")
-    exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
-    exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
-    exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies from $import, $include, $schemas")
-    exgroup.add_argument("--version", action="store_true", help="Print version and exit")
-    exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
+                         help="Print corresponding RDF graph for workflow and exit")
+    exgroup.add_argument("--print-dot", action="store_true",
+                         help="Print workflow visualization in graphviz format and exit")
+    exgroup.add_argument("--print-pre", action="store_true",
+                         help="Print CWL document after preprocessing.")
+    exgroup.add_argument("--print-deps", action="store_true",
+                         help="Print CWL document dependencies from $import, $include, $schemas")
+    exgroup.add_argument(
+        "--version", action="store_true", help="Print version and exit")
+    exgroup.add_argument("--update", action="store_true",
+                         help="Update to latest CWL version, print and exit")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
-                         default=True, dest="strict")
-    exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
-                         default=True, dest="strict")
+    exgroup.add_argument(
+        "--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
+        default=True, dest="strict")
+    exgroup.add_argument(
+        "--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
+        default=True, dest="strict")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--verbose", action="store_true", help="Default logging")
-    exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
-    exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
+    exgroup.add_argument(
+        "--verbose", action="store_true", help="Default logging")
+    exgroup.add_argument(
+        "--quiet", action="store_true", help="Only print warnings and errors.")
+    exgroup.add_argument(
+        "--debug", action="store_true", help="Print even more logging")
 
-    parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
+    parser.add_argument(
+        "--tool-help", action="store_true", help="Print command line help for tool")
 
     parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
 
@@ -127,6 +140,7 @@ def arg_parser():
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
+
 
 def single_job_executor(t, job_order, input_basedir, args, **kwargs):
     final_output = []
@@ -168,7 +182,8 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
                 if r:
                     r.run(**kwargs)
                 else:
-                    raise workflow.WorkflowException("Workflow cannot make any more progress.")
+                    raise workflow.WorkflowException(
+                        "Workflow cannot make any more progress.")
         except workflow.WorkflowException:
             raise
         except Exception as e:
@@ -176,29 +191,35 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
             raise workflow.WorkflowException("%s" % e, )
 
         if final_status[0] != "success":
-            raise workflow.WorkflowException("Process status is %s" % (final_status))
+            raise workflow.WorkflowException(
+                "Process status is %s" % (final_status))
 
         return final_output[0]
+
 
 class FileAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAction, self).__init__(option_strings, dest, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, {"class": "File", "path": values})
+
 
 class FileAppendAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAppendAction, self).__init__(option_strings, dest, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
         g = getattr(namespace, self.dest)
         if not g:
             g = []
             setattr(namespace, self.dest, g)
         g.append({"class": "File", "path": values})
+
 
 def generate_parser(toolparser, tool, namemap):
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
@@ -222,7 +243,8 @@ def generate_parser(toolparser, tool, namemap):
                 if len(inptype) == 2:
                     inptype = inptype[1]
                 else:
-                    _logger.debug("Can't make command line argument from %s", inptype)
+                    _logger.debug(
+                        "Can't make command line argument from %s", inptype)
                     return None
 
         help = inp.get("description", "").replace("%", "%%")
@@ -253,7 +275,8 @@ def generate_parser(toolparser, tool, namemap):
             _logger.debug("Can't make command line argument from %s", inptype)
             return None
 
-        toolparser.add_argument(flag + name, required=required, help=help, **kwargs)
+        toolparser.add_argument(
+            flag + name, required=required, help=help, **kwargs)
 
     return toolparser
 
@@ -302,9 +325,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         return 0
 
     try:
-        processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
+        processobj, metadata = schema_salad.schema.load_and_validate(
+            document_loader, avsc_names, workflowobj, strict)
     except (schema_salad.validate.ValidationException, RuntimeError) as e:
-        _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
+        _logger.error("Tool definition failed validation:\n%s",
+                      e, exc_info=(e if debug else False))
         return 1
 
     if print_pre:
@@ -325,18 +350,22 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         if 1 == len(processobj):
             processobj = processobj[0]
         else:
-            _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
-                          ", #".join(urlparse.urldefrag(i["id"])[1]
-                                     for i in processobj if "id" in i))
+            _logger.error(
+                "Tool file contains graph of multiple objects, must specify one of #%s",
+                ", #".join(urlparse.urldefrag(i["id"])[1]
+                           for i in processobj if "id" in i))
             return 1
 
     try:
-        t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names)
+        t = makeTool(processobj, strict=strict, makeTool=makeTool,
+                     loader=document_loader, avsc_names=avsc_names)
     except (schema_salad.validate.ValidationException) as e:
-        _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
+        _logger.error("Tool definition failed validation:\n%s",
+                      e, exc_info=(e if debug else False))
         return 1
     except (RuntimeError, workflow.WorkflowException) as e:
-        _logger.error("Tool definition failed initialization:\n%s", e, exc_info=(e if debug else False))
+        _logger.error("Tool definition failed initialization:\n%s",
+                      e, exc_info=(e if debug else False))
         return 1
 
     if jobobj:
@@ -347,9 +376,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     if metadata:
         t.metadata = metadata
     else:
-        t.metadata = {"$namespaces": t.tool.get("$namespaces", {}), "$schemas": t.tool.get("$schemas", [])}
+        t.metadata = {"$namespaces": t.tool.get(
+            "$namespaces", {}), "$schemas": t.tool.get("$schemas", [])}
 
     return t
+
 
 def load_job_order(args, t, parser, stdin):
 
@@ -373,7 +404,8 @@ def load_job_order(args, t, parser, stdin):
     if job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
     elif job_order_file:
-        input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
+        input_basedir = args.basedir if args.basedir else os.path.abspath(
+            os.path.dirname(job_order_file))
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file)
         except Exception as e:
@@ -383,7 +415,8 @@ def load_job_order(args, t, parser, stdin):
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
         namemap = {}
-        toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
+        toolparser = generate_parser(
+            argparse.ArgumentParser(prog=args.workflow), t, namemap)
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
@@ -392,17 +425,21 @@ def load_job_order(args, t, parser, stdin):
 
             if cmd_line["job_order"]:
                 try:
-                    input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
-                    job_order_object = loader.resolve_ref(cmd_line["job_order"])
+                    input_basedir = args.basedir if args.basedir else os.path.abspath(
+                        os.path.dirname(cmd_line["job_order"]))
+                    job_order_object = loader.resolve_ref(
+                        cmd_line["job_order"])
                 except Exception as e:
                     _logger.error(e, exc_info=(e if args.debug else False))
                     return 1
             else:
                 job_order_object = {}
 
-            job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
+            job_order_object.update(
+                {namemap[k]: v for k, v in cmd_line.items()})
 
-            _logger.debug("Parsed job order from command line: %s", job_order_object)
+            _logger.debug(
+                "Parsed job order from command line: %s", job_order_object)
         else:
             job_order_object = None
 
@@ -429,6 +466,7 @@ def print_deps(fn):
                           "path": fn,
                           "secondaryFiles": process.scandeps(os.path.dirname(fn), yaml.load(f), set(("run",)), set(("path",)))},
                          indent=4)
+
 
 def main(args=None,
          executor=single_job_executor,
@@ -474,13 +512,16 @@ def main(args=None,
         return 0
 
     try:
-        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug,
-                      print_pre=args.print_pre,
-                      print_rdf=args.print_rdf,
-                      print_dot=args.print_dot,
-                      rdf_serializer=args.rdf_serializer)
+        t = load_tool(
+            args.workflow, args.update, args.strict, makeTool, args.debug,
+            print_pre=args.print_pre,
+            print_rdf=args.print_rdf,
+            print_dot=args.print_dot,
+            rdf_serializer=args.rdf_serializer)
     except Exception as e:
-        _logger.error("I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
+        _logger.error("I'm sorry, I couldn't load this CWL file, try again "
+                      "with --debug for more information.\n%s\n", e,
+                      exc_info=(e if args.debug else False))
         return 1
 
     if type(t) == int:
@@ -490,7 +531,8 @@ def main(args=None,
         # Use user defined temp directory (if it exists)
         args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
         if not os.path.exists(args.tmp_outdir_prefix):
-            _logger.error("Intermediate output directory prefix doesn't exist, reverting to default")
+            _logger.error(
+                "Intermediate output directory prefix doesn't exist, reverting to default")
             return 1
 
     if args.tmpdir_prefix != 'tmp':
@@ -531,10 +573,13 @@ def main(args=None,
         else:
             return 1
     except (validate.ValidationException) as e:
-        _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
+        _logger.error("Input object failed validation:\n%s",
+                      e, exc_info=(e if args.debug else False))
         return 1
     except workflow.WorkflowException as e:
-        _logger.error("Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+        _logger.error("Workflow error, try again with --debug for more "
+                      "information:\n  %s", e,
+                      exc_info=(e if args.debug else False))
         return 1
     except Exception as e:
         _logger.error("Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))

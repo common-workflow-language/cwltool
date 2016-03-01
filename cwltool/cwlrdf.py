@@ -3,9 +3,10 @@ import urlparse
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
 
+
 def makerdf(workflow, wf, ctx):
     prefixes = {}
-    for k,v in ctx.iteritems():
+    for k, v in ctx.iteritems():
         if isinstance(v, dict):
             v = v["@id"]
         doc_url, frg = urlparse.urldefrag(v)
@@ -17,21 +18,23 @@ def makerdf(workflow, wf, ctx):
     g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow)
 
     # Bug in json-ld loader causes @id fields to be added to the graph
-    for s,p,o in g.triples((None, URIRef("@id"), None)):
+    for s, p, o in g.triples((None, URIRef("@id"), None)):
         g.remove((s, p, o))
 
-    for k,v in prefixes.iteritems():
+    for k, v in prefixes.iteritems():
         g.namespace_manager.bind(k, v)
 
     return g
 
+
 def printrdf(workflow, wf, ctx, sr):
     print(makerdf(workflow, wf, ctx).serialize(format=sr))
+
 
 def lastpart(uri):
     uri = str(uri)
     if "/" in uri:
-        return uri[uri.rindex("/")+1:]
+        return uri[uri.rindex("/") + 1:]
     else:
         return uri
 
@@ -91,6 +94,7 @@ def dot_with_parameters(g):
 
     for (inp,) in qres:
         print '"%s" [shape=octagon]' % (lastpart(inp))
+
 
 def dot_without_parameters(g):
     dotname = {}
@@ -170,7 +174,7 @@ def printdot(workflow, wf, ctx, include_parameters=False):
 
     print "digraph {"
 
-    #g.namespace_manager.qname(predicate)
+    # g.namespace_manager.qname(predicate)
 
     if include_parameters:
         dot_with_parmeters(g)

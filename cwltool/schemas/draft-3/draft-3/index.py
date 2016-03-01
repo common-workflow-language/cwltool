@@ -17,7 +17,8 @@ index = open(indexfile, "w")
 linenum = 0
 for l in main:
     linenum += 1
-    l = l.rstrip().lower().replace(".", "").replace(",", "").replace(";", "").replace("-", " ")
+    l = l.rstrip().lower().replace(".", "").replace(
+        ",", "").replace(";", "").replace("-", " ")
     for w in l.split(" "):
         if w:
             if w not in words:

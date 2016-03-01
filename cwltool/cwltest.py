@@ -18,20 +18,24 @@ _logger.setLevel(logging.INFO)
 
 UNSUPPORTED_FEATURE = 33
 
+
 class CompareFail(Exception):
     pass
+
 
 def compare(a, b):
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
                 if not b["path"].endswith("/" + a["path"]):
-                    raise CompareFail("%s does not end with %s" %(b["path"], a["path"]))
+                    raise CompareFail(
+                        "%s does not end with %s" % (b["path"], a["path"]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
             if len(a) != len(b):
-                raise CompareFail("expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+                raise CompareFail("expected %s\ngot %s" %
+                                  (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in a:
                 if a.get("class") != "File" or c != "path":
                     if c not in b:
@@ -41,7 +45,8 @@ def compare(a, b):
             return True
         elif isinstance(a, list):
             if len(a) != len(b):
-                raise CompareFail("expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+                raise CompareFail("expected %s\ngot %s" %
+                                  (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in xrange(0, len(a)):
                 if not compare(a[c], b[c]):
                     return False
@@ -54,16 +59,20 @@ def compare(a, b):
     except Exception as e:
         raise CompareFail(str(e))
 
+
 def run_test(args, i, t):
     out = {}
     outdir = None
     try:
         if "output" in t:
             test_command = [args.tool]
-            # Add prefixes if running on MacOSX so that boot2docker writes to /Users
+            # Add prefixes if running on MacOSX so that boot2docker writes to
+            # /Users
             if 'darwin' in sys.platform:
-                outdir = tempfile.mkdtemp(prefix=os.path.abspath(os.path.curdir))
-                test_command.extend(["--tmp-outdir-prefix={}".format(outdir), "--tmpdir-prefix={}".format(outdir)])
+                outdir = tempfile.mkdtemp(
+                    prefix=os.path.abspath(os.path.curdir))
+                test_command.extend(
+                    ["--tmp-outdir-prefix={}".format(outdir), "--tmpdir-prefix={}".format(outdir)])
             else:
                 outdir = tempfile.mkdtemp()
             test_command.extend(["--outdir={}".format(outdir),
@@ -90,12 +99,14 @@ def run_test(args, i, t):
         if err.returncode == UNSUPPORTED_FEATURE:
             return UNSUPPORTED_FEATURE
         else:
-            _logger.error("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+            _logger.error("""Test failed: %s""", " ".join(
+                [pipes.quote(tc) for tc in test_command]))
             _logger.error(t.get("doc"))
             _logger.error("Returned non-zero")
             return 1
     except yaml.scanner.ScannerError as e:
-        _logger.error("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+        _logger.error("""Test failed: %s""", " ".join(
+            [pipes.quote(tc) for tc in test_command]))
         _logger.error(outstr)
         _logger.error("Parse error %s", str(e))
 
@@ -114,11 +125,14 @@ def run_test(args, i, t):
         try:
             compare(t.get(key), out.get(key))
         except CompareFail as ex:
-            _logger.warn("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+            _logger.warn("""Test failed: %s""", " ".join(
+                [pipes.quote(tc) for tc in test_command]))
             _logger.warn(t.get("doc"))
             _logger.warn("%s expected %s\n got %s", key,
-                                                            json.dumps(t.get(key), indent=4, sort_keys=True),
-                                                            json.dumps(out.get(key), indent=4, sort_keys=True))
+                         json.dumps(
+                             t.get(
+                                 key), indent=4, sort_keys=True),
+                         json.dumps(out.get(key), indent=4, sort_keys=True))
             _logger.warn("Compare failure %s", ex)
             failed = True
 
@@ -132,14 +146,19 @@ def run_test(args, i, t):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Compliance tests for cwltool')
-    parser.add_argument("--test", type=str, help="YAML file describing test cases", required=True)
-    parser.add_argument("--basedir", type=str, help="Basedir to use for tests", default=".")
+    parser = argparse.ArgumentParser(
+        description='Compliance tests for cwltool')
+    parser.add_argument(
+        "--test", type=str, help="YAML file describing test cases", required=True)
+    parser.add_argument(
+        "--basedir", type=str, help="Basedir to use for tests", default=".")
     parser.add_argument("-l", action="store_true", help="List tests then exit")
-    parser.add_argument("-n", type=str, default=None, help="Run a specific tests, format is 1,3-6,9")
+    parser.add_argument(
+        "-n", type=int, default=None, help="Run a specific test")
     parser.add_argument("--tool", type=str, default="cwl-runner",
                         help="CWL runner executable to use (default 'cwl-runner'")
-    parser.add_argument("--only-tools", action="store_true", help="Only test tools")
+    parser.add_argument("--only-tools", action="store_true",
+                        help="Only test tools")
 
     args = parser.parse_args()
 
@@ -189,10 +208,11 @@ def main():
             unsupported += 1
 
     if failures == 0 and unsupported == 0:
-         _logger.info("All tests passed")
-         return 0
+        _logger.info("All tests passed")
+        return 0
     else:
-        _logger.warn("%i failures, %i unsupported features", failures, unsupported)
+        _logger.warn(
+            "%i failures, %i unsupported features", failures, unsupported)
         return 1
 
 

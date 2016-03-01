@@ -5,6 +5,7 @@ import schema_salad.schema
 import rdflib
 import yaml
 
+
 class TestSchemas(unittest.TestCase):
     def test_schemas(self):
         l = schema_salad.ref_resolver.Loader({})
@@ -13,15 +14,13 @@ class TestSchemas(unittest.TestCase):
             "$schemas": ["tests/EDAM.owl"],
             "$namespaces": {"edam": "http://edamontology.org/"},
             "edam:has_format": "edam:format_1915"
-            }, "")
+        }, "")
 
         self.assertEquals(ra, {
             "$schemas": ["tests/EDAM.owl"],
             "$namespaces": {"edam": "http://edamontology.org/"},
             'http://edamontology.org/has_format': 'http://edamontology.org/format_1915'
         })
-
-
 
     # def test_domain(self):
     #     l = schema_salad.ref_resolver.Loader({})
@@ -69,8 +68,10 @@ class TestSchemas(unittest.TestCase):
     def test_examples(self):
         self.maxDiff = None
         for a in ["field_name", "ident_res", "link_res", "vocab_res"]:
-            ldr, _, _ = schema_salad.schema.load_schema("schema_salad/metaschema/%s_schema.yml" % a)
-            src = ldr.resolve_all(yaml.load(open("schema_salad/metaschema/%s_src.yml" % a)), "")[0]
+            ldr, _, _ = schema_salad.schema.load_schema(
+                "schema_salad/metaschema/%s_schema.yml" % a)
+            src = ldr.resolve_all(
+                yaml.load(open("schema_salad/metaschema/%s_src.yml" % a)), "")[0]
             proc = yaml.load(open("schema_salad/metaschema/%s_proc.yml" % a))
             self.assertEquals(proc, src)
 

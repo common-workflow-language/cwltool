@@ -3,20 +3,23 @@ import json
 import threading
 import errno
 
+
 class JavascriptException(Exception):
     pass
+
 
 def execjs(js, jslib, timeout=None):
     nodejs = None
     trynodes = (["nodejs"], ["node"], ["docker", "run",
-                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
-                                        "--sig-proxy=true",
-                                        "--interactive",
-                                        "--rm",
-                                        "node:slim"])
+                                       "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
+                                       "--sig-proxy=true",
+                                       "--interactive",
+                                       "--rm",
+                                       "node:slim"])
     for n in trynodes:
         try:
-            nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            nodejs=subprocess.Popen(
+                n, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
             break
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -25,10 +28,14 @@ def execjs(js, jslib, timeout=None):
                 raise
 
     if nodejs is None:
-        raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
+        raise JavascriptException(
+            "cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
 
-    fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
-    script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
+
+    fn="\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(
+        js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
+    script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(
+        fn)
 
     killed = []
     def term():
@@ -51,15 +58,20 @@ def execjs(js, jslib, timeout=None):
         raise JavascriptException("Long-running script killed after %s seconds.\nscript was: %s\n" % (timeout, fn))
 
     if nodejs.returncode != 0:
-        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, fn, stdoutdata, stderrdata))
+        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" %
+                                  (nodejs.returncode, script, stdoutdata, stderrdata))
     else:
         try:
             return json.loads(stdoutdata)
         except ValueError as e:
-            raise JavascriptException("%s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn, stdoutdata, stderrdata))
+            raise JavascriptException(
+                    "%s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n"
+                    % (e, fn, stdoutdata, stderrdata))
+
 
 class SubstitutionError(Exception):
     pass
+
 
 def scanner(scan):
     DEFAULT = 0
@@ -85,13 +97,13 @@ def scanner(scan):
         elif state == BACKSLASH:
             stack.pop()
             if stack[-1] == DEFAULT:
-                return [i-1, i+1]
+                return [i - 1, i + 1]
         elif state == DOLLAR:
             if c == '(':
-                start = i-1
+                start = i - 1
                 stack.append(PAREN)
             elif c == '{':
-                start = i-1
+                start = i - 1
                 stack.append(BRACE)
         elif state == PAREN:
             if c == '(':
@@ -99,7 +111,7 @@ def scanner(scan):
             elif c == ')':
                 stack.pop()
                 if stack[-1] == DOLLAR:
-                    return [start, i+1]
+                    return [start, i + 1]
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
             elif c == '"':
@@ -110,7 +122,7 @@ def scanner(scan):
             elif c == '}':
                 stack.pop()
                 if stack[-1] == DOLLAR:
-                    return [start, i+1]
+                    return [start, i + 1]
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
             elif c == '"':
@@ -128,7 +140,8 @@ def scanner(scan):
         i += 1
 
     if len(stack) > 1:
-        raise SubstitutionError("Substitution error, unfinished block starting at position {}: {}".format(start, scan[start:]))
+        raise SubstitutionError(
+            "Substitution error, unfinished block starting at position {}: {}".format(start, scan[start:]))
     else:
         return None
 
@@ -141,7 +154,7 @@ def interpolate(scan, jslib, timeout=None):
         parts.append(scan[0:w[0]])
 
         if scan[w[0]] == '$':
-            e = execjs(scan[w[0]+1:w[1]], jslib, timeout=timeout)
+            e = execjs(scan[w[0] + 1:w[1]], jslib, timeout=timeout)
             if w[0] == 0 and w[1] == len(scan):
                 return e
             leaf = json.dumps(e, sort_keys=True)
@@ -149,7 +162,7 @@ def interpolate(scan, jslib, timeout=None):
                 leaf = leaf[1:-1]
             parts.append(leaf)
         elif scan[w[0]] == '\\':
-            e = scan[w[1]-1]
+            e = scan[w[1] - 1]
             parts.append(e)
 
         scan = scan[w[1]:]

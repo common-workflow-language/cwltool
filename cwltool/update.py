@@ -4,6 +4,7 @@ import json
 import re
 from aslist import aslist
 
+
 def findId(doc, frg):
     if isinstance(doc, dict):
         if "id" in doc and doc["id"] == frg:
@@ -20,6 +21,7 @@ def findId(doc, frg):
                 return f
     return None
 
+
 def fixType(doc):
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
@@ -28,6 +30,7 @@ def fixType(doc):
         if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
+
 
 def _draft2toDraft3dev1(doc, loader, baseuri):
     try:
@@ -61,8 +64,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
                         if isinstance(inp.get("source"), list):
                             if "requirements" not in doc:
                                 doc["requirements"] = []
-                            doc["requirements"].append({"class": "MultipleInputFeatureRequirement"})
-
+                            doc["requirements"].append(
+                                {"class": "MultipleInputFeatureRequirement"})
 
             for a in doc:
                 doc[a] = _draft2toDraft3dev1(doc[a], loader, baseuri)
@@ -78,12 +81,15 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception("Error updating '%s'\n  %s\n%s" %
+                        (err, e, traceback.format_exc(e)))
+
 
 def draft2toDraft3dev1(doc, loader, baseuri):
     return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
 
 digits = re.compile("\d+")
+
 
 def updateScript(sc):
     sc = sc.replace("$job", "inputs")
@@ -91,6 +97,7 @@ def updateScript(sc):
     sc = sc.replace("$outdir", "runtime.outdir")
     sc = sc.replace("$self", "self")
     return sc
+
 
 def _updateDev2Script(ent):
     if isinstance(ent, dict) and "engine" in ent:
@@ -102,7 +109,7 @@ def _updateDev2Script(ent):
                 if not sp[0]:
                     sp.pop(0)
                 front = sp.pop(0)
-                sp = [str(i) if digits.match(i) else "'"+i+"'"
+                sp = [str(i) if digits.match(i) else "'" + i + "'"
                       for i in sp]
                 if front == "job":
                     return "$(inputs[%s])" % ']['.join(sp)
@@ -116,6 +123,7 @@ def _updateDev2Script(ent):
                 return "$(%s)" % sc
     else:
         return ent
+
 
 def _draftDraft3dev1toDev2(doc, loader, baseuri):
     doc = _updateDev2Script(doc)
@@ -138,24 +146,28 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
                     if r["class"] == "ExpressionEngineRequirement":
                         if "engineConfig" in r:
                             doc["requirements"].append({
-                                "class":"InlineJavascriptRequirement",
+                                "class": "InlineJavascriptRequirement",
                                 "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
                             })
                             added = True
-                        doc["requirements"] = [rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
+                        doc["requirements"] = [
+                            rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
                         break
             else:
                 doc["requirements"] = []
             if not added:
-                doc["requirements"].append({"class":"InlineJavascriptRequirement"})
+                doc["requirements"].append(
+                    {"class": "InlineJavascriptRequirement"})
 
     elif isinstance(doc, list):
         return [_draftDraft3dev1toDev2(a, loader, baseuri) for a in doc]
 
     return doc
 
+
 def draftDraft3dev1toDev2(doc, loader, baseuri):
     return (_draftDraft3dev1toDev2(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
+
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
     try:
@@ -192,7 +204,9 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception("Error updating '%s'\n  %s\n%s" %
+                        (err, e, traceback.format_exc(e)))
+
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
@@ -213,6 +227,7 @@ def traverseImport(doc, loader, baseuri, func):
                 frag = "#" + frag
                 r = findId(r, frag)
             return func(r, loader, imp)
+
 
 def _draftDraft3dev3toDev4(doc, loader, baseuri):
     try:
@@ -239,11 +254,13 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception("Error updating '%s'\n  %s\n%s" %
+                        (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
     return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
+
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
     try:
@@ -271,11 +288,13 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception("Error updating '%s'\n  %s\n%s" %
+                        (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
     return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
+
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):
     return (doc, "https://w3id.org/cwl/cwl#draft-3")

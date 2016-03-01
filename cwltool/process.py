@@ -39,34 +39,35 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement"]
 
 cwl_files = ("Workflow.yml",
-              "CommandLineTool.yml",
-              "CommonWorkflowLanguage.yml",
-              "Process.yml",
-              "concepts.md",
-              "contrib.md",
-              "intro.md",
-              "invocation.md")
+             "CommandLineTool.yml",
+             "CommonWorkflowLanguage.yml",
+             "Process.yml",
+             "concepts.md",
+             "contrib.md",
+             "intro.md",
+             "invocation.md")
 
 salad_files = ('metaschema.yml',
-              'salad.md',
-              'field_name.yml',
-              'import_include.md',
-              'link_res.yml',
-              'ident_res.yml',
-              'vocab_res.yml',
-              'vocab_res.yml',
-              'field_name_schema.yml',
-              'field_name_src.yml',
-              'field_name_proc.yml',
-              'ident_res_schema.yml',
-              'ident_res_src.yml',
-              'ident_res_proc.yml',
-              'link_res_schema.yml',
-              'link_res_src.yml',
-              'link_res_proc.yml',
-              'vocab_res_schema.yml',
-              'vocab_res_src.yml',
-              'vocab_res_proc.yml')
+               'salad.md',
+               'field_name.yml',
+               'import_include.md',
+               'link_res.yml',
+               'ident_res.yml',
+               'vocab_res.yml',
+               'vocab_res.yml',
+               'field_name_schema.yml',
+               'field_name_src.yml',
+               'field_name_proc.yml',
+               'ident_res_schema.yml',
+               'ident_res_src.yml',
+               'ident_res_proc.yml',
+               'link_res_schema.yml',
+               'link_res_src.yml',
+               'link_res_proc.yml',
+               'vocab_res_schema.yml',
+               'vocab_res_src.yml',
+               'vocab_res_proc.yml')
+
 
 def get_schema():
     cache = {}
@@ -76,11 +77,14 @@ def get_schema():
         rs.close()
 
     for f in salad_files:
-        rs = resource_stream(__name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
-        cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
+        rs = resource_stream(
+            __name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
+        cache[
+            "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
         rs.close()
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
+
 
 def get_feature(self, feature):
     for t in reversed(self.requirements):
@@ -91,12 +95,14 @@ def get_feature(self, feature):
             return (t, False)
     return (None, None)
 
+
 def shortname(inputid):
     d = urlparse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split("/")[-1].split(".")[-1]
     else:
         return d.path.split("/")[-1]
+
 
 class StdFsAccess(object):
     def __init__(self, basedir):
@@ -114,6 +120,7 @@ class StdFsAccess(object):
     def exists(self, fn):
         return os.path.exists(self._abs(fn))
 
+
 def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, dict):
         if "requirements" in rec:
@@ -122,12 +129,14 @@ def checkRequirements(rec, supportedProcessRequirements):
                     raise Exception("Unsupported requirement %s" % r["class"])
         if "scatter" in rec:
             if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
-                raise Exception("Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
+                raise Exception(
+                    "Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):
         for d in rec:
             checkRequirements(d, supportedProcessRequirements)
+
 
 def adjustFiles(rec, op):
     """Apply a mapping function to each File path in the object `rec`."""
@@ -141,6 +150,7 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
+
 def adjustFileObjs(rec, op):
     """Apply an update function to each File object in the object `rec`."""
 
@@ -152,6 +162,7 @@ def adjustFileObjs(rec, op):
     if isinstance(rec, list):
         for d in rec:
             adjustFileObjs(d, op)
+
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     """Determine if `fmt` is a subclass of `cls`."""
@@ -169,44 +180,50 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     fmt = URIRef(fmt)
 
-    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
+    for s, p, o in ontology.triples((fmt, RDFS.subClassOf, None)):
         # Find parent classes of `fmt` and search upward
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (fmt, OWL.equivalentClass, None) ):
+    for s, p, o in ontology.triples((fmt, OWL.equivalentClass, None)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (None, OWL.equivalentClass, fmt) ):
+    for s, p, o in ontology.triples((None, OWL.equivalentClass, fmt)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(s, cls, ontology, visited):
             return True
 
     return False
 
+
 def checkFormat(actualFile, inputFormats, requirements, ontology):
     for af in aslist(actualFile):
         if "format" not in af:
-            raise validate.ValidationException("Missing required 'format' for File %s" % af)
+            raise validate.ValidationException(
+                "Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
-        raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+        raise validate.ValidationException(
+            "Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
         (_, self.names, _) = get_schema()
         self.tool = toolpath_object
-        self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
+        self.requirements = kwargs.get(
+            "requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
         else:
             self.formatgraph = None
 
-        self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
+        self.validate_hints(
+            self.tool.get("hints", []), strict=kwargs.get("strict"))
 
         self.schemaDefs = {}
 
@@ -214,14 +231,17 @@ class Process(object):
 
         if sd:
             sdtypes = sd["types"]
-            av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
+            av = schema_salad.schema.make_valid_avro(
+                sdtypes, {t["name"]: t for t in sdtypes}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i
             avro.schema.make_avsc_object(av, self.names)
 
         # Build record schema from inputs
-        self.inputs_record_schema = {"name": "input_record_schema", "type": "record", "fields": []}
-        self.outputs_record_schema = {"name": "outputs_record_schema", "type": "record", "fields": []}
+        self.inputs_record_schema = {
+            "name": "input_record_schema", "type": "record", "fields": []}
+        self.outputs_record_schema = {
+            "name": "outputs_record_schema", "type": "record", "fields": []}
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
@@ -231,7 +251,8 @@ class Process(object):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException("Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(
+                        "Missing `type` in parameter `%s`" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -244,17 +265,21 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
+            self.inputs_record_schema = schema_salad.schema.make_valid_avro(
+                self.inputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing inputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
+            raise validate.ValidationException("Got error `%s` while prcoessing inputs of %s:\n%s" % (
+                str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set())
-            avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            self.outputs_record_schema = schema_salad.schema.make_valid_avro(
+                self.outputs_record_schema, {}, set())
+            avro.schema.make_avsc_object(
+                self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
-
+            raise validate.ValidationException("Got error `%s` while prcoessing outputs of %s:\n%s" % (
+                str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
     def _init_job(self, joborder, input_basedir, **kwargs):
         builder = Builder()
@@ -267,11 +292,13 @@ class Process(object):
 
         for r in self.requirements:
             if r["class"] not in supportedProcessRequirements:
-                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
+                raise WorkflowException(
+                    "Unsupported process requirement %s" % (r["class"]))
 
         # Validate job order
         try:
-            validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
+            validate.validate_ex(
+                self.names.get_name("input_record_schema", ""), builder.job)
         except validate.ValidationException as e:
             raise WorkflowException("Error validating input record, " + str(e))
 
@@ -291,15 +318,18 @@ class Process(object):
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
 
-        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
+        builder.fs_access = kwargs.get(
+            "fs_access") or StdFsAccess(input_basedir)
 
         if self.formatgraph:
             for i in self.tool["inputs"]:
                 d = shortname(i["id"])
                 if d in builder.job and i.get("format"):
-                    checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, self.formatgraph)
+                    checkFormat(builder.job[d], builder.do_eval(
+                        i["format"]), self.requirements, self.formatgraph)
 
-        builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
+        builder.bindings.extend(
+            builder.bind_input(self.inputs_record_schema, builder.job))
 
         builder.resources = self.evalResources(builder, kwargs)
 
@@ -322,25 +352,25 @@ class Process(object):
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = None
             mx = None
-            if resourceReq.get(a+"Min"):
-                mn = builder.do_eval(resourceReq[a+"Min"])
-            if resourceReq.get(a+"Max"):
-                mx = builder.do_eval(resourceReq[a+"Max"])
+            if resourceReq.get(a + "Min"):
+                mn = builder.do_eval(resourceReq[a + "Min"])
+            if resourceReq.get(a + "Max"):
+                mx = builder.do_eval(resourceReq[a + "Max"])
             if mn is None:
                 mn = mx
             elif mx is None:
                 mx = mn
 
             if mn:
-                request[a+"Min"] = mn
-                request[a+"Max"] = mx
+                request[a + "Min"] = mn
+                request[a + "Max"] = mx
 
         if kwargs.get("select_resources"):
             return kwargs["select_resources"](request)
         else:
             return {
                 "cores": request["coresMin"],
-                "ram":   request["ramMin"],
+                "ram": request["ramMin"],
                 "tmpdirSize": request["tmpdirMin"],
                 "outdirSize": request["outdirMin"],
             }
@@ -349,14 +379,18 @@ class Process(object):
         for r in hints:
             try:
                 if self.names.get_name(r["class"], "") is not None:
-                    validate.validate_ex(self.names.get_name(r["class"], ""), r, strict=strict)
+                    validate.validate_ex(
+                        self.names.get_name(r["class"], ""), r, strict=strict)
                 else:
-                    _logger.info(validate.ValidationException("Unknown hint %s" % (r["class"])))
+                    _logger.info(validate.ValidationException(
+                        "Unknown hint %s" % (r["class"])))
             except validate.ValidationException as v:
-                raise validate.ValidationException("Validating hint `%s`: %s" % (r["class"], str(v)))
+                raise validate.ValidationException(
+                    "Validating hint `%s`: %s" % (r["class"], str(v)))
 
     def get_requirement(self, feature):
         return get_feature(self, feature)
+
 
 def empty_subtree(dirpath):
     # Test if a directory tree contains any files (does not count empty
@@ -377,6 +411,8 @@ def empty_subtree(dirpath):
     return True
 
 _names = set()
+
+
 def uniquename(stem):
     c = 1
     u = stem

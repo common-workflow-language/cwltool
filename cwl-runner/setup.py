@@ -21,9 +21,9 @@ setup(name='cwl_runner',
       license='Apache 2.0',
       install_requires=[
           'cwltool'
-        ],
+      ],
       entry_points={
-          'console_scripts': [ "cwl-runner=cwltool.main:main" ]
+          'console_scripts': ["cwl-runner=cwltool.main:main"]
       },
       zip_safe=True
-)
+      )
