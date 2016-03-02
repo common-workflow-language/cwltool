@@ -136,6 +136,7 @@ class WorkflowJobStep(object):
         self.id = step.id
         self.submitted = False
         self.completed = False
+        self.iterable = None
         self.name = uniquename("step %s" % shortname(self.id))
 
     def job(self, joborder, basedir, output_callback, **kwargs):
@@ -274,19 +275,26 @@ class WorkflowJob(object):
         output_dirs = set()
 
         completed = 0
+        iterables = []
         while completed < len(self.steps) and self.processStatus == "success":
             made_progress = False
-            completed = 0
+
             for step in self.steps:
-                if step.completed:
-                    completed += 1
-                else:
-                    for newjob in self.try_make_job(step, basedir, **kwargs):
+                if not step.submitted:
+                    step.iterable = self.try_make_job(step, basedir, **kwargs)
+
+                if step.iterable:
+                    for newjob in step.iterable:
                         if newjob:
                             made_progress = True
                             if newjob.outdir:
                                 output_dirs.add(newjob.outdir)
-                        yield newjob
+                            yield newjob
+                        else:
+                            break
+
+            completed = sum(1 for s in self.steps if s.completed)
+
             if not made_progress and completed < len(self.steps):
                 yield None
 
