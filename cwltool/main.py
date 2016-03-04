@@ -502,7 +502,7 @@ def main(args=None,
                       print_dot=args.print_dot,
                       rdf_serializer=args.rdf_serializer)
     except Exception as e:
-        _logger.error("I'm sorry, I couldn't load this CWL file.\n%s", e, exc_info=(e if args.debug else False))
+        _logger.error("I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
         return 1
 
     if type(t) == int:
@@ -554,7 +554,10 @@ def main(args=None,
         _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1
     except workflow.WorkflowException as e:
-        _logger.error("Workflow error:\n  %s", e, exc_info=(e if args.debug else False))
+        _logger.error("Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+        return 1
+    except Exception as e:
+        _logger.error("Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
         return 1
 
     return 0
