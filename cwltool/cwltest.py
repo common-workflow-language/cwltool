@@ -135,6 +135,7 @@ def main():
     parser = argparse.ArgumentParser(description='Compliance tests for cwltool')
     parser.add_argument("--test", type=str, help="YAML file describing test cases", required=True)
     parser.add_argument("--basedir", type=str, help="Basedir to use for tests", default=".")
+    parser.add_argument("-l", action="store_true", help="List tests then exit")
     parser.add_argument("-n", type=int, default=None, help="Run a specific test")
     parser.add_argument("--tool", type=str, default="cwl-runner",
                         help="CWL runner executable to use (default 'cwl-runner'")
@@ -160,6 +161,11 @@ def main():
             cwl, _ = loader.resolve_ref(t["tool"])
             if cwl["class"] == "CommandLineTool":
                 tests.append(t)
+
+    if args.l:
+        for i, t in enumerate(tests):
+            print "[%i] %s" % (i+1, t["doc"].strip())
+        return 1
 
     if args.n is not None:
         sys.stderr.write("\rTest [%i/%i] " % (args.n, len(tests)))
