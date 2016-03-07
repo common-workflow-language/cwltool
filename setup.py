@@ -34,7 +34,7 @@ setup(name='cwltool',
       install_requires=[
           'requests',
           'PyYAML',
-          'rdflib >= 4.2.0',
+          'rdflib >= 4.1.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
           'schema_salad == 1.6.20160202222448'

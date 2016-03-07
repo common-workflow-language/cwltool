@@ -614,7 +614,11 @@ def dotproduct_scatter(process, joborder, basedir, scatter_keys,
 def nested_crossproduct_scatter(process, joborder, basedir, scatter_keys,
                                 output_callback, **kwargs):
 
-    output[i["id"]] = [None] * l
+    scatter_key = scatter_keys[0]
+    l = len(joborder[scatter_key])
+    output = {}
+    for i in process.tool["outputs"]:
+        output[i["id"]] = [None] * l
 
     rc = ReceiveScatterOutput(output_callback, output)
 

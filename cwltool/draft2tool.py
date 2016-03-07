@@ -207,8 +207,8 @@ class CommandLineTool(Process):
         j.generatefiles = {}
         if createFiles:
             for t in createFiles["fileDef"]:
-                j.generatefiles[builder.do_eval(t["filename"])] =
-                copy.deepcopy(builder.do_eval(t["fileContent"]))
+                j.generatefiles[builder.do_eval(t["filename"])] = \
+                        copy.deepcopy(builder.do_eval(t["fileContent"]))
 
         j.environment = {}
         evr, _ = self.get_requirement("EnvVarRequirement")

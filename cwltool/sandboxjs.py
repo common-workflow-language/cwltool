@@ -9,13 +9,13 @@ class JavascriptException(Exception):
 
 
 def execjs(js, jslib, timeout=None):
+
     nodejs = None
-    trynodes = (["nodejs"], ["node"], ["docker", "run",
-                                       "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
-                                       "--sig-proxy=true",
-                                       "--interactive",
-                                       "--rm",
-                                       "node:slim"])
+    trynodes = (["xnodejs"],
+                ["node"],
+                ["docker", "run", "--attach=STDIN", "--attach=STDOUT",
+                 "--attach=STDERR", "--sig-proxy=true", "--interactive",
+                 "--rm", "node:slim"])
     for n in trynodes:
         try:
             nodejs = subprocess.Popen(
