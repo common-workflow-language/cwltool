@@ -472,6 +472,7 @@ class WorkflowStep(Process):
                                             **kwargs):
                 yield t
         except WorkflowException:
+            _logger.error("Exception on step '%s'", kwargs.get("name"))
             raise
         except Exception as e:
             _logger.exception("Unexpected exception")
