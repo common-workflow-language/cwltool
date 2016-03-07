@@ -27,8 +27,10 @@ def fixType(doc):
         return [fixType(f) for f in doc]
 
     if isinstance(doc, basestring):
-        if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
-            return "#" + doc
+        if doc not in ("null", "boolean", "int", "long", "float", "double",
+                       "string", "File", "record", "enum", "array", "Any") \
+           and "#" not in doc:
+                return "#" + doc
     return doc
 
 
@@ -48,7 +50,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
                 return _draft2toDraft3dev1(r, loader, imp)
 
             if "include" in doc:
-                return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
+                return loader.fetch_text(
+                        urlparse.urljoin(baseuri, doc["include"]))
 
             for t in ("type", "items"):
                 if t in doc:
@@ -86,7 +89,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
 
 
 def draft2toDraft3dev1(doc, loader, baseuri):
-    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+    return (_draft2toDraft3dev1(doc, loader, baseuri),
+            "https://w3id.org/cwl/cwl#draft-3.dev1")
 
 digits = re.compile("\d+")
 
@@ -139,7 +143,9 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
         for a in doc:
             doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
 
-        if "class" in doc and (doc["class"] in ("CommandLineTool", "Workflow", "ExpressionTool")):
+        if "class" in doc and (
+                doc["class"] in (
+                    "CommandLineTool", "Workflow", "ExpressionTool")):
             added = False
             if "requirements" in doc:
                 for r in doc["requirements"]:
@@ -147,11 +153,14 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
                         if "engineConfig" in r:
                             doc["requirements"].append({
                                 "class": "InlineJavascriptRequirement",
-                                "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
+                                "expressionLib": [updateScript(sc) for
+                                                  sc in aslist(
+                                                        r["engineConfig"])]
                             })
                             added = True
                         doc["requirements"] = [
-                            rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
+                            rq for rq in doc["requirements"] if
+                            rq["class"] != "ExpressionEngineRequirement"]
                         break
             else:
                 doc["requirements"] = []
@@ -166,7 +175,8 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
 
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
-    return (_draftDraft3dev1toDev2(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
+    return (_draftDraft3dev1toDev2(doc, loader, baseuri),
+            "https://w3id.org/cwl/cwl#draft-3.dev2")
 
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
@@ -188,7 +198,8 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     return _draftDraft3dev2toDev3(r, loader, imp)
 
             if "@include" in doc:
-                return loader.fetch_text(urlparse.urljoin(baseuri, doc["@include"]))
+                return loader.fetch_text(
+                        urlparse.urljoin(baseuri, doc["@include"]))
 
             for a in doc:
                 doc[a] = _draftDraft3dev2toDev3(doc[a], loader, baseuri)
@@ -209,7 +220,8 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
 
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
-    return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
+    return (_draftDraft3dev2toDev3(doc, loader, baseuri),
+            "https://w3id.org/cwl/cwl#draft-3.dev3")
 
 
 def traverseImport(doc, loader, baseuri, func):
@@ -259,7 +271,8 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
-    return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
+    return (_draftDraft3dev3toDev4(doc, loader, baseuri),
+            "https://w3id.org/cwl/cwl#draft-3.dev4")
 
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
@@ -293,7 +306,8 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
-    return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
+    return (_draftDraft3dev4toDev5(doc, loader, baseuri),
+            "https://w3id.org/cwl/cwl#draft-3.dev5")
 
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):

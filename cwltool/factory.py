@@ -9,7 +9,8 @@ class Callable(object):
         self.factory = factory
 
     def __call__(self, **kwargs):
-        return self.factory.executor(self.t, kwargs, os.getcwd(), None, **self.factory.execkwargs)
+        return self.factory.executor(
+                self.t, kwargs, os.getcwd(), None, **self.factory.execkwargs)
 
 
 class Factory(object):

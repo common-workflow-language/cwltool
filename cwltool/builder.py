@@ -19,7 +19,8 @@ class Builder(object):
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         bindings = []
         binding = None
-        if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
+        if "inputBinding" in schema and isinstance(
+                schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
 
             if "position" in binding:
@@ -37,22 +38,28 @@ class Builder(object):
             for t in schema["type"]:
                 if isinstance(t, basestring) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
-                elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
+                elif (isinstance(t, dict) and
+                      "name" in t and self.names.has_name(t["name"], "")):
                     avsc = self.names.get_name(t["name"], "")
                 else:
                     avsc = avro.schema.make_avsc_object(t, self.names)
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
-                    return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                    return self.bind_input(schema, datum, lead_pos=lead_pos,
+                                           tail_pos=tail_pos)
             raise validate.ValidationException(
                 "'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], dict):
             st = copy.deepcopy(schema["type"])
-            if binding and "inputBinding" not in st and "itemSeparator" not in binding and st["type"] in ("array", "map"):
+            if (binding and
+                    "inputBinding" not in st and
+                    "itemSeparator" not in binding and
+                    st["type"] in ("array", "map")):
                 st["inputBinding"] = {}
             bindings.extend(
-                self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
+                self.bind_input(st, datum, lead_pos=lead_pos,
+                                tail_pos=tail_pos))
         else:
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[schema["type"]]
@@ -61,7 +68,9 @@ class Builder(object):
                 for f in schema["fields"]:
                     if f["name"] in datum:
                         bindings.extend(
-                            self.bind_input(f, datum[f["name"]], lead_pos=lead_pos, tail_pos=f["name"]))
+                            self.bind_input(
+                                f, datum[f["name"]], lead_pos=lead_pos,
+                                tail_pos=f["name"]))
                     else:
                         datum[f["name"]] = f.get("default")
 
@@ -105,7 +114,8 @@ class Builder(object):
                                 sfpath = {"path": sfpath, "class": "File"}
                         else:
                             sfpath = {
-                                "path": substitute(datum["path"], sf), "class": "File"}
+                                "path": substitute(datum["path"], sf),
+                                "class": "File"}
                         if isinstance(sfpath, list):
                             datum["secondaryFiles"].extend(sfpath)
                         else:

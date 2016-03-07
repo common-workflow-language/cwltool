@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 import urlparse
 from rdflib import Graph, plugin, URIRef
@@ -48,7 +49,8 @@ def dot_with_parameters(g):
            }""")
 
     for step, run, runtype in qres:
-        print '"%s" [label="%s"]' % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run)))
+        print('"%s" [label="%s"]' % (lastpart(step), "%s (%s)"
+              % (lastpart(step), lastpart(run))))
 
     qres = g.query(
         """SELECT ?step ?inp ?source
@@ -59,9 +61,11 @@ def dot_with_parameters(g):
            }""")
 
     for step, inp, source in qres:
-        print '"%s" [shape=box]' % (lastpart(inp))
-        print '"%s" -> "%s" [label="%s"]' % (lastpart(source), lastpart(inp), "")
-        print '"%s" -> "%s" [label="%s"]' % (lastpart(inp), lastpart(step), "")
+        print('"%s" [shape=box]' % (lastpart(inp)))
+        print('"%s" -> "%s" [label="%s"]'
+              % (lastpart(source), lastpart(inp), ""))
+        print('"%s" -> "%s" [label="%s"]'
+              % (lastpart(inp), lastpart(step), ""))
 
     qres = g.query(
         """SELECT ?step ?out
@@ -71,8 +75,9 @@ def dot_with_parameters(g):
            }""")
 
     for step, out in qres:
-        print '"%s" [shape=box]' % (lastpart(out))
-        print '"%s" -> "%s" [label="%s"]' % (lastpart(step), lastpart(out), "")
+        print('"%s" [shape=box]' % (lastpart(out)))
+        print('"%s" -> "%s" [label="%s"]'
+              % (lastpart(step), lastpart(out), ""))
 
     qres = g.query(
         """SELECT ?out ?source
@@ -82,8 +87,9 @@ def dot_with_parameters(g):
            }""")
 
     for out, source in qres:
-        print '"%s" [shape=octagon]' % (lastpart(out))
-        print '"%s" -> "%s" [label="%s"]' % (lastpart(source), lastpart(out), "")
+        print('"%s" [shape=octagon]' % (lastpart(out)))
+        print('"%s" -> "%s" [label="%s"]'
+              % (lastpart(source), lastpart(out), ""))
 
     qres = g.query(
         """SELECT ?inp
@@ -93,14 +99,14 @@ def dot_with_parameters(g):
            }""")
 
     for (inp,) in qres:
-        print '"%s" [shape=octagon]' % (lastpart(inp))
+        print('"%s" [shape=octagon]' % (lastpart(inp)))
 
 
 def dot_without_parameters(g):
     dotname = {}
     clusternode = {}
 
-    print "compound=true"
+    print("compound=true")
 
     subworkflows = set()
     qres = g.query(
@@ -130,21 +136,23 @@ def dot_without_parameters(g):
 
         if wf != currentwf:
             if currentwf is not None:
-                print "}"
+                print("}")
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                print 'subgraph "%s" { label="%s"' % (dotname[wf], lastpart(wf))
+                print('subgraph "%s" { label="%s"'
+                      % (dotname[wf], lastpart(wf)))
                 currentwf = wf
                 clusternode[wf] = step
             else:
                 currentwf = None
 
         if str(runtype) != "https://w3id.org/cwl/cwl#Workflow":
-            print '"%s" [label="%s"]' % (dotname[step], urlparse.urldefrag(str(step))[1])
+            print('"%s" [label="%s"]'
+                  % (dotname[step], urlparse.urldefrag(str(step))[1]))
 
     if currentwf is not None:
-        print "}\n"
+        print("}\n")
 
     qres = g.query(
         """SELECT DISTINCT ?src ?sink ?srcrun ?sinkrun
@@ -166,13 +174,13 @@ def dot_without_parameters(g):
         if sinkrun in clusternode:
             attr += ' lhead="%s"' % dotname[sinkrun]
             sink = clusternode[sinkrun]
-        print '"%s" -> "%s" [%s]' % (dotname[src], dotname[sink], attr)
+        print('"%s" -> "%s" [%s]' % (dotname[src], dotname[sink], attr))
 
 
 def printdot(workflow, wf, ctx, include_parameters=False):
     g = makerdf(workflow, wf, ctx)
 
-    print "digraph {"
+    print("digraph {")
 
     # g.namespace_manager.qname(predicate)
 
@@ -181,4 +189,4 @@ def printdot(workflow, wf, ctx, include_parameters=False):
     else:
         dot_without_parameters(g)
 
-    print "}"
+    print("}")

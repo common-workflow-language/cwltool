@@ -16,7 +16,9 @@ _logger = logging.getLogger("cwltool")
 
 
 def jshead(engineConfig, rootvars):
-    return "\n".join(engineConfig + ["var %s = %s;" % (k, json.dumps(v)) for k, v in rootvars.items()])
+    return "\n".join(engineConfig + ["var %s = %s;" %
+                                     (k, json.dumps(v))
+                                     for k, v in rootvars.items()])
 
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
@@ -24,20 +26,24 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
         try:
             obj = {"job": jobinput, "context": context,
                    "outdir": outdir, "tmpdir": tmpdir}
-            return schema_salad.ref_resolver.resolve_json_pointer(obj, ex["script"])
+            return schema_salad.ref_resolver.resolve_json_pointer(
+                    obj, ex["script"])
         except ValueError as v:
             raise WorkflowException("%s in %s" % (v, obj))
 
     if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
         engineConfig = []
         for r in reversed(requirements):
-            if r["class"] == "ExpressionEngineRequirement" and r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
+            if (r["class"] == "ExpressionEngineRequirement" and
+                    r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine"):
                 engineConfig = r.get("engineConfig", [])
                 break
-        return sandboxjs.execjs(ex["script"], jshead(engineConfig, jobinput, context, tmpdir, outdir))
+        return sandboxjs.execjs(ex["script"], jshead(
+            engineConfig, jobinput, context, tmpdir, outdir))
 
     for r in reversed(requirements):
-        if r["class"] == "ExpressionEngineRequirement" and r["id"] == ex["engine"]:
+        if (r["class"] == "ExpressionEngineRequirement" and
+                r["id"] == ex["engine"]):
             runtime = []
 
             class DR(object):
@@ -76,8 +82,9 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
             (stdoutdata, stderrdata) = sp.communicate(json.dumps(inp) + "\n\n")
             if sp.returncode != 0:
-                raise WorkflowException(
-                    "Expression engine returned non-zero exit code on evaluation of\n%s" % json.dumps(inp, indent=4))
+                raise WorkflowException("Expression engine returned non-zero "
+                                        "exit code on evaluation of\n%s"
+                                        % json.dumps(inp, indent=4))
 
             return json.loads(stdoutdata)
 
@@ -86,7 +93,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
-seg_index  = r"""\[[0-9]+\]"""
+seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
 param_re = re.compile(r"\$\((%s)%s*\)" %
@@ -118,11 +125,14 @@ def param_interpolate(ex, obj, strip=True):
             leaf = json.dumps(leaf, sort_keys=True)
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
-            return ex[0:m.start(0)] + leaf + param_interpolate(ex[m.end(0):], obj, False)
+            return ex[0:m.start(0)] + leaf + param_interpolate(
+                    ex[m.end(0):], obj, False)
     else:
         if "$(" in ex or "${" in ex:
             _logger.warn(
-                "Warning possible workflow bug: found '$(' or '${' in '%s' but did not match valid parameter reference and InlineJavascriptRequirement not specified.", ex)
+                "Warning possible workflow bug: found '$(' or '${' in '%s' "
+                "but did not match valid parameter reference and "
+                "InlineJavascriptRequirement not specified.", ex)
         return ex
 
 
@@ -139,11 +149,13 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
     }
 
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
-        return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
+        return exeval(ex, jobinput, requirements, outdir, tmpdir, context,
+                      pull_image)
     if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
-                return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), rootvars),
-                                             timeout=timeout)
+                return sandboxjs.interpolate(
+                        ex, jshead(r.get("expressionLib", []), rootvars),
+                        timeout=timeout)
         return param_interpolate(ex, rootvars)
     return ex

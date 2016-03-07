@@ -79,11 +79,12 @@ def get_schema():
     for f in salad_files:
         rs = resource_stream(
             __name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
-        cache[
-            "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
+        cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" +
+              f] = rs.read()
         rs.close()
 
-    return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
+    return schema_salad.schema.load_schema(
+            "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
 
 def get_feature(self, feature):
@@ -129,8 +130,8 @@ def checkRequirements(rec, supportedProcessRequirements):
                     raise Exception("Unsupported requirement %s" % r["class"])
         if "scatter" in rec:
             if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
-                raise Exception(
-                    "Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
+                raise Exception("Unsupported complex scatter type '%s'"
+                                % rec.get("scatterMethod"))
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):
@@ -204,10 +205,12 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
             raise validate.ValidationException(
                 "Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
+            if af["format"] == inpf or formatSubclassOf(
+                    af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-            "Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+                "Incompatible file format %s required format(s) %s"
+                % (af["format"], inputFormats))
 
 
 class Process(object):
@@ -269,8 +272,10 @@ class Process(object):
                 self.inputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing inputs of %s:\n%s" % (
-                str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
+            raise validate.ValidationException(
+                    "Got error `%s` while prcoessing inputs of %s:\n%s" % (
+                        str(e), self.tool["id"], json.dumps(
+                            self.inputs_record_schema, indent=4)))
 
         try:
             self.outputs_record_schema = schema_salad.schema.make_valid_avro(
@@ -278,8 +283,10 @@ class Process(object):
             avro.schema.make_avsc_object(
                 self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing outputs of %s:\n%s" % (
-                str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
+            raise validate.ValidationException(
+                    "Got error `%s` while prcoessing outputs of %s:\n%s" % (
+                        str(e), self.tool["id"], json.dumps(
+                            self.outputs_record_schema, indent=4)))
 
     def _init_job(self, joborder, input_basedir, **kwargs):
         builder = Builder()

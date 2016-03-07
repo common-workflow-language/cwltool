@@ -36,7 +36,8 @@ def deref_links(outputs):
 
 
 class CommandLineJob(object):
-    def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, **kwargs):
+    def run(self, dry_run=False, pull_image=True, rm_container=True,
+            rm_tmpdir=True, move_outputs=True, **kwargs):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -118,10 +119,12 @@ class CommandLineJob(object):
         _logger.info("[job %s] %s$ %s%s%s",
                      self.name,
                      self.outdir,
-                     " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg)
-                               for arg in (runtime + self.command_line)]),
+                     " ".join([shellescape.quote(str(arg))
+                              if shouldquote(str(arg)) else str(arg)
+                              for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
-                     ' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
+                     ' > %s' % os.path.join(self.outdir, self.stdout)
+                     if self.stdout else '')
 
         if dry_run:
             return (self.outdir, {})
@@ -133,7 +136,8 @@ class CommandLineJob(object):
                 if isinstance(self.generatefiles[t], dict):
                     src = self.generatefiles[t]["path"]
                     dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
+                    if os.path.dirname(
+                            self.pathmapper.reversemap(src)[1]) != self.outdir:
                         _logger.debug("symlinking %s to %s", dst, src)
                         os.symlink(src, dst)
                 else:
@@ -189,7 +193,8 @@ class CommandLineJob(object):
                 if isinstance(self.generatefiles[t], dict):
                     src = self.generatefiles[t]["path"]
                     dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
+                    if os.path.dirname(
+                            self.pathmapper.reversemap(src)[1]) != self.outdir:
                         os.remove(dst)
                         os.symlink(self.pathmapper.reversemap(src)[1], dst)
 
@@ -220,11 +225,11 @@ class CommandLineJob(object):
         self.output_callback(outputs, processStatus)
 
         if rm_tmpdir:
-            _logger.debug(
-                "[job %s] Removing temporary directory %s", self.name, self.tmpdir)
+            _logger.debug("[job %s] Removing temporary directory %s",
+                          self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
         if move_outputs and empty_subtree(self.outdir):
-            _logger.debug(
-                "[job %s] Removing empty output directory %s", self.name, self.outdir)
+            _logger.debug("[job %s] Removing empty output directory %s",
+                          self.name, self.outdir)
             shutil.rmtree(self.outdir, True)

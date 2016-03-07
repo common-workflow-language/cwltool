@@ -7,7 +7,8 @@ def docker_vm_uid():
 
     When a host is using boot2docker or docker-machine to run docker with
     boot2docker.iso (As on Mac OS X), the UID that mounts the shared filesystem
-    inside the VirtualBox VM is likely different than the user's UID on the host.
+    inside the VirtualBox VM is likely different than the user's UID on the
+    host.
     :return: The numeric UID (as a string) of the docker account inside
     the boot2docker VM
     """
@@ -71,7 +72,8 @@ def docker_machine_running():
     :return: True if vm is running, False otherwise
     """
     machine_name = docker_machine_name()
-    return cmd_output_matches(['docker-machine', 'status', machine_name], 'Running')
+    return cmd_output_matches(
+            ['docker-machine', 'status', machine_name], 'Running')
 
 
 def cmd_output_to_int(cmd):
@@ -93,7 +95,8 @@ def cmd_output_to_int(cmd):
 def boot2docker_uid():
     """
     Gets the UID of the docker user inside a running boot2docker vm
-    :return: the UID, or None if error (e.g. boot2docker not present or stopped)
+    :return: the UID, or None if error (e.g. boot2docker not present or
+    stopped)
     """
     return cmd_output_to_int(['boot2docker', 'ssh', 'id', '-u'])
 
@@ -102,7 +105,8 @@ def docker_machine_uid():
     """
     Asks docker-machine for active machine and gets the UID of the docker user
     inside the vm
-    :return: the UID, or None if error (e.g. docker-machine not present or stopped)
+    :return: the UID, or None if error (e.g. docker-machine not present or
+    stopped)
     """
     machine_name = docker_machine_name()
     return cmd_output_to_int(['docker-machine', 'ssh', machine_name, "id -u"])

@@ -34,8 +34,9 @@ def compare(a, b):
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
             if len(a) != len(b):
-                raise CompareFail("expected %s\ngot %s" %
-                                  (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+                raise CompareFail("expected %s\ngot %s" % (
+                    json.dumps(a, indent=4, sort_keys=True),
+                    json.dumps(b, indent=4, sort_keys=True)))
             for c in a:
                 if a.get("class") != "File" or c != "path":
                     if c not in b:
@@ -45,8 +46,9 @@ def compare(a, b):
             return True
         elif isinstance(a, list):
             if len(a) != len(b):
-                raise CompareFail("expected %s\ngot %s" %
-                                  (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+                raise CompareFail("expected %s\ngot %s" % (
+                    json.dumps(a, indent=4, sort_keys=True),
+                    json.dumps(b, indent=4, sort_keys=True)))
             for c in xrange(0, len(a)):
                 if not compare(a[c], b[c]):
                     return False
@@ -72,7 +74,8 @@ def run_test(args, i, t):
                 outdir = tempfile.mkdtemp(
                     prefix=os.path.abspath(os.path.curdir))
                 test_command.extend(
-                    ["--tmp-outdir-prefix={}".format(outdir), "--tmpdir-prefix={}".format(outdir)])
+                    ["--tmp-outdir-prefix={}".format(outdir),
+                        "--tmpdir-prefix={}".format(outdir)])
             else:
                 outdir = tempfile.mkdtemp()
             test_command.extend(["--outdir={}".format(outdir),
@@ -149,14 +152,16 @@ def main():
     parser = argparse.ArgumentParser(
         description='Compliance tests for cwltool')
     parser.add_argument(
-        "--test", type=str, help="YAML file describing test cases", required=True)
+        "--test", type=str, help="YAML file describing test cases",
+        required=True)
     parser.add_argument(
         "--basedir", type=str, help="Basedir to use for tests", default=".")
     parser.add_argument("-l", action="store_true", help="List tests then exit")
     parser.add_argument(
         "-n", type=int, default=None, help="Run a specific test")
-    parser.add_argument("--tool", type=str, default="cwl-runner",
-                        help="CWL runner executable to use (default 'cwl-runner'")
+    parser.add_argument(
+            "--tool", type=str, default="cwl-runner",
+            help="CWL runner executable to use (default 'cwl-runner'")
     parser.add_argument("--only-tools", action="store_true",
                         help="Only test tools")
 

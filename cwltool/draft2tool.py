@@ -61,7 +61,8 @@ def remove_hostfs(f):
 
 
 def revmap_file(builder, outdir, f):
-    """Remap a file back to original path. For Docker, this is outside the container.
+    """Remap a file back to original path. For Docker, this is outside the
+    container.
 
     Uses either files in the pathmapper or remaps internal output directories
     to the external directory.
@@ -80,8 +81,10 @@ def revmap_file(builder, outdir, f):
         f["hostfs"] = True
         return f
     else:
-        raise WorkflowException("Output file path %s must be within designated output directory (%s) or an input file pass through." % (
-            f["path"], builder.outdir))
+        raise WorkflowException(
+                "Output file path %s must be within designated output "
+                "directory (%s) or an input file pass through." %
+                (f["path"], builder.outdir))
 
 
 class CommandLineTool(Process):
@@ -148,7 +151,8 @@ class CommandLineTool(Process):
         _logger.debug("[job %s] initializing from %s%s",
                       j.name,
                       self.tool.get("id", ""),
-                      " as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
+                      " as part of %s" % kwargs["part_of"]
+                      if "part_of" in kwargs else "")
         _logger.debug("[job %s] %s", j.name, json.dumps(joborder, indent=4))
 
         builder.pathmapper = None
@@ -169,9 +173,9 @@ class CommandLineTool(Process):
             reffiles, input_basedir, **kwargs)
         builder.requirements = j.requirements
 
-        # map files to assigned path inside a container. We need to also explicitly
-        # walk over input as implicit reassignment doesn't reach everything in
-        # builder.bindings
+        # map files to assigned path inside a container. We need to also
+        # explicitly walk over input as implicit reassignment doesn't reach
+        # everything in builder.bindings
         def _check_adjust(f):
             if not f.get("containerfs"):
                 f["path"] = builder.pathmapper.mapper(f["path"])[1]
@@ -184,7 +188,8 @@ class CommandLineTool(Process):
         _logger.debug("[job %s] command line bindings is %s",
                       j.name, json.dumps(builder.bindings, indent=4))
         _logger.debug("[job %s] path mappings is %s", j.name, json.dumps(
-            {p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+            {p: builder.pathmapper.mapper(p)
+                for p in builder.pathmapper.files()}, indent=4))
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
@@ -202,8 +207,8 @@ class CommandLineTool(Process):
         j.generatefiles = {}
         if createFiles:
             for t in createFiles["fileDef"]:
-                j.generatefiles[builder.do_eval(t["filename"])] = copy.deepcopy(
-                    builder.do_eval(t["fileContent"]))
+                j.generatefiles[builder.do_eval(t["filename"])] =
+                copy.deepcopy(builder.do_eval(t["fileContent"]))
 
         j.environment = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
@@ -258,7 +263,8 @@ class CommandLineTool(Process):
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException(
-                "Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
+                "Error validating output record, " + str(e) + "\n in " +
+                json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir):
         r = None
@@ -281,7 +287,8 @@ class CommandLineTool(Process):
                             "glob patterns must not start with '/'")
                     try:
                         r.extend([{"path": g, "class": "File", "hostfs": True}
-                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                                  for g in builder.fs_access.glob(
+                                      os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
@@ -320,20 +327,24 @@ class CommandLineTool(Process):
                         r = [r]
                     if optional and r is None:
                         pass
-                    elif (r is None or len(r) != 1 or not isinstance(r[0], dict) or "path" not in r[0]):
+                    elif (r is None or len(r) != 1 or
+                            not isinstance(r[0], dict) or "path" not in r[0]):
                         raise WorkflowException(
-                            "Expression must return a file object for %s." % schema["id"])
+                            "Expression must return a file object for %s."
+                            % schema["id"])
 
             if singlefile:
                 if not r and not optional:
                     raise WorkflowException(
-                        "Did not find output file with glob pattern: '{}'".format(globpatterns))
+                        "Did not find output file with glob pattern: "
+                        "'{}'".format(globpatterns))
                 elif not r and optional:
                     pass
                 elif isinstance(r, list):
                     if len(r) > 1:
                         raise WorkflowException(
-                            "Multiple matches for output item that is a single file.")
+                            "Multiple matches for output item that is a single"
+                            " file.")
                     else:
                         r = r[0]
 
@@ -346,14 +357,16 @@ class CommandLineTool(Process):
                     if isinstance(primary, dict):
                         primary["secondaryFiles"] = []
                         for sf in aslist(schema["secondaryFiles"]):
-                            if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                            if (isinstance(sf, dict) or "$(" in sf or
+                                    "${" in sf):
                                 sfpath = builder.do_eval(sf, context=r)
                                 if isinstance(sfpath, basestring):
                                     sfpath = revmap(
                                         {"path": sfpath, "class": "File"})
                             else:
                                 sfpath = {"path": substitute(
-                                    primary["path"], sf), "class": "File", "hostfs": True}
+                                    primary["path"], sf),
+                                    "class": "File", "hostfs": True}
 
                             for sfitem in aslist(sfpath):
                                 if builder.fs_access.exists(sfitem["path"]):
@@ -362,10 +375,11 @@ class CommandLineTool(Process):
             if not r and optional:
                 r = None
 
-        if not r and isinstance(schema["type"], dict) and schema["type"]["type"] == "record":
-            r = {}
-            for f in schema["type"]["fields"]:
-                r[shortname(f["name"])] = self.collect_output(
-                    f, builder, outdir)
+        if (not r and isinstance(schema["type"], dict) and
+                schema["type"]["type"] == "record"):
+                    r = {}
+                    for f in schema["type"]["fields"]:
+                        r[shortname(f["name"])] = self.collect_output(
+                            f, builder, outdir)
 
         return r

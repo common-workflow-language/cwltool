@@ -112,9 +112,11 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.param_interpolate(
             "$(foo['b\\'ar'].baz) $(foo['b\\'ar'].baz)", inputs), "true true")
         self.assertEqual(expr.param_interpolate(
-            "$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs), "true true")
+            "$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs),
+            "true true")
         self.assertEqual(expr.param_interpolate(
-            "$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
+            "$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs),
+            "null null")
 
 
 class TestFactory(unittest.TestCase):

@@ -16,8 +16,10 @@ setup(name='cwl_runner',
       long_description=open(README).read(),
       author='Common workflow language working group',
       author_email='common-workflow-language@googlegroups.com',
-      url="https://github.com/common-workflow-language/common-workflow-language",
-      download_url="https://github.com/common-workflow-language/common-workflow-language",
+      url="https://github.com/common-workflow-language/"
+      "common-workflow-language",
+      download_url="https://github.com/common-workflow-language/"
+      "common-workflow-language",
       license='Apache 2.0',
       install_requires=[
           'cwltool'
