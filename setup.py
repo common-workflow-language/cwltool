@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 import os
-import sys
 import setuptools.command.egg_info as egg_info_cmd
-import shutil
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, 'README.rst')

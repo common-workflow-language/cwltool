@@ -3,11 +3,8 @@ import subprocess
 import json
 from aslist import aslist
 import logging
-import os
 from errors import WorkflowException
 import process
-import yaml
-import schema_salad.validate as validate
 import schema_salad.ref_resolver
 import sandboxjs
 import re

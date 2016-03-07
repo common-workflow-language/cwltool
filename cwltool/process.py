@@ -3,14 +3,10 @@ import os
 import json
 import schema_salad.validate as validate
 import copy
-import yaml
-import copy
 import logging
-import pprint
 from aslist import aslist
 import schema_salad.schema
 import urlparse
-import pprint
 from pkg_resources import resource_stream
 import stat
 from builder import Builder

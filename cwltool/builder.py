@@ -4,6 +4,8 @@ import expression
 import avro
 import schema_salad.validate as validate
 
+from errors import WorkflowException
+
 CONTENT_LIMIT = 64 * 1024
 
 

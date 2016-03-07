@@ -1,8 +1,7 @@
 from __future__ import print_function
 import json
 import urlparse
-from rdflib import Graph, plugin, URIRef
-from rdflib.serializer import Serializer
+from rdflib import Graph, URIRef
 
 
 def makerdf(workflow, wf, ctx):
@@ -185,7 +184,7 @@ def printdot(workflow, wf, ctx, include_parameters=False):
     # g.namespace_manager.qname(predicate)
 
     if include_parameters:
-        dot_with_parmeters(g)
+        dot_with_parameters(g)
     else:
         dot_without_parameters(g)
 

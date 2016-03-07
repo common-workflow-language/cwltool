@@ -1,12 +1,8 @@
 import subprocess
 import os
-import tempfile
-import glob
 import json
-import yaml
 import logging
 import sys
-import requests
 import docker
 from process import get_feature, empty_subtree
 from errors import WorkflowException

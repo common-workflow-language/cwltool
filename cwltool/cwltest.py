@@ -113,7 +113,7 @@ def run_test(args, i, t):
         _logger.error(outstr)
         _logger.error("Parse error %s", str(e))
 
-    pwd = os.path.abspath(os.path.dirname(t["job"]))
+    # pwd = os.path.abspath(os.path.dirname(t["job"]))
     # t["args"] = map(lambda x: x.replace("$PWD", pwd), t["args"])
     # if "stdin" in t:
     #     t["stdin"] = t["stdin"].replace("$PWD", pwd)

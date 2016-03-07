@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import draft2tool
 import argparse
 from schema_salad.ref_resolver import Loader
 import json
@@ -15,13 +14,12 @@ import schema_salad.makedoc
 import yaml
 import urlparse
 import process
-import job
 from cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
 import update
 from process import shortname
 import rdflib
-from aslist import aslist
+from .aslist import aslist
 
 _logger = logging.getLogger("cwltool")
 
@@ -604,7 +602,9 @@ def main(args=None,
                       exc_info=(e if args.debug else False))
         return 1
     except Exception as e:
-        _logger.error("Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+        _logger.error("Unhandled error, try again with --debug for more "
+                      "information:\n  %s", e,
+                      exc_info=(e if args.debug else False))
         return 1
 
     return 0

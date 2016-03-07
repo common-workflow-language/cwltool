@@ -1,4 +1,3 @@
-import sys
 import urlparse
 import json
 import re
