@@ -203,6 +203,8 @@ class Process(object):
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
+        else:
+            self.formatgraph = None
 
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
