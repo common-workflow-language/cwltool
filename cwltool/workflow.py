@@ -430,7 +430,7 @@ class WorkflowStep(Process):
             inp_map = {i["id"]: i for i in inputparms}
             for s in scatter:
                 if s not in inp_map:
-                    raise WorkflowException("Invalid Scatter parameter '%s'" % s)
+                    raise WorkflowException("Scatter parameter '%s' does not correspond to an input parameter of this step, inputs are %s" % (s, inp_map.keys()))
 
                 inp_map[s]["type"] = {"type": "array", "items": inp_map[s]["type"]}
 
