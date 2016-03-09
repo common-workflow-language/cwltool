@@ -2,6 +2,7 @@ import subprocess
 import json
 import threading
 import errno
+import typing
 
 
 class JavascriptException(Exception):
@@ -34,7 +35,7 @@ def execjs(js, jslib, timeout=None):
             "expressions, but couldn't find it.  Tried %s" % (trynodes,))
 
     fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(
-        js, basestring) and len(js) > 1 and js[0] == '{' else (
+        js, (str, unicode)) and len(js) > 1 and js[0] == '{' else (
             "{return (%s);}" % js))
     script = "console.log(JSON.stringify(require(\"vm\")" \
              ".runInNewContext(%s, {})));\n" % json.dumps(fn)

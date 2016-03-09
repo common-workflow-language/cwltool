@@ -14,7 +14,7 @@ import tempfile
 import glob
 from errors import WorkflowException
 from pathmapper import abspath
-
+import typing
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
 
@@ -125,7 +125,7 @@ def checkRequirements(rec, supportedProcessRequirements):
                 if r["class"] not in supportedProcessRequirements:
                     raise Exception("Unsupported requirement %s" % r["class"])
         if "scatter" in rec:
-            if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
+            if isinstance(rec["scatter"], list) and len(rec["scatter"]) > 1:
                 raise Exception("Unsupported complex scatter type '%s'"
                                 % rec.get("scatterMethod"))
         for d in rec:
@@ -224,7 +224,7 @@ class Process(object):
         self.validate_hints(
             self.tool.get("hints", []), strict=kwargs.get("strict"))
 
-        self.schemaDefs = {}
+        self.schemaDefs = {}  # type: Dict[str,Dict[str,str]]
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -413,7 +413,7 @@ def empty_subtree(dirpath):
                 raise
     return True
 
-_names = set()
+_names = set()  # type: Set[str]
 
 
 def uniquename(stem):

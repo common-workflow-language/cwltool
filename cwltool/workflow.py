@@ -14,6 +14,7 @@ import shutil
 import json
 import schema_salad
 import expression
+from typing import Iterable, List
 
 _logger = logging.getLogger("cwltool")
 
@@ -107,7 +108,7 @@ def are_same_type(one, two):
 
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput):
-    inputobj = {}
+    inputobj = {}  # type: Dict[str, str]
     for inp in parms:
         iid = inp["id"]
         if frag_only:
@@ -154,7 +155,7 @@ class WorkflowJobStep(object):
         self.id = step.id
         self.submitted = False
         self.completed = False
-        self.iterable = None
+        self.iterable = None  # type: Iterable
         self.name = uniquename("step %s" % shortname(self.id))
 
     def job(self, joborder, basedir, output_callback, **kwargs):
@@ -170,6 +171,8 @@ class WorkflowJob(object):
         self.tool = workflow.tool
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.id = workflow.tool["id"]
+        self.state = None  # type: Dict[str, WorkflowStateItem]
+        self.processStatus = None  # type: str
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
         elif "tmp_outdir_prefix" in kwargs:
@@ -355,7 +358,7 @@ class WorkflowJob(object):
             raise WorkflowException("Output for workflow not available")
 
         if move_outputs:
-            targets = set()
+            targets = set()  # type: Set[str]
             conflicts = set()
 
             outfiles = findfiles(wo)
@@ -560,7 +563,7 @@ class ReceiveScatterOutput(object):
         self.dest = dest
         self.completed = 0
         self.processStatus = "success"
-        self.total = None
+        self.total = None  # type: int
         self.output_callback = output_callback
 
     def receive_scatter_output(self, index, jobout, processStatus):
@@ -593,7 +596,7 @@ def dotproduct_scatter(process, joborder, basedir, scatter_keys,
                 "Length of input arrays must be equal when performing "
                 "dotproduct scatter.")
 
-    output = {}
+    output = {}  # type: Dict[str,List[List[None]]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * l
 
@@ -616,7 +619,7 @@ def nested_crossproduct_scatter(process, joborder, basedir, scatter_keys,
 
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
-    output = {}
+    output = {}  # type: Dict[str,List[List[None]]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * l
 
@@ -661,7 +664,7 @@ def flat_crossproduct_scatter(process, joborder, basedir, scatter_keys,
 
     if (startindex == 0 and
             not isinstance(output_callback, ReceiveScatterOutput)):
-        output = {}
+        output = {}  # type: Dict[str,List[List[None]]]
         for i in process.tool["outputs"]:
             output[i["id"]] = [None] * \
                 crossproduct_size(joborder, scatter_keys)

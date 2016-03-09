@@ -2,6 +2,8 @@ import urlparse
 import json
 import re
 from aslist import aslist
+import typing
+import traceback
 
 
 def findId(doc, frg):
@@ -25,7 +27,7 @@ def fixType(doc):
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
 
-    if isinstance(doc, basestring):
+    if isinstance(doc, (str, unicode)):
         if doc not in ("null", "boolean", "int", "long", "float", "double",
                        "string", "File", "record", "enum", "array", "Any") \
            and "#" not in doc:
@@ -82,9 +84,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc(e)))
+                        (err, e, traceback.format_exc()))
 
 
 def draft2toDraft3dev1(doc, loader, baseuri):
@@ -213,9 +214,8 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc(e)))
+                        (err, e, traceback.format_exc()))
 
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
@@ -264,9 +264,8 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc(e)))
+                        (err, e, traceback.format_exc()))
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
@@ -299,9 +298,8 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc(e)))
+                        (err, e, traceback.format_exc()))
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):

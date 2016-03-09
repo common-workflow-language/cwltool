@@ -5,7 +5,6 @@ from flatten import flatten
 import functools
 import os
 from pathmapper import PathMapper, DockerPathMapper
-from job import CommandLineJob
 import yaml
 import glob
 import logging
@@ -90,9 +89,6 @@ def revmap_file(builder, outdir, f):
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
-
-    def makeJobRunner(self):
-        return CommandLineJob()
 
     def makePathMapper(self, reffiles, input_basedir, **kwargs):
         dockerReq, _ = self.get_requirement("DockerRequirement")

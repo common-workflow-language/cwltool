@@ -1,4 +1,5 @@
 import subprocess
+import io
 import os
 import json
 import logging
@@ -11,6 +12,9 @@ import stat
 import re
 import shellescape
 from docker_uid import docker_vm_uid
+from builder import Builder
+from typing import Union, Iterable, Callable, Any, Mapping, IO, cast
+from pathmapper import PathMapper
 
 _logger = logging.getLogger("cwltool")
 
@@ -32,6 +36,27 @@ def deref_links(outputs):
 
 
 class CommandLineJob(object):
+    def __init__(self):
+        self.builder = None  # type: Builder
+        self.joborder = None  # type: Dict[str,str]
+        self.stdin = None  # type: str
+        self.stdout = None  # type: str
+        self.successCodes = None  # type: Iterable[int]
+        self.temporaryFailCodes = None  # type: Iterable[int]
+        self.permanentFailCodes = None  # type: Iterable[int]
+        self.requirements = None  # type: Dict[str,str]
+        self.hints = None  # type: Dict[str,str]
+        self.name = None  # type: str
+        self.command_line = None  # type: List[str]
+        self.pathmapper = None  # type: PathMapper
+        self.collect_outputs = None  # type: Callable[[Any], Any]
+        self.output_callback = None  # type: Callable[[Any, Any], Any]
+        self.outdir = None  # type: str
+        self.tmpdir = None  # type: str
+        self.environment = None  # type: Dict[str,str]
+        self.generatefiles = None  # type: Dict[str,Union[Dict[str,str],str]]
+
+
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs=True, **kwargs):
         if not os.path.exists(self.outdir):
@@ -40,8 +65,8 @@ class CommandLineJob(object):
         # with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
         #    json.dump(self.joborder, fp)
 
-        runtime = []
-        env = {"TMPDIR": self.tmpdir}
+        runtime = []  # type: List[str]
+        env = {"TMPDIR": self.tmpdir}  # type: Mapping[str,str]
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -102,8 +127,8 @@ class CommandLineJob(object):
                     if key in vars_to_preserve and key not in env:
                         env[key] = value
 
-        stdin = None
-        stdout = None
+        stdin = None  # type: Union[IO[Any],int]
+        stdout = None  # type: Union[IO[Any],int]
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
@@ -119,18 +144,18 @@ class CommandLineJob(object):
                               if shouldquote(str(arg)) else str(arg)
                               for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
-                     ' > %s' % os.path.join(self.outdir, self.stdout)
+                     ' > %s' % os.path.join(self.outdir, str(self.stdout))
                      if self.stdout else '')
 
         if dry_run:
             return (self.outdir, {})
 
-        outputs = {}
+        outputs = {}  # type: Dict[str,str]
 
         try:
             for t in self.generatefiles:
                 if isinstance(self.generatefiles[t], dict):
-                    src = self.generatefiles[t]["path"]
+                    src = cast(dict,self.generatefiles[t])["path"]
                     dst = os.path.join(self.outdir, t)
                     if os.path.dirname(
                             self.pathmapper.reversemap(src)[1]) != self.outdir:
@@ -168,7 +193,7 @@ class CommandLineJob(object):
 
             rcode = sp.wait()
 
-            if stdin != subprocess.PIPE:
+            if not isinstance(stdin, int):
                 stdin.close()
 
             if stdout is not sys.stderr:
@@ -187,7 +212,7 @@ class CommandLineJob(object):
 
             for t in self.generatefiles:
                 if isinstance(self.generatefiles[t], dict):
-                    src = self.generatefiles[t]["path"]
+                    src = cast(dict, self.generatefiles[t])["path"]
                     dst = os.path.join(self.outdir, t)
                     if os.path.dirname(
                             self.pathmapper.reversemap(src)[1]) != self.outdir:

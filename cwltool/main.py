@@ -20,6 +20,7 @@ import update
 from process import shortname
 import rdflib
 from .aslist import aslist
+from typing import Union
 
 _logger = logging.getLogger("cwltool")
 
@@ -44,7 +45,7 @@ def arg_parser():
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when "
                         "running CommandLineTools",
-                        metavar=("VAR1", "VAR2"),
+                        metavar=("VAR1,VAR2"),
                         default=("PATH",),
                         dest="preserve_environment")
 
@@ -263,7 +264,7 @@ def generate_parser(toolparser, tool, namemap):
                     return None
 
         help = inp.get("description", "").replace("%", "%%")
-        kwargs = {}
+        kwargs = {}  # type: Dict[str, Union[argparse.Action, str, type]]
 
         if inptype == "File":
             kwargs["action"] = FileAction
@@ -308,7 +309,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         raise avsc_names
 
     jobobj = None
-    if isinstance(argsworkflow, basestring):
+    if isinstance(argsworkflow, (str, unicode)):
         split = urlparse.urlsplit(argsworkflow)
         if split.scheme:
             uri = argsworkflow
@@ -425,12 +426,12 @@ def load_job_order(args, t, parser, stdin):
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file)
         except Exception as e:
-            _logger.error(e, exc_info=(e if args.debug else False))
+            _logger.error(str(e), exc_info=(e if args.debug else False))
             return 1
         toolparser = None
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
-        namemap = {}
+        namemap = {}  # type: Dict[str,str]
         toolparser = generate_parser(
             argparse.ArgumentParser(prog=args.workflow), t, namemap)
         if toolparser:
@@ -446,7 +447,7 @@ def load_job_order(args, t, parser, stdin):
                     job_order_object = loader.resolve_ref(
                         cmd_line["job_order"])
                 except Exception as e:
-                    _logger.error(e, exc_info=(e if args.debug else False))
+                    _logger.error(str(e), exc_info=(e if args.debug else False))
                     return 1
             else:
                 job_order_object = {}

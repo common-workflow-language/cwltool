@@ -2,6 +2,7 @@ import os
 import random
 import logging
 import stat
+from typing import Tuple, Set, Union
 
 _logger = logging.getLogger("cwltool")
 
@@ -19,7 +20,7 @@ class PathMapper(object):
     (absolute local path, absolute container path)"""
 
     def __init__(self, referenced_files, basedir):
-        self._pathmap = {}
+        self._pathmap = {}  # type: Dict[str, Tuple[str, str]]
         for src in referenced_files:
             ab = abspath(src, basedir)
             self._pathmap[src] = (ab, ab)
@@ -40,7 +41,7 @@ class PathMapper(object):
 class DockerPathMapper(PathMapper):
     def __init__(self, referenced_files, basedir):
         self._pathmap = {}
-        self.dirs = {}
+        self.dirs = {} # type: Dict[str, Union[bool, str]] 
         for src in referenced_files:
             ab = abspath(src, basedir)
             dir, fn = os.path.split(ab)
@@ -60,7 +61,7 @@ class DockerPathMapper(PathMapper):
 
         prefix = "job" + str(random.randint(1, 1000000000)) + "_"
 
-        names = set()
+        names = set()  # type: Set[str]
         for d in self.dirs:
             name = os.path.join("/var/lib/cwl", prefix + os.path.basename(d))
             i = 1

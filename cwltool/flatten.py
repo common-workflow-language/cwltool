@@ -1,3 +1,5 @@
+from typing import Any, Callable, List, cast
+
 # http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
 def flatten(l, ltypes=(list, tuple)):
     if l is None:
@@ -17,4 +19,4 @@ def flatten(l, ltypes=(list, tuple)):
             else:
                 l[i:i + 1] = l[i]
         i += 1
-    return ltype(l)
+    return cast(Callable[[Any],List],ltype)(l)

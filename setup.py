@@ -24,6 +24,7 @@ setup(name='cwltool',
       "common-workflow-language",
       download_url="https://github.com/common-workflow-language/"
       "common-workflow-language",
+      extras_require={':python_version>="2.7"': ['typing']}
       license='Apache 2.0',
       packages=["cwltool"],
       package_data={'cwltool': [
@@ -37,7 +38,7 @@ setup(name='cwltool',
           'rdflib >= 4.1.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          'schema_salad == 1.6.20160202222448'
+          'schema_salad == 1.7'
       ],
       test_suite='tests',
       tests_require=[],

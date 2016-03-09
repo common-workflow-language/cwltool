@@ -8,6 +8,7 @@ import process
 import schema_salad.ref_resolver
 import sandboxjs
 import re
+import typing
 
 _logger = logging.getLogger("cwltool")
 
@@ -29,22 +30,25 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             raise WorkflowException("%s in %s" % (v, obj))
 
     if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
-        engineConfig = []
+        engineConfig = []  # type: List[str]
         for r in reversed(requirements):
             if (r["class"] == "ExpressionEngineRequirement" and
                     r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine"):
                 engineConfig = r.get("engineConfig", [])
                 break
         return sandboxjs.execjs(ex["script"], jshead(
-            engineConfig, jobinput, context, tmpdir, outdir))
+            engineConfig, (jobinput, context, tmpdir, outdir)))
 
     for r in reversed(requirements):
         if (r["class"] == "ExpressionEngineRequirement" and
                 r["id"] == ex["engine"]):
-            runtime = []
+            runtime = []  # type: List[str]
 
             class DR(object):
-                pass
+                def __init__(self):
+                    self.requirements = None # type: str
+                    self.hints = None # type: str
+
             dr = DR()
             dr.requirements = r.get("requirements", [])
             dr.hints = r.get("hints", [])
