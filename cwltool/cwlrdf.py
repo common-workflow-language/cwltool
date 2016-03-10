@@ -2,9 +2,10 @@ from __future__ import print_function
 import json
 import urlparse
 from rdflib import Graph, URIRef
-
+from typing import Any, Union
 
 def makerdf(workflow, wf, ctx):
+    # type: (Dict[str,Any], Dict[str,Any], Dict[str,Union[str, Dict[str,str]]]) -> Graph
     prefixes = {}
     for k, v in ctx.iteritems():
         if isinstance(v, dict):
@@ -28,10 +29,12 @@ def makerdf(workflow, wf, ctx):
 
 
 def printrdf(workflow, wf, ctx, sr):
+    # type: (Dict[str,Any], Dict[str,Any], Dict[str,Union[str, Dict[str,str]]], str) -> None
+
     print(makerdf(workflow, wf, ctx).serialize(format=sr))
 
 
-def lastpart(uri):
+def lastpart(uri):  # type: (Any) -> str
     uri = str(uri)
     if "/" in uri:
         return uri[uri.rindex("/") + 1:]
@@ -39,7 +42,7 @@ def lastpart(uri):
         return uri
 
 
-def dot_with_parameters(g):
+def dot_with_parameters(g):  # type: (Graph) -> None
     qres = g.query(
         """SELECT ?step ?run ?runtype
            WHERE {
@@ -101,8 +104,8 @@ def dot_with_parameters(g):
         print('"%s" [shape=octagon]' % (lastpart(inp)))
 
 
-def dot_without_parameters(g):
-    dotname = {}
+def dot_without_parameters(g):  # type: (Graph) -> None
+    dotname = {}  # type: Dict[str,str]
     clusternode = {}
 
     print("compound=true")
@@ -177,6 +180,7 @@ def dot_without_parameters(g):
 
 
 def printdot(workflow, wf, ctx, include_parameters=False):
+    # type: (Dict[str,Any], Dict[str,Any], Dict[str,Union[str, Dict[str,str]]], bool) -> None
     g = makerdf(workflow, wf, ctx)
 
     print("digraph {")

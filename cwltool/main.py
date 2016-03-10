@@ -6,18 +6,18 @@ import json
 import os
 import sys
 import logging
-import workflow
+from . import workflow
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
 import schema_salad.makedoc
 import yaml
 import urlparse
-import process
-from cwlrdf import printrdf, printdot
+from . import process
+from .cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
-import update
-from process import shortname
+from . import update
+from .process import shortname
 import rdflib
 from .aslist import aslist
 from typing import Union

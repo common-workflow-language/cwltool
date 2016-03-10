@@ -1,7 +1,7 @@
-import draft2tool
-from aslist import aslist
-from process import Process, empty_subtree, shortname, uniquename
-from errors import WorkflowException
+from . import draft2tool
+from .aslist import aslist
+from .process import Process, empty_subtree, shortname, uniquename
+from .errors import WorkflowException
 import copy
 import logging
 import random
@@ -13,7 +13,7 @@ import tempfile
 import shutil
 import json
 import schema_salad
-import expression
+from . import expression
 from typing import Iterable, List
 
 _logger = logging.getLogger("cwltool")

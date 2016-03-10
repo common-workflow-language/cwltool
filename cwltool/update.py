@@ -1,7 +1,7 @@
 import urlparse
 import json
 import re
-from aslist import aslist
+from .aslist import aslist
 import typing
 import traceback
 
@@ -85,7 +85,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc()))
+                        (err, e, traceback.format_exc(e)))
 
 
 def draft2toDraft3dev1(doc, loader, baseuri):
@@ -215,7 +215,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc()))
+                        (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
@@ -265,7 +265,7 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc()))
+                        (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
@@ -299,7 +299,7 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         raise Exception("Error updating '%s'\n  %s\n%s" %
-                        (err, e, traceback.format_exc()))
+                        (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):

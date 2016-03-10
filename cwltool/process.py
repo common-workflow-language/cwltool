@@ -4,20 +4,18 @@ import json
 import schema_salad.validate as validate
 import copy
 import logging
-from aslist import aslist
+from .aslist import aslist
 import schema_salad.schema
 import urlparse
 from pkg_resources import resource_stream
 import stat
-from builder import Builder
+from .builder import Builder
 import tempfile
-import glob
-from errors import WorkflowException
-from pathmapper import abspath
-import typing
+from .errors import WorkflowException
+from typing import Any, Union, IO
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
-
+from .stdfsaccess import StdFsAccess
 import errno
 
 _logger = logging.getLogger("cwltool")
@@ -101,21 +99,7 @@ def shortname(inputid):
         return d.path.split("/")[-1]
 
 
-class StdFsAccess(object):
-    def __init__(self, basedir):
-        self.basedir = basedir
 
-    def _abs(self, p):
-        return abspath(p, self.basedir)
-
-    def glob(self, pattern):
-        return glob.glob(self._abs(pattern))
-
-    def open(self, fn, mode):
-        return open(self._abs(fn), mode)
-
-    def exists(self, fn):
-        return os.path.exists(self._abs(fn))
 
 
 def checkRequirements(rec, supportedProcessRequirements):
@@ -211,6 +195,7 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
+        # type: (Dict[str,Any], **Any) -> None
         (_, self.names, _) = get_schema()
         self.tool = toolpath_object
         self.requirements = kwargs.get(

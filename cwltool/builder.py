@@ -1,26 +1,49 @@
 import copy
-from aslist import aslist
-import expression
+from .aslist import aslist
+from . import expression
 import avro
 import schema_salad.validate as validate
-
-from errors import WorkflowException
+from typing import Any, Union
+from .errors import WorkflowException
+from .process import StdFsAccess
 
 CONTENT_LIMIT = 64 * 1024
 
 
-def substitute(value, replace):
+def substitute(value, replace):  # type: (str, str) -> str
     if replace[0] == "^":
         return substitute(value[0:value.rindex('.')], replace[1:])
     else:
         return value + replace
 
+def tostr(value):  # type: (Union[dict[str,str],Any]) -> str
+    if isinstance(value, dict) and value.get("class") == "File":
+        if "path" not in value:
+            raise WorkflowException(
+                    "File object must have \"path\": %s" % (value))
+        return value["path"]
+    else:
+        return str(value)
+
 
 class Builder(object):
 
+    def __init__(self):  # type: () -> None
+        self.names = None  # type: avro.schema.Names
+        self.schemaDefs = None  # type: Dict[str,Dict[str,str]]
+        self.files = None  # type: List[str]
+        self.fs_access = None  # type: StdFsAccess
+        self.job = None  # type: Dict[str,str]
+        self.requirements = None  # type: Dict[str,str]
+        self.outdir = None  # type: str
+        self.tmpdir = None  # type: str
+        self.resources = None  # type: Dict[str,str]
+        self.bindings = None  # type: List[Dict[str,str]]
+
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
-        bindings = []
-        binding = None
+        # type: (Dict[str,Any], Any, List[int], List[int]) -> List[Dict[str,str]]
+        bindings = []  # type: List[Dict[str,str]]
+        binding = None  # type: Dict[str,Any]
         if "inputBinding" in schema and isinstance(
                 schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
@@ -111,9 +134,11 @@ class Builder(object):
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                            sfpath = self.do_eval(sf, context=datum)
-                            if isinstance(sfpath, basestring):
-                                sfpath = {"path": sfpath, "class": "File"}
+                            secondary_eval = self.do_eval(sf, context=datum)
+                            if isinstance(secondary_eval, basestring):
+                                sfpath = {"path": secondary_eval, "class": "File"}
+                            else:
+                                sfpath = secondary_eval
                         else:
                             sfpath = {
                                 "path": substitute(datum["path"], sf),
@@ -133,16 +158,7 @@ class Builder(object):
 
         return bindings
 
-    def tostr(self, value):
-        if isinstance(value, dict) and value.get("class") == "File":
-            if "path" not in value:
-                raise WorkflowException(
-                    "File object must have \"path\": %s" % (value))
-            return value["path"]
-        else:
-            return str(value)
-
-    def generate_arg(self, binding):
+    def generate_arg(self, binding):  # type: (Dict[str,Any]) -> List[str]
         value = binding["valueFrom"]
         if "do_eval" in binding:
             value = self.do_eval(binding["do_eval"], context=value)
@@ -150,11 +166,11 @@ class Builder(object):
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
 
-        l = []
+        l = []  # type: List[Dict[str,str]]
         if isinstance(value, list):
             if binding.get("itemSeparator"):
                 l = [binding["itemSeparator"].join(
-                    [self.tostr(v) for v in value])]
+                    [tostr(v) for v in value])]
             elif binding.get("do_eval"):
                 value = [v["path"] if isinstance(v, dict) and v.get(
                     "class") == "File" else v for v in value]
@@ -177,13 +193,14 @@ class Builder(object):
         args = []
         for j in l:
             if sep:
-                args.extend([prefix, self.tostr(j)])
+                args.extend([prefix, tostr(j)])
             else:
-                args.append(prefix + self.tostr(j))
+                args.append(prefix + tostr(j))
 
         return [a for a in args if a is not None]
 
     def do_eval(self, ex, context=None, pull_image=True):
+        # type: (Dict[str,str], Any, bool) -> basestring
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,

@@ -1,12 +1,12 @@
-import docker
+from . import docker
 import subprocess
 import json
-from aslist import aslist
+from .aslist import aslist
 import logging
-from errors import WorkflowException
-import process
+from .errors import WorkflowException
+from . import process
 import schema_salad.ref_resolver
-import sandboxjs
+from . import sandboxjs
 import re
 import typing
 

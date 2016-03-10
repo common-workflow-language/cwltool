@@ -24,7 +24,7 @@ setup(name='cwltool',
       "common-workflow-language",
       download_url="https://github.com/common-workflow-language/"
       "common-workflow-language",
-      extras_require={':python_version>="2.7"': ['typing']}
+      extras_require={':python_version>="2.7"': ['typing']},
       license='Apache 2.0',
       packages=["cwltool"],
       package_data={'cwltool': [

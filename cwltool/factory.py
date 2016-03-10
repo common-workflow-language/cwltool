@@ -1,5 +1,5 @@
-import main
-import workflow
+from . import main
+from . import workflow
 import os
 
 

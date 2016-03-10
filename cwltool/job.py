@@ -4,17 +4,17 @@ import os
 import json
 import logging
 import sys
-import docker
-from process import get_feature, empty_subtree
-from errors import WorkflowException
+from . import docker
+from .process import get_feature, empty_subtree
+from .errors import WorkflowException
 import shutil
 import stat
 import re
 import shellescape
-from docker_uid import docker_vm_uid
-from builder import Builder
+from .docker_uid import docker_vm_uid
+from .builder import Builder
 from typing import Union, Iterable, Callable, Any, Mapping, IO, cast
-from pathmapper import PathMapper
+from .pathmapper import PathMapper
 
 _logger = logging.getLogger("cwltool")
 
