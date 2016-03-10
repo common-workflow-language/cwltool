@@ -16,6 +16,7 @@ def abspath(src, basedir):
 
 
 class PathMapper(object):
+
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
@@ -39,9 +40,10 @@ class PathMapper(object):
 
 
 class DockerPathMapper(PathMapper):
+
     def __init__(self, referenced_files, basedir):
         self._pathmap = {}
-        self.dirs = {} # type: Dict[str, Union[bool, str]] 
+        self.dirs = {}  # type: Dict[str, Union[bool, str]]
         for src in referenced_files:
             ab = abspath(src, basedir)
             dir, fn = os.path.split(ab)

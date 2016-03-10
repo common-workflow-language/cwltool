@@ -62,9 +62,9 @@ def execjs(js, jslib, timeout=None):
 
     if nodejs.returncode != 0:
         raise JavascriptException(
-                "Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr"
-                " was: '%s'\n" % (
-                    nodejs.returncode, script, stdoutdata, stderrdata))
+            "Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr"
+            " was: '%s'\n" % (
+                nodejs.returncode, script, stdoutdata, stderrdata))
     else:
         try:
             return json.loads(stdoutdata)

@@ -129,10 +129,10 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput):
                                 None)),
                             valueFrom=inp.get("valueFrom")):
                         raise WorkflowException(
-                                "Type mismatch between source '%s' (%s) and "
-                                "sink '%s' (%s)" % (
-                                    src, state[src].parameter["type"],
-                                    inp["id"], inp["type"]))
+                            "Type mismatch between source '%s' (%s) and "
+                            "sink '%s' (%s)" % (
+                                src, state[src].parameter["type"],
+                                inp["id"], inp["type"]))
                 elif src not in state:
                     raise WorkflowException(
                         "Connect source '%s' on parameter '%s' does not exist"
@@ -149,6 +149,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput):
 
 
 class WorkflowJobStep(object):
+
     def __init__(self, step):
         self.step = step
         self.tool = step.tool
@@ -166,6 +167,7 @@ class WorkflowJobStep(object):
 
 
 class WorkflowJob(object):
+
     def __init__(self, workflow, **kwargs):
         self.workflow = workflow
         self.tool = workflow.tool
@@ -240,8 +242,8 @@ class WorkflowJob(object):
             if (len(valueFrom) > 0 and not bool(self.workflow.get_requirement(
                     "StepInputExpressionRequirement")[0])):
                 raise WorkflowException(
-                        "Workflow step contains valueFrom but "
-                        "StepInputExpressionRequirement not in requirements")
+                    "Workflow step contains valueFrom but "
+                    "StepInputExpressionRequirement not in requirements")
 
             vfinputs = {shortname(k): v for k, v in inputobj.iteritems()}
 
@@ -267,12 +269,11 @@ class WorkflowJob(object):
                                               callback, **kwargs)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(
-                            step, inputobj, basedir, scatter, callback,
-                            **kwargs)
+                        step, inputobj, basedir, scatter, callback, **kwargs)
                 elif method == "flat_crossproduct":
                     jobs = flat_crossproduct_scatter(
-                            step, inputobj, basedir, scatter, callback, 0,
-                            **kwargs)
+                        step, inputobj, basedir, scatter, callback, 0,
+                        **kwargs)
             else:
                 _logger.debug(
                         "[job %s] job input %s", step.name,
@@ -407,6 +408,7 @@ class WorkflowJob(object):
 
 
 class Workflow(Process):
+
     def __init__(self, toolpath_object, **kwargs):
         super(Workflow, self).__init__(toolpath_object, **kwargs)
 
@@ -431,6 +433,7 @@ class Workflow(Process):
 
 
 class WorkflowStep(Process):
+
     def __init__(self, toolpath_object, pos, **kwargs):
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -453,8 +456,8 @@ class WorkflowStep(Process):
             self.embedded_tool = makeTool(runobj, **kwargs)
         except validate.ValidationException as v:
             raise WorkflowException(
-                    "Tool definition %s failed validation:\n%s" %
-                    (toolpath_object["run"], validate.indent(str(v))))
+                "Tool definition %s failed validation:\n%s" %
+                (toolpath_object["run"], validate.indent(str(v))))
 
         for field in ("inputs", "outputs"):
             for i in toolpath_object[field]:
@@ -504,9 +507,9 @@ class WorkflowStep(Process):
             for s in scatter:
                 if s not in inp_map:
                     raise WorkflowException(
-                            "Scatter parameter '%s' does not correspond to an "
-                            "input parameter of this step, inputs are %s"
-                            % (s, inp_map.keys()))
+                        "Scatter parameter '%s' does not correspond to an "
+                        "input parameter of this step, inputs are %s"
+                        % (s, inp_map.keys()))
 
                 inp_map[s]["type"] = {
                     "type": "array", "items": inp_map[s]["type"]}
@@ -559,6 +562,7 @@ class WorkflowStep(Process):
 
 
 class ReceiveScatterOutput(object):
+
     def __init__(self, output_callback, dest):
         self.dest = dest
         self.completed = 0

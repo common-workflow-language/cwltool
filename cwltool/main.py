@@ -214,6 +214,7 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
 
 
 class FileAction(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
@@ -224,6 +225,7 @@ class FileAction(argparse.Action):
 
 
 class FileAppendAction(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
@@ -447,7 +449,8 @@ def load_job_order(args, t, parser, stdin):
                     job_order_object = loader.resolve_ref(
                         cmd_line["job_order"])
                 except Exception as e:
-                    _logger.error(str(e), exc_info=(e if args.debug else False))
+                    _logger.error(
+                        str(e), exc_info=(e if args.debug else False))
                     return 1
             else:
                 job_order_object = {}
@@ -544,7 +547,7 @@ def main(args=None,
                       exc_info=(e if args.debug else False))
         return 1
 
-    if type(t) == int:
+    if isinstance(t, int):
         return t
 
     if args.tmp_outdir_prefix != 'tmp':
@@ -565,7 +568,7 @@ def main(args=None,
 
     job_order_object = load_job_order(args, t, parser, stdin)
 
-    if type(job_order_object) == int:
+    if isinstance(job_order_object, int):
         return job_order_object
 
     try:

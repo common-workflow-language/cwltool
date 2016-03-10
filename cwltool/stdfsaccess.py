@@ -3,7 +3,9 @@ from .pathmapper import abspath
 import glob
 import os
 
+
 class StdFsAccess(object):
+
     def __init__(self, basedir):  # type: (str) -> None
         self.basedir = basedir
 

@@ -162,8 +162,8 @@ def main():  # type: () -> int
     parser.add_argument(
         "-n", type=int, default=None, help="Run a specific test")
     parser.add_argument(
-            "--tool", type=str, default="cwl-runner",
-            help="CWL runner executable to use (default 'cwl-runner'")
+        "--tool", type=str, default="cwl-runner",
+        help="CWL runner executable to use (default 'cwl-runner'")
     parser.add_argument("--only-tools", action="store_true",
                         help="Only test tools")
 
@@ -190,7 +190,7 @@ def main():  # type: () -> int
 
     if args.l:
         for i, t in enumerate(tests):
-            print "[%i] %s" % (i+1, t["doc"].strip())
+            print "[%i] %s" % (i + 1, t["doc"].strip())
         return 0
 
     if args.n is not None:
@@ -198,15 +198,15 @@ def main():  # type: () -> int
         for s in args.n.split(","):
             sp = s.split("-")
             if len(sp) == 2:
-                ntest.extend(range(int(sp[0])-1, int(sp[1])))
+                ntest.extend(range(int(sp[0]) - 1, int(sp[1])))
             else:
-                ntest.append(int(s)-1)
+                ntest.append(int(s) - 1)
     else:
         ntest = range(0, len(tests))
 
     for i in ntest:
         t = tests[i]
-        sys.stderr.write("\rTest [%i/%i] " % (i+1, len(tests)))
+        sys.stderr.write("\rTest [%i/%i] " % (i + 1, len(tests)))
         sys.stderr.flush()
         rt = run_test(args, t)
         if rt == 1:

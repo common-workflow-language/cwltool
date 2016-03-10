@@ -36,6 +36,7 @@ def deref_links(outputs):
 
 
 class CommandLineJob(object):
+
     def __init__(self):
         self.builder = None  # type: Builder
         self.joborder = None  # type: Dict[str,str]
@@ -56,7 +57,6 @@ class CommandLineJob(object):
         self.environment = None  # type: Dict[str,str]
         self.generatefiles = None  # type: Dict[str,Union[Dict[str,str],str]]
 
-
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs=True, **kwargs):
         if not os.path.exists(self.outdir):
@@ -73,9 +73,9 @@ class CommandLineJob(object):
         for f in self.pathmapper.files():
             if not os.path.isfile(self.pathmapper.mapper(f)[0]):
                 raise WorkflowException(
-                        "Required input file %s not found "
-                        "or is not a regular file."
-                        % self.pathmapper.mapper(f)[0])
+                    "Required input file %s not found "
+                    "or is not a regular file."
+                    % self.pathmapper.mapper(f)[0])
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
@@ -155,7 +155,7 @@ class CommandLineJob(object):
         try:
             for t in self.generatefiles:
                 if isinstance(self.generatefiles[t], dict):
-                    src = cast(dict,self.generatefiles[t])["path"]
+                    src = cast(dict, self.generatefiles[t])["path"]
                     dst = os.path.join(self.outdir, t)
                     if os.path.dirname(
                             self.pathmapper.reversemap(src)[1]) != self.outdir:

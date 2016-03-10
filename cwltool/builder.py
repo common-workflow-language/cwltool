@@ -16,11 +16,12 @@ def substitute(value, replace):  # type: (str, str) -> str
     else:
         return value + replace
 
+
 def tostr(value):  # type: (Union[dict[str,str],Any]) -> str
     if isinstance(value, dict) and value.get("class") == "File":
         if "path" not in value:
             raise WorkflowException(
-                    "File object must have \"path\": %s" % (value))
+                "File object must have \"path\": %s" % (value))
         return value["path"]
     else:
         return str(value)
@@ -136,7 +137,8 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"path": secondary_eval, "class": "File"}
+                                sfpath = {
+                                    "path": secondary_eval, "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:

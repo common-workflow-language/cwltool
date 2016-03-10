@@ -52,7 +52,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
 
             if "include" in doc:
                 return loader.fetch_text(
-                        urlparse.urljoin(baseuri, doc["include"]))
+                    urlparse.urljoin(baseuri, doc["include"]))
 
             for t in ("type", "items"):
                 if t in doc:
@@ -155,7 +155,7 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
                                 "class": "InlineJavascriptRequirement",
                                 "expressionLib": [updateScript(sc) for
                                                   sc in aslist(
-                                                        r["engineConfig"])]
+                                                  r["engineConfig"])]
                             })
                             added = True
                         doc["requirements"] = [
@@ -199,7 +199,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
 
             if "@include" in doc:
                 return loader.fetch_text(
-                        urlparse.urljoin(baseuri, doc["@include"]))
+                    urlparse.urljoin(baseuri, doc["@include"]))
 
             for a in doc:
                 doc[a] = _draftDraft3dev2toDev3(doc[a], loader, baseuri)

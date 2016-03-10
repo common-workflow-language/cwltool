@@ -4,6 +4,7 @@ import time
 
 
 class EggInfoFromGit(egg_info):
+
     """Tag the build with git commit timestamp.
 
     If a build tag has already been set (e.g., "egg_info -b", building

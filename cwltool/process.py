@@ -78,7 +78,7 @@ def get_schema():
         rs.close()
 
     return schema_salad.schema.load_schema(
-            "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
+        "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
 
 def get_feature(self, feature):
@@ -97,9 +97,6 @@ def shortname(inputid):
         return d.fragment.split("/")[-1].split(".")[-1]
     else:
         return d.path.split("/")[-1]
-
-
-
 
 
 def checkRequirements(rec, supportedProcessRequirements):
@@ -189,11 +186,12 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
                     af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-                "Incompatible file format %s required format(s) %s"
-                % (af["format"], inputFormats))
+            "Incompatible file format %s required format(s) %s"
+            % (af["format"], inputFormats))
 
 
 class Process(object):
+
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[str,Any], **Any) -> None
         (_, self.names, _) = get_schema()
@@ -254,9 +252,9 @@ class Process(object):
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(
-                    "Got error `%s` while prcoessing inputs of %s:\n%s" % (
-                        str(e), self.tool["id"], json.dumps(
-                            self.inputs_record_schema, indent=4)))
+                "Got error `%s` while prcoessing inputs of %s:\n%s" % (
+                    str(e), self.tool["id"], json.dumps(
+                        self.inputs_record_schema, indent=4)))
 
         try:
             self.outputs_record_schema = schema_salad.schema.make_valid_avro(
@@ -265,9 +263,9 @@ class Process(object):
                 self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(
-                    "Got error `%s` while prcoessing outputs of %s:\n%s" % (
-                        str(e), self.tool["id"], json.dumps(
-                            self.outputs_record_schema, indent=4)))
+                "Got error `%s` while prcoessing outputs of %s:\n%s" % (
+                    str(e), self.tool["id"], json.dumps(
+                        self.outputs_record_schema, indent=4)))
 
     def _init_job(self, joborder, input_basedir, **kwargs):
         builder = Builder()

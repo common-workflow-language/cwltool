@@ -4,6 +4,7 @@ import urlparse
 from rdflib import Graph, URIRef
 from typing import Any, Union
 
+
 def makerdf(workflow, wf, ctx):
     # type: (Dict[str,Any], Dict[str,Any], Dict[str,Union[str, Dict[str,str]]]) -> Graph
     prefixes = {}

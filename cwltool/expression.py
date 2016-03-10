@@ -25,7 +25,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             obj = {"job": jobinput, "context": context,
                    "outdir": outdir, "tmpdir": tmpdir}
             return schema_salad.ref_resolver.resolve_json_pointer(
-                    obj, ex["script"])
+                obj, ex["script"])
         except ValueError as v:
             raise WorkflowException("%s in %s" % (v, obj))
 
@@ -45,9 +45,10 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             runtime = []  # type: List[str]
 
             class DR(object):
+
                 def __init__(self):
-                    self.requirements = None # type: str
-                    self.hints = None # type: str
+                    self.requirements = None  # type: str
+                    self.hints = None  # type: str
 
             dr = DR()
             dr.requirements = r.get("requirements", [])
@@ -127,7 +128,7 @@ def param_interpolate(ex, obj, strip=True):
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
             return ex[0:m.start(0)] + leaf + param_interpolate(
-                    ex[m.end(0):], obj, False)
+                ex[m.end(0):], obj, False)
     else:
         if "$(" in ex or "${" in ex:
             _logger.warn(
@@ -156,7 +157,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
                 return sandboxjs.interpolate(
-                        ex, jshead(r.get("expressionLib", []), rootvars),
-                        timeout=timeout)
+                    ex, jshead(r.get("expressionLib", []), rootvars),
+                    timeout=timeout)
         return param_interpolate(ex, rootvars)
     return ex

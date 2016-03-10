@@ -28,11 +28,13 @@ _logger = logging.getLogger("cwltool")
 
 
 class ExpressionTool(Process):
+
     def __init__(self, toolpath_object, **kwargs):
-    # type: (Dict[str,List[None]], **Any) -> None
+        # type: (Dict[str,List[None]], **Any) -> None
         super(ExpressionTool, self).__init__(toolpath_object, **kwargs)
 
     class ExpressionJob(object):
+
         def __init__(self):  # type: () -> None
             self.builder = None  # type: Builder
             self.requirements = None  # type: Dict[str,str]
@@ -95,12 +97,13 @@ def revmap_file(builder, outdir, f):
         return f
     else:
         raise WorkflowException(
-                "Output file path %s must be within designated output "
-                "directory (%s) or an input file pass through." %
-                (f["path"], builder.outdir))
+            "Output file path %s must be within designated output "
+            "directory (%s) or an input file pass through." %
+            (f["path"], builder.outdir))
 
 
 class CommandLineTool(Process):
+
     def __init__(self, toolpath_object, **kwargs):
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
@@ -221,7 +224,7 @@ class CommandLineTool(Process):
         if createFiles:
             for t in createFiles["fileDef"]:
                 j.generatefiles[builder.do_eval(t["filename"])] = \
-                        copy.deepcopy(builder.do_eval(t["fileContent"]))
+                    copy.deepcopy(builder.do_eval(t["fileContent"]))
 
         j.environment = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
