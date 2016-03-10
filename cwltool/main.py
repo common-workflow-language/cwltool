@@ -117,6 +117,8 @@ def arg_parser():
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
+    parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
+
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -511,6 +513,7 @@ def main(args=None,
                        pull_image=args.enable_pull,
                        rm_container=args.rm_container,
                        tmpdir_prefix=args.tmpdir_prefix,
+                       enable_net=args.enable_net,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
