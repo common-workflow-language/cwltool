@@ -408,6 +408,7 @@ def uniquename(stem):
     _names.add(u)
     return u
 
+
 def scandeps(base, doc, reffields, urlfields):
     r = []
     if isinstance(doc, dict):

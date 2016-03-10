@@ -184,11 +184,11 @@ class WorkflowJob(object):
             self.outdir = tempfile.mkdtemp()
 
         self.name = uniquename(
-                "workflow %s" % kwargs.get(
-                    "name", shortname(self.workflow.tool["id"])))
+            "workflow %s" % kwargs.get(
+                "name", shortname(self.workflow.tool["id"])))
 
         _logger.debug(
-                "[%s] initialized step from %s", self.name, self.tool["id"])
+            "[%s] initialized step from %s", self.name, self.tool["id"])
 
     def receive_output(self, step, outputparms, jobout, processStatus):
         for i in outputparms:
@@ -207,10 +207,10 @@ class WorkflowJob(object):
                 self.processStatus = processStatus
 
             _logger.warn(
-                    "[%s] completion status is %s", step.name, processStatus)
+                "[%s] completion status is %s", step.name, processStatus)
         else:
             _logger.info(
-                    "[%s] completion status is %s", step.name, processStatus)
+                "[%s] completion status is %s", step.name, processStatus)
 
         step.completed = True
 
@@ -276,12 +276,13 @@ class WorkflowJob(object):
                         **kwargs)
             else:
                 _logger.debug(
-                        "[job %s] job input %s", step.name,
-                        json.dumps(inputobj, indent=4))
-                inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
+                    "[job %s] job input %s", step.name,
+                    json.dumps(inputobj, indent=4))
+                inputobj = {k: valueFromFunc(k, v)
+                            for k, v in inputobj.items()}
                 _logger.debug(
-                        "[job %s] evaluated job input to %s", step.name,
-                        json.dumps(inputobj, indent=4))
+                    "[job %s] evaluated job input to %s", step.name,
+                    json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, basedir, callback, **kwargs)
 
             step.submitted = True
@@ -387,8 +388,7 @@ class WorkflowJob(object):
                         if not os.path.exists(dirname):
                             os.makedirs(dirname)
                         _logger.debug(
-                                "[%s] Moving '%s' to '%s'",
-                                self.name, src, dst)
+                            "[%s] Moving '%s' to '%s'", self.name, src, dst)
                         shutil.move(src, dst)
                         f["path"] = dst
 
@@ -397,8 +397,6 @@ class WorkflowJob(object):
                     if kwargs.get("rm_tmpdir", True):
                         _logger.debug(
                             "[%s] Removing intermediate output "
-                            "directory %s", self.name, a)
-                            "[workflow %s] Removing intermediate output "
                             "directory %s", self.name, a)
                         shutil.rmtree(a, True)
 

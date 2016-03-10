@@ -7,17 +7,12 @@ import os
 from .pathmapper import PathMapper, DockerPathMapper
 from .job import CommandLineJob
 import yaml
-import glob
 import logging
 import hashlib
-import random
 from .process import Process, shortname, uniquename, adjustFileObjs
 from .errors import WorkflowException
 import schema_salad.validate as validate
 from .aslist import aslist
-from . import expression
-import re
-import urlparse
 import tempfile
 from .builder import CONTENT_LIMIT, substitute, Builder
 import shellescape
@@ -238,7 +233,7 @@ class CommandLineTool(Process):
             for b in builder.bindings:
                 arg = builder.generate_arg(b)
                 if b.get("shellQuote", True):
-                    arg = [shellescape.quote(a) for a in aslist(arg)]
+                    arg = [shellescape.quote(c) for c in aslist(arg)]
                 cmd.extend(aslist(arg))
             j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
         else:
