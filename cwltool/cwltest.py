@@ -165,7 +165,7 @@ def main():
     if args.l:
         for i, t in enumerate(tests):
             print "[%i] %s" % (i+1, t["doc"].strip())
-        return 1
+        return 0
 
     if args.n is not None:
         ntest = []
