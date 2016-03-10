@@ -70,6 +70,9 @@ class CommandLineJob(object):
             if kwargs.get("enable_net") is not True:
                 runtime.append("--net=none")
 
+            if self.stdout:
+                runtime.append("--log-driver=none")
+
             euid = docker_vm_uid() or os.geteuid()
             runtime.append("--user=%s" % (euid))
 
