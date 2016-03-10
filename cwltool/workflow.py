@@ -159,12 +159,11 @@ class WorkflowJob(object):
             # tmp_outdir_prefix defaults to tmp, so this is unlikely to be used
             self.outdir = tempfile.mkdtemp()
 
-        self.name = uniquename(kwargs.get("name", shortname(self.workflow.tool["id"])))
+        self.name = uniquename("workflow %s" % kwargs.get("name", shortname(self.workflow.tool["id"])))
 
-        _logger.debug("[workflow %s] initialized from %s", self.name, self.tool["id"])
+        _logger.debug("[%s] initialized step from %s", self.name, self.tool["id"])
 
     def receive_output(self, step, outputparms, jobout, processStatus):
-        _logger.debug("[workflow %s] step %s completed", self.name, id(step))
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -173,14 +172,15 @@ class WorkflowJob(object):
                     _logger.error("Output is missing expected field %s" % i["id"])
                     processStatus = "permanentFail"
 
+        _logger.debug("[%s] produced output %s", step.name, json.dumps(jobout, indent=4))
+
         if processStatus != "success":
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            if processStatus == "success":
-                _logger.info("Workflow step %s completion status is %s", step.id, processStatus)
-            else:
-                _logger.warn("Workflow step %s completion status is %s", step.id, processStatus)
+            _logger.warn("[%s] completion status is %s", step.name, processStatus)
+        else:
+            _logger.info("[%s] completion status is %s", step.name, processStatus)
 
         step.completed = True
 
@@ -193,13 +193,13 @@ class WorkflowJob(object):
         try:
             inputobj = object_from_state(self.state, inputparms, False, supportsMultipleInput)
             if inputobj is None:
-                _logger.debug("[workflow %s] job step %s not ready", self.name, step.id)
+                _logger.debug("[%s] job step %s not ready", self.name, step.id)
                 return
-
-            _logger.debug("[step %s] starting job step %s of workflow %s", id(step), step.id, id(self))
 
             if step.submitted:
                 return
+
+            _logger.debug("[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(self.receive_output, step, outputparms)
 
@@ -233,9 +233,9 @@ class WorkflowJob(object):
                     jobs = flat_crossproduct_scatter(step, inputobj, basedir,
                                                      scatter, callback, 0, **kwargs)
             else:
-                _logger.debug("[workflow %s] Job is input %s", self.name, json.dumps(inputobj, indent=4))
+                _logger.debug("[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
                 inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
-                _logger.debug("[workflow %s] Evaluated job input to %s", self.name, json.dumps(inputobj, indent=4))
+                _logger.debug("[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, basedir, callback, **kwargs)
 
             step.submitted = True
@@ -250,7 +250,7 @@ class WorkflowJob(object):
             step.completed = True
 
     def run(self, **kwargs):
-        _logger.debug("[workflow %s] starting", self.name)
+        _logger.debug("[%s] workflow starting", self.name)
 
     def job(self, joborder, basedir, output_callback, move_outputs=True, **kwargs):
         self.state = {}
@@ -332,17 +332,17 @@ class WorkflowJob(object):
                         dirname = os.path.dirname(dst)
                         if not os.path.exists(dirname):
                             os.makedirs(dirname)
-                        _logger.debug("[workflow %s] Moving '%s' to '%s'", self.name, src, dst)
+                        _logger.debug("[%s] Moving '%s' to '%s'", self.name, src, dst)
                         shutil.move(src, dst)
                         f["path"] = dst
 
             for a in output_dirs:
                 if os.path.exists(a) and empty_subtree(a):
                     if kwargs.get("rm_tmpdir", True):
-                        _logger.debug("[workflow %s] Removing intermediate output directory %s", self.name, a)
+                        _logger.debug("[%s] Removing intermediate output directory %s", self.name, a)
                         shutil.rmtree(a, True)
 
-        _logger.info("[workflow %s] outdir is %s", self.name, self.outdir)
+        _logger.info("[%s] outdir is %s", self.name, self.outdir)
 
         output_callback(wo, self.processStatus)
 

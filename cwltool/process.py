@@ -384,3 +384,54 @@ def uniquename(stem):
         u = "%s_%s" % (stem, c)
     _names.add(u)
     return u
+
+def scandeps(base, doc, reffields, urlfields):
+    r = []
+    if isinstance(doc, dict):
+        if "$import" in doc:
+            p = os.path.join(base, doc["$import"])
+            with open(p) as f:
+                r.append({
+                    "class": "File",
+                    "path": p,
+                    "secondaryFiles": scandeps(os.path.dirname(p), yaml.load(f), reffields, urlfields)
+                })
+        elif "$include" in doc:
+            p = os.path.join(base, doc["$include"])
+            r.append({
+                "class": "File",
+                "path": p
+            })
+        elif "$schemas" in doc:
+            for s in doc["$schemas"]:
+                p = os.path.join(base, s)
+                r.append({
+                    "class": "File",
+                    "path": p
+                })
+        else:
+            for k, v in doc.iteritems():
+                if k in reffields:
+                    for u in aslist(v):
+                        if not isinstance(u, basestring):
+                            continue
+                        p = os.path.join(base, u)
+                        with open(p) as f:
+                            r.append({
+                                "class": "File",
+                                "path": p,
+                                "secondaryFiles": scandeps(os.path.dirname(p), yaml.load(f), reffields, urlfields)
+                            })
+                elif k in urlfields:
+                    for u in aslist(v):
+                        p = os.path.join(base, u)
+                        r.append({
+                            "class": "File",
+                            "path": p
+                        })
+                else:
+                    r.extend(scandeps(base, v, reffields, urlfields))
+    elif isinstance(doc, list):
+        for d in doc:
+            r.extend(scandeps(base, d, reffields, urlfields))
+    return r

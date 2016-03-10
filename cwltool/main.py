@@ -21,6 +21,7 @@ import pkg_resources  # part of setuptools
 import update
 from process import shortname
 import rdflib
+from aslist import aslist
 
 _logger = logging.getLogger("cwltool")
 
@@ -276,22 +277,23 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
             workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
                            "id": fileuri,
                            "@graph": workflowobj}
-
-        if "cwl:tool" in workflowobj:
-            jobobj = workflowobj
-            workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
-
-        workflowobj = update.update(workflowobj, document_loader, fileuri)
-        document_loader.idx.clear()
-
-        if updateonly:
-            print json.dumps(workflowobj, indent=4)
-            return 0
     elif isinstance(argsworkflow, dict):
         workflowobj = argsworkflow
         uri = urifrag
+        fileuri = ""
     else:
         raise schema_salad.validate.ValidationException("Must be URI or dict")
+
+    if "cwl:tool" in workflowobj:
+        jobobj = workflowobj
+        workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
+
+    workflowobj = update.update(workflowobj, document_loader, fileuri)
+    document_loader.idx.clear()
+
+    if updateonly:
+        print json.dumps(workflowobj, indent=4)
+        return 0
 
     try:
         processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
@@ -415,42 +417,12 @@ def load_job_order(args, t, parser, stdin):
 
     return (job_order_object, input_basedir)
 
-
-def scandeps(base, doc):
-    r = []
-    if isinstance(doc, dict):
-        if "$import" in doc:
-            p = os.path.join(base, doc["$import"])
-            with open(p) as f:
-                r.append({
-                    "class": "File",
-                    "path": p,
-                    "secondaryFiles": scandeps(os.path.dirname(p), yaml.load(f))
-                })
-        elif "$include" in doc:
-            p = os.path.join(base, doc["$include"])
-            r.append({
-                "class": "File",
-                "path": p
-            })
-        elif "$schemas" in doc:
-            for s in doc["$schemas"]:
-                p = os.path.join(base, s)
-                r.append({
-                    "class": "File",
-                    "path": p
-                })
-        else:
-            for d in doc.itervalues():
-                r.extend(scandeps(base, d))
-    elif isinstance(doc, list):
-        for d in doc:
-            r.extend(scandeps(base, d))
-    return r
-
 def print_deps(fn):
     with open(fn) as f:
-        print json.dumps(scandeps(os.path.dirname(fn), yaml.load(f)), indent=4)
+        print json.dumps({"class": "File",
+                          "path": fn,
+                          "secondaryFiles": process.scandeps(os.path.dirname(fn), yaml.load(f), set(("run",)), set(("path",)))},
+                         indent=4)
 
 def main(args=None,
          executor=single_job_executor,
