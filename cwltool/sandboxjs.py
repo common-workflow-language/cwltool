@@ -8,11 +8,12 @@ class JavascriptException(Exception):
 
 def execjs(js, jslib):
     nodejs = None
-    trynodes = (["xnodejs"], ["node"], ["docker", "run",
-                                       "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
-                                       "--interactive",
-                                       "--rm",
-                                       "node:slim"])
+    trynodes = (["nodejs"], ["node"], ["docker", "run",
+                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
+                                        "--sig-proxy=true",
+                                        "--interactive",
+                                        "--rm",
+                                        "node:slim"])
     for n in trynodes:
         try:
             nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -26,30 +27,34 @@ def execjs(js, jslib):
     if nodejs is None:
         raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
 
-
     fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
 
+    killed = []
     def term():
         try:
-            nodejs.terminate()
+            nodejs.kill()
+            killed.append(True)
         except OSError:
             pass
 
-    # Time out after 5 seconds
-    tm = threading.Timer(5, term)
+    timeout = 15
+    tm = threading.Timer(timeout, term)
     tm.start()
 
     stdoutdata, stderrdata = nodejs.communicate(script)
     tm.cancel()
 
+    if killed:
+        raise JavascriptException("Long-running script killed after %s seconds.\nscript was: %s\n" % (timeout, fn))
+
     if nodejs.returncode != 0:
-        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, script, stdoutdata, stderrdata))
+        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, fn, stdoutdata, stderrdata))
     else:
         try:
             return json.loads(stdoutdata)
-        except ValueError:
-            raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, script, stdoutdata, stderrdata))
+        except ValueError as e:
+            raise JavascriptException("%s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn, stdoutdata, stderrdata))
 
 class SubstitutionError(Exception):
     pass
