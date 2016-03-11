@@ -1,5 +1,5 @@
 from . import main
-from . import workflow
+from .default_make_tool import defaultMakeTool
 import os
 
 
@@ -16,7 +16,7 @@ class Callable(object):
 
 class Factory(object):
 
-    def __init__(self, makeTool=workflow.defaultMakeTool,
+    def __init__(self, makeTool=defaultMakeTool,
                  executor=main.single_job_executor,
                  **execkwargs):
         self.makeTool = makeTool
