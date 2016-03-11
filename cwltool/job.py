@@ -193,7 +193,7 @@ class CommandLineJob(object):
 
             rcode = sp.wait()
 
-            if not isinstance(stdin, int):
+            if stdin != subprocess.PIPE:
                 stdin.close()
 
             if stdout is not sys.stderr:

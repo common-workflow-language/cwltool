@@ -443,12 +443,8 @@ class WorkflowStep(Process):
             runobj = None
             if isinstance(toolpath_object["run"], basestring):
                 runobj, _ = schema_salad.schema.load_and_validate(
-                    kwargs["loader"],
-                    kwargs[
-                        "avsc_names"],
-                    toolpath_object[
-                        "run"],
-                    True)
+                    kwargs["loader"], kwargs["avsc_names"],
+                    toolpath_object["run"], True)
             else:
                 runobj = toolpath_object["run"]
             self.embedded_tool = makeTool(runobj, **kwargs)
