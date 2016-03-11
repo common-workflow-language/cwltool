@@ -6,7 +6,8 @@ import json
 import os
 import sys
 import logging
-from . import workflow
+from .default_make_tool import defaultMakeTool
+from .errors import WorkflowException
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
@@ -198,17 +199,16 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
                 if r:
                     r.run(**kwargs)
                 else:
-                    raise workflow.WorkflowException(
-                        "Workflow cannot make any more progress.")
-        except workflow.WorkflowException:
+                    raise WorkflowException(
+                            "Workflow cannot make any more progress.")
+        except WorkflowException:
             raise
         except Exception as e:
             _logger.exception("Got workflow error")
-            raise workflow.WorkflowException("%s" % e, )
+            raise WorkflowException("%s" % e, )
 
         if final_status[0] != "success":
-            raise workflow.WorkflowException(
-                "Process status is %s" % (final_status))
+            raise WorkflowException("Process status is %s" % (final_status))
 
         return final_output[0]
 
@@ -382,7 +382,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         _logger.error("Tool definition failed validation:\n%s",
                       e, exc_info=(e if debug else False))
         return 1
-    except (RuntimeError, workflow.WorkflowException) as e:
+    except (RuntimeError, WorkflowException) as e:
         _logger.error("Tool definition failed initialization:\n%s",
                       e, exc_info=(e if debug else False))
         return 1
@@ -493,7 +493,7 @@ def print_deps(fn):
 
 def main(args=None,
          executor=single_job_executor,
-         makeTool=workflow.defaultMakeTool,
+         makeTool=defaultMakeTool,
          selectResources=None,
          parser=None,
          stdin=sys.stdin,
@@ -600,7 +600,7 @@ def main(args=None,
         _logger.error("Input object failed validation:\n%s",
                       e, exc_info=(e if args.debug else False))
         return 1
-    except workflow.WorkflowException as e:
+    except WorkflowException as e:
         _logger.error("Workflow error, try again with --debug for more "
                       "information:\n  %s", e,
                       exc_info=(e if args.debug else False))

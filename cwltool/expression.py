@@ -1,10 +1,8 @@
-from . import docker
 import subprocess
 import json
 from .aslist import aslist
 import logging
 from .errors import WorkflowException
-from . import process
 import schema_salad.ref_resolver
 from . import sandboxjs
 import re
@@ -18,79 +16,6 @@ def jshead(engineConfig, rootvars):
                                      (k, json.dumps(v))
                                      for k, v in rootvars.items()])
 
-
-def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
-    if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
-        try:
-            obj = {"job": jobinput, "context": context,
-                   "outdir": outdir, "tmpdir": tmpdir}
-            return schema_salad.ref_resolver.resolve_json_pointer(
-                obj, ex["script"])
-        except ValueError as v:
-            raise WorkflowException("%s in %s" % (v, obj))
-
-    if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
-        engineConfig = []  # type: List[str]
-        for r in reversed(requirements):
-            if (r["class"] == "ExpressionEngineRequirement" and
-                    r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine"):
-                engineConfig = r.get("engineConfig", [])
-                break
-        return sandboxjs.execjs(ex["script"], jshead(
-            engineConfig, (jobinput, context, tmpdir, outdir)))
-
-    for r in reversed(requirements):
-        if (r["class"] == "ExpressionEngineRequirement" and
-                r["id"] == ex["engine"]):
-            runtime = []  # type: List[str]
-
-            class DR(object):
-
-                def __init__(self):
-                    self.requirements = None  # type: str
-                    self.hints = None  # type: str
-
-            dr = DR()
-            dr.requirements = r.get("requirements", [])
-            dr.hints = r.get("hints", [])
-
-            (docker_req, docker_is_req) = process.get_feature(
-                dr, "DockerRequirement")
-            img_id = None
-            if docker_req:
-                img_id = docker.get_from_requirements(
-                    docker_req, docker_is_req, pull_image)
-            if img_id:
-                runtime = ["docker", "run", "-i", "--rm", img_id]
-
-            inp = {
-                "script": ex["script"],
-                "engineConfig": r.get("engineConfig", []),
-                "job": jobinput,
-                "context": context,
-                "outdir": outdir,
-                "tmpdir": tmpdir,
-            }
-
-            _logger.debug("Invoking expression engine %s with %s",
-                          runtime + aslist(r["engineCommand"]),
-                          json.dumps(inp, indent=4))
-
-            sp = subprocess.Popen(runtime + aslist(r["engineCommand"]),
-                                  shell=False,
-                                  close_fds=True,
-                                  stdin=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
-
-            (stdoutdata, stderrdata) = sp.communicate(json.dumps(inp) + "\n\n")
-            if sp.returncode != 0:
-                raise WorkflowException("Expression engine returned non-zero "
-                                        "exit code on evaluation of\n%s"
-                                        % json.dumps(inp, indent=4))
-
-            return json.loads(stdoutdata)
-
-    raise WorkflowException("Unknown expression engine '%s'" % ex["engine"])
 
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
@@ -150,9 +75,6 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         "runtime": runtime
     }
 
-    if isinstance(ex, dict) and "engine" in ex and "script" in ex:
-        return exeval(ex, jobinput, requirements, outdir, tmpdir, context,
-                      pull_image)
     if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":

@@ -3,6 +3,7 @@ import os
 import json
 import schema_salad.validate as validate
 import copy
+import yaml
 import logging
 from .aslist import aslist
 import schema_salad.schema

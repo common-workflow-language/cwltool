@@ -3,7 +3,7 @@ import logging
 import sys
 import requests
 import os
-from . import process
+from .errors import ProcessWorkflowException
 import re
 import tempfile
 from typing import Any, Union
@@ -76,7 +76,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                     loadproc.stdin.close()
                 rcode = loadproc.wait()
                 if rcode != 0:
-                    raise process.WorkflowException(
+                    raise ProcessWorkflowException(
                         "Docker load returned non-zero exit status %i"
                         % (rcode))
                 found = True
@@ -104,7 +104,7 @@ def get_from_requirements(r, req, pull_image, dry_run=False):
 
         if errmsg:
             if req:
-                raise process.WorkflowException(errmsg)
+                raise ProcessWorkflowException(errmsg)
             else:
                 return None
 
@@ -112,7 +112,7 @@ def get_from_requirements(r, req, pull_image, dry_run=False):
             return r["dockerImageId"]
         else:
             if req:
-                raise process.WorkflowException(
+                raise ProcessWorkflowException(
                     "Docker image %s not found" % r["dockerImageId"])
 
     return None

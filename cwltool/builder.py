@@ -5,7 +5,7 @@ import avro
 import schema_salad.validate as validate
 from typing import Any, Union
 from .errors import WorkflowException
-from .process import StdFsAccess
+from .stdfsaccess import StdFsAccess
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -40,6 +40,7 @@ class Builder(object):
         self.tmpdir = None  # type: str
         self.resources = None  # type: Dict[str,str]
         self.bindings = None  # type: List[Dict[str,str]]
+        self.timeout = None  # type: int
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         # type: (Dict[str,Any], Any, List[int], List[int]) -> List[Dict[str,str]]

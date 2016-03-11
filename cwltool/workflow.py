@@ -1,4 +1,4 @@
-from . import draft2tool
+from .draft2tool import CommandLineTool, ExpressionTool
 from .aslist import aslist
 from .process import Process, empty_subtree, shortname, uniquename
 from .errors import WorkflowException
@@ -21,20 +21,6 @@ _logger = logging.getLogger("cwltool")
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value'])
 
 
-def defaultMakeTool(toolpath_object, **kwargs):
-    if not isinstance(toolpath_object, dict):
-        raise WorkflowException("Not a dict: `%s`" % toolpath_object)
-    if "class" in toolpath_object:
-        if toolpath_object["class"] == "CommandLineTool":
-            return draft2tool.CommandLineTool(toolpath_object, **kwargs)
-        elif toolpath_object["class"] == "ExpressionTool":
-            return draft2tool.ExpressionTool(toolpath_object, **kwargs)
-        elif toolpath_object["class"] == "Workflow":
-            return Workflow(toolpath_object, **kwargs)
-
-    raise WorkflowException(
-        "Missing or invalid 'class' field in %s, expecting one of: "
-        "CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"])
 
 
 def findfiles(wo, fn=None):

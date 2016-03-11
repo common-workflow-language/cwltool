@@ -102,9 +102,6 @@ class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
-    def makeJobRunner(self):
-        return CommandLineJob()
-
     def makePathMapper(self, reffiles, input_basedir, **kwargs):
         dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
@@ -147,7 +144,7 @@ class CommandLineTool(Process):
 
         reffiles = set((f["path"] for f in builder.files))
 
-        j = self.makeJobRunner()
+        j = CommandLineJob()
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
