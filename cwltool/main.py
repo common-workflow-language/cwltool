@@ -95,6 +95,10 @@ def arg_parser():
                         help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",
                         default="turtle")
 
+    parser.add_argument("--eval-timeout",
+                        help="Time to wait for a Javascript expression to evaluate before giving an error.",
+                        type=float)
+
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
                         help="Print corresponding RDF graph for workflow and exit")
@@ -517,7 +521,8 @@ def main(args=None,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
-                       select_resources=selectResources
+                       select_resources=selectResources,
+                       eval_timeout=args.eval_timeout
                        )
         # This is the workflow output, it needs to be written
         if out is not None:

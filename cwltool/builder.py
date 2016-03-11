@@ -161,4 +161,5 @@ class Builder(object):
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
-                                  context=context, pull_image=pull_image)
+                                  context=context, pull_image=pull_image,
+                                  timeout=self.timeout)

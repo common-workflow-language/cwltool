@@ -116,7 +116,8 @@ def param_interpolate(ex, obj, strip=True):
         return ex
 
 
-def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources, context=None, pull_image=True):
+def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
+            context=None, pull_image=True, timeout=None):
     runtime = resources.copy()
     runtime["tmpdir"] = tmpdir
     runtime["outdir"] = outdir
@@ -132,6 +133,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources, context=None,
     if isinstance(ex, basestring):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
-                return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), rootvars))
+                return sandboxjs.interpolate(ex, jshead(r.get("expressionLib", []), rootvars),
+                                             timeout=timeout)
         return param_interpolate(ex, rootvars)
     return ex

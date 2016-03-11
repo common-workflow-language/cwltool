@@ -6,7 +6,7 @@ import errno
 class JavascriptException(Exception):
     pass
 
-def execjs(js, jslib):
+def execjs(js, jslib, timeout=None):
     nodejs = None
     trynodes = (["nodejs"], ["node"], ["docker", "run",
                                         "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
@@ -38,7 +38,9 @@ def execjs(js, jslib):
         except OSError:
             pass
 
-    timeout = 15
+    if timeout is None:
+        timeout = 20
+
     tm = threading.Timer(timeout, term)
     tm.start()
 
@@ -131,7 +133,7 @@ def scanner(scan):
         return None
 
 
-def interpolate(scan, jslib):
+def interpolate(scan, jslib, timeout=None):
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -139,7 +141,7 @@ def interpolate(scan, jslib):
         parts.append(scan[0:w[0]])
 
         if scan[w[0]] == '$':
-            e = execjs(scan[w[0]+1:w[1]], jslib)
+            e = execjs(scan[w[0]+1:w[1]], jslib, timeout=timeout)
             if w[0] == 0 and w[1] == len(scan):
                 return e
             leaf = json.dumps(e, sort_keys=True)
