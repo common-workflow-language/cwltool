@@ -425,10 +425,14 @@ def load_job_order(args, t, parser, stdin):
 
 def print_deps(fn):
     with open(fn) as f:
-        print json.dumps({"class": "File",
-                          "path": fn,
-                          "secondaryFiles": process.scandeps(os.path.dirname(fn), yaml.load(f), set(("run",)), set(("path",)))},
-                         indent=4)
+        deps = {"class": "File",
+                "path": fn}
+        sf = process.scandeps(os.path.dirname(fn), yaml.load(f),
+                              set(("$import", "run")),
+                              set(("$include", "$schemas", "path")))
+        if sf:
+            deps["secondaryFiles"] = sf
+        print json.dumps(deps, indent=4)
 
 def main(args=None,
          executor=single_job_executor,
