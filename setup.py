@@ -2,9 +2,12 @@
 
 import os
 import sys
-import setuptools.command.egg_info as egg_info_cmd
 import shutil
 
+import ez_setup
+ez_setup.use_setuptools()
+
+import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup, find_packages
 
 SETUP_DIR = os.path.dirname(__file__)
@@ -36,7 +39,7 @@ setup(name='cwltool',
           'rdflib >= 4.2.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          'schema_salad == 1.7.20160315232142'
+          'schema_salad == 1.7.20160316150109'
         ],
       test_suite='tests',
       tests_require=[],
