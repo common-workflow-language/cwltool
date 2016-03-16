@@ -69,9 +69,7 @@ class CommandLineJob(object):
             runtime.append("--read-only=true")
             runtime.append("--net=none")
             euid = docker_vm_uid() or os.geteuid()
-            if kwargs.get("no_user") is True:
-                runtime.append("--env=HOSTUSER=%s" % (euid))
-            else:
+            if kwargs.get("no_user") is not True:
                 runtime.append("--user=%s" % (euid))
 
             if rm_container:

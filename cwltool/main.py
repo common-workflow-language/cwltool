@@ -115,7 +115,7 @@ def arg_parser():
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
-    parser.add_argument("--no-user", action="store_true", help="Runs container without setting user")
+    parser.add_argument("--no-user", action="store_true", help="Runs container without setting user (default will set user)")
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
