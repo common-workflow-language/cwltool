@@ -21,6 +21,7 @@ import pkg_resources  # part of setuptools
 import update
 from process import shortname
 import rdflib
+from aslist import aslist
 
 _logger = logging.getLogger("cwltool")
 
@@ -29,7 +30,7 @@ _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 
 def arg_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
     parser.add_argument("--conformance-test", action="store_true")
     parser.add_argument("--basedir", type=str)
     parser.add_argument("--outdir", type=str, default=os.path.abspath('.'),
@@ -39,13 +40,10 @@ def arg_parser():
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
 
-    parser.add_argument("--push-image", action="store_true", default=False,
-                        help="Push a Docker image after build from Dockerfile",
-                        dest="push_image")
-
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
                         metavar=("VAR1","VAR2"),
+                        default=("PATH",),
                         dest="preserve_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -97,11 +95,16 @@ def arg_parser():
                         help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",
                         default="turtle")
 
+    parser.add_argument("--eval-timeout",
+                        help="Time to wait for a Javascript expression to evaluate before giving an error.",
+                        type=float)
+
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
                         help="Print corresponding RDF graph for workflow and exit")
     exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
     exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
+    exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies from $import, $include, $schemas")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
@@ -117,6 +120,8 @@ def arg_parser():
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
+
+    parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
@@ -257,25 +262,34 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               print_pre=False,
               print_rdf=False,
               print_dot=False,
-              rdf_serializer=None):
+              rdf_serializer=None,
+              urifrag=None):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    split = urlparse.urlsplit(argsworkflow)
-    if split.scheme:
-        uri = argsworkflow
-    else:
-        uri = "file://" + os.path.abspath(argsworkflow)
-    fileuri, urifrag = urlparse.urldefrag(uri)
-    workflowobj = document_loader.fetch(fileuri)
-    if isinstance(workflowobj, list):
-        workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
-                       "id": fileuri,
-                       "@graph": workflowobj}
-
     jobobj = None
+    if isinstance(argsworkflow, basestring):
+        split = urlparse.urlsplit(argsworkflow)
+        if split.scheme:
+            uri = argsworkflow
+        else:
+            uri = "file://" + os.path.abspath(argsworkflow)
+        fileuri, urifrag = urlparse.urldefrag(uri)
+        workflowobj = document_loader.fetch(fileuri)
+        if isinstance(workflowobj, list):
+            # bare list without a version must be treated as draft-2
+            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
+                           "id": fileuri,
+                           "@graph": workflowobj}
+    elif isinstance(argsworkflow, dict):
+        workflowobj = argsworkflow
+        uri = urifrag
+        fileuri = ""
+    else:
+        raise schema_salad.validate.ValidationException("Must be URI or dict")
+
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
         workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
@@ -302,16 +316,19 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         return 0
 
     if print_dot:
-        printdot(argsworkflow, processobj, document_loader.ctx, rdf_serializer)
+        printdot(argsworkflow, processobj, document_loader.ctx)
         return 0
 
     if urifrag:
         processobj, _ = document_loader.resolve_ref(uri)
     elif isinstance(processobj, list):
-        _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
-                      ", #".join(urlparse.urldefrag(i["id"])[1]
-                                 for i in processobj if "id" in i))
-        return 1
+        if 1 == len(processobj):
+            processobj = processobj[0]
+        else:
+            _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
+                          ", #".join(urlparse.urldefrag(i["id"])[1]
+                                     for i in processobj if "id" in i))
+            return 1
 
     try:
         t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names)
@@ -334,7 +351,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
 
     return t
 
-def load_job_order(args, t, parser):
+def load_job_order(args, t, parser, stdin):
 
     job_order_object = None
 
@@ -406,6 +423,16 @@ def load_job_order(args, t, parser):
 
     return (job_order_object, input_basedir)
 
+def print_deps(fn):
+    with open(fn) as f:
+        deps = {"class": "File",
+                "path": fn}
+        sf = process.scandeps(os.path.dirname(fn), yaml.load(f),
+                              set(("$import", "run")),
+                              set(("$include", "$schemas", "path")))
+        if sf:
+            deps["secondaryFiles"] = sf
+        print json.dumps(deps, indent=4)
 
 def main(args=None,
          executor=single_job_executor,
@@ -446,6 +473,10 @@ def main(args=None,
         _logger.error("CWL document required")
         return 1
 
+    if args.print_deps:
+        print_deps(args.workflow)
+        return 0
+
     try:
         t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug,
                       print_pre=args.print_pre,
@@ -453,7 +484,7 @@ def main(args=None,
                       print_dot=args.print_dot,
                       rdf_serializer=args.rdf_serializer)
     except Exception as e:
-        _logger.error("I'm sorry, I couldn't load this CWL file.\n%s", e, exc_info=(e if args.debug else False))
+        _logger.error("I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
         return 1
 
     if type(t) == int:
@@ -473,7 +504,7 @@ def main(args=None,
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    job_order_object = load_job_order(args, t, parser)
+    job_order_object = load_job_order(args, t, parser, stdin)
 
     if type(job_order_object) == int:
         return job_order_object
@@ -490,20 +521,27 @@ def main(args=None,
                        pull_image=args.enable_pull,
                        rm_container=args.rm_container,
                        tmpdir_prefix=args.tmpdir_prefix,
+                       enable_net=args.enable_net,
                        rm_tmpdir=args.rm_tmpdir,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
                        select_resources=selectResources,
-                       push_image=args.push_image
+                       eval_timeout=args.eval_timeout
                        )
         # This is the workflow output, it needs to be written
-        stdout.write(json.dumps(out, indent=4))
-        stdout.flush()
+        if out is not None:
+            stdout.write(json.dumps(out, indent=4))
+            stdout.flush()
+        else:
+            return 1
     except (validate.ValidationException) as e:
         _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1
     except workflow.WorkflowException as e:
-        _logger.error("Workflow error:\n  %s", e, exc_info=(e if args.debug else False))
+        _logger.error("Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+        return 1
+    except Exception as e:
+        _logger.error("Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
         return 1
 
     return 0

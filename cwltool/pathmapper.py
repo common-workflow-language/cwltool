@@ -32,6 +32,7 @@ class PathMapper(object):
         for k,v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
+        return None
 
 class DockerPathMapper(PathMapper):
     def __init__(self, referenced_files, basedir):
@@ -58,11 +59,11 @@ class DockerPathMapper(PathMapper):
 
         names = set()
         for d in self.dirs:
-            name = os.path.join("/tmp", prefix + os.path.basename(d))
+            name = os.path.join("/var/lib/cwl", prefix + os.path.basename(d))
             i = 1
             while name in names:
                 i += 1
-                name = os.path.join("/tmp", prefix + os.path.basename(d) + str(i))
+                name = os.path.join("/var/lib/cwl", prefix + os.path.basename(d) + str(i))
             names.add(name)
             self.dirs[d] = name
 

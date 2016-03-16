@@ -10,7 +10,7 @@ Options:
   -nT   Run a specific test.
 EOF
 
-DRAFT=draft-2
+DRAFT=draft-3
 TEST_N=""
 RUNNER=cwl-runner
 PLATFORM=`uname -s`
@@ -26,6 +26,9 @@ do
             ;;
         -n*)
             TEST_N=$arg
+            ;;
+        --only-tools)
+            ONLY_TOOLS=--only-tools
             ;;
         *=*)
             eval $(echo $arg | cut -d= -f1)=\"$(echo $arg | cut -d= -f2-)\"
@@ -56,7 +59,7 @@ runtest() {
 
     runs=$((runs+1))
     (cd $DRAFT
-     python -mcwltool.cwltest --tool "$1" --test=conformance_test_$DRAFT.yaml $TEST_N --basedir $DRAFT
+     python -mcwltool.cwltest --tool "$1" --test=conformance_test_$DRAFT.yaml $TEST_N $ONLY_TOOLS --basedir $DRAFT
     )
     checkexit
 }

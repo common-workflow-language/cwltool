@@ -1,46 +1,62 @@
 import subprocess
 import json
 import threading
+import errno
 
 class JavascriptException(Exception):
     pass
 
-def execjs(js, jslib):
-    try:
-        nodejs = subprocess.Popen(["nodejs"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError as e:
-        if e.errno == 2:
-            nodejs = subprocess.Popen(["docker", "run",
-                                       "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
-                                       "--interactive",
-                                       "--rm",
-                                       "commonworkflowlanguage/nodejs-engine", "nodejs"],
-                                      stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
-        else:
-            raise
+def execjs(js, jslib, timeout=None):
+    nodejs = None
+    trynodes = (["nodejs"], ["node"], ["docker", "run",
+                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
+                                        "--sig-proxy=true",
+                                        "--interactive",
+                                        "--rm",
+                                        "node:slim"])
+    for n in trynodes:
+        try:
+            nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            break
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise
+
+    if nodejs is None:
+        raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
 
     fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
 
+    killed = []
     def term():
         try:
-            nodejs.terminate()
+            nodejs.kill()
+            killed.append(True)
         except OSError:
             pass
 
-    # Time out after 5 seconds
-    tm = threading.Timer(5, term)
+    if timeout is None:
+        timeout = 20
+
+    tm = threading.Timer(timeout, term)
     tm.start()
 
     stdoutdata, stderrdata = nodejs.communicate(script)
     tm.cancel()
 
+    if killed:
+        raise JavascriptException("Long-running script killed after %s seconds.\nscript was: %s\n" % (timeout, fn))
+
     if nodejs.returncode != 0:
-        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, script, stdoutdata, stderrdata))
+        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, fn, stdoutdata, stderrdata))
     else:
-        return json.loads(stdoutdata)
+        try:
+            return json.loads(stdoutdata)
+        except ValueError as e:
+            raise JavascriptException("%s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn, stdoutdata, stderrdata))
 
 class SubstitutionError(Exception):
     pass
@@ -117,7 +133,7 @@ def scanner(scan):
         return None
 
 
-def interpolate(scan, jslib):
+def interpolate(scan, jslib, timeout=None):
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -125,7 +141,7 @@ def interpolate(scan, jslib):
         parts.append(scan[0:w[0]])
 
         if scan[w[0]] == '$':
-            e = execjs(scan[w[0]+1:w[1]], jslib)
+            e = execjs(scan[w[0]+1:w[1]], jslib, timeout=timeout)
             if w[0] == 0 and w[1] == len(scan):
                 return e
             leaf = json.dumps(e, sort_keys=True)

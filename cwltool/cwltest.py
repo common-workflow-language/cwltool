@@ -10,8 +10,9 @@ import tempfile
 import yaml
 import pipes
 import logging
+import schema_salad.ref_resolver
 
-_logger = logging.getLogger("cwltool")
+_logger = logging.getLogger("cwltest")
 _logger.addHandler(logging.StreamHandler())
 _logger.setLevel(logging.INFO)
 
@@ -131,12 +132,15 @@ def run_test(args, i, t):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Compliance tests for cwltool')
     parser.add_argument("--test", type=str, help="YAML file describing test cases", required=True)
     parser.add_argument("--basedir", type=str, help="Basedir to use for tests", default=".")
-    parser.add_argument("-n", type=int, default=None, help="Run a specific test")
+    parser.add_argument("-l", action="store_true", help="List tests then exit")
+    parser.add_argument("-n", type=str, default=None, help="Run a specific tests, format is 1,3-6,9")
     parser.add_argument("--tool", type=str, default="cwl-runner",
                         help="CWL runner executable to use (default 'cwl-runner'")
+    parser.add_argument("--only-tools", action="store_true", help="Only test tools")
+
     args = parser.parse_args()
 
     if not args.test:
@@ -149,22 +153,40 @@ def main():
     failures = 0
     unsupported = 0
 
+    if args.only_tools:
+        alltests = tests
+        tests = []
+        for t in alltests:
+            loader = schema_salad.ref_resolver.Loader({"id": "@id"})
+            cwl, _ = loader.resolve_ref(t["tool"])
+            if cwl["class"] == "CommandLineTool":
+                tests.append(t)
+
+    if args.l:
+        for i, t in enumerate(tests):
+            print "[%i] %s" % (i+1, t["doc"].strip())
+        return 0
+
     if args.n is not None:
-        sys.stderr.write("\rTest [%i/%i] " % (args.n, len(tests)))
-        rt = run_test(args, args.n-1, tests[args.n-1])
+        ntest = []
+        for s in args.n.split(","):
+            sp = s.split("-")
+            if len(sp) == 2:
+                ntest.extend(range(int(sp[0])-1, int(sp[1])))
+            else:
+                ntest.append(int(s)-1)
+    else:
+        ntest = range(0, len(tests))
+
+    for i in ntest:
+        t = tests[i]
+        sys.stderr.write("\rTest [%i/%i] " % (i+1, len(tests)))
+        sys.stderr.flush()
+        rt = run_test(args, i, t)
         if rt == 1:
             failures += 1
         elif rt == UNSUPPORTED_FEATURE:
             unsupported += 1
-    else:
-        for i, t in enumerate(tests):
-            sys.stderr.write("\rTest [%i/%i] " % (i+1, len(tests)))
-            sys.stderr.flush()
-            rt = run_test(args, i, t)
-            if rt == 1:
-                failures += 1
-            elif rt == UNSUPPORTED_FEATURE:
-                unsupported += 1
 
     if failures == 0 and unsupported == 0:
          _logger.info("All tests passed")

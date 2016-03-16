@@ -20,7 +20,7 @@ from errors import WorkflowException
 from pathmapper import abspath
 
 from rdflib import URIRef
-from rdflib.namespace import RDFS
+from rdflib.namespace import RDFS, OWL
 
 import errno
 
@@ -38,20 +38,49 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ShellCommandRequirement",
                                 "StepInputExpressionRequirement"]
 
-def get_schema():
-    cache = {}
-    for f in ("Workflow.yml",
+cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
               "CommonWorkflowLanguage.yml",
               "Process.yml",
               "concepts.md",
               "contrib.md",
               "intro.md",
-              "invocation.md"):
-        with resource_stream(__name__, 'schemas/draft-3/' + f) as rs:
-            cache["https://w3id.org/cwl/cwl/" + f] = rs.read()
+              "invocation.md")
 
-    return schema_salad.schema.load_schema("https://w3id.org/cwl/cwl/CommonWorkflowLanguage.yml", cache=cache)
+salad_files = ('metaschema.yml',
+              'salad.md',
+              'field_name.yml',
+              'import_include.md',
+              'link_res.yml',
+              'ident_res.yml',
+              'vocab_res.yml',
+              'vocab_res.yml',
+              'field_name_schema.yml',
+              'field_name_src.yml',
+              'field_name_proc.yml',
+              'ident_res_schema.yml',
+              'ident_res_src.yml',
+              'ident_res_proc.yml',
+              'link_res_schema.yml',
+              'link_res_src.yml',
+              'link_res_proc.yml',
+              'vocab_res_schema.yml',
+              'vocab_res_src.yml',
+              'vocab_res_proc.yml')
+
+def get_schema():
+    cache = {}
+    for f in cwl_files:
+        rs = resource_stream(__name__, 'schemas/draft-3/' + f)
+        cache["https://w3id.org/cwl/" + f] = rs.read()
+        rs.close()
+
+    for f in salad_files:
+        rs = resource_stream(__name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
+        cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
+        rs.close()
+
+    return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
 def get_feature(self, feature):
     for t in reversed(self.requirements):
@@ -63,8 +92,11 @@ def get_feature(self, feature):
     return (None, None)
 
 def shortname(inputid):
-    (_, d) = urlparse.urldefrag(inputid)
-    return d.split("/")[-1].split(".")[-1]
+    d = urlparse.urlparse(inputid)
+    if d.fragment:
+        return d.fragment.split("/")[-1].split(".")[-1]
+    else:
+        return d.path.split("/")[-1]
 
 class StdFsAccess(object):
     def __init__(self, basedir):
@@ -109,18 +141,47 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
-def formatSubclassOf(fmt, cls, ontology):
+def adjustFileObjs(rec, op):
+    """Apply an update function to each File object in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            op(rec)
+        for d in rec:
+            adjustFileObjs(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFileObjs(d, op)
+
+def formatSubclassOf(fmt, cls, ontology, visited):
+    """Determine if `fmt` is a subclass of `cls`."""
+
+    if URIRef(fmt) == URIRef(cls):
+        return True
+
     if ontology is None:
         return False
+
+    if fmt in visited:
+        return
+
+    visited.add(fmt)
 
     fmt = URIRef(fmt)
 
     for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
-        if o == URIRef(cls):
+        # Find parent classes of `fmt` and search upward
+        if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
-        if formatSubclassOf(o, cls, ontology):
+    for s,p,o in ontology.triples( (fmt, OWL.equivalentClass, None) ):
+        # Find equivalent classes of `fmt` and search horizontally
+        if formatSubclassOf(o, cls, ontology, visited):
+            return True
+
+    for s,p,o in ontology.triples( (None, OWL.equivalentClass, fmt) ):
+        # Find equivalent classes of `fmt` and search horizontally
+        if formatSubclassOf(s, cls, ontology, visited):
             return True
 
     return False
@@ -130,7 +191,7 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
         if "format" not in af:
             raise validate.ValidationException("Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology):
+            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
@@ -142,6 +203,8 @@ class Process(object):
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
+        else:
+            self.formatgraph = None
 
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
@@ -218,11 +281,12 @@ class Process(object):
         builder.names = self.names
         builder.requirements = self.requirements
         builder.resources = {}
+        builder.timeout = kwargs.get("eval_timeout")
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = kwargs.get("docker_outdir") or "/tmp/job_output"
-            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp/job_tmp"
+            builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
+            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
         else:
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
@@ -311,3 +375,45 @@ def empty_subtree(dirpath):
             else:
                 raise
     return True
+
+_names = set()
+def uniquename(stem):
+    c = 1
+    u = stem
+    while u in _names:
+        c += 1
+        u = "%s_%s" % (stem, c)
+    _names.add(u)
+    return u
+
+def scandeps(base, doc, reffields, urlfields):
+    r = []
+    if isinstance(doc, dict):
+        for k, v in doc.iteritems():
+            if k in reffields:
+                for u in aslist(v):
+                    if not isinstance(u, basestring):
+                        continue
+                    p = os.path.join(base, u)
+                    with open(p) as f:
+                        deps = {
+                            "class": "File",
+                            "path": p
+                        }
+                        sf = scandeps(os.path.dirname(p), yaml.load(f), reffields, urlfields)
+                        if sf:
+                            deps["secondaryFiles"] = sf
+                        r.append(deps)
+            elif k in urlfields:
+                for u in aslist(v):
+                    p = os.path.join(base, u)
+                    r.append({
+                        "class": "File",
+                        "path": p
+                    })
+            else:
+                r.extend(scandeps(base, v, reffields, urlfields))
+    elif isinstance(doc, list):
+        for d in doc:
+            r.extend(scandeps(base, d, reffields, urlfields))
+    return r

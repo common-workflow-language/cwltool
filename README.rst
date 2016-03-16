@@ -32,7 +32,9 @@ Or from source::
 Run on the command line
 -----------------------
 
-  ``cwl-runner [tool] [job]``
+Simple command::
+
+  cwl-runner [tool] [job]
 
 Import as a module
 ----------------

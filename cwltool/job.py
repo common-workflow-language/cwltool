@@ -34,7 +34,7 @@ def deref_links(outputs):
             deref_links(v)
 
 class CommandLineJob(object):
-    def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, push_image=False, **kwargs):
+    def run(self, dry_run=False, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs=True, **kwargs):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -47,8 +47,8 @@ class CommandLineJob(object):
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         for f in self.pathmapper.files():
-            if not os.path.exists(self.pathmapper.mapper(f)[0]):
-                raise WorkflowException("Required input file %s not found" % self.pathmapper.mapper(f)[0])
+            if not os.path.isfile(self.pathmapper.mapper(f)[0]):
+                raise WorkflowException("Required input file %s not found or is not a regular file." % self.pathmapper.mapper(f)[0])
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
@@ -63,17 +63,23 @@ class CommandLineJob(object):
             for src in self.pathmapper.files():
                 vol = self.pathmapper.mapper(src)
                 runtime.append("--volume=%s:%s:ro" % vol)
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/tmp/job_output"))
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp/job_tmp"))
-            runtime.append("--workdir=%s" % ("/tmp/job_output"))
+            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
+            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
+            runtime.append("--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
+            if kwargs.get("enable_net") is not True:
+                runtime.append("--net=none")
+
+            if self.stdout:
+                runtime.append("--log-driver=none")
+
             euid = docker_vm_uid() or os.geteuid()
             runtime.append("--user=%s" % (euid))
 
             if rm_container:
                 runtime.append("--rm")
 
-            runtime.append("--env=TMPDIR=/tmp/job_tmp")
+            runtime.append("--env=TMPDIR=/tmp")
 
             for t,v in self.environment.items():
                 runtime.append("--env=%s=%s" % (t, v))
@@ -101,9 +107,9 @@ class CommandLineJob(object):
             shouldquote = needs_shell_quoting_re.search
 
         _logger.info("[job %s] %s$ %s%s%s",
-                     id(self),
+                     self.name,
                      self.outdir,
-                     " ".join([shellescape.quote(arg) if shouldquote(arg) else arg for arg in (runtime + self.command_line)]),
+                     " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      ' < %s' % (self.stdin) if self.stdin else '',
                      ' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
 
@@ -138,7 +144,7 @@ class CommandLineJob(object):
             else:
                 stdout = sys.stderr
 
-            sp = subprocess.Popen(runtime + self.command_line,
+            sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,
@@ -195,46 +201,17 @@ class CommandLineJob(object):
             processStatus = "permanentFail"
 
         if processStatus != "success":
-            _logger.warn("[job %s] completed %s", id(self), processStatus)
+            _logger.warn("[job %s] completed %s", self.name, processStatus)
         else:
-            _logger.debug("[job %s] completed %s", id(self), processStatus)
-
-            # Push image if it was build and job is succeed
-            if docker.ImageBuilded and push_image:
-                _logger.warn("[job %s] pushing image %s", id(self), img_id)
-                try:
-                    sp = subprocess.Popen(["docker", "push", img_id],
-                                          shell=False,
-                                          close_fds=True,
-                                          stdout=stdout,
-                                          env=env)
-
-                    rcode = sp.wait()
-
-                    if stdout is not sys.stderr:
-                        stdout.close()
-
-                    if rcode == 0:
-                        _logger.warn("[job %s] image %s pushed", id(self), img_id)
-
-                except OSError as e:
-                    if e.errno == 2:
-                        _logger.error("Docker not found")
-                    else:
-                        _logger.exception("Exception while pushing")
-                    pass
-                except Exception as e:
-                    _logger.exception("Exception while pushing")
-                    pass
-
-        _logger.debug("[job %s] %s", id(self), json.dumps(outputs, indent=4))
+            _logger.debug("[job %s] completed %s", self.name, processStatus)
+        _logger.debug("[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
         self.output_callback(outputs, processStatus)
 
         if rm_tmpdir:
-            _logger.debug("[job %s] Removing temporary directory %s", id(self), self.tmpdir)
+            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
         if move_outputs and empty_subtree(self.outdir):
-            _logger.debug("[job %s] Removing empty output directory %s", id(self), self.outdir)
+            _logger.debug("[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
