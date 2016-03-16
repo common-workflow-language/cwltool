@@ -12,6 +12,18 @@ def substitute(value, replace):
     else:
         return value + replace
 
+def adjustFileObjs(rec, op):
+    """Apply an update function to each File object in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            op(rec)
+        for d in rec:
+            adjustFileObjs(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFileObjs(d, op)
+
 class Builder(object):
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
@@ -99,8 +111,12 @@ class Builder(object):
                             datum["secondaryFiles"].extend(sfpath)
                         else:
                             datum["secondaryFiles"].append(sfpath)
-                for sf in datum.get("secondaryFiles", []):
-                    self.files.append(sf)
+
+                def _capture_files(f):
+                    self.files.append(f)
+                    return f
+
+                adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
 
         # Position to front of the sort key
         if binding:

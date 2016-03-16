@@ -13,7 +13,7 @@ import urlparse
 import pprint
 from pkg_resources import resource_stream
 import stat
-from builder import Builder
+from builder import Builder, adjustFileObjs
 import tempfile
 import glob
 from errors import WorkflowException
@@ -140,18 +140,6 @@ def adjustFiles(rec, op):
     if isinstance(rec, list):
         for d in rec:
             adjustFiles(d, op)
-
-def adjustFileObjs(rec, op):
-    """Apply an update function to each File object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            op(rec)
-        for d in rec:
-            adjustFileObjs(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFileObjs(d, op)
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     """Determine if `fmt` is a subclass of `cls`."""

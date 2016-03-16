@@ -4,9 +4,6 @@ import os
 import sys
 import shutil
 
-import ez_setup
-ez_setup.use_setuptools()
-
 import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup, find_packages
 
