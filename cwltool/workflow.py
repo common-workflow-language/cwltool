@@ -86,18 +86,18 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
         return True
     return False
 
-def are_same_type(one, two):
+def are_same_type(src, sink):
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
-    if isinstance(one, dict) and isinstance(two, dict):
-        if one["type"] == "array" and two["type"] == "array":
-            return are_same_type(one["items"], two["items"])
-        elif one["type"] == two["type"]:
+    if isinstance(src, dict) and isinstance(sink, dict):
+        if src["type"] == "array" and sink["type"] == "array":
+            return are_same_time(src["items"], sink["items"])
+        elif src["type"] == sink["type"]:
             return True
         else:
             return False
     else:
-        return one == two
+        return src == sink
 
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput):
