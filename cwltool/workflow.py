@@ -91,7 +91,7 @@ def are_same_type(src, sink):
     """
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
-            return are_same_time(src["items"], sink["items"])
+            return are_same_type(src["items"], sink["items"])
         elif src["type"] == sink["type"]:
             return True
         else:

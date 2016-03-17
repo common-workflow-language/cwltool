@@ -27,7 +27,7 @@ def execjs(js, jslib, timeout=None):
     if nodejs is None:
         raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
 
-    fn = "\"use strict\";%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
+    fn = "\"use strict\";\n%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
 
     killed = []
@@ -47,16 +47,19 @@ def execjs(js, jslib, timeout=None):
     stdoutdata, stderrdata = nodejs.communicate(script)
     tm.cancel()
 
+    def fn_linenum():
+        return "\n".join("%04i %s" % (i, b) for i, b in enumerate(fn.split("\n")))
+
     if killed:
-        raise JavascriptException("Long-running script killed after %s seconds.\nscript was: %s\n" % (timeout, fn))
+        raise JavascriptException("Long-running script killed after %s seconds.\nscript was:\n%s\n" % (timeout, fn_linenum()))
 
     if nodejs.returncode != 0:
-        raise JavascriptException("Returncode was: %s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, fn, stdoutdata, stderrdata))
+        raise JavascriptException("Returncode was: %s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, fn_linenum(), stdoutdata, stderrdata))
     else:
         try:
             return json.loads(stdoutdata)
         except ValueError as e:
-            raise JavascriptException("%s\nscript was: %s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn, stdoutdata, stderrdata))
+            raise JavascriptException("%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn_linenum(), stdoutdata, stderrdata))
 
 class SubstitutionError(Exception):
     pass

@@ -233,7 +233,10 @@ class CommandLineTool(Process):
 
             for port in ports:
                 fragment = shortname(port["id"])
-                ret[fragment] = self.collect_output(port, builder, outdir)
+                try:
+                    ret[fragment] = self.collect_output(port, builder, outdir)
+                except Exception as e:
+                    raise WorkflowException("Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
             if ret:
                 adjustFileObjs(ret, remove_hostfs)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
