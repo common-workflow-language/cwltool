@@ -262,6 +262,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               print_pre=False,
               print_rdf=False,
               print_dot=False,
+              print_deps=False,
               rdf_serializer=None,
               urifrag=None):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
@@ -299,6 +300,10 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
 
     if updateonly:
         print json.dumps(workflowobj, indent=4)
+        return 0
+
+    if print_deps:
+        printdeps(argsworkflow)
         return 0
 
     try:
@@ -423,7 +428,7 @@ def load_job_order(args, t, parser, stdin):
 
     return (job_order_object, input_basedir)
 
-def print_deps(fn):
+def printdeps(fn):
     with open(fn) as f:
         deps = {"class": "File",
                 "path": fn}
@@ -473,15 +478,12 @@ def main(args=None,
         _logger.error("CWL document required")
         return 1
 
-    if args.print_deps:
-        print_deps(args.workflow)
-        return 0
-
     try:
         t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug,
                       print_pre=args.print_pre,
                       print_rdf=args.print_rdf,
                       print_dot=args.print_dot,
+                      print_deps=args.print_deps,
                       rdf_serializer=args.rdf_serializer)
     except Exception as e:
         _logger.error("I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
