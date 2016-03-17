@@ -15,7 +15,7 @@ import re
 _logger = logging.getLogger("cwltool")
 
 def jshead(engineConfig, rootvars):
-    return "\n".join(engineConfig + ["var %s = %s;" % (k, json.dumps(v)) for k, v in rootvars.items()])
+    return "\n".join(engineConfig + ["var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
     if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
