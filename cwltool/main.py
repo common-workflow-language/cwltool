@@ -453,7 +453,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
         deps["secondaryFiles"] = sf
 
     if relative_deps:
-        base = basedir if basedir else obj["id"]
+        base = basedir if basedir else os.path.dirname(obj["id"])
         def makeRelative(u):
             if ":" in u.split("/")[0] and not u.startswith("file://"):
                 return u
