@@ -265,7 +265,6 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               print_rdf=False,
               print_dot=False,
               print_deps=False,
-              print_input_deps=False,
               relative_deps=False,
               rdf_serializer=None,
               stdout=sys.stdout,
@@ -309,10 +308,6 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
 
     if print_deps:
         printdeps(workflowobj, document_loader, stdout, relative_deps)
-        return 0
-
-    if print_input_deps:
-        printdeps(jobobj, document_loader, stdout, relative_deps)
         return 0
 
     try:
@@ -365,14 +360,15 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
 
     return t
 
-def load_job_order(args, t, parser, stdin):
+
+def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
 
     job_order_object = None
 
     if args.conformance_test:
         loader = Loader({})
     else:
-        jobloaderctx = {"path": {"@type": "@id"}, "format": {"@type": "@id"}}
+        jobloaderctx = {"path": {"@type": "@id"}, "format": {"@type": "@id"}, "id": "@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
         loader = Loader(jobloaderctx)
 
@@ -412,11 +408,11 @@ def load_job_order(args, t, parser, stdin):
                     _logger.error(e, exc_info=(e if args.debug else False))
                     return 1
             else:
-                job_order_object = {}
+                job_order_object = {"id": args.workflow}
 
             job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
 
-            _logger.debug("Parsed job order from command line: %s", job_order_object)
+            _logger.debug("Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
@@ -435,21 +431,32 @@ def load_job_order(args, t, parser, stdin):
         _logger.error("Input object required")
         return 1
 
+    if print_input_deps:
+        printdeps(job_order_object, loader, stdout, relative_deps,
+                  basedir="file://%s/" % input_basedir)
+        return 0
+
     return (job_order_object, input_basedir)
 
-def printdeps(obj, document_loader, stdout, relative_deps):
+
+def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
     deps = {"class": "File",
-            "path": obj["id"]}
-    sf = process.scandeps(obj["id"], obj,
+            "path": obj.get("id", "#")}
+
+    def loadref(b, u):
+        return document_loader.resolve_ref(u, base_url=b)[0]
+
+    sf = process.scandeps(basedir if basedir else obj["id"], obj,
                           set(("$import", "run")),
-                          set(("$include", "$schemas", "path")),
-                          lambda b, u: document_loader.resolve_ref(u, base_url=b)[0])
+                          set(("$include", "$schemas", "path")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
     if relative_deps:
-        base = os.path.dirname(obj["id"])
+        base = basedir if basedir else obj["id"]
         def makeRelative(u):
+            if ":" in u.split("/")[0] and not u.startswith("file://"):
+                return u
             return os.path.relpath(u, base)
         process.adjustFiles(sf, makeRelative)
         deps["path"] = os.path.basename(deps["path"])
@@ -501,7 +508,6 @@ def main(args=None,
                       print_rdf=args.print_rdf,
                       print_dot=args.print_dot,
                       print_deps=args.print_deps,
-                      print_input_deps=args.print_input_deps,
                       relative_deps=args.relative_deps,
                       rdf_serializer=args.rdf_serializer,
                       stdout=stdout)
@@ -526,7 +532,10 @@ def main(args=None,
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    job_order_object = load_job_order(args, t, parser, stdin)
+    job_order_object = load_job_order(args, t, parser, stdin,
+                                      print_input_deps=args.print_input_deps,
+                                      relative_deps=args.relative_deps,
+                                      stdout=stdout)
 
     if type(job_order_object) == int:
         return job_order_object
