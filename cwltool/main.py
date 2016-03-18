@@ -104,7 +104,8 @@ def arg_parser():
                         help="Print corresponding RDF graph for workflow and exit")
     exgroup.add_argument("--print-dot", action="store_true", help="Print workflow visualization in graphviz format and exit")
     exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
-    exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies from $import, $include, $schemas")
+    exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies.")
+    exgroup.add_argument("--print-input-deps", action="store_true", help="Print input object document dependencies.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
@@ -120,6 +121,7 @@ def arg_parser():
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
+    parser.add_argument("--relative-deps", action="store_true", help="When using --print-deps, print relative paths to dependencies.")
 
     parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
 
@@ -263,7 +265,10 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               print_rdf=False,
               print_dot=False,
               print_deps=False,
+              print_input_deps=False,
+              relative_deps=False,
               rdf_serializer=None,
+              stdout=sys.stdout,
               urifrag=None):
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
@@ -299,11 +304,15 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     document_loader.idx.clear()
 
     if updateonly:
-        print json.dumps(workflowobj, indent=4)
+        stdout.write(json.dumps(workflowobj, indent=4))
         return 0
 
     if print_deps:
-        printdeps(argsworkflow)
+        printdeps(workflowobj, document_loader, stdout, relative_deps)
+        return 0
+
+    if print_input_deps:
+        printdeps(jobobj, document_loader, stdout, relative_deps)
         return 0
 
     try:
@@ -313,15 +322,15 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         return 1
 
     if print_pre:
-        print json.dumps(processobj, indent=4)
+        stdout.write(json.dumps(processobj, indent=4))
         return 0
 
     if print_rdf:
-        printrdf(argsworkflow, processobj, document_loader.ctx, rdf_serializer)
+        printrdf(argsworkflow, processobj, document_loader.ctx, rdf_serializer, stdout)
         return 0
 
     if print_dot:
-        printdot(argsworkflow, processobj, document_loader.ctx)
+        printdot(argsworkflow, processobj, document_loader.ctx, stdout)
         return 0
 
     if urifrag:
@@ -428,16 +437,24 @@ def load_job_order(args, t, parser, stdin):
 
     return (job_order_object, input_basedir)
 
-def printdeps(fn):
-    with open(fn) as f:
-        deps = {"class": "File",
-                "path": fn}
-        sf = process.scandeps(os.path.dirname(fn), yaml.load(f),
-                              set(("$import", "run")),
-                              set(("$include", "$schemas", "path")))
-        if sf:
-            deps["secondaryFiles"] = sf
-        print json.dumps(deps, indent=4)
+def printdeps(obj, document_loader, stdout, relative_deps):
+    deps = {"class": "File",
+            "path": obj["id"]}
+    sf = process.scandeps(obj["id"], obj,
+                          set(("$import", "run")),
+                          set(("$include", "$schemas", "path")),
+                          lambda b, u: document_loader.resolve_ref(u, base_url=b)[0])
+    if sf:
+        deps["secondaryFiles"] = sf
+
+    if relative_deps:
+        base = os.path.dirname(obj["id"])
+        def makeRelative(u):
+            return os.path.relpath(u, base)
+        process.adjustFiles(sf, makeRelative)
+        deps["path"] = os.path.basename(deps["path"])
+
+    stdout.write(json.dumps(deps, indent=4))
 
 def main(args=None,
          executor=single_job_executor,
@@ -484,7 +501,10 @@ def main(args=None,
                       print_rdf=args.print_rdf,
                       print_dot=args.print_dot,
                       print_deps=args.print_deps,
-                      rdf_serializer=args.rdf_serializer)
+                      print_input_deps=args.print_input_deps,
+                      relative_deps=args.relative_deps,
+                      rdf_serializer=args.rdf_serializer,
+                      stdout=stdout)
     except Exception as e:
         _logger.error("I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
         return 1

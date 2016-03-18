@@ -374,34 +374,40 @@ def uniquename(stem):
     _names.add(u)
     return u
 
-def scandeps(base, doc, reffields, urlfields):
+def scandeps(base, doc, reffields, urlfields, loadref):
     r = []
     if isinstance(doc, dict):
+        if "id" in doc:
+            if doc["id"].startswith("file://"):
+                df, _ = urlparse.urldefrag(doc["id"])
+                if base != df:
+                    r.append(doc["id"])
+                    base = df
         for k, v in doc.iteritems():
             if k in reffields:
                 for u in aslist(v):
-                    if not isinstance(u, basestring):
-                        continue
-                    p = os.path.join(base, u)
-                    with open(p) as f:
-                        deps = {
-                            "class": "File",
-                            "path": p
-                        }
-                        sf = scandeps(os.path.dirname(p), yaml.load(f), reffields, urlfields)
-                        if sf:
-                            deps["secondaryFiles"] = sf
-                        r.append(deps)
+                    sub = loadref(base, u)
+                    if isinstance(sub, dict):
+                        subid = sub["id"]
+                    else:
+                        subid = urlparse.urljoin(base, u)
+                    deps = {
+                        "class": "File",
+                        "path": subid
+                    }
+                    sf = scandeps(subid, sub, reffields, urlfields, loadref)
+                    if sf:
+                        deps["secondaryFiles"] = sf
+                    r.append(deps)
             elif k in urlfields:
                 for u in aslist(v):
-                    p = os.path.join(base, u)
                     r.append({
                         "class": "File",
-                        "path": p
+                        "path": urlparse.urljoin(base, u)
                     })
             else:
-                r.extend(scandeps(base, v, reffields, urlfields))
+                r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
-            r.extend(scandeps(base, d, reffields, urlfields))
+            r.extend(scandeps(base, d, reffields, urlfields, loadref))
     return r

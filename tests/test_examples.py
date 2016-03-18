@@ -1,7 +1,9 @@
 import unittest
+import json
 import cwltool.draft2tool as tool
 import cwltool.expression as expr
 import cwltool.factory
+import cwltool.process
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -105,6 +107,46 @@ class TestFactory(unittest.TestCase):
         f = cwltool.factory.Factory()
         echo = f.make("tests/echo.cwl")
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+
+class TestScanDeps(unittest.TestCase):
+    def test_scandeps(self):
+        obj = {
+            "id": "file:///example/foo.cwl",
+            "steps": [
+                {
+                    "id": "file:///example/foo.cwl#step1",
+                    "inputs": [{
+                        "id": "file:///example/foo.cwl#input1",
+                        "default": {
+                            "class": "File",
+                            "path": "file:///example/data.txt"
+                        }
+                    }],
+                    "run": {
+                        "id": "file:///example/bar.cwl",
+                        "inputs": [{
+                            "id": "file:///example/bar.cwl#input2",
+                            "default": {
+                                "class": "File",
+                                "path": "file:///example/data2.txt"
+                            }
+                        }]
+                    }
+                }
+            ]
+        }
+
+        def loadref(base, p):
+            if isinstance(p, dict):
+                return p
+            else:
+                raise Exception("test case can't load things")
+
+        print json.dumps(cwltool.process.scandeps(obj["id"], obj,
+                                       set(("$import", "run")),
+                                       set(("$include", "$schemas", "path")),
+                                                  loadref), indent=4)
+
 
 if __name__ == '__main__':
     unittest.main()
