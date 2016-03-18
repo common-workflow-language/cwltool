@@ -48,7 +48,7 @@ def execjs(js, jslib, timeout=None):
     tm.cancel()
 
     def fn_linenum():
-        return "\n".join("%04i %s" % (i, b) for i, b in enumerate(fn.split("\n")))
+        return "\n".join("%04i %s" % (i+1, b) for i, b in enumerate(fn.split("\n")))
 
     if killed:
         raise JavascriptException("Long-running script killed after %s seconds.\nscript was:\n%s\n" % (timeout, fn_linenum()))
