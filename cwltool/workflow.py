@@ -224,7 +224,8 @@ class WorkflowJob(object):
                 if "valueFrom" not in kwargs:
                     kwargs["valueFrom"] = valueFromFunc
                 if method == "dotproduct" or method is None:
-                    jobs = dotproduct_scatter(step, inputobj, basedir, scatter,
+                    non_scatter = [v for v in valueFrom if v not in scatter]
+                    jobs = dotproduct_scatter(step, inputobj, basedir, scatter, non_scatter,
                                               callback, **kwargs)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(step, inputobj,
@@ -506,7 +507,7 @@ class ReceiveScatterOutput(object):
             self.output_callback(self.dest, self.processStatus)
 
 
-def dotproduct_scatter(process, joborder, basedir, scatter_keys, output_callback, **kwargs):
+def dotproduct_scatter(process, joborder, basedir, scatter_keys, non_scatter_keys, output_callback, **kwargs):
     l = None
     for s in scatter_keys:
         if l is None:
@@ -524,6 +525,9 @@ def dotproduct_scatter(process, joborder, basedir, scatter_keys, output_callback
         jo = copy.copy(joborder)
         for s in scatter_keys:
             jo[s] = kwargs["valueFrom"](s, joborder[s][n])
+
+        for s in non_scatter_keys:
+            jo[s] = kwargs["valueFrom"](s, joborder[s])
 
         for j in process.job(jo, basedir, functools.partial(rc.receive_scatter_output, n), **kwargs):
             yield j
