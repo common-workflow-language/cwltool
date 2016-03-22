@@ -25,7 +25,7 @@ def compare(a, b):
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
-                if not b["path"].endswith("/" + a["path"]):
+                if not (b["path"].endswith("/" + a["path"]) or ("/" not in b["path"] and a["path"] == b["path"])):
                     raise CompareFail("%s does not end with %s" %(b["path"], a["path"]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
