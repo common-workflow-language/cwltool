@@ -298,6 +298,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
         workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
+        del jobobj["cwl:tool"]
 
     workflowobj = update.update(workflowobj, document_loader, fileuri)
     document_loader.idx.clear()
@@ -435,6 +436,11 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
         printdeps(job_order_object, loader, stdout, relative_deps,
                   basedir="file://%s/" % input_basedir)
         return 0
+
+    if "cwl:tool" in job_order_object:
+        del job_order_object["cwl:tool"]
+    if "id" in job_order_object:
+        del job_order_object["id"]
 
     return (job_order_object, input_basedir)
 

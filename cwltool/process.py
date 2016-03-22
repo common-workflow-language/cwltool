@@ -390,19 +390,19 @@ def scandeps(base, doc, reffields, urlfields, loadref):
         for k, v in doc.iteritems():
             if k in reffields:
                 for u in aslist(v):
-                    sub = loadref(base, u)
-                    if isinstance(sub, dict):
-                        subid = sub["id"]
+                    if isinstance(u, dict):
+                        r.extend(scandeps(base, u, reffields, urlfields, loadref))
                     else:
+                        sub = loadref(base, u)
                         subid = urlparse.urljoin(base, u)
-                    deps = {
-                        "class": "File",
-                        "path": subid
-                    }
-                    sf = scandeps(subid, sub, reffields, urlfields, loadref)
-                    if sf:
-                        deps["secondaryFiles"] = sf
-                    r.append(deps)
+                        deps = {
+                            "class": "File",
+                            "path": subid
+                        }
+                        sf = scandeps(subid, sub, reffields, urlfields, loadref)
+                        if sf:
+                            deps["secondaryFiles"] = sf
+                        r.append(deps)
             elif k in urlfields:
                 for u in aslist(v):
                     r.append({
