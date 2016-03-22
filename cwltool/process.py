@@ -381,6 +381,10 @@ def scandeps(base, doc, reffields, urlfields, loadref):
             if doc["id"].startswith("file://"):
                 df, _ = urlparse.urldefrag(doc["id"])
                 if base != df:
+                    r.append({
+                        "class": "File",
+                        "path": df
+                    })
                     base = df
 
         for k, v in doc.iteritems():
