@@ -221,8 +221,11 @@ class WorkflowJob(object):
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
-                if "valueFrom" not in kwargs:
-                    kwargs["valueFrom"] = valueFromFunc
+                kwargs["valueFrom"] = valueFromFunc
+
+                inputobj = {k: valueFromFunc(k, v) if k not in scatter else v
+                            for k,v in inputobj.items()}
+
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, basedir, scatter,
                                               callback, **kwargs)
