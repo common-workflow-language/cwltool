@@ -23,7 +23,12 @@ class PathMapper(object):
             self._pathmap[src] = (ab, ab)
 
     def mapper(self, src):
-        return self._pathmap[src]
+        if "#" in src:
+            i = src.index("#")
+            p = self._pathmap[src[:i]]
+            return (p[0], p[1] + src[i:])
+        else:
+            return self._pathmap[src]
 
     def files(self):
         return self._pathmap.keys()
