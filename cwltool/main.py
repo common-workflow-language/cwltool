@@ -283,23 +283,25 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
             uri = "file://" + os.path.abspath(argsworkflow)
         fileuri, urifrag = urlparse.urldefrag(uri)
         workflowobj = document_loader.fetch(fileuri)
-        if isinstance(workflowobj, list):
-            # bare list without a version must be treated as draft-2
-            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
-                           "id": fileuri,
-                           "@graph": workflowobj}
     elif isinstance(argsworkflow, dict):
         workflowobj = argsworkflow
         uri = urifrag
-        fileuri = ""
+        fileuri = "#"
     else:
         raise schema_salad.validate.ValidationException("Must be URI or dict")
 
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
-        workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
-        _, urifrag = urlparse.urldefrag(workflowobj["cwl:tool"])
+        uri = urlparse.urljoin(uri, jobobj["cwl:tool"])
+        fileuri, urifrag = urlparse.urldefrag(uri)
+        workflowobj = document_loader.fetch(fileuri)
         del jobobj["cwl:tool"]
+
+    if isinstance(workflowobj, list):
+        # bare list without a version must be treated as draft-2
+        workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
+                       "id": fileuri,
+                       "@graph": workflowobj}
 
     workflowobj = update.update(workflowobj, document_loader, fileuri)
     document_loader.idx.clear()
