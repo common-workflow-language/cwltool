@@ -121,7 +121,9 @@ def arg_parser():
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
-    parser.add_argument("--relative-deps", action="store_true", help="When using --print-deps, print relative paths to dependencies.")
+
+    parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
+                         help="When using --print-deps, print paths relative to primary file or current working directory.")
 
     parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
 
@@ -462,13 +464,17 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
         deps["secondaryFiles"] = sf
 
     if relative_deps:
-        base = basedir if basedir else os.path.dirname(obj["id"])
+        if relative_deps == "primary":
+            base = basedir if basedir else os.path.dirname(obj["id"])
+        elif relative_deps == "cwd":
+            base = "file://" + os.getcwd()
+        else:
+            raise Exception("Unknown relative_deps %s" % relative_deps)
         def makeRelative(u):
             if ":" in u.split("/")[0] and not u.startswith("file://"):
                 return u
             return os.path.relpath(u, base)
-        process.adjustFiles(sf, makeRelative)
-        deps["path"] = os.path.basename(deps["path"])
+        process.adjustFiles(deps, makeRelative)
 
     stdout.write(json.dumps(deps, indent=4))
 
