@@ -469,6 +469,13 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
 
     stdout.write(json.dumps(deps, indent=4))
 
+def versionstring():
+    pkg = pkg_resources.require("cwltool")
+    if pkg:
+        return "%s %s" % (sys.argv[0], pkg[0].version)
+    else:
+        return "%s %s" % (sys.argv[0], "unknown version")
+
 def main(args=None,
          executor=single_job_executor,
          makeTool=workflow.defaultMakeTool,
@@ -476,7 +483,8 @@ def main(args=None,
          parser=None,
          stdin=sys.stdin,
          stdout=sys.stdout,
-         stderr=sys.stderr):
+         stderr=sys.stderr,
+         versionfunc=versionstring):
 
     _logger.removeHandler(defaultStreamHandler)
     _logger.addHandler(logging.StreamHandler(stderr))
@@ -494,13 +502,11 @@ def main(args=None,
     if args.debug:
         _logger.setLevel(logging.DEBUG)
 
-    pkg = pkg_resources.require("cwltool")
-    if pkg:
-        if args.version:
-            print "%s %s" % (sys.argv[0], pkg[0].version)
-            return 0
-        else:
-            _logger.info("%s %s", sys.argv[0], pkg[0].version)
+    if args.version:
+        print versionfunc()
+        return 0
+    else:
+        _logger.info(versionfunc())
 
     if not args.workflow:
         parser.print_help()
