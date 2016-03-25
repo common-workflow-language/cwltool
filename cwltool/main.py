@@ -298,6 +298,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
         workflowobj = document_loader.fetch(urlparse.urljoin(uri, workflowobj["cwl:tool"]))
+        _, urifrag = urlparse.urldefrag(workflowobj["cwl:tool"])
         del jobobj["cwl:tool"]
 
     workflowobj = update.update(workflowobj, document_loader, fileuri)
