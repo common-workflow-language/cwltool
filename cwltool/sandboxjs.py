@@ -3,13 +3,17 @@ import json
 import threading
 import errno
 import logging
+from typing import Any, Union, TypeVar, Dict, List, Mapping
+
 
 class JavascriptException(Exception):
     pass
 
 _logger = logging.getLogger("cwltool")
 
-def execjs(js, jslib, timeout=None):
+JSON = Union[Dict[Any,Any], List[Any], unicode, int, long, float, bool, None]
+
+def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,str], Any, int) -> JSON
     nodejs = None
     trynodes = (["nodejs"], ["node"])
     for n in trynodes:
@@ -82,7 +86,8 @@ def execjs(js, jslib, timeout=None):
 class SubstitutionError(Exception):
     pass
 
-def scanner(scan):
+
+def scanner(scan):  # type: (str) -> List[int]
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -154,7 +159,7 @@ def scanner(scan):
         return None
 
 
-def interpolate(scan, jslib, timeout=None):
+def interpolate(scan, jslib, timeout=None):  # type: (str, str, int) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)

@@ -1,18 +1,23 @@
 import copy
-from aslist import aslist
-import expression
+from .utils import aslist
+from . import expression
 import avro
 import schema_salad.validate as validate
+from typing import Any, Union, AnyStr, Callable
+from .errors import WorkflowException
+from .stdfsaccess import StdFsAccess
+from .pathmapper import PathMapper
 
 CONTENT_LIMIT = 64 * 1024
 
-def substitute(value, replace):
+
+def substitute(value, replace):  # type: (str, str) -> str
     if replace[0] == "^":
         return substitute(value[0:value.rindex('.')], replace[1:])
     else:
         return value + replace
 
-def adjustFileObjs(rec, op):
+def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
     """Apply an update function to each File object in the object `rec`."""
 
     if isinstance(rec, dict):
@@ -26,9 +31,24 @@ def adjustFileObjs(rec, op):
 
 class Builder(object):
 
+    def __init__(self):  # type: () -> None
+        self.names = None  # type: avro.schema.Names
+        self.schemaDefs = None  # type: Dict[str,Dict[str,str]]
+        self.files = None  # type: List[str]
+        self.fs_access = None  # type: StdFsAccess
+        self.job = None  # type: Dict[str,str]
+        self.requirements = None  # type: List[Dict[str,Any]]
+        self.outdir = None  # type: str
+        self.tmpdir = None  # type: str
+        self.resources = None  # type: Dict[str,str]
+        self.bindings = []  # type: List[Dict[str,str]]
+        self.timeout = None  # type: int
+        self.pathmapper = None # type: PathMapper
+
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
-        bindings = []
-        binding = None
+        # type: (Dict[str,Any], Any, List[int], List[int]) -> List[Dict[str,str]]
+        bindings = []  # type: List[Dict[str,str]]
+        binding = None  # type: Dict[str,Any]
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
 
@@ -102,9 +122,11 @@ class Builder(object):
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                            sfpath = self.do_eval(sf, context=datum)
-                            if isinstance(sfpath, basestring):
+                            secondary_eval = self.do_eval(sf, context=datum)
+                            if isinstance(secondary_eval, basestring):
                                 sfpath = {"path": sfpath, "class": "File"}
+                            else:
+                                sfpath = secondary_eval
                         else:
                             sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
                         if isinstance(sfpath, list):
@@ -126,7 +148,7 @@ class Builder(object):
 
         return bindings
 
-    def tostr(self, value):
+    def tostr(self, value):  # type(Any) -> str
         if isinstance(value, dict) and value.get("class") == "File":
             if "path" not in value:
                 raise WorkflowException(u"File object must have \"path\": %s" % (value))
@@ -134,7 +156,7 @@ class Builder(object):
         else:
             return str(value)
 
-    def generate_arg(self, binding):
+    def generate_arg(self, binding):  # type: (Dict[str,Any]) -> List[str]
         value = binding["valueFrom"]
         if "do_eval" in binding:
             value = self.do_eval(binding["do_eval"], context=value)
@@ -142,7 +164,7 @@ class Builder(object):
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
 
-        l = []
+        l = []  # type: List[Dict[str,str]]
         if isinstance(value, list):
             if binding.get("itemSeparator"):
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
@@ -174,6 +196,7 @@ class Builder(object):
         return [a for a in args if a is not None]
 
     def do_eval(self, ex, context=None, pull_image=True):
+        # type: (Dict[str,str], Any, bool) -> Any
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,

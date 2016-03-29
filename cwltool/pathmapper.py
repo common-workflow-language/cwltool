@@ -2,27 +2,37 @@ import os
 import random
 import logging
 import stat
+from typing import Tuple, Set, Union, Any
 
 _logger = logging.getLogger("cwltool")
 
-def abspath(src, basedir):
+
+def abspath(src, basedir):  # type: (str,str) -> str
     if src.startswith("file://"):
         ab = src[7:]
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
 
+
 class PathMapper(object):
+
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
+    def __new__(cls, referenced_files, basedir):
+        # type: (Set[str], str) -> Any
+        instance = super(PathMapper,cls).__new__(cls)
+        instance._pathmap = {}  # type: Dict[str, Tuple[str, str]]
+        return instance
+
     def __init__(self, referenced_files, basedir):
-        self._pathmap = {}
+        # type: (Set[str], str) -> None
         for src in referenced_files:
             ab = abspath(src, basedir)
             self._pathmap[src] = (ab, ab)
 
-    def mapper(self, src):
+    def mapper(self, src):  # type: (str) -> Tuple[str,str]
         if "#" in src:
             i = src.index("#")
             p = self._pathmap[src[:i]]
@@ -30,19 +40,26 @@ class PathMapper(object):
         else:
             return self._pathmap[src]
 
-    def files(self):
+    def files(self):  # type: () -> List[str]
         return self._pathmap.keys()
 
-    def reversemap(self, target):
-        for k,v in self._pathmap.items():
+    def reversemap(self, target):  # type: (str) -> Tuple[str, str]
+        for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
         return None
 
+
 class DockerPathMapper(PathMapper):
+
+    def __new__(cls, referenced_files, basedir):
+        # type: (Set[str], str) -> None
+        instance = super(DockerPathMapper,cls).__new__(cls, referenced_files, basedir)
+        instance.dirs = {}  # type: Dict[str, Union[bool, str]]
+        return instance
+
     def __init__(self, referenced_files, basedir):
-        self._pathmap = {}
-        self.dirs = {}
+        # type: (Set[str], str) -> None
         for src in referenced_files:
             ab = abspath(src, basedir)
             dir, fn = os.path.split(ab)
@@ -62,7 +79,7 @@ class DockerPathMapper(PathMapper):
 
         prefix = "job" + str(random.randint(1, 1000000000)) + "_"
 
-        names = set()
+        names = set()  # type: Set[str]
         for d in self.dirs:
             name = os.path.join("/var/lib/cwl", prefix + os.path.basename(d))
             i = 1

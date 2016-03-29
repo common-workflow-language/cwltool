@@ -1,3 +1,4 @@
+import abc
 import avro.schema
 import os
 import json
@@ -7,21 +8,22 @@ import yaml
 import copy
 import logging
 import pprint
-from aslist import aslist
+from .utils import aslist
 import schema_salad.schema
+from schema_salad.ref_resolver import Loader
 import urlparse
 import pprint
 from pkg_resources import resource_stream
 import stat
-from builder import Builder, adjustFileObjs
+from .builder import Builder, adjustFileObjs
 import tempfile
 import glob
-from errors import WorkflowException
-from pathmapper import abspath
-
+from .errors import WorkflowException
+from .pathmapper import abspath
+from typing import Any, Union, IO, AnyStr, Tuple
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
-
+from .stdfsaccess import StdFsAccess
 import errno
 
 _logger = logging.getLogger("cwltool")
@@ -68,8 +70,7 @@ salad_files = ('metaschema.yml',
               'vocab_res_schema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
-
-def get_schema():
+def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,Any]]]
     cache = {}
     for f in cwl_files:
         rs = resource_stream(__name__, 'schemas/draft-3/' + f)
@@ -83,7 +84,7 @@ def get_schema():
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-def get_feature(self, feature):
+def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool] 
     for t in reversed(self.requirements):
         if t["class"] == feature:
             return (t, True)
@@ -92,28 +93,15 @@ def get_feature(self, feature):
             return (t, False)
     return (None, None)
 
+
 def shortname(inputid):
+    # type: (str) -> str
     d = urlparse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split("/")[-1].split(".")[-1]
     else:
         return d.path.split("/")[-1]
 
-class StdFsAccess(object):
-    def __init__(self, basedir):
-        self.basedir = basedir
-
-    def _abs(self, p):
-        return abspath(p, self.basedir)
-
-    def glob(self, pattern):
-        return glob.glob(self._abs(pattern))
-
-    def open(self, fn, mode):
-        return open(self._abs(fn), mode)
-
-    def exists(self, fn):
-        return os.path.exists(self._abs(fn))
 
 class UnsupportedRequirement(Exception):
     pass
@@ -192,6 +180,7 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     return False
 
+
 def checkFormat(actualFile, inputFormats, requirements, ontology):
     for af in aslist(actualFile):
         if "format" not in af:
@@ -202,8 +191,12 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
         raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 class Process(object):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, toolpath_object, **kwargs):
-        (_, self.names, _) = get_schema()
+        # type: (Dict[str,Any], **Any) -> None
+        self.metadata = None  # type: Dict[str,Any]
+        self.names = get_schema()[1]
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
@@ -215,7 +208,7 @@ class Process(object):
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
-        self.schemaDefs = {}
+        self.schemaDefs = {}  # type: Dict[str,Dict[str,str]]
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -233,7 +226,6 @@ class Process(object):
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
                 c = copy.copy(i)
-                doc_url, _ = urlparse.urldefrag(c['id'])
                 c["name"] = shortname(c["id"])
                 del c["id"]
 
@@ -246,9 +238,9 @@ class Process(object):
                     c["type"] = c["type"]
 
                 if key == "inputs":
-                    self.inputs_record_schema["fields"].append(c)
+                    self.inputs_record_schema["fields"].append(c)  # type: ignore
                 elif key == "outputs":
-                    self.outputs_record_schema["fields"].append(c)
+                    self.outputs_record_schema["fields"].append(c)  # type: ignore
 
         try:
             self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
@@ -364,6 +356,10 @@ class Process(object):
     def visit(self, op):
         self.tool = op(self.tool)
 
+    @abc.abstractmethod
+    def job(self, job_order, input_basedir, output_callbacks, **kwargs):
+        return
+
 def empty_subtree(dirpath):
     # Test if a directory tree contains any files (does not count empty
     # subdirectories)
@@ -382,7 +378,9 @@ def empty_subtree(dirpath):
                 raise
     return True
 
-_names = set()
+_names = set()  # type: Set[str]
+
+
 def uniquename(stem):
     c = 1
     u = stem

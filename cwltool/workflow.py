@@ -1,8 +1,8 @@
-import job
-import draft2tool
-from aslist import aslist
-from process import Process, get_feature, empty_subtree, shortname, uniquename
-from errors import WorkflowException
+from . import job
+from . import draft2tool
+from .utils import aslist
+from .process import Process, get_feature, empty_subtree, shortname, uniquename
+from .errors import WorkflowException
 import copy
 import logging
 import random
@@ -17,13 +17,15 @@ import tempfile
 import shutil
 import json
 import schema_salad
-import expression
+from . import expression
+from typing import Iterable, List, Callable, Any, Union, Generator, cast
 
 _logger = logging.getLogger("cwltool")
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value'])
 
 def defaultMakeTool(toolpath_object, **kwargs):
+    # type: (Dict[str, Any], **Any) -> Process
     if not isinstance(toolpath_object, dict):
         raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
     if "class" in toolpath_object:
@@ -36,7 +38,7 @@ def defaultMakeTool(toolpath_object, **kwargs):
 
     raise WorkflowException(u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"])
 
-def findfiles(wo, fn=None):
+def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[str, Any]]
     if fn is None:
         fn = []
     if isinstance(wo, dict):
@@ -53,6 +55,7 @@ def findfiles(wo, fn=None):
 
 
 def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
+    # type: (Union[List[str],str], WorkflowStateItem, str, Dict[str, Any], str, str) -> bool
     if isinstance(sinktype, list):
         # Sink is union type
         for st in sinktype:
@@ -86,7 +89,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
         return True
     return False
 
-def are_same_type(src, sink):
+def are_same_type(src, sink):  # type: (Any, Any) -> bool
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
     if isinstance(src, dict) and isinstance(sink, dict):
@@ -101,7 +104,8 @@ def are_same_type(src, sink):
 
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput):
-    inputobj = {}
+    # type: (Dict[str,WorkflowStateItem], List[Dict[str, Any]], bool, bool) -> Dict[str, str]
+    inputobj = {}  # type: Dict[str, str]
     for inp in parms:
         iid = inp["id"]
         if frag_only:
@@ -130,27 +134,34 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput):
 
 
 class WorkflowJobStep(object):
-    def __init__(self, step):
+
+    def __init__(self, step):  # type: (Any) -> None
         self.step = step
         self.tool = step.tool
         self.id = step.id
         self.submitted = False
         self.completed = False
-        self.iterable = None
+        self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
 
     def job(self, joborder, basedir, output_callback, **kwargs):
+        # type: (Dict[str,str], str, functools.partial[None], **Any) -> Generator
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         for j in self.step.job(joborder, basedir, output_callback, **kwargs):
             yield j
 
+
 class WorkflowJob(object):
+
     def __init__(self, workflow, **kwargs):
+        # type: (Workflow, **Any) -> None
         self.workflow = workflow
         self.tool = workflow.tool
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.id = workflow.tool["id"]
+        self.state = None  # type: Dict[str, WorkflowStateItem]
+        self.processStatus = None  # type: str
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
         elif "tmp_outdir_prefix" in kwargs:
@@ -164,6 +175,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] initialized step from %s", self.name, self.tool["id"])
 
     def receive_output(self, step, outputparms, jobout, processStatus):
+        # type: (WorkflowJobStep, List[Dict[str,str]], Dict[str,str], str) -> None
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -185,6 +197,7 @@ class WorkflowJob(object):
         step.completed = True
 
     def try_make_job(self, step, basedir, **kwargs):
+        # type: (WorkflowJobStep, str, **Any) -> Generator
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
@@ -228,13 +241,22 @@ class WorkflowJob(object):
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, basedir, scatter,
-                                              callback, **kwargs)
+                                              cast(  # known bug with mypy
+                                                  # https://github.com/python/mypy/issues/797
+                                                  Callable[[Any], Any],callback), **kwargs)
                 elif method == "nested_crossproduct":
-                    jobs = nested_crossproduct_scatter(step, inputobj,
-                                                       basedir, scatter, callback, **kwargs)
+                    jobs = nested_crossproduct_scatter(step, inputobj, basedir,
+                            scatter, cast(Callable[[Any], Any], callback),
+                            # known bug in mypy
+                            # https://github.com/python/mypy/issues/797
+                            **kwargs)
                 elif method == "flat_crossproduct":
                     jobs = flat_crossproduct_scatter(step, inputobj, basedir,
-                                                     scatter, callback, 0, **kwargs)
+                                                     scatter,
+                                                     cast(Callable[[Any], Any],
+                                                         # known bug in mypy
+                                                         # https://github.com/python/mypy/issues/797
+                                                         callback), 0, **kwargs)
             else:
                 _logger.debug(u"[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
                 inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
@@ -247,7 +269,7 @@ class WorkflowJob(object):
                 yield j
         except WorkflowException:
             raise
-        except Exception as e:
+        except Exception:
             _logger.exception("Unhandled exception")
             self.processStatus = "permanentFail"
             step.completed = True
@@ -256,6 +278,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] workflow starting", self.name)
 
     def job(self, joborder, basedir, output_callback, move_outputs=True, **kwargs):
+        # type: (Dict[str,str], str, Callable[[Any, Any], Any], bool, **Any) -> Generator[WorkflowJob, None, None]
         self.state = {}
         self.processStatus = "success"
 
@@ -278,7 +301,6 @@ class WorkflowJob(object):
         output_dirs = set()
 
         completed = 0
-        iterables = []
         while completed < len(self.steps) and self.processStatus == "success":
             made_progress = False
 
@@ -309,7 +331,7 @@ class WorkflowJob(object):
             raise WorkflowException("Output for workflow not available")
 
         if move_outputs:
-            targets = set()
+            targets = set()  # type: Set[str]
             conflicts = set()
 
             outfiles = findfiles(wo)
@@ -352,6 +374,7 @@ class WorkflowJob(object):
 
 class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
+        # type: (Dict[str, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
 
         kwargs["requirements"] = self.requirements
@@ -364,6 +387,7 @@ class Workflow(Process):
         # TODO: statically validate data links instead of doing it at runtime.
 
     def job(self, joborder, basedir, output_callback, **kwargs):
+        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
         builder = self._init_job(joborder, basedir, **kwargs)
         wj = WorkflowJob(self, **kwargs)
         yield wj
@@ -378,7 +402,9 @@ class Workflow(Process):
         self.steps = [op(s) for s in self.steps]
 
 class WorkflowStep(Process):
+
     def __init__(self, toolpath_object, pos, **kwargs):
+        # type: (Dict[str, Any], int, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -452,6 +478,7 @@ class WorkflowStep(Process):
             self.tool["outputs"] = outputparms
 
     def receive_output(self, output_callback, jobout, processStatus):
+        # type: (Callable[...,Any], Dict[str, str], str) -> None
         #_logger.debug("WorkflowStep output from run is %s", jobout)
         output = {}
         for i in self.tool["outputs"]:
@@ -463,6 +490,7 @@ class WorkflowStep(Process):
         output_callback(output, processStatus)
 
     def job(self, joborder, basedir, output_callback, **kwargs):
+        # type: (Dict[str, Any], str, Callable[...,Any], **Any) -> Generator
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
@@ -486,14 +514,17 @@ class WorkflowStep(Process):
 
 
 class ReceiveScatterOutput(object):
+
     def __init__(self, output_callback, dest):
+        # type: (Callable[..., Any], Dict[str,List[str]]) -> None
         self.dest = dest
         self.completed = 0
         self.processStatus = "success"
-        self.total = None
+        self.total = None  # type: int
         self.output_callback = output_callback
 
     def receive_scatter_output(self, index, jobout, processStatus):
+        # type: (int, Dict[str, str], str) -> None
         for k,v in jobout.items():
             self.dest[k][index] = v
 
@@ -506,13 +537,14 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total):
+    def setTotal(self, total):  # type: (int) -> None
         self.total = total
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
 
 def dotproduct_scatter(process, joborder, basedir, scatter_keys, output_callback, **kwargs):
+    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     l = None
     for s in scatter_keys:
         if l is None:
@@ -520,7 +552,7 @@ def dotproduct_scatter(process, joborder, basedir, scatter_keys, output_callback
         elif l != len(joborder[s]):
             raise WorkflowException("Length of input arrays must be equal when performing dotproduct scatter.")
 
-    output = {}
+    output = {}  # type: Dict[str,List[str]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * l
 
@@ -538,9 +570,10 @@ def dotproduct_scatter(process, joborder, basedir, scatter_keys, output_callback
 
 
 def nested_crossproduct_scatter(process, joborder, basedir, scatter_keys, output_callback, **kwargs):
+    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
-    output = {}
+    output = {}  # type: Dict[str,List[str]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * l
 
@@ -554,13 +587,19 @@ def nested_crossproduct_scatter(process, joborder, basedir, scatter_keys, output
             for j in process.job(jo, basedir, functools.partial(rc.receive_scatter_output, n), **kwargs):
                 yield j
         else:
-            for j in nested_crossproduct_scatter(process, jo, basedir, scatter_keys[1:], functools.partial(rc.receive_scatter_output, n), **kwargs):
+            for j in nested_crossproduct_scatter(process, jo, basedir,
+                    scatter_keys[1:], cast(  # known bug with mypy
+                        # https://github.com/python/mypy/issues/797
+                        Callable[[Any], Any],
+                        functools.partial(rc.receive_scatter_output, n)),
+                    **kwargs):
                 yield j
 
     rc.setTotal(l)
 
 
 def crossproduct_size(joborder, scatter_keys):
+    # type: (Dict[str, Any], List[str]) -> int
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         sum = len(joborder[scatter_key])
@@ -573,16 +612,20 @@ def crossproduct_size(joborder, scatter_keys):
     return sum
 
 def flat_crossproduct_scatter(process, joborder, basedir, scatter_keys, output_callback, startindex, **kwargs):
+    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
+    rc = None  # type: ReceiveScatterOutput
 
     if startindex == 0 and not isinstance(output_callback, ReceiveScatterOutput):
-        output = {}
+        output = {}  # type: Dict[str,List[str]]
         for i in process.tool["outputs"]:
             output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
         rc = ReceiveScatterOutput(output_callback, output)
-    else:
+    elif isinstance(output_callback, ReceiveScatterOutput):
         rc = output_callback
+    else:
+        raise Exception("Unhandled code path. Please report this.")
 
     put = startindex
     for n in range(0, l):
