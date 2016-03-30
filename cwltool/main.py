@@ -271,7 +271,6 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               rdf_serializer=None,
               stdout=sys.stdout,
               urifrag=None):
-    (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
@@ -315,6 +314,8 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     if print_deps:
         printdeps(workflowobj, document_loader, stdout, relative_deps)
         return 0
+
+    (document_loader, avsc_names, schema_metadata) = process.get_schema(workflowobj["cwlVersion"])
 
     try:
         processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)

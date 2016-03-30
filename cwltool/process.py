@@ -68,7 +68,7 @@ salad_files = ('metaschema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
 
-def get_schema():
+def get_schema(version):
     cache = {}
     for f in cwl_files:
         rs = resource_stream(__name__, 'schemas/draft-3/' + f)
