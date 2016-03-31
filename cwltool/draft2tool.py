@@ -261,7 +261,7 @@ class CommandLineTool(Process):
 
                 for gb in globpatterns:
                     if gb.startswith("/"):
-                        raise WorkflowError("glob patterns must not start with '/'")
+                        raise WorkflowException("glob patterns must not start with '/'")
                     try:
                         r.extend([{"path": g, "class": "File", "hostfs": True}
                                   for g in builder.fs_access.glob(os.path.join(outdir, gb))])
