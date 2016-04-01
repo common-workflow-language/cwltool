@@ -21,6 +21,7 @@ import re
 import urlparse
 import tempfile
 from .builder import CONTENT_LIMIT, substitute, Builder
+from distutils.dir_util import copy_tree
 import shellescape
 import errno
 from typing import Callable, Any, Union, Generator, cast
@@ -266,11 +267,7 @@ class CommandLineTool(Process):
 
             if builder.cacheIntermediateOutput:
                 cachedir = kwargs.get("cachedir")
-                if not os.path.exists(cachedir):
-                    os.makedirs(cachedir)
-                for out in ret:
-                    path = ret[out]["path"]
-                    shutil.copyfile(path, os.path.join(cachedir, os.path.basename(path)))
+                copy_tree(outdir, cachedir)
 
             return ret if ret is not None else {}
         except validate.ValidationException as e:
