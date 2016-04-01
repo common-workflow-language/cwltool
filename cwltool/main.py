@@ -162,10 +162,17 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
 
     if not kwargs.get("generate_identity"):
         def generate_identity(job, **kwargs):
+            def strip_tmp(arg, tmp):
+                if arg[:len(tmp)] == tmp:
+                    return arg[len(tmp):]
+
             def reversemap(arg):
                 back = job.pathmapper.reversemap(arg)
+                untmp = filter(lambda x: x, map(lambda tmp: strip_tmp(arg, tmp), job.builder.pathmapper.dirs.values()))
                 if back:
                     return os.path.basename(back[1])
+                elif len(untmp) > 0:
+                    return untmp[0]
                 else:
                     return arg
             line = [reversemap(arg) for arg in job.command_line]
