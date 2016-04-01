@@ -4,6 +4,7 @@ import copy
 from flatten import flatten
 import functools
 import os
+import shutil
 from pathmapper import PathMapper, DockerPathMapper
 from job import CommandLineJob
 import yaml
@@ -217,7 +218,7 @@ class CommandLineTool(Process):
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir):
+    def collect_output_ports(self, ports, builder, outdir, **kwargs):
         try:
             ret = {}
             custom_output = os.path.join(outdir, "cwl.output.json")
@@ -240,6 +241,15 @@ class CommandLineTool(Process):
             if ret:
                 adjustFileObjs(ret, remove_hostfs)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
+
+            if builder.cacheIntermediateOutput:
+                cachedir = kwargs.get("cachedir")
+                if not os.path.exists(cachedir):
+                    os.makedirs(cachedir)
+                for out in ret:
+                    path = ret[out]["path"]
+                    shutil.copyfile(path, os.path.join(cachedir, os.path.basename(path)))
+
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))

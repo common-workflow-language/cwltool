@@ -3,6 +3,7 @@
 import draft2tool
 import argparse
 from schema_salad.ref_resolver import Loader
+import string
 import json
 import os
 import sys
@@ -21,6 +22,7 @@ import pkg_resources  # part of setuptools
 import update
 from process import shortname
 import rdflib
+import hashlib
 from aslist import aslist
 
 _logger = logging.getLogger("cwltool")
@@ -45,6 +47,8 @@ def arg_parser():
                         metavar=("VAR1","VAR2"),
                         default=("PATH",),
                         dest="preserve_environment")
+
+    parser.add_argument("--cache-intermediate-output", action="store_true")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-container", action="store_true", default=True,
@@ -155,6 +159,18 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
                     input_basedir,
                     output_callback,
                     **kwargs)
+
+    if not kwargs.get("generate_identity"):
+        def generate_identity(job, **kwargs):
+            def reversemap(arg):
+                back = job.pathmapper.reversemap(arg)
+                if back:
+                    return os.path.basename(back[1])
+                else:
+                    return arg
+            line = [reversemap(arg) for arg in job.command_line]
+            return hashlib.md5(string.join(line)).hexdigest()
+        kwargs["generate_identity"] = generate_identity
 
     if kwargs.get("conformance_test"):
         job = jobiter.next()
@@ -578,7 +594,8 @@ def main(args=None,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
                        select_resources=selectResources,
-                       eval_timeout=args.eval_timeout
+                       eval_timeout=args.eval_timeout,
+                       cache_intermediate_output=args.cache_intermediate_output
                        )
         # This is the workflow output, it needs to be written
         if out is not None:
