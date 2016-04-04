@@ -539,19 +539,8 @@ def main(args=None,
     if type(t) == int:
         return t
 
-    if args.tmp_outdir_prefix != 'tmp':
-        # Use user defined temp directory (if it exists)
-        args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
-        if not os.path.exists(args.tmp_outdir_prefix):
-            _logger.error("Intermediate output directory prefix doesn't exist, reverting to default")
-            return 1
-
-    if args.tmpdir_prefix != 'tmp':
-        # Use user defined prefix (if the folder exists)
-        args.tmpdir_prefix = os.path.abspath(args.tmpdir_prefix)
-        if not os.path.exists(args.tmpdir_prefix):
-            _logger.error("Temporary directory prefix doesn't exist.")
-            return 1
+    args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
+    args.tmpdir_prefix = os.path.abspath(args.tmpdir_prefix)
 
     job_order_object = load_job_order(args, t, parser, stdin,
                                       print_input_deps=args.print_input_deps,
