@@ -141,6 +141,23 @@ def adjustFiles(rec, op):
         for d in rec:
             adjustFiles(d, op)
 
+def adjustFilesWithSecondary(rec, op, primary=None):
+    """Apply a mapping function to each File path in the object `rec`, propagating
+    the primary file associated with a group of secondary files.
+    """
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            rec["path"] = op(rec["path"], primary=primary)
+            adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
+                                     primary if primary else rec["path"])
+        else:
+            for d in rec:
+                adjustFilesWithSecondary(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFilesWithSecondary(d, op, primary)
+
 def formatSubclassOf(fmt, cls, ontology, visited):
     """Determine if `fmt` is a subclass of `cls`."""
 
