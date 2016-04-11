@@ -8,12 +8,7 @@ class JavascriptException(Exception):
 
 def execjs(js, jslib, timeout=None):
     nodejs = None
-    trynodes = (["nodejs"], ["node"], ["docker", "run",
-                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
-                                        "--sig-proxy=true",
-                                        "--interactive",
-                                        "--rm",
-                                        "node:slim"])
+    trynodes = (["nodejs"], ["node"])
     for n in trynodes:
         try:
             nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -25,7 +20,26 @@ def execjs(js, jslib, timeout=None):
                 raise
 
     if nodejs is None:
-        raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s" % (trynodes,))
+        try:
+            nodeimg = "node:slim"
+            dlist = subprocess.check_output(["docker", "images", nodeimg])
+            if "node" not in dlist:
+                subprocess.check_call(["docker", "pull", nodeimg])
+            nodejs = subprocess.Popen(["docker", "run",
+                                       "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
+                                       "--sig-proxy=true", "--interactive",
+                                       "--rm", nodeimg],
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise
+        except subprocess.CalledProcessError:
+            pass
+
+    if nodejs is None:
+        raise JavascriptException("cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s, docker run node:slim" % ", ".join(trynodes))
 
     fn = "\"use strict\";\n%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = "console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
