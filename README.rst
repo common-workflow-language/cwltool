@@ -2,6 +2,8 @@
 Common workflow language tool description reference implementation
 ==================================================================
 
+CWL Conformance test: |Build Status|
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
@@ -55,3 +57,6 @@ To run CWL successfully with boot2docker you need to set the ``--tmpdir-prefix``
 and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
+
+.. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
