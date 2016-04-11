@@ -36,7 +36,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "InlineJavascriptRequirement",
                                 "ShellCommandRequirement",
-                                "StepInputExpressionRequirement"]
+                                "StepInputExpressionRequirement",
+                                "ResourceRequirement"]
 
 cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
@@ -114,15 +115,15 @@ class StdFsAccess(object):
     def exists(self, fn):
         return os.path.exists(self._abs(fn))
 
+class UnsupportedRequirement(Exception):
+    pass
+
 def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, dict):
         if "requirements" in rec:
             for r in rec["requirements"]:
                 if r["class"] not in supportedProcessRequirements:
-                    raise Exception("Unsupported requirement %s" % r["class"])
-        if "scatter" in rec:
-            if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
-                raise Exception("Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
+                    raise UnsupportedRequirement("Unsupported requirement %s" % r["class"])
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):
@@ -211,6 +212,7 @@ class Process(object):
         else:
             self.formatgraph = None
 
+        checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
         self.schemaDefs = {}
@@ -269,10 +271,6 @@ class Process(object):
             d = shortname(i["id"])
             if d not in builder.job and "default" in i:
                 builder.job[d] = i["default"]
-
-        for r in self.requirements:
-            if r["class"] not in supportedProcessRequirements:
-                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
 
         # Validate job order
         try:
@@ -362,6 +360,9 @@ class Process(object):
 
     def get_requirement(self, feature):
         return get_feature(self, feature)
+
+    def visit(self, op):
+        self.tool = op(self.tool)
 
 def empty_subtree(dirpath):
     # Test if a directory tree contains any files (does not count empty

@@ -373,6 +373,9 @@ class Workflow(Process):
         for w in wj.job(builder.job, basedir, output_callback, **kwargs):
             yield w
 
+    def visit(self, op):
+        self.tool = op(self.tool)
+        self.steps = [op(s) for s in self.steps]
 
 class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, **kwargs):
