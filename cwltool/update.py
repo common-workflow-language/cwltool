@@ -78,7 +78,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
 
 def draft2toDraft3dev1(doc, loader, baseuri):
     return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
@@ -97,7 +97,7 @@ def _updateDev2Script(ent):
         if ent["engine"] == "cwl:JsonPointer":
             sp = ent["script"].split("/")
             if sp[0] in ("tmpdir", "outdir"):
-                return "$(runtime.%s)" % sp[0]
+                return u"$(runtime.%s)" % sp[0]
             else:
                 if not sp[0]:
                     sp.pop(0)
@@ -105,15 +105,15 @@ def _updateDev2Script(ent):
                 sp = [str(i) if digits.match(i) else "'"+i+"'"
                       for i in sp]
                 if front == "job":
-                    return "$(inputs[%s])" % ']['.join(sp)
+                    return u"$(inputs[%s])" % ']['.join(sp)
                 elif front == "context":
-                    return "$(self[%s])" % ']['.join(sp)
+                    return u"$(self[%s])" % ']['.join(sp)
         else:
             sc = updateScript(ent["script"])
             if sc[0] == "{":
                 return "$" + sc
             else:
-                return "$(%s)" % sc
+                return u"$(%s)" % sc
     else:
         return ent
 
@@ -192,7 +192,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
@@ -239,7 +239,7 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
@@ -271,7 +271,7 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception("Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
@@ -307,7 +307,7 @@ def update(doc, loader, baseuri):
         if version in updates:
             nextupdate = updates[version]
         else:
-            raise Exception("Unrecognized version %s" % version)
+            raise Exception(u"Unrecognized version %s" % version)
 
     doc["cwlVersion"] = version
 

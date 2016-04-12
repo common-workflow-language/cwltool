@@ -49,12 +49,12 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             _logger.info(str(cmd))
             if not dry_run:
                 if os.path.exists(dockerRequirement["dockerLoad"]):
-                    _logger.info("Loading docker image from %s", dockerRequirement["dockerLoad"])
+                    _logger.info(u"Loading docker image from %s", dockerRequirement["dockerLoad"])
                     with open(dockerRequirement["dockerLoad"], "rb") as f:
                         loadproc = subprocess.Popen(cmd, stdin=f, stdout=sys.stderr)
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=sys.stderr)
-                    _logger.info("Sending GET request to %s", dockerRequirement["dockerLoad"])
+                    _logger.info(u"Sending GET request to %s", dockerRequirement["dockerLoad"])
                     req = requests.get(dockerRequirement["dockerLoad"], stream=True)
                     n = 0
                     for chunk in req.iter_content(1024*1024):
@@ -96,6 +96,6 @@ def get_from_requirements(r, req, pull_image, dry_run=False):
             return r["dockerImageId"]
         else:
             if req:
-                raise process.WorkflowException("Docker image %s not found" % r["dockerImageId"])
+                raise process.WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
 
     return None

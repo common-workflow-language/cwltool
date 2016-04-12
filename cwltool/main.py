@@ -139,9 +139,9 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
     def output_callback(out, processStatus):
         final_status.append(processStatus)
         if processStatus == "success":
-            _logger.info("Final process status is %s", processStatus)
+            _logger.info(u"Final process status is %s", processStatus)
         else:
-            _logger.warn("Final process status is %s", processStatus)
+            _logger.warn(u"Final process status is %s", processStatus)
         final_output.append(out)
 
     if kwargs.get("outdir"):
@@ -177,10 +177,10 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
             raise
         except Exception as e:
             _logger.exception("Got workflow error")
-            raise workflow.WorkflowException("%s" % e, )
+            raise workflow.WorkflowException(unicode(e))
 
         if final_status[0] != "success":
-            raise workflow.WorkflowException("Process status is %s" % (final_status))
+            raise workflow.WorkflowException(u"Process status is %s" % (final_status))
 
         return final_output[0]
 
@@ -226,7 +226,7 @@ def generate_parser(toolparser, tool, namemap):
                 if len(inptype) == 2:
                     inptype = inptype[1]
                 else:
-                    _logger.debug("Can't make command line argument from %s", inptype)
+                    _logger.debug(u"Can't make command line argument from %s", inptype)
                     return None
 
         help = inp.get("description", "").replace("%", "%%")
@@ -254,7 +254,7 @@ def generate_parser(toolparser, tool, namemap):
             required = False
 
         if "type" not in kwargs and "action" not in kwargs:
-            _logger.debug("Can't make command line argument from %s", inptype)
+            _logger.debug(u"Can't make command line argument from %s", inptype)
             return None
 
         toolparser.add_argument(flag + name, required=required, help=help, **kwargs)
@@ -320,7 +320,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     try:
         processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
     except (schema_salad.validate.ValidationException, RuntimeError) as e:
-        _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
+        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1
 
     if print_pre:
@@ -341,7 +341,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         if 1 == len(processobj):
             processobj = processobj[0]
         else:
-            _logger.error("Tool file contains graph of multiple objects, must specify one of #%s",
+            _logger.error(u"Tool file contains graph of multiple objects, must specify one of #%s",
                           ", #".join(urlparse.urldefrag(i["id"])[1]
                                      for i in processobj if "id" in i))
             return 1
@@ -349,10 +349,10 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     try:
         t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names)
     except (schema_salad.validate.ValidationException) as e:
-        _logger.error("Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
+        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1
     except (RuntimeError, workflow.WorkflowException) as e:
-        _logger.error("Tool definition failed initialization:\n%s", e, exc_info=(e if debug else False))
+        _logger.error(u"Tool definition failed initialization:\n%s", e, exc_info=(e if debug else False))
         return 1
 
     if jobobj:
@@ -419,7 +419,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
 
             job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
 
-            _logger.debug("Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
+            _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
@@ -432,7 +432,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
     if not job_order_object and len(t.tool["inputs"]) > 0:
         parser.print_help()
         if toolparser:
-            print "\nOptions for %s " % args.workflow
+            print u"\nOptions for %s " % args.workflow
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required")
@@ -440,7 +440,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
 
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps,
-                  basedir="file://%s/" % input_basedir)
+                  basedir=u"file://%s/" % input_basedir)
         return 0
 
     if "cwl:tool" in job_order_object:
@@ -470,7 +470,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
         elif relative_deps == "cwd":
             base = "file://" + os.getcwd()
         else:
-            raise Exception("Unknown relative_deps %s" % relative_deps)
+            raise Exception(u"Unknown relative_deps %s" % relative_deps)
         def makeRelative(u):
             if ":" in u.split("/")[0] and not u.startswith("file://"):
                 return u
@@ -482,9 +482,9 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
 def versionstring():
     pkg = pkg_resources.require("cwltool")
     if pkg:
-        return "%s %s" % (sys.argv[0], pkg[0].version)
+        return u"%s %s" % (sys.argv[0], pkg[0].version)
     else:
-        return "%s %s" % (sys.argv[0], "unknown version")
+        return u"%s %s" % (sys.argv[0], "unknown version")
 
 def main(args=None,
          executor=single_job_executor,
@@ -534,7 +534,7 @@ def main(args=None,
                       rdf_serializer=args.rdf_serializer,
                       stdout=stdout)
     except Exception as e:
-        _logger.error("I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
+        _logger.error(u"I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
         return 1
 
     if type(t) == int:
@@ -588,13 +588,13 @@ def main(args=None,
         else:
             return 1
     except (validate.ValidationException) as e:
-        _logger.error("Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
+        _logger.error(u"Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1
     except workflow.WorkflowException as e:
-        _logger.error("Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+        _logger.error(u"Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
         return 1
     except Exception as e:
-        _logger.error("Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+        _logger.error(u"Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
         return 1
 
     return 0

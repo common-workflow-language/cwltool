@@ -36,7 +36,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "InlineJavascriptRequirement",
                                 "ShellCommandRequirement",
-                                "StepInputExpressionRequirement"]
+                                "StepInputExpressionRequirement",
+                                "ResourceRequirement"]
 
 cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
@@ -114,15 +115,15 @@ class StdFsAccess(object):
     def exists(self, fn):
         return os.path.exists(self._abs(fn))
 
+class UnsupportedRequirement(Exception):
+    pass
+
 def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, dict):
         if "requirements" in rec:
             for r in rec["requirements"]:
                 if r["class"] not in supportedProcessRequirements:
-                    raise Exception("Unsupported requirement %s" % r["class"])
-        if "scatter" in rec:
-            if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
-                raise Exception("Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
+                    raise UnsupportedRequirement(u"Unsupported requirement %s" % r["class"])
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):
@@ -140,6 +141,23 @@ def adjustFiles(rec, op):
     if isinstance(rec, list):
         for d in rec:
             adjustFiles(d, op)
+
+def adjustFilesWithSecondary(rec, op, primary=None):
+    """Apply a mapping function to each File path in the object `rec`, propagating
+    the primary file associated with a group of secondary files.
+    """
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            rec["path"] = op(rec["path"], primary=primary)
+            adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
+                                     primary if primary else rec["path"])
+        else:
+            for d in rec:
+                adjustFilesWithSecondary(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFilesWithSecondary(d, op, primary)
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     """Determine if `fmt` is a subclass of `cls`."""
@@ -177,11 +195,11 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 def checkFormat(actualFile, inputFormats, requirements, ontology):
     for af in aslist(actualFile):
         if "format" not in af:
-            raise validate.ValidationException("Missing required 'format' for File %s" % af)
+            raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
-        raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+        raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
@@ -194,6 +212,7 @@ class Process(object):
         else:
             self.formatgraph = None
 
+        checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
         self.schemaDefs = {}
@@ -219,7 +238,7 @@ class Process(object):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException("Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -235,13 +254,13 @@ class Process(object):
             self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing inputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while prcoessing inputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
             self.outputs_record_schema = schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
 
     def _init_job(self, joborder, input_basedir, **kwargs):
@@ -252,10 +271,6 @@ class Process(object):
             d = shortname(i["id"])
             if d not in builder.job and "default" in i:
                 builder.job[d] = i["default"]
-
-        for r in self.requirements:
-            if r["class"] not in supportedProcessRequirements:
-                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
 
         # Validate job order
         try:
@@ -339,12 +354,15 @@ class Process(object):
                 if self.names.get_name(r["class"], "") is not None:
                     validate.validate_ex(self.names.get_name(r["class"], ""), r, strict=strict)
                 else:
-                    _logger.info(validate.ValidationException("Unknown hint %s" % (r["class"])))
+                    _logger.info(validate.ValidationException(u"Unknown hint %s" % (r["class"])))
             except validate.ValidationException as v:
-                raise validate.ValidationException("Validating hint `%s`: %s" % (r["class"], str(v)))
+                raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], str(v)))
 
     def get_requirement(self, feature):
         return get_feature(self, feature)
+
+    def visit(self, op):
+        self.tool = op(self.tool)
 
 def empty_subtree(dirpath):
     # Test if a directory tree contains any files (does not count empty
@@ -370,7 +388,7 @@ def uniquename(stem):
     u = stem
     while u in _names:
         c += 1
-        u = "%s_%s" % (stem, c)
+        u = u"%s_%s" % (stem, c)
     _names.add(u)
     return u
 
