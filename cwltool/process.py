@@ -72,12 +72,12 @@ salad_files = ('metaschema.yml',
 def get_schema(version):
     cache = {}
     for f in cwl_files:
-        rs = resource_stream(__name__, 'schemas/draft-3/' + f)
+        rs = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
         cache["https://w3id.org/cwl/" + f] = rs.read()
         rs.close()
 
     for f in salad_files:
-        rs = resource_stream(__name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
+        rs = resource_stream(__name__, 'schemas/%s/salad/schema_salad/metaschema/' % (version, f))
         cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
         rs.close()
 
@@ -203,7 +203,8 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
 
 class Process(object):
     def __init__(self, toolpath_object, **kwargs):
-        (_, self.names, _) = get_schema()
+        self.metadata = kwargs["metadata"]
+        (_, self.names, _) = get_schema(self.metadata["cwlVersion"])
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])

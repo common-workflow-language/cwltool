@@ -346,8 +346,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
                                      for i in processobj if "id" in i))
             return 1
 
+    if not metadata:
+        metadata = {"$namespaces": t.tool.get("$namespaces", {}), "$schemas": t.tool.get("$schemas", [])}
+
     try:
-        t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names)
+        t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names, metadata=metadata)
     except (schema_salad.validate.ValidationException) as e:
         _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
         return 1
@@ -359,11 +362,6 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         for inp in t.tool["inputs"]:
             if shortname(inp["id"]) in jobobj:
                 inp["default"] = jobobj[shortname(inp["id"])]
-
-    if metadata:
-        t.metadata = metadata
-    else:
-        t.metadata = {"$namespaces": t.tool.get("$namespaces", {}), "$schemas": t.tool.get("$schemas", [])}
 
     return t
 
