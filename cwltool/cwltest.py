@@ -7,8 +7,12 @@ import subprocess
 import sys
 import shutil
 import tempfile
-import yaml
-import yaml.scanner
+import ruamel.yaml as yaml
+try:
+        from ruamel.yaml import CSafeLoader as SafeLoader
+except ImportError:
+        from ruamel.yaml import SafeLoader
+
 import pipes
 import logging
 import schema_salad.ref_resolver
@@ -86,7 +90,7 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
                             t["job"]]
 
             outstr = subprocess.check_output(test_command)
-            out = yaml.load(outstr)
+            out = yaml.load(outstr, Loader=SafeLoader)
             if not isinstance(out, dict):
                 raise ValueError("Non-dict value parsed from output string.")
     except ValueError as v:
@@ -155,7 +159,7 @@ def main():  # type: () -> int
         return 1
 
     with open(args.test) as f:
-        tests = yaml.load(f)
+        tests = yaml.load(f, Loader=SafeLoader)
 
     failures = 0
     unsupported = 0

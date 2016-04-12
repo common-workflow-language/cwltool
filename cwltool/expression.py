@@ -5,7 +5,6 @@ from .utils import aslist, get_feature
 import logging
 import os
 from .errors import WorkflowException
-import yaml
 import schema_salad.validate as validate
 import schema_salad.ref_resolver
 from . import sandboxjs
