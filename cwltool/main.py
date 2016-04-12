@@ -125,7 +125,8 @@ def arg_parser():
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
                          help="When using --print-deps, print paths relative to primary file or current working directory.")
 
-    parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
+    parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default is to disable network", default=False)
+    parser.add_argument("--enable-dev", action="store_true", help="Allow loading and running development versions of CWL spec.", default=False)
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
@@ -269,11 +270,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               print_deps=False,
               relative_deps=False,
               rdf_serializer=None,
+              enable_dev=False,
               stdout=sys.stdout,
               urifrag=None):
 
-    if isinstance(avsc_names, Exception):
-        raise avsc_names
+    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#"})
 
     jobobj = None
     if isinstance(argsworkflow, basestring):
@@ -304,8 +305,13 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
                        "id": fileuri,
                        "@graph": workflowobj}
 
-    workflowobj = update.update(workflowobj, document_loader, fileuri)
+    workflowobj = update.update(workflowobj, document_loader, fileuri, enable_dev)
     document_loader.idx.clear()
+
+    (document_loader, avsc_names, schema_metadata) = process.get_schema(workflowobj["cwlVersion"])
+
+    if isinstance(avsc_names, Exception):
+        raise avsc_names
 
     if updateonly:
         stdout.write(json.dumps(workflowobj, indent=4))
@@ -314,8 +320,6 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     if print_deps:
         printdeps(workflowobj, document_loader, stdout, relative_deps)
         return 0
-
-    (document_loader, avsc_names, schema_metadata) = process.get_schema(workflowobj["cwlVersion"])
 
     try:
         processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
@@ -530,6 +534,7 @@ def main(args=None,
                       print_deps=args.print_deps,
                       relative_deps=args.relative_deps,
                       rdf_serializer=args.rdf_serializer,
+                      enable_dev=args.enable_dev,
                       stdout=stdout)
     except Exception as e:
         _logger.error(u"I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
