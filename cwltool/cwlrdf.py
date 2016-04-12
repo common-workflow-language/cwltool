@@ -11,7 +11,7 @@ def makerdf(workflow, wf, ctx):
         doc_url, frg = urlparse.urldefrag(v)
         if "/" in frg:
             p, _ = frg.split("/")
-            prefixes[p] = "%s#%s/" % (doc_url, p)
+            prefixes[p] = u"%s#%s/" % (doc_url, p)
 
     wf["@context"] = ctx
     g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow)
@@ -45,7 +45,7 @@ def dot_with_parameters(g, stdout):
            }""")
 
     for step, run, runtype in qres:
-        stdout.write('"%s" [label="%s"]\n' % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run))))
+        stdout.write(u'"%s" [label="%s"]\n' % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run))))
 
     qres = g.query(
         """SELECT ?step ?inp ?source
@@ -56,9 +56,9 @@ def dot_with_parameters(g, stdout):
            }""")
 
     for step, inp, source in qres:
-        stdout.write('"%s" [shape=box]\n' % (lastpart(inp)))
-        stdout.write('"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(inp), ""))
-        stdout.write('"%s" -> "%s" [label="%s"]\n' % (lastpart(inp), lastpart(step), ""))
+        stdout.write(u'"%s" [shape=box]\n' % (lastpart(inp)))
+        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(inp), ""))
+        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(inp), lastpart(step), ""))
 
     qres = g.query(
         """SELECT ?step ?out
@@ -68,8 +68,8 @@ def dot_with_parameters(g, stdout):
            }""")
 
     for step, out in qres:
-        stdout.write('"%s" [shape=box]\n' % (lastpart(out)))
-        stdout.write('"%s" -> "%s" [label="%s"]\n' % (lastpart(step), lastpart(out), ""))
+        stdout.write(u'"%s" [shape=box]\n' % (lastpart(out)))
+        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(step), lastpart(out), ""))
 
     qres = g.query(
         """SELECT ?out ?source
@@ -79,8 +79,8 @@ def dot_with_parameters(g, stdout):
            }""")
 
     for out, source in qres:
-        stdout.write('"%s" [shape=octagon]\n' % (lastpart(out)))
-        stdout.write('"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(out), ""))
+        stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(out)))
+        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(out), ""))
 
     qres = g.query(
         """SELECT ?inp
@@ -90,7 +90,7 @@ def dot_with_parameters(g, stdout):
            }""")
 
     for (inp,) in qres:
-        stdout.write('"%s" [shape=octagon]\n' % (lastpart(inp)))
+        stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(inp)))
 
 def dot_without_parameters(g, stdout):
     dotname = {}
@@ -130,14 +130,14 @@ def dot_without_parameters(g, stdout):
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                stdout.write('subgraph "%s" { label="%s"\n' % (dotname[wf], lastpart(wf)))
+                stdout.write(u'subgraph "%s" { label="%s"\n' % (dotname[wf], lastpart(wf)))
                 currentwf = wf
                 clusternode[wf] = step
             else:
                 currentwf = None
 
         if str(runtype) != "https://w3id.org/cwl/cwl#Workflow":
-            stdout.write('"%s" [label="%s"]\n' % (dotname[step], urlparse.urldefrag(str(step))[1]))
+            stdout.write(u'"%s" [label="%s"]\n' % (dotname[step], urlparse.urldefrag(str(step))[1]))
 
     if currentwf is not None:
         stdout.write("}\n")
@@ -157,12 +157,12 @@ def dot_without_parameters(g, stdout):
     for src, sink, srcrun, sinkrun in qres:
         attr = ""
         if srcrun in clusternode:
-            attr += 'ltail="%s"' % dotname[srcrun]
+            attr += u'ltail="%s"' % dotname[srcrun]
             src = clusternode[srcrun]
         if sinkrun in clusternode:
-            attr += ' lhead="%s"' % dotname[sinkrun]
+            attr += u' lhead="%s"' % dotname[sinkrun]
             sink = clusternode[sinkrun]
-        stdout.write('"%s" -> "%s" [%s]\n' % (dotname[src], dotname[sink], attr))
+        stdout.write(u'"%s" -> "%s" [%s]\n' % (dotname[src], dotname[sink], attr))
 
 
 def printdot(workflow, wf, ctx, stdout, include_parameters=False):

@@ -34,7 +34,7 @@ class ExpressionTool(Process):
             try:
                 self.output_callback(self.builder.do_eval(self.script), "success")
             except Exception as e:
-                _logger.warn("Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
+                _logger.warn(u"Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
@@ -75,7 +75,7 @@ def revmap_file(builder, outdir, f):
         f["hostfs"] = True
         return f
     else:
-        raise WorkflowException("Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
+        raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
 
 
 class CommandLineTool(Process):
@@ -94,7 +94,7 @@ class CommandLineTool(Process):
                 return PathMapper(reffiles, input_basedir)
         except OSError as e:
             if e.errno == errno.ENOENT:
-                raise WorkflowException("Missing input file %s" % e)
+                raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
         builder = self._init_job(joborder, input_basedir, **kwargs)
@@ -139,11 +139,11 @@ class CommandLineTool(Process):
         j.hints = self.hints
         j.name = uniquename(kwargs.get("name", str(id(j))))
 
-        _logger.debug("[job %s] initializing from %s%s",
+        _logger.debug(u"[job %s] initializing from %s%s",
                      j.name,
                      self.tool.get("id", ""),
-                     " as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
-        _logger.debug("[job %s] %s", j.name, json.dumps(joborder, indent=4))
+                     u" as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
+        _logger.debug(u"[job %s] %s", j.name, json.dumps(joborder, indent=4))
 
 
         builder.pathmapper = None
@@ -170,12 +170,12 @@ class CommandLineTool(Process):
                 f["containerfs"] = True
             return f
 
-        _logger.debug("[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+        _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
         adjustFileObjs(builder.files, _check_adjust)
         adjustFileObjs(builder.bindings, _check_adjust)
 
-        _logger.debug("[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
+        _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
@@ -224,7 +224,7 @@ class CommandLineTool(Process):
             if builder.fs_access.exists(custom_output):
                 with builder.fs_access.open(custom_output, "r") as f:
                     ret = yaml.load(f)
-                _logger.debug("Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
+                _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
                 adjustFileObjs(ret, remove_hostfs)
                 adjustFileObjs(ret, functools.partial(revmap_file, builder, outdir))
                 adjustFileObjs(ret, remove_hostfs)
@@ -236,7 +236,7 @@ class CommandLineTool(Process):
                 try:
                     ret[fragment] = self.collect_output(port, builder, outdir)
                 except Exception as e:
-                    raise WorkflowException("Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
+                    raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
             if ret:
                 adjustFileObjs(ret, remove_hostfs)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
@@ -303,7 +303,7 @@ class CommandLineTool(Process):
                     if optional and r is None:
                         pass
                     elif (r is None or len(r) != 1 or not isinstance(r[0], dict) or "path" not in r[0]):
-                        raise WorkflowException("Expression must return a file object for %s." % schema["id"])
+                        raise WorkflowException(u"Expression must return a file object for %s." % schema["id"])
 
             if singlefile:
                 if not r and not optional:

@@ -15,7 +15,7 @@ import re
 _logger = logging.getLogger("cwltool")
 
 def jshead(engineConfig, rootvars):
-    return "\n".join(engineConfig + ["var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
+    return "\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
     if ex["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
@@ -23,7 +23,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             obj = {"job": jobinput, "context": context, "outdir": outdir, "tmpdir": tmpdir}
             return schema_salad.ref_resolver.resolve_json_pointer(obj, ex["script"])
         except ValueError as v:
-            raise WorkflowException("%s in %s" % (v,  obj))
+            raise WorkflowException(u"%s in %s" % (v,  obj))
 
     if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
         engineConfig = []
@@ -59,7 +59,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
                 "tmpdir": tmpdir,
             }
 
-            _logger.debug("Invoking expression engine %s with %s",
+            _logger.debug(u"Invoking expression engine %s with %s",
                           runtime + aslist(r["engineCommand"]),
                                            json.dumps(inp, indent=4))
 
@@ -71,11 +71,11 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
             (stdoutdata, stderrdata) = sp.communicate(json.dumps(inp) + "\n\n")
             if sp.returncode != 0:
-                raise WorkflowException("Expression engine returned non-zero exit code on evaluation of\n%s" % json.dumps(inp, indent=4))
+                raise WorkflowException(u"Expression engine returned non-zero exit code on evaluation of\n%s" % json.dumps(inp, indent=4))
 
             return json.loads(stdoutdata)
 
-    raise WorkflowException("Unknown expression engine '%s'" % ex["engine"])
+    raise WorkflowException(u"Unknown expression engine '%s'" % ex["engine"])
 
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
@@ -112,7 +112,7 @@ def param_interpolate(ex, obj, strip=True):
             return ex[0:m.start(0)] + leaf + param_interpolate(ex[m.end(0):], obj, False)
     else:
         if "$(" in ex or "${" in ex:
-            _logger.warn("Warning possible workflow bug: found '$(' or '${' in '%s' but did not match valid parameter reference and InlineJavascriptRequirement not specified.", ex)
+            _logger.warn(u"Warning possible workflow bug: found '$(' or '${' in '%s' but did not match valid parameter reference and InlineJavascriptRequirement not specified.", ex)
         return ex
 
 

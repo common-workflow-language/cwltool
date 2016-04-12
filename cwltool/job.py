@@ -48,7 +48,7 @@ class CommandLineJob(object):
 
         for f in self.pathmapper.files():
             if not os.path.isfile(self.pathmapper.mapper(f)[0]):
-                raise WorkflowException("Required input file %s not found or is not a regular file." % self.pathmapper.mapper(f)[0])
+                raise WorkflowException(u"Required input file %s not found or is not a regular file." % self.pathmapper.mapper(f)[0])
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
@@ -62,10 +62,10 @@ class CommandLineJob(object):
             runtime = ["docker", "run", "-i"]
             for src in self.pathmapper.files():
                 vol = self.pathmapper.mapper(src)
-                runtime.append("--volume=%s:%s:ro" % vol)
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
-            runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
-            runtime.append("--workdir=%s" % ("/var/spool/cwl"))
+                runtime.append(u"--volume=%s:%s:ro" % vol)
+            runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
+            runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
+            runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
             if kwargs.get("enable_net") is not True:
                 runtime.append("--net=none")
@@ -74,7 +74,7 @@ class CommandLineJob(object):
                 runtime.append("--log-driver=none")
 
             euid = docker_vm_uid() or os.geteuid()
-            runtime.append("--user=%s" % (euid))
+            runtime.append(u"--user=%s" % (euid))
 
             if rm_container:
                 runtime.append("--rm")
@@ -82,7 +82,7 @@ class CommandLineJob(object):
             runtime.append("--env=TMPDIR=/tmp")
 
             for t,v in self.environment.items():
-                runtime.append("--env=%s=%s" % (t, v))
+                runtime.append(u"--env=%s=%s" % (t, v))
 
             runtime.append(img_id)
         else:
@@ -106,12 +106,12 @@ class CommandLineJob(object):
         else:
             shouldquote = needs_shell_quoting_re.search
 
-        _logger.info("[job %s] %s$ %s%s%s",
+        _logger.info(u"[job %s] %s$ %s%s%s",
                      self.name,
                      self.outdir,
                      " ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
-                     ' < %s' % (self.stdin) if self.stdin else '',
-                     ' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
+                     u' < %s' % (self.stdin) if self.stdin else '',
+                     u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
 
         if dry_run:
             return (self.outdir, {})
@@ -124,7 +124,7 @@ class CommandLineJob(object):
                     src = self.generatefiles[t]["path"]
                     dst = os.path.join(self.outdir, t)
                     if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        _logger.debug("symlinking %s to %s", dst, src)
+                        _logger.debug(u"symlinking %s to %s", dst, src)
                         os.symlink(src, dst)
                 else:
                     with open(os.path.join(self.outdir, t), "w") as f:
@@ -187,31 +187,31 @@ class CommandLineJob(object):
         except OSError as e:
             if e.errno == 2:
                 if runtime:
-                    _logger.error("'%s' not found", runtime[0])
+                    _logger.error(u"'%s' not found", runtime[0])
                 else:
-                    _logger.error("'%s' not found", self.command_line[0])
+                    _logger.error(u"'%s' not found", self.command_line[0])
             else:
                 _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         except WorkflowException as e:
-            _logger.error("Error while running job: %s" % e)
+            _logger.error(u"Error while running job: %s" % e)
             processStatus = "permanentFail"
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
 
         if processStatus != "success":
-            _logger.warn("[job %s] completed %s", self.name, processStatus)
+            _logger.warn(u"[job %s] completed %s", self.name, processStatus)
         else:
-            _logger.debug("[job %s] completed %s", self.name, processStatus)
-        _logger.debug("[job %s] %s", self.name, json.dumps(outputs, indent=4))
+            _logger.debug(u"[job %s] completed %s", self.name, processStatus)
+        _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
         self.output_callback(outputs, processStatus)
 
         if rm_tmpdir:
-            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
+            _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
         if move_outputs and empty_subtree(self.outdir):
-            _logger.debug("[job %s] Removing empty output directory %s", self.name, self.outdir)
+            _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
