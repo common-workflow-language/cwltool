@@ -169,11 +169,7 @@ class CommandLineTool(Process):
         builder.pathmapper = None
 
         if self.tool.get("stdin"):
-            temp = builder.do_eval(self.tool["stdin"])
-            if isinstance(temp, dict) and "ref" in temp:
-                j.stdin = builder.job[temp["ref"][1:]]["path"]
-            else:
-                j.stdin = temp
+            j.stdin = builder.do_eval(self.tool["stdin"])
             reffiles.add(j.stdin)
 
         if self.tool.get("stdout"):
