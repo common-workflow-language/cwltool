@@ -299,7 +299,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
     jobobj = None
     uri = None  # type: str
     workflowobj = None  # type: Dict[str, Any]
-    if isinstance(argsworkflow, (str, unicode)):
+    if isinstance(argsworkflow, (basestring)):
         split = urlparse.urlsplit(cast(str, argsworkflow))
         if split.scheme:
             uri = cast(str, argsworkflow)

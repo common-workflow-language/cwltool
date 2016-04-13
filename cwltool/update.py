@@ -27,7 +27,7 @@ def fixType(doc):  # type: (Any) -> Any
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
 
-    if isinstance(doc, (str, unicode)):
+    if isinstance(doc, (basestring)):
         if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
