@@ -124,7 +124,7 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"path": sfpath, "class": "File"}
+                                sfpath = {"path": secondary_eval, "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:
