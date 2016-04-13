@@ -549,7 +549,10 @@ $graph:
         type: "array"
         items: "#FileDef"
       doc: The list of files.
-
+      jsonldPredicate:
+        _id: "cwl:CreateFileRequirement/fileDef"
+        mapSubject: filename
+        mapPredicate: fileContent
 
 - name: EnvVarRequirement
   type: record
@@ -563,7 +566,10 @@ $graph:
         type: "array"
         items: "#EnvironmentDef"
       doc: The list of environment variables.
-
+      jsonldPredicate:
+        _id: "cwl:EnvVarRequirement/envDef"
+        mapSubject: envName
+        mapPredicate: envValue
 
 - type: record
   name: ShellCommandRequirement
