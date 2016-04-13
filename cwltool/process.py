@@ -72,7 +72,6 @@ salad_files = ('metaschema.yml',
 def get_schema(version):
     cache = {}
     version = version.split("#")[-1].split(".")[0]
-    print version
     for f in cwl_files:
         rs = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
         cache["https://w3id.org/cwl/" + f] = rs.read()

@@ -274,7 +274,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               stdout=sys.stdout,
               urifrag=None):
 
-    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#"})
+    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
 
     jobobj = None
     if isinstance(argsworkflow, basestring):
@@ -351,7 +351,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
             return 1
 
     if not metadata:
-        metadata = {"$namespaces": t.tool.get("$namespaces", {}), "$schemas": t.tool.get("$schemas", [])}
+        metadata = {"$namespaces": processobj.get("$namespaces", {}), "$schemas": processobj.get("$schemas", []), 'cwlVersion': processobj["cwlVersion"]}
 
     try:
         t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names, metadata=metadata)
