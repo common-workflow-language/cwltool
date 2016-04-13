@@ -8,9 +8,11 @@ import sys
 import shutil
 import tempfile
 import yaml
+import yaml.scanner
 import pipes
 import logging
 import schema_salad.ref_resolver
+from typing import Any, Union
 
 _logger = logging.getLogger("cwltest")
 _logger.addHandler(logging.StreamHandler())
@@ -21,7 +23,8 @@ UNSUPPORTED_FEATURE = 33
 class CompareFail(Exception):
     pass
 
-def compare(a, b):
+
+def compare(a, b):  # type: (Any, Any) -> bool
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
@@ -54,8 +57,9 @@ def compare(a, b):
     except Exception as e:
         raise CompareFail(str(e))
 
-def run_test(args, i, t):
-    out = {}
+
+def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> int
+    out = {}  # type: Dict[str,Any]
     outdir = None
     try:
         if "output" in t:
@@ -84,7 +88,7 @@ def run_test(args, i, t):
             outstr = subprocess.check_output(test_command)
             out = yaml.load(outstr)
     except ValueError as v:
-        _logger.error(v)
+        _logger.error(str(v))
         _logger.error(outstr)
     except subprocess.CalledProcessError as err:
         if err.returncode == UNSUPPORTED_FEATURE:
@@ -123,7 +127,8 @@ def run_test(args, i, t):
             failed = True
 
     if outdir:
-        shutil.rmtree(outdir, True)
+        shutil.rmtree(outdir, True)  # type: ignore
+        # Weird AnyStr != basestring issue
 
     if failed:
         return 1
@@ -131,7 +136,7 @@ def run_test(args, i, t):
         return 0
 
 
-def main():
+def main():  # type: () -> int
     parser = argparse.ArgumentParser(description='Compliance tests for cwltool')
     parser.add_argument("--test", type=str, help="YAML file describing test cases", required=True)
     parser.add_argument("--basedir", type=str, help="Basedir to use for tests", default=".")

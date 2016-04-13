@@ -2,8 +2,10 @@ import json
 import urlparse
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
+from typing import Any, Union, Dict, IO
 
 def makerdf(workflow, wf, ctx):
+    # type: (str, Dict[str,Any], Dict[str,Union[str, Dict[str,str]]]) -> Graph
     prefixes = {}
     for k,v in ctx.iteritems():
         if isinstance(v, dict):
@@ -26,9 +28,10 @@ def makerdf(workflow, wf, ctx):
     return g
 
 def printrdf(workflow, wf, ctx, sr, stdout):
+    # type: (str, Dict[str,Any], Dict[str,Union[str, Dict[str,str]]], str, IO[Any]) -> None
     stdout.write(makerdf(workflow, wf, ctx).serialize(format=sr))
 
-def lastpart(uri):
+def lastpart(uri):  # type: (Any) -> str
     uri = str(uri)
     if "/" in uri:
         return uri[uri.rindex("/")+1:]
@@ -36,7 +39,7 @@ def lastpart(uri):
         return uri
 
 
-def dot_with_parameters(g, stdout):
+def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
     qres = g.query(
         """SELECT ?step ?run ?runtype
            WHERE {
@@ -92,8 +95,8 @@ def dot_with_parameters(g, stdout):
     for (inp,) in qres:
         stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(inp)))
 
-def dot_without_parameters(g, stdout):
-    dotname = {}
+def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
+    dotname = {}  # type: Dict[str,str]
     clusternode = {}
 
     stdout.write("compound=true\n")
@@ -166,6 +169,7 @@ def dot_without_parameters(g, stdout):
 
 
 def printdot(workflow, wf, ctx, stdout, include_parameters=False):
+    # type: (str, Dict[str,Any], Dict[str,Union[str, Dict[str,str]]], Any, bool) -> None
     g = makerdf(workflow, wf, ctx)
 
     stdout.write("digraph {")
@@ -173,7 +177,7 @@ def printdot(workflow, wf, ctx, stdout, include_parameters=False):
     #g.namespace_manager.qname(predicate)
 
     if include_parameters:
-        dot_with_parmeters(g, stdout)
+        dot_with_parameters(g, stdout)
     else:
         dot_without_parameters(g, stdout)
 

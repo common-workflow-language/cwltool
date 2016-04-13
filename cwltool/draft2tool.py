@@ -1,36 +1,49 @@
 import avro.schema
 import json
 import copy
-from flatten import flatten
+from .flatten import flatten
 import functools
 import os
-from pathmapper import PathMapper, DockerPathMapper
-from job import CommandLineJob
+from .pathmapper import PathMapper, DockerPathMapper
+from .job import CommandLineJob
 import yaml
 import glob
 import logging
 import hashlib
 import random
-from process import Process, shortname, uniquename, adjustFileObjs
-from errors import WorkflowException
+from .process import Process, shortname, uniquename, adjustFileObjs
+from .errors import WorkflowException
 import schema_salad.validate as validate
-from aslist import aslist
-import expression
+from .utils import aslist
+from . import expression
 import re
 import urlparse
 import tempfile
-from builder import CONTENT_LIMIT, substitute
+from .builder import CONTENT_LIMIT, substitute, Builder
 import shellescape
 import errno
+from typing import Callable, Any, Union, Generator, cast
 
 _logger = logging.getLogger("cwltool")
 
 class ExpressionTool(Process):
     def __init__(self, toolpath_object, **kwargs):
+        # type: (Dict[str,List[None]], **Any) -> None
         super(ExpressionTool, self).__init__(toolpath_object, **kwargs)
 
     class ExpressionJob(object):
-        def run(self, **kwargs):
+
+        def __init__(self):  # type: () -> None
+            self.builder = None  # type: Builder
+            self.requirements = None  # type: Dict[str,str]
+            self.hints = None  # type: Dict[str,str]
+            self.collect_outputs = None  # type: Callable[[Any], Any]
+            self.output_callback = None  # type: Callable[[Any, Any], Any]
+            self.outdir = None  # type: str
+            self.tmpdir = None  # type: str
+            self.script = None  # type: Dict[str,str]
+
+        def run(self, **kwargs):  # type: (**Any) -> None
             try:
                 self.output_callback(self.builder.do_eval(self.script), "success")
             except Exception as e:
@@ -38,6 +51,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
+        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(joborder, input_basedir, **kwargs)
 
         j = ExpressionTool.ExpressionJob()
@@ -51,11 +65,14 @@ class ExpressionTool(Process):
 
         yield j
 
-def remove_hostfs(f):
+
+def remove_hostfs(f):  # type: (Dict[str, Any]) -> None
     if "hostfs" in f:
         del f["hostfs"]
 
+
 def revmap_file(builder, outdir, f):
+    # type: (Builder,str,Dict[str,Any]) -> Union[Dict[str,Any],None]
     """Remap a file back to original path. For Docker, this is outside the container.
 
     Uses either files in the pathmapper or remaps internal output directories
@@ -63,7 +80,7 @@ def revmap_file(builder, outdir, f):
     """
 
     if f.get("hostfs"):
-        return
+        return None
 
     revmap_f = builder.pathmapper.reversemap(f["path"])
     if revmap_f:
@@ -80,12 +97,14 @@ def revmap_file(builder, outdir, f):
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
+        # type: (Dict[str,Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
     def makeJobRunner(self):
         return CommandLineJob()
 
     def makePathMapper(self, reffiles, input_basedir, **kwargs):
+        # type: (Set[str], str, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
             if dockerReq and kwargs.get("use_container"):
@@ -97,6 +116,7 @@ class CommandLineTool(Process):
                 raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
+        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[CommandLineJob, None, None]
         builder = self._init_job(joborder, input_basedir, **kwargs)
 
         if self.tool["baseCommand"]:
@@ -150,8 +170,6 @@ class CommandLineTool(Process):
 
         if self.tool.get("stdin"):
             j.stdin = builder.do_eval(self.tool["stdin"])
-            if isinstance(j.stdin, dict) and "ref" in j.stdin:
-                j.stdin = builder.job[j.stdin["ref"][1:]]["path"]
             reffiles.add(j.stdin)
 
         if self.tool.get("stdout"):
@@ -164,7 +182,7 @@ class CommandLineTool(Process):
 
         # map files to assigned path inside a container. We need to also explicitly
         # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-        def _check_adjust(f):
+        def _check_adjust(f):  # type: (Dict[str,Any]) -> Dict[str,Any]
             if not f.get("containerfs"):
                 f["path"] = builder.pathmapper.mapper(f["path"])[1]
                 f["containerfs"] = True
@@ -201,7 +219,7 @@ class CommandLineTool(Process):
 
         shellcmd, _ = self.get_requirement("ShellCommandRequirement")
         if shellcmd:
-            cmd = []
+            cmd = []  # type: List[str]
             for b in builder.bindings:
                 arg = builder.generate_arg(b)
                 if b.get("shellQuote", True):
@@ -218,15 +236,19 @@ class CommandLineTool(Process):
         yield j
 
     def collect_output_ports(self, ports, builder, outdir):
+        # type: (Set[Dict[str,Any]], Builder, str) -> Dict[str,Union[str,List[Any],Dict[str,Any]]]
         try:
-            ret = {}
+            ret = {}  # type: Dict[str,Union[str,List[Any],Dict[str,Any]]]
             custom_output = os.path.join(outdir, "cwl.output.json")
             if builder.fs_access.exists(custom_output):
                 with builder.fs_access.open(custom_output, "r") as f:
                     ret = yaml.load(f)
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
                 adjustFileObjs(ret, remove_hostfs)
-                adjustFileObjs(ret, functools.partial(revmap_file, builder, outdir))
+                adjustFileObjs(ret,
+                        cast(Callable[[Any], Any],  # known bug in mypy 
+                            # https://github.com/python/mypy/issues/797
+                            functools.partial(revmap_file, builder, outdir)))
                 adjustFileObjs(ret, remove_hostfs)
                 validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
                 return ret
@@ -245,15 +267,15 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir):
-        r = None
+        # type: (Dict[str,Any],Builder,str) -> Union[Dict[str,Any],List[Union[Dict[str,Any],str]]]
+        r = []  # type: List[Any]
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
-            globpatterns = []
+            globpatterns = []  # type: List[str]
 
             revmap = functools.partial(revmap_file, builder, outdir)
 
             if "glob" in binding:
-                r = []
                 for gb in aslist(binding["glob"]):
                     gb = builder.do_eval(gb)
                     if gb:
@@ -295,15 +317,23 @@ class CommandLineTool(Process):
                 singlefile = True
 
             if "outputEval" in binding:
-                r = builder.do_eval(binding["outputEval"], context=r)
+                eout = builder.do_eval(binding["outputEval"], context=r)
                 if singlefile:
                     # Handle single file outputs not wrapped in a list
-                    if r is not None and not isinstance(r, (list, tuple)):
-                        r = [r]
-                    if optional and r is None:
+                    if eout is not None and not isinstance(eout, (list, tuple)):
+                        r = [eout]
+                    elif optional and eout is None:
                         pass
-                    elif (r is None or len(r) != 1 or not isinstance(r[0], dict) or "path" not in r[0]):
-                        raise WorkflowException(u"Expression must return a file object for %s." % schema["id"])
+                    elif (eout is None or len(eout) != 1 or
+                            not isinstance(eout[0], dict)
+                            or "path" not in eout[0]):
+                        raise WorkflowException(
+                            u"Expression must return a file object for %s."
+                            % schema["id"])
+                    else:
+                        r = [eout]
+                else:
+                    r = eout
 
             if singlefile:
                 if not r and not optional:
@@ -317,7 +347,9 @@ class CommandLineTool(Process):
                         r = r[0]
 
             # Ensure files point to local references outside of the run environment
-            adjustFileObjs(r, revmap)
+            adjustFileObjs(r, cast(  # known bug in mypy
+                # https://github.com/python/mypy/issues/797
+                Callable[[Any], Any], revmap))
 
             if "secondaryFiles" in schema:
                 for primary in aslist(r):
@@ -338,9 +370,11 @@ class CommandLineTool(Process):
             if not r and optional:
                 r = None
 
-        if not r and isinstance(schema["type"], dict) and schema["type"]["type"] == "record":
-            r = {}
+        if (not r and isinstance(schema["type"], dict) and
+                schema["type"]["type"] == "record"):
+            out = {} # type: Dict[str, Any]
             for f in schema["type"]["fields"]:
-                r[shortname(f["name"])] = self.collect_output(f, builder, outdir)
-
+                out[shortname(f["name"])] = self.collect_output(
+                        f, builder, outdir)
+            return out
         return r

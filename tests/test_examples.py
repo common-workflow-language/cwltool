@@ -5,7 +5,9 @@ import cwltool.expression as expr
 import cwltool.factory
 import cwltool.process
 
+
 class TestParamMatching(unittest.TestCase):
+
     def test_params(self):
         self.assertTrue(expr.param_re.match("$(foo)"))
         self.assertTrue(expr.param_re.match("$(foo.bar)"))
@@ -103,6 +105,7 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.param_interpolate("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
 
 class TestFactory(unittest.TestCase):
+
     def test_factory(self):
         f = cwltool.factory.Factory()
         echo = f.make("tests/echo.cwl")
