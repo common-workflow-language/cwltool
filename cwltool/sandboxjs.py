@@ -2,9 +2,12 @@ import subprocess
 import json
 import threading
 import errno
+import logging
 
 class JavascriptException(Exception):
     pass
+
+_logger = logging.getLogger("cwltool")
 
 def execjs(js, jslib, timeout=None):
     nodejs = None
@@ -24,7 +27,8 @@ def execjs(js, jslib, timeout=None):
             nodeimg = "node:slim"
             dlist = subprocess.check_output(["docker", "images", nodeimg])
             if "node" not in dlist:
-                subprocess.check_call(["docker", "pull", nodeimg])
+                nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
+                _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
                                        "--sig-proxy=true", "--interactive",
