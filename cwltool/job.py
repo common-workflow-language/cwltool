@@ -67,8 +67,10 @@ class CommandLineJob(object):
             runtime.append("--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append("--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
-            if kwargs.get("enable_net") is not True:
+            if kwargs.get("enable_net", None) is None: 
                 runtime.append("--net=none")
+            else:
+                runtime.append("--net={0}".format(kwargs.get("enable_net")))
 
             if self.stdout:
                 runtime.append("--log-driver=none")

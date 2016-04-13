@@ -125,7 +125,7 @@ def arg_parser():
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
                          help="When using --print-deps, print paths relative to primary file or current working directory.")
 
-    parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default to disable network")
+    parser.add_argument("--enable-net", help="Use the provided docker's network for container, default to disable network")
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
