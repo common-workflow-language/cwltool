@@ -176,7 +176,13 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
 
             def reversemap(arg):
                 back = job.pathmapper.reversemap(arg)
-                untmp = filter(lambda x: x, map(lambda tmp: strip_tmp(arg, tmp), job.builder.pathmapper.dirs.values()))
+
+                try:
+                    dirs = job.builder.pathmapper.dirs
+                except:
+                    dirs = {}
+                untmp = filter(lambda x: x, map(lambda tmp: strip_tmp(arg, tmp), dirs.values()))
+
                 if back:
                     return os.path.basename(back[1])
                 elif len(untmp) > 0:
