@@ -20,6 +20,7 @@ from . import expression
 import re
 import urlparse
 import tempfile
+from .builder import CONTENT_LIMIT, substitute, Builder
 from distutils.dir_util import copy_tree
 import shellescape
 import errno
