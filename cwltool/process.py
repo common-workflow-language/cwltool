@@ -1,3 +1,4 @@
+import abc
 import avro.schema
 import os
 import json
@@ -7,21 +8,22 @@ import yaml
 import copy
 import logging
 import pprint
-from aslist import aslist
+from .utils import aslist
 import schema_salad.schema
+from schema_salad.ref_resolver import Loader
 import urlparse
 import pprint
 from pkg_resources import resource_stream
 import stat
-from builder import Builder, adjustFileObjs
+from .builder import Builder, adjustFileObjs
 import tempfile
 import glob
-from errors import WorkflowException
-from pathmapper import abspath
-
+from .errors import WorkflowException
+from .pathmapper import abspath
+from typing import Any, Union, IO, AnyStr, Tuple
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
-
+from .stdfsaccess import StdFsAccess
 import errno
 
 _logger = logging.getLogger("cwltool")
@@ -36,7 +38,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "InlineJavascriptRequirement",
                                 "ShellCommandRequirement",
-                                "StepInputExpressionRequirement"]
+                                "StepInputExpressionRequirement",
+                                "ResourceRequirement"]
 
 cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
@@ -67,8 +70,7 @@ salad_files = ('metaschema.yml',
               'vocab_res_schema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
-
-def get_schema():
+def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,Any]]]
     cache = {}
     for f in cwl_files:
         rs = resource_stream(__name__, 'schemas/draft-3/' + f)
@@ -82,7 +84,7 @@ def get_schema():
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-def get_feature(self, feature):
+def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool] 
     for t in reversed(self.requirements):
         if t["class"] == feature:
             return (t, True)
@@ -91,38 +93,25 @@ def get_feature(self, feature):
             return (t, False)
     return (None, None)
 
+
 def shortname(inputid):
+    # type: (str) -> str
     d = urlparse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split("/")[-1].split(".")[-1]
     else:
         return d.path.split("/")[-1]
 
-class StdFsAccess(object):
-    def __init__(self, basedir):
-        self.basedir = basedir
 
-    def _abs(self, p):
-        return abspath(p, self.basedir)
-
-    def glob(self, pattern):
-        return glob.glob(self._abs(pattern))
-
-    def open(self, fn, mode):
-        return open(self._abs(fn), mode)
-
-    def exists(self, fn):
-        return os.path.exists(self._abs(fn))
+class UnsupportedRequirement(Exception):
+    pass
 
 def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, dict):
         if "requirements" in rec:
             for r in rec["requirements"]:
                 if r["class"] not in supportedProcessRequirements:
-                    raise Exception("Unsupported requirement %s" % r["class"])
-        if "scatter" in rec:
-            if isinstance(rec["scatter"], list) and rec["scatter"] > 1:
-                raise Exception("Unsupported complex scatter type '%s'" % rec.get("scatterMethod"))
+                    raise UnsupportedRequirement(u"Unsupported requirement %s" % r["class"])
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):
@@ -140,6 +129,23 @@ def adjustFiles(rec, op):
     if isinstance(rec, list):
         for d in rec:
             adjustFiles(d, op)
+
+def adjustFilesWithSecondary(rec, op, primary=None):
+    """Apply a mapping function to each File path in the object `rec`, propagating
+    the primary file associated with a group of secondary files.
+    """
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            rec["path"] = op(rec["path"], primary=primary)
+            adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
+                                     primary if primary else rec["path"])
+        else:
+            for d in rec:
+                adjustFilesWithSecondary(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFilesWithSecondary(d, op, primary)
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     """Determine if `fmt` is a subclass of `cls`."""
@@ -174,18 +180,23 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     return False
 
+
 def checkFormat(actualFile, inputFormats, requirements, ontology):
     for af in aslist(actualFile):
         if "format" not in af:
-            raise validate.ValidationException("Missing required 'format' for File %s" % af)
+            raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
-        raise validate.ValidationException("Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+        raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 class Process(object):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, toolpath_object, **kwargs):
-        (_, self.names, _) = get_schema()
+        # type: (Dict[str,Any], **Any) -> None
+        self.metadata = None  # type: Dict[str,Any]
+        self.names = get_schema()[1]
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
@@ -194,9 +205,10 @@ class Process(object):
         else:
             self.formatgraph = None
 
+        checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
-        self.schemaDefs = {}
+        self.schemaDefs = {}  # type: Dict[str,Dict[str,str]]
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -214,12 +226,11 @@ class Process(object):
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
                 c = copy.copy(i)
-                doc_url, _ = urlparse.urldefrag(c['id'])
                 c["name"] = shortname(c["id"])
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException("Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -227,21 +238,21 @@ class Process(object):
                     c["type"] = c["type"]
 
                 if key == "inputs":
-                    self.inputs_record_schema["fields"].append(c)
+                    self.inputs_record_schema["fields"].append(c)  # type: ignore
                 elif key == "outputs":
-                    self.outputs_record_schema["fields"].append(c)
+                    self.outputs_record_schema["fields"].append(c)  # type: ignore
 
         try:
             self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing inputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while prcoessing inputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
             self.outputs_record_schema = schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException("Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
 
     def _init_job(self, joborder, input_basedir, **kwargs):
@@ -252,10 +263,6 @@ class Process(object):
             d = shortname(i["id"])
             if d not in builder.job and "default" in i:
                 builder.job[d] = i["default"]
-
-        for r in self.requirements:
-            if r["class"] not in supportedProcessRequirements:
-                raise WorkflowException("Unsupported process requirement %s" % (r["class"]))
 
         # Validate job order
         try:
@@ -340,12 +347,19 @@ class Process(object):
                 if self.names.get_name(r["class"], "") is not None:
                     validate.validate_ex(self.names.get_name(r["class"], ""), r, strict=strict)
                 else:
-                    _logger.info(validate.ValidationException("Unknown hint %s" % (r["class"])))
+                    _logger.info(validate.ValidationException(u"Unknown hint %s" % (r["class"])))
             except validate.ValidationException as v:
-                raise validate.ValidationException("Validating hint `%s`: %s" % (r["class"], str(v)))
+                raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], str(v)))
 
     def get_requirement(self, feature):
         return get_feature(self, feature)
+
+    def visit(self, op):
+        self.tool = op(self.tool)
+
+    @abc.abstractmethod
+    def job(self, job_order, input_basedir, output_callbacks, **kwargs):
+        return
 
 def empty_subtree(dirpath):
     # Test if a directory tree contains any files (does not count empty
@@ -365,13 +379,15 @@ def empty_subtree(dirpath):
                 raise
     return True
 
-_names = set()
+_names = set()  # type: Set[str]
+
+
 def uniquename(stem):
     c = 1
     u = stem
     while u in _names:
         c += 1
-        u = "%s_%s" % (stem, c)
+        u = u"%s_%s" % (stem, c)
     _names.add(u)
     return u
 

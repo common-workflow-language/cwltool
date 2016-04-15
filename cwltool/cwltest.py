@@ -8,9 +8,11 @@ import sys
 import shutil
 import tempfile
 import yaml
+import yaml.scanner
 import pipes
 import logging
 import schema_salad.ref_resolver
+from typing import Any, Union
 
 _logger = logging.getLogger("cwltest")
 _logger.addHandler(logging.StreamHandler())
@@ -21,41 +23,43 @@ UNSUPPORTED_FEATURE = 33
 class CompareFail(Exception):
     pass
 
-def compare(a, b):
+
+def compare(a, b):  # type: (Any, Any) -> bool
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
                 if not (b["path"].endswith("/" + a["path"]) or ("/" not in b["path"] and a["path"] == b["path"])):
-                    raise CompareFail("%s does not end with %s" %(b["path"], a["path"]))
+                    raise CompareFail(u"%s does not end with %s" %(b["path"], a["path"]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
             if len(a) != len(b):
-                raise CompareFail("expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+                raise CompareFail(u"expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in a:
                 if a.get("class") != "File" or c != "path":
                     if c not in b:
-                        raise CompareFail("%s not in %s" % (c, b))
+                        raise CompareFail(u"%s not in %s" % (c, b))
                     if not compare(a[c], b[c]):
                         return False
             return True
         elif isinstance(a, list):
             if len(a) != len(b):
-                raise CompareFail("expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+                raise CompareFail(u"expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in xrange(0, len(a)):
                 if not compare(a[c], b[c]):
                     return False
             return True
         else:
             if a != b:
-                raise CompareFail("%s != %s" % (a, b))
+                raise CompareFail(u"%s != %s" % (a, b))
             else:
                 return True
     except Exception as e:
         raise CompareFail(str(e))
 
-def run_test(args, i, t):
-    out = {}
+
+def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> int
+    out = {}  # type: Dict[str,Any]
     outdir = None
     try:
         if "output" in t:
@@ -84,20 +88,20 @@ def run_test(args, i, t):
             outstr = subprocess.check_output(test_command)
             out = yaml.load(outstr)
     except ValueError as v:
-        _logger.error(v)
+        _logger.error(str(v))
         _logger.error(outstr)
     except subprocess.CalledProcessError as err:
         if err.returncode == UNSUPPORTED_FEATURE:
             return UNSUPPORTED_FEATURE
         else:
-            _logger.error("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+            _logger.error(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
             _logger.error(t.get("doc"))
             _logger.error("Returned non-zero")
             return 1
     except yaml.scanner.ScannerError as e:
-        _logger.error("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+        _logger.error(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
         _logger.error(outstr)
-        _logger.error("Parse error %s", str(e))
+        _logger.error(u"Parse error %s", str(e))
 
     pwd = os.path.abspath(os.path.dirname(t["job"]))
     # t["args"] = map(lambda x: x.replace("$PWD", pwd), t["args"])
@@ -114,16 +118,17 @@ def run_test(args, i, t):
         try:
             compare(t.get(key), out.get(key))
         except CompareFail as ex:
-            _logger.warn("""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+            _logger.warn(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
             _logger.warn(t.get("doc"))
-            _logger.warn("%s expected %s\n got %s", key,
+            _logger.warn(u"%s expected %s\n got %s", key,
                                                             json.dumps(t.get(key), indent=4, sort_keys=True),
                                                             json.dumps(out.get(key), indent=4, sort_keys=True))
-            _logger.warn("Compare failure %s", ex)
+            _logger.warn(u"Compare failure %s", ex)
             failed = True
 
     if outdir:
-        shutil.rmtree(outdir, True)
+        shutil.rmtree(outdir, True)  # type: ignore
+        # Weird AnyStr != basestring issue
 
     if failed:
         return 1
@@ -131,7 +136,7 @@ def run_test(args, i, t):
         return 0
 
 
-def main():
+def main():  # type: () -> int
     parser = argparse.ArgumentParser(description='Compliance tests for cwltool')
     parser.add_argument("--test", type=str, help="YAML file describing test cases", required=True)
     parser.add_argument("--basedir", type=str, help="Basedir to use for tests", default=".")
@@ -164,7 +169,7 @@ def main():
 
     if args.l:
         for i, t in enumerate(tests):
-            print "[%i] %s" % (i+1, t["doc"].strip())
+            print u"[%i] %s" % (i+1, t["doc"].strip())
         return 0
 
     if args.n is not None:

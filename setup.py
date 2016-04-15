@@ -33,10 +33,11 @@ setup(name='cwltool',
       install_requires=[
           'requests',
           'PyYAML',
-          'rdflib >= 4.2.0',
+          'rdflib >= 4.1.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          'schema_salad == 1.7.20160316203940'
+          'schema_salad == 1.7.20160316203940',
+          'typing'
         ],
       test_suite='tests',
       tests_require=[],
