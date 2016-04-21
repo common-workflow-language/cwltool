@@ -8,12 +8,14 @@ Syntax:
 
 Options:
   -nT   Run a specific test.
+  -l    List tests
 EOF
 
 DRAFT=draft-3
 TEST_N=""
 RUNNER=cwl-runner
-PLATFORM=`uname -s`
+PLATFORM=$(uname -s)
+COVERAGE="python"
 
 while [[ -n "$1" ]]
 do
@@ -26,6 +28,9 @@ do
             ;;
         -n*)
             TEST_N=$arg
+            ;;
+        -l)
+            TEST_L=-l
             ;;
         --only-tools)
             ONLY_TOOLS=--only-tools
@@ -59,7 +64,9 @@ runtest() {
 
     runs=$((runs+1))
     (cd $DRAFT
-     python -mcwltool.cwltest --tool "$1" --test=conformance_test_$DRAFT.yaml $TEST_N $ONLY_TOOLS --basedir $DRAFT
+     ${COVERAGE} -m cwltool.cwltest --tool "$1" \
+	     --test=conformance_test_${DRAFT}.yaml ${TEST_N} \
+	     ${TEST_L} ${ONLY_TOOLS} --basedir ${DRAFT}
     )
     checkexit
 }
@@ -68,6 +75,10 @@ if [[ $PLATFORM == "Linux" ]]; then
     runtest "$(readlink -f $runner)"
 else
     runtest "$(greadlink -f $runner)"
+fi
+
+if [[ -n "$TEST_L" ]] ; then
+   exit 0
 fi
 
 # Final reporting
