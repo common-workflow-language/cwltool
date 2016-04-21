@@ -22,7 +22,7 @@ from . import update
 from .process import shortname, Process
 import rdflib
 from .utils import aslist
-from typing import Union, Any, cast, Callable, Tuple, IO
+from typing import Union, Any, cast, Callable, Dict, Tuple, IO
 
 _logger = logging.getLogger("cwltool")
 
@@ -294,7 +294,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               rdf_serializer=None,
               stdout=sys.stdout,
               urifrag=None):
-    # type: (Union[str,unicode,dict[str,Any]], bool, bool, Callable[...,Process], bool, bool, bool, bool, bool, bool, Any, Any, Any) -> Any
+    # type: (Union[str,unicode,dict[unicode,Any]], bool, bool, Callable[...,Process], bool, bool, bool, bool, bool, bool, Any, Any, Any) -> Any
     (document_loader, avsc_names, schema_metadata) = process.get_schema()
 
     if isinstance(avsc_names, Exception):
@@ -302,7 +302,7 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
 
     jobobj = None
     uri = None  # type: str
-    workflowobj = None  # type: Dict[str, Any]
+    workflowobj = None  # type: Dict[unicode, Any]
     if isinstance(argsworkflow, (basestring)):
         split = urlparse.urlsplit(cast(str, argsworkflow))
         if split.scheme:
@@ -343,9 +343,11 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         return 0
 
     try:
-        processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
+        processobj, metadata = schema_salad.schema.load_and_validate(
+                document_loader, avsc_names, workflowobj, strict)
     except (schema_salad.validate.ValidationException, RuntimeError) as e:
-        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
+        _logger.error(u"Tool definition failed validation:\n%s", e,
+                exc_info=(e if debug else False))
         return 1
 
     if print_pre:
@@ -401,7 +403,10 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
     if args.conformance_test:
         loader = Loader({})
     else:
-        jobloaderctx = {"path": {"@type": "@id"}, "format": {"@type": "@id"}, "id": "@id"}
+        jobloaderctx = {
+                "path": {"@type": "@id"},
+                "format": {"@type": "@id"},
+                "id": "@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
         loader = Loader(jobloaderctx)
 
@@ -478,7 +483,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
-    # type: (Dict[str,Any], Loader, IO[Any], bool, str) -> None
+    # type: (Dict[unicode, Any], Loader, IO[Any], bool, str) -> None
     deps = {"class": "File",
             "path": obj.get("id", "#")}
 
@@ -507,7 +512,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
     stdout.write(json.dumps(deps, indent=4))
 
 def versionstring():
-    # type: () -> str
+    # type: () -> unicode
     pkg = pkg_resources.require("cwltool")
     if pkg:
         return u"%s %s" % (sys.argv[0], pkg[0].version)
@@ -524,7 +529,7 @@ def main(argsl=None,
          stdout=sys.stdout,
          stderr=sys.stderr,
          versionfunc=versionstring):
-    # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],str]) -> int
+    # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],unicode]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     _logger.addHandler(logging.StreamHandler(stderr))

@@ -1,16 +1,19 @@
 import json
 import urlparse
+from schema_salad.ref_resolver import Loader
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
 from typing import Any, Union, Dict, IO
 
 def makerdf(workflow, wf, ctx):
-    # type: (str, Dict[str,Any], Dict[str,Union[str, Dict[str,str]]]) -> Graph
+    # type: (str, Dict[str,Any], Loader.ContextType) -> Graph
     prefixes = {}
     for k,v in ctx.iteritems():
         if isinstance(v, dict):
-            v = v["@id"]
-        doc_url, frg = urlparse.urldefrag(v)
+            url = v["@id"]
+        else:
+            url = v
+        doc_url, frg = urlparse.urldefrag(url)
         if "/" in frg:
             p, _ = frg.split("/")
             prefixes[p] = u"%s#%s/" % (doc_url, p)
@@ -22,13 +25,13 @@ def makerdf(workflow, wf, ctx):
     for s,p,o in g.triples((None, URIRef("@id"), None)):
         g.remove((s, p, o))
 
-    for k,v in prefixes.iteritems():
-        g.namespace_manager.bind(k, v)
+    for k2,v2 in prefixes.iteritems():
+        g.namespace_manager.bind(k2, v2)
 
     return g
 
 def printrdf(workflow, wf, ctx, sr, stdout):
-    # type: (str, Dict[str,Any], Dict[str,Union[str, Dict[str,str]]], str, IO[Any]) -> None
+    # type: (str, Dict[str,Any], Loader.ContextType, str, IO[Any]) -> None
     stdout.write(makerdf(workflow, wf, ctx).serialize(format=sr))
 
 def lastpart(uri):  # type: (Any) -> str
@@ -158,7 +161,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
            }""")
 
     for src, sink, srcrun, sinkrun in qres:
-        attr = ""
+        attr = u""
         if srcrun in clusternode:
             attr += u'ltail="%s"' % dotname[srcrun]
             src = clusternode[srcrun]
@@ -169,7 +172,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
 
 
 def printdot(workflow, wf, ctx, stdout, include_parameters=False):
-    # type: (str, Dict[str,Any], Dict[str,Union[str, Dict[str,str]]], Any, bool) -> None
+    # type: (str, Dict[str,Any], Loader.ContextType, Any, bool) -> None
     g = makerdf(workflow, wf, ctx)
 
     stdout.write("digraph {")

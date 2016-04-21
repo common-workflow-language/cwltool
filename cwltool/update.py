@@ -3,7 +3,7 @@ import urlparse
 import json
 import re
 from .utils import aslist
-from typing import Any, Dict, Callable, Tuple
+from typing import Any, Dict, Callable, List, Tuple, Union
 import traceback
 from schema_salad.ref_resolver import Loader
 
@@ -27,7 +27,7 @@ def fixType(doc):  # type: (Any) -> Any
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
 
-    if isinstance(doc, (basestring)):
+    if isinstance(doc, (str, unicode)):
         if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
@@ -37,9 +37,14 @@ def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> An
         if isinstance(doc, dict):
             if "import" in doc:
                 imp = urlparse.urljoin(baseuri, doc["import"])
-                r = loader.fetch(imp)
-                if isinstance(r, list):
+                impLoaded = loader.fetch(imp)
+                r = None  # type: Dict[str, Any]
+                if isinstance(impLoaded, list):
                     r = {"@graph": r}
+                elif isinstance(impLoaded, dict):
+                    r = impLoaded
+                else:
+                    raise Exception("Unexpected code path.")
                 r["id"] = imp
                 _, frag = urlparse.urldefrag(imp)
                 if frag:
@@ -131,8 +136,13 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
     # Convert expressions
     if isinstance(doc, dict):
         if "@import" in doc:
-            r, _ = loader.resolve_ref(doc["@import"], base_url=baseuri)
-            return _draftDraft3dev1toDev2(r, loader, r["id"])
+            resolved_doc = loader.resolve_ref(
+                    doc["@import"], base_url=baseuri)[0]
+            if isinstance(resolved_doc, dict):
+                return _draftDraft3dev1toDev2(
+                        resolved_doc, loader, resolved_doc["id"])
+            else:
+                raise Exception("Unexpected codepath")
 
         for a in doc:
             doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
@@ -174,11 +184,15 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     return doc["@import"]
                 else:
                     imp = urlparse.urljoin(baseuri, doc["@import"])
-                    r = loader.fetch(imp)
-                    if isinstance(r, list):
-                        r = {"@graph": r}
+                    impLoaded = loader.fetch(imp)
+                    if isinstance(impLoaded, list):
+                        r = {"@graph": impLoaded}
+                    elif isinstance(impLoaded, dict):
+                        r = impLoaded
+                    else:
+                        raise Exception("Unexpected code path.")
                     r["id"] = imp
-                    _, frag = urlparse.urldefrag(imp)
+                    frag = urlparse.urldefrag(imp)[1]
                     if frag:
                         frag = "#" + frag
                         r = findId(r, frag)
@@ -215,9 +229,13 @@ def traverseImport(doc, loader, baseuri, func):
             return doc["$import"]
         else:
             imp = urlparse.urljoin(baseuri, doc["$import"])
-            r = loader.fetch(imp)
-            if isinstance(r, list):
-                r = {"$graph": r}
+            impLoaded = loader.fetch(imp)
+            if isinstance(impLoaded, list):
+                r = {"$graph": impLoaded}
+            elif isinstance(impLoaded, dict):
+                r = impLoaded
+            else:
+                raise Exception("Unexpected code path.")
             r["id"] = imp
             _, frag = urlparse.urldefrag(imp)
             if frag:
@@ -307,10 +325,10 @@ def update(doc, loader, baseuri):
         "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
         "https://w3id.org/cwl/cwl#draft-3.dev5": draftDraft3dev5toFinal,
         "https://w3id.org/cwl/cwl#draft-3": None
-    }
+        }  # type: Dict[unicode, Any]
 
     def identity(doc, loader, baseuri):
-        # type: (Any, Loader, str) -> Tuple[Any, str]
+        # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
         v = doc.get("cwlVersion")
         if v:
             return (doc, loader.expand_url(v, ""))

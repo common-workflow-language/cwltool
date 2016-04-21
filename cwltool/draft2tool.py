@@ -100,7 +100,7 @@ class CommandLineTool(Process):
         # type: (Dict[str,Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
-    def makeJobRunner(self):
+    def makeJobRunner(self):  # type: () -> CommandLineJob
         return CommandLineJob()
 
     def makePathMapper(self, reffiles, input_basedir, **kwargs):
@@ -267,7 +267,7 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir):
-        # type: (Dict[str,Any],Builder,str) -> Union[Dict[str,Any],List[Union[Dict[str,Any],str]]]
+        # type: (Dict[str,Any], Builder, str) -> Union[Dict[str, Any], List[Union[Dict[str, Any], str]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
@@ -372,9 +372,9 @@ class CommandLineTool(Process):
 
         if (not r and isinstance(schema["type"], dict) and
                 schema["type"]["type"] == "record"):
-            out = {} # type: Dict[str, Any]
+            out = {}
             for f in schema["type"]["fields"]:
-                out[shortname(f["name"])] = self.collect_output(
+                out[shortname(f["name"])] = self.collect_output(  # type: ignore
                         f, builder, outdir)
             return out
         return r

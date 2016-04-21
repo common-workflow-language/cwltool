@@ -48,10 +48,10 @@ class CommandLineJob(object):
         self.successCodes = None  # type: Iterable[int]
         self.temporaryFailCodes = None  # type: Iterable[int]
         self.permanentFailCodes = None  # type: Iterable[int]
-        self.requirements = None  # type: Dict[str,str]
+        self.requirements = None  # type: List[Dict[str, str]]
         self.hints = None  # type: Dict[str,str]
-        self.name = None  # type: str
-        self.command_line = None  # type: List[str]
+        self.name = None  # type: unicode
+        self.command_line = None  # type: List[unicode]
         self.pathmapper = None  # type: PathMapper
         self.collect_outputs = None  # type: Union[Callable[[Any], Any],functools.partial[Any]]
         self.output_callback = None  # type: Callable[[Any, Any], Any]
@@ -69,7 +69,7 @@ class CommandLineJob(object):
         #with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
         #    json.dump(self.joborder, fp)
 
-        runtime = []  # type: List[str]
+        runtime = []  # type: List[unicode]
         env = {"TMPDIR": self.tmpdir}  # type: Mapping[str,str]
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")

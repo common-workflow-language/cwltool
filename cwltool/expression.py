@@ -15,14 +15,14 @@ from typing import Any, AnyStr, Union
 _logger = logging.getLogger("cwltool")
 
 def jshead(engineConfig, rootvars):
-    # type: (List[str],Dict[str,str]) -> str
-    return "\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
+    # type: (List[unicode],Dict[str,str]) -> unicode
+    return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
     # type: (Dict[str,Any], Dict[str,str], List[Dict[str, Any]], str, str, Any, bool) -> sandboxjs.JSON
 
     if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
-        engineConfig = []  # type: List[str]
+        engineConfig = []  # type: List[unicode]
         for r in reversed(requirements):
             if r["class"] == "ExpressionEngineRequirement" and r["id"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
                 engineConfig = r.get("engineConfig", [])
@@ -126,7 +126,7 @@ def param_interpolate(ex, obj, strip=True):
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None):
-    # type: (Any, Dict[str,str], List[Dict[str,Any]], str, str, Dict[str,str], Any, bool, int) -> Any
+    # type: (Any, Dict[str,str], List[Dict[str,Any]], str, str, Dict[str, Union[int, str]], Any, bool, int) -> Any
 
     runtime = resources.copy()
     runtime["tmpdir"] = tmpdir
