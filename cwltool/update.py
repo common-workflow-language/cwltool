@@ -296,6 +296,10 @@ def draftDraft3dev5toFinal(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
     return (doc, "https://w3id.org/cwl/cwl#draft-3")
 
+def draft3toDraft4dev1(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
+    return (doc, "https://w3id.org/cwl/cwl#draft-4.dev1")
+
 
 def update(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
@@ -306,7 +310,8 @@ def update(doc, loader, baseuri):
         "https://w3id.org/cwl/cwl#draft-3.dev3": draftDraft3dev3toDev4,
         "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
         "https://w3id.org/cwl/cwl#draft-3.dev5": draftDraft3dev5toFinal,
-        "https://w3id.org/cwl/cwl#draft-3": None
+        "https://w3id.org/cwl/cwl#draft-3": draft3toDraft4dev1,
+        "https://w3id.org/cwl/cwl#draft-4.dev1": None,
     }
 
     def identity(doc, loader, baseuri):
