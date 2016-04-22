@@ -399,7 +399,7 @@ class Workflow(Process):
 
     def visit(self, op):
         self.tool = op(self.tool)
-        self.steps = [op(s) for s in self.steps]
+        self.steps = [op(s.tool) for s in self.steps]
 
 class WorkflowStep(Process):
 
