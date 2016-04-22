@@ -398,8 +398,10 @@ class Workflow(Process):
             yield w
 
     def visit(self, op):
-        self.tool = op(self.tool)
-        self.steps = [op(s.tool) for s in self.steps]
+        op(self.tool)
+        for s in self.steps:
+            s.visit(op)
+
 
 class WorkflowStep(Process):
 
@@ -511,6 +513,9 @@ class WorkflowStep(Process):
         except Exception as e:
             _logger.exception("Unexpected exception")
             raise WorkflowException(str(e))
+
+    def visit(self, op):
+        self.embedded_tool.visit(op)
 
 
 class ReceiveScatterOutput(object):

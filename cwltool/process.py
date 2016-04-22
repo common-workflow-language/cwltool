@@ -84,7 +84,7 @@ def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,An
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool] 
+def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
     for t in reversed(self.requirements):
         if t["class"] == feature:
             return (t, True)
@@ -354,7 +354,7 @@ class Process(object):
         return get_feature(self, feature)
 
     def visit(self, op):
-        self.tool = op(self.tool)
+        op(self.tool)
 
     @abc.abstractmethod
     def job(self, job_order, input_basedir, output_callbacks, **kwargs):
