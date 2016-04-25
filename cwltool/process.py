@@ -73,12 +73,12 @@ salad_files = ('metaschema.yml',
 def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,Any]]]
     cache = {}
     for f in cwl_files:
-        rs = resource_stream(__name__, 'schemas/draft-3/' + f)
+        rs = resource_stream(__name__, 'schemas/draft-4/' + f)
         cache["https://w3id.org/cwl/" + f] = rs.read()
         rs.close()
 
     for f in salad_files:
-        rs = resource_stream(__name__, 'schemas/draft-3/salad/schema_salad/metaschema/' + f)
+        rs = resource_stream(__name__, 'schemas/draft-4/salad/schema_salad/metaschema/' + f)
         cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
         rs.close()
 
