@@ -20,7 +20,7 @@ class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
-    def __new__(cls, referenced_files, basedir):
+    def __new__(cls, referenced_files, basedir, *args, **kwargs):
         # type: (Set[str], str) -> Any
         instance = super(PathMapper,cls).__new__(cls)
         instance._pathmap = {}  # type: Dict[str, Tuple[str, str]]

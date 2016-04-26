@@ -84,7 +84,7 @@ def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,An
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool] 
+def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
     for t in reversed(self.requirements):
         if t["class"] == feature:
             return (t, True)
@@ -190,6 +190,17 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
                 return
         raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
+def fillInDefaults(inputs, job):
+    for inp in inputs:
+        if shortname(inp["id"]) in job:
+            pass
+        elif shortname(inp["id"]) not in job and "default" in inp:
+            job[shortname(inp["id"])] = copy.copy(inp["default"])
+        elif shortname(inp["id"]) not in job and inp["type"][0] == "null":
+            pass
+        else:
+            raise validate.ValidationException("Missing input parameter `%s`" % shortname(inp["id"]))
+
 class Process(object):
     __metaclass__ = abc.ABCMeta
 
@@ -259,10 +270,7 @@ class Process(object):
         builder = Builder()
         builder.job = copy.deepcopy(joborder)
 
-        for i in self.tool["inputs"]:
-            d = shortname(i["id"])
-            if d not in builder.job and "default" in i:
-                builder.job[d] = i["default"]
+        fillInDefaults(self.tool["inputs"], builder.job)
 
         # Validate job order
         try:
@@ -355,7 +363,7 @@ class Process(object):
         return get_feature(self, feature)
 
     def visit(self, op):
-        self.tool = op(self.tool)
+        op(self.tool)
 
     @abc.abstractmethod
     def job(self, job_order, input_basedir, output_callbacks, **kwargs):
