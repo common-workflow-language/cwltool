@@ -284,10 +284,10 @@ def generate_parser(toolparser, tool, namemap):
         default = None # type: Any
 
         if inptype == "File":
-            action = cast(FileAction, argparse.Action)
+            action = cast(argparse.Action, FileAction)
         elif isinstance(inptype, dict) and inptype["type"] == "array":
             if inptype["items"] == "File":
-                action = cast(FileAppendAction, argparse.Action)
+                action = cast(argparse.Action, FileAppendAction)
             else:
                 action = "append"
 
