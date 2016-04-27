@@ -124,12 +124,16 @@ class CommandLineTool(Process):
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
             cachebuilder = self._init_job(joborder, input_basedir, **kwargs)
-            cachekey = hashlib.md5(json.dumps(flatten(map(cachebuilder.generate_arg, cachebuilder.bindings)))).hexdigest()
-            jobcachedir = os.path.join(kwargs["cachedir"], cachekey)
-            if os.path.exists(jobcachedir):
-                print "Would use cache %s here" % jobcachedir
+            cmdline = json.dumps(flatten(map(cachebuilder.generate_arg, cachebuilder.bindings)))
+            print cmdline
+            print "outdir", kwargs["outdir"]
+            print "tmp_outdir_prefix", kwargs["tmp_outdir_prefix"]
+            cachekey = hashlib.md5().hexdigest()
+            jobcachefile = os.path.join(kwargs["cachedir"], cachekey)
+            if os.path.exists(jobcachefile):
+                print "Would use cache %s here" % jobcachefile
             else:
-                os.mkdir(jobcachedir)
+                pass
 
         builder = self._init_job(joborder, input_basedir, **kwargs)
 
