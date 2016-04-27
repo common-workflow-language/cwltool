@@ -23,6 +23,7 @@ from .builder import CONTENT_LIMIT, substitute, Builder
 import shellescape
 import errno
 from typing import Callable, Any, Union, Generator, cast
+import hashlib
 
 _logger = logging.getLogger("cwltool")
 
@@ -117,33 +118,20 @@ class CommandLineTool(Process):
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
         # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[CommandLineJob, None, None]
+
+        if kwargs.get("cachedir"):
+            cacheargs = kwargs.copy()
+            cacheargs["outdir"] = "/out"
+            cacheargs["tmpdir"] = "/tmp"
+            cachebuilder = self._init_job(joborder, input_basedir, **kwargs)
+            cachekey = hashlib.md5(json.dumps(flatten(map(cachebuilder.generate_arg, cachebuilder.bindings)))).hexdigest()
+            jobcachedir = os.path.join(kwargs["cachedir"], cachekey)
+            if os.path.exists(jobcachedir):
+                print "Would use cache %s here" % jobcachedir
+            else:
+                os.mkdir(jobcachedir)
+
         builder = self._init_job(joborder, input_basedir, **kwargs)
-
-        if self.tool["baseCommand"]:
-            for n, b in enumerate(aslist(self.tool["baseCommand"])):
-                builder.bindings.append({
-                    "position": [-1000000, n],
-                    "valueFrom": b
-                })
-
-        if self.tool.get("arguments"):
-            for i, a in enumerate(self.tool["arguments"]):
-                if isinstance(a, dict):
-                    a = copy.copy(a)
-                    if a.get("position"):
-                        a["position"] = [a["position"], i]
-                    else:
-                        a["position"] = [0, i]
-                    a["do_eval"] = a["valueFrom"]
-                    a["valueFrom"] = None
-                    builder.bindings.append(a)
-                else:
-                    builder.bindings.append({
-                        "position": [0, i],
-                        "valueFrom": a
-                    })
-
-        builder.bindings.sort(key=lambda a: a["position"])
 
         reffiles = set((f["path"] for f in builder.files))
 
@@ -246,7 +234,7 @@ class CommandLineTool(Process):
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
                 adjustFileObjs(ret, remove_hostfs)
                 adjustFileObjs(ret,
-                        cast(Callable[[Any], Any],  # known bug in mypy 
+                        cast(Callable[[Any], Any],  # known bug in mypy
                             # https://github.com/python/mypy/issues/797
                             functools.partial(revmap_file, builder, outdir)))
                 adjustFileObjs(ret, remove_hostfs)
