@@ -50,8 +50,6 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         default=("PATH",),
                         dest="preserve_environment")
 
-    parser.add_argument("--cache-intermediate-output", action="store_true")
-
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-container", action="store_true", default=True,
                         help="Delete Docker container used by jobs after they exit (default)",
@@ -65,9 +63,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Path prefix for temporary directories",
                         default="tmp")
 
-    parser.add_argument("--tmp-outdir-prefix", type=str,
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--tmp-outdir-prefix", type=str,
                         help="Path prefix for intermediate output directories",
                         default="tmp")
+
+    exgroup.add_argument("--cachedir", type=str, default="",
+                        help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
@@ -167,31 +169,6 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
                     input_basedir,
                     output_callback,
                     **kwargs)
-
-    if not kwargs.get("generate_identity"):
-        def generate_identity(job, **kwargs):
-            def strip_tmp(arg, tmp):
-                if arg[:len(tmp)] == tmp:
-                    return arg[len(tmp):]
-
-            def reversemap(arg):
-                back = job.pathmapper.reversemap(arg)
-
-                try:
-                    dirs = job.builder.pathmapper.dirs
-                except:
-                    dirs = {}
-                untmp = filter(lambda x: x, map(lambda tmp: strip_tmp(arg, tmp), dirs.values()))
-
-                if back:
-                    return os.path.basename(back[1])
-                elif len(untmp) > 0:
-                    return untmp[0]
-                else:
-                    return arg
-            line = [reversemap(arg) for arg in job.command_line]
-            return hashlib.md5(string.join(line)).hexdigest()
-        kwargs["generate_identity"] = generate_identity
 
     if kwargs.get("conformance_test"):
         job = jobiter.next()
@@ -626,13 +603,16 @@ def main(argsl=None,
     if isinstance(job_order_object, int):
         return job_order_object
 
+    if args.cachedir:
+        args.cachedir = os.path.abspath(args.cachedir)
+
     try:
         out = executor(t, job_order_object[0],
                        job_order_object[1], args,
                        conformance_test=args.conformance_test,
                        dry_run=args.dry_run,
                        outdir=args.outdir,
-                       tmp_outdir_prefix=args.tmp_outdir_prefix,
+                       tmp_outdir_prefix=args.cachedir if args.cachedir else args.tmp_outdir_prefix,
                        use_container=args.use_container,
                        preserve_environment=args.preserve_environment,
                        pull_image=args.enable_pull,
@@ -644,7 +624,7 @@ def main(argsl=None,
                        move_outputs=args.move_outputs,
                        select_resources=selectResources,
                        eval_timeout=args.eval_timeout,
-                       cache_intermediate_output=args.cache_intermediate_output
+                       cachedir=args.cachedir
                        )
         # This is the workflow output, it needs to be written
         if out is not None:
