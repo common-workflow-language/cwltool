@@ -613,7 +613,11 @@ def main(argsl=None,
                        )
         # This is the workflow output, it needs to be written
         if out is not None:
-            stdout.write(json.dumps(out, indent=4))
+            if isinstance(out, basestring):
+                stdout.write(out)
+            else:
+                stdout.write(json.dumps(out, indent=4))
+            stdout.write("\n")
             stdout.flush()
         else:
             return 1
