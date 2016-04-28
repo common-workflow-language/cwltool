@@ -31,7 +31,6 @@ from rdflib import Graph
 _logger = logging.getLogger("cwltool")
 
 supportedProcessRequirements = ["DockerRequirement",
-                                "ExpressionEngineRequirement",
                                 "SchemaDefRequirement",
                                 "EnvVarRequirement",
                                 "CreateFileRequirement",

@@ -129,18 +129,33 @@ class CommandLineTool(Process):
             cachebuilder = self._init_job(joborder, input_basedir, **cacheargs)
             cachebuilder.pathmapper = PathMapper(set((f["path"] for f in cachebuilder.files)),
                                                  input_basedir)
+
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
                 cmdline = ["docker", "run", dockerimg] + cmdline
+
             keydict = {"cmdline": cmdline}
+
             for _,f in cachebuilder.pathmapper.items():
                 st = os.stat(f[0])
                 keydict[f[0]] = [st.st_size, int(st.st_mtime * 1000)]
+
+            interesting = {"DockerRequirement",
+                           "EnvVarRequirement",
+                           "CreateFileRequirement",
+                           "ShellCommandRequirement"}
+            for rh in (self.requirements, self.hints):
+                for r in reversed(rh):
+                    if r["class"] in interesting and r["class"] not in keydict:
+                        keydict[r["class"]] = r
+
             keydictstr = json.dumps(keydict, separators=(',',':'), sort_keys=True)
             cachekey = hashlib.md5(keydictstr).hexdigest()
+
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey)
+
             jobcache = os.path.join(kwargs["cachedir"], cachekey)
             jobcachepending = jobcache + ".pending"
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
