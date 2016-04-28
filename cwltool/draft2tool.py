@@ -120,7 +120,7 @@ class CommandLineTool(Process):
     def job(self, joborder, input_basedir, output_callback, **kwargs):
         # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[CommandLineJob, None, None]
 
-        jobname = uniquename(kwargs.get("name", shortname(self.tool["id"])))
+        jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
         if kwargs.get("cachedir"):
             cacheargs = kwargs.copy()
