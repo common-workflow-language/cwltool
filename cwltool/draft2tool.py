@@ -158,6 +158,7 @@ class CommandLineTool(Process):
                 yield CallbackJob(self, output_callback, cachebuilder, jobcache)
                 return
             else:
+                _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
                 shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)
                 kwargs["outdir"] = jobcache
