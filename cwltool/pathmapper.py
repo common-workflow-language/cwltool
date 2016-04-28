@@ -20,13 +20,12 @@ class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
-    def __new__(cls, referenced_files, basedir, *args, **kwargs):
-        # type: (Set[str], str) -> Any
-        instance = super(PathMapper,cls).__new__(cls)
-        instance._pathmap = {}  # type: Dict[str, Tuple[str, str]]
-        return instance
-
     def __init__(self, referenced_files, basedir):
+        # type: (Set[str], str) -> None
+        self._pathmap = {}  # type: Dict[str, Tuple[str, str]]
+        self.setup(referenced_files, basedir)
+
+    def setup(self, referenced_files, basedir):
         # type: (Set[str], str) -> None
         for src in referenced_files:
             ab = abspath(src, basedir)
@@ -52,30 +51,28 @@ class PathMapper(object):
 
 class DockerPathMapper(PathMapper):
 
-    def __new__(cls, referenced_files, basedir):
-        # type: (Set[str], str) -> None
-        instance = super(DockerPathMapper,cls).__new__(cls, referenced_files, basedir)
-        instance.dirs = {}  # type: Dict[str, Union[bool, str]]
-        return instance
-
     def __init__(self, referenced_files, basedir):
         # type: (Set[str], str) -> None
+        self.dirs = {}  # type: Dict[str, Union[bool, str]]
+        super(DockerPathMapper, self).__init__(referenced_files, basedir)
+
+    def setup(self, referenced_files, basedir):
         for src in referenced_files:
             ab = abspath(src, basedir)
-            dir, fn = os.path.split(ab)
+            dirn, fn = os.path.split(ab)
 
             subdir = False
             for d in self.dirs:
-                if dir.startswith(d):
+                if dirn.startswith(d):
                   subdir = True
                   break
 
             if not subdir:
                 for d in list(self.dirs):
-                    if d.startswith(dir):
-                        # 'dir' is a parent of 'd'
+                    if d.startswith(dirn):
+                        # 'dirn' is a parent of 'd'
                         del self.dirs[d]
-                self.dirs[dir] = True
+                self.dirs[dirn] = True
 
         prefix = "job" + str(random.randint(1, 1000000000)) + "_"
 
@@ -85,7 +82,8 @@ class DockerPathMapper(PathMapper):
             i = 1
             while name in names:
                 i += 1
-                name = os.path.join("/var/lib/cwl", prefix + os.path.basename(d) + str(i))
+                name = os.path.join("/var/lib/cwl",
+                        prefix + os.path.basename(d) + str(i))
             names.add(name)
             self.dirs[d] = name
 
@@ -96,9 +94,11 @@ class DockerPathMapper(PathMapper):
             st = os.lstat(deref)
             while stat.S_ISLNK(st.st_mode):
                 rl = os.readlink(deref)
-                deref = rl if os.path.isabs(rl) else os.path.join(os.path.dirname(deref), rl)
+                deref = rl if os.path.isabs(rl) else os.path.join(
+                        os.path.dirname(deref), rl)
                 st = os.lstat(deref)
 
             for d in self.dirs:
                 if ab.startswith(d):
-                    self._pathmap[src] = (deref, os.path.join(self.dirs[d], ab[len(d)+1:]))
+                    self._pathmap[src] = (deref, os.path.join(
+                        self.dirs[d], ab[len(d)+1:]))

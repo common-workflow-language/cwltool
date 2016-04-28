@@ -33,20 +33,20 @@ class Builder(object):
 
     def __init__(self):  # type: () -> None
         self.names = None  # type: avro.schema.Names
-        self.schemaDefs = None  # type: Dict[str,Dict[str,str]]
-        self.files = None  # type: List[str]
+        self.schemaDefs = None  # type: Dict[str,Dict[unicode, Any]]
+        self.files = None  # type: List[Dict[str, str]]
         self.fs_access = None  # type: StdFsAccess
-        self.job = None  # type: Dict[str,str]
+        self.job = None  # type: Dict[str, Any]
         self.requirements = None  # type: List[Dict[str,Any]]
         self.outdir = None  # type: str
         self.tmpdir = None  # type: str
-        self.resources = None  # type: Dict[str,str]
-        self.bindings = []  # type: List[Dict[str,str]]
+        self.resources = None  # type: Dict[str, Union[int, str]]
+        self.bindings = []  # type: List[Dict[str, Any]]
         self.timeout = None  # type: int
         self.pathmapper = None # type: PathMapper
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
-        # type: (Dict[str,Any], Any, List[int], List[int]) -> List[Dict[str,str]]
+        # type: (Dict[unicode, Any], Any, List[int], List[int]) -> List[Dict[str, Any]]
         bindings = []  # type: List[Dict[str,str]]
         binding = None  # type: Dict[str,Any]
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
@@ -64,7 +64,7 @@ class Builder(object):
         # Handle union types
         if isinstance(schema["type"], list):
             for t in schema["type"]:
-                if isinstance(t, basestring) and self.names.has_name(t, ""):
+                if isinstance(t, (str, unicode)) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
@@ -148,7 +148,7 @@ class Builder(object):
 
         return bindings
 
-    def tostr(self, value):  # type(Any) -> str
+    def tostr(self, value):  # type: (Any) -> str
         if isinstance(value, dict) and value.get("class") == "File":
             if "path" not in value:
                 raise WorkflowException(u"File object must have \"path\": %s" % (value))

@@ -8,7 +8,7 @@ import yaml
 import copy
 import logging
 import pprint
-from .utils import aslist
+from .utils import aslist, get_feature
 import schema_salad.schema
 from schema_salad.ref_resolver import Loader
 import urlparse
@@ -20,11 +20,13 @@ import tempfile
 import glob
 from .errors import WorkflowException
 from .pathmapper import abspath
-from typing import Any, Union, IO, AnyStr, Tuple
+from typing import Any, Callable, Generator, Union, IO, AnyStr, Tuple
+from collections import Iterable
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
 from .stdfsaccess import StdFsAccess
 import errno
+from rdflib import Graph
 
 _logger = logging.getLogger("cwltool")
 
@@ -70,7 +72,8 @@ salad_files = ('metaschema.yml',
               'vocab_res_schema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
-def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,Any]]]
+def get_schema():
+    # type: () -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any]]
     cache = {}
     for f in cwl_files:
         rs = resource_stream(__name__, 'schemas/draft-3/' + f)
@@ -83,16 +86,6 @@ def get_schema():  # type: () -> Tuple[Loader,avro.schema.Names,List[Dict[str,An
         rs.close()
 
     return schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
-
-def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
-    for t in reversed(self.requirements):
-        if t["class"] == feature:
-            return (t, True)
-    for t in reversed(self.hints):
-        if t["class"] == feature:
-            return (t, False)
-    return (None, None)
-
 
 def shortname(inputid):
     # type: (str) -> str
@@ -107,6 +100,7 @@ class UnsupportedRequirement(Exception):
     pass
 
 def checkRequirements(rec, supportedProcessRequirements):
+    # type: (Any, Iterable[Any]) -> None
     if isinstance(rec, dict):
         if "requirements" in rec:
             for r in rec["requirements"]:
@@ -118,7 +112,7 @@ def checkRequirements(rec, supportedProcessRequirements):
         for d in rec:
             checkRequirements(d, supportedProcessRequirements)
 
-def adjustFiles(rec, op):
+def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
 
     if isinstance(rec, dict):
@@ -148,6 +142,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 def formatSubclassOf(fmt, cls, ontology, visited):
+    # type: (str, str, Graph, Set[str]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
 
     if URIRef(fmt) == URIRef(cls):
@@ -157,23 +152,23 @@ def formatSubclassOf(fmt, cls, ontology, visited):
         return False
 
     if fmt in visited:
-        return
+        return False
 
     visited.add(fmt)
 
-    fmt = URIRef(fmt)
+    uriRefFmt = URIRef(fmt)
 
-    for s,p,o in ontology.triples( (fmt, RDFS.subClassOf, None) ):
+    for s,p,o in ontology.triples( (uriRefFmt, RDFS.subClassOf, None) ):
         # Find parent classes of `fmt` and search upward
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (fmt, OWL.equivalentClass, None) ):
+    for s,p,o in ontology.triples( (uriRefFmt, OWL.equivalentClass, None) ):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (None, OWL.equivalentClass, fmt) ):
+    for s,p,o in ontology.triples( (None, OWL.equivalentClass, uriRefFmt) ):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(s, cls, ontology, visited):
             return True
@@ -181,7 +176,8 @@ def formatSubclassOf(fmt, cls, ontology, visited):
     return False
 
 
-def checkFormat(actualFile, inputFormats, requirements, ontology):
+def checkFormat(actualFile, inputFormats, ontology):
+    # type: (Union[Dict[str, Any], List[Dict[str, Any]]], Any, Graph) -> None 
     for af in aslist(actualFile):
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
@@ -191,6 +187,7 @@ def checkFormat(actualFile, inputFormats, requirements, ontology):
         raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 def fillInDefaults(inputs, job):
+    # type: (List[Dict[str, str]], Dict[str, str]) -> None
     for inp in inputs:
         if shortname(inp["id"]) in job:
             pass
@@ -207,19 +204,23 @@ class Process(object):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[str,Any], **Any) -> None
         self.metadata = None  # type: Dict[str,Any]
-        self.names = get_schema()[1]
+        self.names = None  # type: avro.schema.Names
+        n = get_schema()[1]
+        if isinstance(n, avro.schema.SchemaParseException):
+            raise n
+        else:
+            self.names = n
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
+        self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
-        else:
-            self.formatgraph = None
 
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
 
-        self.schemaDefs = {}  # type: Dict[str,Dict[str,str]]
+        self.schemaDefs = {}  # type: Dict[str,Dict[unicode, Any]]
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -231,8 +232,12 @@ class Process(object):
             avro.schema.make_avsc_object(av, self.names)
 
         # Build record schema from inputs
-        self.inputs_record_schema = {"name": "input_record_schema", "type": "record", "fields": []}
-        self.outputs_record_schema = {"name": "outputs_record_schema", "type": "record", "fields": []}
+        self.inputs_record_schema = {
+                "name": "input_record_schema", "type": "record",
+                "fields": []}  # type: Dict[unicode, Any]
+        self.outputs_record_schema = {
+                "name": "outputs_record_schema", "type": "record",
+                "fields": []}  # type: Dict[unicode, Any]
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
@@ -267,6 +272,7 @@ class Process(object):
 
 
     def _init_job(self, joborder, input_basedir, **kwargs):
+        # type: (Dict[str, str], str, **Any) -> Builder
         builder = Builder()
         builder.job = copy.deepcopy(joborder)
 
@@ -300,7 +306,7 @@ class Process(object):
             for i in self.tool["inputs"]:
                 d = shortname(i["id"])
                 if d in builder.job and i.get("format"):
-                    checkFormat(builder.job[d], builder.do_eval(i["format"]), self.requirements, self.formatgraph)
+                    checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
 
@@ -309,6 +315,7 @@ class Process(object):
         return builder
 
     def evalResources(self, builder, kwargs):
+        # type: (Builder, Dict[str, Any]) -> Dict[str, Union[int, str]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -349,16 +356,18 @@ class Process(object):
             }
 
     def validate_hints(self, hints, strict):
+        # type: (List[Dict[str, Any]], bool) -> None
         for r in hints:
             try:
                 if self.names.get_name(r["class"], "") is not None:
                     validate.validate_ex(self.names.get_name(r["class"], ""), r, strict=strict)
                 else:
-                    _logger.info(validate.ValidationException(u"Unknown hint %s" % (r["class"])))
+                    _logger.info(str(validate.ValidationException(
+                    u"Unknown hint %s" % (r["class"]))))
             except validate.ValidationException as v:
                 raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], str(v)))
 
-    def get_requirement(self, feature):
+    def get_requirement(self, feature):  # type: (Any) -> Tuple[Any, bool]
         return get_feature(self, feature)
 
     def visit(self, op):
@@ -366,9 +375,10 @@ class Process(object):
 
     @abc.abstractmethod
     def job(self, job_order, input_basedir, output_callbacks, **kwargs):
-        return
+        # type: (Dict[str, str], str, Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
+        return None
 
-def empty_subtree(dirpath):
+def empty_subtree(dirpath):  # type: (AnyStr) -> bool
     # Test if a directory tree contains any files (does not count empty
     # subdirectories)
     for d in os.listdir(dirpath):
@@ -386,10 +396,10 @@ def empty_subtree(dirpath):
                 raise
     return True
 
-_names = set()  # type: Set[str]
+_names = set()  # type: Set[unicode]
 
 
-def uniquename(stem):
+def uniquename(stem):  # type: (unicode) -> unicode
     c = 1
     u = stem
     while u in _names:
@@ -399,6 +409,7 @@ def uniquename(stem):
     return u
 
 def scandeps(base, doc, reffields, urlfields, loadref):
+    # type: (str, Any, Set[str], Set[str], Callable[[str, str], Any]) -> List[Dict[str, str]]
     r = []
     if isinstance(doc, dict):
         if "id" in doc:
@@ -422,7 +433,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         deps = {
                             "class": "File",
                             "path": subid
-                        }
+                            }  # type: Dict[str, Any]
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf

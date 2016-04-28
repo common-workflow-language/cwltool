@@ -222,7 +222,7 @@ class WorkflowJob(object):
                 raise WorkflowException("Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
-            def valueFromFunc(k, v):
+            def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                 if k in valueFrom:
                     return expression.do_eval(valueFrom[k], vfinputs, self.workflow.requirements,
                                        None, None, {}, context=v)
@@ -415,11 +415,10 @@ class WorkflowStep(Process):
         try:
             makeTool = kwargs.get("makeTool")
             runobj = None
-            if isinstance(toolpath_object["run"], basestring):
-                runobj, _ = schema_salad.schema.load_and_validate(kwargs["loader"],
-                                                                  kwargs["avsc_names"],
-                                                                  toolpath_object["run"],
-                                                                  True)
+            if isinstance(toolpath_object["run"], (str, unicode)):
+                runobj = schema_salad.schema.load_and_validate(
+                        kwargs["loader"], kwargs["avsc_names"],
+                        toolpath_object["run"], True)[0]
             else:
                 runobj = toolpath_object["run"]
             self.embedded_tool = makeTool(runobj, **kwargs)

@@ -165,9 +165,12 @@ def main():  # type: () -> int
         tests = []
         for t in alltests:
             loader = schema_salad.ref_resolver.Loader({"id": "@id"})
-            cwl, _ = loader.resolve_ref(t["tool"])
-            if cwl["class"] == "CommandLineTool":
-                tests.append(t)
+            cwl = loader.resolve_ref(t["tool"])[0]
+            if isinstance(cwl, dict):
+                if cwl["class"] == "CommandLineTool":
+                    tests.append(t)
+            else:
+                raise Exception("Unexpected code path.")
 
     if args.l:
         for i, t in enumerate(tests):

@@ -13,7 +13,7 @@ class TestPathMapper(unittest.TestCase):
         class SubPathMapper(PathMapper):
 
             def __init__(self, referenced_files, basedir, new):
-                super(PathMapper, self).__init__(referenced_files, basedir)
+                super(SubPathMapper, self).__init__(referenced_files, basedir)
                 self.new = new
 
         a = SubPathMapper([], '', "new")
