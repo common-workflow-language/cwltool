@@ -4,6 +4,7 @@ import copy
 from .flatten import flatten
 import functools
 import os
+import shutil
 from .pathmapper import PathMapper, DockerPathMapper
 from .job import CommandLineJob
 import yaml
@@ -20,6 +21,7 @@ import re
 import urlparse
 import tempfile
 from .builder import CONTENT_LIMIT, substitute, Builder
+from distutils.dir_util import copy_tree
 import shellescape
 import errno
 from typing import Callable, Any, Union, Generator, cast
@@ -235,7 +237,7 @@ class CommandLineTool(Process):
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir):
+    def collect_output_ports(self, ports, builder, outdir, **kwargs):
         # type: (Set[Dict[str,Any]], Builder, str) -> Dict[str,Union[str,List[Any],Dict[str,Any]]]
         try:
             ret = {}  # type: Dict[str,Union[str,List[Any],Dict[str,Any]]]
@@ -262,6 +264,11 @@ class CommandLineTool(Process):
             if ret:
                 adjustFileObjs(ret, remove_hostfs)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
+
+            if builder.cacheIntermediateOutput:
+                cachedir = kwargs.get("cachedir")
+                copy_tree(outdir, cachedir)
+
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))

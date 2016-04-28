@@ -2,6 +2,7 @@ import subprocess
 import io
 import os
 import tempfile
+import string
 import glob
 import json
 import yaml
@@ -15,6 +16,8 @@ import shutil
 import stat
 import re
 import shellescape
+import hashlib
+from distutils.dir_util import copy_tree
 from .docker_uid import docker_vm_uid
 from .builder import Builder
 from typing import Union, Iterable, Callable, Any, Mapping, IO, cast, Tuple
@@ -150,73 +153,80 @@ class CommandLineJob(object):
         outputs = {}  # type: Dict[str,str]
 
         try:
-            for t in self.generatefiles:
-                entry = self.generatefiles[t]
-                if isinstance(entry, dict):
-                    src = entry["path"]
-                    dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        _logger.debug(u"symlinking %s to %s", dst, src)
-                        os.symlink(src, dst)
-                elif isinstance(entry, str):
-                    with open(os.path.join(self.outdir, t), "w") as fout:
-                        fout.write(entry)
+            digest = kwargs.get("generate_identity")(self, **kwargs)
+            cachedir = os.path.join(kwargs.get("outdir"), "cache", digest)
+
+            if kwargs.get("cache_intermediate_output") and os.path.exists(cachedir):
+                copy_tree(cachedir, self.outdir)
+                processStatus = "success"
+            else:
+                for t in self.generatefiles:
+                    entry = self.generatefiles[t]
+                    if isinstance(entry, dict):
+                        src = entry["path"]
+                        dst = os.path.join(self.outdir, t)
+                        if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
+                            _logger.debug(u"symlinking %s to %s", dst, src)
+                            os.symlink(src, dst)
+                    elif isinstance(entry, str):
+                        with open(os.path.join(self.outdir, t), "w") as fout:
+                            fout.write(entry)
+                    else:
+                        raise Exception("Unhandled type")
+
+                if self.stdin:
+                    stdin = open(self.pathmapper.mapper(self.stdin)[0], "rb")
                 else:
-                    raise Exception("Unhandled type")
+                    stdin = subprocess.PIPE
 
-            if self.stdin:
-                stdin = open(self.pathmapper.mapper(self.stdin)[0], "rb")
-            else:
-                stdin = subprocess.PIPE
+                if self.stdout:
+                    absout = os.path.join(self.outdir, self.stdout)
+                    dn = os.path.dirname(absout)
+                    if dn and not os.path.exists(dn):
+                        os.makedirs(dn)
+                    stdout = open(absout, "wb")
+                else:
+                    stdout = sys.stderr
 
-            if self.stdout:
-                absout = os.path.join(self.outdir, self.stdout)
-                dn = os.path.dirname(absout)
-                if dn and not os.path.exists(dn):
-                    os.makedirs(dn)
-                stdout = open(absout, "wb")
-            else:
-                stdout = sys.stderr
+                sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
+                                      shell=False,
+                                      close_fds=True,
+                                      stdin=stdin,
+                                      stdout=stdout,
+                                      env=env,
+                                      cwd=self.outdir)
 
-            sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
-                                  shell=False,
-                                  close_fds=True,
-                                  stdin=stdin,
-                                  stdout=stdout,
-                                  env=env,
-                                  cwd=self.outdir)
+                if sp.stdin:
+                    sp.stdin.close()
 
-            if sp.stdin:
-                sp.stdin.close()
+                rcode = sp.wait()
 
-            rcode = sp.wait()
+                if isinstance(stdin, file):
+                    stdin.close()
 
-            if isinstance(stdin, file):
-                stdin.close()
+                if stdout is not sys.stderr:
+                    stdout.close()
 
-            if stdout is not sys.stderr:
-                stdout.close()
+                if self.successCodes and rcode in self.successCodes:
+                    processStatus = "success"
+                elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
+                    processStatus = "temporaryFail"
+                elif self.permanentFailCodes and rcode in self.permanentFailCodes:
+                    processStatus = "permanentFail"
+                elif rcode == 0:
+                    processStatus = "success"
+                else:
+                    processStatus = "permanentFail"
 
-            if self.successCodes and rcode in self.successCodes:
-                processStatus = "success"
-            elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
-                processStatus = "temporaryFail"
-            elif self.permanentFailCodes and rcode in self.permanentFailCodes:
-                processStatus = "permanentFail"
-            elif rcode == 0:
-                processStatus = "success"
-            else:
-                processStatus = "permanentFail"
+                for t in self.generatefiles:
+                    if isinstance(self.generatefiles[t], dict):
+                        src = cast(dict, self.generatefiles[t])["path"]
+                        dst = os.path.join(self.outdir, t)
+                        if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
+                            os.remove(dst)
+                            os.symlink(self.pathmapper.reversemap(src)[1], dst)
 
-            for t in self.generatefiles:
-                if isinstance(self.generatefiles[t], dict):
-                    src = cast(dict, self.generatefiles[t])["path"]
-                    dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        os.remove(dst)
-                        os.symlink(self.pathmapper.reversemap(src)[1], dst)
-
-            outputs = self.collect_outputs(self.outdir)
+            outputs = self.collect_outputs(self.outdir, cachedir=cachedir)
 
         except OSError as e:
             if e.errno == 2:

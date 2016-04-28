@@ -285,6 +285,7 @@ class Process(object):
         builder.requirements = self.requirements
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
+        builder.cacheIntermediateOutput = kwargs.get("cache_intermediate_output")
 
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
