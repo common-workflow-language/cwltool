@@ -24,6 +24,7 @@ import shellescape
 import errno
 from typing import Callable, Any, Union, Generator, cast
 import hashlib
+import shutil
 
 _logger = logging.getLogger("cwltool")
 
@@ -119,20 +120,30 @@ class CommandLineTool(Process):
     def job(self, joborder, input_basedir, output_callback, **kwargs):
         # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[CommandLineJob, None, None]
 
+        jobname = uniquename(kwargs.get("name", shortname(self.tool["id"])))
+
         if kwargs.get("cachedir"):
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
             cachebuilder = self._init_job(joborder, input_basedir, **cacheargs)
+            cachebuilder.pathmapper = PathMapper(set((f["path"] for f in cachebuilder.files)),
+                                                 input_basedir)
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
                 cmdline = ["docker", "run", dockerimg] + cmdline
-            cmdlinestr = json.dumps(cmdline)
-            cachekey = hashlib.md5(cmdlinestr).hexdigest()
+            keydict = {"cmdline": cmdline}
+            for _,f in cachebuilder.pathmapper.items():
+                st = os.stat(f[0])
+                keydict[f[0]] = [st.st_size, int(st.st_mtime * 1000)]
+            keydictstr = json.dumps(keydict, separators=(',',':'), sort_keys=True)
+            cachekey = hashlib.md5(keydictstr).hexdigest()
+            _logger.debug("[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey)
             jobcache = os.path.join(kwargs["cachedir"], cachekey)
-            if os.path.isdir(jobcache):
+            jobcachepending = jobcache + ".pending"
+            if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
                 class CallbackJob(object):
                     def __init__(self, job, output_callback, cachebuilder, jobcache):
                         self.job = job
@@ -143,11 +154,20 @@ class CommandLineTool(Process):
                         self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
                                                                            self.cachebuilder, self.outdir),
                                             "success")
+                _logger.info("[job %s] Using cached output in %s", jobname, jobcache)
                 yield CallbackJob(self, output_callback, cachebuilder, jobcache)
                 return
             else:
+                shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)
                 kwargs["outdir"] = jobcache
+                open(jobcachepending, "w").close()
+                def rm_pending_output_callback(output_callback, jobcachepending,
+                                               outputs, processStatus):
+                    if processStatus == "success":
+                        os.remove(jobcachepending)
+                    output_callback(outputs, processStatus)
+                output_callback = functools.partial(rm_pending_output_callback, output_callback, jobcachepending)
 
         builder = self._init_job(joborder, input_basedir, **kwargs)
 
@@ -163,7 +183,7 @@ class CommandLineTool(Process):
         j.permanentFailCodes = self.tool.get("permanentFailCodes")
         j.requirements = self.requirements
         j.hints = self.hints
-        j.name = uniquename(kwargs.get("name", str(id(j))))
+        j.name = jobname
 
         _logger.debug(u"[job %s] initializing from %s%s",
                      j.name,

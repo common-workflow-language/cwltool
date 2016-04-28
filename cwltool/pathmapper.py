@@ -42,6 +42,9 @@ class PathMapper(object):
     def files(self):  # type: () -> List[str]
         return self._pathmap.keys()
 
+    def items(self):  # type: () -> List[Tuple[str,Tuple[str,str]]]
+        return self._pathmap.items()
+
     def reversemap(self, target):  # type: (str) -> Tuple[str, str]
         for k, v in self._pathmap.items():
             if v[1] == target:
