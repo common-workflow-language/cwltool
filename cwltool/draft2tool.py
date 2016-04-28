@@ -135,7 +135,6 @@ class CommandLineTool(Process):
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
                 cmdline = ["docker", "run", dockerimg] + cmdline
-
             keydict = {"cmdline": cmdline}
 
             for _,f in cachebuilder.pathmapper.items():
@@ -158,7 +157,13 @@ class CommandLineTool(Process):
 
             jobcache = os.path.join(kwargs["cachedir"], cachekey)
             jobcachepending = jobcache + ".pending"
+
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
+                if docker_req and kwargs.get("use_container") is not False:
+                    cachebuilder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
+                else:
+                    cachebuilder.outdir = jobcache
+
                 class CallbackJob(object):
                     def __init__(self, job, output_callback, cachebuilder, jobcache):
                         self.job = job
