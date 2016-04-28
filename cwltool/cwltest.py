@@ -87,6 +87,8 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
 
             outstr = subprocess.check_output(test_command)
             out = yaml.load(outstr)
+            if not isinstance(out, dict):
+                raise ValueError("Non-dict value parsed from output string.")
     except ValueError as v:
         _logger.error(str(v))
         _logger.error(outstr)
