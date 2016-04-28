@@ -123,17 +123,31 @@ class CommandLineTool(Process):
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
-            cachebuilder = self._init_job(joborder, input_basedir, **kwargs)
-            cmdline = json.dumps(flatten(map(cachebuilder.generate_arg, cachebuilder.bindings)))
-            print cmdline
-            print "outdir", kwargs["outdir"]
-            print "tmp_outdir_prefix", kwargs["tmp_outdir_prefix"]
-            cachekey = hashlib.md5().hexdigest()
-            jobcachefile = os.path.join(kwargs["cachedir"], cachekey)
-            if os.path.exists(jobcachefile):
-                print "Would use cache %s here" % jobcachefile
+            cachebuilder = self._init_job(joborder, input_basedir, **cacheargs)
+            cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
+            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
+            if docker_req and kwargs.get("use_container") is not False:
+                dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
+                cmdline = ["docker", "run", dockerimg] + cmdline
+            cmdlinestr = json.dumps(cmdline)
+            cachekey = hashlib.md5(cmdlinestr).hexdigest()
+            jobcache = os.path.join(kwargs["cachedir"], cachekey)
+            if os.path.isdir(jobcache):
+                class CallbackJob(object):
+                    def __init__(self, job, output_callback, cachebuilder, jobcache):
+                        self.job = job
+                        self.output_callback = output_callback
+                        self.cachebuilder = cachebuilder
+                        self.outdir = jobcache
+                    def run(self, **kwargs):
+                        self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
+                                                                           self.cachebuilder, self.outdir),
+                                            "success")
+                yield CallbackJob(self, output_callback, cachebuilder, jobcache)
+                return
             else:
-                pass
+                os.makedirs(jobcache)
+                kwargs["outdir"] = jobcache
 
         builder = self._init_job(joborder, input_basedir, **kwargs)
 

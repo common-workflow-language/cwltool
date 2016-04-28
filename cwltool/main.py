@@ -605,6 +605,7 @@ def main(argsl=None,
 
     if args.cachedir:
         args.cachedir = os.path.abspath(args.cachedir)
+        args.move_outputs = False
 
     try:
         out = executor(t, job_order_object[0],
