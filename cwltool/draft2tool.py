@@ -2,7 +2,7 @@ import avro.schema
 import json
 import copy
 from .flatten import flatten
-import functools
+from functools import partial
 import os
 from .pathmapper import PathMapper, DockerPathMapper
 from .job import CommandLineJob
@@ -96,6 +96,20 @@ def revmap_file(builder, outdir, f):
     else:
         raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
 
+class CallbackJob(object):
+    def __init__(self, job, output_callback, cachebuilder, jobcache):
+        # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, str) -> None
+        self.job = job
+        self.output_callback = output_callback
+        self.cachebuilder = cachebuilder
+        self.outdir = jobcache
+
+    def run(self, **kwargs):
+        # type: (**Any) -> None
+        self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
+                                                           self.cachebuilder, self.outdir),
+                                            "success")
+
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -118,7 +132,7 @@ class CommandLineTool(Process):
                 raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
-        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[CommandLineJob, None, None]
+        # type: (Dict[str,str], str, Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
@@ -164,16 +178,6 @@ class CommandLineTool(Process):
                 else:
                     cachebuilder.outdir = jobcache
 
-                class CallbackJob(object):
-                    def __init__(self, job, output_callback, cachebuilder, jobcache):
-                        self.job = job
-                        self.output_callback = output_callback
-                        self.cachebuilder = cachebuilder
-                        self.outdir = jobcache
-                    def run(self, **kwargs):
-                        self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
-                                                                           self.cachebuilder, self.outdir),
-                                            "success")
                 _logger.info("[job %s] Using cached output in %s", jobname, jobcache)
                 yield CallbackJob(self, output_callback, cachebuilder, jobcache)
                 return
@@ -188,7 +192,11 @@ class CommandLineTool(Process):
                     if processStatus == "success":
                         os.remove(jobcachepending)
                     output_callback(outputs, processStatus)
-                output_callback = functools.partial(rm_pending_output_callback, output_callback, jobcachepending)
+                output_callback = cast(
+                        Callable[..., Any],  # known bug in mypy
+                        # https://github.com/python/mypy/issues/797
+                        partial(rm_pending_output_callback, output_callback,
+                            jobcachepending))
 
         builder = self._init_job(joborder, input_basedir, **kwargs)
 
@@ -242,7 +250,7 @@ class CommandLineTool(Process):
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and kwargs.get("use_container"):
             out_prefix = kwargs.get("tmp_outdir_prefix")
             j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
@@ -252,19 +260,19 @@ class CommandLineTool(Process):
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
 
-        createFiles, _ = self.get_requirement("CreateFileRequirement")
+        createFiles = self.get_requirement("CreateFileRequirement")[0]
         j.generatefiles = {}
         if createFiles:
             for t in createFiles["fileDef"]:
                 j.generatefiles[builder.do_eval(t["filename"])] = copy.deepcopy(builder.do_eval(t["fileContent"]))
 
         j.environment = {}
-        evr, _ = self.get_requirement("EnvVarRequirement")
+        evr = self.get_requirement("EnvVarRequirement")[0]
         if evr:
             for t in evr["envDef"]:
                 j.environment[t["envName"]] = builder.do_eval(t["envValue"])
 
-        shellcmd, _ = self.get_requirement("ShellCommandRequirement")
+        shellcmd = self.get_requirement("ShellCommandRequirement")[0]
         if shellcmd:
             cmd = []  # type: List[str]
             for b in builder.bindings:
@@ -277,7 +285,8 @@ class CommandLineTool(Process):
             j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
         j.pathmapper = builder.pathmapper
-        j.collect_outputs = functools.partial(self.collect_output_ports, self.tool["outputs"], builder)
+        j.collect_outputs = partial(
+                self.collect_output_ports, self.tool["outputs"], builder)
         j.output_callback = output_callback
 
         yield j
@@ -295,7 +304,7 @@ class CommandLineTool(Process):
                 adjustFileObjs(ret,
                         cast(Callable[[Any], Any],  # known bug in mypy
                             # https://github.com/python/mypy/issues/797
-                            functools.partial(revmap_file, builder, outdir)))
+                            partial(revmap_file, builder, outdir)))
                 adjustFileObjs(ret, remove_hostfs)
                 validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
                 return ret
@@ -320,7 +329,7 @@ class CommandLineTool(Process):
             binding = schema["outputBinding"]
             globpatterns = []  # type: List[str]
 
-            revmap = functools.partial(revmap_file, builder, outdir)
+            revmap = partial(revmap_file, builder, outdir)
 
             if "glob" in binding:
                 for gb in aslist(binding["glob"]):
