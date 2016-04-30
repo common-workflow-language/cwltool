@@ -31,7 +31,6 @@ from rdflib import Graph
 _logger = logging.getLogger("cwltool")
 
 supportedProcessRequirements = ["DockerRequirement",
-                                "ExpressionEngineRequirement",
                                 "SchemaDefRequirement",
                                 "EnvVarRequirement",
                                 "CreateFileRequirement",
@@ -309,6 +308,32 @@ class Process(object):
                     checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
+
+        if self.tool.get("baseCommand"):
+            for n, b in enumerate(aslist(self.tool["baseCommand"])):
+                builder.bindings.append({
+                    "position": [-1000000, n],
+                    "valueFrom": b
+                })
+
+        if self.tool.get("arguments"):
+            for i, a in enumerate(self.tool["arguments"]):
+                if isinstance(a, dict):
+                    a = copy.copy(a)
+                    if a.get("position"):
+                        a["position"] = [a["position"], i]
+                    else:
+                        a["position"] = [0, i]
+                    a["do_eval"] = a["valueFrom"]
+                    a["valueFrom"] = None
+                    builder.bindings.append(a)
+                else:
+                    builder.bindings.append({
+                        "position": [0, i],
+                        "valueFrom": a
+                    })
+
+        builder.bindings.sort(key=lambda a: a["position"])
 
         builder.resources = self.evalResources(builder, kwargs)
 

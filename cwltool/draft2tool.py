@@ -2,7 +2,7 @@ import avro.schema
 import json
 import copy
 from .flatten import flatten
-import functools
+from functools import partial
 import os
 from .pathmapper import PathMapper, DockerPathMapper
 from .job import CommandLineJob
@@ -23,6 +23,8 @@ from .builder import CONTENT_LIMIT, substitute, Builder
 import shellescape
 import errno
 from typing import Callable, Any, Union, Generator, cast
+import hashlib
+import shutil
 
 _logger = logging.getLogger("cwltool")
 
@@ -94,6 +96,20 @@ def revmap_file(builder, outdir, f):
     else:
         raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
 
+class CallbackJob(object):
+    def __init__(self, job, output_callback, cachebuilder, jobcache):
+        # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, str) -> None
+        self.job = job
+        self.output_callback = output_callback
+        self.cachebuilder = cachebuilder
+        self.outdir = jobcache
+
+    def run(self, **kwargs):
+        # type: (**Any) -> None
+        self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
+                                                           self.cachebuilder, self.outdir),
+                                            "success")
+
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -116,34 +132,73 @@ class CommandLineTool(Process):
                 raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, input_basedir, output_callback, **kwargs):
-        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[CommandLineJob, None, None]
-        builder = self._init_job(joborder, input_basedir, **kwargs)
+        # type: (Dict[str,str], str, Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
 
-        if self.tool["baseCommand"]:
-            for n, b in enumerate(aslist(self.tool["baseCommand"])):
-                builder.bindings.append({
-                    "position": [-1000000, n],
-                    "valueFrom": b
-                })
+        jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
-        if self.tool.get("arguments"):
-            for i, a in enumerate(self.tool["arguments"]):
-                if isinstance(a, dict):
-                    a = copy.copy(a)
-                    if a.get("position"):
-                        a["position"] = [a["position"], i]
-                    else:
-                        a["position"] = [0, i]
-                    a["do_eval"] = a["valueFrom"]
-                    a["valueFrom"] = None
-                    builder.bindings.append(a)
+        if kwargs.get("cachedir"):
+            cacheargs = kwargs.copy()
+            cacheargs["outdir"] = "/out"
+            cacheargs["tmpdir"] = "/tmp"
+            cachebuilder = self._init_job(joborder, input_basedir, **cacheargs)
+            cachebuilder.pathmapper = PathMapper(set((f["path"] for f in cachebuilder.files)),
+                                                 input_basedir)
+
+            cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
+            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
+            if docker_req and kwargs.get("use_container") is not False:
+                dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
+                cmdline = ["docker", "run", dockerimg] + cmdline
+            keydict = {"cmdline": cmdline}
+
+            for _,f in cachebuilder.pathmapper.items():
+                st = os.stat(f[0])
+                keydict[f[0]] = [st.st_size, int(st.st_mtime * 1000)]
+
+            interesting = {"DockerRequirement",
+                           "EnvVarRequirement",
+                           "CreateFileRequirement",
+                           "ShellCommandRequirement"}
+            for rh in (self.requirements, self.hints):
+                for r in reversed(rh):
+                    if r["class"] in interesting and r["class"] not in keydict:
+                        keydict[r["class"]] = r
+
+            keydictstr = json.dumps(keydict, separators=(',',':'), sort_keys=True)
+            cachekey = hashlib.md5(keydictstr).hexdigest()
+
+            _logger.debug("[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey)
+
+            jobcache = os.path.join(kwargs["cachedir"], cachekey)
+            jobcachepending = jobcache + ".pending"
+
+            if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
+                if docker_req and kwargs.get("use_container") is not False:
+                    cachebuilder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
                 else:
-                    builder.bindings.append({
-                        "position": [0, i],
-                        "valueFrom": a
-                    })
+                    cachebuilder.outdir = jobcache
 
-        builder.bindings.sort(key=lambda a: a["position"])
+                _logger.info("[job %s] Using cached output in %s", jobname, jobcache)
+                yield CallbackJob(self, output_callback, cachebuilder, jobcache)
+                return
+            else:
+                _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
+                shutil.rmtree(jobcache, True)
+                os.makedirs(jobcache)
+                kwargs["outdir"] = jobcache
+                open(jobcachepending, "w").close()
+                def rm_pending_output_callback(output_callback, jobcachepending,
+                                               outputs, processStatus):
+                    if processStatus == "success":
+                        os.remove(jobcachepending)
+                    output_callback(outputs, processStatus)
+                output_callback = cast(
+                        Callable[..., Any],  # known bug in mypy
+                        # https://github.com/python/mypy/issues/797
+                        partial(rm_pending_output_callback, output_callback,
+                            jobcachepending))
+
+        builder = self._init_job(joborder, input_basedir, **kwargs)
 
         reffiles = set((f["path"] for f in builder.files))
 
@@ -157,7 +212,7 @@ class CommandLineTool(Process):
         j.permanentFailCodes = self.tool.get("permanentFailCodes")
         j.requirements = self.requirements
         j.hints = self.hints
-        j.name = uniquename(kwargs.get("name", str(id(j))))
+        j.name = jobname
 
         _logger.debug(u"[job %s] initializing from %s%s",
                      j.name,
@@ -195,7 +250,7 @@ class CommandLineTool(Process):
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and kwargs.get("use_container"):
             out_prefix = kwargs.get("tmp_outdir_prefix")
             j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
@@ -205,19 +260,19 @@ class CommandLineTool(Process):
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
 
-        createFiles, _ = self.get_requirement("CreateFileRequirement")
+        createFiles = self.get_requirement("CreateFileRequirement")[0]
         j.generatefiles = {}
         if createFiles:
             for t in createFiles["fileDef"]:
                 j.generatefiles[builder.do_eval(t["filename"])] = copy.deepcopy(builder.do_eval(t["fileContent"]))
 
         j.environment = {}
-        evr, _ = self.get_requirement("EnvVarRequirement")
+        evr = self.get_requirement("EnvVarRequirement")[0]
         if evr:
             for t in evr["envDef"]:
                 j.environment[t["envName"]] = builder.do_eval(t["envValue"])
 
-        shellcmd, _ = self.get_requirement("ShellCommandRequirement")
+        shellcmd = self.get_requirement("ShellCommandRequirement")[0]
         if shellcmd:
             cmd = []  # type: List[str]
             for b in builder.bindings:
@@ -230,7 +285,8 @@ class CommandLineTool(Process):
             j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
         j.pathmapper = builder.pathmapper
-        j.collect_outputs = functools.partial(self.collect_output_ports, self.tool["outputs"], builder)
+        j.collect_outputs = partial(
+                self.collect_output_ports, self.tool["outputs"], builder)
         j.output_callback = output_callback
 
         yield j
@@ -246,9 +302,9 @@ class CommandLineTool(Process):
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
                 adjustFileObjs(ret, remove_hostfs)
                 adjustFileObjs(ret,
-                        cast(Callable[[Any], Any],  # known bug in mypy 
+                        cast(Callable[[Any], Any],  # known bug in mypy
                             # https://github.com/python/mypy/issues/797
-                            functools.partial(revmap_file, builder, outdir)))
+                            partial(revmap_file, builder, outdir)))
                 adjustFileObjs(ret, remove_hostfs)
                 validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
                 return ret
@@ -273,7 +329,7 @@ class CommandLineTool(Process):
             binding = schema["outputBinding"]
             globpatterns = []  # type: List[str]
 
-            revmap = functools.partial(revmap_file, builder, outdir)
+            revmap = partial(revmap_file, builder, outdir)
 
             if "glob" in binding:
                 for gb in aslist(binding["glob"]):

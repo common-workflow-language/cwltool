@@ -3,6 +3,7 @@
 from . import draft2tool
 import argparse
 from schema_salad.ref_resolver import Loader
+import string
 import json
 import os
 import sys
@@ -21,6 +22,7 @@ import pkg_resources  # part of setuptools
 from . import update
 from .process import shortname, Process
 import rdflib
+import hashlib
 from .utils import aslist
 from typing import Union, Any, cast, Callable, Dict, Tuple, IO
 
@@ -61,9 +63,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Path prefix for temporary directories",
                         default="tmp")
 
-    parser.add_argument("--tmp-outdir-prefix", type=str,
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--tmp-outdir-prefix", type=str,
                         help="Path prefix for intermediate output directories",
                         default="tmp")
+
+    exgroup.add_argument("--cachedir", type=str, default="",
+                        help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
@@ -597,13 +603,17 @@ def main(argsl=None,
     if isinstance(job_order_object, int):
         return job_order_object
 
+    if args.cachedir:
+        args.cachedir = os.path.abspath(args.cachedir)
+        args.move_outputs = False
+
     try:
         out = executor(t, job_order_object[0],
                        job_order_object[1], args,
                        conformance_test=args.conformance_test,
                        dry_run=args.dry_run,
                        outdir=args.outdir,
-                       tmp_outdir_prefix=args.tmp_outdir_prefix,
+                       tmp_outdir_prefix=args.cachedir if args.cachedir else args.tmp_outdir_prefix,
                        use_container=args.use_container,
                        preserve_environment=args.preserve_environment,
                        pull_image=args.enable_pull,
@@ -614,7 +624,8 @@ def main(argsl=None,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
                        select_resources=selectResources,
-                       eval_timeout=args.eval_timeout
+                       eval_timeout=args.eval_timeout,
+                       cachedir=args.cachedir
                        )
         # This is the workflow output, it needs to be written
         if out is not None:
