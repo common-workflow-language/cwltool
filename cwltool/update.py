@@ -3,6 +3,7 @@ import urlparse
 import json
 import re
 from aslist import aslist
+import schema_salad.validate
 
 def findId(doc, frg):
     if isinstance(doc, dict):
@@ -280,11 +281,14 @@ def draftDraft3dev4toDev5(doc, loader, baseuri):
 def draftDraft3dev5toFinal(doc, loader, baseuri):
     return (doc, "https://w3id.org/cwl/cwl#draft-3")
 
+def draft3toDraft4dev1(doc, loader, baseuri):
+    return (doc, "https://w3id.org/cwl/cwl#draft-4")
 
 def update(doc, loader, baseuri, enable_dev):
     updates = {
         "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
-        "https://w3id.org/cwl/cwl#draft-3": None
+        "https://w3id.org/cwl/cwl#draft-3": draft3toDraft4dev1,
+        "https://w3id.org/cwl/cwl#draft-4": None,
     }
 
     if enable_dev:
@@ -297,13 +301,14 @@ def update(doc, loader, baseuri, enable_dev):
             "https://w3id.org/cwl/cwl#draft-4.dev1": None
         })
 
-
     def identity(doc, loader, baseuri):
         v = doc.get("cwlVersion")
         if v:
             return (doc, loader.expand_url(v, ""))
-        else:
+        if enable_dev:
             return (doc, "https://w3id.org/cwl/cwl#draft-2")
+        else:
+            raise schema_salad.validate.ValidationException("Missing 'cwlVersion'")
 
     nextupdate = identity
 
