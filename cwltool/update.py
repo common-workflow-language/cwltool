@@ -2,10 +2,14 @@ import sys
 import urlparse
 import json
 import re
-from aslist import aslist
+from .utils import aslist
+from typing import Any, Dict, Callable, List, Tuple, Union
+import traceback
+from schema_salad.ref_resolver import Loader
 import schema_salad.validate
 
-def findId(doc, frg):
+
+def findId(doc, frg):  # type: (Any, Any) -> Dict
     if isinstance(doc, dict):
         if "id" in doc and doc["id"] == frg:
             return doc
@@ -21,23 +25,28 @@ def findId(doc, frg):
                 return f
     return None
 
-def fixType(doc):
+def fixType(doc):  # type: (Any) -> Any
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
 
-    if isinstance(doc, basestring):
+    if isinstance(doc, (str, unicode)):
         if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
 
-def _draft2toDraft3dev1(doc, loader, baseuri):
+def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
     try:
         if isinstance(doc, dict):
             if "import" in doc:
                 imp = urlparse.urljoin(baseuri, doc["import"])
-                r = loader.fetch(imp)
-                if isinstance(r, list):
-                    r = {"@graph": r}
+                impLoaded = loader.fetch(imp)
+                r = None  # type: Dict[str, Any]
+                if isinstance(impLoaded, list):
+                    r = {"@graph": impLoaded}
+                elif isinstance(impLoaded, dict):
+                    r = impLoaded
+                else:
+                    raise Exception("Unexpected code path.")
                 r["id"] = imp
                 _, frag = urlparse.urldefrag(imp)
                 if frag:
@@ -79,21 +88,22 @@ def _draft2toDraft3dev1(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
-def draft2toDraft3dev1(doc, loader, baseuri):
+def draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
     return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
 
 digits = re.compile("\d+")
 
-def updateScript(sc):
+def updateScript(sc):  # type: (str) -> str
     sc = sc.replace("$job", "inputs")
     sc = sc.replace("$tmpdir", "runtime.tmpdir")
     sc = sc.replace("$outdir", "runtime.outdir")
     sc = sc.replace("$self", "self")
     return sc
 
-def _updateDev2Script(ent):
+
+def _updateDev2Script(ent):  # type: (Any) -> Any
     if isinstance(ent, dict) and "engine" in ent:
         if ent["engine"] == "cwl:JsonPointer":
             sp = ent["script"].split("/")
@@ -118,7 +128,9 @@ def _updateDev2Script(ent):
     else:
         return ent
 
+
 def _draftDraft3dev1toDev2(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     doc = _updateDev2Script(doc)
     if isinstance(doc, basestring):
         return doc
@@ -126,8 +138,13 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
     # Convert expressions
     if isinstance(doc, dict):
         if "@import" in doc:
-            r, _ = loader.resolve_ref(doc["@import"], base_url=baseuri)
-            return _draftDraft3dev1toDev2(r, loader, r["id"])
+            resolved_doc = loader.resolve_ref(
+                    doc["@import"], base_url=baseuri)[0]
+            if isinstance(resolved_doc, dict):
+                return _draftDraft3dev1toDev2(
+                        resolved_doc, loader, resolved_doc["id"])
+            else:
+                raise Exception("Unexpected codepath")
 
         for a in doc:
             doc[a] = _draftDraft3dev1toDev2(doc[a], loader, baseuri)
@@ -155,10 +172,13 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
 
     return doc
 
+
 def draftDraft3dev1toDev2(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     return (_draftDraft3dev1toDev2(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     try:
         if isinstance(doc, dict):
             if "@import" in doc:
@@ -166,11 +186,15 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     return doc["@import"]
                 else:
                     imp = urlparse.urljoin(baseuri, doc["@import"])
-                    r = loader.fetch(imp)
-                    if isinstance(r, list):
-                        r = {"@graph": r}
+                    impLoaded = loader.fetch(imp)
+                    if isinstance(impLoaded, list):
+                        r = {"@graph": impLoaded}
+                    elif isinstance(impLoaded, dict):
+                        r = impLoaded
+                    else:
+                        raise Exception("Unexpected code path.")
                     r["id"] = imp
-                    _, frag = urlparse.urldefrag(imp)
+                    frag = urlparse.urldefrag(imp)[1]
                     if frag:
                         frag = "#" + frag
                         r = findId(r, frag)
@@ -193,21 +217,27 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
 
 
 def traverseImport(doc, loader, baseuri, func):
+    # type: (Any, Loader, str, Callable[[Any, Loader, str], Any]) -> Any
     if "$import" in doc:
         if doc["$import"][0] == "#":
             return doc["$import"]
         else:
             imp = urlparse.urljoin(baseuri, doc["$import"])
-            r = loader.fetch(imp)
-            if isinstance(r, list):
-                r = {"$graph": r}
+            impLoaded = loader.fetch(imp)
+            if isinstance(impLoaded, list):
+                r = {"$graph": impLoaded}
+            elif isinstance(impLoaded, dict):
+                r = impLoaded
+            else:
+                raise Exception("Unexpected code path.")
             r["id"] = imp
             _, frag = urlparse.urldefrag(imp)
             if frag:
@@ -215,7 +245,9 @@ def traverseImport(doc, loader, baseuri, func):
                 r = findId(r, frag)
             return func(r, loader, imp)
 
+
 def _draftDraft3dev3toDev4(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     try:
         if isinstance(doc, dict):
             r = traverseImport(doc, loader, baseuri, _draftDraft3dev3toDev4)
@@ -240,13 +272,15 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
         elif "name" in doc:
             err = doc["name"]
         import traceback
-        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     try:
         if isinstance(doc, dict):
             r = traverseImport(doc, loader, baseuri, _draftDraft3dev4toDev5)
@@ -271,25 +305,27 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
-        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc(e)))
+        raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     return (doc, "https://w3id.org/cwl/cwl#draft-3")
 
 def draft3toDraft4dev1(doc, loader, baseuri):
     return (doc, "https://w3id.org/cwl/cwl#draft-4")
 
 def update(doc, loader, baseuri, enable_dev):
+    # type: (Any, Loader, str, bool) -> Any
     updates = {
         "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
         "https://w3id.org/cwl/cwl#draft-3": draft3toDraft4dev1,
         "https://w3id.org/cwl/cwl#draft-4": None,
-    }
+    } # type: Dict[unicode, Any]
 
     if enable_dev:
         updates.update({
@@ -299,9 +335,10 @@ def update(doc, loader, baseuri, enable_dev):
             "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
             "https://w3id.org/cwl/cwl#draft-3.dev5": draftDraft3dev5toFinal,
             "https://w3id.org/cwl/cwl#draft-4.dev1": None
-        })
+        }) # type: Dict[unicode, Any]
 
     def identity(doc, loader, baseuri):
+        # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
         v = doc.get("cwlVersion")
         if v:
             return (doc, loader.expand_url(v, ""))

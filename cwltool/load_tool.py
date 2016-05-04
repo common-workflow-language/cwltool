@@ -16,10 +16,13 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
               enable_dev=False,
               stdout=sys.stdout,
               urifrag=None):
+    # type: (Union[str,unicode,dict[unicode,Any]], bool, bool, Callable[...,Process], bool, bool, bool, bool, bool, bool, Any, Any, Any) -> Any
 
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
 
     jobobj = None
+    uri = None  # type: str
+    workflowobj = None  # type: Dict[unicode, Any]
     if isinstance(argsworkflow, basestring):
         split = urlparse.urlsplit(argsworkflow)
         if split.scheme:

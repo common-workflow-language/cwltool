@@ -3,13 +3,15 @@ import logging
 import sys
 import requests
 import os
-import process
+from .errors import WorkflowException
 import re
 import tempfile
+from typing import Any, Union
 
 _logger = logging.getLogger("cwltool")
 
 def get_image(dockerRequirement, pull_image, dry_run=False):
+    # type: (Dict[str,str], bool, bool) -> bool
     found = False
 
     if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
@@ -36,7 +38,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
         elif "dockerFile" in dockerRequirement:
-            dockerfile_dir = tempfile.mkdtemp()
+            dockerfile_dir = str(tempfile.mkdtemp())
             with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as df:
                 df.write(dockerRequirement["dockerFile"])
             cmd = ["docker", "build", "--tag=%s" % dockerRequirement["dockerImageId"], dockerfile_dir]
@@ -64,7 +66,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                     loadproc.stdin.close()
                 rcode = loadproc.wait()
                 if rcode != 0:
-                    raise process.WorkflowException("Docker load returned non-zero exit status %i" % (rcode))
+                    raise WorkflowException("Docker load returned non-zero exit status %i" % (rcode))
                 found = True
         elif "dockerImport" in dockerRequirement:
             cmd = ["docker", "import", dockerRequirement["dockerImport"], dockerRequirement["dockerImageId"]]
@@ -77,6 +79,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
 
 
 def get_from_requirements(r, req, pull_image, dry_run=False):
+    # type: (Dict[str,str], bool, bool, bool) -> Union[None,str]
     if r:
         errmsg = None
         try:
@@ -88,7 +91,7 @@ def get_from_requirements(r, req, pull_image, dry_run=False):
 
         if errmsg:
             if req:
-                raise process.WorkflowException(errmsg)
+                raise WorkflowException(errmsg)
             else:
                 return None
 
@@ -96,6 +99,6 @@ def get_from_requirements(r, req, pull_image, dry_run=False):
             return r["dockerImageId"]
         else:
             if req:
-                raise process.WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
+                raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
 
     return None

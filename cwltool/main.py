@@ -1,28 +1,31 @@
 #!/usr/bin/env python
 
-import draft2tool
+from . import draft2tool
 import argparse
 from schema_salad.ref_resolver import Loader
+import string
 import json
 import os
 import sys
 import logging
-import workflow
+from . import workflow
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
 import schema_salad.makedoc
 import yaml
 import urlparse
-import process
-import job
-from cwlrdf import printrdf, printdot
+from . import process
+from . import job
+from .cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
-import update
-from process import shortname
+from . import update
+from .process import shortname, Process
 import rdflib
-from aslist import aslist
 from load_tool import load_tool
+import hashlib
+from .utils import aslist
+from typing import Union, Any, cast, Callable, Dict, Tuple, IO
 
 _logger = logging.getLogger("cwltool")
 
@@ -30,7 +33,8 @@ defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 
-def arg_parser():
+
+def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
     parser.add_argument("--conformance-test", action="store_true")
     parser.add_argument("--basedir", type=str)
@@ -43,7 +47,7 @@ def arg_parser():
 
     parser.add_argument("--preserve-environment", type=str, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
-                        metavar=("VAR1","VAR2"),
+                        metavar=("VAR1,VAR2"),
                         default=("PATH",),
                         dest="preserve_environment")
 
@@ -60,9 +64,13 @@ def arg_parser():
                         help="Path prefix for temporary directories",
                         default="tmp")
 
-    parser.add_argument("--tmp-outdir-prefix", type=str,
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--tmp-outdir-prefix", type=str,
                         help="Path prefix for intermediate output directories",
                         default="tmp")
+
+    exgroup.add_argument("--cachedir", type=str, default="",
+                        help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
@@ -126,15 +134,21 @@ def arg_parser():
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
                          help="When using --print-deps, print paths relative to primary file or current working directory.")
 
-    parser.add_argument("--enable-net", action="store_true", help="Use docker's default network for container, default is to disable network", default=False)
-    parser.add_argument("--enable-dev", action="store_true", help="Allow loading and running development versions of CWL spec.", default=False)
+    parser.add_argument("--enable-net", action="store_true",
+            help="Use docker's default networking for containers; the default is "
+            "to disable networking.")
+    parser.add_argument("--custom-net", type=str,
+            help="Will be passed to `docker run` as the '--net' parameter. "
+            "Implies '--enable-net'.")
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
 
+
 def single_job_executor(t, job_order, input_basedir, args, **kwargs):
+    # type: (Process, Dict[str,Any], str, argparse.Namespace,**Any) -> Union[str,Dict[str,str]]
     final_output = []
     final_status = []
 
@@ -186,27 +200,39 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
 
         return final_output[0]
 
+
 class FileAction(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        # type: (List[str], str, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAction, self).__init__(option_strings, dest, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
+        # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
         setattr(namespace, self.dest, {"class": "File", "path": values})
 
+
 class FileAppendAction(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        # type: (List[str], str, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAppendAction, self).__init__(option_strings, dest, **kwargs)
+
     def __call__(self, parser, namespace, values, option_string=None):
+        # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
         g = getattr(namespace, self.dest)
         if not g:
             g = []
             setattr(namespace, self.dest, g)
         g.append({"class": "File", "path": values})
 
+
 def generate_parser(toolparser, tool, namemap):
+    # type: (argparse.ArgumentParser, Process,Dict[str,str]) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -231,49 +257,54 @@ def generate_parser(toolparser, tool, namemap):
                     _logger.debug(u"Can't make command line argument from %s", inptype)
                     return None
 
-        help = inp.get("description", "").replace("%", "%%")
-        kwargs = {}
+        ahelp = inp.get("description", "").replace("%", "%%")
+        action = None  # type: Union[argparse.Action,str]
+        atype = None # type: Any
+        default = None # type: Any
 
         if inptype == "File":
-            kwargs["action"] = FileAction
+            action = cast(argparse.Action, FileAction)
         elif isinstance(inptype, dict) and inptype["type"] == "array":
             if inptype["items"] == "File":
-                kwargs["action"] = FileAppendAction
+                action = cast(argparse.Action, FileAppendAction)
             else:
-                kwargs["action"] = "append"
+                action = "append"
 
         if inptype == "string":
-            kwargs["type"] = str
+            atype = str
         elif inptype == "int":
-            kwargs["type"] = int
+            atype = int
         elif inptype == "float":
-            kwargs["type"] = float
+            atype = float
         elif inptype == "boolean":
-            kwargs["action"] = "store_true"
+            action = "store_true"
 
         if "default" in inp:
-            kwargs["default"] = inp["default"]
+            default = inp["default"]
             required = False
 
-        if "type" not in kwargs and "action" not in kwargs:
+        if not atype and not action:
             _logger.debug(u"Can't make command line argument from %s", inptype)
             return None
 
-        toolparser.add_argument(flag + name, required=required, help=help, **kwargs)
+        toolparser.add_argument(flag + name, required=required,
+                help=ahelp, action=action, type=atype, default=default)
 
     return toolparser
 
 
-
-
 def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
+    # type: (argparse.Namespace, Process, argparse.ArgumentParser, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
 
     if args.conformance_test:
         loader = Loader({})
     else:
-        jobloaderctx = {"path": {"@type": "@id"}, "format": {"@type": "@id"}, "id": "@id"}
+        jobloaderctx = {
+                "path": {"@type": "@id"},
+                "format": {"@type": "@id"},
+                "id": "@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
         loader = Loader(jobloaderctx)
 
@@ -292,12 +323,12 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file)
         except Exception as e:
-            _logger.error(e, exc_info=(e if args.debug else False))
+            _logger.error(str(e), exc_info=(e if args.debug else False))
             return 1
         toolparser = None
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
-        namemap = {}
+        namemap = {}  # type: Dict[str,str]
         toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
         if toolparser:
             if args.tool_help:
@@ -310,7 +341,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
                     input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
                     job_order_object = loader.resolve_ref(cmd_line["job_order"])
                 except Exception as e:
-                    _logger.error(e, exc_info=(e if args.debug else False))
+                    _logger.error(str(e), exc_info=(e if args.debug else False))
                     return 1
             else:
                 job_order_object = {"id": args.workflow}
@@ -350,6 +381,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
+    # type: (Dict[unicode, Any], Loader, IO[Any], bool, str) -> None
     deps = {"class": "File",
             "path": obj.get("id", "#")}
 
@@ -378,13 +410,15 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
     stdout.write(json.dumps(deps, indent=4))
 
 def versionstring():
+    # type: () -> unicode
     pkg = pkg_resources.require("cwltool")
     if pkg:
         return u"%s %s" % (sys.argv[0], pkg[0].version)
     else:
         return u"%s %s" % (sys.argv[0], "unknown version")
 
-def main(args=None,
+
+def main(argsl=None,
          executor=single_job_executor,
          makeTool=workflow.defaultMakeTool,
          selectResources=None,
@@ -393,17 +427,18 @@ def main(args=None,
          stdout=sys.stdout,
          stderr=sys.stderr,
          versionfunc=versionstring):
+    # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],unicode]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     _logger.addHandler(logging.StreamHandler(stderr))
 
-    if args is None:
-        args = sys.argv[1:]
+    if argsl is None:
+        argsl = sys.argv[1:]
 
     if parser is None:
         parser = arg_parser()
 
-    args = parser.parse_args(args)
+    args = parser.parse_args(argsl)
 
     if args.quiet:
         _logger.setLevel(logging.WARN)
@@ -436,7 +471,7 @@ def main(args=None,
         _logger.error(u"I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
         return 1
 
-    if type(t) == int:
+    if isinstance(t, int):
         return t
 
     if args.tmp_outdir_prefix != 'tmp':
@@ -458,8 +493,12 @@ def main(args=None,
                                       relative_deps=args.relative_deps,
                                       stdout=stdout)
 
-    if type(job_order_object) == int:
+    if isinstance(job_order_object, int):
         return job_order_object
+
+    if args.cachedir:
+        args.cachedir = os.path.abspath(args.cachedir)
+        args.move_outputs = False
 
     try:
         out = executor(t, job_order_object[0],
@@ -467,7 +506,7 @@ def main(args=None,
                        conformance_test=args.conformance_test,
                        dry_run=args.dry_run,
                        outdir=args.outdir,
-                       tmp_outdir_prefix=args.tmp_outdir_prefix,
+                       tmp_outdir_prefix=args.cachedir if args.cachedir else args.tmp_outdir_prefix,
                        use_container=args.use_container,
                        preserve_environment=args.preserve_environment,
                        pull_image=args.enable_pull,
@@ -478,11 +517,16 @@ def main(args=None,
                        makeTool=makeTool,
                        move_outputs=args.move_outputs,
                        select_resources=selectResources,
-                       eval_timeout=args.eval_timeout
+                       eval_timeout=args.eval_timeout,
+                       cachedir=args.cachedir
                        )
         # This is the workflow output, it needs to be written
         if out is not None:
-            stdout.write(json.dumps(out, indent=4))
+            if isinstance(out, basestring):
+                stdout.write(out)
+            else:
+                stdout.write(json.dumps(out, indent=4))
+            stdout.write("\n")
             stdout.flush()
         else:
             return 1

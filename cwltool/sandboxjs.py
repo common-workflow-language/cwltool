@@ -2,16 +2,23 @@ import subprocess
 import json
 import threading
 import errno
+import logging
+from typing import Any, Union, TypeVar, Dict, List, Mapping
+
 
 class JavascriptException(Exception):
     pass
 
-def execjs(js, jslib, timeout=None):
+_logger = logging.getLogger("cwltool")
+
+JSON = Union[Dict[Any,Any], List[Any], unicode, int, long, float, bool, None]
+
+def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,str], Any, int) -> JSON
     nodejs = None
-    trynodes = (["nodejs"], ["node"])
+    trynodes = ("nodejs", "node")
     for n in trynodes:
         try:
-            nodejs = subprocess.Popen(n, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            nodejs = subprocess.Popen([n], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             break
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -24,7 +31,8 @@ def execjs(js, jslib, timeout=None):
             nodeimg = "node:slim"
             dlist = subprocess.check_output(["docker", "images", nodeimg])
             if "node" not in dlist:
-                subprocess.check_call(["docker", "pull", nodeimg])
+                nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
+                _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
                                        "--sig-proxy=true", "--interactive",
@@ -39,7 +47,10 @@ def execjs(js, jslib, timeout=None):
             pass
 
     if nodejs is None:
-        raise JavascriptException(u"cwltool requires Node.js engine to evaluate Javascript expressions, but couldn't find it.  Tried %s, docker run node:slim" % ", ".join(trynodes))
+        raise JavascriptException(
+                u"cwltool requires Node.js engine to evaluate Javascript "
+                "expressions, but couldn't find it.  Tried %s, docker run "
+                "node:slim" % u", ".join(trynodes))
 
     fn = u"\"use strict\";\n%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = u"console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
@@ -61,7 +72,7 @@ def execjs(js, jslib, timeout=None):
     stdoutdata, stderrdata = nodejs.communicate(script)
     tm.cancel()
 
-    def fn_linenum():
+    def fn_linenum():  # type: () -> unicode
         return u"\n".join(u"%04i %s" % (i+1, b) for i, b in enumerate(fn.split("\n")))
 
     if killed:
@@ -78,7 +89,8 @@ def execjs(js, jslib, timeout=None):
 class SubstitutionError(Exception):
     pass
 
-def scanner(scan):
+
+def scanner(scan):  # type: (str) -> List[int]
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -150,7 +162,7 @@ def scanner(scan):
         return None
 
 
-def interpolate(scan, jslib, timeout=None):
+def interpolate(scan, jslib, timeout=None):  # type: (str, Union[str, unicode], int) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
