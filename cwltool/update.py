@@ -40,7 +40,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> An
                 impLoaded = loader.fetch(imp)
                 r = None  # type: Dict[str, Any]
                 if isinstance(impLoaded, list):
-                    r = {"@graph": r}
+                    r = {"@graph": impLoaded}
                 elif isinstance(impLoaded, dict):
                     r = impLoaded
                 else:
