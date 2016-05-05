@@ -13,7 +13,11 @@ import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
 import schema_salad.makedoc
-import yaml
+import ruamel.yaml as yaml
+try:
+        from ruamel.yaml import CSafeLoader as SafeLoader
+except ImportError:
+        from ruamel.yaml import SafeLoader
 import urlparse
 from . import process
 from . import job
@@ -419,7 +423,7 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.load(stdin)
+        job_order_object = yaml.load(stdin, Loader=SafeLoader)
         job_order_object, _ = loader.resolve_all(job_order_object, "")
     else:
         job_order_file = None

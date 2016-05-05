@@ -6,7 +6,11 @@ from functools import partial
 import os
 from .pathmapper import PathMapper, DockerPathMapper
 from .job import CommandLineJob
-import yaml
+import ruamel.yaml as yaml
+try:
+        from ruamel.yaml import CSafeLoader as SafeLoader
+except ImportError:
+        from ruamel.yaml import SafeLoader
 import glob
 import logging
 import hashlib
@@ -298,7 +302,7 @@ class CommandLineTool(Process):
             custom_output = os.path.join(outdir, "cwl.output.json")
             if builder.fs_access.exists(custom_output):
                 with builder.fs_access.open(custom_output, "r") as f:
-                    ret = yaml.load(f)
+                    ret = yaml.load(f, Loader=SafeLoader)
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
                 adjustFileObjs(ret, remove_hostfs)
                 adjustFileObjs(ret,
