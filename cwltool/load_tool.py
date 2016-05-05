@@ -60,7 +60,7 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
         # can't validate draft-2 directly, must run updater
         workflowobj = update.update(workflowobj, document_loader, fileuri, enable_dev, {})
 
-    (document_loader, avsc_names, schema_metadata) = process.get_schema(workflowobj["cwlVersion"])
+    (document_loader, avsc_names, schema_metadata, schema_loader) = process.get_schema(workflowobj["cwlVersion"])
 
     if isinstance(avsc_names, Exception):
         raise avsc_names

@@ -40,7 +40,7 @@ setup(name='cwltool',
           'rdflib >= 4.1.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          #'schema-salad==1.9.20160413123857',
+          'schema-salad==1.10.20160505184637',
           'typing'
         ],
       test_suite='tests',
