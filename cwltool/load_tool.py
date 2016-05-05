@@ -55,6 +55,9 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
     else:
         workflowobj["cwlVersion"] = "draft-2"
 
+    if workflowobj["cwlVersion"] == "draft-2":
+        workflowobj = update._draft2toDraft3dev1(workflowobj, document_loader, uri)
+
     (document_loader, avsc_names, schema_metadata, schema_loader) = process.get_schema(workflowobj["cwlVersion"])
 
     if isinstance(avsc_names, Exception):
