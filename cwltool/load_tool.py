@@ -45,7 +45,6 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
 
     if isinstance(workflowobj, list):
         workflowobj = {
-            "cwlVersion": "draft-2",
             "@graph": workflowobj
         }
 
@@ -55,10 +54,6 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
         workflowobj["cwlVersion"] = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", workflowobj["cwlVersion"])
     else:
         workflowobj["cwlVersion"] = "draft-2"
-
-    if workflowobj["cwlVersion"] == "draft-2":
-        # can't validate draft-2 directly, must run updater
-        workflowobj = update.update(workflowobj, document_loader, fileuri, enable_dev, {})
 
     (document_loader, avsc_names, schema_metadata, schema_loader) = process.get_schema(workflowobj["cwlVersion"])
 
@@ -112,7 +107,7 @@ def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, 
     return t
 
 
-def load_tool(argsworkflow, makeTool, kwargs,
+def load_tool(argsworkflow, makeTool, kwargs=None,
               enable_dev=False,
               strict=True):
 
@@ -122,4 +117,4 @@ def load_tool(argsworkflow, makeTool, kwargs,
                                                                                uri,
                                                                                enable_dev=enable_dev,
                                                                                strict=strict)
-    return make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, kwargs)
+    return make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, kwargs if kwargs else {})

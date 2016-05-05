@@ -335,11 +335,11 @@ def draft3toDraft4dev1(doc, loader, baseuri):
     return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
 updates = {
+    "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1
 } # type: Dict[unicode, Any]
 
 devUpdates = {
-    "draft-2": draft2toDraft3dev1,
     "draft-3.dev1": draftDraft3dev1toDev2,
     "draft-3.dev2": draftDraft3dev2toDev3,
     "draft-3.dev3": draftDraft3dev3toDev4,

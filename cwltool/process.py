@@ -85,14 +85,20 @@ def get_schema(version):
     cache = {}
     version = version.split("#")[-1].split(".")[0]
     for f in cwl_files:
-        rs = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
-        cache["https://w3id.org/cwl/" + f] = rs.read()
-        rs.close()
+        try:
+            rs = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
+            cache["https://w3id.org/cwl/" + f] = rs.read()
+            rs.close()
+        except IOError:
+            pass
 
     for f in salad_files:
-        rs = resource_stream(__name__, 'schemas/%s/salad/schema_salad/metaschema/%s' % (version, f))
-        cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
-        rs.close()
+        try:
+            rs = resource_stream(__name__, 'schemas/%s/salad/schema_salad/metaschema/%s' % (version, f))
+            cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
+            rs.close()
+        except IOError:
+            pass
 
     schema_cache[version] = schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
