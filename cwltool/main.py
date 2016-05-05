@@ -285,8 +285,10 @@ def generate_parser(toolparser, tool, namemap):
             _logger.debug(u"Can't make command line argument from %s", inptype)
             return None
 
-        toolparser.add_argument(flag + name, required=required,
-                help=ahelp, action=action, type=atype, default=default)
+        argument_kwargs = {'required': required, 'help': ahelp, 'action': action, 'default': default}
+        if inptype != "boolean":
+            argument_kwargs['type'] = atype
+        toolparser.add_argument(flag + name, **argument_kwargs)
 
     return toolparser
 
