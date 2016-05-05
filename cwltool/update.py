@@ -91,7 +91,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> An
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 def draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
-    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+    return (_draft2toDraft3dev1(doc, loader, baseuri), "draft-3.dev1")
 
 digits = re.compile("\d+")
 
@@ -175,7 +175,7 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev1toDev2(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
+    return (_draftDraft3dev1toDev2(doc, loader, baseuri), "draft-3.dev2")
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
@@ -221,7 +221,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
+    return (_draftDraft3dev2toDev3(doc, loader, baseuri), "draft-3.dev3")
 
 
 def traverseImport(doc, loader, baseuri, func):
@@ -277,7 +277,7 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
+    return (_draftDraft3dev3toDev4(doc, loader, baseuri), "draft-3.dev4")
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
@@ -310,51 +310,63 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
+    return (_draftDraft3dev4toDev5(doc, loader, baseuri), "draft-3.dev5")
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
-    return (doc, "https://w3id.org/cwl/cwl#draft-3")
+    return (doc, "draft-3")
 
 def draft3toDraft4dev1(doc, loader, baseuri):
-    return (doc, "https://w3id.org/cwl/cwl#draft-4")
+    return (doc, "draft-4.dev1")
 
-def update(doc, loader, baseuri, enable_dev):
-    # type: (Any, Loader, str, bool) -> Any
-    updates = {
-        "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
-        "https://w3id.org/cwl/cwl#draft-3": draft3toDraft4dev1,
-        "https://w3id.org/cwl/cwl#draft-4": None,
-    } # type: Dict[unicode, Any]
+latest = "draft-4.dev1"
 
-    if enable_dev:
-        updates.update({
-            "https://w3id.org/cwl/cwl#draft-3.dev1": draftDraft3dev1toDev2,
-            "https://w3id.org/cwl/cwl#draft-3.dev2": draftDraft3dev2toDev3,
-            "https://w3id.org/cwl/cwl#draft-3.dev3": draftDraft3dev3toDev4,
-            "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
-            "https://w3id.org/cwl/cwl#draft-3.dev5": draftDraft3dev5toFinal,
-            "https://w3id.org/cwl/cwl#draft-4.dev1": None
-        }) # type: Dict[unicode, Any]
+def update(doc, loader, baseuri, enable_dev, metadata):
+    if isinstance(doc, list):
+        metadata = metadata.copy()
+        metadata["$graph"] = doc
+        doc = metadata
 
     def identity(doc, loader, baseuri):
         # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
         v = doc.get("cwlVersion")
         if v:
-            return (doc, loader.expand_url(v, ""))
+            return (doc, v)
         if enable_dev:
-            return (doc, "https://w3id.org/cwl/cwl#draft-2")
+            return (doc, "draft-2")
         else:
             raise schema_salad.validate.ValidationException("Missing 'cwlVersion'")
+
+    (doc, version) = identity(doc, loader, baseuri)
+
+    # type: (Any, Loader, str, bool) -> Any
+    updates = {
+        "draft-3": draft3toDraft4dev1
+    } # type: Dict[unicode, Any]
+
+    devUpdates = {
+        "draft-2": draft2toDraft3dev1,
+        "draft-3.dev1": draftDraft3dev1toDev2,
+        "draft-3.dev2": draftDraft3dev2toDev3,
+        "draft-3.dev3": draftDraft3dev3toDev4,
+        "draft-3.dev4": draftDraft3dev4toDev5,
+        "draft-3.dev5": draftDraft3dev5toFinal,
+        "draft-4.dev1": None
+    } # type: Dict[unicode, Any]
+
+    if enable_dev:
+        updates.update(devUpdates)
+
+    if version not in updates:
+        raise Exception(u"Unrecognized version %s, try --enable-dev for development versions" % version)
+
+    updates[latest] = None
 
     nextupdate = identity
 
     while nextupdate:
         (doc, version) = nextupdate(doc, loader, baseuri)
-        if version in updates:
-            nextupdate = updates[version]
-        else:
-            raise Exception(u"Unrecognized version %s" % version)
+        nextupdate = updates[version]
 
     doc["cwlVersion"] = version
 

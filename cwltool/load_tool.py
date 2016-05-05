@@ -1,23 +1,17 @@
 import os
-from schema_salad.ref_resolver import Loader
-import schema_salad.validate as validate
+import logging
+import re
 import urlparse
 import sys
-import update
-import process
+from schema_salad.ref_resolver import Loader
+import schema_salad.validate as validate
+import schema_salad.schema as schema
+from . import update
+from . import process
 
-def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
-              print_pre=False,
-              print_rdf=False,
-              print_dot=False,
-              print_deps=False,
-              relative_deps=False,
-              rdf_serializer=None,
-              enable_dev=False,
-              stdout=sys.stdout,
-              urifrag=None):
-    # type: (Union[str,unicode,dict[unicode,Any]], bool, bool, Callable[...,Process], bool, bool, bool, bool, bool, bool, Any, Any, Any) -> Any
+_logger = logging.getLogger("cwltool")
 
+def fetch_document(argsworkflow):
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
 
     jobobj = None
@@ -33,87 +27,105 @@ def load_tool(argsworkflow, updateonly, strict, makeTool, debug,
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
         workflowobj = argsworkflow
-        uri = urifrag
-        fileuri = "#"
+        uri = "#" + str(id(argsworkflow))
     else:
-        raise validate.ValidationException("Must be URI or dict")
+        raise validate.ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
+    return document_loader, workflowobj, uri
+
+
+def validate_document(document_loader, workflowobj, uri, defaultVersion=None, enable_dev=False, strict=True):
+    jobobj = None
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
         uri = urlparse.urljoin(uri, jobobj["cwl:tool"])
-        fileuri, urifrag = urlparse.urldefrag(uri)
-        workflowobj = document_loader.fetch(fileuri)
         del jobobj["cwl:tool"]
+        workflowobj = fetch_document(uri)
 
-    if isinstance(workflowobj, list):
+    if not isinstance(workflowobj, dict):
         if enable_dev:
-            # bare list without a version must be treated as draft-2
-            workflowobj = {"cwlVersion": "https://w3id.org/cwl/cwl#draft-2",
-                           "id": fileuri,
-                           "@graph": workflowobj}
+            workflowobj = {
+                "cwlVersion": "draft-2",
+                "@graph": workflowobj
+            }
         else:
             raise validate.ValidationException("Missing 'cwlVersion'")
 
-    workflowobj = update.update(workflowobj, document_loader, fileuri, enable_dev)
-    document_loader.idx.clear()
+    fileuri, urifrag = urlparse.urldefrag(uri)
+
+    if "cwlVersion" in workflowobj:
+        workflowobj["cwlVersion"] = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", workflowobj["cwlVersion"])
+    elif defaultVersion:
+        workflowobj["cwlVersion"] = defaultVersion
+    else:
+        raise validate.ValidationException("Missing 'cwlVersion'")
+
+    if workflowobj["cwlVersion"] == "draft-2" or ".dev" in workflowobj["cwlVersion"]:
+        # can't validate draft-2 directly, must run updater
+        workflowobj = update.update(workflowobj, document_loader, fileuri, enable_dev, {})
 
     (document_loader, avsc_names, schema_metadata) = process.get_schema(workflowobj["cwlVersion"])
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    if updateonly:
-        stdout.write(json.dumps(workflowobj, indent=4))
-        return 0
+    workflowobj["id"] = fileuri
+    processobj, metadata = schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
 
-    if print_deps:
-        printdeps(workflowobj, document_loader, stdout, relative_deps)
-        return 0
+    if not metadata:
+        metadata = {"$namespaces": processobj.get("$namespaces", {}),
+                   "$schemas": processobj.get("$schemas", []),
+                   "cwlVersion": processobj["cwlVersion"]}
 
-    try:
-        processobj, metadata = schema_salad.schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
-    except (validate.ValidationException, RuntimeError) as e:
-        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
-        return 1
+    if metadata.get("cwlVersion") != update.latest:
+        processobj = update.update(processobj, document_loader, fileuri, enable_dev, metadata)
 
-    if print_pre:
-        stdout.write(json.dumps(processobj, indent=4))
-        return 0
+    if jobobj:
+        metadata["cwl:defaults"] = jobobj
 
-    if print_rdf:
-        printrdf(argsworkflow, processobj, document_loader.ctx, rdf_serializer, stdout)
-        return 0
+    return document_loader, avsc_names, processobj, metadata, uri
 
-    if print_dot:
-        printdot(argsworkflow, processobj, document_loader.ctx, stdout)
-        return 0
 
-    if urifrag:
-        processobj, _ = document_loader.resolve_ref(uri)
-    elif isinstance(processobj, list):
+def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, kwargs):
+    processobj, _ = document_loader.resolve_ref(uri)
+
+    if isinstance(processobj, list):
         if 1 == len(processobj):
             processobj = processobj[0]
         else:
-            _logger.error(u"Tool file contains graph of multiple objects, must specify one of #%s",
-                          ", #".join(urlparse.urldefrag(i["id"])[1]
-                                     for i in processobj if "id" in i))
-            return 1
+            raise WorkflowException(u"Tool file contains graph of multiple objects, "
+                                   "must specify one of #%s" %
+                                   ", #".join(urlparse.urldefrag(i["id"])[1]
+                                              for i in processobj if "id" in i))
 
-    if not metadata:
-        metadata = {"$namespaces": processobj.get("$namespaces", {}), "$schemas": processobj.get("$schemas", []), 'cwlVersion': processobj["cwlVersion"]}
+    kwargs = kwargs.copy()
+    kwargs.update({
+        "makeTool": makeTool,
+        "loader": document_loader,
+        "avsc_names": avsc_names,
+        "metadata": metadata
+    })
+    t = makeTool(processobj, **kwargs)
 
-    try:
-        t = makeTool(processobj, strict=strict, makeTool=makeTool, loader=document_loader, avsc_names=avsc_names, metadata=metadata)
-    except (validate.ValidationException) as e:
-        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if debug else False))
-        return 1
-    except (RuntimeError, workflow.WorkflowException) as e:
-        _logger.error(u"Tool definition failed initialization:\n%s", e, exc_info=(e if debug else False))
-        return 1
-
-    if jobobj:
+    if "cwl:defaults" in metadata:
+        jobobj = metadata["cwl:defaults"]
         for inp in t.tool["inputs"]:
             if shortname(inp["id"]) in jobobj:
                 inp["default"] = jobobj[shortname(inp["id"])]
 
     return t
+
+
+def load_tool(argsworkflow, makeTool, kwargs,
+              defaultVersion=None,
+              enable_dev=False,
+              strict=True):
+
+    document_loader, workflowobj, uri = fetch_document(argsworkflow)
+    document_loader, avsc_names, processobj, metadata, uri = validate_document(document_loader,
+                                                                               workflowobj,
+                                                                               uri,
+                                                                               defaultVersion=defaultVersion,
+                                                                               enable_dev=enable_dev,
+                                                                               strict=strict)
+    return make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, kwargs)

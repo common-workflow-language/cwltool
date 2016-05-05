@@ -18,6 +18,7 @@ import shutil
 import json
 import schema_salad
 from . import expression
+from .load_tool import load_tool
 from typing import Iterable, List, Callable, Any, Union, Generator, cast
 
 _logger = logging.getLogger("cwltool")
@@ -413,15 +414,12 @@ class WorkflowStep(Process):
             self.id = "#step" + str(pos)
 
         try:
-            makeTool = kwargs.get("makeTool")
-            runobj = None
-            if isinstance(toolpath_object["run"], (str, unicode)):
-                runobj = schema_salad.schema.load_and_validate(
-                        kwargs["loader"], kwargs["avsc_names"],
-                        toolpath_object["run"], True)[0]
+            if isinstance(toolpath_object["run"], dict):
+                self.embedded_tool = kwargs.get("makeTool")(toolpath_object["run"], **kwargs)
             else:
-                runobj = toolpath_object["run"]
-            self.embedded_tool = makeTool(runobj, **kwargs)
+                self.embedded_tool = load_tool(toolpath_object["run"], kwargs.get("makeTool"), kwargs,
+                                               enable_dev=kwargs.get("enable_dev"),
+                                               strict=kwargs.get("strict"))
         except validate.ValidationException as v:
             raise WorkflowException(u"Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
 

@@ -24,7 +24,7 @@ class Factory(object):
         self.execkwargs = execkwargs
 
     def make(self, cwl, frag=None, debug=False):
-        l = main.load_tool(cwl, False, True, self.makeTool, debug, urifrag=frag)
+        l = main.load_tool(cwl, self.makeTool)
         if type(l) == int:
             raise Exception("Error loading tool")
         return Callable(l, self)

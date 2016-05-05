@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 from . import workflow
+from .errors import WorkflowException
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
@@ -22,7 +23,7 @@ import pkg_resources  # part of setuptools
 from . import update
 from .process import shortname, Process
 import rdflib
-from load_tool import load_tool
+from load_tool import load_tool, fetch_document, validate_document, make_tool
 import hashlib
 from .utils import aslist
 from typing import Union, Any, cast, Callable, Dict, Tuple, IO
@@ -116,7 +117,6 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies.")
     exgroup.add_argument("--print-input-deps", action="store_true", help="Print input object document dependencies.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
-    exgroup.add_argument("--update", action="store_true", help="Update to latest CWL version, print and exit")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
@@ -133,6 +133,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
                          help="When using --print-deps, print paths relative to primary file or current working directory.")
+
+    parser.add_argument("--enable-dev", action="store_true", help="Allow loading and running development versions of CWL spec.", default=False)
 
     parser.add_argument("--enable-net", action="store_true",
             help="Use docker's default networking for containers; the default is "
@@ -188,15 +190,15 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
                 if r:
                     r.run(**kwargs)
                 else:
-                    raise workflow.WorkflowException("Workflow cannot make any more progress.")
-        except workflow.WorkflowException:
+                    raise WorkflowException("Workflow cannot make any more progress.")
+        except WorkflowException:
             raise
         except Exception as e:
             _logger.exception("Got workflow error")
-            raise workflow.WorkflowException(unicode(e))
+            raise WorkflowException(unicode(e))
 
         if final_status[0] != "success":
-            raise workflow.WorkflowException(u"Process status is %s" % (final_status))
+            raise WorkflowException(u"Process status is %s" % (final_status))
 
         return final_output[0]
 
@@ -458,15 +460,37 @@ def main(argsl=None,
         return 1
 
     try:
-        t = load_tool(args.workflow, args.update, args.strict, makeTool, args.debug,
-                      print_pre=args.print_pre,
-                      print_rdf=args.print_rdf,
-                      print_dot=args.print_dot,
-                      print_deps=args.print_deps,
-                      relative_deps=args.relative_deps,
-                      rdf_serializer=args.rdf_serializer,
-                      enable_dev=args.enable_dev,
-                      stdout=stdout)
+        document_loader, workflowobj, uri = fetch_document(args.workflow)
+
+        if args.print_deps:
+            printdeps(workflowobj, document_loader, stdout, args.relative_deps)
+            return 0
+
+        document_loader, avsc_names, processobj, metadata, uri = validate_document(document_loader,
+                                                                                   workflowobj, uri,
+                                                                                   enable_dev=args.enable_dev,
+                                                                                   strict=args.strict)
+
+        if args.print_pre:
+            stdout.write(json.dumps(processobj, indent=4))
+            return 0
+
+        if args.print_rdf:
+            printrdf(uri, processobj, document_loader.ctx, args.rdf_serializer, stdout)
+            return 0
+
+        if args.print_dot:
+            printdot(uri, processobj, document_loader.ctx, stdout)
+            return 0
+
+        t = make_tool(document_loader, avsc_names, processobj,
+                      metadata, uri, makeTool, {})
+    except (validate.ValidationException) as e:
+        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if args.debug else False))
+        return 1
+    except (RuntimeError, WorkflowException) as e:
+        _logger.error(u"Tool definition failed initialization:\n%s", e, exc_info=(e if args.debug else False))
+        return 1
     except Exception as e:
         _logger.error(u"I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
         return 1
@@ -533,7 +557,7 @@ def main(argsl=None,
     except (validate.ValidationException) as e:
         _logger.error(u"Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
         return 1
-    except workflow.WorkflowException as e:
+    except WorkflowException as e:
         _logger.error(u"Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
         return 1
     except Exception as e:
