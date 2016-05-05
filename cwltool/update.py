@@ -334,40 +334,36 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
 def draft3toDraft4dev1(doc, loader, baseuri):
     return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
+updates = {
+    "draft-3": draft3toDraft4dev1
+} # type: Dict[unicode, Any]
+
+devUpdates = {
+    "draft-2": draft2toDraft3dev1,
+    "draft-3.dev1": draftDraft3dev1toDev2,
+    "draft-3.dev2": draftDraft3dev2toDev3,
+    "draft-3.dev3": draftDraft3dev3toDev4,
+    "draft-3.dev4": draftDraft3dev4toDev5,
+    "draft-3.dev5": draftDraft3dev5toFinal,
+    "draft-4.dev1": None
+} # type: Dict[unicode, Any]
+
+allupdates = updates.copy()
+allupdates.update(devUpdates)
+
 latest = "draft-4.dev1"
 
-def update(doc, loader, baseuri, enable_dev, metadata):
+def identity(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
+    return (doc, doc["cwlVersion"])
+
+def checkversion(doc, metadata, enable_dev):
     if isinstance(doc, list):
         metadata = metadata.copy()
         metadata["$graph"] = doc
         doc = metadata
 
-    def identity(doc, loader, baseuri):
-        # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
-        v = doc.get("cwlVersion")
-        if v:
-            return (doc, v)
-        if enable_dev:
-            return (doc, "draft-2")
-        else:
-            raise schema_salad.validate.ValidationException("Missing 'cwlVersion'")
-
-    (doc, version) = identity(doc, loader, baseuri)
-
-    # type: (Any, Loader, str, bool) -> Any
-    updates = {
-        "draft-3": draft3toDraft4dev1
-    } # type: Dict[unicode, Any]
-
-    devUpdates = {
-        "draft-2": draft2toDraft3dev1,
-        "draft-3.dev1": draftDraft3dev1toDev2,
-        "draft-3.dev2": draftDraft3dev2toDev3,
-        "draft-3.dev3": draftDraft3dev3toDev4,
-        "draft-3.dev4": draftDraft3dev4toDev5,
-        "draft-3.dev5": draftDraft3dev5toFinal,
-        "draft-4.dev1": None
-    } # type: Dict[unicode, Any]
+    version = doc["cwlVersion"]
 
     if version not in updates:
         if version in devUpdates:
@@ -380,13 +376,18 @@ Update your document to a stable version (%s) or use --enable-dev to enable supp
         else:
             raise schema_salad.validate.ValidationException(u"Unrecognized version %s" % version)
 
-    updates.update(devUpdates)
+    return (doc, version)
+
+def update(doc, loader, baseuri, enable_dev, metadata):
+    # type: (Any, Loader, str, bool, Any) -> Any
+
+    (doc, version) = checkversion(doc, metadata, enable_dev)
 
     nextupdate = identity
 
     while nextupdate:
         (doc, version) = nextupdate(doc, loader, baseuri)
-        nextupdate = updates[version]
+        nextupdate = allupdates[version]
 
     doc["cwlVersion"] = version
 
