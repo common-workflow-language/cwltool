@@ -8,11 +8,9 @@ import logging
 import random
 import os
 from collections import namedtuple
-import pprint
 import functools
 import schema_salad.validate as validate
 import urlparse
-import pprint
 import tempfile
 import shutil
 import json
@@ -423,20 +421,28 @@ class WorkflowStep(Process):
         except validate.ValidationException as v:
             raise WorkflowException(u"Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
 
-        for field in ("inputs", "outputs"):
-            for i in toolpath_object[field]:
-                inputid = i["id"]
+        for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
+            toolpath_object[toolfield] = []
+            for i in toolpath_object[stepfield]:
+                if isinstance(i, basestring):
+                    param = {}
+                    inputid = i
+                else:
+                    param = i.copy()
+                    inputid = i["id"]
+
                 p = shortname(inputid)
                 found = False
-                for a in self.embedded_tool.tool[field]:
+                for a in self.embedded_tool.tool[toolfield]:
                     frag = shortname(a["id"])
                     if frag == p:
-                        i.update(a)
+                        param.update(a)
                         found = True
+                        break
                 if not found:
-                    i["type"] = "Any"
-                    #raise WorkflowException("Parameter '%s' of %s in workflow step %s does not correspond to parameter in %s" % (p, field, self.id, self.embedded_tool.tool.get("id")))
-                i["id"] = inputid
+                    param["type"] = "Any"
+                param["id"] = inputid
+                toolpath_object[toolfield].append(param)
 
         super(WorkflowStep, self).__init__(toolpath_object, **kwargs)
 

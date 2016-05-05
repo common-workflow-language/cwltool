@@ -492,7 +492,9 @@ def main(argsl=None,
         _logger.error(u"Tool definition failed initialization:\n%s", e, exc_info=(e if args.debug else False))
         return 1
     except Exception as e:
-        _logger.error(u"I'm sorry, I couldn't load this CWL file, try again with --debug for more information.\n%s\n", e, exc_info=(e if args.debug else False))
+        _logger.error(u"I'm sorry, I couldn't load this CWL file%s",
+                      ", try again with --debug for more information.\nThe error was: %s" % e if not args.debug else ".  The error was:",
+                      exc_info=(e if args.debug else False))
         return 1
 
     if isinstance(t, int):

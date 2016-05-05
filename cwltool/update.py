@@ -316,8 +316,23 @@ def draftDraft3dev5toFinal(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
     return (doc, "draft-3")
 
+def _draft3toDraft4dev1(doc, loader, baseuri):
+    if isinstance(doc, dict):
+        if "class" in doc and doc["class"] == "Workflow":
+            for s in doc["steps"]:
+                s["in"] = s["inputs"]
+                s["out"] = s["outputs"]
+                del s["inputs"]
+                del s["outputs"]
+        for k,v in doc.items():
+            doc[k] = _draft3toDraft4dev1(v, loader, baseuri)
+    elif isinstance(doc, list):
+        doc = [_draft3toDraft4dev1(v, loader, baseuri) for v in doc]
+
+    return doc
+
 def draft3toDraft4dev1(doc, loader, baseuri):
-    return (doc, "draft-4.dev1")
+    return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
 latest = "draft-4.dev1"
 
@@ -354,13 +369,18 @@ def update(doc, loader, baseuri, enable_dev, metadata):
         "draft-4.dev1": None
     } # type: Dict[unicode, Any]
 
-    if enable_dev:
-        updates.update(devUpdates)
-
     if version not in updates:
-        raise Exception(u"Unrecognized version %s, try --enable-dev for development versions" % version)
+        if version in devUpdates:
+            if enable_dev:
+                pass
+            else:
+                raise schema_salad.validate.ValidationException(
+u""""Version '%s' is a development or deprecated version.
+Update your document to a stable version (%s) or use --enable-dev to enable support for development and deprecated versions.""" % (version, ", ".join(updates.keys())))
+        else:
+            raise schema_salad.validate.ValidationException(u"Unrecognized version %s" % version)
 
-    updates[latest] = None
+    updates.update(devUpdates)
 
     nextupdate = identity
 

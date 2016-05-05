@@ -3,6 +3,7 @@ import logging
 import re
 import urlparse
 import sys
+import json
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
 import schema_salad.schema as schema
@@ -34,7 +35,7 @@ def fetch_document(argsworkflow):
     return document_loader, workflowobj, uri
 
 
-def validate_document(document_loader, workflowobj, uri, defaultVersion=None, enable_dev=False, strict=True):
+def validate_document(document_loader, workflowobj, uri, enable_dev=False, strict=True):
     jobobj = None
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
@@ -42,25 +43,20 @@ def validate_document(document_loader, workflowobj, uri, defaultVersion=None, en
         del jobobj["cwl:tool"]
         workflowobj = fetch_document(uri)
 
-    if not isinstance(workflowobj, dict):
-        if enable_dev:
-            workflowobj = {
-                "cwlVersion": "draft-2",
-                "@graph": workflowobj
-            }
-        else:
-            raise validate.ValidationException("Missing 'cwlVersion'")
+    if isinstance(workflowobj, list):
+        workflowobj = {
+            "cwlVersion": "draft-2",
+            "@graph": workflowobj
+        }
 
     fileuri, urifrag = urlparse.urldefrag(uri)
 
     if "cwlVersion" in workflowobj:
         workflowobj["cwlVersion"] = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", workflowobj["cwlVersion"])
-    elif defaultVersion:
-        workflowobj["cwlVersion"] = defaultVersion
     else:
-        raise validate.ValidationException("Missing 'cwlVersion'")
+        workflowobj["cwlVersion"] = "draft-2"
 
-    if workflowobj["cwlVersion"] == "draft-2" or ".dev" in workflowobj["cwlVersion"]:
+    if workflowobj["cwlVersion"] == "draft-2":
         # can't validate draft-2 directly, must run updater
         workflowobj = update.update(workflowobj, document_loader, fileuri, enable_dev, {})
 
@@ -117,7 +113,6 @@ def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, 
 
 
 def load_tool(argsworkflow, makeTool, kwargs,
-              defaultVersion=None,
               enable_dev=False,
               strict=True):
 
@@ -125,7 +120,6 @@ def load_tool(argsworkflow, makeTool, kwargs,
     document_loader, avsc_names, processobj, metadata, uri = validate_document(document_loader,
                                                                                workflowobj,
                                                                                uri,
-                                                                               defaultVersion=defaultVersion,
                                                                                enable_dev=enable_dev,
                                                                                strict=strict)
     return make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool, kwargs)
