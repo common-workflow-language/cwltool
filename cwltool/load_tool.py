@@ -45,7 +45,7 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
 
     if isinstance(workflowobj, list):
         workflowobj = {
-            "@graph": workflowobj
+            "$graph": workflowobj
         }
 
     fileuri, urifrag = urlparse.urldefrag(uri)
@@ -56,7 +56,10 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
         workflowobj["cwlVersion"] = "draft-2"
 
     if workflowobj["cwlVersion"] == "draft-2":
-        workflowobj = update._draft2toDraft3dev1(workflowobj, document_loader, uri)
+        workflowobj = update._draft2toDraft3dev1(workflowobj, document_loader, uri, updateSteps=False)
+        if "@graph" in workflowobj:
+            workflowobj["$graph"] = workflowobj["@graph"]
+            del workflowobj["@graph"]
 
     (document_loader, avsc_names, schema_metadata, schema_loader) = process.get_schema(workflowobj["cwlVersion"])
 

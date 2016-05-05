@@ -34,7 +34,7 @@ def fixType(doc):  # type: (Any) -> Any
             return "#" + doc
     return doc
 
-def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
+def _draft2toDraft3dev1(doc, loader, baseuri, updateSteps=True):  # type: (Any, Loader, str) -> Any
     try:
         if isinstance(doc, dict):
             if "import" in doc:
@@ -61,7 +61,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> An
                 if t in doc:
                     doc[t] = fixType(doc[t])
 
-            if "steps" in doc:
+            if "steps" in doc and updateSteps:
                 if not isinstance(doc["steps"], list):
                     raise Exception("Value of 'steps' must be a list")
                 for i, s in enumerate(doc["steps"]):
@@ -105,7 +105,7 @@ def updateScript(sc):  # type: (str) -> str
 
 def _updateDev2Script(ent):  # type: (Any) -> Any
     if isinstance(ent, dict) and "engine" in ent:
-        if ent["engine"] == "cwl:JsonPointer":
+        if ent["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
             sp = ent["script"].split("/")
             if sp[0] in ("tmpdir", "outdir"):
                 return u"$(runtime.%s)" % sp[0]
