@@ -4,6 +4,7 @@ import os
 import tempfile
 import glob
 import json
+import yaml
 import logging
 import sys
 import requests
