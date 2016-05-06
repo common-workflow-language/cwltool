@@ -1,28 +1,26 @@
 #!/usr/bin/env cwl-runner
 class: Workflow
-cwlVersion: cwl:draft-3
+cwlVersion: cwl:draft-4.dev1
 
 inputs: []
 
 outputs:
-  - id: count_output
+  count_output:
     type: int
     source: "#step2/output"
 
 steps:
-  - id: step1
+  step1:
     run: wc-tool.cwl
-    inputs:
-      - id: file1
+    in:
+      file1:
         default:
           class: File
           path: whale.txt
-    outputs:
-      - {id: output}
+    out: [output]
 
-  - id: step2
+  step2:
     run: parseInt-tool.cwl
-    inputs:
-      - {id: file1, source: "#step1/output"}
-    outputs:
-      - {id: output}
+    in:
+      file1: "#step1/output"
+    out: [output]
