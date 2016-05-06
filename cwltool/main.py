@@ -469,7 +469,8 @@ def main(argsl=None,
         document_loader, avsc_names, processobj, metadata, uri = validate_document(document_loader,
                                                                                    workflowobj, uri,
                                                                                    enable_dev=args.enable_dev,
-                                                                                   strict=args.strict)
+                                                                                   strict=args.strict,
+                                                                                   preprocess_only=args.print_pre)
 
         if args.print_pre:
             stdout.write(json.dumps(processobj, indent=4))

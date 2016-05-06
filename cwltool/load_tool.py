@@ -35,7 +35,8 @@ def fetch_document(argsworkflow):
     return document_loader, workflowobj, uri
 
 
-def validate_document(document_loader, workflowobj, uri, enable_dev=False, strict=True):
+def validate_document(document_loader, workflowobj, uri,
+                      enable_dev=False, strict=True, preprocess_only=False):
     jobobj = None
     if "cwl:tool" in workflowobj:
         jobobj = workflowobj
@@ -67,7 +68,13 @@ def validate_document(document_loader, workflowobj, uri, enable_dev=False, stric
         raise avsc_names
 
     workflowobj["id"] = fileuri
-    processobj, metadata = schema.load_and_validate(document_loader, avsc_names, workflowobj, strict)
+    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
+
+    if preprocess_only:
+        return document_loader, avsc_names, processobj, metadata, uri
+
+    document_loader.validate_links(processobj)
+    schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if not metadata:
         metadata = {"$namespaces": processobj.get("$namespaces", {}),
