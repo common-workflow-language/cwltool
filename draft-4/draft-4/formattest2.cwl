@@ -3,17 +3,17 @@ $namespaces:
 $schemas:
   - EDAM.owl
 class: CommandLineTool
-cwlVersion: cwl:draft-3
+cwlVersion: cwl:draft-4.dev1
 description: "Reverse each line using the `rev` command"
 
 inputs:
-  - id: input
+  input:
     type: File
     inputBinding: {}
     format: edam:format_2330
 
 outputs:
-  - id: output
+  output:
     type: File
     outputBinding:
       glob: output.txt

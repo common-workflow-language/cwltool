@@ -6,7 +6,7 @@ $schemas:
   - foaf.rdf
   - dcterms.rdf
 
-cwlVersion: cwl:draft-3
+cwlVersion: cwl:draft-4.dev1
 class: CommandLineTool
 description: "Print the contents of a file to stdout using 'cat' running in a docker container."
 
@@ -17,13 +17,13 @@ dct:creator:
   foaf:mbox: "mailto:peter.amstutz@curoverse.com"
 
 hints:
-  - class: DockerRequirement
+  DockerRequirement:
     dockerPull: debian:wheezy
 inputs:
-  - id: file1
+  file1:
     type: File
     inputBinding: {position: 1}
-  - id: numbering
+  numbering:
     type: ["null", boolean]
     inputBinding:
       position: 0

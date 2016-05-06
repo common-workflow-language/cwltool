@@ -1,8 +1,8 @@
 class: CommandLineTool
-cwlVersion: cwl:draft-3
+cwlVersion: cwl:draft-4.dev1
 
 inputs:
-  - id: ids
+  ids:
     type:
       type: array
       items: string
@@ -10,7 +10,7 @@ inputs:
       position: 1
 
 outputs:
-  - id: files
+  files:
     type:
       type: array
       items: File
