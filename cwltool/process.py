@@ -296,8 +296,14 @@ class Process(object):
             builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
             builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
         else:
-            builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
-            builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
+            if kwargs.get('tmp_outdir_prefix'):
+                builder.outdir = tempfile.mkdtemp(prefix=kwargs.get('tmp_outdir_prefix'))
+            else:
+                builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
+            if kwargs.get('tmpdir_prefix'):
+                builder.tmpdir = tempfile.mkdtemp(prefix=kwargs.get('tmpdir_prefix'))
+            else:
+                builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
 
