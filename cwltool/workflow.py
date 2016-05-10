@@ -93,6 +93,8 @@ def are_same_type(src, sink):  # type: (Any, Any) -> bool
     """
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
+            if 'null' in sink["items"]:
+                return are_same_type([src["items"]], [it for it in sink["items"] if it != 'null'])
             return are_same_type(src["items"], sink["items"])
         elif src["type"] == sink["type"]:
             return True
