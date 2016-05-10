@@ -68,7 +68,7 @@ def validate_document(document_loader, workflowobj, uri,
 
     if workflowobj["cwlVersion"] == "draft-2":
         workflowobj = update._draft2toDraft3dev1(
-            workflowobj, document_loader, uri, update_steps=False)[0]
+            workflowobj, document_loader, uri, update_steps=False)
         if "@graph" in workflowobj:
             workflowobj["$graph"] = workflowobj["@graph"]
             del workflowobj["@graph"]
