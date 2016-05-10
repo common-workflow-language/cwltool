@@ -15,6 +15,7 @@ from .process import Process, shortname
 from .errors import WorkflowException
 from typing import Any, Callable, cast, Dict, Tuple, Union
 
+_logger = logging.getLogger("cwltool")
 
 def fetch_document(argsworkflow):
     # type: (Union[str, unicode, dict[unicode, Any]]) -> Tuple[Loader, Dict[unicode, Any], unicode]
