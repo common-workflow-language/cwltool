@@ -8,7 +8,7 @@ class ToolArgparse(unittest.TestCase):
 
     script='''
 #!/usr/bin/env cwl-runner
-cwlVersion: "cwl:draft-3"
+cwlVersion: "draft-3"
 class: CommandLineTool
 description: "This tool is developed for SMC-RNA Challenge for detecting gene fusions (STAR fusion)"
 inputs:
@@ -16,7 +16,7 @@ inputs:
   - id: input
     type: File
     inputBinding:
-      position: 0 
+      position: 0
 outputs:
   - id: output
     type: File
@@ -48,7 +48,8 @@ stdout: foo
         with NamedTemporaryFile() as f:
             f.write(self.script)
             f.flush()
-            self.assertEquals(main([f.name, '--input', 'README.rst']), 0)
+            self.assertEquals(main(["--debug", f.name, '--input', 'README.rst']), 0)
+            self.assertEquals(main(["--debug", f.name, '--input', 'README.rst']), 0)
 
     def test_bool(self):
         with NamedTemporaryFile() as f:

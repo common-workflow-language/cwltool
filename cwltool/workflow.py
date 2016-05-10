@@ -8,16 +8,15 @@ import logging
 import random
 import os
 from collections import namedtuple
-import pprint
 import functools
 import schema_salad.validate as validate
 import urlparse
-import pprint
 import tempfile
 import shutil
 import json
 import schema_salad
 from . import expression
+from .load_tool import load_tool
 from typing import Iterable, List, Callable, Any, Union, Generator, cast
 
 _logger = logging.getLogger("cwltool")
@@ -415,32 +414,38 @@ class WorkflowStep(Process):
             self.id = "#step" + str(pos)
 
         try:
-            makeTool = kwargs.get("makeTool")
-            runobj = None
-            if isinstance(toolpath_object["run"], (str, unicode)):
-                runobj = schema_salad.schema.load_and_validate(
-                        kwargs["loader"], kwargs["avsc_names"],
-                        toolpath_object["run"], True)[0]
+            if isinstance(toolpath_object["run"], dict):
+                self.embedded_tool = kwargs.get("makeTool")(toolpath_object["run"], **kwargs)
             else:
-                runobj = toolpath_object["run"]
-            self.embedded_tool = makeTool(runobj, **kwargs)
+                self.embedded_tool = load_tool(
+                    toolpath_object["run"], kwargs.get("makeTool"), kwargs,
+                    enable_dev=kwargs.get("enable_dev"),
+                    strict=kwargs.get("strict"))
         except validate.ValidationException as v:
             raise WorkflowException(u"Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
 
-        for field in ("inputs", "outputs"):
-            for i in toolpath_object[field]:
-                inputid = i["id"]
-                p = shortname(inputid)
+        for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
+            toolpath_object[toolfield] = []
+            for step_entry in toolpath_object[stepfield]:
+                if isinstance(step_entry, (str, unicode)):
+                    param = {}  # type: Dict[str, Any]
+                    inputid = step_entry
+                else:
+                    param = step_entry.copy()
+                    inputid = step_entry["id"]
+
+                shortinputid = shortname(inputid)
                 found = False
-                for a in self.embedded_tool.tool[field]:
-                    frag = shortname(a["id"])
-                    if frag == p:
-                        i.update(a)
+                for tool_entry in self.embedded_tool.tool[toolfield]:
+                    frag = shortname(tool_entry["id"])
+                    if frag == shortinputid:
+                        param.update(tool_entry)
                         found = True
+                        break
                 if not found:
-                    i["type"] = "Any"
-                    #raise WorkflowException("Parameter '%s' of %s in workflow step %s does not correspond to parameter in %s" % (p, field, self.id, self.embedded_tool.tool.get("id")))
-                i["id"] = inputid
+                    param["type"] = "Any"
+                param["id"] = inputid
+                toolpath_object[toolfield].append(param)
 
         super(WorkflowStep, self).__init__(toolpath_object, **kwargs)
 

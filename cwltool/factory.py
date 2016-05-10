@@ -1,4 +1,5 @@
 from . import main
+from . import load_tool
 from . import workflow
 import os
 from .process import Process
@@ -23,8 +24,9 @@ class Factory(object):
         self.executor = executor
         self.execkwargs = execkwargs
 
-    def make(self, cwl, frag=None, debug=False):
-        l = main.load_tool(cwl, False, True, self.makeTool, debug, urifrag=frag)
-        if type(l) == int:
+    def make(self, cwl):
+        """Instantiate a CWL object from a CWl document."""
+        load = load_tool.load_tool(cwl, self.makeTool)
+        if isinstance(load, int):
             raise Exception("Error loading tool")
-        return Callable(l, self)
+        return Callable(load, self)

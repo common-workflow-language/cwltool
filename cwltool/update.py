@@ -2,10 +2,13 @@ import sys
 import urlparse
 import json
 import re
-from .utils import aslist
-from typing import Any, Dict, Callable, List, Tuple, Union
 import traceback
+
 from schema_salad.ref_resolver import Loader
+import schema_salad.validate
+from typing import Any, Dict, Callable, List, Tuple, Union  # pylint: disable=unused-import
+
+from .utils import aslist
 
 def findId(doc, frg):  # type: (Any, Any) -> Dict
     if isinstance(doc, dict):
@@ -28,11 +31,14 @@ def fixType(doc):  # type: (Any) -> Any
         return [fixType(f) for f in doc]
 
     if isinstance(doc, (str, unicode)):
-        if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
+        if doc not in (
+                "null", "boolean", "int", "long", "float", "double", "string",
+                "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
 
-def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
+def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
+    # type: (Any, Loader, unicode, bool) -> Any
     try:
         if isinstance(doc, dict):
             if "import" in doc:
@@ -55,11 +61,11 @@ def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> An
             if "include" in doc:
                 return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
 
-            for t in ("type", "items"):
-                if t in doc:
-                    doc[t] = fixType(doc[t])
+            for typename in ("type", "items"):
+                if typename in doc:
+                    doc[typename] = fixType(doc[typename])
 
-            if "steps" in doc:
+            if "steps" in doc and update_steps:
                 if not isinstance(doc["steps"], list):
                     raise Exception("Value of 'steps' must be a list")
                 for i, s in enumerate(doc["steps"]):
@@ -85,11 +91,11 @@ def _draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> An
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
-def draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
-    return (_draft2toDraft3dev1(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev1")
+def draft2toDraft3dev1(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (_draft2toDraft3dev1(doc, loader, baseuri), "draft-3.dev1")
 
 digits = re.compile("\d+")
 
@@ -103,7 +109,7 @@ def updateScript(sc):  # type: (str) -> str
 
 def _updateDev2Script(ent):  # type: (Any) -> Any
     if isinstance(ent, dict) and "engine" in ent:
-        if ent["engine"] == "cwl:JsonPointer":
+        if ent["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
             sp = ent["script"].split("/")
             if sp[0] in ("tmpdir", "outdir"):
                 return u"$(runtime.%s)" % sp[0]
@@ -172,8 +178,8 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
 
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev1toDev2(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev2")
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (_draftDraft3dev1toDev2(doc, loader, baseuri), "draft-3.dev2")
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
@@ -218,8 +224,8 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev2toDev3(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev3")
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (_draftDraft3dev2toDev3(doc, loader, baseuri), "draft-3.dev3")
 
 
 def traverseImport(doc, loader, baseuri, func):
@@ -274,8 +280,8 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev3toDev4(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev4")
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (_draftDraft3dev3toDev4(doc, loader, baseuri), "draft-3.dev4")
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
@@ -307,42 +313,100 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
-    return (_draftDraft3dev4toDev5(doc, loader, baseuri), "https://w3id.org/cwl/cwl#draft-3.dev5")
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (_draftDraft3dev4toDev5(doc, loader, baseuri), "draft-3.dev5")
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (doc, "draft-3")
+
+def _draft3toDraft4dev1(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
-    return (doc, "https://w3id.org/cwl/cwl#draft-3")
+    if isinstance(doc, dict):
+        if "class" in doc and doc["class"] == "Workflow":
+            for step in doc["steps"]:
+                step["in"] = step["inputs"]
+                step["out"] = step["outputs"]
+                del step["inputs"]
+                del step["outputs"]
+        for key, value in doc.items():
+            doc[key] = _draft3toDraft4dev1(value, loader, baseuri)
+    elif isinstance(doc, list):
+        doc = [_draft3toDraft4dev1(item, loader, baseuri) for item in doc]
 
+    return doc
 
-def update(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
-    updates = {
-        "https://w3id.org/cwl/cwl#draft-2": draft2toDraft3dev1,
-        "https://w3id.org/cwl/cwl#draft-3.dev1": draftDraft3dev1toDev2,
-        "https://w3id.org/cwl/cwl#draft-3.dev2": draftDraft3dev2toDev3,
-        "https://w3id.org/cwl/cwl#draft-3.dev3": draftDraft3dev3toDev4,
-        "https://w3id.org/cwl/cwl#draft-3.dev4": draftDraft3dev4toDev5,
-        "https://w3id.org/cwl/cwl#draft-3.dev5": draftDraft3dev5toFinal,
-        "https://w3id.org/cwl/cwl#draft-3": None
-        }  # type: Dict[unicode, Any]
+def draft3toDraft4dev1(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for draft-3 to draft-4.dev1."""
+    return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
-    def identity(doc, loader, baseuri):
-        # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
-        v = doc.get("cwlVersion")
-        if v:
-            return (doc, loader.expand_url(v, ""))
+UPDATES = {
+    "draft-2": draft2toDraft3dev1,
+    "draft-3": draft3toDraft4dev1
+} # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
+
+DEVUPDATES = {
+    "draft-3.dev1": draftDraft3dev1toDev2,
+    "draft-3.dev2": draftDraft3dev2toDev3,
+    "draft-3.dev3": draftDraft3dev3toDev4,
+    "draft-3.dev4": draftDraft3dev4toDev5,
+    "draft-3.dev5": draftDraft3dev5toFinal,
+    "draft-4.dev1": None
+} # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
+
+ALLUPDATES = UPDATES.copy()
+ALLUPDATES.update(DEVUPDATES)
+
+LATEST = "draft-4.dev1"
+
+def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
+    """The default, do-nothing, CWL document upgrade function."""
+    return (doc, doc["cwlVersion"])
+
+def checkversion(doc, metadata, enable_dev):
+    # type: (Union[List, Dict[str, Any]], Dict[str, Any], bool) -> Tuple[Dict[str, Any], Union[str, unicode]]  # pylint: disable=line-too-long
+    """Checks the validity of the version of the give CWL document.
+
+    Returns the document and the validated version string.
+    """
+    if isinstance(doc, list):
+        metadata = metadata.copy()
+        metadata["$graph"] = doc
+        cdoc = metadata
+    else:
+        cdoc = doc
+
+    version = cdoc["cwlVersion"]
+
+    if version not in UPDATES:
+        if version in DEVUPDATES:
+            if enable_dev:
+                pass
+            else:
+                raise schema_salad.validate.ValidationException(
+                    u"Version '%s' is a development or deprecated version.\n "
+                    "Update your document to a stable version (%s) or use "
+                    "--enable-dev to enable support for development and "
+                    "deprecated versions." % (version, ", ".join(
+                        UPDATES.keys())))
         else:
-            return (doc, "https://w3id.org/cwl/cwl#draft-2")
+            raise schema_salad.validate.ValidationException(
+                u"Unrecognized version %s" % version)
+
+    return (cdoc, version)
+
+def update(doc, loader, baseuri, enable_dev, metadata):
+    # type: (Any, Loader, str, bool, Any) -> Any
+
+    (doc, version) = checkversion(doc, metadata, enable_dev)
 
     nextupdate = identity
 
     while nextupdate:
         (doc, version) = nextupdate(doc, loader, baseuri)
-        if version in updates:
-            nextupdate = updates[version]
-        else:
-            raise Exception(u"Unrecognized version %s" % version)
+        nextupdate = ALLUPDATES[version]
 
     doc["cwlVersion"] = version
 

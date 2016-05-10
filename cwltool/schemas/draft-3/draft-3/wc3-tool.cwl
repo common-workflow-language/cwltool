@@ -1,5 +1,6 @@
 #!/usr/bin/env cwl-runner
 class: CommandLineTool
+cwlVersion: cwl:draft-3
 
 requirements:
   - class: InlineJavascriptRequirement

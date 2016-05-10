@@ -6,7 +6,7 @@ from rdflib.serializer import Serializer
 from typing import Any, Union, Dict, IO
 
 def makerdf(workflow, wf, ctx):
-    # type: (str, Dict[str,Any], Loader.ContextType) -> Graph
+    # type: (Union[str, unicode], Dict[str,Any], Loader.ContextType) -> Graph
     prefixes = {}
     for k,v in ctx.iteritems():
         if isinstance(v, dict):
@@ -31,7 +31,7 @@ def makerdf(workflow, wf, ctx):
     return g
 
 def printrdf(workflow, wf, ctx, sr, stdout):
-    # type: (str, Dict[str,Any], Loader.ContextType, str, IO[Any]) -> None
+    # type: (Union[str, unicode], Dict[str, Any], Loader.ContextType, str, IO[Any]) -> None
     stdout.write(makerdf(workflow, wf, ctx).serialize(format=sr))
 
 def lastpart(uri):  # type: (Any) -> str
@@ -172,7 +172,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
 
 
 def printdot(workflow, wf, ctx, stdout, include_parameters=False):
-    # type: (str, Dict[str,Any], Loader.ContextType, Any, bool) -> None
+    # type: (Union[str, unicode], Dict[str, Any], Loader.ContextType, Any, bool) -> None
     g = makerdf(workflow, wf, ctx)
 
     stdout.write("digraph {")
