@@ -415,28 +415,29 @@ class WorkflowStep(Process):
             if isinstance(toolpath_object["run"], dict):
                 self.embedded_tool = kwargs.get("makeTool")(toolpath_object["run"], **kwargs)
             else:
-                self.embedded_tool = load_tool(toolpath_object["run"], kwargs.get("makeTool"), kwargs,
-                                               enable_dev=kwargs.get("enable_dev"),
-                                               strict=kwargs.get("strict"))
+                self.embedded_tool = load_tool(
+                    toolpath_object["run"], kwargs.get("makeTool"), kwargs,
+                    enable_dev=kwargs.get("enable_dev"),
+                    strict=kwargs.get("strict"))
         except validate.ValidationException as v:
             raise WorkflowException(u"Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
 
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
-            for i in toolpath_object[stepfield]:
-                if isinstance(i, basestring):
-                    param = {}
-                    inputid = i
+            for step_entry in toolpath_object[stepfield]:
+                if isinstance(step_entry, (str, unicode)):
+                    param = {}  # type: Dict[str, Any]
+                    inputid = step_entry
                 else:
-                    param = i.copy()
-                    inputid = i["id"]
+                    param = step_entry.copy()
+                    inputid = step_entry["id"]
 
-                p = shortname(inputid)
+                shortinputid = shortname(inputid)
                 found = False
-                for a in self.embedded_tool.tool[toolfield]:
-                    frag = shortname(a["id"])
-                    if frag == p:
-                        param.update(a)
+                for tool_entry in self.embedded_tool.tool[toolfield]:
+                    frag = shortname(tool_entry["id"])
+                    if frag == shortinputid:
+                        param.update(tool_entry)
                         found = True
                         break
                 if not found:

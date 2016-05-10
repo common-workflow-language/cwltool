@@ -10,22 +10,19 @@ import sys
 import logging
 from . import workflow
 from .errors import WorkflowException
+from . import process
+from .cwlrdf import printrdf, printdot
+from .process import shortname, Process
+from .load_tool import fetch_document, validate_document, make_tool
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
 import schema_salad.makedoc
 import yaml
 import urlparse
-from . import process
-from . import job
-from .cwlrdf import printrdf, printdot
 import pkg_resources  # part of setuptools
-from . import update
-from .process import shortname, Process
 import rdflib
-from load_tool import load_tool, fetch_document, validate_document, make_tool
 import hashlib
-from .utils import aslist
 from typing import Union, Any, cast, Callable, Dict, Tuple, IO
 
 _logger = logging.getLogger("cwltool")
@@ -134,14 +131,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
                          help="When using --print-deps, print paths relative to primary file or current working directory.")
 
-    parser.add_argument("--enable-dev", action="store_true", help="Allow loading and running development versions of CWL spec.", default=False)
+    parser.add_argument("--enable-dev", action="store_true",
+                        help="Allow loading and running development versions "
+                        "of CWL spec.", default=False)
 
     parser.add_argument("--enable-net", action="store_true",
-            help="Use docker's default networking for containers; the default is "
-            "to disable networking.")
+                        help="Use docker's default networking for containers;"
+                        " the default is to disable networking.")
     parser.add_argument("--custom-net", type=str,
-            help="Will be passed to `docker run` as the '--net' parameter. "
-            "Implies '--enable-net'.")
+                        help="Will be passed to `docker run` as the '--net' "
+                        "parameter. Implies '--enable-net'.")
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
@@ -466,11 +465,10 @@ def main(argsl=None,
             printdeps(workflowobj, document_loader, stdout, args.relative_deps)
             return 0
 
-        document_loader, avsc_names, processobj, metadata, uri = validate_document(document_loader,
-                                                                                   workflowobj, uri,
-                                                                                   enable_dev=args.enable_dev,
-                                                                                   strict=args.strict,
-                                                                                   preprocess_only=args.print_pre)
+        document_loader, avsc_names, processobj, metadata, uri \
+            = validate_document(document_loader, workflowobj, uri,
+                                enable_dev=args.enable_dev, strict=args.strict,
+                                preprocess_only=args.print_pre)
 
         if args.print_pre:
             stdout.write(json.dumps(processobj, indent=4))
@@ -484,22 +482,26 @@ def main(argsl=None,
             printdot(uri, processobj, document_loader.ctx, stdout)
             return 0
 
-        t = make_tool(document_loader, avsc_names, processobj,
-                      metadata, uri, makeTool, {})
-    except (validate.ValidationException) as e:
-        _logger.error(u"Tool definition failed validation:\n%s", e, exc_info=(e if args.debug else False))
+        tool = make_tool(document_loader, avsc_names, processobj, metadata,
+                         uri, makeTool, {})
+    except (validate.ValidationException) as exc:
+        _logger.error(u"Tool definition failed validation:\n%s", exc,
+                      exc_info=(exc if args.debug else False))
         return 1
-    except (RuntimeError, WorkflowException) as e:
-        _logger.error(u"Tool definition failed initialization:\n%s", e, exc_info=(e if args.debug else False))
+    except (RuntimeError, WorkflowException) as exc:
+        _logger.error(u"Tool definition failed initialization:\n%s", exc,
+                      exc_info=(exc if args.debug else False))
         return 1
-    except Exception as e:
-        _logger.error(u"I'm sorry, I couldn't load this CWL file%s",
-                      ", try again with --debug for more information.\nThe error was: %s" % e if not args.debug else ".  The error was:",
-                      exc_info=(e if args.debug else False))
+    except Exception as exc:
+        _logger.error(
+            u"I'm sorry, I couldn't load this CWL file%s, try again with "
+            "--debug for more information.\nThe error was: %s" % exc
+            if not args.debug else ".  The error was:",
+            exc_info=(exc if args.debug else False))
         return 1
 
-    if isinstance(t, int):
-        return t
+    if isinstance(tool, int):
+        return tool
 
     if args.tmp_outdir_prefix != 'tmp':
         # Use user defined temp directory (if it exists)
@@ -515,7 +517,7 @@ def main(argsl=None,
             _logger.error("Temporary directory prefix doesn't exist.")
             return 1
 
-    job_order_object = load_job_order(args, t, parser, stdin,
+    job_order_object = load_job_order(args, tool, parser, stdin,
                                       print_input_deps=args.print_input_deps,
                                       relative_deps=args.relative_deps,
                                       stdout=stdout)
@@ -528,7 +530,7 @@ def main(argsl=None,
         args.move_outputs = False
 
     try:
-        out = executor(t, job_order_object[0],
+        out = executor(tool, job_order_object[0],
                        job_order_object[1], args,
                        conformance_test=args.conformance_test,
                        dry_run=args.dry_run,
@@ -557,14 +559,20 @@ def main(argsl=None,
             stdout.flush()
         else:
             return 1
-    except (validate.ValidationException) as e:
-        _logger.error(u"Input object failed validation:\n%s", e, exc_info=(e if args.debug else False))
+    except (validate.ValidationException) as exc:
+        _logger.error(
+            u"Input object failed validation:\n%s", exc,
+            exc_info=(exc if args.debug else False))
         return 1
-    except WorkflowException as e:
-        _logger.error(u"Workflow error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+    except WorkflowException as exc:
+        _logger.error(
+            u"Workflow error, try again with --debug for more "
+            "information:\n  %s", exc, exc_info=(exc if args.debug else False))
         return 1
-    except Exception as e:
-        _logger.error(u"Unhandled error, try again with --debug for more information:\n  %s", e, exc_info=(e if args.debug else False))
+    except Exception as exc:
+        _logger.error(
+            u"Unhandled error, try again with --debug for more information:\n"
+            "  %s", exc, exc_info=(exc if args.debug else False))
         return 1
 
     return 0

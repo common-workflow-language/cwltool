@@ -2,12 +2,13 @@ import sys
 import urlparse
 import json
 import re
-from .utils import aslist
-from typing import Any, Dict, Callable, List, Tuple, Union
 import traceback
+
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate
+from typing import Any, Dict, Callable, List, Tuple, Union  # pylint: disable=unused-import
 
+from .utils import aslist
 
 def findId(doc, frg):  # type: (Any, Any) -> Dict
     if isinstance(doc, dict):
@@ -30,11 +31,14 @@ def fixType(doc):  # type: (Any) -> Any
         return [fixType(f) for f in doc]
 
     if isinstance(doc, (str, unicode)):
-        if doc not in ("null", "boolean", "int", "long", "float", "double", "string", "File", "record", "enum", "array", "Any") and "#" not in doc:
+        if doc not in (
+                "null", "boolean", "int", "long", "float", "double", "string",
+                "File", "record", "enum", "array", "Any") and "#" not in doc:
             return "#" + doc
     return doc
 
-def _draft2toDraft3dev1(doc, loader, baseuri, updateSteps=True):  # type: (Any, Loader, str) -> Any
+def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
+    # type: (Any, Loader, unicode, bool) -> Any
     try:
         if isinstance(doc, dict):
             if "import" in doc:
@@ -57,11 +61,11 @@ def _draft2toDraft3dev1(doc, loader, baseuri, updateSteps=True):  # type: (Any, 
             if "include" in doc:
                 return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
 
-            for t in ("type", "items"):
-                if t in doc:
-                    doc[t] = fixType(doc[t])
+            for typename in ("type", "items"):
+                if typename in doc:
+                    doc[typename] = fixType(doc[typename])
 
-            if "steps" in doc and updateSteps:
+            if "steps" in doc and update_steps:
                 if not isinstance(doc["steps"], list):
                     raise Exception("Value of 'steps' must be a list")
                 for i, s in enumerate(doc["steps"]):
@@ -87,10 +91,10 @@ def _draft2toDraft3dev1(doc, loader, baseuri, updateSteps=True):  # type: (Any, 
             err = doc["id"]
         elif "name" in doc:
             err = doc["name"]
-        import traceback
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
-def draft2toDraft3dev1(doc, loader, baseuri):  # type: (Any, Loader, str) -> Any
+def draft2toDraft3dev1(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     return (_draft2toDraft3dev1(doc, loader, baseuri), "draft-3.dev1")
 
 digits = re.compile("\d+")
@@ -174,7 +178,7 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
 
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     return (_draftDraft3dev1toDev2(doc, loader, baseuri), "draft-3.dev2")
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
@@ -220,7 +224,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "draft-3.dev3")
 
 
@@ -276,7 +280,7 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     return (_draftDraft3dev3toDev4(doc, loader, baseuri), "draft-3.dev4")
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
@@ -309,74 +313,89 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     return (_draftDraft3dev4toDev5(doc, loader, baseuri), "draft-3.dev5")
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     return (doc, "draft-3")
 
 def _draft3toDraft4dev1(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
-            for s in doc["steps"]:
-                s["in"] = s["inputs"]
-                s["out"] = s["outputs"]
-                del s["inputs"]
-                del s["outputs"]
-        for k,v in doc.items():
-            doc[k] = _draft3toDraft4dev1(v, loader, baseuri)
+            for step in doc["steps"]:
+                step["in"] = step["inputs"]
+                step["out"] = step["outputs"]
+                del step["inputs"]
+                del step["outputs"]
+        for key, value in doc.items():
+            doc[key] = _draft3toDraft4dev1(value, loader, baseuri)
     elif isinstance(doc, list):
-        doc = [_draft3toDraft4dev1(v, loader, baseuri) for v in doc]
+        doc = [_draft3toDraft4dev1(item, loader, baseuri) for item in doc]
 
     return doc
 
 def draft3toDraft4dev1(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for draft-3 to draft-4.dev1."""
     return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
-updates = {
+UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1
-} # type: Dict[unicode, Any]
+} # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
-devUpdates = {
+DEVUPDATES = {
     "draft-3.dev1": draftDraft3dev1toDev2,
     "draft-3.dev2": draftDraft3dev2toDev3,
     "draft-3.dev3": draftDraft3dev3toDev4,
     "draft-3.dev4": draftDraft3dev4toDev5,
     "draft-3.dev5": draftDraft3dev5toFinal,
     "draft-4.dev1": None
-} # type: Dict[unicode, Any]
+} # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
-allupdates = updates.copy()
-allupdates.update(devUpdates)
+ALLUPDATES = UPDATES.copy()
+ALLUPDATES.update(DEVUPDATES)
 
-latest = "draft-4.dev1"
+LATEST = "draft-4.dev1"
 
-def identity(doc, loader, baseuri):
+def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
+    """The default, do-nothing, CWL document upgrade function."""
     return (doc, doc["cwlVersion"])
 
 def checkversion(doc, metadata, enable_dev):
+    # type: (Union[List, Dict[str, Any]], Dict[str, Any], bool) -> Tuple[Dict[str, Any], Union[str, unicode]]  # pylint: disable=line-too-long
+    """Checks the validity of the version of the give CWL document.
+
+    Returns the document and the validated version string.
+    """
     if isinstance(doc, list):
         metadata = metadata.copy()
         metadata["$graph"] = doc
-        doc = metadata
+        cdoc = metadata
+    else:
+        cdoc = doc
 
-    version = doc["cwlVersion"]
+    version = cdoc["cwlVersion"]
 
-    if version not in updates:
-        if version in devUpdates:
+    if version not in UPDATES:
+        if version in DEVUPDATES:
             if enable_dev:
                 pass
             else:
                 raise schema_salad.validate.ValidationException(
-u""""Version '%s' is a development or deprecated version.
-Update your document to a stable version (%s) or use --enable-dev to enable support for development and deprecated versions.""" % (version, ", ".join(updates.keys())))
+                    u"Version '%s' is a development or deprecated version.\n "
+                    "Update your document to a stable version (%s) or use "
+                    "--enable-dev to enable support for development and "
+                    "deprecated versions." % (version, ", ".join(
+                        UPDATES.keys())))
         else:
-            raise schema_salad.validate.ValidationException(u"Unrecognized version %s" % version)
+            raise schema_salad.validate.ValidationException(
+                u"Unrecognized version %s" % version)
 
-    return (doc, version)
+    return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
     # type: (Any, Loader, str, bool, Any) -> Any
@@ -387,7 +406,7 @@ def update(doc, loader, baseuri, enable_dev, metadata):
 
     while nextupdate:
         (doc, version) = nextupdate(doc, loader, baseuri)
-        nextupdate = allupdates[version]
+        nextupdate = ALLUPDATES[version]
 
     doc["cwlVersion"] = version
 
