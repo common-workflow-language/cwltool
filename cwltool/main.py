@@ -499,9 +499,9 @@ def main(argsl=None,
         return 1
     except Exception as exc:
         _logger.error(
-            u"I'm sorry, I couldn't load this CWL file%s, try again with "
-            "--debug for more information.\nThe error was: %s" % exc
-            if not args.debug else ".  The error was:",
+            u"I'm sorry, I couldn't load this CWL file%s",
+            ", try again with --debug for more information.\nThe error was: "
+            "%s" % exc if not args.debug else ".  The error was:",
             exc_info=(exc if args.debug else False))
         return 1
 
