@@ -9,6 +9,7 @@ import schema_salad.validate as validate
 import schema_salad.schema as schema
 from . import update
 from . import process
+from .errors import WorkflowException
 
 _logger = logging.getLogger("cwltool")
 
@@ -54,6 +55,7 @@ def validate_document(document_loader, workflowobj, uri,
     if "cwlVersion" in workflowobj:
         workflowobj["cwlVersion"] = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", workflowobj["cwlVersion"])
     else:
+        _logger.warn("No cwlVersion found, treating this file as draft-2.")
         workflowobj["cwlVersion"] = "draft-2"
 
     if workflowobj["cwlVersion"] == "draft-2":
@@ -70,16 +72,16 @@ def validate_document(document_loader, workflowobj, uri,
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
 
+    if not metadata:
+        metadata = {"$namespaces": processobj.get("$namespaces", {}),
+                   "$schemas": processobj.get("$schemas", []),
+                   "cwlVersion": processobj["cwlVersion"]}
+
     if preprocess_only:
         return document_loader, avsc_names, processobj, metadata, uri
 
     document_loader.validate_links(processobj)
     schema.validate_doc(avsc_names, processobj, document_loader, strict)
-
-    if not metadata:
-        metadata = {"$namespaces": processobj.get("$namespaces", {}),
-                   "$schemas": processobj.get("$schemas", []),
-                   "cwlVersion": processobj["cwlVersion"]}
 
     if metadata.get("cwlVersion") != update.latest:
         processobj = update.update(processobj, document_loader, fileuri, enable_dev, metadata)

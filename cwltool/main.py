@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import logging
+import copy
 from . import workflow
 from .errors import WorkflowException
 import schema_salad.validate as validate
@@ -116,6 +117,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
     exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies.")
     exgroup.add_argument("--print-input-deps", action="store_true", help="Print input object document dependencies.")
+    exgroup.add_argument("--pack", action="store_true", help="Combine components into single document and print.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -411,6 +413,76 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
 
     stdout.write(json.dumps(deps, indent=4))
 
+def flatten_deps(d, files):
+    if isinstance(d, list):
+        for s in d:
+            flatten_deps(s, files)
+    elif isinstance(d, dict):
+        files.add(d["path"])
+        if "secondaryFiles" in d:
+            flatten_deps(d["secondaryFiles"], files)
+
+def find_run(d, runs):
+    if isinstance(d, list):
+        for s in d:
+            find_run(s, runs)
+    elif isinstance(d, dict):
+        if "run" in d and isinstance(d["run"], basestring):
+            runs.add(d["run"])
+        for s in d.values():
+            find_run(s, runs)
+
+def replace_refs(d, rewrite, stem, newstem):
+    if isinstance(d, list):
+        for s,v in enumerate(d):
+            if isinstance(v, basestring) and v.startswith(stem):
+                d[s] = newstem + v[len(stem):]
+            else:
+                replace_refs(v, rewrite, stem, newstem)
+    elif isinstance(d, dict):
+        if "run" in d and isinstance(d["run"], basestring):
+            d["run"] = rewrite[d["run"]]
+        for s,v in d.items():
+            if isinstance(v, basestring) and v.startswith(stem):
+                d[s] = newstem + v[len(stem):]
+            replace_refs(v, rewrite, stem, newstem)
+
+def print_pack(document_loader, processobj, uri, metadata):
+    def loadref(b, u):
+        return document_loader.resolve_ref(u, base_url=b)[0]
+    deps = process.scandeps(uri, processobj,
+                            set(("run",)), set(), loadref)
+
+    fdeps = set((uri,))
+    flatten_deps(deps, fdeps)
+
+    runs = set()
+    for f in fdeps:
+        find_run(document_loader.idx[f], runs)
+
+    rewrite = {}
+    if isinstance(processobj, list):
+        for p in processobj:
+            rewrite[p["id"]] = "#" + shortname(p["id"])
+    else:
+        rewrite[uri] = "#main"
+
+    for r in runs:
+        rewrite[r] = "#" + shortname(r)
+
+    packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]}
+    for r,v in rewrite.items():
+        dc = copy.deepcopy(document_loader.idx[r])
+        dc["id"] = v
+        dc["name"] = v
+        replace_refs(dc, rewrite, r+"/" if "#" in r else r+"#", v+"/")
+        packed["$graph"].append(dc)
+
+    if len(packed["$graph"]) > 1:
+        return json.dumps(packed, indent=4)
+    else:
+        return json.dumps(packed["$graph"][0], indent=4)
+
 def versionstring():
     # type: () -> unicode
     pkg = pkg_resources.require("cwltool")
@@ -470,7 +542,11 @@ def main(argsl=None,
                                                                                    workflowobj, uri,
                                                                                    enable_dev=args.enable_dev,
                                                                                    strict=args.strict,
-                                                                                   preprocess_only=args.print_pre)
+                                                                                   preprocess_only=args.print_pre or args.pack)
+
+        if args.pack:
+            stdout.write(print_pack(document_loader, processobj, uri, metadata))
+            return 0
 
         if args.print_pre:
             stdout.write(json.dumps(processobj, indent=4))
