@@ -72,44 +72,48 @@ salad_files = ('metaschema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
 
-schema_cache = {}
-schema_File = None
-schema_Any = None
+SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]]
+SCHEMA_FILE = None
+SCHEMA_ANY = None
 
 def get_schema(version):
-    # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any]]
+    # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]
 
-    if version in schema_cache:
-        return schema_cache[version]
+    if version in SCHEMA_CACHE:
+        return SCHEMA_CACHE[version]
 
     cache = {}
     version = version.split("#")[-1].split(".")[0]
     for f in cwl_files:
         try:
-            rs = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
-            cache["https://w3id.org/cwl/" + f] = rs.read()
-            rs.close()
+            res = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
+            cache["https://w3id.org/cwl/" + f] = res.read()
+            res.close()
         except IOError:
             pass
 
     for f in salad_files:
         try:
-            rs = resource_stream(__name__, 'schemas/%s/salad/schema_salad/metaschema/%s' % (version, f))
-            cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = rs.read()
-            rs.close()
+            res = resource_stream(
+                __name__, 'schemas/%s/salad/schema_salad/metaschema/%s'
+                % (version, f))
+            cache["https://w3id.org/cwl/salad/schema_salad/metaschema/"
+                  + f] = res.read()
+            res.close()
         except IOError:
             pass
 
-    schema_cache[version] = schema_salad.schema.load_schema("https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
+    SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+        "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-    global schema_File, schema_Any
-    schema_File = schema_cache[version][3].idx["https://w3id.org/cwl/cwl#File"]
-    schema_Any = schema_cache[version][3].idx["https://w3id.org/cwl/salad#Any"]
+    global SCHEMA_FILE, SCHEMA_ANY  # pylint: disable=global-statement
+    SCHEMA_FILE = SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"]
+    SCHEMA_ANY = SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"]
 
-    return schema_cache[version]
+    return SCHEMA_CACHE[version]
 
 def shortname(inputid):
-    # type: (str) -> str
+    # type: (Union[str, unicode]) -> str
     d = urlparse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split("/")[-1].split(".")[-1]
@@ -223,13 +227,15 @@ class Process(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[str,Any], **Any) -> None
+        # type: (Dict[str, Any], **Any) -> None
         self.metadata = kwargs["metadata"]  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
-        global schema_File, schema_Any
-        self.names = schema_salad.schema.make_avro_schema([schema_File, schema_Any],
-                                                          schema_salad.ref_resolver.Loader({}))[0]
-
+        names = schema_salad.schema.make_avro_schema(
+            [SCHEMA_FILE, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]
+        if isinstance(names, avro.schema.SchemaParseException):
+            raise names
+        else:
+            self.names = names
         self.tool = toolpath_object
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
