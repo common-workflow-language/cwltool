@@ -338,7 +338,9 @@ class CommandLineTool(Process):
                         globpatterns.extend(aslist(gb))
 
                 for gb in globpatterns:
-                    if gb.startswith("/"):
+                    if gb.startswith(outdir):
+                        gb = gb[len(outdir)+1:]
+                    elif gb.startswith("/"):
                         raise WorkflowException("glob patterns must not start with '/'")
                     try:
                         r.extend([{"path": g, "class": "File", "hostfs": True}
