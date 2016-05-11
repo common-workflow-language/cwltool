@@ -70,7 +70,11 @@ class CommandLineJob(object):
         #    json.dump(self.joborder, fp)
 
         runtime = []  # type: List[unicode]
-        env = {"TMPDIR": self.tmpdir}  # type: Mapping[str,str]
+
+        # spec currently says "HOME must be set to the designated output
+        # directory." but spec might change to designated temp directory.
+        # env = {"TMPDIR": self.tmpdir, "HOME": self.tmpdir}  # type: Mapping[str,str]
+        env = {"TMPDIR": self.tmpdir, "HOME": self.outdir}  # type: Mapping[str,str]
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -111,6 +115,11 @@ class CommandLineJob(object):
                 runtime.append("--rm")
 
             runtime.append("--env=TMPDIR=/tmp")
+
+            # spec currently says "HOME must be set to the designated output
+            # directory." but spec might change to designated temp directory.
+            # runtime.append("--env=HOME=/tmp")
+            runtime.append("--env=HOME=/var/spool/cwl")
 
             for t,v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))
