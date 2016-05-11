@@ -5,7 +5,7 @@ MAINTAINER peter.amstutz@curoverse.com
 
 # Let's start with some basic stuff.
 RUN apt-get update -qq && apt-get install -qqy \
-    python-setuptools
+    python-setuptools gcc python-dev
 
 # Install cwltool
 ADD setup.py README.rst cwltool/ /root/cwltool/
