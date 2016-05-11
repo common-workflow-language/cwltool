@@ -93,16 +93,20 @@ def are_same_type(src, sink):  # type: (Any, Any) -> bool
     """
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
-            if 'null' in sink["items"]:
-                return are_same_type([src["items"]], [it for it in sink["items"] if it != 'null'])
-            return are_same_type(src["items"], sink["items"])
-        elif src["type"] == sink["type"]:
-            return True
+            src_items = src["items"]
+            sink_items = sink["items"]
+            if not isinstance(src_items, list):
+                src_items = [src_items]
+            if not isinstance(sink_items, list):
+                sink_items = [sink_items]
+            return are_same_type(src_items, sink_items)
         else:
-            return False
+            return src["type"] == sink["type"]
     else:
-        return src == sink
-
+        try:
+            return src == sink or len(set(src).intersection(set(sink))) > 0
+        except TypeError:
+            return False
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput):
     # type: (Dict[str,WorkflowStateItem], List[Dict[str, Any]], bool, bool) -> Dict[str, str]
