@@ -436,151 +436,155 @@ def main(argsl=None,
     # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],unicode]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
-    _logger.addHandler(logging.StreamHandler(stderr))
-
-    if argsl is None:
-        argsl = sys.argv[1:]
-
-    if parser is None:
-        parser = arg_parser()
-
-    args = parser.parse_args(argsl)
-
-    if args.quiet:
-        _logger.setLevel(logging.WARN)
-    if args.debug:
-        _logger.setLevel(logging.DEBUG)
-
-    if args.version:
-        print versionfunc()
-        return 0
-    else:
-        _logger.info(versionfunc())
-
-    if not args.workflow:
-        parser.print_help()
-        _logger.error("")
-        _logger.error("CWL document required")
-        return 1
-
+    stderr_handler = logging.StreamHandler(stderr)
+    _logger.addHandler(stderr_handler)
     try:
-        document_loader, workflowobj, uri = fetch_document(args.workflow)
+        if argsl is None:
+            argsl = sys.argv[1:]
 
-        if args.print_deps:
-            printdeps(workflowobj, document_loader, stdout, args.relative_deps)
+        if parser is None:
+            parser = arg_parser()
+
+        args = parser.parse_args(argsl)
+
+        if args.quiet:
+            _logger.setLevel(logging.WARN)
+        if args.debug:
+            _logger.setLevel(logging.DEBUG)
+
+        if args.version:
+            print versionfunc()
             return 0
-
-        document_loader, avsc_names, processobj, metadata, uri \
-            = validate_document(document_loader, workflowobj, uri,
-                                enable_dev=args.enable_dev, strict=args.strict,
-                                preprocess_only=args.print_pre)
-
-        if args.print_pre:
-            stdout.write(json.dumps(processobj, indent=4))
-            return 0
-
-        if args.print_rdf:
-            printrdf(uri, processobj, document_loader.ctx, args.rdf_serializer, stdout)
-            return 0
-
-        if args.print_dot:
-            printdot(uri, processobj, document_loader.ctx, stdout)
-            return 0
-
-        tool = make_tool(document_loader, avsc_names, processobj, metadata,
-                         uri, makeTool, {})
-    except (validate.ValidationException) as exc:
-        _logger.error(u"Tool definition failed validation:\n%s", exc,
-                      exc_info=(exc if args.debug else False))
-        return 1
-    except (RuntimeError, WorkflowException) as exc:
-        _logger.error(u"Tool definition failed initialization:\n%s", exc,
-                      exc_info=(exc if args.debug else False))
-        return 1
-    except Exception as exc:
-        _logger.error(
-            u"I'm sorry, I couldn't load this CWL file%s",
-            ", try again with --debug for more information.\nThe error was: "
-            "%s" % exc if not args.debug else ".  The error was:",
-            exc_info=(exc if args.debug else False))
-        return 1
-
-    if isinstance(tool, int):
-        return tool
-
-    if args.tmp_outdir_prefix != 'tmp':
-        # Use user defined temp directory (if it exists)
-        args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
-        if not os.path.exists(args.tmp_outdir_prefix):
-            _logger.error("Intermediate output directory prefix doesn't exist, reverting to default")
-            return 1
-
-    if args.tmpdir_prefix != 'tmp':
-        # Use user defined prefix (if the folder exists)
-        args.tmpdir_prefix = os.path.abspath(args.tmpdir_prefix)
-        if not os.path.exists(args.tmpdir_prefix):
-            _logger.error("Temporary directory prefix doesn't exist.")
-            return 1
-
-    job_order_object = load_job_order(args, tool, parser, stdin,
-                                      print_input_deps=args.print_input_deps,
-                                      relative_deps=args.relative_deps,
-                                      stdout=stdout)
-
-    if isinstance(job_order_object, int):
-        return job_order_object
-
-    if args.cachedir:
-        args.cachedir = os.path.abspath(args.cachedir)
-        args.move_outputs = False
-
-    try:
-        out = executor(tool, job_order_object[0],
-                       job_order_object[1], args,
-                       conformance_test=args.conformance_test,
-                       dry_run=args.dry_run,
-                       outdir=args.outdir,
-                       tmp_outdir_prefix=args.cachedir if args.cachedir else args.tmp_outdir_prefix,
-                       use_container=args.use_container,
-                       preserve_environment=args.preserve_environment,
-                       pull_image=args.enable_pull,
-                       rm_container=args.rm_container,
-                       tmpdir_prefix=args.tmpdir_prefix,
-                       enable_net=args.enable_net,
-                       rm_tmpdir=args.rm_tmpdir,
-                       makeTool=makeTool,
-                       move_outputs=args.move_outputs,
-                       select_resources=selectResources,
-                       eval_timeout=args.eval_timeout,
-                       cachedir=args.cachedir
-                       )
-        # This is the workflow output, it needs to be written
-        if out is not None:
-            if isinstance(out, basestring):
-                stdout.write(out)
-            else:
-                stdout.write(json.dumps(out, indent=4))
-            stdout.write("\n")
-            stdout.flush()
         else:
-            return 1
-    except (validate.ValidationException) as exc:
-        _logger.error(
-            u"Input object failed validation:\n%s", exc,
-            exc_info=(exc if args.debug else False))
-        return 1
-    except WorkflowException as exc:
-        _logger.error(
-            u"Workflow error, try again with --debug for more "
-            "information:\n  %s", exc, exc_info=(exc if args.debug else False))
-        return 1
-    except Exception as exc:
-        _logger.error(
-            u"Unhandled error, try again with --debug for more information:\n"
-            "  %s", exc, exc_info=(exc if args.debug else False))
-        return 1
+            _logger.info(versionfunc())
 
-    return 0
+        if not args.workflow:
+            parser.print_help()
+            _logger.error("")
+            _logger.error("CWL document required")
+            return 1
+
+        try:
+            document_loader, workflowobj, uri = fetch_document(args.workflow)
+
+            if args.print_deps:
+                printdeps(workflowobj, document_loader, stdout, args.relative_deps)
+                return 0
+
+            document_loader, avsc_names, processobj, metadata, uri \
+                = validate_document(document_loader, workflowobj, uri,
+                                    enable_dev=args.enable_dev, strict=args.strict,
+                                    preprocess_only=args.print_pre)
+
+            if args.print_pre:
+                stdout.write(json.dumps(processobj, indent=4))
+                return 0
+
+            if args.print_rdf:
+                printrdf(uri, processobj, document_loader.ctx, args.rdf_serializer, stdout)
+                return 0
+
+            if args.print_dot:
+                printdot(uri, processobj, document_loader.ctx, stdout)
+                return 0
+
+            tool = make_tool(document_loader, avsc_names, processobj, metadata,
+                             uri, makeTool, {})
+        except (validate.ValidationException) as exc:
+            _logger.error(u"Tool definition failed validation:\n%s", exc,
+                          exc_info=(exc if args.debug else False))
+            return 1
+        except (RuntimeError, WorkflowException) as exc:
+            _logger.error(u"Tool definition failed initialization:\n%s", exc,
+                          exc_info=(exc if args.debug else False))
+            return 1
+        except Exception as exc:
+            _logger.error(
+                u"I'm sorry, I couldn't load this CWL file%s",
+                ", try again with --debug for more information.\nThe error was: "
+                "%s" % exc if not args.debug else ".  The error was:",
+                exc_info=(exc if args.debug else False))
+            return 1
+
+        if isinstance(tool, int):
+            return tool
+
+        if args.tmp_outdir_prefix != 'tmp':
+            # Use user defined temp directory (if it exists)
+            args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
+            if not os.path.exists(args.tmp_outdir_prefix):
+                _logger.error("Intermediate output directory prefix doesn't exist, reverting to default")
+                return 1
+
+        if args.tmpdir_prefix != 'tmp':
+            # Use user defined prefix (if the folder exists)
+            args.tmpdir_prefix = os.path.abspath(args.tmpdir_prefix)
+            if not os.path.exists(args.tmpdir_prefix):
+                _logger.error("Temporary directory prefix doesn't exist.")
+                return 1
+
+        job_order_object = load_job_order(args, tool, parser, stdin,
+                                          print_input_deps=args.print_input_deps,
+                                          relative_deps=args.relative_deps,
+                                          stdout=stdout)
+
+        if isinstance(job_order_object, int):
+            return job_order_object
+
+        if args.cachedir:
+            args.cachedir = os.path.abspath(args.cachedir)
+            args.move_outputs = False
+
+        try:
+            out = executor(tool, job_order_object[0],
+                           job_order_object[1], args,
+                           conformance_test=args.conformance_test,
+                           dry_run=args.dry_run,
+                           outdir=args.outdir,
+                           tmp_outdir_prefix=args.cachedir if args.cachedir else args.tmp_outdir_prefix,
+                           use_container=args.use_container,
+                           preserve_environment=args.preserve_environment,
+                           pull_image=args.enable_pull,
+                           rm_container=args.rm_container,
+                           tmpdir_prefix=args.tmpdir_prefix,
+                           enable_net=args.enable_net,
+                           rm_tmpdir=args.rm_tmpdir,
+                           makeTool=makeTool,
+                           move_outputs=args.move_outputs,
+                           select_resources=selectResources,
+                           eval_timeout=args.eval_timeout,
+                           cachedir=args.cachedir
+                           )
+            # This is the workflow output, it needs to be written
+            if out is not None:
+                if isinstance(out, basestring):
+                    stdout.write(out)
+                else:
+                    stdout.write(json.dumps(out, indent=4))
+                stdout.write("\n")
+                stdout.flush()
+            else:
+                return 1
+        except (validate.ValidationException) as exc:
+            _logger.error(
+                u"Input object failed validation:\n%s", exc,
+                exc_info=(exc if args.debug else False))
+            return 1
+        except WorkflowException as exc:
+            _logger.error(
+                u"Workflow error, try again with --debug for more "
+                "information:\n  %s", exc, exc_info=(exc if args.debug else False))
+            return 1
+        except Exception as exc:
+            _logger.error(
+                u"Unhandled error, try again with --debug for more information:\n"
+                "  %s", exc, exc_info=(exc if args.debug else False))
+            return 1
+
+        return 0
+    finally:
+        _logger.removeHandler(stderr_handler)
+        _logger.addHandler(defaultStreamHandler)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
