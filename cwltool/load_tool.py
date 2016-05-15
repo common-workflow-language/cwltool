@@ -42,8 +42,8 @@ def fetch_document(argsworkflow):
 
 
 def validate_document(document_loader, workflowobj, uri,
-                      enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Any, Dict[str, str], unicode]
+                      enable_dev=False, strict=True, preprocess_only=False, process_update=True):
+    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool, bool) -> Tuple[Loader, Names, Any, Dict[str, str], unicode]
     """Validate a CWL document."""
     jobobj = None
     if "cwl:tool" in workflowobj:
@@ -93,7 +93,7 @@ def validate_document(document_loader, workflowobj, uri,
                     "$schemas": processobj.get("$schemas", []),
                     "cwlVersion": processobj["cwlVersion"]}
 
-    if metadata.get("cwlVersion") != update.LATEST:
+    if process_update and metadata.get("cwlVersion") != update.LATEST:
         processobj = update.update(
             processobj, document_loader, fileuri, enable_dev, metadata)
 
