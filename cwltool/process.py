@@ -244,7 +244,7 @@ class Process(object):
             self.formatgraph = kwargs["loader"].graph
 
         checkRequirements(self.tool, supportedProcessRequirements)
-        self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"))
+        self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []), strict=kwargs.get("strict"))
 
         self.schemaDefs = {}  # type: Dict[str,Dict[unicode, Any]]
 
@@ -407,12 +407,12 @@ class Process(object):
                 "outdirSize": request["outdirMin"],
             }
 
-    def validate_hints(self, hints, strict):
+    def validate_hints(self, avsc_names, hints, strict):
         # type: (List[Dict[str, Any]], bool) -> None
         for r in hints:
             try:
-                if self.names.get_name(r["class"], "") is not None:
-                    validate.validate_ex(self.names.get_name(r["class"], ""), r, strict=strict)
+                if avsc_names.get_name(r["class"], "") is not None:
+                    validate.validate_ex(avsc_names.get_name(r["class"], ""), r, strict=strict)
                 else:
                     _logger.info(str(validate.ValidationException(
                     u"Unknown hint %s" % (r["class"]))))
