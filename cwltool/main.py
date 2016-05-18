@@ -301,7 +301,7 @@ def generate_parser(toolparser, tool, namemap):
     return toolparser
 
 
-def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
+def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
     # type: (argparse.Namespace, Process, argparse.ArgumentParser, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
@@ -367,12 +367,11 @@ def load_job_order(args, t, parser, stdin, print_input_deps=False, relative_deps
             job_order_object[shortname(inp["id"])] = inp["default"]
 
     if not job_order_object and len(t.tool["inputs"]) > 0:
-        parser.print_help()
         if toolparser:
             print u"\nOptions for %s " % args.workflow
             toolparser.print_help()
         _logger.error("")
-        _logger.error("Input object required")
+        _logger.error("Input object required, use --help for details")
         return 1
 
     if print_input_deps:
@@ -427,31 +426,29 @@ def versionstring():
 
 
 def main(argsl=None,
+         args=None,
          executor=single_job_executor,
          makeTool=workflow.defaultMakeTool,
          selectResources=None,
-         parser=None,
          stdin=sys.stdin,
          stdout=sys.stdout,
          stderr=sys.stderr,
-         versionfunc=versionstring):
+         versionfunc=versionstring,
+         job_order_object=None):
     # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],unicode]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
     try:
-        if argsl is None:
-            argsl = sys.argv[1:]
+        if args is None:
+            if argsl is None:
+                argsl = sys.argv[1:]
+            args = arg_parser().parse_args(argsl)
 
-        if parser is None:
-            parser = arg_parser()
-
-        args = parser.parse_args(argsl)
-
-        # If caller provided a custom parser, it may be not every option is
-        # set, so fill in no-op defaults to avoid crashing when dereferencing
-        # them in args.
+        # If caller provided custom arguments, it may be not every expected
+        # option is set, so fill in no-op defaults to avoid crashing when
+        # dereferencing them in args.
         for k,v in {'print_deps': False,
                     'print_pre': False,
                     'print_rdf': False,
@@ -486,9 +483,8 @@ def main(argsl=None,
             _logger.info(versionfunc())
 
         if not args.workflow:
-            parser.print_help()
             _logger.error("")
-            _logger.error("CWL document required")
+            _logger.error("CWL document required, try --help for details")
             return 1
 
         try:
@@ -550,10 +546,11 @@ def main(argsl=None,
                 _logger.error("Temporary directory prefix doesn't exist.")
                 return 1
 
-        job_order_object = load_job_order(args, tool, parser, stdin,
-                                          print_input_deps=args.print_input_deps,
-                                          relative_deps=args.relative_deps,
-                                          stdout=stdout)
+        if job_order_object is None:
+            job_order_object = load_job_order(args, tool, stdin,
+                                              print_input_deps=args.print_input_deps,
+                                              relative_deps=args.relative_deps,
+                                              stdout=stdout)
 
         if isinstance(job_order_object, int):
             return job_order_object

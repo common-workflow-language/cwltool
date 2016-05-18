@@ -298,7 +298,7 @@ class CommandLineTool(Process):
             custom_output = os.path.join(outdir, "cwl.output.json")
             if builder.fs_access.exists(custom_output):
                 with builder.fs_access.open(custom_output, "r") as f:
-                    ret = yaml.load(f)
+                    ret = json.load(f)
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
                 adjustFileObjs(ret, remove_hostfs)
                 adjustFileObjs(ret,
