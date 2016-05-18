@@ -148,7 +148,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     return parser
 
 
-def single_job_executor(t, job_order, input_basedir, args, **kwargs):
+def single_job_executor(t, job_order_object, **kwargs):
     # type: (Process, Dict[str,Any], str, argparse.Namespace,**Any) -> Union[str,Dict[str,str]]
     final_output = []
     final_status = []
@@ -161,6 +161,9 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
             _logger.warn(u"Final process status is %s", processStatus)
         final_output.append(out)
 
+    if "basedir" not in kwargs:
+        raise WorkflowException("Must provide 'basedir' in kwargs")
+
     if kwargs.get("outdir"):
         pass
     elif kwargs.get("dry_run"):
@@ -168,8 +171,7 @@ def single_job_executor(t, job_order, input_basedir, args, **kwargs):
     else:
         kwargs["outdir"] = tempfile.mkdtemp()
 
-    jobiter = t.job(job_order,
-                    input_basedir,
+    jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
 
@@ -447,6 +449,31 @@ def main(argsl=None,
 
         args = parser.parse_args(argsl)
 
+        # If caller provided a custom parser, it may be not every option is
+        # set, so fill in no-op defaults to avoid crashing when dereferencing
+        # them in args.
+        for k,v in {'print_deps': False,
+                    'print_pre': False,
+                    'print_rdf': False,
+                    'print_dot': False,
+                    'relative_deps': False,
+                    'tmp_outdir_prefix': 'tmp',
+                    'tmpdir_prefix': 'tmp',
+                    'print_input_deps': False,
+                    'cachedir': None,
+                    'quiet': False,
+                    'debug': False,
+                    'version': False,
+                    'enable_dev': False,
+                    'strict': True,
+                    'rdf_serializer': None,
+                    'basedir': None,
+                    'tool_help': False,
+                    'workflow': None,
+                    'job_order': None}.iteritems():
+            if not hasattr(args, k):
+                setattr(args, k, v)
+
         if args.quiet:
             _logger.setLevel(logging.WARN)
         if args.debug:
@@ -513,7 +540,7 @@ def main(argsl=None,
             # Use user defined temp directory (if it exists)
             args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
             if not os.path.exists(args.tmp_outdir_prefix):
-                _logger.error("Intermediate output directory prefix doesn't exist, reverting to default")
+                _logger.error("Intermediate output directory prefix doesn't exist.")
                 return 1
 
         if args.tmpdir_prefix != 'tmp':
@@ -536,25 +563,14 @@ def main(argsl=None,
             args.move_outputs = False
 
         try:
+            args.tmp_outdir_prefix = args.cachedir if args.cachedir else args.tmp_outdir_prefix
+            args.basedir = job_order_object[1]
+            del args.workflow
+            del args.job_order
             out = executor(tool, job_order_object[0],
-                           job_order_object[1], args,
-                           conformance_test=args.conformance_test,
-                           dry_run=args.dry_run,
-                           outdir=args.outdir,
-                           tmp_outdir_prefix=args.cachedir if args.cachedir else args.tmp_outdir_prefix,
-                           use_container=args.use_container,
-                           preserve_environment=args.preserve_environment,
-                           pull_image=args.enable_pull,
-                           rm_container=args.rm_container,
-                           tmpdir_prefix=args.tmpdir_prefix,
-                           enable_net=args.enable_net,
-                           rm_tmpdir=args.rm_tmpdir,
                            makeTool=makeTool,
-                           move_outputs=args.move_outputs,
                            select_resources=selectResources,
-                           eval_timeout=args.eval_timeout,
-                           cachedir=args.cachedir
-                           )
+                           **vars(args))
             # This is the workflow output, it needs to be written
             if out is not None:
                 if isinstance(out, basestring):

@@ -52,9 +52,9 @@ class ExpressionTool(Process):
                 _logger.warn(u"Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
                 self.output_callback({}, "permanentFail")
 
-    def job(self, joborder, input_basedir, output_callback, **kwargs):
+    def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
-        builder = self._init_job(joborder, input_basedir, **kwargs)
+        builder = self._init_job(joborder, **kwargs)
 
         j = ExpressionTool.ExpressionJob()
         j.builder = builder
@@ -119,19 +119,19 @@ class CommandLineTool(Process):
     def makeJobRunner(self):  # type: () -> CommandLineJob
         return CommandLineJob()
 
-    def makePathMapper(self, reffiles, input_basedir, **kwargs):
+    def makePathMapper(self, reffiles, **kwargs):
         # type: (Set[str], str, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
             if dockerReq and kwargs.get("use_container"):
-                return DockerPathMapper(reffiles, input_basedir)
+                return DockerPathMapper(reffiles, kwargs["basedir"])
             else:
-                return PathMapper(reffiles, input_basedir)
+                return PathMapper(reffiles, kwargs["basedir"])
         except OSError as e:
             if e.errno == errno.ENOENT:
                 raise WorkflowException(u"Missing input file %s" % e)
 
-    def job(self, joborder, input_basedir, output_callback, **kwargs):
+    def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[str,str], str, Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
@@ -140,9 +140,9 @@ class CommandLineTool(Process):
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
-            cachebuilder = self._init_job(joborder, input_basedir, **cacheargs)
+            cachebuilder = self._init_job(joborder, **cacheargs)
             cachebuilder.pathmapper = PathMapper(set((f["path"] for f in cachebuilder.files)),
-                                                 input_basedir)
+                                                 kwargs["basedir"])
 
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
@@ -198,7 +198,7 @@ class CommandLineTool(Process):
                         partial(rm_pending_output_callback, output_callback,
                             jobcachepending))
 
-        builder = self._init_job(joborder, input_basedir, **kwargs)
+        builder = self._init_job(joborder, **kwargs)
 
         reffiles = set((f["path"] for f in builder.files))
 
@@ -232,7 +232,7 @@ class CommandLineTool(Process):
             if os.path.isabs(j.stdout) or ".." in j.stdout:
                 raise validate.ValidationException("stdout must be a relative path")
 
-        builder.pathmapper = self.makePathMapper(reffiles, input_basedir, **kwargs)
+        builder.pathmapper = self.makePathMapper(reffiles, **kwargs)
         builder.requirements = j.requirements
 
         # map files to assigned path inside a container. We need to also explicitly

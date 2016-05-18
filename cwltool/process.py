@@ -297,7 +297,7 @@ class Process(object):
             raise validate.ValidationException(u"Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
 
-    def _init_job(self, joborder, input_basedir, **kwargs):
+    def _init_job(self, joborder, **kwargs):
         # type: (Dict[str, str], str, **Any) -> Builder
         builder = Builder()
         builder.job = copy.deepcopy(joborder)
@@ -326,7 +326,7 @@ class Process(object):
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
 
-        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
+        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(kwargs["basedir"])
 
         if self.formatgraph:
             for i in self.tool["inputs"]:
@@ -426,7 +426,7 @@ class Process(object):
         op(self.tool)
 
     @abc.abstractmethod
-    def job(self, job_order, input_basedir, output_callbacks, **kwargs):
+    def job(self, job_order, output_callbacks, **kwargs):
         # type: (Dict[str, str], str, Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
         return None
 
