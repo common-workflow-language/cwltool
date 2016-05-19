@@ -228,7 +228,7 @@ class Process(object):
 
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[str, Any], **Any) -> None
-        self.metadata = kwargs["metadata"]  # type: Dict[str,Any]
+        self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
         names = schema_salad.schema.make_avro_schema(
             [SCHEMA_FILE, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]

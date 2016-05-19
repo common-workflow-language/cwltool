@@ -103,8 +103,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         default="turtle")
 
     parser.add_argument("--eval-timeout",
-                        help="Time to wait for a Javascript expression to evaluate before giving an error.",
-                        type=float)
+                        help="Time to wait for a Javascript expression to evaluate before giving an error, default 20s.",
+                        type=float,
+                        default=20)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
