@@ -408,7 +408,7 @@ class Process(object):
             }
 
     def validate_hints(self, avsc_names, hints, strict):
-        # type: (List[Dict[str, Any]], bool) -> None
+        # type: (Any, List[Dict[str, Any]], bool) -> None
         for r in hints:
             try:
                 if avsc_names.get_name(r["class"], "") is not None:
