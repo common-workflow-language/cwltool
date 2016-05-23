@@ -13,7 +13,9 @@ class Callable(object):
         self.factory = factory
 
     def __call__(self, **kwargs):  # type: (**Any) -> Union[str,Dict[str,str]]
-        return self.factory.executor(self.t, kwargs, os.getcwd(), None, **self.factory.execkwargs)
+        execkwargs = self.factory.execkwargs.copy()
+        execkwargs["basedir"] = os.getcwd()
+        return self.factory.executor(self.t, kwargs, **execkwargs)
 
 class Factory(object):
     def __init__(self, makeTool=workflow.defaultMakeTool,

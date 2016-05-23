@@ -228,7 +228,7 @@ class Process(object):
 
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[str, Any], **Any) -> None
-        self.metadata = kwargs["metadata"]  # type: Dict[str,Any]
+        self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
         names = schema_salad.schema.make_avro_schema(
             [SCHEMA_FILE, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]
@@ -244,7 +244,7 @@ class Process(object):
             self.formatgraph = kwargs["loader"].graph
 
         checkRequirements(self.tool, supportedProcessRequirements)
-        self.validate_hints(self.tool.get("hints", []), strict=kwargs.get("strict"), avsc_names=kwargs["avsc_names"])
+        self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []), strict=kwargs.get("strict"))
 
         self.schemaDefs = {}  # type: Dict[str,Dict[unicode, Any]]
 
@@ -297,7 +297,7 @@ class Process(object):
             raise validate.ValidationException(u"Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
 
-    def _init_job(self, joborder, input_basedir, **kwargs):
+    def _init_job(self, joborder, **kwargs):
         # type: (Dict[str, str], str, **Any) -> Builder
         builder = Builder()
         builder.job = copy.deepcopy(joborder)
@@ -326,7 +326,7 @@ class Process(object):
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
 
-        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(input_basedir)
+        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(kwargs["basedir"])
 
         if self.formatgraph:
             for i in self.tool["inputs"]:
@@ -407,8 +407,8 @@ class Process(object):
                 "outdirSize": request["outdirMin"],
             }
 
-    def validate_hints(self, hints, strict, avsc_names):
-        # type: (List[Dict[str, Any]], bool) -> None
+    def validate_hints(self, avsc_names, hints, strict):
+        # type: (Any, List[Dict[str, Any]], bool) -> None
         for r in hints:
             try:
                 if avsc_names.get_name(r["class"], "") is not None:
@@ -426,7 +426,7 @@ class Process(object):
         op(self.tool)
 
     @abc.abstractmethod
-    def job(self, job_order, input_basedir, output_callbacks, **kwargs):
+    def job(self, job_order, output_callbacks, **kwargs):
         # type: (Dict[str, str], str, Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
         return None
 
