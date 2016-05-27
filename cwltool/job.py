@@ -79,8 +79,9 @@ class CommandLineJob(object):
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         for f in self.pathmapper.files():
-            if not os.path.isfile(self.pathmapper.mapper(f)[0]):
-                raise WorkflowException(u"Required input file %s not found or is not a regular file." % self.pathmapper.mapper(f)[0])
+            p = self.pathmapper.mapper(f)
+            if not os.path.isfile(p[0]):
+                raise WorkflowException(u"Input file %s (at %s) not found or is not a regular file." % (f, self.pathmapper.mapper(f)[0]))
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
@@ -136,6 +137,14 @@ class CommandLineJob(object):
                     if key in vars_to_preserve and key not in env:
                         env[key] = value
 
+            for f in self.pathmapper.files():
+                p = self.pathmapper.mapper(f)
+                if not os.path.exists(os.path.dirname(p[1])):
+                    os.makedirs(os.path.dirname(p[1]), 0755)
+                if not os.path.exists(p[1]):
+                    os.symlink(p[0], p[1])
+
+
         stdin = None  # type: Union[IO[Any],int]
         stdout = None  # type: IO[Any]
 
@@ -150,7 +159,7 @@ class CommandLineJob(object):
                      self.name,
                      self.outdir,
                      " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
-                     u' < %s' % (self.stdin) if self.stdin else '',
+                     u' < %s' % self.pathmapper.mapper(self.stdin)[1] if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
 
         if dry_run:
@@ -250,6 +259,10 @@ class CommandLineJob(object):
         _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
         self.output_callback(outputs, processStatus)
+
+        if self.stagedir and os.path.exists(self.stagedir):
+            _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
+            shutil.rmtree(self.stagedir, True)
 
         if rm_tmpdir:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)

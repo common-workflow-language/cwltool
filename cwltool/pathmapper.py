@@ -6,6 +6,18 @@ from typing import Tuple, Set, Union, Any
 
 _logger = logging.getLogger("cwltool")
 
+def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
+    """Apply a mapping function to each File path in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            rec["path"] = op(rec["path"])
+        for d in rec:
+            adjustFiles(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFiles(d, op)
+
 
 def abspath(src, basedir):  # type: (str,str) -> str
     if src.startswith("file://"):
@@ -20,16 +32,46 @@ class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
-    def __init__(self, referenced_files, basedir):
+    def __init__(self, referenced_files, basedir, stagedir, scramble=False):
         # type: (Set[str], str) -> None
         self._pathmap = {}  # type: Dict[str, Tuple[str, str]]
+        self.stagedir = stagedir
+        self.scramble = scramble
         self.setup(referenced_files, basedir)
 
     def setup(self, referenced_files, basedir):
         # type: (Set[str], str) -> None
-        for src in referenced_files:
-            ab = abspath(src, basedir)
-            self._pathmap[src] = (ab, ab)
+
+        # Go through each file and set the target to its own directory along
+        # with any secondary files.
+        for fob in referenced_files:
+            stagedir = os.path.join(self.stagedir, "stg%x" % random.randint(1, 1000000000))
+
+            def visit(path):
+                if path in self._pathmap:
+                    return path
+                ab = abspath(path, basedir)
+                if self.scramble:
+                    tgt = os.path.join(stagedir, "inp%x.dat" % random.randint(1, 1000000000))
+                else:
+                    tgt = os.path.join(stagedir, os.path.basename(path))
+                self._pathmap[path] = (ab, tgt)
+                return path
+
+            adjustFiles(fob, visit)
+
+        # Dereference symbolic links
+        for path, (ab, tgt) in self._pathmap.items():
+            deref = ab
+            st = os.lstat(deref)
+            while stat.S_ISLNK(st.st_mode):
+                rl = os.readlink(deref)
+                deref = rl if os.path.isabs(rl) else os.path.join(
+                        os.path.dirname(deref), rl)
+                st = os.lstat(deref)
+
+            self._pathmap[path] = (deref, tgt)
+
 
     def mapper(self, src):  # type: (str) -> Tuple[str,str]
         if "#" in src:
@@ -50,58 +92,3 @@ class PathMapper(object):
             if v[1] == target:
                 return (k, v[0])
         return None
-
-
-class DockerPathMapper(PathMapper):
-
-    def __init__(self, referenced_files, basedir):
-        # type: (Set[str], str) -> None
-        self.dirs = {}  # type: Dict[str, Union[bool, str]]
-        super(DockerPathMapper, self).__init__(referenced_files, basedir)
-
-    def setup(self, referenced_files, basedir):
-        for src in referenced_files:
-            ab = abspath(src, basedir)
-            dirn, fn = os.path.split(ab)
-
-            subdir = False
-            for d in self.dirs:
-                if dirn.startswith(d):
-                  subdir = True
-                  break
-
-            if not subdir:
-                for d in list(self.dirs):
-                    if d.startswith(dirn):
-                        # 'dirn' is a parent of 'd'
-                        del self.dirs[d]
-                self.dirs[dirn] = True
-
-        prefix = "job" + str(random.randint(1, 1000000000)) + "_"
-
-        names = set()  # type: Set[str]
-        for d in self.dirs:
-            name = os.path.join("/var/lib/cwl", prefix + os.path.basename(d))
-            i = 1
-            while name in names:
-                i += 1
-                name = os.path.join("/var/lib/cwl",
-                        prefix + os.path.basename(d) + str(i))
-            names.add(name)
-            self.dirs[d] = name
-
-        for src in referenced_files:
-            ab = abspath(src, basedir)
-
-            deref = ab
-            st = os.lstat(deref)
-            while stat.S_ISLNK(st.st_mode):
-                rl = os.readlink(deref)
-                deref = rl if os.path.isabs(rl) else os.path.join(
-                        os.path.dirname(deref), rl)
-                st = os.lstat(deref)
-
-            for d in self.dirs:
-                if ab.startswith(d):
-                    self._pathmap[src] = (deref, os.path.join(
-                        self.dirs[d], ab[len(d)+1:]))

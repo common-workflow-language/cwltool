@@ -4,7 +4,7 @@ import copy
 from .flatten import flatten
 from functools import partial
 import os
-from .pathmapper import PathMapper, DockerPathMapper
+from .pathmapper import PathMapper
 from .job import CommandLineJob
 import yaml
 import glob
@@ -119,14 +119,10 @@ class CommandLineTool(Process):
     def makeJobRunner(self):  # type: () -> CommandLineJob
         return CommandLineJob()
 
-    def makePathMapper(self, reffiles, **kwargs):
+    def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (Set[str], str, **Any) -> PathMapper
-        dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
-            if dockerReq and kwargs.get("use_container"):
-                return DockerPathMapper(reffiles, kwargs["basedir"])
-            else:
-                return PathMapper(reffiles, kwargs["basedir"])
+            return PathMapper(reffiles, kwargs["basedir"], stagedir)
         except OSError as e:
             if e.errno == errno.ENOENT:
                 raise WorkflowException(u"Missing input file %s" % e)
@@ -140,6 +136,7 @@ class CommandLineTool(Process):
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
+            cacheargs["stagedir"] = "/stage"
             cachebuilder = self._init_job(joborder, **cacheargs)
             cachebuilder.pathmapper = PathMapper(set((f["path"] for f in cachebuilder.files)),
                                                  kwargs["basedir"])
@@ -200,7 +197,7 @@ class CommandLineTool(Process):
 
         builder = self._init_job(joborder, **kwargs)
 
-        reffiles = set((f["path"] for f in builder.files))
+        reffiles = copy.deepcopy(builder.files)
 
         j = self.makeJobRunner()
         j.builder = builder
@@ -225,14 +222,14 @@ class CommandLineTool(Process):
 
         if self.tool.get("stdin"):
             j.stdin = builder.do_eval(self.tool["stdin"])
-            reffiles.add(j.stdin)
+            reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stdout"):
             j.stdout = builder.do_eval(self.tool["stdout"])
-            if os.path.isabs(j.stdout) or ".." in j.stdout:
+            if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
                 raise validate.ValidationException("stdout must be a relative path")
 
-        builder.pathmapper = self.makePathMapper(reffiles, **kwargs)
+        builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **kwargs)
         builder.requirements = j.requirements
 
         # map files to assigned path inside a container. We need to also explicitly
@@ -250,15 +247,17 @@ class CommandLineTool(Process):
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
-        dockerReq = self.get_requirement("DockerRequirement")[0]
+        dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq and kwargs.get("use_container"):
             out_prefix = kwargs.get("tmp_outdir_prefix")
             j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
             tmpdir_prefix = kwargs.get('tmpdir_prefix')
             j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
+            j.stagedir = None
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
+            j.stagedir = builder.stagedir
 
         createFiles = self.get_requirement("CreateFileRequirement")[0]
         j.generatefiles = {}

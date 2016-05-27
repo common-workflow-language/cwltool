@@ -19,7 +19,7 @@ from .builder import Builder, adjustFileObjs
 import tempfile
 import glob
 from .errors import WorkflowException
-from .pathmapper import abspath
+from .pathmapper import abspath, adjustFiles
 from typing import Any, Callable, Generator, Union, IO, AnyStr, Tuple
 from collections import Iterable
 from rdflib import URIRef
@@ -136,18 +136,6 @@ def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, list):
         for d in rec:
             checkRequirements(d, supportedProcessRequirements)
-
-def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
-    """Apply a mapping function to each File path in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            rec["path"] = op(rec["path"])
-        for d in rec:
-            adjustFiles(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFiles(d, op)
 
 def adjustFilesWithSecondary(rec, op, primary=None):
     """Apply a mapping function to each File path in the object `rec`, propagating
@@ -318,13 +306,19 @@ class Process(object):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+
+        if dockerReq and is_req and not kwargs.get("use_container"):
+            raise WorkflowException("Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
+
         if dockerReq and kwargs.get("use_container"):
             builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
             builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
+            builder.stagedir = kwargs.get("docker_stagedir") or "/var/lib/cwl"
         else:
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
+            builder.stagedir = kwargs.get("stagedir") or tempfile.mkdtemp()
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(kwargs["basedir"])
 
