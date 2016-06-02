@@ -107,8 +107,13 @@ class Builder(object):
                     if binding:
                         b2 = copy.deepcopy(binding)
                         b2["valueFrom"] = item
-                    bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
-                                                    item, lead_pos=n, tail_pos=tail_pos))
+                    if "secondaryFiles" in schema:
+                        bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2,
+                                                         "secondaryFiles" : schema["secondaryFiles"]},
+                                                        item, lead_pos=n, tail_pos=tail_pos))
+                    else:
+                        bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
+                                                        item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
 
             if schema["type"] == "File":
