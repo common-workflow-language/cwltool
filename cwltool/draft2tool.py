@@ -206,6 +206,7 @@ class CommandLineTool(Process):
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
+        j.stderr = None
         j.stdout = None
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
@@ -226,6 +227,11 @@ class CommandLineTool(Process):
         if self.tool.get("stdin"):
             j.stdin = builder.do_eval(self.tool["stdin"])
             reffiles.add(j.stdin)
+
+        if self.tool.get("stderr"):
+            j.stderr = builder.do_eval(self.tool["stderr"])
+            if os.path.isabs(j.stderr) or ".." in j.stderr:
+                raise validate.ValidationException("stderr must be a relative path")
 
         if self.tool.get("stdout"):
             j.stdout = builder.do_eval(self.tool["stdout"])

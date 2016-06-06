@@ -44,6 +44,7 @@ class CommandLineJob(object):
         self.builder = None  # type: Builder
         self.joborder = None  # type: Dict[str,str]
         self.stdin = None  # type: str
+        self.stderr = None  # type: str
         self.stdout = None  # type: str
         self.successCodes = None  # type: Iterable[int]
         self.temporaryFailCodes = None  # type: Iterable[int]
@@ -137,6 +138,7 @@ class CommandLineJob(object):
                         env[key] = value
 
         stdin = None  # type: Union[IO[Any],int]
+        stderr = None  # type: IO[Any]
         stdout = None  # type: IO[Any]
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
@@ -146,12 +148,13 @@ class CommandLineJob(object):
         else:
             shouldquote = needs_shell_quoting_re.search
 
-        _logger.info(u"[job %s] %s$ %s%s%s",
+        _logger.info(u"[job %s] %s$ %s%s%s%s",
                      self.name,
                      self.outdir,
                      " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      u' < %s' % (self.stdin) if self.stdin else '',
-                     u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
+                     u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
+                     u' \2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
 
         if dry_run:
             return (self.outdir, {})
@@ -178,6 +181,15 @@ class CommandLineJob(object):
             else:
                 stdin = subprocess.PIPE
 
+            if self.stderr:
+                abserr = os.path.join(self.outdir, self.stderr)
+                dnerr = os.path.dirname(abserr)
+                if dnerr and not os.path.exists(dnerr):
+                    os.makedirs(dnerr)
+                stderr = open(absout, "wb")
+            else:
+                stderr = sys.stderr
+
             if self.stdout:
                 absout = os.path.join(self.outdir, self.stdout)
                 dn = os.path.dirname(absout)
@@ -191,6 +203,7 @@ class CommandLineJob(object):
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,
+                                  stderr=stderr,
                                   stdout=stdout,
                                   env=env,
                                   cwd=self.outdir)
@@ -202,6 +215,9 @@ class CommandLineJob(object):
 
             if isinstance(stdin, file):
                 stdin.close()
+
+            if stderr is not sys.stderr:
+                stderr.close()
 
             if stdout is not sys.stderr:
                 stdout.close()

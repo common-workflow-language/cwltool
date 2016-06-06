@@ -114,7 +114,7 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
     if "output" in t:
         checkkeys = ["output"]
     else:
-        checkkeys = ["args", "stdin", "stdout", "createfiles"]
+        checkkeys = ["args", "stdin", "stderr", "stdout", "createfiles"]
 
     for key in checkkeys:
         try:

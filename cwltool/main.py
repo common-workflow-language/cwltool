@@ -183,6 +183,8 @@ def single_job_executor(t, job_order_object, **kwargs):
         a = {"args": job.command_line}
         if job.stdin:
             a["stdin"] = job.pathmapper.mapper(job.stdin)[1]
+        if job.stderr:
+            a["stderr"] = job.stderr
         if job.stdout:
             a["stdout"] = job.stdout
         if job.generatefiles:
