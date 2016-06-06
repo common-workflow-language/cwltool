@@ -220,6 +220,7 @@ class CommandLineTool(Process):
         reffiles = copy.deepcopy(builder.files)
 
         j = self.makeJobRunner()
+        j.tool_dependency_manager = self.tool_dependency_manager
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None

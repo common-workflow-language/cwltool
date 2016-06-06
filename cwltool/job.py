@@ -20,12 +20,16 @@ from .builder import Builder
 from typing import Union, Iterable, Callable, Any, Mapping, IO, cast, Tuple
 from .pathmapper import PathMapper
 import functools
+try:
+    from galaxy.tools.deps.requirements import ToolRequirement
+except ImportError:
+    ToolRequirement = None
 
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
-FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "1") == "1"
+FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
 
 def deref_links(outputs):  # type: (Any) -> None
@@ -64,6 +68,7 @@ class CommandLineJob(object):
         self.environment = None  # type: Dict[str,str]
         self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]] 
         self.stagedir = None  # type: unicode
+        self.dependency_manager = None  # type: DependencyManager
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -214,6 +219,17 @@ class CommandLineJob(object):
             else:
                 stdout_path = None
 
+            prefix = None
+            job_dir = None
+            if self.tool_dependency_manager is not None:
+                dependencies = self._find_tool_dependencies()
+                job_dir = tempfile.mkdtemp(prefix="cwltooljob")
+                shell_commands = self.tool_dependency_manager.dependency_shell_commands(
+                    dependencies,
+                    job_directory=job_dir,
+                )
+                prefix = "\n".join(shell_commands)
+
             rcode = shelled_popen(
                 [unicode(x).encode('utf-8') for x in runtime + self.command_line],
                 stdin_path=stdin_path,
@@ -281,6 +297,23 @@ class CommandLineJob(object):
             _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
 
+    def _find_tool_dependencies(self):
+        dependencies = []
+        for hint in self.hints:
+            hint_class = hint.get("class", "")
+            if not hint_class:
+                continue
+            base_name = hint["class"].rsplit("/", 1)[-1]
+            if base_name == "Dependency":
+                requirement_desc = {}
+                requirement_desc["type"] = "package"
+                name = hint["name"].rsplit("#", 1)[-1]
+                version = hint.get("version", "").rsplit("#", 1)[-1]
+                requirement_desc["name"] = name
+                requirement_desc["version"] = version or None
+                dependencies.append(ToolRequirement.from_dict(requirement_desc))
+        return dependencies
+
 
 SHELL_COMMAND_TEMPLATE = string.Template("""#!/bin/bash
 $prefix
@@ -347,6 +380,7 @@ def shelled_popen(commands,
                   stderr_path,
                   env,
                   cwd,
+                  job_dir=None,
                   prefix=None):
     if prefix is None and not FORCE_SHELLED_POPEN:
         if stdin_path is not None:
@@ -389,17 +423,19 @@ def shelled_popen(commands,
 
         return rcode
     else:
+        if job_dir is None:
+            job_dir = tempfile.mkdtemp(prefix="cwltooljob")
+
         template_kwds = dict(
             prefix=prefix or '',
         )
         job_script_contents = SHELL_COMMAND_TEMPLATE.substitute(
             **template_kwds
         )
-        job_dir = tempfile.mkdtemp(prefix="cwltooljob")
         job_description = dict(
             commands=commands,
             cwd=cwd,
-            env=env,
+            env=env.copy(),
             stdout_path=stdout_path,
             stderr_path=stderr_path,
             stdin_path=stdin_path,

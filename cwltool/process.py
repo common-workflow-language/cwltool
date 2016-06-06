@@ -389,7 +389,7 @@ class Process(object):
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while prcoessing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
-
+        self.tool_dependency_manager = kwargs.get("tool_dependency_manager", None)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[unicode, unicode], **Any) -> Builder

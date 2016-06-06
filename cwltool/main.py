@@ -16,6 +16,10 @@ import functools
 
 import rdflib
 from typing import Union, Any, cast, Callable, Dict, Tuple, IO
+try:
+    from galaxy.tools import deps
+except ImportError:
+    deps = None
 
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
@@ -36,6 +40,9 @@ _logger = logging.getLogger("cwltool")
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
+
+if deps is not None:
+    deps.log = _logger
 
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
@@ -137,6 +144,11 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
+
+    # help="Dependency resolver configuration file describing how to adapt 'Dependency' hints to current system."
+    parser.add_argument("--beta-dependency-resolvers-configuration", default=None, help=argparse.SUPPRESS)
+    # help="Defaut root directory used by dependency resolvers configuration."
+    parser.add_argument("--beta-dependencies-directory", default=None, help=argparse.SUPPRESS)
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
@@ -601,6 +613,12 @@ def main(argsl=None,
             if not hasattr(args, k):
                 setattr(args, k, v)
 
+        if deps is not None:
+            tool_dependencies_configuartion = DependenciesConfigruation(args)
+            tool_dependency_manager = deps.build_dependency_manager(tool_dependencies_configuartion)
+        else:
+            tool_dependency_manager = None
+
         if args.quiet:
             _logger.setLevel(logging.WARN)
         if args.debug:
@@ -645,8 +663,11 @@ def main(argsl=None,
                 printdot(uri, processobj, document_loader.ctx, stdout)
                 return 0
 
+            make_tool_kwargs = {
+                'tool_dependency_manager': tool_dependency_manager,
+            }
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                    makeTool, {})
+                             makeTool, make_tool_kwargs)
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
                           exc_info=(exc if args.debug else False))
@@ -748,6 +769,21 @@ def main(argsl=None,
     finally:
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
+
+
+class DependenciesConfigruation(object):
+
+    def __init__(self, args):
+        conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
+        tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
+        if conf_file is not None and os.path.exists(conf_file):
+            self.use_tool_dependencies = True
+            if not tool_dependency_dir:
+                tool_dependency_dir = os.path.abspath(os.path.dirname(conf_file))
+            self.tool_dependency_dir = tool_dependency_dir
+            self.dependency_resolvers_config_file = conf_file
+        else:
+            self.use_tool_dependencies = False
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
