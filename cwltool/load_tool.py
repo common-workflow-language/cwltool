@@ -92,7 +92,6 @@ def validate_document(document_loader, workflowobj, uri,
     if preprocess_only:
         return document_loader, avsc_names, processobj, metadata, uri
 
-    document_loader.validate_links(processobj)
     schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if metadata.get("cwlVersion") != update.LATEST:
