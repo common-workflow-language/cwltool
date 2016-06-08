@@ -14,6 +14,11 @@ CWL builds on technologies such as [JSON-LD](http://json-ld.org) and
 CWL is designed to express workflows for data-intensive science, such as
 Bioinformatics, Medical Imaging, Chemistry, Physics, and Astronomy.
 
+## CWL User Guide
+
+[User guide for the current stable specification (draft-3)](http://www.commonwl.org/draft-3/UserGuide.html),
+provides a gentle introduction to writing CWL command line tool and workflow descriptions.
+
 ## CWL Specification
 
 The current stable specification is [draft 3](http://www.commonwl.org/draft-3/):
@@ -54,6 +59,10 @@ Some of the software supporting running Common Workflow Language tools or workfl
   [cwl2script page](https://github.com/common-workflow-language/common-workflow-language/wiki/cwl2script)
 * [Apache Taverna](http://taverna.incubator.apache.org/),
   [Apache Taverna wiki page](https://github.com/common-workflow-language/common-workflow-language/wiki/Taverna)
+
+We continuously run the CWL conformance tests on several implementations:
+
+https://ci.commonwl.org
 
 ## Examples
 

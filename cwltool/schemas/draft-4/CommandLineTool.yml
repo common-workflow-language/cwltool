@@ -38,8 +38,12 @@ $graph:
     - |
       ## Introduction to draft 4
 
-      This specification represents the third milestone of the CWL group.
-      Since draft-3, this draft introduces the following major changes and additions:
+      This specification represents the fourth milestone of the CWL group.
+      Since draft-3, this draft introduces the following changes and additions:
+
+        * Preliminary support for initialWorkDir & the Directory type
+        * "id: name" is now just "name"; "class: Classname" is now just
+          "Classtname".
 
       ## Purpose
 
@@ -430,6 +434,18 @@ $graph:
       doc: |
         A path to a file whose contents must be piped into the command's
         standard input stream.
+    - name: stderr
+      type: ["null", string, "#Expression"]
+      doc: |
+        Capture the command's standard error stream to a file written to
+        the designated output directory.
+
+        If `stderr` is a string, it specifies the file name to use.
+
+        If `stderr` is an expression, the expression is evaluated and must
+        return a string with the file name to use to capture stderr.  If the
+        return value is not a string, or the resulting path contains illegal
+        characters (such as the path separator `/`) it is an error.
     - name: stdout
       type: ["null", string, "#Expression"]
       doc: |
