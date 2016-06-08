@@ -16,3 +16,7 @@ def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
         if t["class"] == feature:
             return (t, False)
     return (None, None)
+
+class HashableDict(dict):
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))

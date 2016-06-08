@@ -1,6 +1,6 @@
 from . import job
 from . import draft2tool
-from .utils import aslist
+from .utils import aslist, HashableDict
 from .process import Process, get_feature, empty_subtree, shortname, uniquename
 from .errors import WorkflowException
 import copy
@@ -88,6 +88,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
         return True
     return False
 
+
 def are_same_type(src, sink):  # type: (Any, Any) -> bool
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
@@ -99,6 +100,8 @@ def are_same_type(src, sink):  # type: (Any, Any) -> bool
                 src_items = [src_items]
             if not isinstance(sink_items, list):
                 sink_items = [sink_items]
+            src_items = [HashableDict(s) if isinstance(s, dict) else s for s in src_items]
+            sink_items = [HashableDict(s) if isinstance(s, dict) else s for s in sink_items]
             return are_same_type(src_items, sink_items)
         else:
             return src["type"] == sink["type"]
