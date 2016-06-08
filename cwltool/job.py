@@ -186,7 +186,7 @@ class CommandLineJob(object):
                 dnerr = os.path.dirname(abserr)
                 if dnerr and not os.path.exists(dnerr):
                     os.makedirs(dnerr)
-                stderr = open(absout, "wb")
+                stderr = open(abserr, "wb")
             else:
                 stderr = sys.stderr
 
