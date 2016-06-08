@@ -104,17 +104,17 @@ def are_same_type(src, sink):  # type: (Any, Any) -> bool
         return src == sink
 
 
-def object_from_state(state, parms, frag_only, supportsMultipleInput):
+def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
     # type: (Dict[str,WorkflowStateItem], List[Dict[str, Any]], bool, bool) -> Dict[str, str]
     inputobj = {}  # type: Dict[str, str]
     for inp in parms:
         iid = inp["id"]
         if frag_only:
             iid = shortname(iid)
-        if "source" in inp:
-            if isinstance(inp["source"], list) and not supportsMultipleInput:
+        if sourceField in inp:
+            if isinstance(inp[sourceField], list) and not supportsMultipleInput:
                 raise WorkflowException("Workflow contains multiple inbound links to a single parameter but MultipleInputFeatureRequirement is not declared.")
-            connections = aslist(inp["source"])
+            connections = aslist(inp[sourceField])
             for src in connections:
                 if src in state and state[src] is not None:
                     if not match_types(inp["type"], state[src], iid, inputobj,
@@ -205,7 +205,7 @@ class WorkflowJob(object):
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
         try:
-            inputobj = object_from_state(self.state, inputparms, False, supportsMultipleInput)
+            inputobj = object_from_state(self.state, inputparms, False, supportsMultipleInput, "source")
             if inputobj is None:
                 _logger.debug(u"[%s] job step %s not ready", self.name, step.id)
                 return
@@ -326,7 +326,7 @@ class WorkflowJob(object):
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
-        wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput)
+        wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource")
 
         if wo is None:
             raise WorkflowException("Output for workflow not available")

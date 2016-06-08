@@ -52,6 +52,7 @@ cwl_files = ("Workflow.yml",
               "invocation.md")
 
 salad_files = ('metaschema.yml',
+               'metaschema_base.yml',
               'salad.md',
               'field_name.yml',
               'import_include.md',
