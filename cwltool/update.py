@@ -341,6 +341,25 @@ def draft3toDraft4dev1(doc, loader, baseuri):
     """Public updater for draft-3 to draft-4.dev1."""
     return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
+def _draft4Dev1toDev2(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
+    if isinstance(doc, dict):
+        if "class" in doc and doc["class"] == "Workflow":
+            for out in doc["outputs"]:
+                out["outputSource"] = out["source"]
+                del out["source"]
+        for key, value in doc.items():
+            doc[key] = _draft4Dev1toDev2(value, loader, baseuri)
+    elif isinstance(doc, list):
+        doc = [_draft4Dev1toDev2(item, loader, baseuri) for item in doc]
+
+    return doc
+
+def draft4Dev1toDev2(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for draft-4.dev1 to draft-4.dev2."""
+    return (_draft4Dev1toDev2(doc, loader, baseuri), "draft-4.dev2")
+
 UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1
@@ -352,13 +371,14 @@ DEVUPDATES = {
     "draft-3.dev3": draftDraft3dev3toDev4,
     "draft-3.dev4": draftDraft3dev4toDev5,
     "draft-3.dev5": draftDraft3dev5toFinal,
-    "draft-4.dev1": None
+    "draft-4.dev1": draft4Dev1toDev2,
+    "draft-4.dev2": None
 } # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "draft-4.dev1"
+LATEST = "draft-4.dev2"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
