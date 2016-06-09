@@ -18,7 +18,7 @@ import stat
 from .builder import Builder, adjustFileObjs
 import tempfile
 import glob
-from .errors import WorkflowException
+from .errors import WorkflowException, UnsupportedRequirement
 from .pathmapper import abspath
 from typing import Any, Callable, Generator, Union, IO, AnyStr, Tuple
 from collections import Iterable
@@ -119,10 +119,6 @@ def shortname(inputid):
         return d.fragment.split("/")[-1].split(".")[-1]
     else:
         return d.path.split("/")[-1]
-
-
-class UnsupportedRequirement(Exception):
-    pass
 
 def checkRequirements(rec, supportedProcessRequirements):
     # type: (Any, Iterable[Any]) -> None

@@ -10,7 +10,7 @@ import sys
 import logging
 import copy
 from . import workflow
-from .errors import WorkflowException
+from .errors import WorkflowException, UnsupportedRequirement
 from . import process
 from .cwlrdf import printrdf, printdot
 from .process import shortname, Process
@@ -542,7 +542,8 @@ def main(argsl=None,
                     'basedir': None,
                     'tool_help': False,
                     'workflow': None,
-                    'job_order': None}.iteritems():
+                    'job_order': None,
+                    'pack': False}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -662,6 +663,11 @@ def main(argsl=None,
                 u"Input object failed validation:\n%s", exc,
                 exc_info=(exc if args.debug else False))
             return 1
+        except UnsupportedRequirement as exc:
+            _logger.error(
+                u"Workflow or tool uses unsupported feature:\n%s", exc,
+                exc_info=(exc if args.debug else False))
+            return 33
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
