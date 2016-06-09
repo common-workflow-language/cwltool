@@ -332,7 +332,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
     elif job_order_file:
         input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
         try:
-            job_order_object, _ = loader.resolve_ref(job_order_file)
+            job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
         except Exception as e:
             _logger.error(str(e), exc_info=(e if args.debug else False))
             return 1
