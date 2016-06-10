@@ -20,7 +20,8 @@ import tempfile
 import glob
 from .errors import WorkflowException
 from .pathmapper import abspath
-from typing import Any, AnyStr, Callable, cast, Generator, IO, Tuple, Union
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO,
+        Tuple, Union)
 from collections import Iterable
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
