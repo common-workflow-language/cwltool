@@ -386,19 +386,19 @@ def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, doc["cwlVersion"])
 
 def checkversion(doc, metadata, enable_dev):
-    # type: (Union[List, Dict[str, Any]], Dict[str, Any], bool) -> Tuple[Dict[str, Any], Union[str, unicode]]  # pylint: disable=line-too-long
+    # type: (Union[List, Dict[unicode, Any]], Dict[unicode, Any], bool) -> Tuple[Dict[unicode, Any], unicode]  # pylint: disable=line-too-long
     """Checks the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
     """
     if isinstance(doc, list):
         metadata = metadata.copy()
-        metadata["$graph"] = doc
+        metadata[u"$graph"] = doc
         cdoc = metadata
     else:
         cdoc = doc
 
-    version = cdoc["cwlVersion"]
+    version = cdoc[u"cwlVersion"]
 
     if version not in UPDATES:
         if version in DEVUPDATES:
@@ -418,16 +418,16 @@ def checkversion(doc, metadata, enable_dev):
     return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Any, Loader, str, bool, Any) -> Any
+    # type: (Union[List, Dict[unicode, Any]], Loader, str, bool, Any) -> Dict[unicode, Any]
 
-    (doc, version) = checkversion(doc, metadata, enable_dev)
+    (cdoc, version) = checkversion(doc, metadata, enable_dev)
 
-    nextupdate = identity
+    nextupdate = identity  # type: Callable[[Any, Loader, str], Tuple[Any, str]]
 
     while nextupdate:
-        (doc, version) = nextupdate(doc, loader, baseuri)
+        (cdoc, version) = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 
-    doc["cwlVersion"] = version
+    cdoc[u"cwlVersion"] = version
 
-    return doc
+    return cdoc

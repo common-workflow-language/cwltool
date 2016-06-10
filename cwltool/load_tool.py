@@ -44,7 +44,7 @@ def fetch_document(argsworkflow):
 
 def validate_document(document_loader, workflowobj, uri,
                       enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Any, Dict[str, str], unicode]
+    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Dict[unicode, Any], Dict[unicode, Any], unicode]
     """Validate a CWL document."""
     jobobj = None
     if "cwl:tool" in workflowobj:
@@ -83,6 +83,8 @@ def validate_document(document_loader, workflowobj, uri,
 
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
+    if not isinstance(processobj, dict):
+        raise validate.ValidationException("Workflow must be a dict.")
 
     if not metadata:
         metadata = {"$namespaces": processobj.get("$namespaces", {}),
@@ -99,14 +101,14 @@ def validate_document(document_loader, workflowobj, uri,
             processobj, document_loader, fileuri, enable_dev, metadata)
 
     if jobobj:
-        metadata["cwl:defaults"] = jobobj
+        metadata[u"cwl:defaults"] = jobobj
 
     return document_loader, avsc_names, processobj, metadata, uri
 
 
 def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool,
               kwargs):
-    # type: (Loader, Names, Dict[str, Any], Dict[str, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
+    # type: (Loader, Names, Dict[unicode, Any], Dict[unicode, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
 
@@ -120,7 +122,7 @@ def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool,
                     urlparse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
     else:
-        processobj = cast(Dict[str, Any], resolveduri)
+        processobj = cast(Dict[unicode, Any], resolveduri)
 
     kwargs = kwargs.copy()
     kwargs.update({
