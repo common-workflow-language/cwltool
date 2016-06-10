@@ -105,7 +105,7 @@ def are_same_type(src, sink):  # type: (Any, Any) -> bool
 
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
-    # type: (Dict[str,WorkflowStateItem], List[Dict[str, Any]], bool, bool) -> Dict[str, str]
+    # type: (Dict[str, WorkflowStateItem], List[Dict[str, Any]], bool, bool, unicode) -> Dict[str, str]
     inputobj = {}  # type: Dict[str, str]
     for inp in parms:
         iid = inp["id"]
@@ -555,7 +555,7 @@ class ReceiveScatterOutput(object):
 
 
 def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[str, Any], List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     l = None
     for s in scatter_keys:
         if l is None:
@@ -581,7 +581,7 @@ def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwarg
 
 
 def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[str, Any], List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     output = {}  # type: Dict[str,List[str]]
@@ -623,7 +623,7 @@ def crossproduct_size(joborder, scatter_keys):
     return sum
 
 def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, startindex, **kwargs):
-    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[str, Any], List[str], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     rc = None  # type: ReceiveScatterOutput

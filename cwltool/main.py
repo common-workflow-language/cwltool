@@ -152,7 +152,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
 
 def single_job_executor(t, job_order_object, **kwargs):
-    # type: (Process, Dict[str,Any], str, argparse.Namespace,**Any) -> Union[str,Dict[str,str]]
+    # type: (Process, Dict[str,Any], **Any) -> Union[str,Dict[str,str]]
     final_output = []
     final_status = []
 
@@ -305,7 +305,7 @@ def generate_parser(toolparser, tool, namemap):
 
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
-    # type: (argparse.Namespace, Process, argparse.ArgumentParser, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
 
@@ -508,7 +508,7 @@ def main(argsl=None,
          stderr=sys.stderr,
          versionfunc=versionstring,
          job_order_object=None):
-    # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],unicode]) -> int
+    # type: (List[str], argparse.namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
