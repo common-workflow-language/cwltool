@@ -386,7 +386,7 @@ def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, doc["cwlVersion"])
 
 def checkversion(doc, metadata, enable_dev):
-    # type: (Union[List, Dict[unicode, Any]], Dict[unicode, Any], bool) -> Tuple[Dict[unicode, Any], unicode]  # pylint: disable=line-too-long
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Dict[unicode, Any], bool) -> Tuple[Dict[unicode, Any], unicode]  # pylint: disable=line-too-long
     """Checks the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
@@ -418,7 +418,7 @@ def checkversion(doc, metadata, enable_dev):
     return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[List, Dict[unicode, Any]], Loader, str, bool, Any) -> Dict[unicode, Any]
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader, str, bool, Any) -> Dict[unicode, Any]
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
 

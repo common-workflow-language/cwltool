@@ -44,7 +44,7 @@ def fetch_document(argsworkflow):
 
 def validate_document(document_loader, workflowobj, uri,
                       enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Dict[unicode, Any], Dict[unicode, Any], unicode]
+    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], Dict[unicode, Any], unicode]
     """Validate a CWL document."""
     jobobj = None
     if "cwl:tool" in workflowobj:
@@ -83,10 +83,13 @@ def validate_document(document_loader, workflowobj, uri,
 
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
-    if not isinstance(processobj, dict):
-        raise validate.ValidationException("Workflow must be a dict.")
+    if not isinstance(processobj, (dict, list)):
+        raise validate.ValidationException("Workflow must be a dict or list.")
 
     if not metadata:
+        if not isinstance(processobj, dict):
+            raise validate.ValidationException(
+                    "Draft-2 workflows must be a dict.")
         metadata = {"$namespaces": processobj.get("$namespaces", {}),
                    "$schemas": processobj.get("$schemas", []),
                    "cwlVersion": processobj["cwlVersion"]}
@@ -106,9 +109,8 @@ def validate_document(document_loader, workflowobj, uri,
     return document_loader, avsc_names, processobj, metadata, uri
 
 
-def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool,
-              kwargs):
-    # type: (Loader, Names, Dict[unicode, Any], Dict[unicode, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
+def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
+    # type: (Loader, Names, Dict[unicode, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
 
@@ -122,7 +124,7 @@ def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool,
                     urlparse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
     else:
-        processobj = cast(Dict[unicode, Any], resolveduri)
+        processobj = resolveduri
 
     kwargs = kwargs.copy()
     kwargs.update({
@@ -150,5 +152,5 @@ def load_tool(argsworkflow, makeTool, kwargs=None,
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,
         strict=strict)
-    return make_tool(document_loader, avsc_names, processobj, metadata, uri,
+    return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})

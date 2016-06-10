@@ -593,8 +593,8 @@ def main(argsl=None,
                 printdot(uri, processobj, document_loader.ctx, stdout)
                 return 0
 
-            tool = make_tool(document_loader, avsc_names, processobj, metadata,
-                             uri, makeTool, {})
+            tool = make_tool(document_loader, avsc_names, metadata, uri,
+                    makeTool, {})
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
                           exc_info=(exc if args.debug else False))
