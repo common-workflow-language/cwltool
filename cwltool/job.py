@@ -42,7 +42,7 @@ class CommandLineJob(object):
 
     def __init__(self):  # type: () -> None
         self.builder = None  # type: Builder
-        self.joborder = None  # type: Dict[str,str]
+        self.joborder = None  # type: Dict[unicode, Union[Dict[unicode, Any], List, unicode]]
         self.stdin = None  # type: str
         self.stderr = None  # type: str
         self.stdout = None  # type: str

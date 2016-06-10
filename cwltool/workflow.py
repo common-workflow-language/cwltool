@@ -54,7 +54,7 @@ def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[str, Any]]
 
 
 def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
-    # type: (Union[List[str],str], WorkflowStateItem, str, Dict[str, Any], str, str) -> bool
+    # type: (Union[List[str],str], WorkflowStateItem, str, Dict[unicode, Any], str, str) -> bool
     if isinstance(sinktype, list):
         # Sink is union type
         for st in sinktype:
@@ -104,25 +104,37 @@ def are_same_type(src, sink):  # type: (Any, Any) -> bool
         return src == sink
 
 
-def object_from_state(state, parms, frag_only, supportsMultipleInput):
-    # type: (Dict[str,WorkflowStateItem], List[Dict[str, Any]], bool, bool) -> Dict[str, str]
-    inputobj = {}  # type: Dict[str, str]
+def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
+    # type: (Dict[unicode, WorkflowStateItem], List[Dict[unicode, Any]], bool, bool, unicode) -> Dict[unicode, Any]
+    inputobj = {}  # type: Dict[unicode, Any]
     for inp in parms:
         iid = inp["id"]
         if frag_only:
             iid = shortname(iid)
-        if "source" in inp:
-            if isinstance(inp["source"], list) and not supportsMultipleInput:
-                raise WorkflowException("Workflow contains multiple inbound links to a single parameter but MultipleInputFeatureRequirement is not declared.")
-            connections = aslist(inp["source"])
+        if sourceField in inp:
+            if (isinstance(inp[sourceField], list) and not
+                    supportsMultipleInput):
+                raise WorkflowException(
+                        "Workflow contains multiple inbound links to a single "
+                        "parameter but MultipleInputFeatureRequirement is not "
+                        "declared.")
+            connections = aslist(inp[sourceField])
             for src in connections:
                 if src in state and state[src] is not None:
-                    if not match_types(inp["type"], state[src], iid, inputobj,
-                                            inp.get("linkMerge", ("merge_nested" if len(connections) > 1 else None)),
-                                       valueFrom=inp.get("valueFrom")):
-                        raise WorkflowException(u"Type mismatch between source '%s' (%s) and sink '%s' (%s)" % (src, state[src].parameter["type"], inp["id"], inp["type"]))
+                    if not match_types(
+                            inp["type"], state[src], iid, inputobj,
+                            inp.get("linkMerge", ("merge_nested"
+                                if len(connections) > 1 else None)),
+                            valueFrom=inp.get("valueFrom")):
+                        raise WorkflowException(
+                                u"Type mismatch between source '%s' (%s) and "
+                                "sink '%s' (%s)" % (src,
+                                    state[src].parameter["type"], inp["id"],
+                                    inp["type"]))
                 elif src not in state:
-                    raise WorkflowException(u"Connect source '%s' on parameter '%s' does not exist" % (src, inp["id"]))
+                    raise WorkflowException(
+                            u"Connect source '%s' on parameter '%s' does not "
+                            "exist" % (src, inp["id"]))
                 else:
                     return None
         elif "default" in inp:
@@ -146,7 +158,7 @@ class WorkflowJobStep(object):
         self.name = uniquename(u"step %s" % shortname(self.id))
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[str,str], str, functools.partial[None], **Any) -> Generator
+        # type: (Dict[unicode, unicode], functools.partial[None], **Any) -> Generator
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         for j in self.step.job(joborder, output_callback, **kwargs):
@@ -161,7 +173,7 @@ class WorkflowJob(object):
         self.tool = workflow.tool
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.id = workflow.tool["id"]
-        self.state = None  # type: Dict[str, WorkflowStateItem]
+        self.state = None  # type: Dict[unicode, WorkflowStateItem]
         self.processStatus = None  # type: str
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
@@ -198,14 +210,17 @@ class WorkflowJob(object):
         step.completed = True
 
     def try_make_job(self, step, **kwargs):
-        # type: (WorkflowJobStep, str, **Any) -> Generator
+        # type: (WorkflowJobStep, **Any) -> Generator
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
-        supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
+        supportsMultipleInput = bool(self.workflow.get_requirement(
+            "MultipleInputFeatureRequirement")[0])
 
         try:
-            inputobj = object_from_state(self.state, inputparms, False, supportsMultipleInput)
+            inputobj = object_from_state(
+                    self.state, inputparms, False, supportsMultipleInput,
+                    "source")
             if inputobj is None:
                 _logger.debug(u"[%s] job step %s not ready", self.name, step.id)
                 return
@@ -217,7 +232,9 @@ class WorkflowJob(object):
 
             callback = functools.partial(self.receive_output, step, outputparms)
 
-            valueFrom = {i["id"]: i["valueFrom"] for i in step.tool["inputs"] if "valueFrom" in i}
+            valueFrom = {
+                    i["id"]: i["valueFrom"] for i in step.tool["inputs"]
+                    if "valueFrom" in i}
 
             if len(valueFrom) > 0 and not bool(self.workflow.get_requirement("StepInputExpressionRequirement")[0]):
                 raise WorkflowException("Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
@@ -225,8 +242,9 @@ class WorkflowJob(object):
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
             def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                 if k in valueFrom:
-                    return expression.do_eval(valueFrom[k], vfinputs, self.workflow.requirements,
-                                       None, None, {}, context=v)
+                    return expression.do_eval(
+                            valueFrom[k], vfinputs, self.workflow.requirements,
+                            None, None, {}, context=v)
                 else:
                     return v
 
@@ -279,7 +297,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] workflow starting", self.name)
 
     def job(self, joborder, output_callback, move_outputs=True, **kwargs):
-        # type: (Dict[str,str], str, Callable[[Any, Any], Any], bool, **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[unicode, Any], Callable[[Any, Any], Any], bool, **Any) -> Generator[WorkflowJob, None, None]
         self.state = {}
         self.processStatus = "success"
 
@@ -326,7 +344,7 @@ class WorkflowJob(object):
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
-        wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput)
+        wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource")
 
         if wo is None:
             raise WorkflowException("Output for workflow not available")
@@ -375,7 +393,7 @@ class WorkflowJob(object):
 
 class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[str, Any], **Any) -> None
+        # type: (Dict[unicode, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
 
         kwargs["requirements"] = self.requirements
@@ -388,7 +406,7 @@ class Workflow(Process):
         # TODO: statically validate data links instead of doing it at runtime.
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
         builder = self._init_job(joborder, **kwargs)
         wj = WorkflowJob(self, **kwargs)
         yield wj
@@ -407,7 +425,7 @@ class Workflow(Process):
 class WorkflowStep(Process):
 
     def __init__(self, toolpath_object, pos, **kwargs):
-        # type: (Dict[str, Any], int, **Any) -> None
+        # type: (Dict[unicode, Any], int, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -486,7 +504,7 @@ class WorkflowStep(Process):
             self.tool["outputs"] = outputparms
 
     def receive_output(self, output_callback, jobout, processStatus):
-        # type: (Callable[...,Any], Dict[str, str], str) -> None
+        # type: (Callable[...,Any], Dict[unicode, str], str) -> None
         #_logger.debug("WorkflowStep output from run is %s", jobout)
         output = {}
         for i in self.tool["outputs"]:
@@ -498,7 +516,7 @@ class WorkflowStep(Process):
         output_callback(output, processStatus)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[str, Any], str, Callable[...,Any], **Any) -> Generator
+        # type: (Dict[unicode, Any], Callable[...,Any], **Any) -> Generator
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
@@ -555,7 +573,7 @@ class ReceiveScatterOutput(object):
 
 
 def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[unicode, Any], List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     l = None
     for s in scatter_keys:
         if l is None:
@@ -581,7 +599,7 @@ def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwarg
 
 
 def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[unicode, Any], List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     output = {}  # type: Dict[str,List[str]]
@@ -610,7 +628,7 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
 
 
 def crossproduct_size(joborder, scatter_keys):
-    # type: (Dict[str, Any], List[str]) -> int
+    # type: (Dict[unicode, Any], List[str]) -> int
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         sum = len(joborder[scatter_key])
@@ -623,7 +641,7 @@ def crossproduct_size(joborder, scatter_keys):
     return sum
 
 def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, startindex, **kwargs):
-    # type: (WorkflowJobStep, Dict[str, Any], str, List[str], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[unicode, Any], List[str], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     rc = None  # type: ReceiveScatterOutput

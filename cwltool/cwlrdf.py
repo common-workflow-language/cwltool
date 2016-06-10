@@ -6,7 +6,7 @@ from rdflib.serializer import Serializer
 from typing import Any, Union, Dict, IO
 
 def makerdf(workflow, wf, ctx):
-    # type: (Union[str, unicode], Dict[str,Any], Loader.ContextType) -> Graph
+    # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType) -> Graph
     prefixes = {}
     for k,v in ctx.iteritems():
         if isinstance(v, dict):
@@ -18,7 +18,11 @@ def makerdf(workflow, wf, ctx):
             p, _ = frg.split("/")
             prefixes[p] = u"%s#%s/" % (doc_url, p)
 
-    wf["@context"] = ctx
+    if isinstance(wf, list):
+        for entry in wf:
+            entry["@context"] = ctx
+    else:
+        wf["@context"] = ctx
     g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow)
 
     # Bug in json-ld loader causes @id fields to be added to the graph
@@ -31,7 +35,7 @@ def makerdf(workflow, wf, ctx):
     return g
 
 def printrdf(workflow, wf, ctx, sr, stdout):
-    # type: (Union[str, unicode], Dict[str, Any], Loader.ContextType, str, IO[Any]) -> None
+    # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType, str, IO[Any]) -> None
     stdout.write(makerdf(workflow, wf, ctx).serialize(format=sr))
 
 def lastpart(uri):  # type: (Any) -> str
@@ -172,7 +176,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
 
 
 def printdot(workflow, wf, ctx, stdout, include_parameters=False):
-    # type: (Union[str, unicode], Dict[str, Any], Loader.ContextType, Any, bool) -> None
+    # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType, Any, bool) -> None
     g = makerdf(workflow, wf, ctx)
 
     stdout.write("digraph {")

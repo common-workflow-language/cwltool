@@ -34,9 +34,9 @@ class Builder(object):
     def __init__(self):  # type: () -> None
         self.names = None  # type: avro.schema.Names
         self.schemaDefs = None  # type: Dict[str,Dict[unicode, Any]]
-        self.files = None  # type: List[Dict[str, str]]
+        self.files = None  # type: List[Dict[unicode, unicode]]
         self.fs_access = None  # type: StdFsAccess
-        self.job = None  # type: Dict[str, Any]
+        self.job = None  # type: Dict[unicode, Union[Dict[unicode, Any], List, unicode]]
         self.requirements = None  # type: List[Dict[str,Any]]
         self.outdir = None  # type: str
         self.tmpdir = None  # type: str

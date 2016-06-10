@@ -20,7 +20,8 @@ import tempfile
 import glob
 from .errors import WorkflowException, UnsupportedRequirement
 from .pathmapper import abspath
-from typing import Any, Callable, Generator, Union, IO, AnyStr, Tuple
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO,
+        Tuple, Union)
 from collections import Iterable
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
@@ -52,6 +53,7 @@ cwl_files = ("Workflow.yml",
               "invocation.md")
 
 salad_files = ('metaschema.yml',
+               'metaschema_base.yml',
               'salad.md',
               'field_name.yml',
               'import_include.md',
@@ -72,9 +74,9 @@ salad_files = ('metaschema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
 
-SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]]
-SCHEMA_FILE = None
-SCHEMA_ANY = None
+SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode, Any], Loader]]
+SCHEMA_FILE = None  # type: Dict[unicode, Any]
+SCHEMA_ANY = None  # type: Dict[unicode, Any]
 
 def get_schema(version):
     # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]
@@ -107,18 +109,20 @@ def get_schema(version):
         "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
     global SCHEMA_FILE, SCHEMA_ANY  # pylint: disable=global-statement
-    SCHEMA_FILE = SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"]
-    SCHEMA_ANY = SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"]
+    SCHEMA_FILE = cast(Dict[unicode, Any],
+            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"])
+    SCHEMA_ANY = cast(Dict[unicode, Any],
+            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"])
 
     return SCHEMA_CACHE[version]
 
 def shortname(inputid):
-    # type: (Union[str, unicode]) -> str
+    # type: (unicode) -> unicode
     d = urlparse.urlparse(inputid)
     if d.fragment:
-        return d.fragment.split("/")[-1].split(".")[-1]
+        return d.fragment.split(u"/")[-1].split(u".")[-1]
     else:
-        return d.path.split("/")[-1]
+        return d.path.split(u"/")[-1]
 
 def checkRequirements(rec, supportedProcessRequirements):
     # type: (Any, Iterable[Any]) -> None
@@ -198,7 +202,7 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
 
 def checkFormat(actualFile, inputFormats, ontology):
-    # type: (Union[Dict[str, Any], List[Dict[str, Any]]], Any, Graph) -> None
+    # type: (Union[Dict[unicode, Any], List, unicode], Union[List[unicode], unicode], Graph) -> None
     for af in aslist(actualFile):
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
@@ -208,13 +212,13 @@ def checkFormat(actualFile, inputFormats, ontology):
         raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 def fillInDefaults(inputs, job):
-    # type: (List[Dict[str, str]], Dict[str, str]) -> None
+    # type: (List[Dict[unicode, unicode]], Dict[unicode, Union[Dict[unicode, Any], List, unicode]]) -> None
     for inp in inputs:
-        if shortname(inp["id"]) in job:
+        if shortname(inp[u"id"]) in job:
             pass
-        elif shortname(inp["id"]) not in job and "default" in inp:
-            job[shortname(inp["id"])] = copy.copy(inp["default"])
-        elif shortname(inp["id"]) not in job and inp["type"][0] == "null":
+        elif shortname(inp[u"id"]) not in job and u"default" in inp:
+            job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
+        elif shortname(inp[u"id"]) not in job and inp[u"type"][0] == u"null":
             pass
         else:
             raise validate.ValidationException("Missing input parameter `%s`" % shortname(inp["id"]))
@@ -223,7 +227,7 @@ class Process(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[str, Any], **Any) -> None
+        # type: (Dict[unicode, Any], **Any) -> None
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
         names = schema_salad.schema.make_avro_schema(
@@ -294,11 +298,12 @@ class Process(object):
 
 
     def _init_job(self, joborder, **kwargs):
-        # type: (Dict[str, str], str, **Any) -> Builder
+        # type: (Dict[unicode, unicode], **Any) -> Builder
         builder = Builder()
-        builder.job = copy.deepcopy(joborder)
+        builder.job = cast(Dict[unicode, Union[Dict[unicode, Any], List,
+            unicode]], copy.deepcopy(joborder))
 
-        fillInDefaults(self.tool["inputs"], builder.job)
+        fillInDefaults(self.tool[u"inputs"], builder.job)
 
         # Validate job order
         try:
@@ -423,7 +428,7 @@ class Process(object):
 
     @abc.abstractmethod
     def job(self, job_order, output_callbacks, **kwargs):
-        # type: (Dict[str, str], str, Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
+        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
         return None
 
 def empty_subtree(dirpath):  # type: (AnyStr) -> bool
@@ -457,7 +462,7 @@ def uniquename(stem):  # type: (unicode) -> unicode
     return u
 
 def scandeps(base, doc, reffields, urlfields, loadref):
-    # type: (str, Any, Set[str], Set[str], Callable[[str, str], Any]) -> List[Dict[str, str]]
+    # type: (unicode, Any, Set[str], Set[str], Callable[[unicode, str], Any]) -> List[Dict[str, str]]
     r = []
     if isinstance(doc, dict):
         if "id" in doc:
