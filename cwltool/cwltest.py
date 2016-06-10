@@ -51,7 +51,7 @@ def compare(a, b):  # type: (Any, Any) -> bool
             return True
         else:
             if a != b:
-                raise CompareFail(u"%s != %s" % (a, b))
+                raise CompareFail(u"%s != %s" % (json.dumps(a), json.dumps(b)))
             else:
                 return True
     except Exception as e:
@@ -62,33 +62,19 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
     out = {}  # type: Dict[str,Any]
     outdir = None
     try:
-        if "output" in t:
-            test_command = [args.tool]
-            # Add prefixes if running on MacOSX so that boot2docker writes to /Users
-            if 'darwin' in sys.platform:
-                outdir = tempfile.mkdtemp(prefix=os.path.abspath(os.path.curdir))
-                test_command.extend(["--tmp-outdir-prefix={}".format(outdir), "--tmpdir-prefix={}".format(outdir)])
-            else:
-                outdir = tempfile.mkdtemp()
-            test_command.extend(["--outdir={}".format(outdir),
-                                 "--quiet",
-                                 t["tool"],
-                                 t["job"]])
-            outstr = subprocess.check_output(test_command)
-            out = {"output": json.loads(outstr)}
+        test_command = [args.tool]
+        # Add prefixes if running on MacOSX so that boot2docker writes to /Users
+        if 'darwin' in sys.platform:
+            outdir = tempfile.mkdtemp(prefix=os.path.abspath(os.path.curdir))
+            test_command.extend(["--tmp-outdir-prefix={}".format(outdir), "--tmpdir-prefix={}".format(outdir)])
         else:
-            test_command = [args.tool,
-                            "--conformance-test",
-                            "--basedir=" + args.basedir,
-                            "--no-container",
-                            "--quiet",
-                            t["tool"],
-                            t["job"]]
-
-            outstr = subprocess.check_output(test_command)
-            out = yaml.load(outstr)
-            if not isinstance(out, dict):
-                raise ValueError("Non-dict value parsed from output string.")
+            outdir = tempfile.mkdtemp()
+        test_command.extend(["--outdir={}".format(outdir),
+                             "--quiet",
+                             t["tool"],
+                             t["job"]])
+        outstr = subprocess.check_output(test_command)
+        out = json.loads(outstr)
     except ValueError as v:
         _logger.error(str(v))
         _logger.error(outstr)
@@ -111,22 +97,17 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
     #     t["stdin"] = t["stdin"].replace("$PWD", pwd)
 
     failed = False
-    if "output" in t:
-        checkkeys = ["output"]
-    else:
-        checkkeys = ["args", "stdin", "stderr", "stdout", "createfiles"]
 
-    for key in checkkeys:
-        try:
-            compare(t.get(key), out.get(key))
-        except CompareFail as ex:
-            _logger.warn(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
-            _logger.warn(t.get("doc"))
-            _logger.warn(u"%s expected %s\n got %s", key,
-                                                            json.dumps(t.get(key), indent=4, sort_keys=True),
-                                                            json.dumps(out.get(key), indent=4, sort_keys=True))
-            _logger.warn(u"Compare failure %s", ex)
-            failed = True
+    try:
+        compare(t.get("output"), out)
+    except CompareFail as ex:
+        _logger.warn(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
+        _logger.warn(t.get("doc"))
+        _logger.warn(u"expected output object %s\n got %s",
+                     json.dumps(t.get("output"), indent=4, sort_keys=True),
+                     json.dumps(out, indent=4, sort_keys=True))
+        _logger.warn(u"Compare failure %s", ex)
+        failed = True
 
     if outdir:
         shutil.rmtree(outdir, True)  # type: ignore
