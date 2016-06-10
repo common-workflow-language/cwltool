@@ -30,7 +30,7 @@ _logger = logging.getLogger("cwltool")
 
 class ExpressionTool(Process):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[str,List[None]], **Any) -> None
+        # type: (Dict[unicode, Any], **Any) -> None
         super(ExpressionTool, self).__init__(toolpath_object, **kwargs)
 
     class ExpressionJob(object):
@@ -53,7 +53,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[str,str], str, Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
+        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(joborder, **kwargs)
 
         j = ExpressionTool.ExpressionJob()
@@ -113,14 +113,15 @@ class CallbackJob(object):
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[str,Any], **Any) -> None
+        # type: (Dict[unicode, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
     def makeJobRunner(self):  # type: () -> CommandLineJob
         return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
-        # type: (Set[str], str, **Any) -> PathMapper
+        # type: (Set[Any], unicode, **Any) -> PathMapper
+        dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
             return PathMapper(reffiles, kwargs["basedir"], stagedir)
         except OSError as e:
@@ -128,7 +129,7 @@ class CommandLineTool(Process):
                 raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[str,str], str, Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
+        # type: (Dict[unicode, unicode], Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
@@ -146,7 +147,7 @@ class CommandLineTool(Process):
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
                 cmdline = ["docker", "run", dockerimg] + cmdline
-            keydict = {"cmdline": cmdline}
+            keydict = {u"cmdline": cmdline}
 
             for _,f in cachebuilder.pathmapper.items():
                 st = os.stat(f[0])
@@ -203,6 +204,7 @@ class CommandLineTool(Process):
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
+        j.stderr = None
         j.stdout = None
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
@@ -223,6 +225,11 @@ class CommandLineTool(Process):
         if self.tool.get("stdin"):
             j.stdin = builder.do_eval(self.tool["stdin"])
             reffiles.append({"class": "File", "path": j.stdin})
+
+        if self.tool.get("stderr"):
+            j.stderr = builder.do_eval(self.tool["stderr"])
+            if os.path.isabs(j.stderr) or ".." in j.stderr:
+                raise validate.ValidationException("stderr must be a relative path")
 
         if self.tool.get("stdout"):
             j.stdout = builder.do_eval(self.tool["stdout"])
@@ -291,9 +298,9 @@ class CommandLineTool(Process):
         yield j
 
     def collect_output_ports(self, ports, builder, outdir):
-        # type: (Set[Dict[str,Any]], Builder, str) -> Dict[str,Union[str,List[Any],Dict[str,Any]]]
+        # type: (Set[Dict[str,Any]], Builder, str) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
         try:
-            ret = {}  # type: Dict[str,Union[str,List[Any],Dict[str,Any]]]
+            ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
             custom_output = os.path.join(outdir, "cwl.output.json")
             if builder.fs_access.exists(custom_output):
                 with builder.fs_access.open(custom_output, "r") as f:
@@ -322,7 +329,7 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir):
-        # type: (Dict[str,Any], Builder, str) -> Union[Dict[str, Any], List[Union[Dict[str, Any], str]]]
+        # type: (Dict[str,Any], Builder, str) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
             binding = schema["outputBinding"]

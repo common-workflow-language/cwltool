@@ -19,8 +19,8 @@ def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
             adjustFiles(d, op)
 
 
-def abspath(src, basedir):  # type: (str,str) -> str
-    if src.startswith("file://"):
+def abspath(src, basedir):  # type: (unicode, unicode) -> unicode
+    if src.startswith(u"file://"):
         ab = src[7:]
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
@@ -33,14 +33,14 @@ class PathMapper(object):
     (absolute local path, absolute container path)"""
 
     def __init__(self, referenced_files, basedir, stagedir, scramble=False):
-        # type: (Set[str], str) -> None
-        self._pathmap = {}  # type: Dict[str, Tuple[str, str]]
+        # type: (Set[Any], unicode, unicode) -> None
+        self._pathmap = {}  # type: Dict[unicode, Tuple[unicode, unicode]]
         self.stagedir = stagedir
         self.scramble = scramble
         self.setup(referenced_files, basedir)
 
     def setup(self, referenced_files, basedir):
-        # type: (Set[str], str) -> None
+        # type: (Set[Any], unicode) -> None
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
@@ -72,22 +72,21 @@ class PathMapper(object):
 
             self._pathmap[path] = (deref, tgt)
 
-
-    def mapper(self, src):  # type: (str) -> Tuple[str,str]
-        if "#" in src:
-            i = src.index("#")
+    def mapper(self, src):  # type: (unicode) -> Tuple[unicode, unicode]
+        if u"#" in src:
+            i = src.index(u"#")
             p = self._pathmap[src[:i]]
             return (p[0], p[1] + src[i:])
         else:
             return self._pathmap[src]
 
-    def files(self):  # type: () -> List[str]
+    def files(self):  # type: () -> List[unicode]
         return self._pathmap.keys()
 
-    def items(self):  # type: () -> List[Tuple[str,Tuple[str,str]]]
+    def items(self):  # type: () -> List[Tuple[unicode, Tuple[unicode, unicode]]]
         return self._pathmap.items()
 
-    def reversemap(self, target):  # type: (str) -> Tuple[str, str]
+    def reversemap(self, target):  # type: (unicode) -> Tuple[unicode, unicode]
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])

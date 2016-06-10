@@ -341,6 +341,25 @@ def draft3toDraft4dev1(doc, loader, baseuri):
     """Public updater for draft-3 to draft-4.dev1."""
     return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
+def _draft4Dev1toDev2(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
+    if isinstance(doc, dict):
+        if "class" in doc and doc["class"] == "Workflow":
+            for out in doc["outputs"]:
+                out["outputSource"] = out["source"]
+                del out["source"]
+        for key, value in doc.items():
+            doc[key] = _draft4Dev1toDev2(value, loader, baseuri)
+    elif isinstance(doc, list):
+        doc = [_draft4Dev1toDev2(item, loader, baseuri) for item in doc]
+
+    return doc
+
+def draft4Dev1toDev2(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for draft-4.dev1 to draft-4.dev2."""
+    return (_draft4Dev1toDev2(doc, loader, baseuri), "draft-4.dev2")
+
 UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1
@@ -352,13 +371,14 @@ DEVUPDATES = {
     "draft-3.dev3": draftDraft3dev3toDev4,
     "draft-3.dev4": draftDraft3dev4toDev5,
     "draft-3.dev5": draftDraft3dev5toFinal,
-    "draft-4.dev1": None
+    "draft-4.dev1": draft4Dev1toDev2,
+    "draft-4.dev2": None
 } # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "draft-4.dev1"
+LATEST = "draft-4.dev2"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
@@ -366,19 +386,19 @@ def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, doc["cwlVersion"])
 
 def checkversion(doc, metadata, enable_dev):
-    # type: (Union[List, Dict[str, Any]], Dict[str, Any], bool) -> Tuple[Dict[str, Any], Union[str, unicode]]  # pylint: disable=line-too-long
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Dict[unicode, Any], bool) -> Tuple[Dict[unicode, Any], unicode]  # pylint: disable=line-too-long
     """Checks the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
     """
     if isinstance(doc, list):
         metadata = metadata.copy()
-        metadata["$graph"] = doc
+        metadata[u"$graph"] = doc
         cdoc = metadata
     else:
         cdoc = doc
 
-    version = cdoc["cwlVersion"]
+    version = cdoc[u"cwlVersion"]
 
     if version not in UPDATES:
         if version in DEVUPDATES:
@@ -398,16 +418,16 @@ def checkversion(doc, metadata, enable_dev):
     return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Any, Loader, str, bool, Any) -> Any
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader, str, bool, Any) -> Dict[unicode, Any]
 
-    (doc, version) = checkversion(doc, metadata, enable_dev)
+    (cdoc, version) = checkversion(doc, metadata, enable_dev)
 
-    nextupdate = identity
+    nextupdate = identity  # type: Callable[[Any, Loader, str], Tuple[Any, str]]
 
     while nextupdate:
-        (doc, version) = nextupdate(doc, loader, baseuri)
+        (cdoc, version) = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 
-    doc["cwlVersion"] = version
+    cdoc[u"cwlVersion"] = version
 
-    return doc
+    return cdoc

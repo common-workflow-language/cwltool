@@ -42,8 +42,9 @@ class CommandLineJob(object):
 
     def __init__(self):  # type: () -> None
         self.builder = None  # type: Builder
-        self.joborder = None  # type: Dict[str,str]
+        self.joborder = None  # type: Dict[unicode, Union[Dict[unicode, Any], List, unicode]]
         self.stdin = None  # type: str
+        self.stderr = None  # type: str
         self.stdout = None  # type: str
         self.successCodes = None  # type: Iterable[int]
         self.temporaryFailCodes = None  # type: Iterable[int]
@@ -146,6 +147,7 @@ class CommandLineJob(object):
 
 
         stdin = None  # type: Union[IO[Any],int]
+        stderr = None  # type: IO[Any]
         stdout = None  # type: IO[Any]
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
@@ -155,12 +157,13 @@ class CommandLineJob(object):
         else:
             shouldquote = needs_shell_quoting_re.search
 
-        _logger.info(u"[job %s] %s$ %s%s%s",
+        _logger.info(u"[job %s] %s$ %s%s%s%s",
                      self.name,
                      self.outdir,
                      " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      u' < %s' % self.pathmapper.mapper(self.stdin)[1] if self.stdin else '',
-                     u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '')
+                     u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
+                     u' \2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
 
         if dry_run:
             return (self.outdir, {})
@@ -176,16 +179,25 @@ class CommandLineJob(object):
                     if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
                         _logger.debug(u"symlinking %s to %s", dst, src)
                         os.symlink(src, dst)
-                elif isinstance(entry, str):
+                elif isinstance(entry, (str, unicode)):
                     with open(os.path.join(self.outdir, t), "w") as fout:
                         fout.write(entry)
                 else:
-                    raise Exception("Unhandled type")
+                    raise Exception("Unhandled type %s", type(entry))
 
             if self.stdin:
                 stdin = open(self.pathmapper.mapper(self.stdin)[0], "rb")
             else:
                 stdin = subprocess.PIPE
+
+            if self.stderr:
+                abserr = os.path.join(self.outdir, self.stderr)
+                dnerr = os.path.dirname(abserr)
+                if dnerr and not os.path.exists(dnerr):
+                    os.makedirs(dnerr)
+                stderr = open(abserr, "wb")
+            else:
+                stderr = sys.stderr
 
             if self.stdout:
                 absout = os.path.join(self.outdir, self.stdout)
@@ -200,6 +212,7 @@ class CommandLineJob(object):
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,
+                                  stderr=stderr,
                                   stdout=stdout,
                                   env=env,
                                   cwd=self.outdir)
@@ -211,6 +224,9 @@ class CommandLineJob(object):
 
             if isinstance(stdin, file):
                 stdin.close()
+
+            if stderr is not sys.stderr:
+                stderr.close()
 
             if stdout is not sys.stderr:
                 stdout.close()

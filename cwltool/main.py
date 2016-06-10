@@ -10,7 +10,7 @@ import sys
 import logging
 import copy
 from . import workflow
-from .errors import WorkflowException
+from .errors import WorkflowException, UnsupportedRequirement
 from . import process
 from .cwlrdf import printrdf, printdot
 from .process import shortname, Process
@@ -152,7 +152,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
 
 def single_job_executor(t, job_order_object, **kwargs):
-    # type: (Process, Dict[str,Any], str, argparse.Namespace,**Any) -> Union[str,Dict[str,str]]
+    # type: (Process, Dict[unicode, Any], **Any) -> Union[str,Dict[str,str]]
     final_output = []
     final_status = []
 
@@ -183,6 +183,8 @@ def single_job_executor(t, job_order_object, **kwargs):
         a = {"args": job.command_line}
         if job.stdin:
             a["stdin"] = job.pathmapper.mapper(job.stdin)[1]
+        if job.stderr:
+            a["stderr"] = job.stderr
         if job.stdout:
             a["stdout"] = job.stdout
         if job.generatefiles:
@@ -238,7 +240,7 @@ class FileAppendAction(argparse.Action):
 
 
 def generate_parser(toolparser, tool, namemap):
-    # type: (argparse.ArgumentParser, Process,Dict[str,str]) -> argparse.ArgumentParser
+    # type: (argparse.ArgumentParser, Process, Dict[unicode, unicode]) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -298,14 +300,15 @@ def generate_parser(toolparser, tool, namemap):
         else:
             typekw = {}
 
-        toolparser.add_argument(flag + name, required=required,
-                help=ahelp, action=action, default=default, **typekw)
+        toolparser.add_argument(  # type: ignore
+                flag + name, required=required, help=ahelp, action=action,
+                default=default, **typekw)
 
     return toolparser
 
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
-    # type: (argparse.Namespace, Process, argparse.ArgumentParser, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
 
@@ -313,9 +316,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
         loader = Loader({})
     else:
         jobloaderctx = {
-                "path": {"@type": "@id"},
-                "format": {"@type": "@id"},
-                "id": "@id"}
+                u"path": {u"@type": u"@id"},
+                u"format": {u"@type": u"@id"},
+                u"id": u"@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
         loader = Loader(jobloaderctx)
 
@@ -332,14 +335,14 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
     elif job_order_file:
         input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
         try:
-            job_order_object, _ = loader.resolve_ref(job_order_file)
+            job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
         except Exception as e:
             _logger.error(str(e), exc_info=(e if args.debug else False))
             return 1
         toolparser = None
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
-        namemap = {}  # type: Dict[str,str]
+        namemap = {}  # type: Dict[unicode, unicode]
         toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
         if toolparser:
             if args.tool_help:
@@ -419,7 +422,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
 
     stdout.write(json.dumps(deps, indent=4))
 
-def flatten_deps(d, files):
+def flatten_deps(d, files):  # type: (Any, Set[unicode]) -> None
     if isinstance(d, list):
         for s in d:
             flatten_deps(s, files)
@@ -428,33 +431,36 @@ def flatten_deps(d, files):
         if "secondaryFiles" in d:
             flatten_deps(d["secondaryFiles"], files)
 
-def find_run(d, runs):
+def find_run(d, runs):  # type: (Any, Set[unicode]) -> None
     if isinstance(d, list):
         for s in d:
             find_run(s, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], basestring):
+        if "run" in d and isinstance(d["run"], (str, unicode)):
             runs.add(d["run"])
         for s in d.values():
             find_run(s, runs)
 
 def replace_refs(d, rewrite, stem, newstem):
+    # type: (Any, Dict[unicode, unicode], unicode, unicode) -> None
     if isinstance(d, list):
         for s,v in enumerate(d):
-            if isinstance(v, basestring) and v.startswith(stem):
+            if isinstance(v, (str, unicode)) and v.startswith(stem):
                 d[s] = newstem + v[len(stem):]
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], basestring):
+        if "run" in d and isinstance(d["run"], (str, unicode)):
             d["run"] = rewrite[d["run"]]
         for s,v in d.items():
-            if isinstance(v, basestring) and v.startswith(stem):
+            if isinstance(v, (str, unicode)) and v.startswith(stem):
                 d[s] = newstem + v[len(stem):]
             replace_refs(v, rewrite, stem, newstem)
 
 def print_pack(document_loader, processobj, uri, metadata):
+    # type: (Loader, Any, unicode, Dict[unicode, unicode]) -> str
     def loadref(b, u):
+        # type: (unicode, unicode) -> Union[Dict, List, unicode]
         return document_loader.resolve_ref(u, base_url=b)[0]
     deps = process.scandeps(uri, processobj,
                             set(("run",)), set(), loadref)
@@ -462,7 +468,7 @@ def print_pack(document_loader, processobj, uri, metadata):
     fdeps = set((uri,))
     flatten_deps(deps, fdeps)
 
-    runs = set()
+    runs = set()  # type: Set[unicode]
     for f in fdeps:
         find_run(document_loader.idx[f], runs)
 
@@ -476,9 +482,10 @@ def print_pack(document_loader, processobj, uri, metadata):
     for r in runs:
         rewrite[r] = "#" + shortname(r)
 
-    packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]}
+    packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
+            }  # type: Dict[unicode, Any]
     for r,v in rewrite.items():
-        dc = copy.deepcopy(document_loader.idx[r])
+        dc = cast(Dict[unicode, Any], copy.deepcopy(document_loader.idx[r]))
         dc["id"] = v
         dc["name"] = v
         replace_refs(dc, rewrite, r+"/" if "#" in r else r+"#", v+"/")
@@ -508,7 +515,7 @@ def main(argsl=None,
          stderr=sys.stderr,
          versionfunc=versionstring,
          job_order_object=None):
-    # type: (List[str],Callable[...,Union[str,Dict[str,str]]],Callable[...,Process],Callable[[Dict[str,int]],Dict[str,int]],argparse.ArgumentParser,IO[Any],IO[Any],IO[Any],Callable[[],unicode]) -> int
+    # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
@@ -540,7 +547,8 @@ def main(argsl=None,
                     'basedir': None,
                     'tool_help': False,
                     'workflow': None,
-                    'job_order': None}.iteritems():
+                    'job_order': None,
+                    'pack': False}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -588,8 +596,8 @@ def main(argsl=None,
                 printdot(uri, processobj, document_loader.ctx, stdout)
                 return 0
 
-            tool = make_tool(document_loader, avsc_names, processobj, metadata,
-                             uri, makeTool, {})
+            tool = make_tool(document_loader, avsc_names, metadata, uri,
+                    makeTool, {})
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
                           exc_info=(exc if args.debug else False))
@@ -611,14 +619,15 @@ def main(argsl=None,
 
         if args.tmp_outdir_prefix != 'tmp':
             # Use user defined temp directory (if it exists)
-            args.tmp_outdir_prefix = os.path.abspath(args.tmp_outdir_prefix)
+            setattr(args, 'tmp_outdir_prefix',
+                    os.path.abspath(args.tmp_outdir_prefix))
             if not os.path.exists(args.tmp_outdir_prefix):
                 _logger.error("Intermediate output directory prefix doesn't exist.")
                 return 1
 
         if args.tmpdir_prefix != 'tmp':
             # Use user defined prefix (if the folder exists)
-            args.tmpdir_prefix = os.path.abspath(args.tmpdir_prefix)
+            setattr(args, 'tmpdir_prefix', os.path.abspath(args.tmpdir_prefix))
             if not os.path.exists(args.tmpdir_prefix):
                 _logger.error("Temporary directory prefix doesn't exist.")
                 return 1
@@ -633,12 +642,13 @@ def main(argsl=None,
             return job_order_object
 
         if args.cachedir:
-            args.cachedir = os.path.abspath(args.cachedir)
-            args.move_outputs = False
+            setattr(args, 'cachedir', os.path.abspath(args.cachedir))
+            setattr(args, 'move_outputs', False)
 
         try:
-            args.tmp_outdir_prefix = args.cachedir if args.cachedir else args.tmp_outdir_prefix
-            args.basedir = job_order_object[1]
+            setattr(args, 'tmp_outdir_prefix',
+                    args.cachedir if args.cachedir else args.tmp_outdir_prefix)
+            setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
             out = executor(tool, job_order_object[0],
@@ -660,6 +670,11 @@ def main(argsl=None,
                 u"Input object failed validation:\n%s", exc,
                 exc_info=(exc if args.debug else False))
             return 1
+        except UnsupportedRequirement as exc:
+            _logger.error(
+                u"Workflow or tool uses unsupported feature:\n%s", exc,
+                exc_info=(exc if args.debug else False))
+            return 33
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
