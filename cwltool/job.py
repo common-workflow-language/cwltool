@@ -170,11 +170,11 @@ class CommandLineJob(object):
                     if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
                         _logger.debug(u"symlinking %s to %s", dst, src)
                         os.symlink(src, dst)
-                elif isinstance(entry, str):
+                elif isinstance(entry, (str, unicode)):
                     with open(os.path.join(self.outdir, t), "w") as fout:
                         fout.write(entry)
                 else:
-                    raise Exception("Unhandled type")
+                    raise Exception("Unhandled type %s", type(entry))
 
             if self.stdin:
                 stdin = open(self.pathmapper.mapper(self.stdin)[0], "rb")
