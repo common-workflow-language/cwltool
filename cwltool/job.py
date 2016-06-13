@@ -154,7 +154,7 @@ class CommandLineJob(object):
                      " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      u' < %s' % (self.stdin) if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
-                     u' \2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
+                     u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
 
         if dry_run:
             return (self.outdir, {})

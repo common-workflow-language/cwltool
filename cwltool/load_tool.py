@@ -2,6 +2,7 @@
 """Loads a CWL document."""
 
 import os
+import uuid
 import logging
 import re
 import urlparse
@@ -41,6 +42,24 @@ def fetch_document(argsworkflow):
 
     return document_loader, workflowobj, uri
 
+def _convert_stdstreams_to_files(workflowobj):
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]) -> None
+
+    if isinstance(workflowobj, dict):
+        if 'outputs' in workflowobj:
+            for out in workflowobj['outputs']:
+                for streamtype in ['stdout', 'stderr']:
+                    if out['type'] == streamtype:
+                        if streamtype in workflowobj:
+                            filename = workflowobj[streamtype]
+                        else:
+                            filename = unicode(uuid.uuid4())
+                            workflowobj[streamtype] = filename
+                        out['type'] = 'File'
+                        out['outputBinding'] = {'glob': filename}
+    else:
+        for entry in workflowobj:
+            _convert_stdstreams_to_files(entry)
 
 def validate_document(document_loader, workflowobj, uri,
                       enable_dev=False, strict=True, preprocess_only=False):
@@ -93,6 +112,8 @@ def validate_document(document_loader, workflowobj, uri,
         metadata = {"$namespaces": processobj.get("$namespaces", {}),
                    "$schemas": processobj.get("$schemas", []),
                    "cwlVersion": processobj["cwlVersion"]}
+
+    _convert_stdstreams_to_files(workflowobj)
 
     if preprocess_only:
         return document_loader, avsc_names, processobj, metadata, uri
