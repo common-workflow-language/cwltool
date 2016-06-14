@@ -1,30 +1,33 @@
-import avro.schema
+import shutil
+from functools import partial
 import json
 import copy
-from .flatten import flatten
-from functools import partial
 import os
-from .pathmapper import PathMapper
-from .job import CommandLineJob
-import yaml
 import glob
 import logging
 import hashlib
 import random
-from .process import Process, shortname, uniquename, adjustFileObjs
-from .errors import WorkflowException
-import schema_salad.validate as validate
-from .utils import aslist
-from . import expression
 import re
 import urlparse
 import tempfile
-from .builder import CONTENT_LIMIT, substitute, Builder
-import shellescape
 import errno
+
+import avro.schema
+import yaml
+import schema_salad.validate as validate
+import shellescape
 from typing import Callable, Any, Union, Generator, cast
-import hashlib
-import shutil
+
+from .process import Process, shortname, uniquename
+from .errors import WorkflowException
+from .utils import aslist
+from . import expression
+from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs, adjustDirObjs
+from .pathmapper import PathMapper
+from .job import CommandLineJob
+
+
+from .flatten import flatten
 
 _logger = logging.getLogger("cwltool")
 
@@ -243,7 +246,10 @@ class CommandLineTool(Process):
         # walk over input as implicit reassignment doesn't reach everything in builder.bindings
         def _check_adjust(f):  # type: (Dict[str,Any]) -> Dict[str,Any]
             if not f.get("containerfs"):
-                f["path"] = builder.pathmapper.mapper(f["path"])[1]
+                if f["class"] == "Directory":
+                    f["path"] = builder.pathmapper.mapper(f["id"])[1]
+                else:
+                    f["path"] = builder.pathmapper.mapper(f["path"])[1]
                 f["containerfs"] = True
             return f
 
@@ -251,6 +257,8 @@ class CommandLineTool(Process):
 
         adjustFileObjs(builder.files, _check_adjust)
         adjustFileObjs(builder.bindings, _check_adjust)
+        adjustDirObjs(builder.files, _check_adjust)
+        adjustDirObjs(builder.bindings, _check_adjust)
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 

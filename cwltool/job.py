@@ -81,7 +81,7 @@ class CommandLineJob(object):
 
         for f in self.pathmapper.files():
             p = self.pathmapper.mapper(f)
-            if not os.path.isfile(p[0]):
+            if not p[0].startswith("_dir:") and not os.path.isfile(p[0]):
                 raise WorkflowException(u"Input file %s (at %s) not found or is not a regular file." % (f, self.pathmapper.mapper(f)[0]))
 
         img_id = None
@@ -142,7 +142,7 @@ class CommandLineJob(object):
                 p = self.pathmapper.mapper(f)
                 if not os.path.exists(os.path.dirname(p[1])):
                     os.makedirs(os.path.dirname(p[1]), 0755)
-                if not os.path.exists(p[1]):
+                if not p[0].startswith("_dir:") and not os.path.exists(p[1]):
                     os.symlink(p[0], p[1])
 
 

@@ -76,6 +76,8 @@ salad_files = ('metaschema.yml',
 
 SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode, Any], Loader]]
 SCHEMA_FILE = None  # type: Dict[unicode, Any]
+SCHEMA_DIR = None  # type: Dict[unicode, Any]
+SCHEMA_DIRENT = None  # type: Dict[unicode, Any]
 SCHEMA_ANY = None  # type: Dict[unicode, Any]
 
 def get_schema(version):
@@ -108,9 +110,13 @@ def get_schema(version):
     SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
         "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-    global SCHEMA_FILE, SCHEMA_ANY  # pylint: disable=global-statement
+    global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY  # pylint: disable=global-statement
     SCHEMA_FILE = cast(Dict[unicode, Any],
             SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"])
+    SCHEMA_DIR = cast(Dict[unicode, Any],
+            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Directory"])
+    SCHEMA_DIRENT = cast(Dict[unicode, Any],
+            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Dirent"])
     SCHEMA_ANY = cast(Dict[unicode, Any],
             SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"])
 
@@ -219,7 +225,7 @@ class Process(object):
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
         names = schema_salad.schema.make_avro_schema(
-            [SCHEMA_FILE, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]
+            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]
         if isinstance(names, avro.schema.SchemaParseException):
             raise names
         else:
@@ -349,6 +355,12 @@ class Process(object):
                     a["do_eval"] = a["valueFrom"]
                     a["valueFrom"] = None
                     builder.bindings.append(a)
+                elif ("$(" in a) or ("${" in a):
+                    builder.bindings.append({
+                        "position": [0, i],
+                        "do_eval": a,
+                        "valueFrom": None
+                    })
                 else:
                     builder.bindings.append({
                         "position": [0, i],

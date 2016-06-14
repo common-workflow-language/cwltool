@@ -29,6 +29,18 @@ def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
         for d in rec:
             adjustFileObjs(d, op)
 
+def adjustDirObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
+    """Apply an update function to each Directory object in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "Directory":
+            op(rec)
+        for d in rec:
+            adjustDirObjs(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustDirObjs(d, op)
+
 class Builder(object):
 
     def __init__(self):  # type: () -> None
@@ -139,6 +151,10 @@ class Builder(object):
                     return f
 
                 adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
+
+            if schema["type"] == "Directory":
+                self.files.append(datum)
+
 
         # Position to front of the sort key
         if binding:

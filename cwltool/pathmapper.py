@@ -47,21 +47,38 @@ class PathMapper(object):
         for fob in referenced_files:
             stagedir = os.path.join(self.stagedir, "stg%x" % random.randint(1, 1000000000))
 
-            def visit(path):
-                if path in self._pathmap:
-                    return path
-                ab = abspath(path, basedir)
-                if self.scramble:
-                    tgt = os.path.join(stagedir, "inp%x.dat" % random.randint(1, 1000000000))
-                else:
-                    tgt = os.path.join(stagedir, os.path.basename(path))
-                self._pathmap[path] = (ab, tgt)
-                return path
+            if fob["class"] == "Directory":
+                def visit(obj, base):
+                    self._pathmap[obj["id"]] = (obj["id"], base)
+                    for ld in obj["listing"]:
+                        tgt = os.path.join(base, ld["basename"])
+                        if ld["entry"]["class"] == "Directory":
+                            visit(ld["entry"], tgt)
+                            ab = ld["entry"]["id"]
+                            self._pathmap[ab] = (ab, tgt)
+                        else:
+                            ab = ld["entry"]["path"]
+                            self._pathmap[ab] = (ab, tgt)
 
-            adjustFiles(fob, visit)
+                visit(fob, stagedir)
+            else:
+                def visit(path):
+                    if path in self._pathmap:
+                        return path
+                    ab = abspath(path, basedir)
+                    if self.scramble:
+                        tgt = os.path.join(stagedir, "inp%x.dat" % random.randint(1, 1000000000))
+                    else:
+                        tgt = os.path.join(stagedir, os.path.basename(path))
+                    self._pathmap[path] = (ab, tgt)
+                    return path
+
+                adjustFiles(fob, visit)
 
         # Dereference symbolic links
         for path, (ab, tgt) in self._pathmap.items():
+            if ab.startswith("_dir:"):
+                continue
             deref = ab
             st = os.lstat(deref)
             while stat.S_ISLNK(st.st_mode):

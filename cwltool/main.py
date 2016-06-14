@@ -1,30 +1,35 @@
 #!/usr/bin/env python
 
-from . import draft2tool
 import argparse
-from schema_salad.ref_resolver import Loader
 import string
 import json
 import os
 import sys
 import logging
 import copy
+import tempfile
+import urlparse
+import hashlib
+import pkg_resources  # part of setuptools
+import random
+
+import yaml
+import rdflib
+from typing import Union, Any, cast, Callable, Dict, Tuple, IO
+
+from schema_salad.ref_resolver import Loader
+import schema_salad.validate as validate
+import schema_salad.jsonld_context
+import schema_salad.makedoc
+
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
 from . import process
 from .cwlrdf import printrdf, printdot
 from .process import shortname, Process
 from .load_tool import fetch_document, validate_document, make_tool
-import schema_salad.validate as validate
-import tempfile
-import schema_salad.jsonld_context
-import schema_salad.makedoc
-import yaml
-import urlparse
-import pkg_resources  # part of setuptools
-import rdflib
-import hashlib
-from typing import Union, Any, cast, Callable, Dict, Tuple, IO
+from . import draft2tool
+from .builder import adjustDirObjs
 
 _logger = logging.getLogger("cwltool")
 
@@ -222,6 +227,19 @@ class FileAction(argparse.Action):
         setattr(namespace, self.dest, {"class": "File", "path": values})
 
 
+class DirectoryAction(argparse.Action):
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        # type: (List[str], str, Any, **Any) -> None
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(DirectoryAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
+        setattr(namespace, self.dest, {"class": "Directory", "path": values})
+
+
 class FileAppendAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -272,6 +290,8 @@ def generate_parser(toolparser, tool, namemap):
 
         if inptype == "File":
             action = cast(argparse.Action, FileAction)
+        elif inptype == "Directory":
+            action = cast(argparse.Action, DirectoryAction)
         elif isinstance(inptype, dict) and inptype["type"] == "array":
             if inptype["items"] == "File":
                 action = cast(argparse.Action, FileAppendAction)
@@ -384,6 +404,29 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
         printdeps(job_order_object, loader, stdout, relative_deps,
                   basedir=u"file://%s/" % input_basedir)
         return 0
+
+    def getListing(rec):
+        if "listing" not in rec:
+            listing = []
+            path = rec["path"][7:] if rec["path"].startswith("file://") else rec["path"]
+            for ld in os.listdir(path):
+                abspath = os.path.join(path, ld)
+                if os.path.isdir(abspath):
+                    ent = {"class": "Directory",
+                           "path": abspath,
+                           "id": "_dir:%i" % random.randint(1, 1000000000)}
+                    getListing(ent)
+                    listing.append({"basename": os.path.basename(ld),
+                                     "entry": ent})
+                else:
+                    listing.append({"basename": os.path.basename(ld),
+                                     "entry": {"class": "File", "path": abspath}})
+            rec["listing"] = listing
+        if "path" in rec:
+            del rec["path"]
+        rec["id"] = "_dir:%i" % random.randint(1, 1000000000)
+
+    adjustDirObjs(job_order_object, getListing)
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
