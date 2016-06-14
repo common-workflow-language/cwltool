@@ -301,7 +301,7 @@ def generate_parser(toolparser, tool, namemap):
             typekw = {}
 
         toolparser.add_argument(  # type: ignore
-                args=flag + name, required=required, help=ahelp, action=action,
+                flag + name, required=required, help=ahelp, action=action,
                 default=default, **typekw)
 
     return toolparser
