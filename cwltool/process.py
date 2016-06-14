@@ -1,33 +1,37 @@
-import abc
-import avro.schema
+
 import os
 import json
-import schema_salad.validate as validate
 import copy
 import yaml
 import copy
 import logging
 import pprint
-from .utils import aslist, get_feature
-import schema_salad.schema
-from schema_salad.ref_resolver import Loader
-import urlparse
-import pprint
-from pkg_resources import resource_stream
 import stat
-from .builder import Builder, adjustFileObjs
 import tempfile
 import glob
-from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import abspath, adjustFiles
+import urlparse
+import pprint
+from collections import Iterable
+import errno
+import random
+
+import abc
+import schema_salad.validate as validate
+import schema_salad.schema
+from schema_salad.ref_resolver import Loader
+import avro.schema
 from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO,
         Tuple, Union)
-from collections import Iterable
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
-from .stdfsaccess import StdFsAccess
-import errno
 from rdflib import Graph
+from pkg_resources import resource_stream
+
+from .utils import aslist, get_feature
+from .stdfsaccess import StdFsAccess
+from .builder import Builder, adjustFileObjs
+from .errors import WorkflowException, UnsupportedRequirement
+from .pathmapper import abspath, adjustFiles
 
 _logger = logging.getLogger("cwltool")
 
@@ -159,6 +163,28 @@ def adjustFilesWithSecondary(rec, op, primary=None):
     if isinstance(rec, list):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
+
+def getListing(rec):
+    if "listing" not in rec:
+        listing = []
+        path = rec["path"][7:] if rec["path"].startswith("file://") else rec["path"]
+        for ld in os.listdir(path):
+            abspath = os.path.join(path, ld)
+            if os.path.isdir(abspath):
+                ent = {"class": "Directory",
+                       "path": abspath,
+                       "id": "_dir:%i" % random.randint(1, 1000000000)}
+                getListing(ent)
+                listing.append({"basename": os.path.basename(ld),
+                                 "entry": ent})
+            else:
+                listing.append({"basename": os.path.basename(ld),
+                                 "entry": {"class": "File", "path": abspath}})
+        rec["listing"] = listing
+    if "path" in rec:
+        del rec["path"]
+    rec["id"] = "_dir:%i" % random.randint(1, 1000000000)
+
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     # type: (str, str, Graph, Set[str]) -> bool

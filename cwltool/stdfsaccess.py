@@ -20,3 +20,9 @@ class StdFsAccess(object):
 
     def exists(self, fn):  # type: (unicode) -> bool
         return os.path.exists(self._abs(fn))
+
+    def isfile(self, fn):
+        return os.path.isfile(fn)
+
+    def isdir(self, fn):
+        return os.path.isdir(fn)

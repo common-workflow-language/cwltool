@@ -358,11 +358,17 @@ class CommandLineTool(Process):
                         raise WorkflowException("glob patterns must not start with '/'")
                     try:
                         r.extend([{"path": g, "class": "File", "hostfs": True}
-                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))
+                                  if builder.fs_access.isfile(g)])
+                        r.extend([{"path": g, "class": "Directory", "hostfs": True}
+                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))
+                                  if builder.fs_access.isdir(g)])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
                 for files in r:
+                    if files["class"] == "Directory":
+                        continue
                     checksum = hashlib.sha1()
                     with builder.fs_access.open(files["path"], "rb") as f:
                         contents = f.read(CONTENT_LIMIT)

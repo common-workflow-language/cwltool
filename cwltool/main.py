@@ -26,7 +26,7 @@ from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
 from . import process
 from .cwlrdf import printrdf, printdot
-from .process import shortname, Process
+from .process import shortname, Process, getListing
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
 from .builder import adjustDirObjs
@@ -404,27 +404,6 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
         printdeps(job_order_object, loader, stdout, relative_deps,
                   basedir=u"file://%s/" % input_basedir)
         return 0
-
-    def getListing(rec):
-        if "listing" not in rec:
-            listing = []
-            path = rec["path"][7:] if rec["path"].startswith("file://") else rec["path"]
-            for ld in os.listdir(path):
-                abspath = os.path.join(path, ld)
-                if os.path.isdir(abspath):
-                    ent = {"class": "Directory",
-                           "path": abspath,
-                           "id": "_dir:%i" % random.randint(1, 1000000000)}
-                    getListing(ent)
-                    listing.append({"basename": os.path.basename(ld),
-                                     "entry": ent})
-                else:
-                    listing.append({"basename": os.path.basename(ld),
-                                     "entry": {"class": "File", "path": abspath}})
-            rec["listing"] = listing
-        if "path" in rec:
-            del rec["path"]
-        rec["id"] = "_dir:%i" % random.randint(1, 1000000000)
 
     adjustDirObjs(job_order_object, getListing)
 
