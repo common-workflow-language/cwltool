@@ -46,10 +46,15 @@ def _convert_stdstreams_to_files(workflowobj):
     # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]) -> None
 
     if isinstance(workflowobj, dict):
-        if 'outputs' in workflowobj:
+        if (workflowobj['class'] == 'CommandLineTool'
+                and 'outputs' in workflowobj):
             for out in workflowobj['outputs']:
                 for streamtype in ['stdout', 'stderr']:
                     if out['type'] == streamtype:
+                        if out['outputBinding']:
+                            raise validate.ValidateException(
+                                    "Not allowed to specify outputBinding when"
+                                    " using %s shortcut." % streamtype)
                         if streamtype in workflowobj:
                             filename = workflowobj[streamtype]
                         else:
