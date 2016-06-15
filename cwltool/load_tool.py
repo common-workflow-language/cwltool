@@ -46,7 +46,8 @@ def _convert_stdstreams_to_files(workflowobj):
     # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]) -> None
 
     if isinstance(workflowobj, dict):
-        if (workflowobj['class'] == 'CommandLineTool'
+        if ('class' in workflowobj
+                and workflowobj['class'] == 'CommandLineTool'
                 and 'outputs' in workflowobj):
             for out in workflowobj['outputs']:
                 for streamtype in ['stdout', 'stderr']:
