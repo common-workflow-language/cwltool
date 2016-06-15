@@ -14,6 +14,7 @@ import pprint
 from collections import Iterable
 import errno
 import random
+import shutil
 
 import abc
 import schema_salad.validate as validate
@@ -29,9 +30,9 @@ from pkg_resources import resource_stream
 
 from .utils import aslist, get_feature
 from .stdfsaccess import StdFsAccess
-from .builder import Builder, adjustFileObjs
+from .builder import Builder, adjustFileObjs, adjustDirObjs
 from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import abspath, adjustFiles
+from .pathmapper import PathMapper, abspath, adjustFiles
 
 _logger = logging.getLogger("cwltool")
 
@@ -164,17 +165,17 @@ def adjustFilesWithSecondary(rec, op, primary=None):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
 
-def getListing(rec):
+def getListing(fs_access, rec):
     if "listing" not in rec:
         listing = []
         path = rec["path"][7:] if rec["path"].startswith("file://") else rec["path"]
-        for ld in os.listdir(path):
+        for ld in fs_access.listdir(path):
             abspath = os.path.join(path, ld)
-            if os.path.isdir(abspath):
+            if fs_access.isdir(abspath):
                 ent = {"class": "Directory",
                        "path": abspath,
                        "id": "_dir:%i" % random.randint(1, 1000000000)}
-                getListing(ent)
+                getListing(fs_access, ent)
                 listing.append({"basename": os.path.basename(ld),
                                  "entry": ent})
             else:
@@ -184,6 +185,55 @@ def getListing(rec):
     if "path" in rec:
         del rec["path"]
     rec["id"] = "_dir:%i" % random.randint(1, 1000000000)
+
+def stageFiles(pm, stageFunc):
+    for f in pm.files():
+        p = pm.mapper(f)
+        if not os.path.exists(os.path.dirname(p[1])):
+            os.makedirs(os.path.dirname(p[1]), 0755)
+        if not p[0].startswith("_dir:"):
+            stageFunc(p[0], p[1])
+
+def collectFilesAndDirs(obj, out):
+    if isinstance(obj, dict):
+        if obj.get("class") in ("File", "Directory"):
+            out.append(obj)
+        else:
+            for v in obj.values():
+                collectFilesAndDirs(v, out)
+    if isinstance(obj, list):
+        for l in obj:
+            collectFilesAndDirs(l, out)
+
+def moveOutputs(outputObj, outdir, output_dirs):
+    def moveIt(src, dst):
+        for a in output_dirs:
+            if src.startswith(a):
+                _logger.debug("Moving %s to %s", src, dst)
+                shutil.move(src, dst)
+
+    outfiles = []
+    collectFilesAndDirs(outputObj, outfiles)
+    pm = PathMapper(outfiles, "", outdir, separateDirs=False)
+    stageFiles(pm, moveIt)
+
+    def _check_adjust(f):
+        if f["class"] == "Directory":
+            f["path"] = pm.mapper(f["id"])[1]
+        else:
+            f["path"] = pm.mapper(f["path"])[1]
+        return f
+
+    adjustFileObjs(outputObj, _check_adjust)
+    adjustDirObjs(outputObj, _check_adjust)
+
+    return outputObj
+
+def cleanIntermediate(output_dirs):
+    for a in output_dirs:
+        if os.path.exists(a) and empty_subtree(a):
+            _logger.debug(u"Removing intermediate output directory %s", a)
+            shutil.rmtree(a, True)
 
 
 def formatSubclassOf(fmt, cls, ontology, visited):

@@ -22,7 +22,10 @@ class StdFsAccess(object):
         return os.path.exists(self._abs(fn))
 
     def isfile(self, fn):
-        return os.path.isfile(fn)
+        return os.path.isfile(self._abs(fn))
 
     def isdir(self, fn):
-        return os.path.isdir(fn)
+        return os.path.isdir(self._abs(fn))
+
+    def listdir(self, fn):
+        return os.listdir(self._abs(fn))

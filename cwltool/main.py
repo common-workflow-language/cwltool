@@ -12,6 +12,7 @@ import urlparse
 import hashlib
 import pkg_resources  # part of setuptools
 import random
+import functools
 
 import yaml
 import rdflib
@@ -24,12 +25,12 @@ import schema_salad.makedoc
 
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
-from . import process
 from .cwlrdf import printrdf, printdot
-from .process import shortname, Process, getListing
+from .process import shortname, Process, getListing, moveOutputs, cleanIntermediate
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
 from .builder import adjustDirObjs
+from .stdfsaccess import StdFsAccess
 
 _logger = logging.getLogger("cwltool")
 
@@ -172,46 +173,40 @@ def single_job_executor(t, job_order_object, **kwargs):
     if "basedir" not in kwargs:
         raise WorkflowException("Must provide 'basedir' in kwargs")
 
-    if kwargs.get("outdir"):
-        pass
-    elif kwargs.get("dry_run"):
-        kwargs["outdir"] = "/tmp"
-    else:
-        kwargs["outdir"] = tempfile.mkdtemp()
+    output_dirs = set()
+    finaloutdir = kwargs.get("outdir")
+    kwargs["outdir"] = tempfile.mkdtemp()
+    output_dirs.add(kwargs["outdir"])
 
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
 
-    if kwargs.get("conformance_test"):
-        job = jobiter.next()
-        a = {"args": job.command_line}
-        if job.stdin:
-            a["stdin"] = job.pathmapper.mapper(job.stdin)[1]
-        if job.stderr:
-            a["stderr"] = job.stderr
-        if job.stdout:
-            a["stdout"] = job.stdout
-        if job.generatefiles:
-            a["createfiles"] = job.generatefiles
-        return a
-    else:
-        try:
-            for r in jobiter:
-                if r:
-                    r.run(**kwargs)
-                else:
-                    raise WorkflowException("Workflow cannot make any more progress.")
-        except WorkflowException:
-            raise
-        except Exception as e:
-            _logger.exception("Got workflow error")
-            raise WorkflowException(unicode(e))
+    try:
+        for r in jobiter:
+            if r.outdir:
+                output_dirs.add(r.outdir)
 
-        if final_status[0] != "success":
-            raise WorkflowException(u"Process status is %s" % (final_status))
+            if r:
+                r.run(**kwargs)
+            else:
+                raise WorkflowException("Workflow cannot make any more progress.")
+    except WorkflowException:
+        raise
+    except Exception as e:
+        _logger.exception("Got workflow error")
+        raise WorkflowException(unicode(e))
 
-        return final_output[0]
+    if final_status[0] != "success":
+        raise WorkflowException(u"Process status is %s" % (final_status))
+
+    if kwargs.get("move_outputs") and final_output[0] and finaloutdir:
+        final_output[0] = moveOutputs(final_output[0], finaloutdir, output_dirs)
+
+    if kwargs.get("rm_tmpdir"):
+        cleanIntermediate(output_dirs)
+
+    return final_output[0]
 
 
 class FileAction(argparse.Action):
@@ -405,7 +400,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
                   basedir=u"file://%s/" % input_basedir)
         return 0
 
-    adjustDirObjs(job_order_object, getListing)
+    adjustDirObjs(job_order_object, functools.partial(getListing, StdFsAccess(input_basedir)))
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
@@ -423,7 +418,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
     def loadref(b, u):
         return document_loader.resolve_ref(u, base_url=b)[0]
 
-    sf = process.scandeps(basedir if basedir else obj["id"], obj,
+    sf = scandeps(basedir if basedir else obj["id"], obj,
                           set(("$import", "run")),
                           set(("$include", "$schemas", "path")), loadref)
     if sf:
@@ -440,7 +435,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
             if ":" in u.split("/")[0] and not u.startswith("file://"):
                 return u
             return os.path.relpath(u, base)
-        process.adjustFiles(deps, makeRelative)
+        adjustFiles(deps, makeRelative)
 
     stdout.write(json.dumps(deps, indent=4))
 
@@ -484,7 +479,7 @@ def print_pack(document_loader, processobj, uri, metadata):
     def loadref(b, u):
         # type: (unicode, unicode) -> Union[Dict, List, unicode]
         return document_loader.resolve_ref(u, base_url=b)[0]
-    deps = process.scandeps(uri, processobj,
+    deps = scandeps(uri, processobj,
                             set(("run",)), set(), loadref)
 
     fdeps = set((uri,))

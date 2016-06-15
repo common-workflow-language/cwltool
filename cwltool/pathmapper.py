@@ -32,11 +32,12 @@ class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
-    def __init__(self, referenced_files, basedir, stagedir, scramble=False):
+    def __init__(self, referenced_files, basedir, stagedir, scramble=False, separateDirs=True):
         # type: (Set[Any], unicode, unicode) -> None
         self._pathmap = {}  # type: Dict[unicode, Tuple[unicode, unicode]]
         self.stagedir = stagedir
         self.scramble = scramble
+        self.separateDirs = separateDirs
         self.setup(referenced_files, basedir)
 
     def setup(self, referenced_files, basedir):
@@ -44,8 +45,10 @@ class PathMapper(object):
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
+        stagedir = self.stagedir
         for fob in referenced_files:
-            stagedir = os.path.join(self.stagedir, "stg%x" % random.randint(1, 1000000000))
+            if self.separateDirs:
+                stagedir = os.path.join(self.stagedir, "stg%x" % random.randint(1, 1000000000))
 
             if fob["class"] == "Directory":
                 def visit(obj, base):

@@ -9,7 +9,7 @@ import logging
 import sys
 import requests
 from . import docker
-from .process import get_feature, empty_subtree
+from .process import get_feature, empty_subtree, stageFiles
 from .errors import WorkflowException
 import shutil
 import stat
@@ -139,13 +139,7 @@ class CommandLineJob(object):
                     if key in vars_to_preserve and key not in env:
                         env[key] = value
 
-            for f in self.pathmapper.files():
-                p = self.pathmapper.mapper(f)
-                if not os.path.exists(os.path.dirname(p[1])):
-                    os.makedirs(os.path.dirname(p[1]), 0755)
-                if not p[0].startswith("_dir:") and not os.path.exists(p[1]):
-                    os.symlink(p[0], p[1])
-
+            stageFiles(self.pathmapper, os.symlink)
 
         stdin = None  # type: Union[IO[Any],int]
         stderr = None  # type: IO[Any]

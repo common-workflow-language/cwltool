@@ -18,7 +18,7 @@ import schema_salad.validate as validate
 import shellescape
 from typing import Callable, Any, Union, Generator, cast
 
-from .process import Process, shortname, uniquename
+from .process import Process, shortname, uniquename, getListing
 from .errors import WorkflowException
 from .utils import aslist
 from . import expression
@@ -354,66 +354,51 @@ class CommandLineTool(Process):
                 for gb in globpatterns:
                     if gb.startswith(outdir):
                         gb = gb[len(outdir)+1:]
+                    elif gb == ".":
+                        gb = outdir
                     elif gb.startswith("/"):
                         raise WorkflowException("glob patterns must not start with '/'")
                     try:
-                        r.extend([{"path": g, "class": "File", "hostfs": True}
-                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))
-                                  if builder.fs_access.isfile(g)])
-                        r.extend([{"path": g, "class": "Directory", "hostfs": True}
-                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))
-                                  if builder.fs_access.isdir(g)])
+                        r.extend([{"path": g,
+                                   "class": "File" if builder.fs_access.isfile(g) else "Directory",
+                                   "hostfs": True}
+                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
                 for files in r:
                     if files["class"] == "Directory":
-                        continue
-                    checksum = hashlib.sha1()
-                    with builder.fs_access.open(files["path"], "rb") as f:
-                        contents = f.read(CONTENT_LIMIT)
-                        if binding.get("loadContents"):
-                            files["contents"] = contents
-                        filesize = 0
-                        while contents != "":
-                            checksum.update(contents)
-                            filesize += len(contents)
-                            contents = f.read(1024*1024)
-                    files["checksum"] = "sha1$%s" % checksum.hexdigest()
-                    files["size"] = filesize
-                    if "format" in schema:
-                        files["format"] = builder.do_eval(schema["format"], context=files)
+                        getListing(builder.fs_access, files)
+                    else:
+                        checksum = hashlib.sha1()
+                        with builder.fs_access.open(files["path"], "rb") as f:
+                            contents = f.read(CONTENT_LIMIT)
+                            if binding.get("loadContents"):
+                                files["contents"] = contents
+                            filesize = 0
+                            while contents != "":
+                                checksum.update(contents)
+                                filesize += len(contents)
+                                contents = f.read(1024*1024)
+                        files["checksum"] = "sha1$%s" % checksum.hexdigest()
+                        files["size"] = filesize
+                        if "format" in schema:
+                            files["format"] = builder.do_eval(schema["format"], context=files)
 
             optional = False
-            singlefile = False
+            single = False
             if isinstance(schema["type"], list):
                 if "null" in schema["type"]:
                     optional = True
-                if "File" in schema["type"]:
-                    singlefile = True
-            elif schema["type"] == "File":
-                singlefile = True
+                if "File" in schema["type"] or "Directory" in schema["type"]:
+                    single = True
+            elif schema["type"] == "File" or schema["type"] == "Directory":
+                single = True
 
             if "outputEval" in binding:
-                eout = builder.do_eval(binding["outputEval"], context=r)
-                if singlefile:
-                    # Handle single file outputs not wrapped in a list
-                    if eout is not None and not isinstance(eout, (list, tuple)):
-                        r = [eout]
-                    elif optional and eout is None:
-                        pass
-                    elif (eout is None or len(eout) != 1 or
-                            not isinstance(eout[0], dict)
-                            or "path" not in eout[0]):
-                        raise WorkflowException(
-                            u"Expression must return a file object for %s."
-                            % schema["id"])
-                    else:
-                        r = [eout]
-                else:
-                    r = eout
+                r = builder.do_eval(binding["outputEval"], context=r)
 
-            if singlefile:
+            if single:
                 if not r and not optional:
                     raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
