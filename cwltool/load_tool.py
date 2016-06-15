@@ -52,7 +52,7 @@ def _convert_stdstreams_to_files(workflowobj):
             for out in workflowobj['outputs']:
                 for streamtype in ['stdout', 'stderr']:
                     if out['type'] == streamtype:
-                        if out['outputBinding']:
+                        if 'outputBinding' in out:
                             raise validate.ValidateException(
                                     "Not allowed to specify outputBinding when"
                                     " using %s shortcut." % streamtype)
