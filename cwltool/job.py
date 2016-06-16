@@ -172,7 +172,7 @@ class CommandLineJob(object):
                         os.symlink(src, dst)
                 elif isinstance(entry, (str, unicode)):
                     with open(os.path.join(self.outdir, t), "w") as fout:
-                        fout.write(entry)
+                        fout.write(entry.encode("utf-8"))
                 else:
                     raise Exception("Unhandled type %s", type(entry))
 
