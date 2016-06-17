@@ -1,0 +1,5 @@
+cwl:requirements:
+ - class: DockerRequirement
+   dockerPull: debian
+
+inp: "Howdy!"
