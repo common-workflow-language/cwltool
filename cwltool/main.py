@@ -15,7 +15,7 @@ from . import process
 from .cwlrdf import printrdf, printdot
 from .process import shortname, Process
 from .load_tool import fetch_document, validate_document, make_tool
-from .net_cache import set_cache
+from .urllib2_cache import set_cache
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
