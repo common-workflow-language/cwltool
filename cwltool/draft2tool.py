@@ -142,8 +142,9 @@ class CommandLineTool(Process):
             cacheargs["tmpdir"] = "/tmp"
             cacheargs["stagedir"] = "/stage"
             cachebuilder = self._init_job(joborder, **cacheargs)
-            cachebuilder.pathmapper = PathMapper(set((f["path"] for f in cachebuilder.files)),
-                                                 kwargs["basedir"])
+            cachebuilder.pathmapper = PathMapper(cachebuilder.files,
+                                                 kwargs["basedir"],
+                                                 cachebuilder.stagedir)
 
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")

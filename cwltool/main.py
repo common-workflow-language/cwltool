@@ -26,7 +26,7 @@ import schema_salad.makedoc
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
 from .cwlrdf import printrdf, printdot
-from .process import shortname, Process, getListing, moveOutputs, cleanIntermediate
+from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
 from .builder import adjustDirObjs
@@ -87,13 +87,17 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         dest="rm_tmpdir")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--move-outputs", action="store_true", default=True,
+    exgroup.add_argument("--move-outputs", action="store_const", const="move", default="move",
                         help="Move output files to the workflow output directory and delete intermediate output directories (default).",
                         dest="move_outputs")
 
-    exgroup.add_argument("--leave-outputs", action="store_false", default=True,
+    exgroup.add_argument("--leave-outputs", action="store_const", const="leave", default="move",
                         help="Leave output files in intermediate output directories.",
                         dest="move_outputs")
+
+    exgroup.add_argument("--copy-outputs", action="store_const", const="copy", default="move",
+                         help="Copy output files to the workflow output directory, don't delete intermediate output directories.",
+                         dest="move_outputs")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
@@ -200,8 +204,9 @@ def single_job_executor(t, job_order_object, **kwargs):
     if final_status[0] != "success":
         raise WorkflowException(u"Process status is %s" % (final_status))
 
-    if kwargs.get("move_outputs") and final_output[0] and finaloutdir:
-        final_output[0] = moveOutputs(final_output[0], finaloutdir, output_dirs)
+    if final_output[0] and finaloutdir:
+        final_output[0] = relocateOutputs(final_output[0], finaloutdir,
+                                          output_dirs, kwargs.get("move_outputs"))
 
     if kwargs.get("rm_tmpdir"):
         cleanIntermediate(output_dirs)
@@ -660,7 +665,8 @@ def main(argsl=None,
 
         if args.cachedir:
             setattr(args, 'cachedir', os.path.abspath(args.cachedir))
-            setattr(args, 'move_outputs', False)
+            if args.move_outputs == "move":
+                setattr(args, 'move_outputs', "copy")
 
         try:
             setattr(args, 'tmp_outdir_prefix',

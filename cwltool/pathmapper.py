@@ -80,7 +80,7 @@ class PathMapper(object):
 
         # Dereference symbolic links
         for path, (ab, tgt) in self._pathmap.items():
-            if ab.startswith("_dir:"):
+            if ab.startswith("_dir:"):# or not os.path.exists(ab):
                 continue
             deref = ab
             st = os.lstat(deref)

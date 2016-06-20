@@ -116,14 +116,15 @@ def get_schema(version):
         "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
     global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY  # pylint: disable=global-statement
-    SCHEMA_FILE = cast(Dict[unicode, Any],
-            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"])
-    SCHEMA_DIR = cast(Dict[unicode, Any],
-            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Directory"])
-    SCHEMA_DIRENT = cast(Dict[unicode, Any],
-            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Dirent"])
     SCHEMA_ANY = cast(Dict[unicode, Any],
             SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"])
+    SCHEMA_FILE = cast(Dict[unicode, Any],
+            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"])
+    if version in ("draft-4"):
+        SCHEMA_DIR = cast(Dict[unicode, Any],
+                          SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Directory"])
+        SCHEMA_DIRENT = cast(Dict[unicode, Any],
+                             SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Dirent"])
 
     return SCHEMA_CACHE[version]
 
@@ -205,12 +206,19 @@ def collectFilesAndDirs(obj, out):
         for l in obj:
             collectFilesAndDirs(l, out)
 
-def moveOutputs(outputObj, outdir, output_dirs):
+def relocateOutputs(outputObj, outdir, output_dirs, action):
+    if action not in ("move", "copy"):
+        return outputObj
+
     def moveIt(src, dst):
         for a in output_dirs:
             if src.startswith(a):
-                _logger.debug("Moving %s to %s", src, dst)
-                shutil.move(src, dst)
+                if action == "move":
+                    _logger.debug("Moving %s to %s", src, dst)
+                    shutil.move(src, dst)
+                elif action == "copy":
+                    _logger.debug("Copying %s to %s", src, dst)
+                    shutil.copy(src, dst)
 
     outfiles = []
     collectFilesAndDirs(outputObj, outfiles)
@@ -301,7 +309,7 @@ class Process(object):
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
         names = schema_salad.schema.make_avro_schema(
-            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]
+            filter(lambda x: x is not None, [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY]), schema_salad.ref_resolver.Loader({}))[0]
         if isinstance(names, avro.schema.SchemaParseException):
             raise names
         else:

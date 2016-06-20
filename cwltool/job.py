@@ -62,7 +62,7 @@ class CommandLineJob(object):
         self.generatefiles = None  # type: Dict[str,Union[Dict[str,str],str]]
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
-            rm_tmpdir=True, move_outputs=True, **kwargs):
+            rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (bool, bool, bool, bool, bool, **Any) -> Union[Tuple[str,Dict[None,None]],None]
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
@@ -279,6 +279,6 @@ class CommandLineJob(object):
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
-        if move_outputs and empty_subtree(self.outdir):
+        if move_outputs == "move" and empty_subtree(self.outdir):
             _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
