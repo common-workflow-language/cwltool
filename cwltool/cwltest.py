@@ -33,6 +33,11 @@ def compare(a, b):  # type: (Any, Any) -> bool
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
+            if a.get("class") == "Directory":
+                for d in ("id", "path"):
+                    if d in b:
+                        del b[d]
+                pass
             if len(a) != len(b):
                 raise CompareFail(u"expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in a:

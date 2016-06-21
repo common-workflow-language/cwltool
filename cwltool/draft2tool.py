@@ -332,6 +332,7 @@ class CommandLineTool(Process):
                     raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
             if ret:
                 adjustFileObjs(ret, remove_hostfs)
+                adjustDirObjs(ret, remove_hostfs)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
