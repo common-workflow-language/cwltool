@@ -251,6 +251,9 @@ class CommandLineTool(Process):
                     f["path"] = builder.pathmapper.mapper(f["id"])[1]
                 else:
                     f["path"] = builder.pathmapper.mapper(f["path"])[1]
+                    # XXX should only add if >= draft-4
+                    f["basename"] = os.path.basename(f["path"])
+                    f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
                 f["containerfs"] = True
             return f
 
@@ -363,6 +366,9 @@ class CommandLineTool(Process):
                     try:
                         r.extend([{"path": g,
                                    "class": "File" if builder.fs_access.isfile(g) else "Directory",
+                                   "basename": os.path.basename(g),
+                                   "nameroot": os.path.splitext(os.path.basename(g))[0],
+                                   "nameext": os.path.splitext(os.path.basename(g))[1],
                                    "hostfs": True}
                                   for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
@@ -430,6 +436,8 @@ class CommandLineTool(Process):
 
                             for sfitem in aslist(sfpath):
                                 if builder.fs_access.exists(sfitem["path"]):
+                                    sfitem["basename"] = os.path.basename(sfitem["path"])
+                                    sfitem["nameroot"], sfitem["nameext"] = os.path.splitext(sfitem["basename"])
                                     primary["secondaryFiles"].append(sfitem)
 
             if not r and optional:
