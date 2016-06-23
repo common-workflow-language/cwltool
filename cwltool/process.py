@@ -169,23 +169,18 @@ def adjustFilesWithSecondary(rec, op, primary=None):
 def getListing(fs_access, rec):
     if "listing" not in rec:
         listing = []
-        path = rec["path"][7:] if rec["path"].startswith("file://") else rec["path"]
-        for ld in fs_access.listdir(path):
-            abspath = os.path.join(path, ld)
-            if fs_access.isdir(abspath):
+        loc = rec["location"]
+        for ld in fs_access.listdir():
+            if fs_access.isdir(ld):
                 ent = {"class": "Directory",
-                       "path": abspath,
-                       "id": "_dir:%i" % random.randint(1, 1000000000)}
+                       "location": loc + "/" + os.path.basename(ld)}
                 getListing(fs_access, ent)
                 listing.append({"basename": os.path.basename(ld),
                                  "entry": ent})
             else:
                 listing.append({"basename": os.path.basename(ld),
-                                 "entry": {"class": "File", "path": abspath}})
+                                 "entry": {"class": "File", "location": ld}})
         rec["listing"] = listing
-    if "path" in rec:
-        del rec["path"]
-    rec["id"] = "_dir:%i" % random.randint(1, 1000000000)
 
 def stageFiles(pm, stageFunc):
     for f in pm.files():
@@ -561,7 +556,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 if base != df:
                     r.append({
                         "class": "File",
-                        "path": df
+                        "location": df
                     })
                     base = df
 
@@ -575,7 +570,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         subid = urlparse.urljoin(base, u)
                         deps = {
                             "class": "File",
-                            "path": subid
+                            "location": subid
                             }  # type: Dict[str, Any]
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
@@ -585,7 +580,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 for u in aslist(v):
                     r.append({
                         "class": "File",
-                        "path": urlparse.urljoin(base, u)
+                        "location": urlparse.urljoin(base, u)
                     })
             else:
                 r.extend(scandeps(base, v, reffields, urlfields, loadref))

@@ -71,10 +71,9 @@ class ExpressionTool(Process):
         yield j
 
 
-def remove_hostfs(f):  # type: (Dict[str, Any]) -> None
-    if "hostfs" in f:
-        del f["hostfs"]
-
+def remove_path(f):  # type: (Dict[str, Any]) -> None
+    if "path" in f:
+        del f["path"]
 
 def revmap_file(builder, outdir, f):
     # type: (Builder,str,Dict[str,Any]) -> Union[Dict[str,Any],None]
@@ -84,17 +83,15 @@ def revmap_file(builder, outdir, f):
     to the external directory.
     """
 
-    if f.get("hostfs"):
-        return None
+    if "location" in f:
+        return f
 
     revmap_f = builder.pathmapper.reversemap(f["path"])
     if revmap_f:
-        f["path"] = revmap_f[1]
-        f["hostfs"] = True
+        f["location"] = revmap_f[1]
         return f
     elif f["path"].startswith(builder.outdir):
-        f["path"] = os.path.join(outdir, f["path"][len(builder.outdir)+1:])
-        f["hostfs"] = True
+        f["location"] = os.path.join(outdir, f["path"][len(builder.outdir)+1:])
         return f
     else:
         raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
@@ -247,14 +244,11 @@ class CommandLineTool(Process):
         # walk over input as implicit reassignment doesn't reach everything in builder.bindings
         def _check_adjust(f):  # type: (Dict[str,Any]) -> Dict[str,Any]
             if not f.get("containerfs"):
-                if f["class"] == "Directory":
-                    f["path"] = builder.pathmapper.mapper(f["id"])[1]
-                else:
-                    f["path"] = builder.pathmapper.mapper(f["path"])[1]
+                f["path"] = builder.pathmapper.mapper(f["location"])[1]
+                if f["class"] == "File":
                     # XXX should only add if >= draft-4
-                    f["basename"] = os.path.basename(f["path"])
+                    f["dirname"], f["basename"] = os.path.split(f["path"])
                     f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
-                f["containerfs"] = True
             return f
 
         _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
@@ -318,12 +312,11 @@ class CommandLineTool(Process):
                 with builder.fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
-                adjustFileObjs(ret, remove_hostfs)
                 adjustFileObjs(ret,
                         cast(Callable[[Any], Any],  # known bug in mypy
                             # https://github.com/python/mypy/issues/797
                             partial(revmap_file, builder, outdir)))
-                adjustFileObjs(ret, remove_hostfs)
+                adjustFileObjs(ret, remove_path)
                 validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
                 return ret
 
@@ -334,8 +327,8 @@ class CommandLineTool(Process):
                 except Exception as e:
                     raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
             if ret:
-                adjustFileObjs(ret, remove_hostfs)
-                adjustDirObjs(ret, remove_hostfs)
+                adjustFileObjs(ret, remove_path)
+                adjustDirObjs(ret, remove_path)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
@@ -364,22 +357,18 @@ class CommandLineTool(Process):
                     elif gb.startswith("/"):
                         raise WorkflowException("glob patterns must not start with '/'")
                     try:
-                        r.extend([{"path": g,
-                                   "class": "File" if builder.fs_access.isfile(g) else "Directory",
-                                   "basename": os.path.basename(g),
-                                   "nameroot": os.path.splitext(os.path.basename(g))[0],
-                                   "nameext": os.path.splitext(os.path.basename(g))[1],
-                                   "hostfs": True}
+                        r.extend([{"location": g,
+                                   "class": "File" if builder.fs_access.isfile(g) else "Directory"}
                                   for g in builder.fs_access.glob(os.path.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
                 for files in r:
-                    if files["class"] == "Directory":
+                    if files["class"] == "Directory" and "listing" not in files:
                         getListing(builder.fs_access, files)
                     else:
                         checksum = hashlib.sha1()
-                        with builder.fs_access.open(files["path"], "rb") as f:
+                        with builder.fs_access.open(files["location"], "rb") as f:
                             contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
                                 files["contents"] = contents
@@ -430,14 +419,12 @@ class CommandLineTool(Process):
                             if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                 sfpath = builder.do_eval(sf, context=r)
                                 if isinstance(sfpath, basestring):
-                                    sfpath = revmap({"path": sfpath, "class": "File"})
+                                    sfpath = revmap({"location": sfpath, "class": "File"})
                             else:
-                                sfpath = {"path": substitute(primary["path"], sf), "class": "File", "hostfs": True}
+                                sfpath = {"location": substitute(primary["location"], sf), "class": "File", "hostfs": True}
 
                             for sfitem in aslist(sfpath):
-                                if builder.fs_access.exists(sfitem["path"]):
-                                    sfitem["basename"] = os.path.basename(sfitem["path"])
-                                    sfitem["nameroot"], sfitem["nameext"] = os.path.splitext(sfitem["basename"])
+                                if builder.fs_access.exists(sfitem["location"]):
                                     primary["secondaryFiles"].append(sfitem)
 
             if not r and optional:

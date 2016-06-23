@@ -224,7 +224,7 @@ class FileAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
-        setattr(namespace, self.dest, {"class": "File", "path": values})
+        setattr(namespace, self.dest, {"class": "File", "location": "file://%s" % os.path.abspath(values)})
 
 
 class DirectoryAction(argparse.Action):
@@ -237,7 +237,7 @@ class DirectoryAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
-        setattr(namespace, self.dest, {"class": "Directory", "path": values})
+        setattr(namespace, self.dest, {"class": "Directory", "location": "file://%s" % os.path.abspath(values)})
 
 
 class FileAppendAction(argparse.Action):
@@ -254,7 +254,7 @@ class FileAppendAction(argparse.Action):
         if not g:
             g = []
             setattr(namespace, self.dest, g)
-        g.append({"class": "File", "path": values})
+        g.append({"class": "File", "location": "file://%s" % os.path.abspath(values)})
 
 
 def generate_parser(toolparser, tool, namemap):
