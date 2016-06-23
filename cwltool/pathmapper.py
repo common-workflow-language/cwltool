@@ -18,6 +18,30 @@ def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
         for d in rec:
             adjustFiles(d, op)
 
+def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
+    """Apply an update function to each File object in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "File":
+            op(rec)
+        for d in rec:
+            adjustFileObjs(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustFileObjs(d, op)
+
+def adjustDirObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
+    """Apply an update function to each Directory object in the object `rec`."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") == "Directory":
+            op(rec)
+        for d in rec:
+            adjustDirObjs(rec[d], op)
+    if isinstance(rec, list):
+        for d in rec:
+            adjustDirObjs(d, op)
+
 
 def abspath(src, basedir):  # type: (unicode, unicode) -> unicode
     if src.startswith(u"file://"):
@@ -65,18 +89,18 @@ class PathMapper(object):
 
                 visit(fob, stagedir)
             else:
-                def visit(path):
+                def visit(ob):
+                    path = ob["location"]
                     if path in self._pathmap:
-                        return path
+                        return
                     ab = abspath(path, basedir)
                     if self.scramble:
                         tgt = os.path.join(stagedir, "inp%x.dat" % random.randint(1, 1000000000))
                     else:
                         tgt = os.path.join(stagedir, os.path.basename(path))
                     self._pathmap[path] = (ab, tgt)
-                    return path
 
-                adjustFiles(fob, visit)
+                adjustFileObjs(fob, visit)
 
         # Dereference symbolic links
         for path, (ab, tgt) in self._pathmap.items():

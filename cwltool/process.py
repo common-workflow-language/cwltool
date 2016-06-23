@@ -32,7 +32,7 @@ from .utils import aslist, get_feature
 from .stdfsaccess import StdFsAccess
 from .builder import Builder, adjustFileObjs, adjustDirObjs
 from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import PathMapper, abspath, adjustFiles
+from .pathmapper import PathMapper, abspath
 
 _logger = logging.getLogger("cwltool")
 
@@ -221,10 +221,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
     stageFiles(pm, moveIt)
 
     def _check_adjust(f):
-        if f["class"] == "Directory":
-            f["path"] = pm.mapper(f["id"])[1]
-        else:
-            f["path"] = pm.mapper(f["path"])[1]
+        f["location"] = "file://" + pm.mapper(f["location"])[1]
         return f
 
     adjustFileObjs(outputObj, _check_adjust)

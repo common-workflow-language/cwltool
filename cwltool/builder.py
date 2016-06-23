@@ -6,7 +6,7 @@ import schema_salad.validate as validate
 from typing import Any, Union, AnyStr, Callable
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
-from .pathmapper import PathMapper
+from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -16,30 +16,6 @@ def substitute(value, replace):  # type: (str, str) -> str
         return substitute(value[0:value.rindex('.')], replace[1:])
     else:
         return value + replace
-
-def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
-    """Apply an update function to each File object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            op(rec)
-        for d in rec:
-            adjustFileObjs(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFileObjs(d, op)
-
-def adjustDirObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
-    """Apply an update function to each Directory object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "Directory":
-            op(rec)
-        for d in rec:
-            adjustDirObjs(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustDirObjs(d, op)
 
 class Builder(object):
 

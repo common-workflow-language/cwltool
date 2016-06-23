@@ -29,7 +29,7 @@ from .cwlrdf import printrdf, printdot
 from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
-from .builder import adjustDirObjs
+from .builder import adjustFileObjs, adjustDirObjs
 from .stdfsaccess import StdFsAccess
 
 _logger = logging.getLogger("cwltool")
@@ -436,11 +436,13 @@ def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
             base = "file://" + os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
-        def makeRelative(u):
+        def makeRelative(ob):
+            u = ob["location"]
             if ":" in u.split("/")[0] and not u.startswith("file://"):
-                return u
-            return os.path.relpath(u, base)
-        adjustFiles(deps, makeRelative)
+                pass
+            else:
+                ob["location"] = os.path.relpath(u, base)
+        adjustFileObjs(deps, makeRelative)
 
     stdout.write(json.dumps(deps, indent=4))
 
