@@ -360,6 +360,25 @@ def draft4Dev1toDev2(doc, loader, baseuri):
     """Public updater for draft-4.dev1 to draft-4.dev2."""
     return (_draft4Dev1toDev2(doc, loader, baseuri), "draft-4.dev2")
 
+
+def _draft4Dev2toDev3(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Any
+    if isinstance(doc, dict):
+        if "class" in doc and doc["class"] == "File":
+            doc["location"] = doc["path"]
+            del doc["path"]
+        for key, value in doc.items():
+            doc[key] = _draft4Dev2toDev3(value, loader, baseuri)
+    elif isinstance(doc, list):
+        doc = [_draft4Dev2toDev3(item, loader, baseuri) for item in doc]
+
+    return doc
+
+def draft4Dev2toDev3(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for draft-4.dev2 to draft-4.dev3."""
+    return (_draft4Dev2toDev3(doc, loader, baseuri), "draft-4.dev3")
+
 UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1
@@ -372,13 +391,14 @@ DEVUPDATES = {
     "draft-3.dev4": draftDraft3dev4toDev5,
     "draft-3.dev5": draftDraft3dev5toFinal,
     "draft-4.dev1": draft4Dev1toDev2,
-    "draft-4.dev2": None
+    "draft-4.dev2": draft4Dev2toDev3,
+    "draft-4.dev3": None
 } # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "draft-4.dev2"
+LATEST = "draft-4.dev3"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
