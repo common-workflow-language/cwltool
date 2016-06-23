@@ -76,8 +76,9 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
                 outdir = tempfile.mkdtemp()
             test_command.extend(["--outdir={}".format(outdir),
                                  "--quiet",
-                                 t["tool"],
-                                 t["job"]])
+                                 t["tool"]])
+            if t["job"] != None:
+                test_command.extend([t["job"]])
             outstr = subprocess.check_output(test_command)
             out = {"output": json.loads(outstr)}
         else:
@@ -86,8 +87,9 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
                             "--basedir=" + args.basedir,
                             "--no-container",
                             "--quiet",
-                            t["tool"],
-                            t["job"]]
+                            t["tool"]]
+            if t["job"] != None:
+                test_command.extend([t["job"]])
 
             outstr = subprocess.check_output(test_command)
             out = yaml.load(outstr)
@@ -104,15 +106,10 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
             _logger.error(t.get("doc"))
             _logger.error("Returned non-zero")
             return 1
-    except yaml.scanner.ScannerError as e:
+    except (yaml.scanner.ScannerError, TypeError) as e:
         _logger.error(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
         _logger.error(outstr)
         _logger.error(u"Parse error %s", str(e))
-
-    pwd = os.path.abspath(os.path.dirname(t["job"]))
-    # t["args"] = map(lambda x: x.replace("$PWD", pwd), t["args"])
-    # if "stdin" in t:
-    #     t["stdin"] = t["stdin"].replace("$PWD", pwd)
 
     failed = False
     if "output" in t:
@@ -122,7 +119,8 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
 
     for key in checkkeys:
         try:
-            compare(t.get(key), out.get(key))
+            if key in t and key in out:
+                compare(t.get(key), out.get(key))
         except CompareFail as ex:
             _logger.warn(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
             _logger.warn(t.get("doc"))

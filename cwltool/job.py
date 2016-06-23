@@ -158,7 +158,7 @@ class CommandLineJob(object):
                      " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
                      u' < %s' % self.pathmapper.mapper(self.stdin)[1] if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
-                     u' \2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
+                     u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
 
         if dry_run:
             return (self.outdir, {})
@@ -176,7 +176,7 @@ class CommandLineJob(object):
                         os.symlink(src, dst)
                 elif isinstance(entry, (str, unicode)):
                     with open(os.path.join(self.outdir, t), "w") as fout:
-                        fout.write(entry)
+                        fout.write(entry.encode("utf-8"))
                 else:
                     raise Exception("Unhandled type %s", type(entry))
 

@@ -41,10 +41,7 @@
         "checksum": "sha1$63da67422622fbf9251a046d7a34b7ea0fd4fead",
         "class": "File",
         "path": "foo.txt",
-        "size": 22,
-        "basename": "foo.txt",
-        "nameext": ".txt",
-        "nameroot": "foo"
+        "size": 22
     }
   job: draft-4/cat-job.json
   tool: draft-4/template-tool.cwl
@@ -57,9 +54,7 @@
       checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
       path: output.txt
       size: 13
-      basename: output.txt
-      nameext: .txt
-      nameroot: output
+
   tool: draft-4/cat3-tool.cwl
   doc: Test command execution in Docker with stdout redirection
 

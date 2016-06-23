@@ -45,7 +45,7 @@ class Builder(object):
             else:
                 binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
 
-            if "valueFrom" in binding:
+            if "valueFrom" in binding and "do_eval" not in binding:
                 binding["do_eval"] = binding["valueFrom"]
             binding["valueFrom"] = datum
 
