@@ -81,7 +81,7 @@ class CommandLineJob(object):
 
         for f in self.pathmapper.files():
             p = self.pathmapper.mapper(f)
-            if not p[0].startswith("_dir:") and not os.path.isfile(p[0]):
+            if p.type == "File" and not os.path.isfile(p[0]):
                 raise WorkflowException(u"Input file %s (at %s) not found or is not a regular file." % (f, self.pathmapper.mapper(f)[0]))
 
         img_id = None
@@ -97,7 +97,7 @@ class CommandLineJob(object):
             for src in self.pathmapper.files():
                 if not src.startswith("_dir:"):
                     vol = self.pathmapper.mapper(src)
-                    runtime.append(u"--volume=%s:%s:ro" % vol)
+                    runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))

@@ -28,4 +28,4 @@ class StdFsAccess(object):
         return os.path.isdir(self._abs(fn))
 
     def listdir(self, fn):
-        return ["file://%s" % self._abs(l) for l in os.listdir(self._abs(fn))]
+        return [abspath(l, fn) for l in os.listdir(self._abs(fn))]

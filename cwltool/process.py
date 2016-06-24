@@ -115,24 +115,13 @@ def get_schema(version):
     SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
         "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-    global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY  # pylint: disable=global-statement
-    SCHEMA_ANY = cast(Dict[unicode, Any],
-            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"])
-    SCHEMA_FILE = cast(Dict[unicode, Any],
-            SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"])
-    if version in ("draft-4"):
-        SCHEMA_DIR = cast(Dict[unicode, Any],
-                          SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Directory"])
-        SCHEMA_DIRENT = cast(Dict[unicode, Any],
-                             SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#Dirent"])
-
     return SCHEMA_CACHE[version]
 
 def shortname(inputid):
     # type: (unicode) -> unicode
     d = urlparse.urlparse(inputid)
     if d.fragment:
-        return d.fragment.split(u"/")[-1].split(u".")[-1]
+        return d.fragment.split(u"/")[-1]
     else:
         return d.path.split(u"/")[-1]
 
@@ -171,9 +160,10 @@ def getListing(fs_access, rec):
         listing = []
         loc = rec["location"]
         for ld in fs_access.listdir(loc):
+            print loc, ld
             if fs_access.isdir(ld):
                 ent = {"class": "Directory",
-                       "location": loc + "/" + os.path.basename(ld)}
+                       "location": ld}
                 getListing(fs_access, ent)
                 listing.append({"entryname": os.path.basename(ld),
                                  "entry": ent})
@@ -185,10 +175,10 @@ def getListing(fs_access, rec):
 def stageFiles(pm, stageFunc):
     for f in pm.files():
         p = pm.mapper(f)
-        if not os.path.exists(os.path.dirname(p[1])):
-            os.makedirs(os.path.dirname(p[1]), 0755)
-        if not p[0].startswith("_dir:"):
-            stageFunc(p[0], p[1])
+        if not os.path.exists(os.path.dirname(p.target)):
+            os.makedirs(os.path.dirname(p.target), 0755)
+        if p.type == "File":
+            stageFunc(p.resolved, p.target)
 
 def collectFilesAndDirs(obj, out):
     if isinstance(obj, dict):
@@ -300,8 +290,21 @@ class Process(object):
         # type: (Dict[unicode, Any], **Any) -> None
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
-        names = schema_salad.schema.make_avro_schema(
-            filter(lambda x: x is not None, [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY]), schema_salad.ref_resolver.Loader({}))[0]
+
+        if SCHEMA_FILE is None:
+            global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY  # pylint: disable=global-statement
+            get_schema("draft-4")
+            SCHEMA_ANY = cast(Dict[unicode, Any],
+                    SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/salad#Any"])
+            SCHEMA_FILE = cast(Dict[unicode, Any],
+                    SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#File"])
+            SCHEMA_DIR = cast(Dict[unicode, Any],
+                              SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Directory"])
+            SCHEMA_DIRENT = cast(Dict[unicode, Any],
+                                 SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Dirent"])
+
+        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY],
+                                                     schema_salad.ref_resolver.Loader({}))[0]
         if isinstance(names, avro.schema.SchemaParseException):
             raise names
         else:

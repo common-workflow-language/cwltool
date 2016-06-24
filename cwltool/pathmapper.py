@@ -2,9 +2,12 @@ import os
 import random
 import logging
 import stat
+import collections
 from typing import Tuple, Set, Union, Any
 
 _logger = logging.getLogger("cwltool")
+
+MapperEnt = collections.namedtuple("MapperEnt", ("resolved", "target", "type"))
 
 def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
@@ -76,16 +79,15 @@ class PathMapper(object):
 
             if fob["class"] == "Directory":
                 def visit(obj, base):
-                    self._pathmap[obj["location"]] = (obj["location"], base)
+                    self._pathmap[obj["location"]] = MapperEnt(obj["location"], base, "Directory")
                     for ld in obj["listing"]:
                         tgt = os.path.join(base, ld["entryname"])
                         if ld["entry"]["class"] == "Directory":
                             visit(ld["entry"], tgt)
-                            ab = ld["entry"]["location"]
-                            self._pathmap[ab] = (ab, tgt)
-                        else:
-                            ab = ld["entry"]["location"]
-                            self._pathmap[ab] = (ab, tgt)
+                        ab = ld["entry"]["location"]
+                        if ab.startswith("file://"):
+                            ab = ab[7:]
+                        self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
 
                 visit(fob, stagedir)
             else:
@@ -98,13 +100,13 @@ class PathMapper(object):
                         tgt = os.path.join(stagedir, "inp%x.dat" % random.randint(1, 1000000000))
                     else:
                         tgt = os.path.join(stagedir, os.path.basename(path))
-                    self._pathmap[path] = (ab, tgt)
+                    self._pathmap[path] = MapperEnt(ab, tgt, "File")
 
                 adjustFileObjs(fob, visit)
 
         # Dereference symbolic links
-        for path, (ab, tgt) in self._pathmap.items():
-            if ab.startswith("_dir:"):# or not os.path.exists(ab):
+        for path, (ab, tgt, type) in self._pathmap.items():
+            if type == "Directory": # or not os.path.exists(ab):
                 continue
             deref = ab
             st = os.lstat(deref)
@@ -114,13 +116,13 @@ class PathMapper(object):
                         os.path.dirname(deref), rl)
                 st = os.lstat(deref)
 
-            self._pathmap[path] = (deref, tgt)
+            self._pathmap[path] = MapperEnt(deref, tgt, "File")
 
     def mapper(self, src):  # type: (unicode) -> Tuple[unicode, unicode]
         if u"#" in src:
             i = src.index(u"#")
             p = self._pathmap[src[:i]]
-            return (p[0], p[1] + src[i:])
+            return (p.resolved, p.target + src[i:])
         else:
             return self._pathmap[src]
 

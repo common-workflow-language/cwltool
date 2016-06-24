@@ -337,6 +337,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
     else:
         jobloaderctx = {
                 u"path": {u"@type": u"@id"},
+                u"location": {u"@type": u"@id"},
                 u"format": {u"@type": u"@id"},
                 u"id": u"@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
@@ -405,6 +406,13 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
                   basedir=u"file://%s/" % input_basedir)
         return 0
 
+    def pathToLoc(p):
+        if "location" not in p:
+            p["location"] = p["path"]
+            del p["path"]
+
+    adjustDirObjs(job_order_object, pathToLoc)
+    adjustFileObjs(job_order_object, pathToLoc)
     adjustDirObjs(job_order_object, functools.partial(getListing, StdFsAccess(input_basedir)))
 
     if "cwl:tool" in job_order_object:
@@ -680,8 +688,16 @@ def main(argsl=None,
                            makeTool=makeTool,
                            select_resources=selectResources,
                            **vars(args))
+
             # This is the workflow output, it needs to be written
             if out is not None:
+                def locToPath(p):
+                    if p["location"].startswith("file://"):
+                        p["path"] = p["location"][7:]
+
+                adjustDirObjs(out, locToPath)
+                adjustFileObjs(out, locToPath)
+
                 if isinstance(out, basestring):
                     stdout.write(out)
                 else:

@@ -28,10 +28,14 @@ def compare(a, b):  # type: (Any, Any) -> bool
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
-                if "path" in b:
+                if "path" in a:
                     comp = "path"
+                    if "location" in b:
+                        del b["location"]
                 else:
                     comp = "location"
+                    if "path" in b:
+                        del b["path"]
                 if a[comp] and (not (b[comp].endswith("/" + a[comp]) or ("/" not in b[comp] and a[comp] == b[comp]))):
                     raise CompareFail(u"%s does not end with %s" %(b[comp], a[comp]))
                 # ignore empty collections
