@@ -160,7 +160,6 @@ def getListing(fs_access, rec):
         listing = []
         loc = rec["location"]
         for ld in fs_access.listdir(loc):
-            print loc, ld
             if fs_access.isdir(ld):
                 ent = {"class": "Directory",
                        "location": ld}

@@ -30,17 +30,19 @@ def compare(a, b):  # type: (Any, Any) -> bool
             if a.get("class") == "File":
                 if "path" in a:
                     comp = "path"
-                    if "location" in b:
-                        del b["location"]
                 else:
                     comp = "location"
-                    if "path" in b:
-                        del b["path"]
                 if a[comp] and (not (b[comp].endswith("/" + a[comp]) or ("/" not in b[comp] and a[comp] == b[comp]))):
                     raise CompareFail(u"%s does not end with %s" %(b[comp], a[comp]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
+
+            a = {k: v for k, v in a.iteritems()
+                 if k not in ("path", "location")}
+            b = {k: v for k, v in b.iteritems()
+                 if k not in ("path", "location")}
+
             if len(a) != len(b):
                 raise CompareFail(u"expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in a:

@@ -95,8 +95,8 @@ class CommandLineJob(object):
         if img_id:
             runtime = ["docker", "run", "-i"]
             for src in self.pathmapper.files():
-                if not src.startswith("_dir:"):
-                    vol = self.pathmapper.mapper(src)
+                vol = self.pathmapper.mapper(src)
+                if vol.type == "File":
                     runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
