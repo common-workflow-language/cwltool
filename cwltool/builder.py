@@ -102,7 +102,7 @@ class Builder(object):
             if schema["type"] == "File":
                 self.files.append(datum)
                 if binding and binding.get("loadContents"):
-                    with self.fs_access.open(datum["path"], "rb") as f:
+                    with self.fs_access.open(datum["location"], "rb") as f:
                         datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:
@@ -112,11 +112,11 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"path": secondary_eval, "class": "File"}
+                                sfpath = {"location": secondary_eval, "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:
-                            sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
+                            sfpath = {"location": substitute(datum["location"], sf), "class": "File"}
                         if isinstance(sfpath, list):
                             datum["secondaryFiles"].extend(sfpath)
                         else:

@@ -76,15 +76,15 @@ class PathMapper(object):
 
             if fob["class"] == "Directory":
                 def visit(obj, base):
-                    self._pathmap[obj["id"]] = (obj["id"], base)
+                    self._pathmap[obj["location"]] = (obj["location"], base)
                     for ld in obj["listing"]:
-                        tgt = os.path.join(base, ld["basename"])
+                        tgt = os.path.join(base, ld["entryname"])
                         if ld["entry"]["class"] == "Directory":
                             visit(ld["entry"], tgt)
-                            ab = ld["entry"]["id"]
+                            ab = ld["entry"]["location"]
                             self._pathmap[ab] = (ab, tgt)
                         else:
-                            ab = ld["entry"]["path"]
+                            ab = ld["entry"]["location"]
                             self._pathmap[ab] = (ab, tgt)
 
                 visit(fob, stagedir)

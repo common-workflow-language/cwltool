@@ -223,10 +223,6 @@ class CommandLineTool(Process):
 
         builder.pathmapper = None
 
-        if self.tool.get("stdin"):
-            j.stdin = builder.do_eval(self.tool["stdin"])
-            reffiles.append({"class": "File", "path": j.stdin})
-
         if self.tool.get("stderr"):
             j.stderr = builder.do_eval(self.tool["stderr"])
             if os.path.isabs(j.stderr) or ".." in j.stderr:
@@ -257,6 +253,10 @@ class CommandLineTool(Process):
         adjustFileObjs(builder.bindings, _check_adjust)
         adjustDirObjs(builder.files, _check_adjust)
         adjustDirObjs(builder.bindings, _check_adjust)
+
+        if self.tool.get("stdin"):
+            j.stdin = builder.do_eval(self.tool["stdin"])
+            reffiles.append({"class": "File", "path": j.stdin})
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 

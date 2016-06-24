@@ -32,7 +32,7 @@ def compare(a, b):  # type: (Any, Any) -> bool
                     comp = "path"
                 else:
                     comp = "location"
-                if not (b[comp].endswith("/" + a[comp]) or ("/" not in b[comp] and a[comp] == b[comp])):
+                if a[comp] and (not (b[comp].endswith("/" + a[comp]) or ("/" not in b[comp] and a[comp] == b[comp]))):
                     raise CompareFail(u"%s does not end with %s" %(b[comp], a[comp]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()

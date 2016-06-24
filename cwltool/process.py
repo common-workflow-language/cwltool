@@ -170,15 +170,15 @@ def getListing(fs_access, rec):
     if "listing" not in rec:
         listing = []
         loc = rec["location"]
-        for ld in fs_access.listdir():
+        for ld in fs_access.listdir(loc):
             if fs_access.isdir(ld):
                 ent = {"class": "Directory",
                        "location": loc + "/" + os.path.basename(ld)}
                 getListing(fs_access, ent)
-                listing.append({"basename": os.path.basename(ld),
+                listing.append({"entryname": os.path.basename(ld),
                                  "entry": ent})
             else:
-                listing.append({"basename": os.path.basename(ld),
+                listing.append({"entryname": os.path.basename(ld),
                                  "entry": {"class": "File", "location": ld}})
         rec["listing"] = listing
 
