@@ -367,6 +367,10 @@ def _draft4Dev2toDev3(doc, loader, baseuri):
         if "class" in doc and doc["class"] == "File":
             doc["location"] = doc["path"]
             del doc["path"]
+        if "secondaryFiles" in doc:
+            for i, sf in enumerate(doc["secondaryFiles"]):
+                if "$(" in sf or "${" in sf:
+                    doc["secondaryFiles"][i] = sf.replace('"path"', '"location"').replace(".path", ".location")
         for key, value in doc.items():
             doc[key] = _draft4Dev2toDev3(value, loader, baseuri)
     elif isinstance(doc, list):

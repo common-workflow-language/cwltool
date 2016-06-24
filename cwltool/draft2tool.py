@@ -325,6 +325,7 @@ class CommandLineTool(Process):
                 try:
                     ret[fragment] = self.collect_output(port, builder, outdir)
                 except Exception as e:
+                    _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
                     raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
             if ret:
                 adjustFileObjs(ret, remove_path)
@@ -417,11 +418,11 @@ class CommandLineTool(Process):
                         primary["secondaryFiles"] = []
                         for sf in aslist(schema["secondaryFiles"]):
                             if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                                sfpath = builder.do_eval(sf, context=r)
+                                sfpath = builder.do_eval(sf, context=primary)
                                 if isinstance(sfpath, basestring):
                                     sfpath = revmap({"location": sfpath, "class": "File"})
                             else:
-                                sfpath = {"location": substitute(primary["location"], sf), "class": "File", "hostfs": True}
+                                sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
 
                             for sfitem in aslist(sfpath):
                                 if builder.fs_access.exists(sfitem["location"]):
