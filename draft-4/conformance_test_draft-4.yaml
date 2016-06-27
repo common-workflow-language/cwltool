@@ -40,7 +40,7 @@
     "foo": {
         "checksum": "sha1$63da67422622fbf9251a046d7a34b7ea0fd4fead",
         "class": "File",
-        "path": "foo.txt",
+        "location": "foo.txt",
         "size": 22
     }
   job: draft-4/cat-job.json
@@ -52,54 +52,60 @@
     output_file:
       class: File
       checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
-      path: output.txt
+      location: output.txt
       size: 13
   tool: draft-4/cat3-tool.cwl
   doc: Test command execution in Docker with stdout redirection
 
 - job: draft-4/cat-job.json
   tool: draft-4/cat3-tool-shortcut.cwl
-  doc: Test command execution in Docker with stdout redirection
+  output:
+    output_file:
+      class: File
+      checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
+      location:
+      size: 13
+  doc: Test command execution in Docker with simplified syntax stdout redirection
 
 - job: draft-4/cat-job.json
   output:
     output_file:
       class: File
       checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
-      path: cat-out
+      location: cat-out
       size: 13
   tool: draft-4/cat3-tool-mediumcut.cwl
   doc: Test command execution in Docker with stdout redirection
 
-- args: [egrep]
-  stderr: error.txt
-  job:
-  tool: draft-4/egrep-stderr.cwl
-  doc: Test command line with stderr redirection
+# - args: [egrep]
+#   stderr: error.txt
+#   job:
+#   tool: draft-4/egrep-stderr.cwl
+#   doc: Test command line with stderr redirection
 
-- args: [egrep]
-  job:
-  tool: draft-4/egrep-stderr-shortcut.cwl
-  doc: Test command line with stderr redirection, brief syntax
+# - args: [egrep]
+#   job:
+#   tool: draft-4/egrep-stderr-shortcut.cwl
+#   doc: Test command line with stderr redirection, brief syntax
 
-- args: [egrep]
-  stderr: std.err
-  output:
-    output_file:
-      class: File
-      size: 84
-      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
-      path: std.err
-  job:
-  tool: draft-4/egrep-stderr-mediumcut.cwl
-  doc: Test command line with stderr redirection, named brief syntax
+# - args: [egrep]
+#   stderr: std.err
+#   output:
+#     output_file:
+#       class: File
+#       size: 84
+#       checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
+#       location: std.err
+#   job:
+#   tool: draft-4/egrep-stderr-mediumcut.cwl
+#   doc: Test command line with stderr redirection, named brief syntax
 
 - job: draft-4/cat-job.json
   output:
     output_txt:
       class: File
       checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
-      path: output.txt
+      location: output.txt
       size: 13
   tool: draft-4/cat4-tool.cwl
   doc: Test command execution in Docker with stdin and stdout redirection
@@ -144,7 +150,7 @@
     output:
       class: File
       checksum: sha1$631bfbac524e2d04cdcc5ec33ade827fc10b06ae
-      path: output
+      location: output
       size: 15
   tool: draft-4/wc-tool.cwl
   doc: Test command execution in with stdin and stdout redirection
@@ -214,7 +220,7 @@
     out:
       class: File
       checksum: sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519
-      path: out
+      location: out
       size: 15
   tool: draft-4/env-tool1.cwl
   doc: Test EnvVarRequirement
@@ -259,7 +265,7 @@
     out:
       class: File
       checksum: sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519
-      path: out
+      location: out
       size: 15
   tool: draft-4/env-wf1.cwl
   doc: Test requirement priority
@@ -269,7 +275,7 @@
     out:
       class: File
       checksum: sha1$cdc1e84968261d6a7575b5305945471f8be199b6
-      path: out
+      location: out
       size: 9
   tool: draft-4/env-wf2.cwl
   doc: Test requirements override hints
@@ -284,7 +290,7 @@
     output:
       class: File
       checksum: sha1$b9214658cc453331b62c2282b772a5c063dbd284
-      path: output.txt
+      location: output.txt
       size: 1111
   tool: draft-4/revsort.cwl
   doc: Test sample workflows from the specification
@@ -294,7 +300,7 @@
     output_file:
       class: File
       checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
-      path: output.txt
+      location: output.txt
       size: 13
   tool: draft-4/cat5-tool.cwl
   doc: Test unknown hints are ignored.
@@ -304,32 +310,32 @@
     outfile:
       class: File
       checksum: sha1$e2dc9daaef945ac15f01c238ed2f1660f60909a0
-      path: result.txt
+      location: result.txt
       size: 142
     indexedfile: {
-        "path": "input.txt",
+        "location": "input.txt",
         "class": "File",
         "checksum": "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376",
         "secondaryFiles": [
             {
-                "path": "input.txt.idx1",
-                "class": "File"
+                "location": "input.txt.idx1",
+                "class": "File",
             },
             {
-                "path": "input.idx2",
-                "class": "File"
+                "location": "input.idx2",
+                "class": "File",
             },
             {
-                "path": "input.txt.idx3",
-                "class": "File"
+                "location": "input.txt.idx3",
+                "class": "File",
             },
             {
-                "path": "input.txt.idx4",
-                "class": "File"
+                "location": "input.txt.idx4",
+                "class": "File",
             },
             {
-                "path": "input.txt.idx5",
-                "class": "File"
+                "location": "input.txt.idx5",
+                "class": "File",
             }
         ],
         "size": 1111
@@ -344,7 +350,7 @@
     outfile:
       class: File
       checksum: sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376
-      path: fish.txt
+      location: fish.txt
       size: 1111
   tool: draft-4/rename.cwl
   doc: |
@@ -360,7 +366,7 @@
 - job: draft-4/schemadef-job.json
   output:
     output:
-        path: output.txt
+        location: output.txt
         size: 12
         class: File
         checksum: "sha1$f12e6cfe70f3253f70b0dbde17c692e7fb0f1e5e"
@@ -371,7 +377,7 @@
 - job: draft-4/schemadef-job.json
   output:
     output:
-        path: output.txt
+        location: output.txt
         size: 12
         class: File
         checksum: "sha1$f12e6cfe70f3253f70b0dbde17c692e7fb0f1e5e"
@@ -537,7 +543,7 @@
 - job: draft-4/formattest-job.json
   output:
     output:
-        "path": "output.txt"
+        "location": "output.txt"
         "format": "http://edamontology.org/format_2330"
         "size": 1111
         "class": "File"
@@ -549,7 +555,7 @@
 - job: draft-4/formattest2-job.json
   output:
     output:
-        "path": "output.txt"
+        "location": "output.txt"
         "format": "http://edamontology.org/format_1929"
         "size": 12010
         "class": "File"
@@ -561,7 +567,7 @@
 - job: draft-4/formattest2-job.json
   output:
     output:
-        "path": "output.txt"
+        "location": "output.txt"
         "format": "http://edamontology.org/format_1929"
         "size": 12010
         "class": "File"
@@ -575,7 +581,7 @@
   output:
     optional_file: null
     output_file:
-        path: output.txt
+        location: output.txt
         size: 13
         class: "File"
         checksum: "sha1$47a013e660d408619d894b20806b1d5086aab03b"
@@ -601,13 +607,13 @@
   output:
     "orec": {
         "ofoo": {
-            "path": "foo",
+            "location": "foo",
             "size": 1111,
             "class": "File",
             "checksum": "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
         },
         "obar": {
-            "path": "bar",
+            "location": "bar",
             "size": 12010,
             "class": "File",
             "checksum": "sha1$aeb3d11bdf536511649129f4077d5cda6a324118"
@@ -619,7 +625,7 @@
 - job: draft-4/empty.json
   output: {
     "foo": {
-        "path": "foo",
+        "location": "foo",
         "class": "File"
     }
   }
@@ -629,19 +635,19 @@
 - job: draft-4/abc.json
   output:
     files: [{
-        "path": "a",
+        "location": "a",
         "size": 0,
         "class": "File",
         "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     },
     {
-        "path": "b",
+        "location": "b",
         "size": 0,
         "class": "File",
         "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     },
     {
-        "path": "c",
+        "location": "c",
         "size": 0,
         "class": "File",
         "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
@@ -676,7 +682,7 @@
 - job: draft-4/conflict-job.json
   output: {
     "fileout": {
-        "path": "out.txt",
+        "location": "out.txt",
         "checksum": "sha1$a2d8d6e7b28295dc9977dc3bdb652ddd480995f0",
         "class": "File",
         "size": 25
@@ -684,3 +690,49 @@
   }
   tool: "draft-4/conflict-wf.cwl#collision"
   doc: Test workflow two input files with same name.
+
+- job: draft-4/dir-job.yml
+  output:
+    "outlist": {
+        "size": 20,
+        "location": "output.txt",
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592",
+        "class": "File"
+    }
+  tool: draft-4/dir.cwl
+  doc: Test directory input
+
+- job: draft-4/dir-job.yml
+  output:
+    "outlist": {
+        "size": 20,
+        "location": "output.txt",
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592",
+        "class": "File"
+    }
+  tool: draft-4/dir2.cwl
+  doc: Test directory input in Docker
+
+- job: draft-4/dir3-job.yml
+  output:
+    "outdir": {
+        "class": "Directory",
+        "listing": [
+            {
+                "entryname": "hello.txt",
+                "entry": {
+                    "class": "File",
+                    "location": "hello.txt"
+                }
+            },
+            {
+                "entryname": "goodbye.txt",
+                "entry": {
+                    "class": "File",
+                    "location": "goodbye.txt"
+                }
+            }
+        ],
+    }
+  tool: draft-4/dir3.cwl
+  doc: Test directory input in Docker
