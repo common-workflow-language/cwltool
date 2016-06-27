@@ -277,7 +277,8 @@ def generate_parser(toolparser, tool, namemap):
                 action = cast(argparse.Action, FileAppendAction)
             else:
                 action = "append"
-
+        elif isinstance(inptype, dict) and inptype["type"] == "enum":
+            atype = str
         if inptype == "string":
             atype = str
         elif inptype == "int":
