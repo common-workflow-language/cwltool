@@ -324,11 +324,27 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
+            def fixup(f):
+                doc, frg = urlparse.urldefrag(f)
+                frg = '/'.join(frg.rsplit('.', 1))
+                return doc + "#" + frg
+
             for step in doc["steps"]:
                 step["in"] = step["inputs"]
                 step["out"] = step["outputs"]
                 del step["inputs"]
                 del step["outputs"]
+                for io in ("in", "out"):
+                    for i in step[io]:
+                        i["id"] = fixup(i["id"])
+                        if "source" in i:
+                            i["source"] = [fixup(s) for s in aslist(i["source"])]
+                            if len(i["source"]) == 1:
+                                i["source"] = i["source"][0]
+                if "scatter" in step:
+                    step["scatter"] = [fixup(s) for s in aslist(step["scatter"])]
+            for out in doc["outputs"]:
+                out["source"] = fixup(out["source"])
         for key, value in doc.items():
             doc[key] = _draft3toDraft4dev1(value, loader, baseuri)
     elif isinstance(doc, list):
