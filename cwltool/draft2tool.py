@@ -26,6 +26,7 @@ from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs, adjustD
 from .pathmapper import PathMapper
 from .job import CommandLineJob
 
+WHITELIST_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
 
 from .flatten import flatten
 
@@ -239,12 +240,12 @@ class CommandLineTool(Process):
         # map files to assigned path inside a container. We need to also explicitly
         # walk over input as implicit reassignment doesn't reach everything in builder.bindings
         def _check_adjust(f):  # type: (Dict[str,Any]) -> Dict[str,Any]
-            if not f.get("containerfs"):
-                f["path"] = builder.pathmapper.mapper(f["location"])[1]
-                if f["class"] == "File":
-                    # XXX should only add if >= draft-4
-                    f["dirname"], f["basename"] = os.path.split(f["path"])
-                    f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
+            f["path"] = builder.pathmapper.mapper(f["location"])[1]
+            f["dirname"], f["basename"] = os.path.split(f["path"])
+            if f["class"] == "File":
+                f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
+            if not WHITELIST_RE.match(f["basename"]):
+                raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
             return f
 
         _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
