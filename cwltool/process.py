@@ -235,7 +235,7 @@ def avroize_type(field_type, name_prefix=""):
         return field_type_result
     elif "type" in field_type and field_type["type"] == "enum":
         if "name" not in field_type:
-            field_type["name"] = name_prefix+"_type_enum"  # TODO modify this
+            field_type["name"] = name_prefix+"_type_enum"
     return field_type
 
 
