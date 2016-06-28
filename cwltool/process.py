@@ -223,6 +223,22 @@ def fillInDefaults(inputs, job):
         else:
             raise validate.ValidationException("Missing input parameter `%s`" % shortname(inp["id"]))
 
+
+def avroize_type(field_type, name_prefix=""):
+    """
+    adds missing information to a type so that CWL types are valid in schema_salad.
+    """
+    if type(field_type) == list:
+        field_type_result = []
+        for idx, field_type_item in enumerate(field_type):
+            field_type_result.append(avroize_type(field_type_item, name_prefix+"_"+str(idx)))
+        return field_type_result
+    elif type(field_type) == dict and "type" in field_type and field_type["type"] == "enum":
+        if "name" not in field_type:
+            field_type["name"] = name_prefix+"_type_enum"
+    return field_type
+
+
 class Process(object):
     __metaclass__ = abc.ABCMeta
 
@@ -252,7 +268,7 @@ class Process(object):
 
         if sd:
             sdtypes = sd["types"]
-            av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
+            av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i
             avro.schema.make_avsc_object(av, self.names)
@@ -278,7 +294,7 @@ class Process(object):
                     c["type"] = ["null"] + aslist(c["type"])
                 else:
                     c["type"] = c["type"]
-
+                c["type"] = avroize_type(c["type"],c["name"])
                 if key == "inputs":
                     self.inputs_record_schema["fields"].append(c)  # type: ignore
                 elif key == "outputs":
