@@ -295,7 +295,6 @@ class Process(object):
                 else:
                     c["type"] = c["type"]
                 c["type"] = avroize_type(c["type"],c["name"])
-                print c["type"]
                 if key == "inputs":
                     self.inputs_record_schema["fields"].append(c)  # type: ignore
                 elif key == "outputs":
