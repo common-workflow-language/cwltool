@@ -82,27 +82,29 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
             else:
                 raise WorkflowException(u"Unrecognized linkMerge enum '%s'" % linkMerge)
             return True
-    elif valueFrom is not None or are_same_type(src.parameter["type"], sinktype) or sinktype == "Any":
+    elif valueFrom is not None or can_assign_src_to_sink(src.parameter["type"], sinktype) or sinktype == "Any":
         # simply assign the value from state to input
         inputobj[iid] = copy.deepcopy(src.value)
         return True
     return False
 
-def are_same_type(src, sink):  # type: (Any, Any) -> bool
+def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
-            if 'null' in sink["items"]:
-                return are_same_type([src["items"]], [it for it in sink["items"] if it != 'null'])
-            return are_same_type(src["items"], sink["items"])
-        elif src["type"] == sink["type"]:
-            return True
-        else:
-            return False
+            return can_assign_src_to_sink(src["items"], sink["items"])
+    elif isinstance(src, list):
+        for t in src:
+            if can_assign_src_to_sink(t, sink):
+                return True
+    elif isinstance(sink, list):
+        for t in sink:
+            if can_assign_src_to_sink(src, t):
+                return True
     else:
         return src == sink
-
+    return False
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
     # type: (Dict[unicode, WorkflowStateItem], List[Dict[unicode, Any]], bool, bool, unicode) -> Dict[unicode, Any]
