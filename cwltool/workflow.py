@@ -1,6 +1,6 @@
 from . import job
 from . import draft2tool
-from .utils import aslist
+from .utils import aslist, HashableDict
 from .process import Process, get_feature, empty_subtree, shortname, uniquename
 from .errors import WorkflowException
 import copy
@@ -88,21 +88,28 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
         return True
     return False
 
+
 def are_same_type(src, sink):  # type: (Any, Any) -> bool
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
-            if 'null' in sink["items"]:
-                return are_same_type([src["items"]], [it for it in sink["items"] if it != 'null'])
-            return are_same_type(src["items"], sink["items"])
-        elif src["type"] == sink["type"]:
-            return True
+            src_items = src["items"]
+            sink_items = sink["items"]
+            if not isinstance(src_items, list):
+                src_items = [src_items]
+            if not isinstance(sink_items, list):
+                sink_items = [sink_items]
+            src_items = [HashableDict(s) if isinstance(s, dict) else s for s in src_items]
+            sink_items = [HashableDict(s) if isinstance(s, dict) else s for s in sink_items]
+            return are_same_type(src_items, sink_items)
         else:
-            return False
+            return src["type"] == sink["type"]
     else:
-        return src == sink
-
+        try:
+            return src == sink or len(set(src).intersection(set(sink))) > 0
+        except TypeError:
+            return False
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
     # type: (Dict[unicode, WorkflowStateItem], List[Dict[unicode, Any]], bool, bool, unicode) -> Dict[unicode, Any]
