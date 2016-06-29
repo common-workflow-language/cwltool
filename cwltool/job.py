@@ -241,7 +241,7 @@ class CommandLineJob(object):
                 def linkoutdir(src, tgt):
                     # Need to make the link to the staged file (may be inside
                     # the container)
-                    if os.path.exists(tgt):
+                    if os.path.exists(tgt) and os.path.islink(tgt):
                         os.remove(tgt)
                         os.symlink(src, tgt)
                 stageFiles(generatemapper, linkoutdir)
