@@ -177,7 +177,9 @@ def stageFiles(pm, stageFunc):
             os.makedirs(os.path.dirname(p.target), 0755)
         if p.type == "File":
             stageFunc(p.resolved, p.target)
-        elif p.type == "Copy":
+        elif p.type == "WritableFile":
+            shutil.copy(p.resolved, p.target)
+        elif p.type == "CreateFile":
             with open(p.target, "w") as n:
                 n.write(p.resolved.encode("utf-8"))
 

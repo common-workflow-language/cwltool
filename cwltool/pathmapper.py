@@ -71,20 +71,20 @@ class PathMapper(object):
             if "entryname" in ld:
                 tgt = os.path.join(stagedir, ld["entryname"])
                 if isinstance(ld["entry"], (str, unicode)):
-                    self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "Copy")
+                    self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "CreateFile")
                 else:
                     if ld["entry"]["class"] == "Directory":
-                        self.visit(ld["entry"], tgt, basedir)
+                        self.visit(ld["entry"], tgt, basedir, copy=ld.get("writable", False))
                     else:
-                        self.visit(ld["entry"], stagedir, basedir, entryname=ld["entryname"])
+                        self.visit(ld["entry"], stagedir, basedir, entryname=ld["entryname"], copy=ld.get("writable", False))
                     #ab = ld["entry"]["location"]
                     #if ab.startswith("file://"):
                     #    ab = ab[7:]
                     #self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
             elif ld.get("class") == "File":
-                self.visit(ld, stagedir, basedir)
+                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
 
-    def visit(self, obj, stagedir, basedir, entryname=None):
+    def visit(self, obj, stagedir, basedir, entryname=None, copy=False):
         if obj["class"] == "Directory":
             if "location" in obj:
                 self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
@@ -100,7 +100,10 @@ class PathMapper(object):
                 tgt = os.path.join(stagedir, entryname)
             else:
                 tgt = os.path.join(stagedir, os.path.basename(path))
-            self._pathmap[path] = MapperEnt(ab, tgt, "File")
+            if copy:
+                self._pathmap[path] = MapperEnt(ab, tgt, "WritableFile")
+            else:
+                self._pathmap[path] = MapperEnt(ab, tgt, "File")
             self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
 
     def setup(self, referenced_files, basedir):
