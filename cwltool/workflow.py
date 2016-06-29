@@ -242,23 +242,23 @@ class WorkflowJob(object):
                 raise WorkflowException("Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
-            def valueFromFunc(k, v):  # type: (Any, Any) -> Any
-                if k in valueFrom:
-                    return expression.do_eval(
-                            valueFrom[k], vfinputs, self.workflow.requirements,
-                            None, None, {}, context=v)
-                else:
-                    return v
+            def postScatterEval(io):
+                shortio = {shortname(k): v for k,v in io.iteritems()}
+                def valueFromFunc(k, v):  # type: (Any, Any) -> Any
+                    if k in valueFrom:
+                        return expression.do_eval(
+                                valueFrom[k], shortio, self.workflow.requirements,
+                                None, None, {}, context=v)
+                    else:
+                        return v
+                return {k: valueFromFunc(k, v) for k,v in io.items()}
 
             if "scatter" in step.tool:
                 scatter = aslist(step.tool["scatter"])
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
-                kwargs["valueFrom"] = valueFromFunc
-
-                inputobj = {k: valueFromFunc(k, v) if k not in scatter else v
-                            for k,v in inputobj.items()}
+                kwargs["postScatterEval"] = postScatterEval
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, scatter,
@@ -280,7 +280,7 @@ class WorkflowJob(object):
                                                          callback), 0, **kwargs)
             else:
                 _logger.debug(u"[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
-                inputobj = {k: valueFromFunc(k, v) for k,v in inputobj.items()}
+                inputobj = postScatterEval(inputobj)
                 _logger.debug(u"[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, callback, **kwargs)
 
@@ -592,7 +592,9 @@ def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwarg
     for n in range(0, l):
         jo = copy.copy(joborder)
         for s in scatter_keys:
-            jo[s] = kwargs["valueFrom"](s, joborder[s][n])
+            jo[s] = joborder[s][n]
+
+        jo = kwargs["postScatterEval"](jo)
 
         for j in process.job(jo, functools.partial(rc.receive_scatter_output, n), **kwargs):
             yield j
@@ -612,9 +614,10 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
 
     for n in range(0, l):
         jo = copy.copy(joborder)
-        jo[scatter_key] = kwargs["valueFrom"](scatter_key, joborder[scatter_key][n])
+        jo[scatter_key] = joborder[scatter_key][n]
 
         if len(scatter_keys) == 1:
+            jo = kwargs["postScatterEval"](jo)
             for j in process.job(jo, functools.partial(rc.receive_scatter_output, n), **kwargs):
                 yield j
         else:
@@ -661,9 +664,10 @@ def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, 
     put = startindex
     for n in range(0, l):
         jo = copy.copy(joborder)
-        jo[scatter_key] = kwargs["valueFrom"](scatter_key, joborder[scatter_key][n])
+        jo[scatter_key] = joborder[scatter_key][n]
 
         if len(scatter_keys) == 1:
+            jo = kwargs["postScatterEval"](jo)
             for j in process.job(jo, functools.partial(rc.receive_scatter_output, put), **kwargs):
                 yield j
             put += 1
