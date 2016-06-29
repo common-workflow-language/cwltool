@@ -59,13 +59,46 @@ class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)"""
 
-    def __init__(self, referenced_files, basedir, stagedir, scramble=False, separateDirs=True):
+    def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
         # type: (Set[Any], unicode, unicode) -> None
         self._pathmap = {}  # type: Dict[unicode, Tuple[unicode, unicode]]
         self.stagedir = stagedir
-        self.scramble = scramble
         self.separateDirs = separateDirs
         self.setup(referenced_files, basedir)
+
+    def visit(self, obj, stagedir, basedir, entryname=None):
+        if ob["class"] == "Directory":
+            if "location" in obj:
+                self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
+            else:
+                self._pathmap[str(id(obj))] = MapperEnt(str(id(obj)), stagedir, "Directory")
+            for ld in obj["listing"]:
+                tgt = os.path.join(stagedir, ld["entryname"])
+                if isinstance(ld["entry"], (str, unicode)):
+                    self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "Copy")
+                else:
+                    if ld["entry"]["class"] == "Directory":
+                        self.visit(ld["entry"], tgt)
+                    ab = ld["entry"]["location"]
+                    if ab.startswith("file://"):
+                        ab = ab[7:]
+                    self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
+        elif ob["class"] == "File":
+            path = ob["location"]
+            if path in self._pathmap:
+                return
+            ab = abspath(path, basedir)
+            if entryname:
+                tgt = os.path.join(stagedir, entryname)
+            else:
+                tgt = os.path.join(stagedir, os.path.basename(path))
+            self._pathmap[path] = MapperEnt(ab, tgt, "File")
+            if ob.get("secondaryFiles"):
+                for sf in obj["secondaryFiles"]:
+                    if "entryname" in sf:
+                        self.visit(sf["entry"], stagedir, basedir, entryname=sf["entryname"])
+                    else:
+                        self.visit(sf, stagedir, basedir)
 
     def setup(self, referenced_files, basedir):
         # type: (Set[Any], unicode) -> None
@@ -76,39 +109,7 @@ class PathMapper(object):
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%x" % random.randint(1, 1000000000))
-
-            if fob["class"] == "Directory":
-                def visit(obj, base):
-                    if "location" in obj:
-                        self._pathmap[obj["location"]] = MapperEnt(obj["location"], base, "Directory")
-                    else:
-                        self._pathmap[str(id(obj))] = MapperEnt(str(id(obj)), base, "Directory")
-                    for ld in obj["listing"]:
-                        tgt = os.path.join(base, ld["entryname"])
-                        if isinstance(ld["entry"], (str, unicode)):
-                            self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "Copy")
-                        else:
-                            if ld["entry"]["class"] == "Directory":
-                                visit(ld["entry"], tgt)
-                            ab = ld["entry"]["location"]
-                            if ab.startswith("file://"):
-                                ab = ab[7:]
-                            self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
-
-                visit(fob, stagedir)
-            else:
-                def visit(ob):
-                    path = ob["location"]
-                    if path in self._pathmap:
-                        return
-                    ab = abspath(path, basedir)
-                    if self.scramble:
-                        tgt = os.path.join(stagedir, "inp%x.dat" % random.randint(1, 1000000000))
-                    else:
-                        tgt = os.path.join(stagedir, os.path.basename(path))
-                    self._pathmap[path] = MapperEnt(ab, tgt, "File")
-
-                adjustFileObjs(fob, visit)
+            self.visit(fob, stagedir, basedir)
 
         # Dereference symbolic links
         for path, (ab, tgt, type) in self._pathmap.items():
