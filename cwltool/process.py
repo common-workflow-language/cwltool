@@ -39,14 +39,14 @@ _logger = logging.getLogger("cwltool")
 supportedProcessRequirements = ["DockerRequirement",
                                 "SchemaDefRequirement",
                                 "EnvVarRequirement",
-                                "CreateFileRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "InlineJavascriptRequirement",
                                 "ShellCommandRequirement",
                                 "StepInputExpressionRequirement",
-                                "ResourceRequirement"]
+                                "ResourceRequirement",
+                                "InitialWorkDirRequirement"]
 
 cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
@@ -172,12 +172,14 @@ def getListing(fs_access, rec):
         rec["listing"] = listing
 
 def stageFiles(pm, stageFunc):
-    for f in pm.files():
-        p = pm.mapper(f)
+    for f, p in pm.items():
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0755)
         if p.type == "File":
             stageFunc(p.resolved, p.target)
+        elif p.type == "Copy":
+            with open(p.target, "w") as n:
+                n.write(p.resolved.encode("utf-8")
 
 def collectFilesAndDirs(obj, out):
     if isinstance(obj, dict):

@@ -82,12 +82,15 @@ class PathMapper(object):
                     self._pathmap[obj["location"]] = MapperEnt(obj["location"], base, "Directory")
                     for ld in obj["listing"]:
                         tgt = os.path.join(base, ld["entryname"])
-                        if ld["entry"]["class"] == "Directory":
-                            visit(ld["entry"], tgt)
-                        ab = ld["entry"]["location"]
-                        if ab.startswith("file://"):
-                            ab = ab[7:]
-                        self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
+                        if isinstance(ld["entry"], (str, unicode)):
+                            self._pathmap[id(ld["entry"])] = MapperEnt(ld["entry"], tgt, "Copy")
+                        else:
+                            if ld["entry"]["class"] == "Directory":
+                                visit(ld["entry"], tgt)
+                            ab = ld["entry"]["location"]
+                            if ab.startswith("file://"):
+                                ab = ab[7:]
+                            self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
 
                 visit(fob, stagedir)
             else:

@@ -387,6 +387,16 @@ def _draft4Dev2toDev3(doc, loader, baseuri):
             for i, sf in enumerate(doc["secondaryFiles"]):
                 if "$(" in sf or "${" in sf:
                     doc["secondaryFiles"][i] = sf.replace('"path"', '"location"').replace(".path", ".location")
+
+        if "class" in doc and doc["class"] == "CreateFileRequirement":
+            doc["class"] = "InitialWorkDirRequirement"
+            doc["listing"] = []
+            for f in doc["fileDef"]:
+                doc["listing"].append({
+                    "entryname": f["filename"],
+                    "entry": f["fileContent"]
+                })
+            del doc["fileDef"]
         for key, value in doc.items():
             doc[key] = _draft4Dev2toDev3(value, loader, baseuri)
     elif isinstance(doc, list):

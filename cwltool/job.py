@@ -166,19 +166,17 @@ class CommandLineJob(object):
         outputs = {}  # type: Dict[str,str]
 
         try:
-            for t in self.generatefiles:
-                entry = self.generatefiles[t]
-                if isinstance(entry, dict):
-                    src = entry["path"]
-                    dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        _logger.debug(u"symlinking %s to %s", dst, src)
-                        os.symlink(src, dst)
-                elif isinstance(entry, (str, unicode)):
-                    with open(os.path.join(self.outdir, t), "w") as fout:
-                        fout.write(entry.encode("utf-8"))
-                else:
-                    raise Exception("Unhandled type %s", type(entry))
+            if self.generatefiles["listing"]:
+                generatemapper = PathMapper([self.generatefiles], self.outdir,
+                                            self.outdir, separateDirs=False)
+                def linkoutdir(src, tgt):
+                    # Need to make the link to the staged file (may be inside
+                    # the container)
+                    for item in self.pathmapper.items():
+                        if src == item.resolved:
+                            os.symlink(item.target, tgt)
+                            break
+                stageFiles(generatemapper, linkoutdir)
 
             if self.stdin:
                 stdin = open(self.pathmapper.reversemap(self.stdin)[1], "rb")

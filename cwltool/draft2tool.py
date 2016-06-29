@@ -273,11 +273,15 @@ class CommandLineTool(Process):
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
-        createFiles = self.get_requirement("CreateFileRequirement")[0]
-        j.generatefiles = {}
-        if createFiles:
-            for t in createFiles["fileDef"]:
-                j.generatefiles[builder.do_eval(t["filename"])] = copy.deepcopy(builder.do_eval(t["fileContent"]))
+        initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
+        j.generatefiles = {"class": "Directory", "listing": []}
+        if initialWorkdir:
+            if isinstance(initialWorkdir["listing"], (str, unicode)):
+                j.generatefiles["listing"] = builder.do_eval(initialWorkdir["listing"])
+            else:
+                for t in initialWorkdir["listing"]:
+                    j.generatefiles["listing"].append({"entryname": builder.do_eval(t["entryname"]),
+                                                       "entry": copy.deepcopy(builder.do_eval(t["entry"]))})
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
