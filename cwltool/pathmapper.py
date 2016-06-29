@@ -66,25 +66,33 @@ class PathMapper(object):
         self.separateDirs = separateDirs
         self.setup(referenced_files, basedir)
 
-    def visit(self, obj, stagedir, basedir, entryname=None):
-        if ob["class"] == "Directory":
-            if "location" in obj:
-                self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
-            else:
-                self._pathmap[str(id(obj))] = MapperEnt(str(id(obj)), stagedir, "Directory")
-            for ld in obj["listing"]:
+    def visitlisting(self, listing, stagedir, basedir):
+        for ld in listing:
+            if "entryname" in ld:
                 tgt = os.path.join(stagedir, ld["entryname"])
                 if isinstance(ld["entry"], (str, unicode)):
                     self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "Copy")
                 else:
                     if ld["entry"]["class"] == "Directory":
-                        self.visit(ld["entry"], tgt)
-                    ab = ld["entry"]["location"]
-                    if ab.startswith("file://"):
-                        ab = ab[7:]
-                    self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
-        elif ob["class"] == "File":
-            path = ob["location"]
+                        self.visit(ld["entry"], tgt, basedir)
+                    else:
+                        self.visit(ld["entry"], stagedir, basedir, entryname=ld["entryname"])
+                    #ab = ld["entry"]["location"]
+                    #if ab.startswith("file://"):
+                    #    ab = ab[7:]
+                    #self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
+            elif ld.get("class") == "File":
+                self.visit(ld, stagedir, basedir)
+
+    def visit(self, obj, stagedir, basedir, entryname=None):
+        if obj["class"] == "Directory":
+            if "location" in obj:
+                self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
+            else:
+                self._pathmap[str(id(obj))] = MapperEnt(str(id(obj)), stagedir, "Directory")
+            self.visitlisting(obj.get("listing", []), stagedir, basedir)
+        elif obj["class"] == "File":
+            path = obj["location"]
             if path in self._pathmap:
                 return
             ab = abspath(path, basedir)
@@ -93,12 +101,7 @@ class PathMapper(object):
             else:
                 tgt = os.path.join(stagedir, os.path.basename(path))
             self._pathmap[path] = MapperEnt(ab, tgt, "File")
-            if ob.get("secondaryFiles"):
-                for sf in obj["secondaryFiles"]:
-                    if "entryname" in sf:
-                        self.visit(sf["entry"], stagedir, basedir, entryname=sf["entryname"])
-                    else:
-                        self.visit(sf, stagedir, basedir)
+            self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
 
     def setup(self, referenced_files, basedir):
         # type: (Set[Any], unicode) -> None
