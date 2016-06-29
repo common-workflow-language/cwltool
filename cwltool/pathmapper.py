@@ -79,11 +79,14 @@ class PathMapper(object):
 
             if fob["class"] == "Directory":
                 def visit(obj, base):
-                    self._pathmap[obj["location"]] = MapperEnt(obj["location"], base, "Directory")
+                    if "location" in obj:
+                        self._pathmap[obj["location"]] = MapperEnt(obj["location"], base, "Directory")
+                    else:
+                        self._pathmap[str(id(obj))] = MapperEnt(str(id(obj)), base, "Directory")
                     for ld in obj["listing"]:
                         tgt = os.path.join(base, ld["entryname"])
                         if isinstance(ld["entry"], (str, unicode)):
-                            self._pathmap[id(ld["entry"])] = MapperEnt(ld["entry"], tgt, "Copy")
+                            self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "Copy")
                         else:
                             if ld["entry"]["class"] == "Directory":
                                 visit(ld["entry"], tgt)
@@ -109,7 +112,7 @@ class PathMapper(object):
 
         # Dereference symbolic links
         for path, (ab, tgt, type) in self._pathmap.items():
-            if type == "Directory": # or not os.path.exists(ab):
+            if type != "File": # or not os.path.exists(ab):
                 continue
             deref = ab
             st = os.lstat(deref)

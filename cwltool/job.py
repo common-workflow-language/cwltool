@@ -169,10 +169,12 @@ class CommandLineJob(object):
             if self.generatefiles["listing"]:
                 generatemapper = PathMapper([self.generatefiles], self.outdir,
                                             self.outdir, separateDirs=False)
+                _logger.debug(u"[job %s] initial work dir %s", self.name,
+                              json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
                 def linkoutdir(src, tgt):
                     # Need to make the link to the staged file (may be inside
                     # the container)
-                    for item in self.pathmapper.items():
+                    for _, item in self.pathmapper.items():
                         if src == item.resolved:
                             os.symlink(item.target, tgt)
                             break
@@ -201,7 +203,7 @@ class CommandLineJob(object):
             else:
                 stdout = sys.stderr
 
-            sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
+            sp = subprocess.Popen([unicode(x).encode('utf-8') for x in runtime + self.command_line],
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,
@@ -235,13 +237,14 @@ class CommandLineJob(object):
             else:
                 processStatus = "permanentFail"
 
-            for t in self.generatefiles:
-                if isinstance(self.generatefiles[t], dict):
-                    src = cast(dict, self.generatefiles[t])["path"]
-                    dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        os.remove(dst)
-                        os.symlink(self.pathmapper.reversemap(src)[1], dst)
+            if self.generatefiles["listing"]:
+                def linkoutdir(src, tgt):
+                    # Need to make the link to the staged file (may be inside
+                    # the container)
+                    if os.path.exists(tgt):
+                        os.remove(tgt)
+                        os.symlink(src, tgt)
+                stageFiles(generatemapper, linkoutdir)
 
             outputs = self.collect_outputs(self.outdir)
 

@@ -179,7 +179,7 @@ def stageFiles(pm, stageFunc):
             stageFunc(p.resolved, p.target)
         elif p.type == "Copy":
             with open(p.target, "w") as n:
-                n.write(p.resolved.encode("utf-8")
+                n.write(p.resolved.encode("utf-8"))
 
 def collectFilesAndDirs(obj, out):
     if isinstance(obj, dict):
