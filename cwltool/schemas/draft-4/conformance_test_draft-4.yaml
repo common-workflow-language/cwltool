@@ -77,28 +77,39 @@
   tool: draft-4/cat3-tool-mediumcut.cwl
   doc: Test command execution in Docker with stdout redirection
 
-# - args: [egrep]
-#   stderr: error.txt
-#   job:
-#   tool: draft-4/egrep-stderr.cwl
-#   doc: Test command line with stderr redirection
+- job:
+  output: {
+    "output_file": {
+        "checksum": "sha1$cec7b8746a78c42060c96505887449bca0142976",
+        "size": 84,
+        "location": "error.txt",
+        "class": "File"
+    }
+  }
+  tool: draft-4/egrep-stderr.cwl
+  doc: Test command line with stderr redirection
 
-# - args: [egrep]
-#   job:
-#   tool: draft-4/egrep-stderr-shortcut.cwl
-#   doc: Test command line with stderr redirection, brief syntax
+- job:
+  output: {
+    "output_file": {
+        "checksum": "sha1$cec7b8746a78c42060c96505887449bca0142976",
+        "size": 84,
+        "location": "",
+        "class": "File"
+    }
+  }
+  tool: draft-4/egrep-stderr-shortcut.cwl
+  doc: Test command line with stderr redirection, brief syntax
 
-# - args: [egrep]
-#   stderr: std.err
-#   output:
-#     output_file:
-#       class: File
-#       size: 84
-#       checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
-#       location: std.err
-#   job:
-#   tool: draft-4/egrep-stderr-mediumcut.cwl
-#   doc: Test command line with stderr redirection, named brief syntax
+- output:
+    output_file:
+      class: File
+      size: 84
+      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
+      location: std.err
+  job:
+  tool: draft-4/egrep-stderr-mediumcut.cwl
+  doc: Test command line with stderr redirection, named brief syntax
 
 - job: draft-4/cat-job.json
   output:
@@ -738,13 +749,14 @@
   doc: Test directory input in Docker
 
 - job: draft-4/dir4-job.yml
-  output:
+  output: {
     "outlist": {
-        "size": 20,
+        "checksum": "sha1$2ab6f189e84753c05a23413fbf6b6fbf4c53489f",
+        "size": 90,
         "location": "output.txt",
-        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592",
         "class": "File"
     }
+  }
   tool: draft-4/dir4.cwl
   doc: Test directories in secondaryFiles
 
@@ -752,9 +764,8 @@
   output: {
     "outlist": {
         "checksum": "sha1$907a866a3e0b7f1fc5a2222531c5fb9063704438",
-        "path": "/home/peter/work/common-workflow-language/draft-4/draft-4/output.txt",
         "size": 33,
-        "location": "file:///home/peter/work/common-workflow-language/draft-4/draft-4/output.txt",
+        "location": "output.txt",
         "class": "File"
     }
   }
