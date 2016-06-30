@@ -6,7 +6,7 @@ import schema_salad.validate as validate
 from typing import Any, Union, AnyStr, Callable
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
-from .pathmapper import PathMapper
+from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -16,18 +16,6 @@ def substitute(value, replace):  # type: (str, str) -> str
         return substitute(value[0:value.rindex('.')], replace[1:])
     else:
         return value + replace
-
-def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
-    """Apply an update function to each File object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            op(rec)
-        for d in rec:
-            adjustFileObjs(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFileObjs(d, op)
 
 class Builder(object):
 
@@ -114,7 +102,7 @@ class Builder(object):
             if schema["type"] == "File":
                 self.files.append(datum)
                 if binding and binding.get("loadContents"):
-                    with self.fs_access.open(datum["path"], "rb") as f:
+                    with self.fs_access.open(datum["location"], "rb") as f:
                         datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:
@@ -124,11 +112,11 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"path": secondary_eval, "class": "File"}
+                                sfpath = {"location": secondary_eval, "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:
-                            sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
+                            sfpath = {"location": substitute(datum["location"], sf), "class": "File"}
                         if isinstance(sfpath, list):
                             datum["secondaryFiles"].extend(sfpath)
                         else:
@@ -139,6 +127,10 @@ class Builder(object):
                     return f
 
                 adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
+
+            if schema["type"] == "Directory":
+                self.files.append(datum)
+
 
         # Position to front of the sort key
         if binding:

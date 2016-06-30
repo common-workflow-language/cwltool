@@ -13,10 +13,19 @@ class StdFsAccess(object):
         return abspath(p, self.basedir)
 
     def glob(self, pattern):  # type: (unicode) -> List[unicode]
-        return glob.glob(self._abs(pattern))
+        return ["file://%s" % self._abs(l) for l in glob.glob(self._abs(pattern))]
 
     def open(self, fn, mode):  # type: (unicode, str) -> BinaryIO
         return open(self._abs(fn), mode)
 
     def exists(self, fn):  # type: (unicode) -> bool
         return os.path.exists(self._abs(fn))
+
+    def isfile(self, fn):
+        return os.path.isfile(self._abs(fn))
+
+    def isdir(self, fn):
+        return os.path.isdir(self._abs(fn))
+
+    def listdir(self, fn):
+        return [abspath(l, fn) for l in os.listdir(self._abs(fn))]

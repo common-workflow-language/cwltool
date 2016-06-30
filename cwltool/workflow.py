@@ -298,7 +298,7 @@ class WorkflowJob(object):
     def run(self, **kwargs):
         _logger.debug(u"[%s] workflow starting", self.name)
 
-    def job(self, joborder, output_callback, move_outputs=True, **kwargs):
+    def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[unicode, Any], Callable[[Any, Any], Any], bool, **Any) -> Generator[WorkflowJob, None, None]
         self.state = {}
         self.processStatus = "success"
@@ -319,8 +319,6 @@ class WorkflowJob(object):
             for out in s.tool["outputs"]:
                 self.state[out["id"]] = None
 
-        output_dirs = set()
-
         completed = 0
         while completed < len(self.steps) and self.processStatus == "success":
             made_progress = False
@@ -333,8 +331,6 @@ class WorkflowJob(object):
                     for newjob in step.iterable:
                         if newjob:
                             made_progress = True
-                            if newjob.outdir:
-                                output_dirs.add(newjob.outdir)
                             yield newjob
                         else:
                             break
@@ -350,43 +346,6 @@ class WorkflowJob(object):
 
         if wo is None:
             raise WorkflowException("Output for workflow not available")
-
-        if move_outputs:
-            targets = set()  # type: Set[str]
-            conflicts = set()
-
-            outfiles = findfiles(wo)
-
-            for f in outfiles:
-                for a in output_dirs:
-                    if f["path"].startswith(a):
-                        src = f["path"]
-                        dst = os.path.join(self.outdir, src[len(a)+1:])
-                        if dst in targets:
-                            conflicts.add(dst)
-                        else:
-                            targets.add(dst)
-
-            for f in outfiles:
-                for a in output_dirs:
-                    if f["path"].startswith(a):
-                        src = f["path"]
-                        dst = os.path.join(self.outdir, src[len(a)+1:])
-                        if dst in conflicts:
-                            sp = os.path.splitext(dst)
-                            dst = u"%s-%s%s" % (sp[0], str(random.randint(1, 1000000000)), sp[1])
-                        dirname = os.path.dirname(dst)
-                        if not os.path.exists(dirname):
-                            os.makedirs(dirname)
-                        _logger.debug(u"[%s] Moving '%s' to '%s'", self.name, src, dst)
-                        shutil.move(src, dst)
-                        f["path"] = dst
-
-            for a in output_dirs:
-                if os.path.exists(a) and empty_subtree(a):
-                    if kwargs.get("rm_tmpdir", True):
-                        _logger.debug(u"[%s] Removing intermediate output directory %s", self.name, a)
-                        shutil.rmtree(a, True)
 
         _logger.info(u"[%s] outdir is %s", self.name, self.outdir)
 

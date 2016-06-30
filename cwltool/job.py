@@ -8,7 +8,7 @@ import logging
 import sys
 import requests
 from . import docker
-from .process import get_feature, empty_subtree
+from .process import get_feature, empty_subtree, stageFiles
 from .errors import WorkflowException
 import shutil
 import stat
@@ -61,7 +61,7 @@ class CommandLineJob(object):
         self.generatefiles = None  # type: Dict[str,Union[Dict[str,str],str]]
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
-            rm_tmpdir=True, move_outputs=True, **kwargs):
+            rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (bool, bool, bool, bool, bool, **Any) -> Union[Tuple[str,Dict[None,None]],None]
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
@@ -79,8 +79,9 @@ class CommandLineJob(object):
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         for f in self.pathmapper.files():
-            if not os.path.isfile(self.pathmapper.mapper(f)[0]):
-                raise WorkflowException(u"Required input file %s not found or is not a regular file." % self.pathmapper.mapper(f)[0])
+            p = self.pathmapper.mapper(f)
+            if p.type == "File" and not os.path.isfile(p[0]):
+                raise WorkflowException(u"Input file %s (at %s) not found or is not a regular file." % (f, self.pathmapper.mapper(f)[0]))
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
@@ -94,7 +95,8 @@ class CommandLineJob(object):
             runtime = ["docker", "run", "-i"]
             for src in self.pathmapper.files():
                 vol = self.pathmapper.mapper(src)
-                runtime.append(u"--volume=%s:%s:ro" % vol)
+                if vol.type == "File":
+                    runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
@@ -136,6 +138,8 @@ class CommandLineJob(object):
                     if key in vars_to_preserve and key not in env:
                         env[key] = value
 
+            stageFiles(self.pathmapper, os.symlink)
+
         stdin = None  # type: Union[IO[Any],int]
         stderr = None  # type: IO[Any]
         stdout = None  # type: IO[Any]
@@ -151,7 +155,7 @@ class CommandLineJob(object):
                      self.name,
                      self.outdir,
                      " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
-                     u' < %s' % (self.stdin) if self.stdin else '',
+                     u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
 
@@ -161,22 +165,22 @@ class CommandLineJob(object):
         outputs = {}  # type: Dict[str,str]
 
         try:
-            for t in self.generatefiles:
-                entry = self.generatefiles[t]
-                if isinstance(entry, dict):
-                    src = entry["path"]
-                    dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        _logger.debug(u"symlinking %s to %s", dst, src)
-                        os.symlink(src, dst)
-                elif isinstance(entry, (str, unicode)):
-                    with open(os.path.join(self.outdir, t), "w") as fout:
-                        fout.write(entry.encode("utf-8"))
-                else:
-                    raise Exception("Unhandled type %s", type(entry))
+            if self.generatefiles["listing"]:
+                generatemapper = PathMapper([self.generatefiles], self.outdir,
+                                            self.outdir, separateDirs=False)
+                _logger.debug(u"[job %s] initial work dir %s", self.name,
+                              json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
+                def linkoutdir(src, tgt):
+                    # Need to make the link to the staged file (may be inside
+                    # the container)
+                    for _, item in self.pathmapper.items():
+                        if src == item.resolved:
+                            os.symlink(item.target, tgt)
+                            break
+                stageFiles(generatemapper, linkoutdir)
 
             if self.stdin:
-                stdin = open(self.pathmapper.mapper(self.stdin)[0], "rb")
+                stdin = open(self.pathmapper.reversemap(self.stdin)[1], "rb")
             else:
                 stdin = subprocess.PIPE
 
@@ -198,7 +202,7 @@ class CommandLineJob(object):
             else:
                 stdout = sys.stderr
 
-            sp = subprocess.Popen([str(x) for x in runtime + self.command_line],
+            sp = subprocess.Popen([unicode(x).encode('utf-8') for x in runtime + self.command_line],
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,
@@ -232,13 +236,14 @@ class CommandLineJob(object):
             else:
                 processStatus = "permanentFail"
 
-            for t in self.generatefiles:
-                if isinstance(self.generatefiles[t], dict):
-                    src = cast(dict, self.generatefiles[t])["path"]
-                    dst = os.path.join(self.outdir, t)
-                    if os.path.dirname(self.pathmapper.reversemap(src)[1]) != self.outdir:
-                        os.remove(dst)
-                        os.symlink(self.pathmapper.reversemap(src)[1], dst)
+            if self.generatefiles["listing"]:
+                def linkoutdir(src, tgt):
+                    # Need to make the link to the staged file (may be inside
+                    # the container)
+                    if os.path.exists(tgt) and os.path.islink(tgt):
+                        os.remove(tgt)
+                        os.symlink(src, tgt)
+                stageFiles(generatemapper, linkoutdir)
 
             outputs = self.collect_outputs(self.outdir)
 
@@ -266,10 +271,14 @@ class CommandLineJob(object):
 
         self.output_callback(outputs, processStatus)
 
+        if self.stagedir and os.path.exists(self.stagedir):
+            _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
+            shutil.rmtree(self.stagedir, True)
+
         if rm_tmpdir:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
-        if move_outputs and empty_subtree(self.outdir):
+        if move_outputs == "move" and empty_subtree(self.outdir):
             _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)

@@ -37,10 +37,30 @@ def compare(a, b):  # type: (Any, Any) -> bool
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
+            elif a.get("class") == "Directory":
+                if len(a["listing"]) != len(b["listing"]):
+                    return False
+                for i in a["listing"]:
+                    found = False
+                    for j in b["listing"]:
+                        try:
+                            if compare(i, j):
+                                found = True
+                                break
+                        except:
+                            pass
+                    if not found:
+                        raise CompareFail(u"%s not in %s" % (json.dumps(i, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
+
+            a = {k: v for k, v in a.iteritems()
+                 if k not in ("path", "location", "listing")}
+            b = {k: v for k, v in b.iteritems()
+                 if k not in ("path", "location", "listing")}
+
             if len(a) != len(b):
                 raise CompareFail(u"expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
             for c in a:
-                if a.get("class") != "File" or c != "path":
+                if a.get("class") != "File" or c not in ("path", "location", "listing"):
                     if c not in b:
                         raise CompareFail(u"%s not in %s" % (c, b))
                     if not compare(a[c], b[c]):
