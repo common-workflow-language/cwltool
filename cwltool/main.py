@@ -8,13 +8,13 @@ import sys
 import logging
 import copy
 import tempfile
+import ruamel.yaml as yaml
 import urlparse
 import hashlib
 import pkg_resources  # part of setuptools
 import random
 import functools
 
-import yaml
 import rdflib
 from typing import Union, Any, cast, Callable, Dict, Tuple, IO
 

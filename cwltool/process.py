@@ -2,8 +2,6 @@
 import os
 import json
 import copy
-import yaml
-import copy
 import logging
 import pprint
 import stat
