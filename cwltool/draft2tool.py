@@ -26,7 +26,7 @@ from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs, adjustD
 from .pathmapper import PathMapper
 from .job import CommandLineJob
 
-WHITELIST_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
+ACCEPTLIST_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
 
 from .flatten import flatten
 
@@ -244,7 +244,7 @@ class CommandLineTool(Process):
             f["dirname"], f["basename"] = os.path.split(f["path"])
             if f["class"] == "File":
                 f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
-            if not WHITELIST_RE.match(f["basename"]):
+            if not ACCEPTLIST_RE.match(f["basename"]):
                 raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
             return f
 
