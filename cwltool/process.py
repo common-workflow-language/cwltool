@@ -549,6 +549,41 @@ def uniquename(stem):  # type: (unicode) -> unicode
     _names.add(u)
     return u
 
+def nestdir(base, deps):
+    dirname = os.path.dirname(base) + "/"
+    subid = deps["location"]
+    if subid.startswith(dirname):
+        s2 = subid[len(dirname):]
+        sp = s2.split('/')
+        sp.pop()
+        while sp:
+            nx = sp.pop()
+            deps = {
+                "entryname": nx,
+                "entry": {
+                    "class": "Directory",
+                    "listing": [deps]
+                }
+            }
+    return deps
+
+def mergedirs(listing):
+    r = []
+    ents = {}
+    for e in listing:
+        if "entryname" in e:
+            if e["entryname"] not in ents:
+                ents[e["entryname"]] = e
+            elif e["entry"]["class"] == "Directory":
+                ents[e["entryname"]]["entry"]["listing"].extend(e["entry"]["listing"])
+        else:
+            r.append(e)
+    for e in ents.itervalues():
+        if e["entry"]["class"] == "Directory":
+            e["entry"]["listing"] = mergedirs(e["entry"]["listing"])
+    r.extend(ents.itervalues())
+    return r
+
 def scandeps(base, doc, reffields, urlfields, loadref):
     # type: (unicode, Any, Set[str], Set[str], Callable[[unicode, str], Any]) -> List[Dict[str, str]]
     r = []
@@ -574,20 +609,25 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         deps = {
                             "class": "File",
                             "location": subid
-                            }  # type: Dict[str, Any]
+                        }  # type: Dict[str, Any]
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf
+                        deps = nestdir(base, deps)
                         r.append(deps)
             elif k in urlfields:
                 for u in aslist(v):
-                    r.append({
+                    deps = {
                         "class": "File",
                         "location": urlparse.urljoin(base, u)
-                    })
+                    }
+                    deps = nestdir(base, deps)
+                    r.append(deps)
             else:
                 r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref))
+
+    r = mergedirs(r)
     return r

@@ -26,7 +26,7 @@ import schema_salad.makedoc
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
 from .cwlrdf import printrdf, printdot
-from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate
+from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
 from .builder import adjustFileObjs, adjustDirObjs
@@ -423,29 +423,29 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
     return (job_order_object, input_basedir)
 
 
-def printdeps(obj, document_loader, stdout, relative_deps, basedir=None):
+def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     # type: (Dict[unicode, Any], Loader, IO[Any], bool, str) -> None
     deps = {"class": "File",
-            "path": obj.get("id", "#")}
+            "location": uri}
 
     def loadref(b, u):
         return document_loader.resolve_ref(u, base_url=b)[0]
 
-    sf = scandeps(basedir if basedir else obj["id"], obj,
+    sf = scandeps(basedir if basedir else uri, obj,
                           set(("$import", "run")),
-                          set(("$include", "$schemas", "path")), loadref)
+                          set(("$include", "$schemas", "path", "location")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
     if relative_deps:
         if relative_deps == "primary":
-            base = basedir if basedir else os.path.dirname(obj["id"])
+            base = basedir if basedir else os.path.dirname(uri)
         elif relative_deps == "cwd":
             base = "file://" + os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
         def makeRelative(ob):
-            u = ob["location"]
+            u = ob.get("location", ob.get("path"))
             if ":" in u.split("/")[0] and not u.startswith("file://"):
                 pass
             else:
@@ -604,7 +604,7 @@ def main(argsl=None,
             document_loader, workflowobj, uri = fetch_document(args.workflow)
 
             if args.print_deps:
-                printdeps(workflowobj, document_loader, stdout, args.relative_deps)
+                printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
                 return 0
 
             document_loader, avsc_names, processobj, metadata, uri \
