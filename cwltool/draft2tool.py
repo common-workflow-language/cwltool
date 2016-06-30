@@ -6,7 +6,6 @@ from functools import partial
 import os
 from .pathmapper import PathMapper, DockerPathMapper
 from .job import CommandLineJob
-import yaml
 import glob
 import logging
 import hashlib
