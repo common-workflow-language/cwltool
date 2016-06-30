@@ -7,8 +7,8 @@ import subprocess
 import sys
 import shutil
 import tempfile
-import yaml
-import yaml.scanner
+import ruamel.yaml as yaml
+import ruamel.yaml.scanner as yamlscanner
 import pipes
 import logging
 import schema_salad.ref_resolver
@@ -92,7 +92,7 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
             _logger.error(t.get("doc"))
             _logger.error("Returned non-zero")
             return 1
-    except (yaml.scanner.ScannerError, TypeError) as e:
+    except (yamlscanner.ScannerError, TypeError) as e:
         _logger.error(u"""Test failed: %s""", " ".join([pipes.quote(tc) for tc in test_command]))
         _logger.error(outstr)
         _logger.error(u"Parse error %s", str(e))

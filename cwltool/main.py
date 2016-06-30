@@ -19,7 +19,7 @@ import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
 import schema_salad.makedoc
-import yaml
+import ruamel.yaml as yaml
 import urlparse
 import pkg_resources  # part of setuptools
 import rdflib
