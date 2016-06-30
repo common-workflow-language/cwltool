@@ -15,6 +15,7 @@ from . import process
 from .cwlrdf import printrdf, printdot
 from .process import shortname, Process
 from .load_tool import fetch_document, validate_document, make_tool
+from .urllib2_cache import set_cache
 import schema_salad.validate as validate
 import tempfile
 import schema_salad.jsonld_context
@@ -147,6 +148,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
+
+    exgroup.add_argument("--cache-net-dir", type=str, default=None,
+                         help="Cache directory to use for HTTP resources (e.g., schemas).")
 
     return parser
 
@@ -580,12 +584,13 @@ def main(argsl=None,
             return 1
 
         try:
+            if args.cache_net_dir is not None:
+                set_cache(args.cache_net_dir)
             document_loader, workflowobj, uri = fetch_document(args.workflow)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps)
                 return 0
-
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
