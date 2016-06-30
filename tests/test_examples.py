@@ -4,7 +4,7 @@ import cwltool.draft2tool as tool
 import cwltool.expression as expr
 import cwltool.factory
 import cwltool.process
-
+import cwltool.workflow
 
 class TestParamMatching(unittest.TestCase):
 
@@ -149,6 +149,24 @@ class TestScanDeps(unittest.TestCase):
                                        set(("$import", "run")),
                                        set(("$include", "$schemas", "path")),
                                                   loadref), indent=4)
+
+class TestTypeCompare(unittest.TestCase):
+    def test_typecompare(self):
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(
+            {'items': ['string', 'null'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'}))
+
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(
+            {'items': ['string'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'}))
+
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(
+            {'items': ['string', 'null'], 'type': 'array'},
+            {'items': ['string'], 'type': 'array'}))
+
+        self.assertFalse(cwltool.workflow.can_assign_src_to_sink(
+            {'items': ['string'], 'type': 'array'},
+            {'items': ['int'], 'type': 'array'}))
 
 
 if __name__ == '__main__':

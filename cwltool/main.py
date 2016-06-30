@@ -182,6 +182,16 @@ def single_job_executor(t, job_order_object, **kwargs):
     kwargs["outdir"] = tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
 
+    jobReqs = None
+    if "cwl:requirements" in job_order_object:
+        jobReqs = job_order_object["cwl:requirements"]
+    elif ("cwl:defaults" in t.metadata and "cwl:requirements" in
+            t.metadata["cwl:defaults"]):
+        jobReqs = t.metadata["cwl:defaults"]["cwl:requirements"]
+    if jobReqs:
+        for req in jobReqs:
+            t.requirements.append(req)
+
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
@@ -297,7 +307,8 @@ def generate_parser(toolparser, tool, namemap):
                 action = cast(argparse.Action, FileAppendAction)
             else:
                 action = "append"
-
+        elif isinstance(inptype, dict) and inptype["type"] == "enum":
+            atype = str
         if inptype == "string":
             atype = str
         elif inptype == "int":

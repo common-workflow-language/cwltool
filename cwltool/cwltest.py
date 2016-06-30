@@ -25,15 +25,15 @@ class CompareFail(Exception):
 
 
 def compare(a, b):  # type: (Any, Any) -> bool
+    if a == "Any" or b == "Any":
+        return True
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
-                if "path" in a:
-                    comp = "path"
-                else:
-                    comp = "location"
-                if a[comp] and (not (b[comp].endswith("/" + a[comp]) or ("/" not in b[comp] and a[comp] == b[comp]))):
-                    raise CompareFail(u"%s does not end with %s" %(b[comp], a[comp]))
+                if a["path"] == "Any" or b["path"] == "Any":
+                    return True
+                if not (b["path"].endswith("/" + a["path"]) or ("/" not in b["path"] and a["path"] == b["path"])):
+                    raise CompareFail(u"%s does not end with %s" %(b["path"], a["path"]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
                      if not isinstance(v, (list, dict)) or len(v) > 0}
