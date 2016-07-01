@@ -13,7 +13,6 @@ import tempfile
 import errno
 
 import avro.schema
-import yaml
 import schema_salad.validate as validate
 import shellescape
 from typing import Callable, Any, Union, Generator, cast
