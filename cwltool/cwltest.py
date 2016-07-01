@@ -30,13 +30,18 @@ def compare(a, b):  # type: (Any, Any) -> bool
     try:
         if isinstance(a, dict):
             if a.get("class") == "File":
-                if a["path"] == "Any" or b["path"] == "Any":
+                if "path" in a:
+                    comp = "path"
+                else:
+                    comp = "location"
+                if a[comp] == "Any" or b[comp] == "Any":
                     return True
-                if not (b["path"].endswith("/" + a["path"]) or ("/" not in b["path"] and a["path"] == b["path"])):
-                    raise CompareFail(u"%s does not end with %s" %(b["path"], a["path"]))
+                if a[comp] and (not (b[comp].endswith("/" + a[comp])
+                                or ("/" not in b[comp] and a[comp] == b[comp]))):
+                    raise CompareFail(u"%s does not end with %s" %(b[comp], a[comp]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
-                     if not isinstance(v, (list, dict)) or len(v) > 0}
+                        if not isinstance(v, (list, dict)) or len(v) > 0}
             elif a.get("class") == "Directory":
                 if len(a["listing"]) != len(b["listing"]):
                     return False
