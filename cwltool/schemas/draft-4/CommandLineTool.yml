@@ -591,47 +591,62 @@ $graph:
         Docker container.
 
 
-- name: DirentExt
-  type: record
+- type: record
+  name: SoftwareRequirement
+  extends: "#ProcessRequirement"
   doc: |
-    Define a file or subdirectory that must be placed in the designated output
-    directory prior to executing the command line tool.  May be the result of
-    executing an expression, such as building a configuration file from a
-    template.
+    Software that should be configured in the environment of the defined
+    process.
+
+    While absolute portability between platforms can be achieved with container
+    technologies like Docker, this mechanism provides an inexact and imprecise
+    fallback. The inexact nature is due to this standard not specifying the
+    base operating environment of the process or how the that environment is to
+    be configured as a result of these hints. The imprecise nature of these
+    hints is due to the `name` and `version` fields being unstructured and not
+    namespaced. The optional `identifier` field is recommended so that users
+    and platforms can distinguish between software that has the same name.
   fields:
-    - name: entryname
-      type: [string, Expression]
-      jsonldPredicate:
-        _id: cwl:entryname
+    - name: spec
+      type:
+        type: array
+        items: SoftwareSpec
+      doc: "The list of software to be configured."
+
+- name: SoftwareSpec
+  type: record
+  fields:
+    - name: name
+      type: string
+      doc: "The name of the software to be configured."
+      jsonldPredicate: "@id"
+    - name: "version"
+      type: string?
+      doc: "The (optional) version of the software to configured."
+    - name: "identifier"
+      type: string?
       doc: |
-        The name of the file or subdirectory to create in the output directory.
-    - name: entry
-      type: [string, Expression]
-      jsonldPredicate:
-        _id: cwl:entry
-      doc: |
-        If the value is a string literal or an expression which evaluates to a
-        string, a new file must be created with the string as the file contents.
+        The (optional) identifier of the software to be configured. Should be a
+        IRI such as an [RRID](http://www.identifiers.org/rrid/SCR_001156).
+        Example: `http://identifiers.org/rrid/RRID:SCR_001156`
 
-        If the value is an expression that evaluates to a `File` object, this
-        indicates the referenced file should be added to the designated output
-        directory prior to executing the tool.
-
-        If the value is an expression that evaluates to a `Dirent` object, this
-        indicates that the File or Directory in `entry` should be added to the
-        designated output directory with the name in `entryname`.
-
-        If `writable` is false, the file may be made available using a bind
-        mount or file system link to avoid unnecessary copying of the input
-        file.
-    - name: writable
+- name: FileExt
+  type: record
+  extends: File
+  fields:
+    writable:
       type: boolean?
-      doc: |
-        If true, the file or directory must be writable by the tool.  Changes
-        to the file or directory must be isolated and not visible by any other
-        CommandLineTool process.  This may be implemented by making a copy of
-        the original file or directory.  Default false (files and directories
-        read-only by default).
+      doc: If true, the File must be writable.
+      jsonldPredicate: "cwl:writable"
+
+- name: DirectoryExt
+  type: record
+  extends: Directory
+  fields:
+    writable:
+      type: boolean?
+      doc: If true, the Directory must be writable.
+      jsonldPredicate: "cwl:writable"
 
 - name: InitialWorkDirRequirement
   type: record
@@ -644,19 +659,17 @@ $graph:
     - name: listing
       type:
         - type: array
-          items: [File, DirentExt]
+          items: [FileExt, DirectoryExt, string, Expression]
         - string
         - Expression
       jsonldPredicate:
         _id: "cwl:listing"
-        mapSubject: entryname
-        mapPredicate: entry
       doc: |
         The list of files or subdirectories that must be placed in the
         designated output directory prior to executing the command line tool.
 
         May be an expression.  If so, the expression return value must validate
-        as `{type: array, items: [File, Dirent]}`.
+        as `{type: array, items: [File, Directory]}`.
 
 - name: EnvVarRequirement
   type: record
