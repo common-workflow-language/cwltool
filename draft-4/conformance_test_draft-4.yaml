@@ -78,28 +78,24 @@
   doc: Test command execution in Docker with stdout redirection
 
 - job:
-  output: {
-    "output_file": {
-        "checksum": "sha1$cec7b8746a78c42060c96505887449bca0142976",
-        "size": 84,
-        "location": "error.txt",
-        "class": "File"
-    }
-  }
   tool: draft-4/egrep-stderr.cwl
   doc: Test command line with stderr redirection
+  output:
+    output_file:
+      class: File
+      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
+      size: 84
+      location: error.txt
 
 - job:
-  output: {
-    "output_file": {
-        "checksum": "sha1$cec7b8746a78c42060c96505887449bca0142976",
-        "size": 84,
-        "location": "",
-        "class": "File"
-    }
-  }
   tool: draft-4/egrep-stderr-shortcut.cwl
   doc: Test command line with stderr redirection, brief syntax
+  output:
+    output_file:
+      class: File
+      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
+      size: 84
+      location: Any
 
 - output:
     output_file:
@@ -690,6 +686,12 @@
   tool: "draft-4/scatter-valuefrom-wf4.cwl#main"
   doc: Test workflow scatter with two scatter parameters and dotproduct join method and valueFrom on step input
 
+- job: draft-4/scatter-valuefrom-job1.json
+  output:
+    out: ["foo one one", "foo two two", "foo three three", "foo four four"]
+  tool: draft-4/scatter-valuefrom-wf5.cwl
+  doc: Test workflow scatter with single scatter parameter and valueFrom on step input
+
 - job: draft-4/conflict-job.json
   output: {
     "fileout": {
@@ -771,3 +773,15 @@
   }
   tool: draft-4/dir5.cwl
   doc: Test dynamic initial work dir
+
+- job: draft-4/stagefile-job.yml
+  output: {
+    "outfile": {
+        "checksum": "sha1$2d6c5e4430c4b200227cc77d3b0025082505ee19",
+        "size": 1107,
+        "location": "whale.txt",
+        "class": "File"
+    }
+  }
+  tool: draft-4/stagefile.cwl
+  doc: Test writable staged files.
