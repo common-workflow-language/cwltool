@@ -11,8 +11,8 @@ import urlparse
 import pprint
 from collections import Iterable
 import errno
-import random
 import shutil
+import uuid
 
 import abc
 import schema_salad.validate as validate
@@ -80,8 +80,8 @@ salad_files = ('metaschema.yml',
 SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode, Any], Loader]]
 SCHEMA_FILE = None  # type: Dict[unicode, Any]
 SCHEMA_DIR = None  # type: Dict[unicode, Any]
-SCHEMA_DIRENT = None  # type: Dict[unicode, Any]
 SCHEMA_ANY = None  # type: Dict[unicode, Any]
+SCHEMA_EXPR = None  # type: Dict[unicode, Any]
 
 def get_schema(version):
     # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]
@@ -162,11 +162,9 @@ def getListing(fs_access, rec):
                 ent = {"class": "Directory",
                        "location": ld}
                 getListing(fs_access, ent)
-                listing.append({"entryname": os.path.basename(ld),
-                                 "entry": ent})
+                listing.append(ent)
             else:
-                listing.append({"entryname": os.path.basename(ld),
-                                 "entry": {"class": "File", "location": ld}})
+                listing.append({"class": "File", "location": ld})
         rec["listing"] = listing
 
 def stageFiles(pm, stageFunc):
@@ -289,16 +287,33 @@ def avroize_type(field_type, name_prefix=""):
     """
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
-    if type(field_type) == list:
-        field_type_result = []
-        for idx, field_type_item in enumerate(field_type):
-            field_type_result.append(avroize_type(field_type_item, name_prefix+"_"+str(idx)))
-        return field_type_result
-    elif type(field_type) == dict and "type" in field_type and field_type["type"] == "enum":
-        if "name" not in field_type:
-            field_type["name"] = name_prefix+"_type_enum"
+    if isinstance(field_type, list):
+        for f in field_type:
+            avroize_type(f, name_prefix)
+    elif isinstance(field_type, dict):
+        if field_type["type"] in ("enum", "record"):
+            if "name" not in field_type:
+                field_type["name"] = name_prefix+unicode(uuid.uuid4())
+        if field_type["type"] == "record":
+            avroize_type(field_type["fields"], name_prefix)
+        if field_type["type"] == "array":
+            avroize_type(field_type["items"], name_prefix)
     return field_type
 
+def normalizeFilesDirs(job):
+    def addLocation(d):
+        if "location" not in d:
+            if d["class"] == "File" and ("contents" not in d or "basename" not in d):
+                raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
+            if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
+                raise validate.ValidationException("Anonymous directory object must have 'listing' and 'basename' fields.")
+            d["location"] = "_:" + unicode(uuid.uuid4())
+        elif "basename" not in d:
+            parse = urlparse.urlparse(d["location"])
+            d["basename"] = os.path.basename(parse.path)
+
+    adjustFileObjs(job, addLocation)
+    adjustDirObjs(job, addLocation)
 
 class Process(object):
     __metaclass__ = abc.ABCMeta
@@ -308,8 +323,8 @@ class Process(object):
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
 
+        global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY, SCHEMA_EXPR  # pylint: disable=global-statement
         if SCHEMA_FILE is None:
-            global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY  # pylint: disable=global-statement
             get_schema("draft-4")
             SCHEMA_ANY = cast(Dict[unicode, Any],
                     SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/salad#Any"])
@@ -317,10 +332,10 @@ class Process(object):
                     SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#File"])
             SCHEMA_DIR = cast(Dict[unicode, Any],
                               SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Directory"])
-            SCHEMA_DIRENT = cast(Dict[unicode, Any],
-                                 SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Dirent"])
+            SCHEMA_EXPR = cast(Dict[unicode, Any],
+                              SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Expression"])
 
-        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_DIRENT, SCHEMA_ANY],
+        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY, SCHEMA_EXPR],
                                                      schema_salad.ref_resolver.Loader({}))[0]
         if isinstance(names, avro.schema.SchemaParseException):
             raise names
@@ -368,7 +383,7 @@ class Process(object):
                     c["type"] = ["null"] + aslist(c["type"])
                 else:
                     c["type"] = c["type"]
-                c["type"] = avroize_type(c["type"],c["name"])
+                c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
                     self.inputs_record_schema["fields"].append(c)  # type: ignore
                 elif key == "outputs":
@@ -394,6 +409,7 @@ class Process(object):
             unicode]], copy.deepcopy(joborder))
 
         fillInDefaults(self.tool[u"inputs"], builder.job)
+        normalizeFilesDirs(builder.job)
 
         # Validate job order
         try:
@@ -573,11 +589,9 @@ def nestdir(base, deps):
         while sp:
             nx = sp.pop()
             deps = {
-                "entryname": nx,
-                "entry": {
-                    "class": "Directory",
-                    "listing": [deps]
-                }
+                "class": "Directory",
+                "basename": nx,
+                "listing": [deps]
             }
     return deps
 
@@ -585,16 +599,13 @@ def mergedirs(listing):
     r = []
     ents = {}
     for e in listing:
-        if "entryname" in e:
-            if e["entryname"] not in ents:
-                ents[e["entryname"]] = e
-            elif e["entry"]["class"] == "Directory":
-                ents[e["entryname"]]["entry"]["listing"].extend(e["entry"]["listing"])
-        else:
-            r.append(e)
+        if e["basename"] not in ents:
+            ents[e["basename"]] = e
+        elif e["class"] == "Directory":
+            ents[e["basename"]]["listing"].extend(e["listing"])
     for e in ents.itervalues():
-        if e["entry"]["class"] == "Directory":
-            e["entry"]["listing"] = mergedirs(e["entry"]["listing"])
+        if e["class"] == "Directory":
+            e["listing"] = mergedirs(e["listing"])
     r.extend(ents.itervalues())
     return r
 
@@ -643,5 +654,6 @@ def scandeps(base, doc, reffields, urlfields, loadref):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref))
 
+    normalizeFilesDirs(r)
     r = mergedirs(r)
     return r

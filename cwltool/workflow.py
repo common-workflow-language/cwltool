@@ -91,6 +91,8 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
 def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
+    if sink == "Any":
+        return True
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(src["items"], sink["items"])

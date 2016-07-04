@@ -12,7 +12,6 @@ import ruamel.yaml as yaml
 import urlparse
 import hashlib
 import pkg_resources  # part of setuptools
-import random
 import functools
 
 import rdflib
@@ -26,7 +25,7 @@ import schema_salad.makedoc
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
 from .cwlrdf import printrdf, printdot
-from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps
+from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
 from .builder import adjustFileObjs, adjustDirObjs
@@ -418,12 +417,13 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
         return 0
 
     def pathToLoc(p):
-        if "location" not in p:
+        if "location" not in p and "path" in p:
             p["location"] = p["path"]
             del p["path"]
 
     adjustDirObjs(job_order_object, pathToLoc)
     adjustFileObjs(job_order_object, pathToLoc)
+    normalizeFilesDirs(job_order_object)
     adjustDirObjs(job_order_object, functools.partial(getListing, StdFsAccess(input_basedir)))
 
     if "cwl:tool" in job_order_object:
@@ -440,7 +440,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             "location": uri}
 
     def loadref(b, u):
-        return document_loader.resolve_ref(u, base_url=b)[0]
+        return document_loader.fetch(urlparse.urljoin(b, u))
 
     sf = scandeps(basedir if basedir else uri, obj,
                           set(("$import", "run")),

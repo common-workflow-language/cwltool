@@ -1,8 +1,8 @@
 import os
-import random
 import logging
 import stat
 import collections
+import uuid
 from typing import Tuple, Set, Union, Any
 
 _logger = logging.getLogger("cwltool")
@@ -68,38 +68,25 @@ class PathMapper(object):
 
     def visitlisting(self, listing, stagedir, basedir):
         for ld in listing:
-            if "entryname" in ld:
-                tgt = os.path.join(stagedir, ld["entryname"])
-                if isinstance(ld["entry"], (str, unicode)):
-                    self._pathmap[str(id(ld["entry"]))] = MapperEnt(ld["entry"], tgt, "CreateFile")
-                else:
-                    if ld["entry"]["class"] == "Directory":
-                        self.visit(ld["entry"], tgt, basedir, copy=ld.get("writable", False))
-                    else:
-                        self.visit(ld["entry"], stagedir, basedir, entryname=ld["entryname"], copy=ld.get("writable", False))
-                    #ab = ld["entry"]["location"]
-                    #if ab.startswith("file://"):
-                    #    ab = ab[7:]
-                    #self._pathmap[ld["entry"]["location"]] = MapperEnt(ab, tgt, ld["entry"]["class"])
-            elif ld.get("class") == "File":
-                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
-
-    def visit(self, obj, stagedir, basedir, entryname=None, copy=False):
-        if obj["class"] == "Directory":
-            if "location" in obj:
-                self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
+            tgt = os.path.join(stagedir, ld["basename"])
+            if "contents" in ld and ld["location"].startswith("_:"):
+                self._pathmap[ld["location"]] = MapperEnt(ld["contents"], tgt, "CreateFile")
             else:
-                self._pathmap[str(id(obj))] = MapperEnt(str(id(obj)), stagedir, "Directory")
+                if ld["class"] == "Directory":
+                    self.visit(ld, tgt, basedir, copy=ld.get("writable", False))
+                else:
+                    self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
+
+    def visit(self, obj, stagedir, basedir, copy=False):
+        if obj["class"] == "Directory":
+            self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
             self.visitlisting(obj.get("listing", []), stagedir, basedir)
         elif obj["class"] == "File":
             path = obj["location"]
             if path in self._pathmap:
                 return
             ab = abspath(path, basedir)
-            if entryname:
-                tgt = os.path.join(stagedir, entryname)
-            else:
-                tgt = os.path.join(stagedir, os.path.basename(path))
+            tgt = os.path.join(stagedir, obj["basename"])
             if copy:
                 self._pathmap[path] = MapperEnt(ab, tgt, "WritableFile")
             else:
@@ -114,7 +101,7 @@ class PathMapper(object):
         stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:
-                stagedir = os.path.join(self.stagedir, "stg%x" % random.randint(1, 1000000000))
+                stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
             self.visit(fob, stagedir, basedir)
 
         # Dereference symbolic links

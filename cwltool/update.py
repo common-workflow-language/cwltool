@@ -393,8 +393,8 @@ def _draft4Dev2toDev3(doc, loader, baseuri):
             doc["listing"] = []
             for f in doc["fileDef"]:
                 doc["listing"].append({
-                    "entryname": f["filename"],
-                    "entry": f["fileContent"]
+                    "basename": f["filename"],
+                    "contents": f["fileContent"]
                 })
             del doc["fileDef"]
         for key, value in doc.items():

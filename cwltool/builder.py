@@ -187,8 +187,14 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True):
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False):
         # type: (Dict[str,str], Any, bool) -> Any
+        if recursive:
+            if isinstance(ex, dict):
+                return {k: self.do_eval(v, context, pull_image, recursive) for k,v in ex.iteritems()}
+            if isinstance(ex, list):
+                return [self.do_eval(v, context, pull_image, recursive) for v in ex]
+
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
