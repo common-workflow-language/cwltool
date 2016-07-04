@@ -154,6 +154,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Will be passed to `docker run` as the '--net' "
                         "parameter. Implies '--enable-net'.")
 
+    parser.add_argument("--on-error", type=str,
+                        help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
+                        "Default is 'stop.", default="stop")
+
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -591,7 +595,8 @@ def main(argsl=None,
                     'tool_help': False,
                     'workflow': None,
                     'job_order': None,
-                    'pack': False}.iteritems():
+                    'pack': False,
+                    'on_error': 'continue'}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 

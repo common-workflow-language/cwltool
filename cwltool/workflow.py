@@ -326,11 +326,16 @@ class WorkflowJob(object):
             made_progress = False
 
             for step in self.steps:
+                if kwargs["on_error"] == "stop" and self.processStatus != "success":
+                    break
+
                 if not step.submitted:
                     step.iterable = self.try_make_job(step, **kwargs)
 
                 if step.iterable:
                     for newjob in step.iterable:
+                        if kwargs["on_error"] == "stop" and self.processStatus != "success":
+                            break
                         if newjob:
                             made_progress = True
                             yield newjob
