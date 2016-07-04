@@ -289,10 +289,12 @@ class CommandLineTool(Process):
             else:
                 for t in initialWorkdir["listing"]:
                     if "entry" in t:
-                        ls.append({
-                            "entryname": builder.do_eval(t["entryname"]),
-                            "entry": builder.do_eval(t["entry"])
-                         })
+                        et = {"entry": builder.do_eval(t["entry"])}
+                        if "entryname" in t:
+                            et["entryname"] = builder.do_eval(t["entryname"])
+                        else:
+                            et["entryname"] = None
+                        ls.append(et)
                     else:
                         ls.append(t)
             for i,t in enumerate(ls):
@@ -304,7 +306,9 @@ class CommandLineTool(Process):
                             "contents": t["entry"]
                         }
                     else:
-                        t["entry"]["basename"] = t["entryname"]
+                        if t["entryname"]:
+                            t = copy.deepcopy(t)
+                            t["entry"]["basename"] = t["entryname"]
                         ls[i] = t["entry"]
             j.generatefiles["listing"] = ls
 
