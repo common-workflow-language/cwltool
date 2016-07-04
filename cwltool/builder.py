@@ -6,7 +6,7 @@ import schema_salad.validate as validate
 from typing import Any, Union, AnyStr, Callable
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
-from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs
+from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs, normalizeFilesDirs
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -112,7 +112,8 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"location": secondary_eval, "class": "File"}
+                                sfpath = {"location": secondary_eval,
+                                          "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:
@@ -121,6 +122,7 @@ class Builder(object):
                             datum["secondaryFiles"].extend(sfpath)
                         else:
                             datum["secondaryFiles"].append(sfpath)
+                    normalizeFilesDirs(datum["secondaryFiles"])
 
                 def _capture_files(f):
                     self.files.append(f)

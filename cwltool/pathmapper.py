@@ -3,6 +3,7 @@ import logging
 import stat
 import collections
 import uuid
+import urlparse
 from typing import Tuple, Set, Union, Any
 
 _logger = logging.getLogger("cwltool")
@@ -44,6 +45,21 @@ def adjustDirObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
     if isinstance(rec, list):
         for d in rec:
             adjustDirObjs(d, op)
+
+def normalizeFilesDirs(job):
+    def addLocation(d):
+        if "location" not in d:
+            if d["class"] == "File" and ("contents" not in d or "basename" not in d):
+                raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
+            if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
+                raise validate.ValidationException("Anonymous directory object must have 'listing' and 'basename' fields.")
+            d["location"] = "_:" + unicode(uuid.uuid4())
+        elif "basename" not in d:
+            parse = urlparse.urlparse(d["location"])
+            d["basename"] = os.path.basename(parse.path)
+
+    adjustFileObjs(job, addLocation)
+    adjustDirObjs(job, addLocation)
 
 
 def abspath(src, basedir):  # type: (unicode, unicode) -> unicode

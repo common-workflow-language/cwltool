@@ -30,7 +30,7 @@ from .utils import aslist, get_feature
 from .stdfsaccess import StdFsAccess
 from .builder import Builder, adjustFileObjs, adjustDirObjs
 from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import PathMapper, abspath
+from .pathmapper import PathMapper, abspath, normalizeFilesDirs
 
 _logger = logging.getLogger("cwltool")
 
@@ -81,7 +81,6 @@ SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro
 SCHEMA_FILE = None  # type: Dict[unicode, Any]
 SCHEMA_DIR = None  # type: Dict[unicode, Any]
 SCHEMA_ANY = None  # type: Dict[unicode, Any]
-SCHEMA_EXPR = None  # type: Dict[unicode, Any]
 
 def get_schema(version):
     # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]
@@ -300,21 +299,6 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-def normalizeFilesDirs(job):
-    def addLocation(d):
-        if "location" not in d:
-            if d["class"] == "File" and ("contents" not in d or "basename" not in d):
-                raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
-            if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
-                raise validate.ValidationException("Anonymous directory object must have 'listing' and 'basename' fields.")
-            d["location"] = "_:" + unicode(uuid.uuid4())
-        elif "basename" not in d:
-            parse = urlparse.urlparse(d["location"])
-            d["basename"] = os.path.basename(parse.path)
-
-    adjustFileObjs(job, addLocation)
-    adjustDirObjs(job, addLocation)
-
 class Process(object):
     __metaclass__ = abc.ABCMeta
 
@@ -323,7 +307,7 @@ class Process(object):
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
 
-        global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY, SCHEMA_EXPR  # pylint: disable=global-statement
+        global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None:
             get_schema("draft-4")
             SCHEMA_ANY = cast(Dict[unicode, Any],
@@ -332,10 +316,8 @@ class Process(object):
                     SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#File"])
             SCHEMA_DIR = cast(Dict[unicode, Any],
                               SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Directory"])
-            SCHEMA_EXPR = cast(Dict[unicode, Any],
-                              SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Expression"])
 
-        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY, SCHEMA_EXPR],
+        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
                                                      schema_salad.ref_resolver.Loader({}))[0]
         if isinstance(names, avro.schema.SchemaParseException):
             raise names

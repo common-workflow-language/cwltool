@@ -283,7 +283,31 @@ class CommandLineTool(Process):
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
         j.generatefiles = {"class": "Directory", "listing": [], "basename": ""}
         if initialWorkdir:
-            j.generatefiles["listing"] = builder.do_eval(initialWorkdir["listing"], recursive=True)
+            ls = []
+            if isinstance(initialWorkdir["listing"], (str, unicode)):
+                ls = builder.do_eval(initialWorkdir["listing"])
+            else:
+                for t in initialWorkdir["listing"]:
+                    if "entry" in t:
+                        ls.append({
+                            "entryname": builder.do_eval(t["entryname"]),
+                            "entry": builder.do_eval(t["entry"])
+                         })
+                    else:
+                        ls.append(t)
+            for i,t in enumerate(ls):
+                if "entry" in t:
+                    if isinstance(t["entry"], (str, unicode)):
+                        ls[i] = {
+                            "class": "File",
+                            "basename": t["entryname"],
+                            "contents": t["entry"]
+                        }
+                    else:
+                        t["entry"]["basename"] = t["entryname"]
+                        ls[i] = t["entry"]
+            j.generatefiles["listing"] = ls
+
         normalizeFilesDirs(j.generatefiles)
 
         j.environment = {}

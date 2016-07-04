@@ -58,9 +58,9 @@ def compare(a, b):  # type: (Any, Any) -> bool
                         raise CompareFail(u"%s not in %s" % (json.dumps(i, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
 
             a = {k: v for k, v in a.iteritems()
-                 if k not in ("path", "location", "listing")}
+                 if k not in ("path", "location", "listing", "basename")}
             b = {k: v for k, v in b.iteritems()
-                 if k not in ("path", "location", "listing")}
+                 if k not in ("path", "location", "listing", "basename")}
 
             if len(a) != len(b):
                 raise CompareFail(u"expected %s\ngot %s" % (json.dumps(a, indent=4, sort_keys=True), json.dumps(b, indent=4, sort_keys=True)))
