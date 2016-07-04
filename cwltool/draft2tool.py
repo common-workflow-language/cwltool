@@ -274,7 +274,7 @@ class CommandLineTool(Process):
             j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
             tmpdir_prefix = kwargs.get('tmpdir_prefix')
             j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
-            j.stagedir = None
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir

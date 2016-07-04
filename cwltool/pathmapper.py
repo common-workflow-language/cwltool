@@ -5,6 +5,7 @@ import collections
 import uuid
 import urlparse
 from typing import Tuple, Set, Union, Any
+import schema_salad.validate as validate
 
 _logger = logging.getLogger("cwltool")
 
@@ -49,12 +50,15 @@ def adjustDirObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
 def normalizeFilesDirs(job):
     def addLocation(d):
         if "location" not in d:
-            if d["class"] == "File" and ("contents" not in d or "basename" not in d):
+            if d["class"] == "File" and ("contents" not in d):
                 raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
             if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
                 raise validate.ValidationException("Anonymous directory object must have 'listing' and 'basename' fields.")
             d["location"] = "_:" + unicode(uuid.uuid4())
-        elif "basename" not in d:
+            if "basename" not in d:
+                d["basename"] = unicode(uuid.uuid4())
+
+        if "basename" not in d:
             parse = urlparse.urlparse(d["location"])
             d["basename"] = os.path.basename(parse.path)
 
@@ -85,13 +89,10 @@ class PathMapper(object):
     def visitlisting(self, listing, stagedir, basedir):
         for ld in listing:
             tgt = os.path.join(stagedir, ld["basename"])
-            if "contents" in ld and ld["location"].startswith("_:"):
-                self._pathmap[ld["location"]] = MapperEnt(ld["contents"], tgt, "CreateFile")
+            if ld["class"] == "Directory":
+                self.visit(ld, tgt, basedir, copy=ld.get("writable", False))
             else:
-                if ld["class"] == "Directory":
-                    self.visit(ld, tgt, basedir, copy=ld.get("writable", False))
-                else:
-                    self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
+                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
 
     def visit(self, obj, stagedir, basedir, copy=False):
         if obj["class"] == "Directory":
@@ -103,11 +104,14 @@ class PathMapper(object):
                 return
             ab = abspath(path, basedir)
             tgt = os.path.join(stagedir, obj["basename"])
-            if copy:
-                self._pathmap[path] = MapperEnt(ab, tgt, "WritableFile")
+            if "contents" in obj and obj["location"].startswith("_:"):
+                self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile")
             else:
-                self._pathmap[path] = MapperEnt(ab, tgt, "File")
-            self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
+                if copy:
+                    self._pathmap[path] = MapperEnt(ab, tgt, "WritableFile")
+                else:
+                    self._pathmap[path] = MapperEnt(ab, tgt, "File")
+                self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
 
     def setup(self, referenced_files, basedir):
         # type: (Set[Any], unicode) -> None

@@ -97,6 +97,11 @@ class CommandLineJob(object):
                 vol = self.pathmapper.mapper(src)
                 if vol.type == "File":
                     runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
+                if vol.type == "CreateFile":
+                    createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
+                    with open(createtmp, "w") as f:
+                        f.write(vol.resolved.encode("utf-8"))
+                    runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
