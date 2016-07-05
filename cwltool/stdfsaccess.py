@@ -21,11 +21,11 @@ class StdFsAccess(object):
     def exists(self, fn):  # type: (unicode) -> bool
         return os.path.exists(self._abs(fn))
 
-    def isfile(self, fn):
+    def isfile(self, fn):  # type: (unicode) -> bool
         return os.path.isfile(self._abs(fn))
 
-    def isdir(self, fn):
+    def isdir(self, fn):  # type: (unicode) -> bool
         return os.path.isdir(self._abs(fn))
 
-    def listdir(self, fn):
+    def listdir(self, fn):  # type: (unicode) -> List[unicode]
         return [abspath(l, fn) for l in os.listdir(self._abs(fn))]

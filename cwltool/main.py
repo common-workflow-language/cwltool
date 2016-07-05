@@ -416,7 +416,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
         return 1
 
     if print_input_deps:
-        printdeps(job_order_object, loader, stdout, relative_deps,
+        printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=u"file://%s/" % input_basedir)
         return 0
 
@@ -428,7 +428,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
     adjustDirObjs(job_order_object, pathToLoc)
     adjustFileObjs(job_order_object, pathToLoc)
     normalizeFilesDirs(job_order_object)
-    adjustDirObjs(job_order_object, functools.partial(getListing, StdFsAccess(input_basedir)))
+    adjustDirObjs(job_order_object, cast(Callable[..., Any],
+        functools.partial(getListing, StdFsAccess(input_basedir))))
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
@@ -439,9 +440,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Dict[unicode, Any], Loader, IO[Any], bool, str) -> None
+    # type: (Dict[unicode, Any], Loader, IO[Any], bool, unicode, str) -> None
     deps = {"class": "File",
-            "location": uri}
+            "location": uri}  # type: Dict[unicode, Any]
 
     def loadref(b, u):
         return document_loader.fetch(urlparse.urljoin(b, u))

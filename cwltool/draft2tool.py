@@ -113,7 +113,8 @@ class CallbackJob(object):
 
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-def check_adjust(builder, f):  # type: (Dict[str,Any]) -> Dict[str,Any]
+def check_adjust(builder, f):
+    # type: (Builder, Dict[str, Any]) -> Dict[str,Any]
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
@@ -131,7 +132,7 @@ class CommandLineTool(Process):
         return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
-        # type: (Set[Any], unicode, **Any) -> PathMapper
+        # type: (List[Any], unicode, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
             return PathMapper(reffiles, kwargs["basedir"], stagedir)
@@ -268,7 +269,7 @@ class CommandLineTool(Process):
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and kwargs.get("use_container"):
             out_prefix = kwargs.get("tmp_outdir_prefix")
             j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
@@ -283,7 +284,7 @@ class CommandLineTool(Process):
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
         j.generatefiles = {"class": "Directory", "listing": [], "basename": ""}
         if initialWorkdir:
-            ls = []
+            ls = []  # type: List[Dict[str, Any]]
             if isinstance(initialWorkdir["listing"], (str, unicode)):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
@@ -310,7 +311,7 @@ class CommandLineTool(Process):
                             t = copy.deepcopy(t)
                             t["entry"]["basename"] = t["entryname"]
                         ls[i] = t["entry"]
-            j.generatefiles["listing"] = ls
+            j.generatefiles[u"listing"] = ls
 
         normalizeFilesDirs(j.generatefiles)
 

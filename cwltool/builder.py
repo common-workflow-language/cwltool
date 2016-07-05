@@ -31,7 +31,8 @@ class Builder(object):
         self.resources = None  # type: Dict[str, Union[int, str]]
         self.bindings = []  # type: List[Dict[str, Any]]
         self.timeout = None  # type: int
-        self.pathmapper = None # type: PathMapper
+        self.pathmapper = None  # type: PathMapper
+        self.stagedir = None  # type: unicode
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         # type: (Dict[unicode, Any], Any, List[int], List[int]) -> List[Dict[str, Any]]
@@ -190,7 +191,7 @@ class Builder(object):
         return [a for a in args if a is not None]
 
     def do_eval(self, ex, context=None, pull_image=True, recursive=False):
-        # type: (Dict[str,str], Any, bool) -> Any
+        # type: (Union[Dict[str, str], unicode], Any, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
                 return {k: self.do_eval(v, context, pull_image, recursive) for k,v in ex.iteritems()}

@@ -245,6 +245,7 @@ class WorkflowJob(object):
 
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
             def postScatterEval(io):
+                # type: (Dict[unicode, Any]) -> Dict[unicode, Any]
                 shortio = {shortname(k): v for k,v in io.iteritems()}
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
@@ -301,7 +302,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] workflow starting", self.name)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, Any], Callable[[Any, Any], Any], bool, **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[unicode, Any], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
         self.state = {}
         self.processStatus = "success"
 

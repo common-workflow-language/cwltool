@@ -153,6 +153,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 def getListing(fs_access, rec):
+    # type: (StdFsAccess, Dict[str, Any]) -> None
     if "listing" not in rec:
         listing = []
         loc = rec["location"]
@@ -167,6 +168,7 @@ def getListing(fs_access, rec):
         rec["listing"] = listing
 
 def stageFiles(pm, stageFunc):
+    # type: (PathMapper, Callable[..., Any]) -> None
     for f, p in pm.items():
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0755)
@@ -179,6 +181,7 @@ def stageFiles(pm, stageFunc):
                 n.write(p.resolved.encode("utf-8"))
 
 def collectFilesAndDirs(obj, out):
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], List[Dict[unicode, Any]]) -> None
     if isinstance(obj, dict):
         if obj.get("class") in ("File", "Directory"):
             out.append(obj)
@@ -190,6 +193,7 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 def relocateOutputs(outputObj, outdir, output_dirs, action):
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Set[unicode], unicode) -> Union[Dict[unicode, Any], List[Dict[unicode, Any]]]
     if action not in ("move", "copy"):
         return outputObj
 
@@ -203,7 +207,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
                     _logger.debug("Copying %s to %s", src, dst)
                     shutil.copy(src, dst)
 
-    outfiles = []
+    outfiles = []  # type: List[Dict[unicode, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
     stageFiles(pm, moveIt)
@@ -217,7 +221,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
 
     return outputObj
 
-def cleanIntermediate(output_dirs):
+def cleanIntermediate(output_dirs):  # type: (Set[unicode]) -> None
     for a in output_dirs:
         if os.path.exists(a) and empty_subtree(a):
             _logger.debug(u"Removing intermediate output directory %s", a)
@@ -283,6 +287,7 @@ def fillInDefaults(inputs, job):
 
 
 def avroize_type(field_type, name_prefix=""):
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], unicode) -> Any
     """
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
@@ -562,6 +567,7 @@ def uniquename(stem):  # type: (unicode) -> unicode
     return u
 
 def nestdir(base, deps):
+    # type: (unicode, Dict[unicode, Any]) -> Dict[unicode, Any]
     dirname = os.path.dirname(base) + "/"
     subid = deps["location"]
     if subid.startswith(dirname):
@@ -578,8 +584,9 @@ def nestdir(base, deps):
     return deps
 
 def mergedirs(listing):
-    r = []
-    ents = {}
+    # type: (List[Dict[unicode, Any]]) -> List[Dict[unicode, Any]]
+    r = []  # type: List[Dict[unicode, Any]]
+    ents = {}  # type: Dict[unicode, Any]
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
@@ -592,8 +599,8 @@ def mergedirs(listing):
     return r
 
 def scandeps(base, doc, reffields, urlfields, loadref):
-    # type: (unicode, Any, Set[str], Set[str], Callable[[unicode, str], Any]) -> List[Dict[str, str]]
-    r = []
+    # type: (unicode, Any, Set[unicode], Set[unicode], Callable[[unicode, unicode], Any]) -> List[Dict[unicode, unicode]]
+    r = []  # type: List[Dict[unicode, unicode]]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
@@ -616,7 +623,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         deps = {
                             "class": "File",
                             "location": subid
-                        }  # type: Dict[str, Any]
+                        }  # type: Dict[unicode, Any]
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf

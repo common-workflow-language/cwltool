@@ -4,14 +4,15 @@ import stat
 import collections
 import uuid
 import urlparse
-from typing import Tuple, Set, Union, Any
+from functools import partial
+from typing import Any, Callable, Set, Tuple, Union
 import schema_salad.validate as validate
 
 _logger = logging.getLogger("cwltool")
 
-MapperEnt = collections.namedtuple("MapperEnt", ("resolved", "target", "type"))
+MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type"])
 
-def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
+def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
 
     if isinstance(rec, dict):
@@ -23,7 +24,7 @@ def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
         for d in rec:
             adjustFiles(d, op)
 
-def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
+def adjustFileObjs(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each File object in the object `rec`."""
 
     if isinstance(rec, dict):
@@ -35,19 +36,21 @@ def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
         for d in rec:
             adjustFileObjs(d, op)
 
-def adjustDirObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
+def adjustDirObjs(rec, op):
+    # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each Directory object in the object `rec`."""
 
     if isinstance(rec, dict):
         if rec.get("class") == "Directory":
             op(rec)
-        for d in rec:
-            adjustDirObjs(rec[d], op)
+        for key in rec:
+            adjustDirObjs(rec[key], op)
     if isinstance(rec, list):
         for d in rec:
             adjustDirObjs(d, op)
 
 def normalizeFilesDirs(job):
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]]) -> None
     def addLocation(d):
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
@@ -80,13 +83,14 @@ class PathMapper(object):
     (absolute local path, absolute container path)"""
 
     def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
-        # type: (Set[Any], unicode, unicode) -> None
-        self._pathmap = {}  # type: Dict[unicode, Tuple[unicode, unicode]]
+        # type: (List[Any], unicode, unicode, bool) -> None
+        self._pathmap = {}  # type: Dict[unicode, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(referenced_files, basedir)
 
     def visitlisting(self, listing, stagedir, basedir):
+        # type: (List[Dict[unicode, Any]], unicode, unicode) -> None
         for ld in listing:
             tgt = os.path.join(stagedir, ld["basename"])
             if ld["class"] == "Directory":
@@ -95,6 +99,7 @@ class PathMapper(object):
                 self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
 
     def visit(self, obj, stagedir, basedir, copy=False):
+        # type: (Dict[unicode, Any], unicode, unicode, bool) -> None
         if obj["class"] == "Directory":
             self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
             self.visitlisting(obj.get("listing", []), stagedir, basedir)
@@ -114,7 +119,7 @@ class PathMapper(object):
                 self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
 
     def setup(self, referenced_files, basedir):
-        # type: (Set[Any], unicode) -> None
+        # type: (List[Any], unicode) -> None
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
@@ -138,18 +143,18 @@ class PathMapper(object):
 
             self._pathmap[path] = MapperEnt(deref, tgt, "File")
 
-    def mapper(self, src):  # type: (unicode) -> Tuple[unicode, unicode]
+    def mapper(self, src):  # type: (unicode) -> MapperEnt
         if u"#" in src:
             i = src.index(u"#")
             p = self._pathmap[src[:i]]
-            return (p.resolved, p.target + src[i:])
+            return MapperEnt(p.resolved, p.target + src[i:], None)
         else:
             return self._pathmap[src]
 
     def files(self):  # type: () -> List[unicode]
         return self._pathmap.keys()
 
-    def items(self):  # type: () -> List[Tuple[unicode, Tuple[unicode, unicode]]]
+    def items(self):  # type: () -> List[Tuple[unicode, MapperEnt]]
         return self._pathmap.items()
 
     def reversemap(self, target):  # type: (unicode) -> Tuple[unicode, unicode]
