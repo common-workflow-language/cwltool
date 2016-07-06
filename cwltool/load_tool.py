@@ -8,6 +8,7 @@ import re
 import urlparse
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
+from schema_salad.validate import ValidationException
 import schema_salad.schema as schema
 from avro.schema import Names
 from . import update
@@ -37,13 +38,12 @@ def fetch_document(argsworkflow):
         workflowobj = argsworkflow
         uri = "#" + str(id(argsworkflow))
     else:
-        raise validate.ValidationException(
-            "Must be URI or object: '%s'" % argsworkflow)
+        raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
     return document_loader, workflowobj, uri
 
 def _convert_stdstreams_to_files(workflowobj):
-    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]) -> None
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]]) -> None
 
     if isinstance(workflowobj, dict):
         if ('class' in workflowobj
@@ -53,7 +53,7 @@ def _convert_stdstreams_to_files(workflowobj):
                 for streamtype in ['stdout', 'stderr']:
                     if out['type'] == streamtype:
                         if 'outputBinding' in out:
-                            raise validate.ValidateException(
+                            raise ValidationException(
                                     "Not allowed to specify outputBinding when"
                                     " using %s shortcut." % streamtype)
                         if streamtype in workflowobj:
@@ -109,12 +109,11 @@ def validate_document(document_loader, workflowobj, uri,
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if not isinstance(processobj, (dict, list)):
-        raise validate.ValidationException("Workflow must be a dict or list.")
+        raise ValidationException("Workflow must be a dict or list.")
 
     if not metadata:
         if not isinstance(processobj, dict):
-            raise validate.ValidationException(
-                    "Draft-2 workflows must be a dict.")
+            raise ValidationException("Draft-2 workflows must be a dict.")
         metadata = {"$namespaces": processobj.get("$namespaces", {}),
                    "$schemas": processobj.get("$schemas", []),
                    "cwlVersion": processobj["cwlVersion"]}

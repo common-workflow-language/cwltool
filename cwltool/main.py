@@ -12,7 +12,6 @@ import ruamel.yaml as yaml
 import urlparse
 import hashlib
 import pkg_resources  # part of setuptools
-import random
 import functools
 
 import rdflib
@@ -26,7 +25,7 @@ import schema_salad.makedoc
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
 from .cwlrdf import printrdf, printdot
-from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps
+from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
 from .builder import adjustFileObjs, adjustDirObjs
@@ -154,6 +153,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--custom-net", type=str,
                         help="Will be passed to `docker run` as the '--net' "
                         "parameter. Implies '--enable-net'.")
+
+    parser.add_argument("--on-error", type=str,
+                        help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
+                        "Default is 'stop.", default="stop")
 
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
@@ -413,18 +416,20 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
         return 1
 
     if print_input_deps:
-        printdeps(job_order_object, loader, stdout, relative_deps,
+        printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=u"file://%s/" % input_basedir)
         return 0
 
     def pathToLoc(p):
-        if "location" not in p:
+        if "location" not in p and "path" in p:
             p["location"] = p["path"]
             del p["path"]
 
     adjustDirObjs(job_order_object, pathToLoc)
     adjustFileObjs(job_order_object, pathToLoc)
-    adjustDirObjs(job_order_object, functools.partial(getListing, StdFsAccess(input_basedir)))
+    normalizeFilesDirs(job_order_object)
+    adjustDirObjs(job_order_object, cast(Callable[..., Any],
+        functools.partial(getListing, StdFsAccess(input_basedir))))
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
@@ -435,12 +440,12 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Dict[unicode, Any], Loader, IO[Any], bool, str) -> None
+    # type: (Dict[unicode, Any], Loader, IO[Any], bool, unicode, str) -> None
     deps = {"class": "File",
-            "location": uri}
+            "location": uri}  # type: Dict[unicode, Any]
 
     def loadref(b, u):
-        return document_loader.resolve_ref(u, base_url=b)[0]
+        return document_loader.fetch(urlparse.urljoin(b, u))
 
     sf = scandeps(basedir if basedir else uri, obj,
                           set(("$import", "run")),
@@ -591,7 +596,8 @@ def main(argsl=None,
                     'tool_help': False,
                     'workflow': None,
                     'job_order': None,
-                    'pack': False}.iteritems():
+                    'pack': False,
+                    'on_error': 'continue'}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 

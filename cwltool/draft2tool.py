@@ -6,7 +6,6 @@ import os
 import glob
 import logging
 import hashlib
-import random
 import re
 import urlparse
 import tempfile
@@ -17,7 +16,7 @@ import schema_salad.validate as validate
 import shellescape
 from typing import Callable, Any, Union, Generator, cast
 
-from .process import Process, shortname, uniquename, getListing
+from .process import Process, shortname, uniquename, getListing, normalizeFilesDirs
 from .errors import WorkflowException
 from .utils import aslist
 from . import expression
@@ -50,7 +49,9 @@ class ExpressionTool(Process):
 
         def run(self, **kwargs):  # type: (**Any) -> None
             try:
-                self.output_callback(self.builder.do_eval(self.script), "success")
+                ev = self.builder.do_eval(self.script)
+                normalizeFilesDirs(ev)
+                self.output_callback(ev, "success")
             except Exception as e:
                 _logger.warn(u"Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
                 self.output_callback({}, "permanentFail")
@@ -110,6 +111,17 @@ class CallbackJob(object):
                                                            self.cachebuilder, self.outdir),
                                             "success")
 
+# map files to assigned path inside a container. We need to also explicitly
+# walk over input as implicit reassignment doesn't reach everything in builder.bindings
+def check_adjust(builder, f):
+    # type: (Builder, Dict[str, Any]) -> Dict[str,Any]
+    f["path"] = builder.pathmapper.mapper(f["location"])[1]
+    f["dirname"], f["basename"] = os.path.split(f["path"])
+    if f["class"] == "File":
+        f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
+    if not ACCEPTLIST_RE.match(f["basename"]):
+        raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
+    return f
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -120,7 +132,7 @@ class CommandLineTool(Process):
         return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
-        # type: (Set[Any], unicode, **Any) -> PathMapper
+        # type: (List[Any], unicode, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
             return PathMapper(reffiles, kwargs["basedir"], stagedir)
@@ -141,8 +153,13 @@ class CommandLineTool(Process):
             cachebuilder = self._init_job(joborder, **cacheargs)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,
                                                  kwargs["basedir"],
-                                                 cachebuilder.stagedir)
-
+                                                 cachebuilder.stagedir,
+                                                 separateDirs=False)
+            _check_adjust = partial(check_adjust, cachebuilder)
+            adjustFileObjs(cachebuilder.files, _check_adjust)
+            adjustFileObjs(cachebuilder.bindings, _check_adjust)
+            adjustDirObjs(cachebuilder.files, _check_adjust)
+            adjustDirObjs(cachebuilder.bindings, _check_adjust)
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
@@ -151,8 +168,9 @@ class CommandLineTool(Process):
             keydict = {u"cmdline": cmdline}
 
             for _,f in cachebuilder.pathmapper.items():
-                st = os.stat(f[0])
-                keydict[f[0]] = [st.st_size, int(st.st_mtime * 1000)]
+                if f.type == "File":
+                    st = os.stat(f.resolved)
+                    keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
@@ -236,18 +254,9 @@ class CommandLineTool(Process):
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **kwargs)
         builder.requirements = j.requirements
 
-        # map files to assigned path inside a container. We need to also explicitly
-        # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-        def _check_adjust(f):  # type: (Dict[str,Any]) -> Dict[str,Any]
-            f["path"] = builder.pathmapper.mapper(f["location"])[1]
-            f["dirname"], f["basename"] = os.path.split(f["path"])
-            if f["class"] == "File":
-                f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
-            if not ACCEPTLIST_RE.match(f["basename"]):
-                raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
-            return f
-
         _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+
+        _check_adjust = partial(check_adjust, builder)
 
         adjustFileObjs(builder.files, _check_adjust)
         adjustFileObjs(builder.bindings, _check_adjust)
@@ -260,27 +269,51 @@ class CommandLineTool(Process):
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and kwargs.get("use_container"):
             out_prefix = kwargs.get("tmp_outdir_prefix")
             j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
             tmpdir_prefix = kwargs.get('tmpdir_prefix')
             j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
-            j.stagedir = None
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
-        j.generatefiles = {"class": "Directory", "listing": []}
+        j.generatefiles = {"class": "Directory", "listing": [], "basename": ""}
         if initialWorkdir:
+            ls = []  # type: List[Dict[str, Any]]
             if isinstance(initialWorkdir["listing"], (str, unicode)):
-                j.generatefiles["listing"] = builder.do_eval(initialWorkdir["listing"])
+                ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in initialWorkdir["listing"]:
-                    j.generatefiles["listing"].append({"entryname": builder.do_eval(t["entryname"]),
-                                                       "entry": copy.deepcopy(builder.do_eval(t["entry"]))})
+                    if "entry" in t:
+                        et = {"entry": builder.do_eval(t["entry"])}
+                        if "entryname" in t:
+                            et["entryname"] = builder.do_eval(t["entryname"])
+                        else:
+                            et["entryname"] = None
+                        ls.append(et)
+                    else:
+                        ls.append(t)
+            for i,t in enumerate(ls):
+                if "entry" in t:
+                    if isinstance(t["entry"], (str, unicode)):
+                        ls[i] = {
+                            "class": "File",
+                            "basename": t["entryname"],
+                            "contents": t["entry"]
+                        }
+                    else:
+                        if t["entryname"]:
+                            t = copy.deepcopy(t)
+                            t["entry"]["basename"] = t["entryname"]
+                        ls[i] = t["entry"]
+            j.generatefiles[u"listing"] = ls
+
+        normalizeFilesDirs(j.generatefiles)
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
@@ -321,6 +354,8 @@ class CommandLineTool(Process):
                             # https://github.com/python/mypy/issues/797
                             partial(revmap_file, builder, outdir)))
                 adjustFileObjs(ret, remove_path)
+                adjustDirObjs(ret, remove_path)
+                normalizeFilesDirs(ret)
                 validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
                 return ret
 
@@ -334,6 +369,7 @@ class CommandLineTool(Process):
             if ret:
                 adjustFileObjs(ret, remove_path)
                 adjustDirObjs(ret, remove_path)
+                normalizeFilesDirs(ret)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:

@@ -6,7 +6,7 @@ import schema_salad.validate as validate
 from typing import Any, Union, AnyStr, Callable
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
-from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs
+from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs, normalizeFilesDirs
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -31,7 +31,8 @@ class Builder(object):
         self.resources = None  # type: Dict[str, Union[int, str]]
         self.bindings = []  # type: List[Dict[str, Any]]
         self.timeout = None  # type: int
-        self.pathmapper = None # type: PathMapper
+        self.pathmapper = None  # type: PathMapper
+        self.stagedir = None  # type: unicode
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         # type: (Dict[unicode, Any], Any, List[int], List[int]) -> List[Dict[str, Any]]
@@ -112,7 +113,8 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"location": secondary_eval, "class": "File"}
+                                sfpath = {"location": secondary_eval,
+                                          "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:
@@ -121,6 +123,7 @@ class Builder(object):
                             datum["secondaryFiles"].extend(sfpath)
                         else:
                             datum["secondaryFiles"].append(sfpath)
+                    normalizeFilesDirs(datum["secondaryFiles"])
 
                 def _capture_files(f):
                     self.files.append(f)
@@ -187,8 +190,14 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True):
-        # type: (Dict[str,str], Any, bool) -> Any
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False):
+        # type: (Union[Dict[str, str], unicode], Any, bool, bool) -> Any
+        if recursive:
+            if isinstance(ex, dict):
+                return {k: self.do_eval(v, context, pull_image, recursive) for k,v in ex.iteritems()}
+            if isinstance(ex, list):
+                return [self.do_eval(v, context, pull_image, recursive) for v in ex]
+
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,

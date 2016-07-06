@@ -324,7 +324,7 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     # type: (Any, Loader, str) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
-            def fixup(f):
+            def fixup(f):  # type: (str) -> str
                 doc, frg = urlparse.urldefrag(f)
                 frg = '/'.join(frg.rsplit('.', 1))
                 return doc + "#" + frg

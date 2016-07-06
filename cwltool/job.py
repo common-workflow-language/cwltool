@@ -58,11 +58,12 @@ class CommandLineJob(object):
         self.outdir = None  # type: str
         self.tmpdir = None  # type: str
         self.environment = None  # type: Dict[str,str]
-        self.generatefiles = None  # type: Dict[str,Union[Dict[str,str],str]]
+        self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]] 
+        self.stagedir = None  # type: unicode
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, bool, bool, **Any) -> Union[Tuple[str,Dict[None,None]],None]
+        # type: (bool, bool, bool, bool, bool, unicode, **Any) -> Union[Tuple[str,Dict[None,None]],None]
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -78,10 +79,12 @@ class CommandLineJob(object):
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
-        for f in self.pathmapper.files():
-            p = self.pathmapper.mapper(f)
+        for knownfile in self.pathmapper.files():
+            p = self.pathmapper.mapper(knownfile)
             if p.type == "File" and not os.path.isfile(p[0]):
-                raise WorkflowException(u"Input file %s (at %s) not found or is not a regular file." % (f, self.pathmapper.mapper(f)[0]))
+                raise WorkflowException(
+                u"Input file %s (at %s) not found or is not a regular file."
+                % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         img_id = None
         if docker_req and kwargs.get("use_container") is not False:
@@ -97,6 +100,11 @@ class CommandLineJob(object):
                 vol = self.pathmapper.mapper(src)
                 if vol.type == "File":
                     runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
+                if vol.type == "CreateFile":
+                    createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
+                    with open(createtmp, "w") as f:
+                        f.write(vol.resolved.encode("utf-8"))
+                    runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))

@@ -91,6 +91,8 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
 def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     """Check for identical type specifications, ignoring extra keys like inputBinding.
     """
+    if sink == "Any":
+        return True
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(src["items"], sink["items"])
@@ -243,6 +245,7 @@ class WorkflowJob(object):
 
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
             def postScatterEval(io):
+                # type: (Dict[unicode, Any]) -> Dict[unicode, Any]
                 shortio = {shortname(k): v for k,v in io.iteritems()}
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
@@ -299,7 +302,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] workflow starting", self.name)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, Any], Callable[[Any, Any], Any], bool, **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[unicode, Any], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
         self.state = {}
         self.processStatus = "success"
 
@@ -324,11 +327,16 @@ class WorkflowJob(object):
             made_progress = False
 
             for step in self.steps:
+                if kwargs["on_error"] == "stop" and self.processStatus != "success":
+                    break
+
                 if not step.submitted:
                     step.iterable = self.try_make_job(step, **kwargs)
 
                 if step.iterable:
                     for newjob in step.iterable:
+                        if kwargs["on_error"] == "stop" and self.processStatus != "success":
+                            break
                         if newjob:
                             made_progress = True
                             yield newjob
