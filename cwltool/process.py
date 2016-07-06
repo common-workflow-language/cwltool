@@ -89,7 +89,9 @@ def get_schema(version):
         return SCHEMA_CACHE[version]
 
     cache = {}
-    version = version.split("#")[-1].split(".")[0]
+    version = version.split("#")[-1]
+    if 'dev' in version:
+        version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
             res = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
