@@ -1,0 +1,7 @@
+*~
+*.pyc
+*.egg
+*.egg-info
+.idea/*
+common-workflow-language.github.io/
+cwltool/
