@@ -428,7 +428,7 @@ DEVUPDATES = {
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "draft-4.dev3"
+LATEST = "v1.0.dev4"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
