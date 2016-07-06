@@ -1,7 +1,0 @@
-{
-    "infile": {
-        "class": "File",
-        "location": "whale.txt"
-    },
-    "term": "find"
-}
