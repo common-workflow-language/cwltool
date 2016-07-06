@@ -1,46 +1,50 @@
-import abc
-import avro.schema
+
 import os
 import json
-import schema_salad.validate as validate
-import copy
-import yaml
 import copy
 import logging
 import pprint
-from .utils import aslist, get_feature
-import schema_salad.schema
-from schema_salad.ref_resolver import Loader
-import urlparse
-import pprint
-from pkg_resources import resource_stream
 import stat
-from .builder import Builder, adjustFileObjs
 import tempfile
 import glob
-from .errors import WorkflowException
-from .pathmapper import abspath
-from typing import Any, Callable, Generator, Union, IO, AnyStr, Tuple
+import urlparse
+import pprint
 from collections import Iterable
+import errno
+import shutil
+import uuid
+
+import abc
+import schema_salad.validate as validate
+import schema_salad.schema
+from schema_salad.ref_resolver import Loader
+import avro.schema
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO,
+        Tuple, Union)
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
-from .stdfsaccess import StdFsAccess
-import errno
 from rdflib import Graph
+from pkg_resources import resource_stream
+
+from .utils import aslist, get_feature
+from .stdfsaccess import StdFsAccess
+from .builder import Builder, adjustFileObjs, adjustDirObjs
+from .errors import WorkflowException, UnsupportedRequirement
+from .pathmapper import PathMapper, abspath, normalizeFilesDirs
 
 _logger = logging.getLogger("cwltool")
 
 supportedProcessRequirements = ["DockerRequirement",
                                 "SchemaDefRequirement",
                                 "EnvVarRequirement",
-                                "CreateFileRequirement",
                                 "ScatterFeatureRequirement",
                                 "SubworkflowFeatureRequirement",
                                 "MultipleInputFeatureRequirement",
                                 "InlineJavascriptRequirement",
                                 "ShellCommandRequirement",
                                 "StepInputExpressionRequirement",
-                                "ResourceRequirement"]
+                                "ResourceRequirement",
+                                "InitialWorkDirRequirement"]
 
 cwl_files = ("Workflow.yml",
               "CommandLineTool.yml",
@@ -52,6 +56,7 @@ cwl_files = ("Workflow.yml",
               "invocation.md")
 
 salad_files = ('metaschema.yml',
+               'metaschema_base.yml',
               'salad.md',
               'field_name.yml',
               'import_include.md',
@@ -72,9 +77,10 @@ salad_files = ('metaschema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
 
-SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]]
-SCHEMA_FILE = None
-SCHEMA_ANY = None
+SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode, Any], Loader]]
+SCHEMA_FILE = None  # type: Dict[unicode, Any]
+SCHEMA_DIR = None  # type: Dict[unicode, Any]
+SCHEMA_ANY = None  # type: Dict[unicode, Any]
 
 def get_schema(version):
     # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]
@@ -106,23 +112,15 @@ def get_schema(version):
     SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
         "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
-    global SCHEMA_FILE, SCHEMA_ANY  # pylint: disable=global-statement
-    SCHEMA_FILE = SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/cwl#File"]
-    SCHEMA_ANY = SCHEMA_CACHE[version][3].idx["https://w3id.org/cwl/salad#Any"]
-
     return SCHEMA_CACHE[version]
 
 def shortname(inputid):
-    # type: (Union[str, unicode]) -> str
+    # type: (unicode) -> unicode
     d = urlparse.urlparse(inputid)
     if d.fragment:
-        return d.fragment.split("/")[-1].split(".")[-1]
+        return d.fragment.split(u"/")[-1]
     else:
-        return d.path.split("/")[-1]
-
-
-class UnsupportedRequirement(Exception):
-    pass
+        return d.path.split(u"/")[-1]
 
 def checkRequirements(rec, supportedProcessRequirements):
     # type: (Any, Iterable[Any]) -> None
@@ -136,18 +134,6 @@ def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, list):
         for d in rec:
             checkRequirements(d, supportedProcessRequirements)
-
-def adjustFiles(rec, op):  # type: (Any, Callable[..., Any]) -> None
-    """Apply a mapping function to each File path in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            rec["path"] = op(rec["path"])
-        for d in rec:
-            adjustFiles(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFiles(d, op)
 
 def adjustFilesWithSecondary(rec, op, primary=None):
     """Apply a mapping function to each File path in the object `rec`, propagating
@@ -165,6 +151,82 @@ def adjustFilesWithSecondary(rec, op, primary=None):
     if isinstance(rec, list):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
+
+def getListing(fs_access, rec):
+    # type: (StdFsAccess, Dict[str, Any]) -> None
+    if "listing" not in rec:
+        listing = []
+        loc = rec["location"]
+        for ld in fs_access.listdir(loc):
+            if fs_access.isdir(ld):
+                ent = {"class": "Directory",
+                       "location": ld}
+                getListing(fs_access, ent)
+                listing.append(ent)
+            else:
+                listing.append({"class": "File", "location": ld})
+        rec["listing"] = listing
+
+def stageFiles(pm, stageFunc):
+    # type: (PathMapper, Callable[..., Any]) -> None
+    for f, p in pm.items():
+        if not os.path.exists(os.path.dirname(p.target)):
+            os.makedirs(os.path.dirname(p.target), 0755)
+        if p.type == "File":
+            stageFunc(p.resolved, p.target)
+        elif p.type == "WritableFile":
+            shutil.copy(p.resolved, p.target)
+        elif p.type == "CreateFile":
+            with open(p.target, "w") as n:
+                n.write(p.resolved.encode("utf-8"))
+
+def collectFilesAndDirs(obj, out):
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], List[Dict[unicode, Any]]) -> None
+    if isinstance(obj, dict):
+        if obj.get("class") in ("File", "Directory"):
+            out.append(obj)
+        else:
+            for v in obj.values():
+                collectFilesAndDirs(v, out)
+    if isinstance(obj, list):
+        for l in obj:
+            collectFilesAndDirs(l, out)
+
+def relocateOutputs(outputObj, outdir, output_dirs, action):
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Set[unicode], unicode) -> Union[Dict[unicode, Any], List[Dict[unicode, Any]]]
+    if action not in ("move", "copy"):
+        return outputObj
+
+    def moveIt(src, dst):
+        for a in output_dirs:
+            if src.startswith(a):
+                if action == "move":
+                    _logger.debug("Moving %s to %s", src, dst)
+                    shutil.move(src, dst)
+                elif action == "copy":
+                    _logger.debug("Copying %s to %s", src, dst)
+                    shutil.copy(src, dst)
+
+    outfiles = []  # type: List[Dict[unicode, Any]]
+    collectFilesAndDirs(outputObj, outfiles)
+    pm = PathMapper(outfiles, "", outdir, separateDirs=False)
+    stageFiles(pm, moveIt)
+
+    def _check_adjust(f):
+        f["location"] = "file://" + pm.mapper(f["location"])[1]
+        return f
+
+    adjustFileObjs(outputObj, _check_adjust)
+    adjustDirObjs(outputObj, _check_adjust)
+
+    return outputObj
+
+def cleanIntermediate(output_dirs):  # type: (Set[unicode]) -> None
+    for a in output_dirs:
+        if os.path.exists(a) and empty_subtree(a):
+            _logger.debug(u"Removing intermediate output directory %s", a)
+            shutil.rmtree(a, True)
+
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     # type: (str, str, Graph, Set[str]) -> bool
@@ -202,7 +264,7 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
 
 def checkFormat(actualFile, inputFormats, ontology):
-    # type: (Union[Dict[str, Any], List[Dict[str, Any]]], Any, Graph) -> None
+    # type: (Union[Dict[unicode, Any], List, unicode], Union[List[unicode], unicode], Graph) -> None
     for af in aslist(actualFile):
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
@@ -212,26 +274,56 @@ def checkFormat(actualFile, inputFormats, ontology):
         raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 def fillInDefaults(inputs, job):
-    # type: (List[Dict[str, str]], Dict[str, str]) -> None
+    # type: (List[Dict[unicode, unicode]], Dict[unicode, Union[Dict[unicode, Any], List, unicode]]) -> None
     for inp in inputs:
-        if shortname(inp["id"]) in job:
+        if shortname(inp[u"id"]) in job:
             pass
-        elif shortname(inp["id"]) not in job and "default" in inp:
-            job[shortname(inp["id"])] = copy.copy(inp["default"])
-        elif shortname(inp["id"]) not in job and inp["type"][0] == "null":
+        elif shortname(inp[u"id"]) not in job and u"default" in inp:
+            job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
+        elif shortname(inp[u"id"]) not in job and inp[u"type"][0] == u"null":
             pass
         else:
             raise validate.ValidationException("Missing input parameter `%s`" % shortname(inp["id"]))
+
+
+def avroize_type(field_type, name_prefix=""):
+    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], unicode) -> Any
+    """
+    adds missing information to a type so that CWL types are valid in schema_salad.
+    """
+    if isinstance(field_type, list):
+        for f in field_type:
+            avroize_type(f, name_prefix)
+    elif isinstance(field_type, dict):
+        if field_type["type"] in ("enum", "record"):
+            if "name" not in field_type:
+                field_type["name"] = name_prefix+unicode(uuid.uuid4())
+        if field_type["type"] == "record":
+            avroize_type(field_type["fields"], name_prefix)
+        if field_type["type"] == "array":
+            avroize_type(field_type["items"], name_prefix)
+    return field_type
 
 class Process(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[str, Any], **Any) -> None
+        # type: (Dict[unicode, Any], **Any) -> None
         self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
         self.names = None  # type: avro.schema.Names
-        names = schema_salad.schema.make_avro_schema(
-            [SCHEMA_FILE, SCHEMA_ANY], schema_salad.ref_resolver.Loader({}))[0]
+
+        global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
+        if SCHEMA_FILE is None:
+            get_schema("draft-4")
+            SCHEMA_ANY = cast(Dict[unicode, Any],
+                    SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/salad#Any"])
+            SCHEMA_FILE = cast(Dict[unicode, Any],
+                    SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#File"])
+            SCHEMA_DIR = cast(Dict[unicode, Any],
+                              SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Directory"])
+
+        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
+                                                     schema_salad.ref_resolver.Loader({}))[0]
         if isinstance(names, avro.schema.SchemaParseException):
             raise names
         else:
@@ -252,7 +344,7 @@ class Process(object):
 
         if sd:
             sdtypes = sd["types"]
-            av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
+            av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i
             avro.schema.make_avsc_object(av, self.names)
@@ -278,7 +370,7 @@ class Process(object):
                     c["type"] = ["null"] + aslist(c["type"])
                 else:
                     c["type"] = c["type"]
-
+                c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
                     self.inputs_record_schema["fields"].append(c)  # type: ignore
                 elif key == "outputs":
@@ -298,11 +390,13 @@ class Process(object):
 
 
     def _init_job(self, joborder, **kwargs):
-        # type: (Dict[str, str], str, **Any) -> Builder
+        # type: (Dict[unicode, unicode], **Any) -> Builder
         builder = Builder()
-        builder.job = copy.deepcopy(joborder)
+        builder.job = cast(Dict[unicode, Union[Dict[unicode, Any], List,
+            unicode]], copy.deepcopy(joborder))
 
-        fillInDefaults(self.tool["inputs"], builder.job)
+        fillInDefaults(self.tool[u"inputs"], builder.job)
+        normalizeFilesDirs(builder.job)
 
         # Validate job order
         try:
@@ -318,13 +412,19 @@ class Process(object):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+
+        if dockerReq and is_req and not kwargs.get("use_container"):
+            raise WorkflowException("Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
+
         if dockerReq and kwargs.get("use_container"):
             builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
             builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
+            builder.stagedir = kwargs.get("docker_stagedir") or "/var/lib/cwl"
         else:
             builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
             builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
+            builder.stagedir = kwargs.get("stagedir") or tempfile.mkdtemp()
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(kwargs["basedir"])
 
@@ -354,6 +454,12 @@ class Process(object):
                     a["do_eval"] = a["valueFrom"]
                     a["valueFrom"] = None
                     builder.bindings.append(a)
+                elif ("$(" in a) or ("${" in a):
+                    builder.bindings.append({
+                        "position": [0, i],
+                        "do_eval": a,
+                        "valueFrom": None
+                    })
                 else:
                     builder.bindings.append({
                         "position": [0, i],
@@ -427,7 +533,7 @@ class Process(object):
 
     @abc.abstractmethod
     def job(self, job_order, output_callbacks, **kwargs):
-        # type: (Dict[str, str], str, Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
+        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
         return None
 
 def empty_subtree(dirpath):  # type: (AnyStr) -> bool
@@ -460,9 +566,41 @@ def uniquename(stem):  # type: (unicode) -> unicode
     _names.add(u)
     return u
 
+def nestdir(base, deps):
+    # type: (unicode, Dict[unicode, Any]) -> Dict[unicode, Any]
+    dirname = os.path.dirname(base) + "/"
+    subid = deps["location"]
+    if subid.startswith(dirname):
+        s2 = subid[len(dirname):]
+        sp = s2.split('/')
+        sp.pop()
+        while sp:
+            nx = sp.pop()
+            deps = {
+                "class": "Directory",
+                "basename": nx,
+                "listing": [deps]
+            }
+    return deps
+
+def mergedirs(listing):
+    # type: (List[Dict[unicode, Any]]) -> List[Dict[unicode, Any]]
+    r = []  # type: List[Dict[unicode, Any]]
+    ents = {}  # type: Dict[unicode, Any]
+    for e in listing:
+        if e["basename"] not in ents:
+            ents[e["basename"]] = e
+        elif e["class"] == "Directory":
+            ents[e["basename"]]["listing"].extend(e["listing"])
+    for e in ents.itervalues():
+        if e["class"] == "Directory":
+            e["listing"] = mergedirs(e["listing"])
+    r.extend(ents.itervalues())
+    return r
+
 def scandeps(base, doc, reffields, urlfields, loadref):
-    # type: (str, Any, Set[str], Set[str], Callable[[str, str], Any]) -> List[Dict[str, str]]
-    r = []
+    # type: (unicode, Any, Set[unicode], Set[unicode], Callable[[unicode, unicode], Any]) -> List[Dict[unicode, unicode]]
+    r = []  # type: List[Dict[unicode, unicode]]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
@@ -470,7 +608,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 if base != df:
                     r.append({
                         "class": "File",
-                        "path": df
+                        "location": df
                     })
                     base = df
 
@@ -484,21 +622,27 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         subid = urlparse.urljoin(base, u)
                         deps = {
                             "class": "File",
-                            "path": subid
-                            }  # type: Dict[str, Any]
+                            "location": subid
+                        }  # type: Dict[unicode, Any]
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf
+                        deps = nestdir(base, deps)
                         r.append(deps)
             elif k in urlfields:
                 for u in aslist(v):
-                    r.append({
+                    deps = {
                         "class": "File",
-                        "path": urlparse.urljoin(base, u)
-                    })
+                        "location": urlparse.urljoin(base, u)
+                    }
+                    deps = nestdir(base, deps)
+                    r.append(deps)
             else:
                 r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref))
+
+    normalizeFilesDirs(r)
+    r = mergedirs(r)
     return r

@@ -8,7 +8,7 @@ class ToolArgparse(unittest.TestCase):
 
     script='''
 #!/usr/bin/env cwl-runner
-cwlVersion: "draft-3"
+cwlVersion: "draft-4.dev3"
 class: CommandLineTool
 description: "This tool is developed for SMC-RNA Challenge for detecting gene fusions (STAR fusion)"
 inputs:
@@ -28,7 +28,7 @@ baseCommand: [cat]
 
     script2='''
 #!/usr/bin/env cwl-runner
-cwlVersion: 'cwl:draft-3'
+cwlVersion: 'cwl:draft-4.dev3'
 class: CommandLineTool
 inputs:
   - id: bdg

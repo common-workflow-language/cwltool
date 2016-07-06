@@ -1,6 +1,6 @@
 #!/usr/bin/env cwl-runner
 {
-    "cwlVersion": "cwl:draft-4.dev1",
+    "cwlVersion": "cwl:draft-4.dev3",
 
     "class": "CommandLineTool",
 
@@ -18,7 +18,18 @@
                 "type": "array",
                 "items": "#Stage"
             }
+        },
+        {
+        id: "#args.py",
+        type: File,
+        default: {
+          class: File,
+          location: args.py
+        },
+        inputBinding: {
+          position: -1
         }
+      }
     ],
     "outputs": [
         {
@@ -26,7 +37,7 @@
             "outputBinding": {
                 "glob": "output.sam"
             },
-            "type": "File"
+            "type": ["null", "File"]
         }
     ],
     "requirements": [
@@ -235,7 +246,6 @@
             ]
         }
     ]}],
-    "baseCommand": ["tmap", "mapall"],
-    "stdin": "$(inputs.reads.path)",
-    "stdout": "output.sam"
+    "baseCommand": "python",
+    "arguments": ["tmap", "mapall"]
 }

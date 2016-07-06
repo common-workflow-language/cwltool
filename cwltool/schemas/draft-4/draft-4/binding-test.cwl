@@ -1,20 +1,29 @@
 #!/usr/bin/env cwl-runner
 
 class: CommandLineTool
-cwlVersion: cwl:draft-4.dev1
+cwlVersion: cwl:draft-4.dev3
 
 inputs:
-  reference:
+  - id: reference
     type: File
     inputBinding: { position: 2 }
 
-  reads:
+  - id: reads
     type:
       type: array
       items: File
       inputBinding: { prefix: "-YYY" }
     inputBinding: { position: 3, prefix: "-XXX" }
 
+  - id: "#args.py"
+    type: File
+    default:
+      class: File
+      location: args.py
+    inputBinding:
+      position: -1
+
 outputs: []
 
-baseCommand: [bwa, mem]
+baseCommand: python
+arguments: ["bwa", "mem"]

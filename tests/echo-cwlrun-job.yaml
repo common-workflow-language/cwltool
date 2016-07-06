@@ -1,0 +1,6 @@
+cwl:tool: echo.cwl
+cwl:requirements:
+ - class: DockerRequirement
+   dockerPull: debian
+
+inp: "Hoopla!"

@@ -2,11 +2,13 @@
 """Loads a CWL document."""
 
 import os
+import uuid
 import logging
 import re
 import urlparse
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
+from schema_salad.validate import ValidationException
 import schema_salad.schema as schema
 from avro.schema import Names
 from . import update
@@ -36,15 +38,38 @@ def fetch_document(argsworkflow):
         workflowobj = argsworkflow
         uri = "#" + str(id(argsworkflow))
     else:
-        raise validate.ValidationException(
-            "Must be URI or object: '%s'" % argsworkflow)
+        raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
     return document_loader, workflowobj, uri
 
+def _convert_stdstreams_to_files(workflowobj):
+    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]]) -> None
+
+    if isinstance(workflowobj, dict):
+        if ('class' in workflowobj
+                and workflowobj['class'] == 'CommandLineTool'
+                and 'outputs' in workflowobj):
+            for out in workflowobj['outputs']:
+                for streamtype in ['stdout', 'stderr']:
+                    if out['type'] == streamtype:
+                        if 'outputBinding' in out:
+                            raise ValidationException(
+                                    "Not allowed to specify outputBinding when"
+                                    " using %s shortcut." % streamtype)
+                        if streamtype in workflowobj:
+                            filename = workflowobj[streamtype]
+                        else:
+                            filename = unicode(uuid.uuid4())
+                            workflowobj[streamtype] = filename
+                        out['type'] = 'File'
+                        out['outputBinding'] = {'glob': filename}
+    else:
+        for entry in workflowobj:
+            _convert_stdstreams_to_files(entry)
 
 def validate_document(document_loader, workflowobj, uri,
                       enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Any, Dict[str, str], unicode]
+    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], Dict[unicode, Any], unicode]
     """Validate a CWL document."""
     jobobj = None
     if "cwl:tool" in workflowobj:
@@ -83,16 +108,21 @@ def validate_document(document_loader, workflowobj, uri,
 
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
+    if not isinstance(processobj, (dict, list)):
+        raise ValidationException("Workflow must be a dict or list.")
 
     if not metadata:
+        if not isinstance(processobj, dict):
+            raise ValidationException("Draft-2 workflows must be a dict.")
         metadata = {"$namespaces": processobj.get("$namespaces", {}),
                    "$schemas": processobj.get("$schemas", []),
                    "cwlVersion": processobj["cwlVersion"]}
 
+    _convert_stdstreams_to_files(workflowobj)
+
     if preprocess_only:
         return document_loader, avsc_names, processobj, metadata, uri
 
-    document_loader.validate_links(processobj)
     schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if metadata.get("cwlVersion") != update.LATEST:
@@ -100,14 +130,13 @@ def validate_document(document_loader, workflowobj, uri,
             processobj, document_loader, fileuri, enable_dev, metadata)
 
     if jobobj:
-        metadata["cwl:defaults"] = jobobj
+        metadata[u"cwl:defaults"] = jobobj
 
     return document_loader, avsc_names, processobj, metadata, uri
 
 
-def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool,
-              kwargs):
-    # type: (Loader, Names, Dict[str, Any], Dict[str, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
+def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
+    # type: (Loader, Names, Dict[unicode, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
 
@@ -121,7 +150,7 @@ def make_tool(document_loader, avsc_names, processobj, metadata, uri, makeTool,
                     urlparse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
     else:
-        processobj = cast(Dict[str, Any], resolveduri)
+        processobj = resolveduri
 
     kwargs = kwargs.copy()
     kwargs.update({
@@ -149,5 +178,5 @@ def load_tool(argsworkflow, makeTool, kwargs=None,
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,
         strict=strict)
-    return make_tool(document_loader, avsc_names, processobj, metadata, uri,
+    return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})

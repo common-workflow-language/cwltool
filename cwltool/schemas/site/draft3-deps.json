@@ -1,0 +1,77 @@
+[
+        {
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "location": "../draft-3/concepts.md"
+                },
+                {
+                    "entry": {
+                        "class": "Directory",
+                        "listing": [
+                            {
+                                "entry": {
+                                    "class": "Directory",
+                                    "listing": [
+                                        {
+                                            "entry": {
+                                                "class": "Directory",
+                                                "listing": [
+                                                    {$import: draft3-metaschema.json}
+                                                ]
+                                            },
+                                            "entryname": "metaschema"
+                                        }
+                                    ]
+                                },
+                                "entryname": "schema_salad"
+                            }
+                        ]
+                    },
+                    "entryname": "salad"
+                }
+            ],
+            "class": "File",
+            "location": "../draft-3/Process.yml"
+        },
+        {
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "location": "../draft-3/contrib.md"
+                },
+                {
+                    "class": "File",
+                    "location": "../draft-3/intro.md"
+                },
+                {
+                    "class": "File",
+                    "location": "../draft-3/concepts.md"
+                },
+                {
+                    "class": "File",
+                    "location": "../draft-3/invocation.md"
+                }
+            ],
+            "class": "File",
+            "location": "../draft-3/CommandLineTool.yml"
+        },
+        {
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "location": "../draft-3/contrib.md"
+                },
+                {
+                    "class": "File",
+                    "location": "../draft-3/intro.md"
+                },
+                {
+                    "class": "File",
+                    "location": "../draft-3/concepts.md"
+                }
+            ],
+            "class": "File",
+            "location": "../draft-3/Workflow.yml"
+        }
+    ]

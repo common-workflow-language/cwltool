@@ -5,7 +5,6 @@ from .utils import aslist, get_feature
 import logging
 import os
 from .errors import WorkflowException
-import yaml
 import schema_salad.validate as validate
 import schema_salad.ref_resolver
 from . import sandboxjs
@@ -19,7 +18,7 @@ def jshead(engineConfig, rootvars):
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
-    # type: (Dict[str,Any], Dict[str,str], List[Dict[str, Any]], str, str, Any, bool) -> sandboxjs.JSON
+    # type: (Dict[str, Any], Dict[unicode, Union[Dict, List, unicode]], List[Dict[str, Any]], str, str, Any, bool) -> sandboxjs.JSON
 
     if ex["engine"] == "https://w3id.org/cwl/cwl#JavascriptEngine":
         engineConfig = []  # type: List[unicode]
@@ -126,7 +125,7 @@ def param_interpolate(ex, obj, strip=True):
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None):
-    # type: (Any, Dict[str,str], List[Dict[str,Any]], str, str, Dict[str, Union[int, str]], Any, bool, int) -> Any
+    # type: (Union[dict, unicode], Dict[unicode, Union[Dict, List, unicode]], List[Dict[str, Any]], str, str, Dict[str, Union[int, str]], Any, bool, int) -> Any
 
     runtime = resources.copy()
     runtime["tmpdir"] = tmpdir
@@ -140,7 +139,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
 
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
-    if isinstance(ex, basestring):
+    if isinstance(ex, (str, unicode)):
         for r in requirements:
             if r["class"] == "InlineJavascriptRequirement":
                 return sandboxjs.interpolate(str(ex), jshead(r.get("expressionLib", []), rootvars),

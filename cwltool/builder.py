@@ -6,7 +6,7 @@ import schema_salad.validate as validate
 from typing import Any, Union, AnyStr, Callable
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
-from .pathmapper import PathMapper
+from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs, normalizeFilesDirs
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -17,33 +17,22 @@ def substitute(value, replace):  # type: (str, str) -> str
     else:
         return value + replace
 
-def adjustFileObjs(rec, op):  # type: (Any, Callable[[Any], Any]) -> None
-    """Apply an update function to each File object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            op(rec)
-        for d in rec:
-            adjustFileObjs(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFileObjs(d, op)
-
 class Builder(object):
 
     def __init__(self):  # type: () -> None
         self.names = None  # type: avro.schema.Names
         self.schemaDefs = None  # type: Dict[str,Dict[unicode, Any]]
-        self.files = None  # type: List[Dict[str, str]]
+        self.files = None  # type: List[Dict[unicode, unicode]]
         self.fs_access = None  # type: StdFsAccess
-        self.job = None  # type: Dict[str, Any]
+        self.job = None  # type: Dict[unicode, Union[Dict[unicode, Any], List, unicode]]
         self.requirements = None  # type: List[Dict[str,Any]]
         self.outdir = None  # type: str
         self.tmpdir = None  # type: str
         self.resources = None  # type: Dict[str, Union[int, str]]
         self.bindings = []  # type: List[Dict[str, Any]]
         self.timeout = None  # type: int
-        self.pathmapper = None # type: PathMapper
+        self.pathmapper = None  # type: PathMapper
+        self.stagedir = None  # type: unicode
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         # type: (Dict[unicode, Any], Any, List[int], List[int]) -> List[Dict[str, Any]]
@@ -57,7 +46,7 @@ class Builder(object):
             else:
                 binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
 
-            if "valueFrom" in binding:
+            if "valueFrom" in binding and "do_eval" not in binding:
                 binding["do_eval"] = binding["valueFrom"]
             binding["valueFrom"] = datum
 
@@ -119,7 +108,7 @@ class Builder(object):
             if schema["type"] == "File":
                 self.files.append(datum)
                 if binding and binding.get("loadContents"):
-                    with self.fs_access.open(datum["path"], "rb") as f:
+                    with self.fs_access.open(datum["location"], "rb") as f:
                         datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:
@@ -129,21 +118,27 @@ class Builder(object):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
                             if isinstance(secondary_eval, basestring):
-                                sfpath = {"path": secondary_eval, "class": "File"}
+                                sfpath = {"location": secondary_eval,
+                                          "class": "File"}
                             else:
                                 sfpath = secondary_eval
                         else:
-                            sfpath = {"path": substitute(datum["path"], sf), "class": "File"}
+                            sfpath = {"location": substitute(datum["location"], sf), "class": "File"}
                         if isinstance(sfpath, list):
                             datum["secondaryFiles"].extend(sfpath)
                         else:
                             datum["secondaryFiles"].append(sfpath)
+                    normalizeFilesDirs(datum["secondaryFiles"])
 
                 def _capture_files(f):
                     self.files.append(f)
                     return f
 
                 adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
+
+            if schema["type"] == "Directory":
+                self.files.append(datum)
+
 
         # Position to front of the sort key
         if binding:
@@ -200,8 +195,14 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True):
-        # type: (Dict[str,str], Any, bool) -> Any
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False):
+        # type: (Union[Dict[str, str], unicode], Any, bool, bool) -> Any
+        if recursive:
+            if isinstance(ex, dict):
+                return {k: self.do_eval(v, context, pull_image, recursive) for k,v in ex.iteritems()}
+            if isinstance(ex, list):
+                return [self.do_eval(v, context, pull_image, recursive) for v in ex]
+
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,

@@ -37,11 +37,11 @@ setup(name='cwltool',
                                 'schemas/draft-4/salad/schema_salad/metaschema/*.md']},
       install_requires=[
           'requests',
-          'PyYAML',
+          'ruamel.yaml',
           'rdflib >= 4.1.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          'schema-salad==1.11.20160524152859',
+          'schema-salad==1.13.20160630144631',
           'typing'
         ],
       test_suite='tests',

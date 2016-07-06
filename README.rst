@@ -23,7 +23,7 @@ Install
 
 Installing the official package from PyPi (will install "cwltool" package as well)::
 
-  pip install cwl-runner
+  pip install cwlref-runner
 
 Or from source::
 
