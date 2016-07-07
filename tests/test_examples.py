@@ -169,10 +169,31 @@ class TestTypeCompare(unittest.TestCase):
             {'items': ['int'], 'type': 'array'}))
 
     def test_recordcompare(self):
-        src = {'fields': [{'type': {'items': 'string', 'type': 'array'}, 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'}, {'type': {'items': 'File', 'type': 'array'}, 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'}], 'type': 'record', 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'}
-        sink = {'fields': [{'type': {'items': 'string', 'type': 'array'}, 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/description'}, {'type': {'items': 'File', 'type': 'array'}, 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/vrn_file'}], 'type': 'record', 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec'}
-        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(src, sink))
+        src = {
+            'fields': [{
+                'type': { 'items': 'string', 'type': 'array' },
+                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
+            },
+            {
+                'type': { 'items': 'File', 'type': 'array' },
+                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
+            }],
+               'type': 'record',
+               'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'
+        }
+        sink = {
+            'fields': [{
+                'type': {'items': 'string', 'type': 'array'},
+                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/description'
+            },
+            {
+                'type': {'items': 'File', 'type': 'array'},
+                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/vrn_file'
+            }],
+            'type': 'record',
+            'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec'}
 
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(src, sink))
 
 
 if __name__ == '__main__':
