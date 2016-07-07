@@ -96,6 +96,8 @@ def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(src["items"], sink["items"])
+        elif src["type"] == "record" and sink["type"] == "record":
+            return _compare_records(src, sink)
     elif isinstance(src, list):
         for t in src:
             if can_assign_src_to_sink(t, sink):
@@ -107,6 +109,28 @@ def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     else:
         return src == sink
     return False
+
+def _compare_records(rec1, rec2):
+    """Compare two records, ensuring they have compatible fields.
+
+    This handles normalizing record names, which will be relative to workflow
+    step, so that they can be compared.
+    """
+    def _rec_fields(rec):
+        out = {}
+        for field in rec["fields"]:
+            name = field["name"].replace(rec["name"], "")
+            out[name] = field["type"]
+        return out
+    fields1 = _rec_fields(rec1)
+    fields2 = _rec_fields(rec2)
+    for key in set(fields1.keys() + fields2.keys()):
+        if fields1.get(key) != fields2.get(key):
+            _logger.info("Record comparison failure for %s and %s\n"
+                         "Did not match fields for %s: %s and %s" %
+                         (rec1["name"], rec2["name"], key, fields1.get(key), fields2.get(key)))
+            return False
+    return True
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
     # type: (Dict[unicode, WorkflowStateItem], List[Dict[unicode, Any]], bool, bool, unicode) -> Dict[unicode, Any]
