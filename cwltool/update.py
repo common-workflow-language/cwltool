@@ -426,9 +426,15 @@ def draft4Dev3to1_0dev4(doc, loader, baseuri):
     """Public updater for draft-4.dev3 to v1.0.dev4."""
     return (_draft4Dev3to1_0dev4(doc, loader, baseuri), "v1.0.dev4")
 
+def v1_0dev4to1_0(doc, loader, baseuri):
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for v1.0.dev4 to v1.0."""
+    return (doc, "v1.0")
+
 UPDATES = {
     "draft-2": draft2toDraft3dev1,
-    "draft-3": draft3toDraft4dev1
+    "draft-3": draft3toDraft4dev1,
+    "v1.0": None
 } # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 DEVUPDATES = {
@@ -440,13 +446,14 @@ DEVUPDATES = {
     "draft-4.dev1": draft4Dev1toDev2,
     "draft-4.dev2": draft4Dev2toDev3,
     "draft-4.dev3": draft4Dev3to1_0dev4,
-    "v1.0.dev4": None
+    "v1.0.dev4": v1_0dev4to1_0,
+    "v1.0": None
 } # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "v1.0.dev4"
+LATEST = "v1.0"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
