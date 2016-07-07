@@ -8,9 +8,9 @@ class ToolArgparse(unittest.TestCase):
 
     script='''
 #!/usr/bin/env cwl-runner
-cwlVersion: "draft-4.dev3"
+cwlVersion: v1.0
 class: CommandLineTool
-description: "This tool is developed for SMC-RNA Challenge for detecting gene fusions (STAR fusion)"
+doc: "This tool is developed for SMC-RNA Challenge for detecting gene fusions (STAR fusion)"
 inputs:
   #Give it a list of input files
   - id: input
@@ -28,7 +28,7 @@ baseCommand: [cat]
 
     script2='''
 #!/usr/bin/env cwl-runner
-cwlVersion: 'cwl:draft-4.dev3'
+cwlVersion: v1.0
 class: CommandLineTool
 inputs:
   - id: bdg

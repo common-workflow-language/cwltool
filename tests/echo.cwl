@@ -1,4 +1,4 @@
-cwlVersion: cwl:draft-4.dev3
+cwlVersion: v1.0
 class: CommandLineTool
 inputs:
   - id: inp
