@@ -89,7 +89,9 @@ def get_schema(version):
         return SCHEMA_CACHE[version]
 
     cache = {}
-    version = version.split("#")[-1].split(".")[0]
+    version = version.split("#")[-1]
+    if 'dev' in version:
+        version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
             res = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
@@ -314,13 +316,13 @@ class Process(object):
 
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None:
-            get_schema("draft-4")
+            get_schema("v1.0")
             SCHEMA_ANY = cast(Dict[unicode, Any],
-                    SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/salad#Any"])
+                    SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/salad#Any"])
             SCHEMA_FILE = cast(Dict[unicode, Any],
-                    SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#File"])
+                    SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#File"])
             SCHEMA_DIR = cast(Dict[unicode, Any],
-                              SCHEMA_CACHE["draft-4"][3].idx["https://w3id.org/cwl/cwl#Directory"])
+                              SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"])
 
         names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
                                                      schema_salad.ref_resolver.Loader({}))[0]
