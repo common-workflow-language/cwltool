@@ -9,10 +9,10 @@ $graph:
   type: documentation
   doc:
     - |
-      # Common Workflow Language (CWL) Command Line Tool Description, draft 4
+      # Common Workflow Language (CWL) Command Line Tool Description, v1.0
 
       This version:
-        * https://w3id.org/cwl/draft-4/
+        * https://w3id.org/cwl/v1.0/
 
       Current version:
         * https://w3id.org/cwl/
@@ -36,9 +36,9 @@ $graph:
     - {$include: intro.md}
 
     - |
-      ## Introduction to draft 4
+      ## Introduction to v1.0
 
-      This specification represents the fourth milestone of the CWL group.
+      This specification represents the first full release from the CWL group.
       Since draft-3, this draft introduces the following changes and additions:
 
         * The [Directory](#Directory) type.
@@ -225,7 +225,7 @@ $graph:
       doc: |
         Evaluate an expression to generate the output value.  If `glob` was
         specified, the value of `self` must be an array containing file objects
-        that were matched.  If no files were matched, `self' must be a zero
+        that were matched.  If no files were matched, `self` must be a zero
         length array; if a single file was matched, the value of `self` is an
         array of a single element.  Additionally, if `loadContents` is `true`,
         the File objects must include up to the first 64 KiB of file contents
@@ -647,17 +647,8 @@ $graph:
   name: SoftwareRequirement
   extends: "#ProcessRequirement"
   doc: |
-    Software that should be configured in the environment of the defined
-    process.
-
-    While absolute portability between platforms can be achieved with container
-    technologies like Docker, this mechanism provides an inexact and imprecise
-    fallback. The inexact nature is due to this standard not specifying the
-    base operating environment of the process or how the that environment is to
-    be configured as a result of these hints. The imprecise nature of these
-    hints is due to the `name` and `version` fields being unstructured and not
-    namespaced. The optional `identifier` field is recommended so that users
-    and platforms can distinguish between software that has the same name.
+    A list of software packages that should be configured in the environment of
+    the defined process.
   fields:
     - name: "class"
       type: "string"
@@ -665,28 +656,41 @@ $graph:
       jsonldPredicate:
         "_id": "@type"
         "_type": "@vocab"
-    - name: spec
+    - name: packages
       type:
         type: array
-        items: SoftwareSpec
+        items: SoftwarePackage
       doc: "The list of software to be configured."
+      jsonldPredicate:
+        mapSubject: name
+        mapPredicate: specs
 
-- name: SoftwareSpec
+- name: SoftwarePackage
   type: record
   fields:
     - name: name
       type: string
-      doc: "The name of the software to be configured."
+      doc: "The common name of the software to be configured."
       jsonldPredicate: "@id"
     - name: "version"
-      type: string?
+      type: string[]?
       doc: "The (optional) version of the software to configured."
-    - name: "identifier"
-      type: string?
+    - name: specs
+      type: string[]?
       doc: |
-        The (optional) identifier of the software to be configured. Should be a
-        IRI such as an [RRID](http://www.identifiers.org/rrid/SCR_001156).
-        Example: `http://identifiers.org/rrid/RRID:SCR_001156`
+        Must be one or more IRIs identifying resources for installing or
+        enabling the software.  Implementations may provide resolvers which map
+        well-known software spec IRIs to some configuration action.
+
+        For example, an IRI `https://packages.debian.org/jessie/bowtie` could
+        be resolved with `apt-get install bowtie`.  An IRI
+        `https://anaconda.org/bioconda/bowtie` could be resolved with `conda
+        install -c bioconda bowtie`.
+
+        Tools may also provide IRIs to index entries such as
+        [RRID](http://www.identifiers.org/rrid/), such as
+        `http://identifiers.org/rrid/RRID:SCR_005476`
+
 
 - name: Dirent
   type: record
