@@ -6,7 +6,7 @@ $namespaces:
 
 $graph:
 
-- name: "Common Workflow Language, Draft 4"
+- name: "Common Workflow Language, v1.0"
   type: documentation
   doc: {$include: concepts.md}
 
@@ -21,7 +21,7 @@ $graph:
     - "#Process"
 
 - type: enum
-  name: CWLVersions
+  name: CWLVersion
   doc: "Version symbols for published CWL document versions."
   symbols:
     - cwl:draft-2
@@ -35,6 +35,7 @@ $graph:
     - cwl:draft-4.dev2
     - cwl:draft-4.dev3
     - cwl:v1.0.dev4
+    - cwl:v1.0
 
 - name: CWLType
   type: enum
@@ -99,7 +100,7 @@ $graph:
         As a special case, if the `path` field is provided but the `location`
         field is not, an implementation may assign the value of the `path`
         field to `location`, and remove the `path` field.
-        
+
         If the `path` contains [POSIX shell metacharacters](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02)
         (`|`,`&`, `;`, `<`, `>`, `(`,`)`, `$`,`` ` ``, `\`, `"`, `'`,
         `<space>`, `<tab>`, and `<newline>`) or characters
@@ -129,7 +130,7 @@ $graph:
       type: string?
       doc: |
         The name of the directory containing file, that is, the path leading up
-        to the final slash in the path such that `dirname + '/' + basename =
+        to the final slash in the path such that `dirname + '/' + basename ==
         path`.
 
         The implementation must set this field based on the value of `path`
@@ -141,8 +142,9 @@ $graph:
       doc: |
         The basename root such that `nameroot + nameext == basename`, and
         `nameext` is empty or begins with a period and contains at most one
-        period.  Leading periods on the basename are ignored; a basename of
-        `.cshrc` will have a nameroot of `.cshrc`.
+        period.  For the purposess of path splitting leading periods on the
+        basename are ignored; a basename of `.cshrc` will have a nameroot of
+        `.cshrc`.
 
         The implementation must set this field automatically based on the value
         of `basename` prior to evaluating parameter references or expressions.
@@ -157,12 +159,12 @@ $graph:
         The implementation must set this field automatically based on the value
         of `basename` prior to evaluating parameter references or expressions.
     - name: checksum
-      type: ["null", string]
+      type: string?
       doc: |
         Optional hash code for validating file integrity.  Currently must be in the form
         "sha1$ + hexadecimal string" using the SHA-1 algorithm.
     - name: size
-      type: ["null", long]
+      type: long?
       doc: Optional file size.
     - name: "secondaryFiles"
       type:
@@ -178,7 +180,7 @@ $graph:
         `secondaryFiles` may itself include `secondaryFiles` for which the same
         rules apply.
     - name: format
-      type: ["null", string]
+      type: string?
       jsonldPredicate:
         _id: cwl:format
         _type: "@id"
@@ -241,7 +243,7 @@ $graph:
         unsupported protocol, access denied, or other issue) it must signal an
         error.
 
-        If the `location' field is not provided, the `listing` field must be
+        If the `location` field is not provided, the `listing` field must be
         provided.  The implementation must assign a unique identifier for
         the `location` field.
 
@@ -259,7 +261,7 @@ $graph:
         must not be used in any other context.  The command line tool being
         executed must be able to to access the directory at `path` using the POSIX
         `opendir(2)` syscall.
-        
+
         If the `path` contains [POSIX shell metacharacters](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02)
         (`|`,`&`, `;`, `<`, `>`, `(`,`)`, `$`,`` ` ``, `\`, `"`, `'`,
         `<space>`, `<tab>`, and `<newline>`) or characters
@@ -304,36 +306,30 @@ $graph:
 - name: SchemaBase
   type: record
   abstract: true
-
-
-- name: Parameter
-  type: record
-  extends: "#SchemaBase"
-  abstract: true
-  doc: |
-    Define an input or output parameter to a process.
-
   fields:
     - name: label
       type:
         - "null"
         - string
       jsonldPredicate: "rdfs:label"
-      doc: "A short, human-readable label of this parameter object."
+      doc: "A short, human-readable label of this object."
 
-    - name: description
-      type:
-        - "null"
-        - string
-      jsonldPredicate: "rdfs:comment"
-      doc: "A long, human-readable description of this parameter object."
+
+- name: Parameter
+  type: record
+  extends: SchemaBase
+  abstract: true
+  doc: |
+    Define an input or output parameter to a process.
+
+  fields:
     - name: secondaryFiles
       type:
         - "null"
-        - "string"
-        - "#Expression"
-        - type: "array"
-          items: ["string", "#Expression"]
+        - string
+        - Expression
+        - type: array
+          items: [string, Expression]
       jsonldPredicate: "cwl:secondaryFiles"
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
@@ -358,7 +354,7 @@ $graph:
         - string
         - type: array
           items: string
-        - "#Expression"
+        - Expression
       jsonldPredicate:
         _id: cwl:format
         _type: "@id"
@@ -375,7 +371,7 @@ $graph:
         the output parameter.
 
     - name: streamable
-      type: ["null", "boolean"]
+      type: boolean?
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
@@ -383,6 +379,13 @@ $graph:
         sequentially without seeking.  An implementation may use this flag to
         indicate whether it is valid to stream file contents using a named
         pipe.  Default: `false`.
+
+    - name: doc
+      type:
+        - string?
+        - string[]?
+      doc: "A documentation string for this type, or an array of strings which should be concatenated."
+      jsonldPredicate: "rdfs:comment"
 
 
 - type: enum
@@ -418,13 +421,13 @@ $graph:
 
 
 - name: InputSchema
-  extends: "#SchemaBase"
+  extends: SchemaBase
   type: record
   abstract: true
 
 
 - name: OutputSchema
-  extends: "#SchemaBase"
+  extends: SchemaBase
   type: record
   abstract: true
 
@@ -434,51 +437,55 @@ $graph:
   extends: "sld:RecordField"
   specialize:
     - specializeFrom: "sld:RecordSchema"
-      specializeTo: "#InputRecordSchema"
+      specializeTo: InputRecordSchema
     - specializeFrom: "sld:EnumSchema"
-      specializeTo: "#InputEnumSchema"
+      specializeTo: InputEnumSchema
     - specializeFrom: "sld:ArraySchema"
-      specializeTo: "#InputArraySchema"
+      specializeTo: InputArraySchema
     - specializeFrom: "sld:PrimitiveType"
-      specializeTo: "#CWLType"
+      specializeTo: CWLType
   fields:
     - name: inputBinding
-      type: [ "null", "#InputBinding" ]
+      type: InputBinding?
       jsonldPredicate: "cwl:inputBinding"
+    - name: label
+      type: string?
+      jsonldPredicate: "rdfs:label"
+      doc: "A short, human-readable label of this process object."
 
 
 - name: InputRecordSchema
   type: record
-  extends: ["sld:RecordSchema", "#InputSchema"]
+  extends: ["sld:RecordSchema", InputSchema]
   specialize:
     - specializeFrom: "sld:RecordField"
-      specializeTo: "#InputRecordField"
+      specializeTo: InputRecordField
 
 
 - name: InputEnumSchema
   type: record
-  extends: ["sld:EnumSchema", "#InputSchema"]
+  extends: ["sld:EnumSchema", InputSchema]
   fields:
     - name: inputBinding
-      type: [ "null", "#InputBinding" ]
+      type: InputBinding?
       jsonldPredicate: "cwl:inputBinding"
 
 
 - name: InputArraySchema
   type: record
-  extends: ["sld:ArraySchema", "#InputSchema"]
+  extends: ["sld:ArraySchema", InputSchema]
   specialize:
     - specializeFrom: "sld:RecordSchema"
-      specializeTo: "#InputRecordSchema"
+      specializeTo: InputRecordSchema
     - specializeFrom: "sld:EnumSchema"
-      specializeTo: "#InputEnumSchema"
+      specializeTo: InputEnumSchema
     - specializeFrom: "sld:ArraySchema"
-      specializeTo: "#InputArraySchema"
+      specializeTo: InputArraySchema
     - specializeFrom: "sld:PrimitiveType"
-      specializeTo: "#CWLType"
+      specializeTo: CWLType
   fields:
     - name: inputBinding
-      type: [ "null", "#InputBinding" ]
+      type: InputBinding?
       jsonldPredicate: "cwl:inputBinding"
 
 
@@ -487,16 +494,16 @@ $graph:
   extends: "sld:RecordField"
   specialize:
     - specializeFrom: "sld:RecordSchema"
-      specializeTo: "#OutputRecordSchema"
+      specializeTo: OutputRecordSchema
     - specializeFrom: "sld:EnumSchema"
-      specializeTo: "#OutputEnumSchema"
+      specializeTo: OutputEnumSchema
     - specializeFrom: "sld:ArraySchema"
-      specializeTo: "#OutputArraySchema"
+      specializeTo: OutputArraySchema
     - specializeFrom: "sld:PrimitiveType"
-      specializeTo: "#CWLType"
+      specializeTo: CWLType
   fields:
     - name: outputBinding
-      type: [ "null", "#OutputBinding" ]
+      type: OutputBinding?
       jsonldPredicate: "cwl:outputBinding"
 
 
@@ -506,55 +513,55 @@ $graph:
   docParent: "#OutputParameter"
   specialize:
     - specializeFrom: "sld:RecordField"
-      specializeTo: "#OutputRecordField"
+      specializeTo: OutputRecordField
 
 
 - name: OutputEnumSchema
   type: record
-  extends: ["sld:EnumSchema", "#OutputSchema"]
+  extends: ["sld:EnumSchema", OutputSchema]
   docParent: "#OutputParameter"
   fields:
     - name: outputBinding
-      type: [ "null", "#OutputBinding" ]
+      type: OutputBinding?
       jsonldPredicate: "cwl:outputBinding"
 
 - name: OutputArraySchema
   type: record
-  extends: ["sld:ArraySchema", "#OutputSchema"]
+  extends: ["sld:ArraySchema", OutputSchema]
   docParent: "#OutputParameter"
   specialize:
     - specializeFrom: "sld:RecordSchema"
-      specializeTo: "#OutputRecordSchema"
+      specializeTo: OutputRecordSchema
     - specializeFrom: "sld:EnumSchema"
-      specializeTo: "#OutputEnumSchema"
+      specializeTo: OutputEnumSchema
     - specializeFrom: "sld:ArraySchema"
-      specializeTo: "#OutputArraySchema"
+      specializeTo: OutputArraySchema
     - specializeFrom: "sld:PrimitiveType"
-      specializeTo: "#CWLType"
+      specializeTo: CWLType
   fields:
     - name: outputBinding
-      type: [ "null", "#OutputBinding" ]
+      type: OutputBinding?
       jsonldPredicate: "cwl:outputBinding"
 
 
 - name: InputParameter
   type: record
-  extends: "#Parameter"
+  extends: Parameter
   fields:
     - name: id
       type: string
       jsonldPredicate: "@id"
       doc: "The unique identifier for this parameter object."
 
-    - name: "inputBinding"
-      type: [ "null", "#InputBinding" ]
+    - name: inputBinding
+      type: InputBinding?
       jsonldPredicate: "cwl:inputBinding"
       doc: |
         Describes how to handle the inputs of a process and convert them
         into a concrete form for execution, such as command line parameters.
 
     - name: default
-      type: ["null", "Any"]
+      type: Any?
       jsonldPredicate: "cwl:default"
       doc: |
         The default value for this parameter if not provided in the input
@@ -563,17 +570,17 @@ $graph:
     - name: type
       type:
         - "null"
-        - "#CWLType"
-        - "#InputRecordSchema"
-        - "#InputEnumSchema"
-        - "#InputArraySchema"
+        - CWLType
+        - InputRecordSchema
+        - InputEnumSchema
+        - InputArraySchema
         - string
         - type: array
           items:
-            - "#CWLType"
-            - "#InputRecordSchema"
-            - "#InputEnumSchema"
-            - "#InputArraySchema"
+            - CWLType
+            - InputRecordSchema
+            - InputEnumSchema
+            - InputArraySchema
             - string
       jsonldPredicate:
         "_id": "sld:type"
@@ -585,14 +592,14 @@ $graph:
 
 - name: OutputParameter
   type: record
-  extends: "#Parameter"
+  extends: Parameter
   fields:
     - name: id
       type: string
       jsonldPredicate: "@id"
       doc: "The unique identifier for this parameter object."
-    - name: "outputBinding"
-      type: [ "null", "#OutputBinding" ]
+    - name: outputBinding
+      type: OutputBinding?
       jsonldPredicate: "cwl:outputBinding"
       doc: |
         Describes how to handle the outputs of a process.
@@ -621,13 +628,13 @@ $graph:
 
   fields:
     - name: id
-      type: ["null", string]
+      type: string?
       jsonldPredicate: "@id"
       doc: "The unique identifier for this process object."
     - name: inputs
       type:
         type: array
-        items: "#InputParameter"
+        items: InputParameter
       jsonldPredicate:
         _id: "cwl:inputs"
         mapSubject: id
@@ -641,7 +648,7 @@ $graph:
     - name: outputs
       type:
         type: array
-        items: "#OutputParameter"
+        items: OutputParameter
       jsonldPredicate:
         _id: "cwl:outputs"
         mapSubject: id
@@ -650,10 +657,7 @@ $graph:
         Defines the parameters representing the output of the process.  May be
         used to generate and/or validate the output object.
     - name: requirements
-      type:
-        - "null"
-        - type: array
-          items: "#ProcessRequirement"
+      type: ProcessRequirement[]?
       jsonldPredicate:
         _id: "cwl:requirements"
         mapSubject: class
@@ -665,10 +669,7 @@ $graph:
         error and the implementation must not attempt to run the process,
         unless overridden at user option.
     - name: hints
-      type:
-        - "null"
-        - type: array
-          items: Any
+      type: Any[]?
       doc: |
         Declares hints applying to either the runtime environment or the
         workflow engine that may be helpful in executing this process.  It is
@@ -679,19 +680,15 @@ $graph:
         noLinkCheck: true
         mapSubject: class
     - name: label
-      type:
-        - "null"
-        - string
+      type: string?
       jsonldPredicate: "rdfs:label"
       doc: "A short, human-readable label of this process object."
-    - name: description
-      type:
-        - "null"
-        - string
+    - name: doc
+      type: string?
       jsonldPredicate: "rdfs:comment"
       doc: "A long, human-readable description of this process object."
     - name: cwlVersion
-      type: CWLVersions?
+      type: CWLVersion?
       doc: |
         CWL document version. Always required at the document root. Not
         required for a Process embedded inside another Process.
@@ -701,23 +698,20 @@ $graph:
 
 - name: InlineJavascriptRequirement
   type: record
-  extends: "#ProcessRequirement"
+  extends: ProcessRequirement
   doc: |
     Indicates that the workflow platform must support inline Javascript expressions.
     If this requirement is not present, the workflow platform must not perform expression
     interpolatation.
   fields:
-    - name: "class"
-      type: "string"
+    - name: class
+      type: string
       doc: "Always 'InlineJavascriptRequirement'"
       jsonldPredicate:
         "_id": "@type"
         "_type": "@vocab"
     - name: expressionLib
-      type:
-        - "null"
-        - type: array
-          items: string
+      type: string[]?
       doc: |
         Additional code fragments that will also be inserted
         before executing the expression code.  Allows for function definitions that may
@@ -726,7 +720,7 @@ $graph:
 
 - name: SchemaDefRequirement
   type: record
-  extends: "#ProcessRequirement"
+  extends: ProcessRequirement
   doc: |
     This field consists of an array of type definitions which must be used when
     interpreting the `inputs` and `outputs` fields.  When a `type` field
@@ -736,8 +730,8 @@ $graph:
     processed in the order listed such that later schema definitions may refer
     to earlier schema definitions.
   fields:
-    - name: "class"
-      type: "string"
+    - name: class
+      type: string
       doc: "Always 'SchemaDefRequirement'"
       jsonldPredicate:
         "_id": "@type"
@@ -745,5 +739,5 @@ $graph:
     - name: types
       type:
         type: array
-        items: "#InputSchema"
+        items: InputSchema
       doc: The list of type definitions.

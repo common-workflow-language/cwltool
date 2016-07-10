@@ -297,7 +297,7 @@ class CommandLineTool(Process):
                             et["entryname"] = None
                         ls.append(et)
                     else:
-                        ls.append(t)
+                        ls.append(builder.do_eval(t))
             for i,t in enumerate(ls):
                 if "entry" in t:
                     if isinstance(t["entry"], (str, unicode)):
