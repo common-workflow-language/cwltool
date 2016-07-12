@@ -92,7 +92,7 @@ def revmap_file(builder, outdir, f):
         f["location"] = revmap_f[1]
         return f
     elif f["path"].startswith(builder.outdir):
-        f["location"] = os.path.join(outdir, f["path"][len(builder.outdir)+1:])
+        f["location"] = builder.fs_access.join(outdir, f["path"][len(builder.outdir)+1:])
         return f
     else:
         raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
@@ -344,7 +344,7 @@ class CommandLineTool(Process):
         # type: (Set[Dict[str,Any]], Builder, str) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
         try:
             ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
-            custom_output = os.path.join(outdir, "cwl.output.json")
+            custom_output = builder.fs_access.join(outdir, "cwl.output.json")
             if builder.fs_access.exists(custom_output):
                 with builder.fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
@@ -400,7 +400,7 @@ class CommandLineTool(Process):
                     try:
                         r.extend([{"location": g,
                                    "class": "File" if builder.fs_access.isfile(g) else "Directory"}
-                                  for g in builder.fs_access.glob(os.path.join(outdir, gb))])
+                                  for g in builder.fs_access.glob(builder.fs_access.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
