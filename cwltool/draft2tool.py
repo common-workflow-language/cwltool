@@ -24,7 +24,7 @@ from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs, adjustD
 from .pathmapper import PathMapper
 from .job import CommandLineJob
 
-ACCEPTLIST_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
+ACCEPTLIST_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 
 from .flatten import flatten
 
