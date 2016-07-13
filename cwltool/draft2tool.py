@@ -240,17 +240,6 @@ class CommandLineTool(Process):
 
 
         builder.pathmapper = None
-
-        if self.tool.get("stderr"):
-            j.stderr = builder.do_eval(self.tool["stderr"])
-            if os.path.isabs(j.stderr) or ".." in j.stderr:
-                raise validate.ValidationException("stderr must be a relative path")
-
-        if self.tool.get("stdout"):
-            j.stdout = builder.do_eval(self.tool["stdout"])
-            if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                raise validate.ValidationException("stdout must be a relative path")
-
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **kwargs)
         builder.requirements = j.requirements
 
@@ -266,6 +255,16 @@ class CommandLineTool(Process):
         if self.tool.get("stdin"):
             j.stdin = builder.do_eval(self.tool["stdin"])
             reffiles.append({"class": "File", "path": j.stdin})
+
+        if self.tool.get("stderr"):
+            j.stderr = builder.do_eval(self.tool["stderr"])
+            if os.path.isabs(j.stderr) or ".." in j.stderr:
+                raise validate.ValidationException("stderr must be a relative path")
+
+        if self.tool.get("stdout"):
+            j.stdout = builder.do_eval(self.tool["stdout"])
+            if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
+                raise validate.ValidationException("stdout must be a relative path")
 
         _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
