@@ -295,6 +295,7 @@ class CommandLineTool(Process):
                             et["entryname"] = builder.do_eval(t["entryname"])
                         else:
                             et["entryname"] = None
+                        et["writable"] = t.get("writable", False)
                         ls.append(et)
                     else:
                         ls.append(builder.do_eval(t))
@@ -304,12 +305,14 @@ class CommandLineTool(Process):
                         ls[i] = {
                             "class": "File",
                             "basename": t["entryname"],
-                            "contents": t["entry"]
+                            "contents": t["entry"],
+                            "writable": t.get("writable")
                         }
                     else:
                         if t["entryname"]:
                             t = copy.deepcopy(t)
                             t["entry"]["basename"] = t["entryname"]
+                            t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
 
