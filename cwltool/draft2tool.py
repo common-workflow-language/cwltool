@@ -374,7 +374,7 @@ class CommandLineTool(Process):
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
-    def collect_output(self, schema, builder, outdir):
+    def collect_output(self, schema, builder, outdir, compute_checksum=True):
         # type: (Dict[str,Any], Builder, str) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
@@ -414,10 +414,12 @@ class CommandLineTool(Process):
                                 files["contents"] = contents
                             filesize = 0
                             while contents != "":
-                                checksum.update(contents)
+                                if compute_checksum:
+                                    checksum.update(contents)
                                 filesize += len(contents)
                                 contents = f.read(1024*1024)
-                        files["checksum"] = "sha1$%s" % checksum.hexdigest()
+                        if compute_checksum:
+                            files["checksum"] = "sha1$%s" % checksum.hexdigest()
                         files["size"] = filesize
                         if "format" in schema:
                             files["format"] = builder.do_eval(schema["format"], context=files)
