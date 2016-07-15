@@ -334,8 +334,6 @@ class CommandLineTool(Process):
         else:
             j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
-        print("******** KWARGS = ", kwargs)
-
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
                 self.collect_output_ports, self.tool["outputs"], builder, compute_checksum=kwargs.get("compute_checksum"))
