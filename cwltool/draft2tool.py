@@ -108,7 +108,9 @@ class CallbackJob(object):
     def run(self, **kwargs):
         # type: (**Any) -> None
         self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
-                                                           self.cachebuilder, self.outdir),
+                                                           self.cachebuilder,
+                                                           self.outdir,
+                                                           kwargs.get("compute_checksum")),
                                             "success")
 
 # map files to assigned path inside a container. We need to also explicitly
@@ -334,12 +336,12 @@ class CommandLineTool(Process):
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
-                self.collect_output_ports, self.tool["outputs"], builder)
+                self.collect_output_ports, self.tool["outputs"], builder, compute_checksum=kwargs.get("compute_checksum"))
         j.output_callback = output_callback
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir):
+    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True):
         # type: (Set[Dict[str,Any]], Builder, str) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
         try:
             ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
@@ -361,7 +363,7 @@ class CommandLineTool(Process):
             for port in ports:
                 fragment = shortname(port["id"])
                 try:
-                    ret[fragment] = self.collect_output(port, builder, outdir)
+                    ret[fragment] = self.collect_output(port, builder, outdir, compute_checksum)
                 except Exception as e:
                     _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
                     raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
@@ -477,6 +479,6 @@ class CommandLineTool(Process):
             out = {}
             for f in schema["type"]["fields"]:
                 out[shortname(f["name"])] = self.collect_output(  # type: ignore
-                        f, builder, outdir)
+                        f, builder, outdir, compute_checksum)
             return out
         return r

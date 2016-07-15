@@ -158,6 +158,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
                         "Default is 'stop.", default="stop")
 
+    parser.add_argument("--compute-checksum", action="store_true", default=True,
+                        help="Compute checksum of contents while collecting outputs",
+                        dest="compute_checksum")
+    parser.add_argument("--no-compute-checksum", action="store_false",
+                        help="Compute checksum of contents while collecting outputs",
+                        dest="compute_checksum")
+
     parser.add_argument("workflow", type=str, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
