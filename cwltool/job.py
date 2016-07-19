@@ -183,7 +183,7 @@ class CommandLineJob(object):
                     # the container)
                     for _, item in self.pathmapper.items():
                         if src == item.resolved:
-                            os.symlink(item.target, tgt)
+                            os.symlink(src, tgt)
                             break
                 stageFiles(generatemapper, linkoutdir)
 
