@@ -107,13 +107,10 @@ class CallbackJob(object):
 
     def run(self, **kwargs):
         # type: (**Any) -> None
-        compute_checksum = kwargs.get("compute_checksum")
-        if compute_checksum == None:
-            compute_checksum = True
         self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
                                                            self.cachebuilder,
                                                            self.outdir,
-                                                           compute_checksum),
+                                                           kwargs.get("compute_checksum", True)),
                                             "success")
 
 # map files to assigned path inside a container. We need to also explicitly
@@ -337,12 +334,9 @@ class CommandLineTool(Process):
         else:
             j.command_line = flatten(map(builder.generate_arg, builder.bindings))
 
-        compute_checksum = kwargs.get("compute_checksum")
-        if compute_checksum == None:
-            compute_checksum = True
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
-                self.collect_output_ports, self.tool["outputs"], builder, compute_checksum=compute_checksum)
+                self.collect_output_ports, self.tool["outputs"], builder, compute_checksum=kwargs.get("compute_checksum", True))
         j.output_callback = output_callback
 
         yield j
@@ -416,20 +410,19 @@ class CommandLineTool(Process):
                         getListing(builder.fs_access, files)
                     else:
                         with builder.fs_access.open(files["location"], "rb") as f:
-                            filesize = 0
-                            contents = f.read(CONTENT_LIMIT)
+                            contents = ""
+                            if binding.get("loadContents") or compute_checksum:
+                                contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
                                 files["contents"] = contents
                             if compute_checksum:
                                 checksum = hashlib.sha1()
                                 while contents != "":
                                     checksum.update(contents)
-                                    filesize += len(contents)
                                     contents = f.read(1024*1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()
-                            else:
-                                f.seek(0, 2)
-                                filesize = f.tell()
+                            f.seek(0, 2)
+                            filesize = f.tell()
                         files["size"] = filesize
                         if "format" in schema:
                             files["format"] = builder.do_eval(schema["format"], context=files)
