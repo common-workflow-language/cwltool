@@ -98,9 +98,6 @@ class Builder(object):
                         b2["valueFrom"] = item
                     bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
                                                     item, lead_pos=n, tail_pos=tail_pos))
-                    else:
-                        bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
-                                                        item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
 
             if schema["type"] == "File":
