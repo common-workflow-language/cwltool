@@ -58,7 +58,7 @@ class CommandLineJob(object):
         self.outdir = None  # type: str
         self.tmpdir = None  # type: str
         self.environment = None  # type: Dict[str,str]
-        self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]] 
+        self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]]
         self.stagedir = None  # type: unicode
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
@@ -251,7 +251,7 @@ class CommandLineJob(object):
                     if os.path.exists(tgt) and os.path.islink(tgt):
                         os.remove(tgt)
                         os.symlink(src, tgt)
-                stageFiles(generatemapper, linkoutdir)
+                stageFiles(generatemapper, linkoutdir, ignoreWritable=True)
 
             outputs = self.collect_outputs(self.outdir)
 

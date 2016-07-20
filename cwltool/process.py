@@ -169,16 +169,16 @@ def getListing(fs_access, rec):
                 listing.append({"class": "File", "location": ld})
         rec["listing"] = listing
 
-def stageFiles(pm, stageFunc):
+def stageFiles(pm, stageFunc, ignoreWritable=False):
     # type: (PathMapper, Callable[..., Any]) -> None
     for f, p in pm.items():
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0755)
         if p.type == "File":
             stageFunc(p.resolved, p.target)
-        elif p.type == "WritableFile":
+        elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
-        elif p.type == "CreateFile":
+        elif p.type == "CreateFile" and not ignoreWritable:
             with open(p.target, "w") as n:
                 n.write(p.resolved.encode("utf-8"))
 
