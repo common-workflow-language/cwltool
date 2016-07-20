@@ -4,6 +4,9 @@
     - $include: userguide-intro.md
 
     - |
+      # Wrapping Command Line Tools
+
+    - |
       ## First example
 
       The simplest "hello world" program.  This accepts one input parameter,
@@ -11,9 +14,9 @@
       output.  CWL documents are written in [JSON](http://json.org) or
       [YAML](http://yaml.org), or a mix of the two.
 
-      *1st.cwl*
+      *1st-tool.cwl*
       ```
-    - $include: examples/1st.cwl
+    - $include: examples/1st-tool.cwl
     - |
       ```
 
@@ -29,7 +32,7 @@
       command line:
 
       ```
-      $ cwl-runner 1st.cwl echo-job.yml
+      $ cwl-runner 1st-tool.cwl echo-job.yml
       [job 140199012414352] $ echo 'Hello world!'
       Hello world!
       Final process status is success
@@ -38,11 +41,11 @@
       What's going on here?  Let's break it down:
 
       ```
-      cwlVersion: cwl:draft-3
+      cwlVersion: v1.0
       class: CommandLineTool
       ```
 
-      The 'cwlVersion` field indicates the version of the CWL spec used by the
+      The `cwlVersion` field indicates the version of the CWL spec used by the
       document.  The `class` field indicates this document describes a command
       line tool.
 
@@ -55,7 +58,7 @@
 
       ```
       inputs:
-        - id: message
+        message:
           type: string
           inputBinding:
             position: 1
@@ -120,7 +123,7 @@
       line.  Let's look at each example in detail.
 
       ```
-      - id: example_flag
+      example_flag:
         type: boolean
         inputBinding:
           position: 1
@@ -132,7 +135,7 @@
       command line.  If false, no flag is added.
 
       ```
-      - id: example_string
+      example_string:
         type: string
         inputBinding:
           position: 3
@@ -145,7 +148,7 @@
       rendered as `--example-string hello`.
 
       ```
-      - id: example_int
+      example_int:
         type: int
         inputBinding:
           position: 2
@@ -160,8 +163,8 @@
 
 
       ```
-      - id: example_file
-        type: ["null", File]
+      example_file:
+        type: File?
         inputBinding:
           prefix: --file=
           separate: false
@@ -169,10 +172,8 @@
       ```
 
       File types appear on the command line as the path to the file.  When the
-      parameter type is a list, this indicates several alternate types are
-      valid for this parameter.  The most common use is to provide "null" as an
-      alternate parameter type, which indicates that the parameter is optional.
-      In the example above, this is rendered as
+      parameter type ends with a question mark `?` it indicates that the
+      parameter is optional.  In the example above, this is rendered as
       `--file=/home/example/whale.txt`.  However, if the "example_file"
       parameter were not provided in the input, nothing would appear on the
       command line.
@@ -225,7 +226,7 @@
       Final process status is success
       {
       "example_out": {
-        "path": "hello.txt",
+        "location": "hello.txt",
         "size": 13,
         "class": "File",
         "checksum": "sha1$47a013e660d408619d894b20806b1d5086aab03b"
@@ -252,8 +253,8 @@
       ## Capturing a tool's standard output stream
 
       To capture a tool's standard output stream, add the `stdout` field with
-      the name of the file where the output stream should go.  Then use `glob`
-      on `outputBinding` to return the file.
+      the name of the file where the output stream should go.  Then add `type:
+      stdout` on the corresponding output parameter.
 
       *stdout.cwl*
       ```
@@ -276,7 +277,7 @@
       Final process status is success
       {
       "output": {
-        "path": "output.txt",
+        "location": "output.txt",
         "size": 13,
         "class": "File",
         "checksum": "sha1$47a013e660d408619d894b20806b1d5086aab03b"
@@ -310,13 +311,13 @@
       Create your input files and invoke `cwl-runner` with the tool wrapper and the input object on the
       command line:
       ```
-      $ rm hello.tar || true && touch goodbye.txt && tar -cvf hello.tar
-      $ cwl-runner example-tar-param.cwl example-tar-param-job.yml
+      $ rm hello.tar || true && touch goodbye.txt && tar -cvf hello.tar goodbye.txt
+      $ cwl-runner tar-param.cwl tar-param-job.yml
       [job 139868145165200] $ tar xf /home/example/hello.tar goodbye.txt
       Final process status is success
       {
       "example_out": {
-        "path": "goodbye.txt",
+        "location": "goodbye.txt",
         "size": 24,
         "class": "File",
         "checksum": "sha1$dd0a4c4c49ba43004d6611771972b6cf969c1c01"
@@ -329,7 +330,7 @@
 
       ```
       outputs:
-        - id: example_out
+        example_out:
           type: File
           outputBinding:
             glob: $(inputs.extractfile)
@@ -424,12 +425,28 @@
       ```
       $ echo "public class Hello {}" > Hello.java
       $ cwl-runner arguments.cwl arguments-job.yml
-      [job 140051188854928] /home/example$ docker run -i --volume=/home/example/Hello.java:/var/lib/cwl/job710906416_example/Hello.java:ro --volume=/home/example:/var/spool/cwl:rw --volume=/tmp/tmpdlQDWi:/tmp:rw --workdir=/var/spool/cwl --read-only=true --net=none --user=1001 --rm --env=TMPDIR=/tmp java:7 javac -d /var/spool/cwl /var/lib/cwl/job710906416_examples/Hello.java
+      [job arguments.cwl] /tmp/tmpwYALo1$ docker \
+       run \
+       -i \
+       --volume=/home/peter/work/common-workflow-language/v1.0/examples/Hello.java:/var/lib/cwl/stg8939ac04-7443-4990-a518-1855b2322141/Hello.java:ro \
+       --volume=/tmp/tmpwYALo1:/var/spool/cwl:rw \
+       --volume=/tmp/tmpptIAJ8:/tmp:rw \
+       --workdir=/var/spool/cwl \
+       --read-only=true \
+       --user=1001 \
+       --rm \
+       --env=TMPDIR=/tmp \
+       --env=HOME=/var/spool/cwl \
+       java:7 \
+       javac \
+       -d \
+       /var/spool/cwl \
+       /var/lib/cwl/stg8939ac04-7443-4990-a518-1855b2322141/Hello.java
       Final process status is success
       {
         "classfile": {
           "size": 416,
-          "path": "/home/example/Hello.class",
+          "location": "/home/example/Hello.class",
           "checksum": "sha1$2f7ac33c1f3aac3f1fec7b936b6562422c85b38a",
           "class": "File"
         }
@@ -441,9 +458,7 @@
       command line that isn't tied to a specific input parameter.
 
       ```
-      arguments:
-        - prefix: "-d"
-          valueFrom: $(runtime.outdir)
+      arguments: ["-d", $(runtime.outdir)]
       ```
 
       This example references a runtime parameter.  Runtime parameters
@@ -480,8 +495,7 @@
 
       ```
       $ cwl-runner array-inputs.cwl array-inputs-job.yml
-      /home/peter/work/cwl-venv/bin/cwltool 1.0.20160325210917
-      [job 140334923640912] /home/peter/work/common-workflow-language/draft-3/examples$ echo -A one two three -B=four -B=five -B=six -C=seven,eight,nine
+      [job 140334923640912] /home/example$ echo -A one two three -B=four -B=five -B=six -C=seven,eight,nine
       -A one two three -B=four -B=five -B=six -C=seven,eight,nine
       Final process status is success
       {}
@@ -496,6 +510,48 @@
 
       You can specify arrays of arrays, arrays of records, and other complex
       types.
+
+    - |
+      ## Array outputs
+
+      You can also capture multiple output files into an array of files using `glob`.
+
+      *array-outputs.cwl*
+      ```
+    - $include: examples/array-outputs.cwl
+    - |
+      ```
+
+      *array-outpust-job.yml*
+      ```
+    - $include: examples/array-outputs-job.yml
+    - |
+      ```
+
+      Now invoke `cwl-runner` providing the tool wrapper and the input object
+      on the command line:
+
+      ```
+      $ cwl-runner array-outputs.cwl array-outputs-job.yml
+      [job 140190876078160] /home/example$ touch foo.txt bar.dat baz.txt
+      Final process status is success
+      {
+        "output": [
+          {
+            "size": 0,
+            "location": "/home/peter/work/common-workflow-language/draft-3/examples/foo.txt",
+            "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "class": "File"
+          },
+          {
+            "size": 0,
+            "location": "/home/peter/work/common-workflow-language/draft-3/examples/baz.txt",
+            "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "class": "File"
+          }
+        ]
+      }
+      ```
 
     - |
       ## Record inputs, dependent and mutually exclusive parameters
@@ -677,14 +733,137 @@
 
       ```
       $ cwl-runner linkfile.cwl arguments-job.yml
-      [job 139928309171664] /home/example$ docker run -i --volume=/home/peter/work/common-workflow-language/draft-3/examples/Hello.java:/var/lib/cwl/job557617295_examples/Hello.java:ro --volume=/home/peter/work/common-workflow-language/draft-3/examples:/var/spool/cwl:rw --volume=/tmp/tmpmNbApw:/tmp:rw --workdir=/var/spool/cwl --read-only=true --net=none --user=1001 --rm --env=TMPDIR=/tmp java:7 javac Hello.java
+      [job 139928309171664] /home/example$ docker run -i --volume=/home/example/Hello.java:/var/lib/cwl/job557617295_examples/Hello.java:ro --volume=/home/example:/var/spool/cwl:rw --volume=/tmp/tmpmNbApw:/tmp:rw --workdir=/var/spool/cwl --read-only=true --net=none --user=1001 --rm --env=TMPDIR=/tmp java:7 javac Hello.java
       Final process status is success
       {
       "classfile": {
         "size": 416,
-        "path": "/home/peter/work/common-workflow-language/draft-3/examples/Hello.class",
+        "location": "/home/example/Hello.class",
         "checksum": "sha1$2f7ac33c1f3aac3f1fec7b936b6562422c85b38a",
         "class": "File"
         }
       }
       ```
+
+    - |
+      # Writing Workflows
+
+      ## First workflow
+
+      This workflow extracts a java source file from a tar file and then
+      compiles it.
+
+      *1st-workflow.cwl*
+      ```
+    - $include: examples/1st-workflow.cwl
+    - |
+      ```
+
+      Use a JSON object in a separate file to describe the input of a run:
+
+      *1st-workflow-job.yml*
+      ```
+    - $include: examples/1st-workflow-job.yml
+    - |
+      ```
+
+      Now invoke `cwl-runner` with the tool wrapper and the input object on the
+      command line:
+
+      ```
+      $ echo "public class Hello {}" > Hello.java && tar -cvf hello.tar Hello.java
+      $ cwl-runner 1st-workflow.cwl 1st-workflow-job.yml
+      [job untar] /tmp/tmp94qFiM$ tar xf /home/example/hello.tar Hello.java
+      [step untar] completion status is success
+      [job compile] /tmp/tmpu1iaKL$ docker run -i --volume=/tmp/tmp94qFiM/Hello.java:/var/lib/cwl/job301600808_tmp94qFiM/Hello.java:ro --volume=/tmp/tmpu1iaKL:/var/spool/cwl:rw --volume=/tmp/tmpfZnNdR:/tmp:rw --workdir=/var/spool/cwl --read-only=true --net=none --user=1001 --rm --env=TMPDIR=/tmp java:7 javac -d /var/spool/cwl /var/lib/cwl/job301600808_tmp94qFiM/Hello.java
+      [step compile] completion status is success
+      [workflow 1st-workflow.cwl] outdir is /home/example
+      Final process status is success
+      {
+        "classout": {
+          "location": "/home/example/Hello.class",
+          "checksum": "sha1$e68df795c0686e9aa1a1195536bd900f5f417b18",
+          "class": "File",
+          "size": 416
+        }
+      }
+      ```
+
+      What's going on here?  Let's break it down:
+
+      ```
+      cwlVersion: v1.0
+      class: Workflow
+      ```
+
+      The 'cwlVersion` field indicates the version of the CWL spec used by the
+      document.  The `class` field indicates this document describes a workflow.
+
+
+      ```
+      inputs:
+        inp: File
+        ex: string
+      ```
+
+      The `inputs` section describes the inputs of the workflow.  This is a
+      list of input parameters where each parameter consists of an identifier
+      and a data type.  These parameters can be used as sources for input to
+      specific workflows steps.
+
+      ```
+      outputs:
+        classout:
+          type: File
+          outputSource: compile/classfile
+      ```
+
+      The `outputs` section describes the outputs of the workflow.  This is a
+      list of output parameters where each parameter consists of an identifier
+      and a data type.  The `source` connects the output parameter `classfile`
+      of the `compile` step to the workflow output parameter `classout`.
+
+      ```
+      steps:
+        untar:
+          run: tar-param.cwl
+          in:
+            tarfile: inp
+            extractfile: ex
+          outputs: [example_out]
+      ```
+
+      The `steps` section describes the actual steps of the workflow.  In this
+      example, the first step extracts a file from a tar file, and the second
+      step compiles the file from the first step using the java compiler.
+      Workflow steps are not necessarily run in the order they are listed,
+      instead the order is determined by the dependencies between steps (using
+      `source`).  In addition, workflow steps which do not depend on one
+      another may run in parallel.
+
+      The first step, `untar` runs `tar-param.cwl` (described previously in
+      [Parameter references](#Parameter_references)).  This tool has two input
+      parameters, `tarfile` and `extractfile` and one output parameter
+      `example_out`.
+
+      The `inputs` section of the workflow step connects these two input
+      parameters to the inputs of the workflow, `inp` and `ex` using
+      `source`.  This means that when the workflow step is executed, the values
+      assigned to `inp` and `ex` will be used for the parameters `tarfile`
+      and `extractfile` in order to run the tool.
+
+      The `outputs` section of the workflow step lists the output parameters
+      that are expected from the tool.
+
+      ```
+        compile:
+          run: arguments.cwl
+          in:
+            src: untar/example_out
+          outputs: [classfile]
+      ```
+
+      The second step `compile` depends on the results from the first step by
+      connecting the input parameter `src` to the output parameter of `untar`
+      using `untar/example_out`.  The output of this step `classfile` is
+      connected to the `outputs` section for the Workflow, described above.

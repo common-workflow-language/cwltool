@@ -16,20 +16,20 @@ Bioinformatics, Medical Imaging, Chemistry, Physics, and Astronomy.
 
 ## CWL User Guide
 
-[User guide for the current stable specification (draft-3)](http://www.commonwl.org/draft-3/UserGuide.html),
+[User guide for the current stable specification (v1.0)](http://www.commonwl.org/v1.0/UserGuide.html),
 provides a gentle introduction to writing CWL command line tool and workflow descriptions.
 
 ## CWL Specification
 
 The current stable specification is [v1.0](http://www.commonwl.org/v1.0/):
 
-http://www.commonwl.org/draft-v1.0/
+http://www.commonwl.org/v1.0/
 
 Older drafts: [draft-1](https://github.com/common-workflow-language/common-workflow-language/tree/master/draft-1), [draft-2](http://www.commonwl.org/draft-2/), [draft-3](http://www.commonwl.org/draft-3/)
 
 ### Citation
 
-Please cite https://dx.doi.org/10.6084/m9.figshare.3115156.v1
+Please cite https://dx.doi.org/10.6084/m9.figshare.3115156.v2
 
 ## Implementations
 

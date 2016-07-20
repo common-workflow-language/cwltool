@@ -1,15 +1,13 @@
-cwlVersion: cwl:draft-3
+cwlVersion: v1.0
 class: CommandLineTool
 inputs:
-  - id: filesA
-    type:
-      type: array
-      items: string
+  filesA:
+    type: string[]
     inputBinding:
       prefix: -A
       position: 1
 
-  - id: filesB
+  filesB:
     type:
       type: array
       items: string
@@ -19,10 +17,8 @@ inputs:
     inputBinding:
       position: 2
 
-  - id: filesC
-    type:
-      type: array
-      items: string
+  filesC:
+    type: string[]
     inputBinding:
       prefix: -C=
       itemSeparator: ","
