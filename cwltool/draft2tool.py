@@ -108,7 +108,9 @@ class CallbackJob(object):
     def run(self, **kwargs):
         # type: (**Any) -> None
         self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
-                                                           self.cachebuilder, self.outdir),
+                                                           self.cachebuilder,
+                                                           self.outdir,
+                                                           kwargs.get("compute_checksum", True)),
                                             "success")
 
 # map files to assigned path inside a container. We need to also explicitly
@@ -337,12 +339,12 @@ class CommandLineTool(Process):
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
-                self.collect_output_ports, self.tool["outputs"], builder)
+                self.collect_output_ports, self.tool["outputs"], builder, compute_checksum=kwargs.get("compute_checksum", True))
         j.output_callback = output_callback
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir):
+    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True):
         # type: (Set[Dict[str,Any]], Builder, str) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
         try:
             ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
@@ -364,7 +366,7 @@ class CommandLineTool(Process):
             for port in ports:
                 fragment = shortname(port["id"])
                 try:
-                    ret[fragment] = self.collect_output(port, builder, outdir)
+                    ret[fragment] = self.collect_output(port, builder, outdir, compute_checksum)
                 except Exception as e:
                     _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
                     raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
@@ -377,7 +379,7 @@ class CommandLineTool(Process):
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
-    def collect_output(self, schema, builder, outdir):
+    def collect_output(self, schema, builder, outdir, compute_checksum=True):
         # type: (Dict[str,Any], Builder, str) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
@@ -410,17 +412,20 @@ class CommandLineTool(Process):
                     if files["class"] == "Directory" and "listing" not in files:
                         getListing(builder.fs_access, files)
                     else:
-                        checksum = hashlib.sha1()
                         with builder.fs_access.open(files["location"], "rb") as f:
-                            contents = f.read(CONTENT_LIMIT)
+                            contents = ""
+                            if binding.get("loadContents") or compute_checksum:
+                                contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
                                 files["contents"] = contents
-                            filesize = 0
-                            while contents != "":
-                                checksum.update(contents)
-                                filesize += len(contents)
-                                contents = f.read(1024*1024)
-                        files["checksum"] = "sha1$%s" % checksum.hexdigest()
+                            if compute_checksum:
+                                checksum = hashlib.sha1()
+                                while contents != "":
+                                    checksum.update(contents)
+                                    contents = f.read(1024*1024)
+                                files["checksum"] = "sha1$%s" % checksum.hexdigest()
+                            f.seek(0, 2)
+                            filesize = f.tell()
                         files["size"] = filesize
                         if "format" in schema:
                             files["format"] = builder.do_eval(schema["format"], context=files)
@@ -478,6 +483,6 @@ class CommandLineTool(Process):
             out = {}
             for f in schema["type"]["fields"]:
                 out[shortname(f["name"])] = self.collect_output(  # type: ignore
-                        f, builder, outdir)
+                        f, builder, outdir, compute_checksum)
             return out
         return r
