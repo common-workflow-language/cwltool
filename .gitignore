@@ -1,16 +1,7 @@
-# Python temps
-__pycache__/
-*.py[cod]
-*$py.class
-build/
-dist/
-eggs/
-.eggs/
-*.egg-info/
-*.egg
-
-# Editor Temps
-.*.sw?
 *~
-\#*\#
-.desktop
+*.pyc
+*.egg
+*.egg-info
+.idea/*
+common-workflow-language.github.io/
+cwltool/
