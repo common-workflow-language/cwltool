@@ -32,6 +32,8 @@ def compare(a, b):  # type: (Any, Any) -> bool
             if a.get("class") == "File":
                 if "path" in a:
                     comp = "path"
+                    if "path" not in b:
+                        b["path"] = b["location"]
                 else:
                     comp = "location"
                 if a[comp] == "Any" or b[comp] == "Any":
