@@ -29,7 +29,7 @@ Or from source::
 
   git clone https://github.com/common-workflow-language/cwltool.git
   cd cwltool && python setup.py install
-  cd cwl-runner && python setup.py install
+  cd cwlref-runner && python setup.py install
 
 Run on the command line
 -----------------------
