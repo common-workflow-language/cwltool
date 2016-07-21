@@ -105,8 +105,8 @@ class CommandLineJob(object):
                     with open(createtmp, "w") as f:
                         f.write(vol.resolved.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
-            runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.outdir), "/var/spool/cwl"))
-            runtime.append(u"--volume=%s:%s:rw" % (os.path.abspath(self.tmpdir), "/tmp"))
+            runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), "/var/spool/cwl"))
+            runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
             if (kwargs.get("enable_net", None) is None and
