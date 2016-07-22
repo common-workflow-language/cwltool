@@ -483,7 +483,7 @@ def flatten_deps(d, files):  # type: (Any, Set[unicode]) -> None
         for s in d:
             flatten_deps(s, files)
     elif isinstance(d, dict):
-        files.add(d["path"])
+        files.add(d["location"])
         if "secondaryFiles" in d:
             flatten_deps(d["secondaryFiles"], files)
 
