@@ -352,7 +352,7 @@ class WorkflowJob(object):
             made_progress = False
 
             for step in self.steps:
-                if kwargs["on_error"] == "stop" and self.processStatus != "success":
+                if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
                     break
 
                 if not step.submitted:
@@ -360,7 +360,7 @@ class WorkflowJob(object):
 
                 if step.iterable:
                     for newjob in step.iterable:
-                        if kwargs["on_error"] == "stop" and self.processStatus != "success":
+                        if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
                             break
                         if newjob:
                             made_progress = True
@@ -455,7 +455,11 @@ class WorkflowStep(Process):
                         found = True
                         break
                 if not found:
-                    param["type"] = "Any"
+                    if stepfield == "in":
+                        param["type"] = "Any"
+                    else:
+                        raise WorkflowException("[%s] Workflow step output '%s' not found in the outputs of the tool (expected one of '%s')" % (
+                            self.id, shortname(step_entry), "', '".join([shortname(tool_entry["id"]) for tool_entry in self.embedded_tool.tool[toolfield]])))
                 param["id"] = inputid
                 toolpath_object[toolfield].append(param)
 

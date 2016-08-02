@@ -196,5 +196,14 @@ class TestTypeCompare(unittest.TestCase):
         self.assertTrue(cwltool.workflow.can_assign_src_to_sink(src, sink))
 
 
+    def test_lifting(self):
+        # check that lifting the types of the process outputs to the workflow step
+        # fails if the step 'out' doesn't match.
+        with self.assertRaises(cwltool.workflow.WorkflowException):
+            f = cwltool.factory.Factory()
+            echo = f.make("tests/test_bad_outputs_wf.cwl")
+            self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+
+
 if __name__ == '__main__':
     unittest.main()
