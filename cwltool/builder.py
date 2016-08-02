@@ -96,7 +96,10 @@ class Builder(object):
                     if binding:
                         b2 = copy.deepcopy(binding)
                         b2["valueFrom"] = item
-                    bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
+                    bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2,
+                                                     "secondaryFiles": schema.get("secondaryFiles"),
+                                                     "format": schema.get("format"),
+                                                     "streamable": schema.get("streamable")},
                                                     item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
 
