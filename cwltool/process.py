@@ -420,13 +420,13 @@ class Process(object):
             raise WorkflowException("Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
-            builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
-            builder.stagedir = kwargs.get("docker_stagedir") or "/var/lib/cwl"
+            builder.outdir = os.path.realpath(kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.tmpdir = os.path.realpath(kwargs.get("docker_tmpdir") or "/tmp")
+            builder.stagedir = os.path.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            builder.outdir = kwargs.get("outdir") or tempfile.mkdtemp()
-            builder.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp()
-            builder.stagedir = kwargs.get("stagedir") or tempfile.mkdtemp()
+            builder.outdir = os.path.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
+            builder.tmpdir = os.path.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+            builder.stagedir = os.path.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         builder.fs_access = kwargs.get("fs_access") or StdFsAccess(kwargs["basedir"])
 
