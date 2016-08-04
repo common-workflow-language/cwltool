@@ -242,7 +242,11 @@ class CommandLineTool(Process):
 
 
         builder.pathmapper = None
-        builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **kwargs)
+        make_path_mapper_kwargs = kwargs
+        if "stagedir" in make_path_mapper_kwargs:
+            make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
+            del make_path_mapper_kwargs["stagedir"]
+        builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **make_path_mapper_kwargs)
         builder.requirements = j.requirements
 
         _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
