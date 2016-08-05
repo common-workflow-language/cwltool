@@ -420,7 +420,7 @@ class Process(object):
             raise WorkflowException("Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
+            builder.outdir = kwargs.get("outdir") or "/var/spool/cwl"
             builder.tmpdir = kwargs.get("docker_tmpdir") or "/tmp"
             builder.stagedir = kwargs.get("docker_stagedir") or "/var/lib/cwl"
         else:
