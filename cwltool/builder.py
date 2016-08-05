@@ -144,9 +144,9 @@ class Builder(object):
         return bindings
 
     def tostr(self, value):  # type: (Any) -> str
-        if isinstance(value, dict) and value.get("class") == "File":
+        if isinstance(value, dict) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
-                raise WorkflowException(u"File object must have \"path\": %s" % (value))
+                raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
             return value["path"]
         else:
             return str(value)
@@ -170,7 +170,7 @@ class Builder(object):
                 return [prefix]
             else:
                 return []
-        elif isinstance(value, dict) and value.get("class") == "File":
+        elif isinstance(value, dict) and value.get("class") in ("File", "Directory"):
             l = [value]
         elif isinstance(value, dict):
             return [prefix] if prefix else []
