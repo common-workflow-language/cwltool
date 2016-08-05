@@ -442,7 +442,7 @@ class Process(object):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):
                 builder.bindings.append({
                     "position": [-1000000, n],
-                    "valueFrom": b
+                    "datum": b
                 })
 
         if self.tool.get("arguments"):
@@ -453,19 +453,16 @@ class Process(object):
                         a["position"] = [a["position"], i]
                     else:
                         a["position"] = [0, i]
-                    a["do_eval"] = a["valueFrom"]
-                    a["valueFrom"] = None
                     builder.bindings.append(a)
                 elif ("$(" in a) or ("${" in a):
                     builder.bindings.append({
                         "position": [0, i],
-                        "do_eval": a,
-                        "valueFrom": None
+                        "valueFrom": a
                     })
                 else:
                     builder.bindings.append({
                         "position": [0, i],
-                        "valueFrom": a
+                        "datum": a
                     })
 
         builder.bindings.sort(key=lambda a: a["position"])
