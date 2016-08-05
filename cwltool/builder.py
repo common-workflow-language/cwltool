@@ -46,9 +46,7 @@ class Builder(object):
             else:
                 binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
 
-            if "valueFrom" in binding and "do_eval" not in binding:
-                binding["do_eval"] = binding["valueFrom"]
-            binding["valueFrom"] = datum
+            binding["datum"] = datum
 
         # Handle union types
         if isinstance(schema["type"], list):
@@ -66,7 +64,7 @@ class Builder(object):
             raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], dict):
             st = copy.deepcopy(schema["type"])
-            if binding and "inputBinding" not in st and "itemSeparator" not in binding and st["type"] in ("array", "map"):
+            if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
             bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
         else:
@@ -80,22 +78,12 @@ class Builder(object):
                     else:
                         datum[f["name"]] = f.get("default")
 
-            if schema["type"] == "map":
-                for n, item in datum.items():
-                    b2 = None
-                    if binding:
-                        b2 = copy.deepcopy(binding)
-                        b2["valueFrom"] = [n, item]
-                    bindings.extend(self.bind_input({"type": schema["values"], "inputBinding": b2},
-                                                    item, lead_pos=n, tail_pos=tail_pos))
-                binding = None
-
             if schema["type"] == "array":
                 for n, item in enumerate(datum):
                     b2 = None
                     if binding:
                         b2 = copy.deepcopy(binding)
-                        b2["valueFrom"] = item
+                        b2["datum"] = item
                     bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
                                                     item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
@@ -152,9 +140,9 @@ class Builder(object):
             return str(value)
 
     def generate_arg(self, binding):  # type: (Dict[str,Any]) -> List[str]
-        value = binding["valueFrom"]
-        if "do_eval" in binding:
-            value = self.do_eval(binding["do_eval"], context=value)
+        value = binding.get("datum")
+        if "valueFrom" in binding:
+            value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
@@ -163,7 +151,7 @@ class Builder(object):
         if isinstance(value, list):
             if binding.get("itemSeparator"):
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
-            elif binding.get("do_eval"):
+            elif binding.get("valueFrom"):
                 value = [v["path"] if isinstance(v, dict) and v.get("class") == "File" else v for v in value]
                 return ([prefix] if prefix else []) + value
             elif prefix:
