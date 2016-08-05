@@ -125,6 +125,19 @@ def check_adjust(builder, f):
         raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
     return f
 
+def compute_checksums(fs_access, fileobj):
+    if "checksum" not in fileobj:
+        checksum = hashlib.sha1()
+        with fs_access.open(fileobj["location"], "rb") as f:
+            contents = f.read(1024*1024)
+            while contents != "":
+                checksum.update(contents)
+                contents = f.read(1024*1024)
+            f.seek(0, 2)
+            filesize = f.tell()
+        fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
+        fileobj["size"] = filesize
+
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[unicode, Any], **Any) -> None
@@ -477,6 +490,9 @@ class CommandLineTool(Process):
 
             if not r and optional:
                 r = None
+
+            if r and compute_checksum:
+                adjustFileObjs(r, partial(compute_checksums, builder.fs_access))
 
         if (not r and isinstance(schema["type"], dict) and
                 schema["type"]["type"] == "record"):
