@@ -72,11 +72,6 @@ class CommandLineJob(object):
 
         runtime = []  # type: List[unicode]
 
-        # spec currently says "HOME must be set to the designated output
-        # directory." but spec might change to designated temp directory.
-        # env = {"TMPDIR": self.tmpdir, "HOME": self.tmpdir}  # type: Mapping[str,str]
-        env = {"TMPDIR": self.tmpdir, "HOME": self.outdir}  # type: Mapping[str,str]
-
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         for knownfile in self.pathmapper.files():
@@ -139,12 +134,13 @@ class CommandLineJob(object):
             env = self.environment
             if not os.path.exists(self.tmpdir):
                 os.makedirs(self.tmpdir)
-            env["TMPDIR"] = self.tmpdir
             vars_to_preserve = kwargs.get("preserve_environment")
             if vars_to_preserve is not None:
                 for key, value in os.environ.items():
                     if key in vars_to_preserve and key not in env:
                         env[key] = value
+            env["HOME"] = self.outdir
+            env["TMPDIR"] = self.tmpdir
 
             stageFiles(self.pathmapper, os.symlink)
 
