@@ -6,6 +6,7 @@ import glob
 import json
 import logging
 import sys
+import string
 import requests
 from . import docker
 from .process import get_feature, empty_subtree, stageFiles
@@ -19,10 +20,17 @@ from .builder import Builder
 from typing import Union, Iterable, Callable, Any, Mapping, IO, cast, Tuple
 from .pathmapper import PathMapper
 import functools
+try:
+    from galaxy.tools.deps.requirements import ToolRequirement
+except ImportError:
+    ToolRequirement = None
 
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
+
+FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
+
 
 def deref_links(outputs):  # type: (Any) -> None
     if isinstance(outputs, dict):
@@ -60,6 +68,7 @@ class CommandLineJob(object):
         self.environment = None  # type: Dict[str,str]
         self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]]
         self.stagedir = None  # type: unicode
+        self.dependency_manager = None  # type: DependencyManager
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -184,50 +193,47 @@ class CommandLineJob(object):
                 stageFiles(generatemapper, linkoutdir)
 
             if self.stdin:
-                stdin = open(self.pathmapper.reversemap(self.stdin)[1], "rb")
+                stdin_path = self.pathmapper.reversemap(self.stdin)[1]
             else:
-                stdin = subprocess.PIPE
+                stdin_path = None
 
             if self.stderr:
                 abserr = os.path.join(self.outdir, self.stderr)
                 dnerr = os.path.dirname(abserr)
                 if dnerr and not os.path.exists(dnerr):
                     os.makedirs(dnerr)
-                stderr = open(abserr, "wb")
+                stderr_path = abserr
             else:
-                stderr = sys.stderr
+                stderr_path = None
 
             if self.stdout:
                 absout = os.path.join(self.outdir, self.stdout)
                 dn = os.path.dirname(absout)
                 if dn and not os.path.exists(dn):
                     os.makedirs(dn)
-                stdout = open(absout, "wb")
+                stdout_path = absout
             else:
-                stdout = sys.stderr
+                stdout_path = None
 
-            sp = subprocess.Popen([unicode(x).encode('utf-8') for x in runtime + self.command_line],
-                                  shell=False,
-                                  close_fds=True,
-                                  stdin=stdin,
-                                  stderr=stderr,
-                                  stdout=stdout,
-                                  env=env,
-                                  cwd=self.outdir)
+            prefix = None
+            job_dir = None
+            if self.tool_dependency_manager is not None:
+                dependencies = self._find_tool_dependencies()
+                job_dir = tempfile.mkdtemp(prefix="cwltooljob")
+                shell_commands = self.tool_dependency_manager.dependency_shell_commands(
+                    dependencies,
+                    job_directory=job_dir,
+                )
+                prefix = "\n".join(shell_commands)
 
-            if sp.stdin:
-                sp.stdin.close()
-
-            rcode = sp.wait()
-
-            if isinstance(stdin, file):
-                stdin.close()
-
-            if stderr is not sys.stderr:
-                stderr.close()
-
-            if stdout is not sys.stderr:
-                stdout.close()
+            rcode = shelled_popen(
+                [unicode(x).encode('utf-8') for x in runtime + self.command_line],
+                stdin_path=stdin_path,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                env=env,
+                cwd=self.outdir,
+            )
 
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
@@ -286,3 +292,172 @@ class CommandLineJob(object):
         if move_outputs == "move" and empty_subtree(self.outdir):
             _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
+
+    def _find_tool_dependencies(self):
+        dependencies = []
+        for hint in self.hints:
+            hint_class = hint.get("class", "")
+            if not hint_class:
+                continue
+            base_name = hint["class"].rsplit("/", 1)[-1]
+            if base_name == "Dependency":
+                requirement_desc = {}
+                requirement_desc["type"] = "package"
+                name = hint["name"].rsplit("#", 1)[-1]
+                version = hint.get("version", "").rsplit("#", 1)[-1]
+                requirement_desc["name"] = name
+                requirement_desc["version"] = version or None
+                dependencies.append(ToolRequirement.from_dict(requirement_desc))
+        return dependencies
+
+
+SHELL_COMMAND_TEMPLATE = string.Template("""#!/bin/bash
+$prefix
+python "run_job.py" "job.json"
+""")
+PYTHON_RUN_SCRIPT = """
+import json
+import sys
+import subprocess
+
+with open(sys.argv[1], "r") as f:
+    popen_description = json.load(f)
+    commands = popen_description["commands"]
+    cwd = popen_description["cwd"]
+    env = popen_description["env"]
+    stdin_path = popen_description["stdin_path"]
+    stdout_path = popen_description["stdout_path"]
+    stderr_path = popen_description["stderr_path"]
+
+    if stdin_path is not None:
+        stdin = open(stdin_path, "rd")
+    else:
+        stdin = subprocess.PIPE
+
+    if stdout_path is not None:
+        stdout = open(stdout_path, "wb")
+    else:
+        stdout = sys.stderr
+
+    if stderr_path is not None:
+        stderr = open(stderr_path, "wb)
+    else:
+        stderr = sys.stderr
+
+    sp = subprocess.Popen(commands,
+                          shell=False,
+                          close_fds=True,
+                          stdin=stdin,
+                          stdout=stdout,
+                          env=env,
+                          cwd=cwd)
+
+    if sp.stdin:
+        sp.stdin.close()
+
+    rcode = sp.wait()
+
+    if isinstance(stdin, file):
+        stdin.close()
+
+    if stdout is not sys.stderr:
+        stdout.close()
+
+    if stderr is not sys.stderr:
+        stderr.close()
+
+    sys.exit(rcode)
+"""
+
+
+def shelled_popen(commands,
+                  stdin_path,
+                  stdout_path,
+                  stderr_path,
+                  env,
+                  cwd,
+                  job_dir=None,
+                  prefix=None):
+    if prefix is None and not FORCE_SHELLED_POPEN:
+        if stdin_path is not None:
+            stdin = open(stdin_path, "rd")
+        else:
+            stdin = subprocess.PIPE
+
+        if stdout_path is not None:
+            stdout = open(stdout_path, "wb")
+        else:
+            stdout = sys.stderr
+
+        if stderr_path is not None:
+            stderr = open(stderr_path, "wb")
+        else:
+            stderr = sys.stderr
+
+        sp = subprocess.Popen(commands,
+                              shell=False,
+                              close_fds=True,
+                              stdin=stdin,
+                              stdout=stdout,
+                              stderr=stderr,
+                              env=env,
+                              cwd=cwd)
+
+        if sp.stdin:
+            sp.stdin.close()
+
+        rcode = sp.wait()
+
+        if isinstance(stdin, file):
+            stdin.close()
+
+        if stdout is not sys.stderr:
+            stdout.close()
+
+        if stderr is not sys.stderr:
+            stderr.close()
+
+        return rcode
+    else:
+        if job_dir is None:
+            job_dir = tempfile.mkdtemp(prefix="cwltooljob")
+
+        template_kwds = dict(
+            prefix=prefix or '',
+        )
+        job_script_contents = SHELL_COMMAND_TEMPLATE.substitute(
+            **template_kwds
+        )
+        job_description = dict(
+            commands=commands,
+            cwd=cwd,
+            env=env.copy(),
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            stdin_path=stdin_path,
+        )
+        with open(os.path.join(job_dir, "job.json"), "w") as f:
+            json.dump(job_description, f)
+        try:
+            job_script = os.path.join(job_dir, "run_job.bash")
+            with open(job_script, "w") as f:
+                f.write(job_script_contents)
+            job_run = os.path.join(job_dir, "run_job.py")
+            with open(job_run, "w") as f:
+                f.write(PYTHON_RUN_SCRIPT)
+            sp = subprocess.Popen(
+                ["bash", job_script],
+                shell=False,
+                cwd=job_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
+            )
+            if sp.stdin:
+                sp.stdin.close()
+
+            rcode = sp.wait()
+
+            return rcode
+        finally:
+            shutil.rmtree(job_dir)
