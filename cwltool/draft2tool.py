@@ -366,6 +366,16 @@ class CommandLineTool(Process):
                 with builder.fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
+            else:
+                for port in ports:
+                    fragment = shortname(port["id"])
+                    try:
+                        ret[fragment] = self.collect_output(port, builder, outdir, compute_checksum)
+                    except Exception as e:
+                        _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
+                        raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
+
+            if ret:
                 adjustFileObjs(ret,
                         cast(Callable[[Any], Any],  # known bug in mypy
                             # https://github.com/python/mypy/issues/797
@@ -373,20 +383,9 @@ class CommandLineTool(Process):
                 adjustFileObjs(ret, remove_path)
                 adjustDirObjs(ret, remove_path)
                 normalizeFilesDirs(ret)
-                validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
-                return ret
+                if compute_checksum:
+                    adjustFileObjs(ret, partial(compute_checksums, builder.fs_access))
 
-            for port in ports:
-                fragment = shortname(port["id"])
-                try:
-                    ret[fragment] = self.collect_output(port, builder, outdir, compute_checksum)
-                except Exception as e:
-                    _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
-                    raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
-            if ret:
-                adjustFileObjs(ret, remove_path)
-                adjustDirObjs(ret, remove_path)
-                normalizeFilesDirs(ret)
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
@@ -490,9 +489,6 @@ class CommandLineTool(Process):
 
             if not r and optional:
                 r = None
-
-            if r and compute_checksum:
-                adjustFileObjs(r, partial(compute_checksums, builder.fs_access))
 
         if (not r and isinstance(schema["type"], dict) and
                 schema["type"]["type"] == "record"):
