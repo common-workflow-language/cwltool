@@ -63,7 +63,10 @@ def _convert_stdstreams_to_files(workflowobj):
                             workflowobj[streamtype] = filename
                         out['type'] = 'File'
                         out['outputBinding'] = {'glob': filename}
-    else:
+        else:
+            for entry in workflowobj.itervalues():
+                _convert_stdstreams_to_files(entry)
+    if isinstance(workflowobj, list):
         for entry in workflowobj:
             _convert_stdstreams_to_files(entry)
 
