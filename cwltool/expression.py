@@ -140,7 +140,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)
     if isinstance(ex, (str, unicode)):
-        for r in requirements:
+        for r in reversed(requirements):
             if r["class"] == "InlineJavascriptRequirement":
                 return sandboxjs.interpolate(str(ex), jshead(r.get("expressionLib", []), rootvars),
                                              timeout=timeout)
