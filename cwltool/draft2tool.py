@@ -365,16 +365,17 @@ class CommandLineTool(Process):
         # type: (Set[Dict[str,Any]], Builder, str) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
         try:
             ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
-            custom_output = builder.fs_access.join(outdir, "cwl.output.json")
-            if builder.fs_access.exists(custom_output):
-                with builder.fs_access.open(custom_output, "r") as f:
+            fs_access = builder.make_fs_access(outdir)
+            custom_output = fs_access.join(outdir, "cwl.output.json")
+            if fs_access.exists(custom_output):
+                with fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
                 _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
             else:
                 for port in ports:
                     fragment = shortname(port["id"])
                     try:
-                        ret[fragment] = self.collect_output(port, builder, outdir, compute_checksum)
+                        ret[fragment] = self.collect_output(port, builder, outdir, fs_access, compute_checksum=compute_checksum)
                     except Exception as e:
                         _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
                         raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
@@ -388,14 +389,14 @@ class CommandLineTool(Process):
                 adjustDirObjs(ret, remove_path)
                 normalizeFilesDirs(ret)
                 if compute_checksum:
-                    adjustFileObjs(ret, partial(compute_checksums, builder.fs_access))
+                    adjustFileObjs(ret, partial(compute_checksums, fs_access))
 
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
-    def collect_output(self, schema, builder, outdir, compute_checksum=True):
+    def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[str,Any], Builder, str) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
@@ -419,16 +420,16 @@ class CommandLineTool(Process):
                         raise WorkflowException("glob patterns must not start with '/'")
                     try:
                         r.extend([{"location": g,
-                                   "class": "File" if builder.fs_access.isfile(g) else "Directory"}
-                                  for g in builder.fs_access.glob(builder.fs_access.join(outdir, gb))])
+                                   "class": "File" if fs_access.isfile(g) else "Directory"}
+                                  for g in fs_access.glob(fs_access.join(outdir, gb))])
                     except (OSError, IOError) as e:
                         _logger.warn(str(e))
 
                 for files in r:
                     if files["class"] == "Directory" and "listing" not in files:
-                        getListing(builder.fs_access, files)
+                        getListing(fs_access, files)
                     else:
-                        with builder.fs_access.open(files["location"], "rb") as f:
+                        with fs_access.open(files["location"], "rb") as f:
                             contents = ""
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
@@ -488,7 +489,7 @@ class CommandLineTool(Process):
                                 sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
 
                             for sfitem in aslist(sfpath):
-                                if builder.fs_access.exists(sfitem["location"]):
+                                if fs_access.exists(sfitem["location"]):
                                     primary["secondaryFiles"].append(sfitem)
 
             if not r and optional:
@@ -499,6 +500,6 @@ class CommandLineTool(Process):
             out = {}
             for f in schema["type"]["fields"]:
                 out[shortname(f["name"])] = self.collect_output(  # type: ignore
-                        f, builder, outdir, compute_checksum)
+                        f, builder, outdir, fs_access, compute_checksum=compute_checksum)
             return out
         return r

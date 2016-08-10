@@ -428,7 +428,8 @@ class Process(object):
             builder.tmpdir = os.path.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
             builder.stagedir = os.path.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
-        builder.fs_access = kwargs.get("fs_access") or StdFsAccess(kwargs["basedir"])
+        builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
+        builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
         if self.formatgraph:
             for i in self.tool["inputs"]:

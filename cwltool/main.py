@@ -351,7 +351,8 @@ def generate_parser(toolparser, tool, namemap):
     return toolparser
 
 
-def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, stdout=sys.stdout):
+def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
+                   stdout=sys.stdout, make_fs_access=None):
     # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
@@ -439,7 +440,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False, 
     adjustFileObjs(job_order_object, pathToLoc)
     normalizeFilesDirs(job_order_object)
     adjustDirObjs(job_order_object, cast(Callable[..., Any],
-        functools.partial(getListing, StdFsAccess(input_basedir))))
+        functools.partial(getListing, make_fs_access(input_basedir))))
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
@@ -572,7 +573,8 @@ def main(argsl=None,
          stdout=sys.stdout,
          stderr=sys.stderr,
          versionfunc=versionstring,
-         job_order_object=None):
+         job_order_object=None,
+         make_fs_access=StdFsAccess):
     # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
@@ -695,7 +697,8 @@ def main(argsl=None,
             job_order_object = load_job_order(args, tool, stdin,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
-                                              stdout=stdout)
+                                              stdout=stdout,
+                                              make_fs_access=make_fs_access)
 
         if isinstance(job_order_object, int):
             return job_order_object
@@ -714,6 +717,7 @@ def main(argsl=None,
             out = executor(tool, job_order_object[0],
                            makeTool=makeTool,
                            select_resources=selectResources,
+                           make_fs_access=make_fs_access,
                            **vars(args))
 
             # This is the workflow output, it needs to be written
