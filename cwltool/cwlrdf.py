@@ -1,38 +1,10 @@
 import json
 import urlparse
 from schema_salad.ref_resolver import Loader
+from schema_salad.jsonld_context import makerdf
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
 from typing import Any, Union, Dict, IO
-
-def makerdf(workflow, wf, ctx):
-    # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType) -> Graph
-    prefixes = {}
-    for k,v in ctx.iteritems():
-        if isinstance(v, dict):
-            url = v["@id"]
-        else:
-            url = v
-        doc_url, frg = urlparse.urldefrag(url)
-        if "/" in frg:
-            p, _ = frg.split("/")
-            prefixes[p] = u"%s#%s/" % (doc_url, p)
-
-    if isinstance(wf, list):
-        for entry in wf:
-            entry["@context"] = ctx
-    else:
-        wf["@context"] = ctx
-    g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow)
-
-    # Bug in json-ld loader causes @id fields to be added to the graph
-    for s,p,o in g.triples((None, URIRef("@id"), None)):
-        g.remove((s, p, o))
-
-    for k2,v2 in prefixes.iteritems():
-        g.namespace_manager.bind(k2, v2)
-
-    return g
 
 def printrdf(workflow, wf, ctx, sr, stdout):
     # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType, str, IO[Any]) -> None
