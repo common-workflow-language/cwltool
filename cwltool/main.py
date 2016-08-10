@@ -324,6 +324,8 @@ def generate_parser(toolparser, tool, namemap):
             atype = str
         elif inptype == "int":
             atype = int
+        elif inptype == "double":
+            atype = float
         elif inptype == "float":
             atype = float
         elif inptype == "boolean":
