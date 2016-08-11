@@ -419,17 +419,17 @@ class Process(object):
         if dockerReq and is_req and not kwargs.get("use_container"):
             raise WorkflowException("Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
 
-        if dockerReq and kwargs.get("use_container"):
-            builder.outdir = os.path.realpath(kwargs.get("docker_outdir") or "/var/spool/cwl")
-            builder.tmpdir = os.path.realpath(kwargs.get("docker_tmpdir") or "/tmp")
-            builder.stagedir = os.path.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
-        else:
-            builder.outdir = os.path.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
-            builder.tmpdir = os.path.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-            builder.stagedir = os.path.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
-
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
+
+        if dockerReq and kwargs.get("use_container"):
+            builder.outdir = builder.fs_access.realpath(kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
+            builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
+        else:
+            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
+            builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+            builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         if self.formatgraph:
             for i in self.tool["inputs"]:
