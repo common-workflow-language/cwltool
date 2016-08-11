@@ -430,7 +430,6 @@ class Process(object):
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
             builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
-        print "ZZZ",  builder.outdir, builder.fs_access
 
         if self.formatgraph:
             for i in self.tool["inputs"]:
