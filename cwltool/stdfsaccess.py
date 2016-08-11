@@ -32,3 +32,6 @@ class StdFsAccess(object):
 
     def join(self, path, *paths): # type: (unicode, *unicode) -> unicode
         return os.path.join(path, *paths)
+
+    def realpath(self, path):
+        return os.path.realpath(path)
