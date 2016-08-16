@@ -28,6 +28,7 @@ from .cwlrdf import printrdf, printdot
 from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
+from .resolver import tool_resolver
 from .builder import adjustFileObjs, adjustDirObjs
 from .stdfsaccess import StdFsAccess
 from .pack import pack
@@ -617,7 +618,7 @@ def main(argsl=None,
                 return 1
 
         try:
-            document_loader, workflowobj, uri = fetch_document(args.workflow)
+            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=tool_resolver)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
