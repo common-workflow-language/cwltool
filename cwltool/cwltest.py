@@ -141,8 +141,7 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
         failed = True
 
     if outdir:
-        shutil.rmtree(outdir, True)  # type: ignore
-        # Weird AnyStr != basestring issue
+        shutil.rmtree(outdir, True)
 
     if failed:
         return 1

@@ -111,12 +111,13 @@ def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     return False
 
 def _compare_records(src, sink):
+    # type: (Dict[unicode, Any], Dict[unicode, Any]) -> bool
     """Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
     """
-    def _rec_fields(rec):
+    def _rec_fields(rec):  # type: (Dict[unicode, Any]) -> Dict[unicode, Any]
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
@@ -126,10 +127,13 @@ def _compare_records(src, sink):
     srcfields = _rec_fields(src)
     sinkfields = _rec_fields(sink)
     for key in sinkfields.iterkeys():
-        if not can_assign_src_to_sink(srcfields.get(key, "null"), sinkfields.get(key, "null")) and sinkfields.get(key) is not None:
+        if (not can_assign_src_to_sink(
+                srcfields.get(key, "null"), sinkfields.get(key, "null"))
+                and sinkfields.get(key) is not None):
             _logger.info("Record comparison failure for %s and %s\n"
                          "Did not match fields for %s: %s and %s" %
-                         (src["name"], sink["name"], key, srcfields.get(key), sinkfields.get(key)))
+                         (src["name"], sink["name"], key, srcfields.get(key),
+                             sinkfields.get(key)))
             return False
     return True
 

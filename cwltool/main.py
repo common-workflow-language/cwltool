@@ -15,7 +15,7 @@ import pkg_resources  # part of setuptools
 import functools
 
 import rdflib
-from typing import Union, Any, cast, Callable, Dict, Tuple, IO
+from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO
 
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
@@ -353,7 +353,7 @@ def generate_parser(toolparser, tool, namemap):
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Type[StdFsAccess]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
 
@@ -383,7 +383,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
         except Exception as e:
-            _logger.error(str(e), exc_info=(e if args.debug else False))
+            _logger.error(str(e), exc_info=args.debug)
             return 1
         toolparser = None
     else:
@@ -401,7 +401,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                     input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
                     job_order_object = loader.resolve_ref(cmd_line["job_order"])
                 except Exception as e:
-                    _logger.error(str(e), exc_info=(e if args.debug else False))
+                    _logger.error(str(e), exc_info=args.debug)
                     return 1
             else:
                 job_order_object = {"id": args.workflow}
@@ -575,7 +575,7 @@ def main(argsl=None,
          versionfunc=versionstring,
          job_order_object=None,
          make_fs_access=StdFsAccess):
-    # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]]) -> int
+    # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]], Type[StdFsAccess]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
@@ -661,18 +661,18 @@ def main(argsl=None,
                     makeTool, {})
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
-                          exc_info=(exc if args.debug else False))
+                          exc_info=args.debug)
             return 1
         except (RuntimeError, WorkflowException) as exc:
             _logger.error(u"Tool definition failed initialization:\n%s", exc,
-                          exc_info=(exc if args.debug else False))
+                          exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
                 u"I'm sorry, I couldn't load this CWL file%s",
                 ", try again with --debug for more information.\nThe error was: "
                 "%s" % exc if not args.debug else ".  The error was:",
-                exc_info=(exc if args.debug else False))
+                exc_info=args.debug)
             return 1
 
         if isinstance(tool, int):
@@ -738,24 +738,23 @@ def main(argsl=None,
             else:
                 return 1
         except (validate.ValidationException) as exc:
-            _logger.error(
-                u"Input object failed validation:\n%s", exc,
-                exc_info=(exc if args.debug else False))
+            _logger.error(u"Input object failed validation:\n%s", exc,
+                    exc_info=args.debug)
             return 1
         except UnsupportedRequirement as exc:
             _logger.error(
                 u"Workflow or tool uses unsupported feature:\n%s", exc,
-                exc_info=(exc if args.debug else False))
+                exc_info=args.debug)
             return 33
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
-                "information:\n  %s", exc, exc_info=(exc if args.debug else False))
+                "information:\n  %s", exc, exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
                 u"Unhandled error, try again with --debug for more information:\n"
-                "  %s", exc, exc_info=(exc if args.debug else False))
+                "  %s", exc, exc_info=args.debug)
             return 1
 
         return 0
