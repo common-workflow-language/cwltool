@@ -207,11 +207,15 @@ def single_job_executor(t, job_order_object, **kwargs):
                     output_callback,
                     **kwargs)
 
+    workflow_cachedirs = set()
     try:
         for r in jobiter:
             if r.outdir:
                 output_dirs.add(r.outdir)
 
+                if type(r).__name__ == 'CommandLineJob' and kwargs["cachedir"] is not '':
+                    for item in r.cachedirs:
+                        workflow_cachedirs.add(item)
             if r:
                 r.run(**kwargs)
             else:
@@ -230,7 +234,7 @@ def single_job_executor(t, job_order_object, **kwargs):
                                           output_dirs, kwargs.get("move_outputs"))
 
     if kwargs.get("rm_tmpdir"):
-        cleanIntermediate(output_dirs)
+        cleanIntermediate(output_dirs, workflow_cachedirs)
 
     return final_output[0]
 

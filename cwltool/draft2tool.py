@@ -202,6 +202,7 @@ class CommandLineTool(Process):
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey)
 
             jobcache = os.path.join(kwargs["cachedir"], cachekey)
+            self.cachedirs.add(jobcache)
             jobcachepending = jobcache + ".pending"
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
@@ -235,6 +236,8 @@ class CommandLineTool(Process):
         reffiles = copy.deepcopy(builder.files)
 
         j = self.makeJobRunner()
+        if kwargs.get("cachedir"):
+            j.cachedirs = self.cachedirs
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
