@@ -191,6 +191,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                 else:
                     imp = urlparse.urljoin(baseuri, doc["@import"])
                     impLoaded = loader.fetch(imp)
+                    r = {}  # type: Dict[str, Any]
                     if isinstance(impLoaded, list):
                         r = {"@graph": impLoaded}
                     elif isinstance(impLoaded, dict):
@@ -236,6 +237,7 @@ def traverseImport(doc, loader, baseuri, func):
         else:
             imp = urlparse.urljoin(baseuri, doc["$import"])
             impLoaded = loader.fetch(imp)
+            r = {}  # type: Dict[str, Any]
             if isinstance(impLoaded, list):
                 r = {"$graph": impLoaded}
             elif isinstance(impLoaded, dict):

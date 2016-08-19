@@ -23,6 +23,7 @@ from . import expression
 from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs, adjustDirObjs
 from .pathmapper import PathMapper
 from .job import CommandLineJob
+from .stdfsaccess import StdFsAccess
 
 ACCEPTLIST_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 
@@ -53,7 +54,8 @@ class ExpressionTool(Process):
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
             except Exception as e:
-                _logger.warn(u"Failed to evaluate expression:\n%s", e, exc_info=(e if kwargs.get('debug') else False))
+                _logger.warn(u"Failed to evaluate expression:\n%s",
+                        e, exc_info=kwargs.get('debug'))
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, output_callback, **kwargs):
@@ -362,7 +364,7 @@ class CommandLineTool(Process):
         yield j
 
     def collect_output_ports(self, ports, builder, outdir, compute_checksum=True):
-        # type: (Set[Dict[str,Any]], Builder, str) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
+        # type: (Set[Dict[str,Any]], Builder, str, bool) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
         try:
             ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
             fs_access = builder.make_fs_access(outdir)
@@ -377,8 +379,13 @@ class CommandLineTool(Process):
                     try:
                         ret[fragment] = self.collect_output(port, builder, outdir, fs_access, compute_checksum=compute_checksum)
                     except Exception as e:
-                        _logger.debug(u"Error collecting output for parameter '%s'" % shortname(port["id"]), exc_info=e)
-                        raise WorkflowException(u"Error collecting output for parameter '%s': %s" % (shortname(port["id"]), e))
+                        _logger.debug(
+                                u"Error collecting output for parameter '%s'"
+                                % shortname(port["id"]), exc_info=True)
+                        raise WorkflowException(
+                                u"Error collecting output for " \
+                                        "parameter '%s': %s" %
+                                        (shortname(port["id"]), e))
 
             if ret:
                 adjustFileObjs(ret,
@@ -397,7 +404,7 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
-        # type: (Dict[str,Any], Builder, str) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
+        # type: (Dict[str,Any], Builder, str, StdFsAccess, bool) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
