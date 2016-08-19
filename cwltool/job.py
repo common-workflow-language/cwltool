@@ -79,8 +79,8 @@ class CommandLineJob(object):
             p = self.pathmapper.mapper(knownfile)
             if p.type == "File" and not os.path.isfile(p[0]):
                 raise WorkflowException(
-                u"Input file %s (at %s) not found or is not a regular file."
-                % (knownfile, self.pathmapper.mapper(knownfile)[0]))
+                    u"Input file %s (at %s) not found or is not a regular "
+                    "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         img_id = None
         env = None  # type: MutableMapping[str, str]
@@ -176,6 +176,7 @@ class CommandLineJob(object):
                                             self.outdir, separateDirs=False)
                 _logger.debug(u"[job %s] initial work dir %s", self.name,
                               json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
+
                 def linkoutdir(src, tgt):
                     # Need to make the link to the staged file (may be inside
                     # the container)

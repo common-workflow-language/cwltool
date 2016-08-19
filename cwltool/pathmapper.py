@@ -161,14 +161,14 @@ class PathMapper(object):
 
         # Dereference symbolic links
         for path, (ab, tgt, type) in self._pathmap.items():
-            if type != "File": # or not os.path.exists(ab):
+            if type != "File":  # or not os.path.exists(ab):
                 continue
             deref = ab
             st = os.lstat(deref)
             while stat.S_ISLNK(st.st_mode):
                 rl = os.readlink(deref)
                 deref = rl if os.path.isabs(rl) else os.path.join(
-                        os.path.dirname(deref), rl)
+                    os.path.dirname(deref), rl)
                 st = os.lstat(deref)
 
             self._pathmap[path] = MapperEnt(deref, tgt, "File")

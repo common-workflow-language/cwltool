@@ -86,10 +86,9 @@ class Builder(object):
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
                     bindings.extend(
-                            self.bind_input(
-                                {"type": schema["items"],
-                                 "inputBinding": b2},
-                                item, lead_pos=n, tail_pos=tail_pos))
+                        self.bind_input(
+                            {"type": schema["items"], "inputBinding": b2},
+                            item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
 
             if schema["type"] == "File":

@@ -1,0 +1,8 @@
+requests
+ruamel.yaml == 0.12.4
+rdflib >= 4.1.0
+rdflib-jsonld >= 0.3.0
+shellescape
+schema-salad==1.16.20160819133325
+typing
+

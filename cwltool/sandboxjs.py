@@ -48,14 +48,15 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,str], Any, int) -> 
 
     if nodejs is None:
         raise JavascriptException(
-                u"cwltool requires Node.js engine to evaluate Javascript "
-                "expressions, but couldn't find it.  Tried %s, docker run "
-                "node:slim" % u", ".join(trynodes))
+            u"cwltool requires Node.js engine to evaluate Javascript "
+            "expressions, but couldn't find it.  Tried %s, docker run "
+            "node:slim" % u", ".join(trynodes))
 
     fn = u"\"use strict\";\n%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
     script = u"console.log(JSON.stringify(require(\"vm\").runInNewContext(%s, {})));\n" % json.dumps(fn)
 
     killed = []
+
     def term():
         try:
             nodejs.kill()

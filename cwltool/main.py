@@ -140,8 +140,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
-    parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
-                         help="When using --print-deps, print paths relative to primary file or current working directory.")
+    parser.add_argument("--relative-deps", choices=['primary', 'cwd'],
+        default="primary", help="When using --print-deps, print paths "
+        "relative to primary file or current working directory.")
 
     parser.add_argument("--enable-dev", action="store_true",
                         help="Allow loading and running development versions "
@@ -306,8 +307,8 @@ def generate_parser(toolparser, tool, namemap):
 
         ahelp = inp.get("description", "").replace("%", "%%")
         action = None  # type: Union[argparse.Action,str]
-        atype = None # type: Any
-        default = None # type: Any
+        atype = None  # type: Any
+        default = None  # type: Any
 
         if inptype == "File":
             action = cast(argparse.Action, FileAction)
@@ -345,8 +346,8 @@ def generate_parser(toolparser, tool, namemap):
             typekw = {}
 
         toolparser.add_argument(  # type: ignore
-                flag + name, required=required, help=ahelp, action=action,
-                default=default, **typekw)
+            flag + name, required=required, help=ahelp, action=action,
+            default=default, **typekw)
 
     return toolparser
 
@@ -361,10 +362,10 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         loader = Loader({})
     else:
         jobloaderctx = {
-                u"path": {u"@type": u"@id"},
-                u"location": {u"@type": u"@id"},
-                u"format": {u"@type": u"@id"},
-                u"id": u"@id"}
+            u"path": {u"@type": u"@id"},
+            u"location": {u"@type": u"@id"},
+            u"format": {u"@type": u"@id"},
+            u"id": u"@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
         loader = Loader(jobloaderctx)
 
@@ -458,9 +459,9 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     def loadref(b, u):
         return document_loader.fetch(urlparse.urljoin(b, u))
 
-    sf = scandeps(basedir if basedir else uri, obj,
-                          set(("$import", "run")),
-                          set(("$include", "$schemas", "path", "location")), loadref)
+    sf = scandeps(
+        basedir if basedir else uri, obj, set(("$import", "run")),
+        set(("$include", "$schemas", "path", "location")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
@@ -471,6 +472,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             base = "file://" + os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
+
         def makeRelative(ob):
             u = ob.get("location", ob.get("path"))
             if ":" in u.split("/")[0] and not u.startswith("file://"):
@@ -521,8 +523,7 @@ def print_pack(document_loader, processobj, uri, metadata):
     def loadref(b, u):
         # type: (unicode, unicode) -> Union[Dict, List, unicode]
         return document_loader.resolve_ref(u, base_url=b)[0]
-    deps = scandeps(uri, processobj,
-                            set(("run",)), set(), loadref)
+    deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
 
     fdeps = set((uri,))
     flatten_deps(deps, fdeps)
