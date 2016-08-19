@@ -428,9 +428,15 @@ class Process(object):
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+            builder.outdir = kwargs.get("outdir")
+            builder.tmpdir = kwargs.get("tmpdir")
+            if not builder.outdir:
+                builder.outdir = tempfile.mkdtemp(prefix=kwargs.get('tmp_outdir_prefix'))
+
+            if not builder.tmpdir:
+                builder.tmpdir = tempfile.mkdtemp(prefix=kwargs.get('tmpdir_prefix'))
+
+            builder.stagedir = kwargs.get("stagedir") or tempfile.mkdtemp(prefix=kwargs.get('tmpdir_prefix'))
 
         if self.formatgraph:
             for i in self.tool["inputs"]:

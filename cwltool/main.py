@@ -191,7 +191,7 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     output_dirs = set()
     finaloutdir = kwargs.get("outdir")
-    kwargs["outdir"] = tempfile.mkdtemp()
+    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"])
     output_dirs.add(kwargs["outdir"])
 
     jobReqs = None
@@ -610,7 +610,9 @@ def main(argsl=None,
                     'workflow': None,
                     'job_order': None,
                     'pack': False,
-                    'on_error': 'continue'}.iteritems():
+                    'on_error': 'continue',
+                    'leave_tmpdir': False,
+                    'leave_outputs': False}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -683,14 +685,14 @@ def main(argsl=None,
             # Use user defined temp directory (if it exists)
             setattr(args, 'tmp_outdir_prefix',
                     os.path.abspath(args.tmp_outdir_prefix))
-            if not os.path.exists(args.tmp_outdir_prefix):
+            if not os.path.exists(os.path.split(args.tmp_outdir_prefix)[0]):
                 _logger.error("Intermediate output directory prefix doesn't exist.")
                 return 1
 
         if args.tmpdir_prefix != 'tmp':
             # Use user defined prefix (if the folder exists)
             setattr(args, 'tmpdir_prefix', os.path.abspath(args.tmpdir_prefix))
-            if not os.path.exists(args.tmpdir_prefix):
+            if not os.path.exists(os.path.split(args.tmpdir_prefix)[0]):
                 _logger.error("Temporary directory prefix doesn't exist.")
                 return 1
 
