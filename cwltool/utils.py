@@ -8,7 +8,7 @@ def aslist(l):  # type: (Any) -> List[Any]
     else:
         return [l]
 
-def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool] 
+def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
     for t in reversed(self.requirements):
         if t["class"] == feature:
             return (t, True)

@@ -109,11 +109,11 @@ class CallbackJob(object):
 
     def run(self, **kwargs):
         # type: (**Any) -> None
-        self.output_callback(self.job.collect_output_ports(self.job.tool["outputs"],
-                                                           self.cachebuilder,
-                                                           self.outdir,
-                                                           kwargs.get("compute_checksum", True)),
-                                            "success")
+        self.output_callback(self.job.collect_output_ports(
+            self.job.tool["outputs"],
+            self.cachebuilder,
+            self.outdir,
+            kwargs.get("compute_checksum", True)), "success")
 
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
@@ -221,16 +221,17 @@ class CommandLineTool(Process):
                 os.makedirs(jobcache)
                 kwargs["outdir"] = jobcache
                 open(jobcachepending, "w").close()
+
                 def rm_pending_output_callback(output_callback, jobcachepending,
                                                outputs, processStatus):
                     if processStatus == "success":
                         os.remove(jobcachepending)
                     output_callback(outputs, processStatus)
                 output_callback = cast(
-                        Callable[..., Any],  # known bug in mypy
-                        # https://github.com/python/mypy/issues/797
-                        partial(rm_pending_output_callback, output_callback,
-                            jobcachepending))
+                    Callable[..., Any],  # known bug in mypy
+                    # https://github.com/python/mypy/issues/797
+                    partial(rm_pending_output_callback, output_callback,
+                        jobcachepending))
 
         builder = self._init_job(joborder, **kwargs)
 
@@ -358,7 +359,8 @@ class CommandLineTool(Process):
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
-                self.collect_output_ports, self.tool["outputs"], builder, compute_checksum=kwargs.get("compute_checksum", True))
+            self.collect_output_ports, self.tool["outputs"], builder,
+            compute_checksum=kwargs.get("compute_checksum", True))
         j.output_callback = output_callback
 
         yield j
@@ -380,12 +382,11 @@ class CommandLineTool(Process):
                         ret[fragment] = self.collect_output(port, builder, outdir, fs_access, compute_checksum=compute_checksum)
                     except Exception as e:
                         _logger.debug(
-                                u"Error collecting output for parameter '%s'"
-                                % shortname(port["id"]), exc_info=True)
+                            u"Error collecting output for parameter '%s'"
+                            % shortname(port["id"]), exc_info=True)
                         raise WorkflowException(
-                                u"Error collecting output for " \
-                                        "parameter '%s': %s" %
-                                        (shortname(port["id"]), e))
+                            u"Error collecting output for parameter '%s': %s"
+                            % (shortname(port["id"]), e))
 
             if ret:
                 adjustFileObjs(ret,
@@ -507,6 +508,7 @@ class CommandLineTool(Process):
             out = {}
             for f in schema["type"]["fields"]:
                 out[shortname(f["name"])] = self.collect_output(  # type: ignore
-                        f, builder, outdir, fs_access, compute_checksum=compute_checksum)
+                    f, builder, outdir, fs_access,
+                    compute_checksum=compute_checksum)
             return out
         return r

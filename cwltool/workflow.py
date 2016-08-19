@@ -148,9 +148,9 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
             if (isinstance(inp[sourceField], list) and not
                     supportsMultipleInput):
                 raise WorkflowException(
-                        "Workflow contains multiple inbound links to a single "
-                        "parameter but MultipleInputFeatureRequirement is not "
-                        "declared.")
+                    "Workflow contains multiple inbound links to a single "
+                    "parameter but MultipleInputFeatureRequirement is not "
+                    "declared.")
             connections = aslist(inp[sourceField])
             for src in connections:
                 if src in state and state[src] is not None:
@@ -160,14 +160,14 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
                                 if len(connections) > 1 else None)),
                             valueFrom=inp.get("valueFrom")):
                         raise WorkflowException(
-                                u"Type mismatch between source '%s' (%s) and "
-                                "sink '%s' (%s)" % (src,
-                                    state[src].parameter["type"], inp["id"],
-                                    inp["type"]))
+                            u"Type mismatch between source '%s' (%s) and "
+                            "sink '%s' (%s)" % (src,
+                                state[src].parameter["type"], inp["id"],
+                                inp["type"]))
                 elif src not in state:
                     raise WorkflowException(
-                            u"Connect source '%s' on parameter '%s' does not "
-                            "exist" % (src, inp["id"]))
+                        u"Connect source '%s' on parameter '%s' does not "
+                        "exist" % (src, inp["id"]))
                 else:
                     return None
         elif "default" in inp:
@@ -252,8 +252,7 @@ class WorkflowJob(object):
 
         try:
             inputobj = object_from_state(
-                    self.state, inputparms, False, supportsMultipleInput,
-                    "source")
+                self.state, inputparms, False, supportsMultipleInput, "source")
             if inputobj is None:
                 _logger.debug(u"[%s] job step %s not ready", self.name, step.id)
                 return
@@ -266,21 +265,23 @@ class WorkflowJob(object):
             callback = functools.partial(self.receive_output, step, outputparms)
 
             valueFrom = {
-                    i["id"]: i["valueFrom"] for i in step.tool["inputs"]
-                    if "valueFrom" in i}
+                i["id"]: i["valueFrom"] for i in step.tool["inputs"]
+                if "valueFrom" in i}
 
             if len(valueFrom) > 0 and not bool(self.workflow.get_requirement("StepInputExpressionRequirement")[0]):
                 raise WorkflowException("Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
+
             def postScatterEval(io):
                 # type: (Dict[unicode, Any]) -> Dict[unicode, Any]
                 shortio = {shortname(k): v for k,v in io.iteritems()}
+
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
                         return expression.do_eval(
-                                valueFrom[k], shortio, self.workflow.requirements,
-                                None, None, {}, context=v)
+                            valueFrom[k], shortio, self.workflow.requirements,
+                            None, None, {}, context=v)
                     else:
                         return v
                 return {k: valueFromFunc(k, v) for k,v in io.items()}
@@ -299,10 +300,10 @@ class WorkflowJob(object):
                                                   Callable[[Any], Any],callback), **kwargs)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(step, inputobj,
-                            scatter, cast(Callable[[Any], Any], callback),
-                            # known bug in mypy
-                            # https://github.com/python/mypy/issues/797
-                            **kwargs)
+                        scatter, cast(Callable[[Any], Any], callback),
+                        # known bug in mypy
+                        # https://github.com/python/mypy/issues/797
+                        **kwargs)
                 elif method == "flat_crossproduct":
                     jobs = flat_crossproduct_scatter(step, inputobj,
                                                      scatter,
