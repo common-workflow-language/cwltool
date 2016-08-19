@@ -190,7 +190,7 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     output_dirs = set()
     finaloutdir = kwargs.get("outdir")
-    kwargs["outdir"] = tempfile.mkdtemp()
+    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs.get("tmpdir_prefix"))
     output_dirs.add(kwargs["outdir"])
 
     jobReqs = None
