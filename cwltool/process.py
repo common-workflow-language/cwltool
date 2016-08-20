@@ -224,9 +224,9 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
 
     return outputObj
 
-def cleanIntermediate(output_dirs):  # type: (Set[unicode]) -> None
+def cleanIntermediate(output_dirs, workflow_cachedirs):  # type: (Set[unicode]) -> None
     for a in output_dirs:
-        if os.path.exists(a) and empty_subtree(a):
+        if os.path.exists(a) and (a not in workflow_cachedirs):
             _logger.debug(u"Removing intermediate output directory %s", a)
             shutil.rmtree(a, True)
 
@@ -332,6 +332,7 @@ class Process(object):
         else:
             self.names = names
         self.tool = toolpath_object
+        self.cachedirs = set()
         self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         self.formatgraph = None  # type: Graph
