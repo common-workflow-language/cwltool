@@ -45,7 +45,7 @@
     }
   job: v1.0/cat-job.json
   tool: v1.0/template-tool.cwl
-  doc: Test CreateFileRequirement ExpressionEngineRequirement.engineConfig feature
+  doc: Test InitialWorkDirRequirement ExpressionEngineRequirement.engineConfig feature
 
 - job: v1.0/cat-job.json
   output:
@@ -327,29 +327,39 @@
             {
                 "location": "input.txt.idx1",
                 "class": "File",
+                "checksum": "sha1$553f3a09003a9f69623f03bec13c0b078d706023",
+                "size": 1500
             },
             {
                 "location": "input.idx2",
                 "class": "File",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "size": 0
             },
             {
                 "location": "input.txt.idx3",
                 "class": "File",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "size": 0
             },
             {
                 "location": "input.txt.idx4",
                 "class": "File",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "size": 0
             },
             {
                 "location": "input.txt.idx5",
                 "class": "File",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "size": 0
             }
         ],
         "size": 1111
     }
   tool: "v1.0/search.cwl#main"
   doc: |
-    Test CreateFileRequirement linking input files and capturing secondaryFiles
+    Test InitialWorkDirRequirement linking input files and capturing secondaryFiles
     on input and output.
 
 - job: v1.0/rename-job.json
@@ -361,7 +371,7 @@
       size: 1111
   tool: v1.0/rename.cwl
   doc: |
-    Test CreateFileRequirement with expression in filename.
+    Test InitialWorkDirRequirement with expression in filename.
 
 - job: v1.0/wc-job.json
   output:
@@ -633,7 +643,9 @@
   output: {
     "foo": {
         "location": "foo",
-        "class": "File"
+        "class": "File",
+        "checksum": "sha1$f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+        "size": 4
     }
   }
   tool: v1.0/test-cwl-out.cwl
@@ -713,7 +725,7 @@
         "class": "File"
     }
   tool: v1.0/dir.cwl
-  doc: Test directory input
+  doc: Test directory input with parameter reference
 
 - job: v1.0/dir-job.yml
   output:
@@ -733,11 +745,15 @@
         "listing": [
             {
               "class": "File",
-              "location": "hello.txt"
+              "location": "hello.txt",
+                "checksum": "sha1$47a013e660d408619d894b20806b1d5086aab03b",
+                "size": 13
             },
             {
               "class": "File",
-              "location": "goodbye.txt"
+              "location": "goodbye.txt",
+                "checksum": "sha1$dd0a4c4c49ba43004d6611771972b6cf969c1c01",
+                "size": 24
             }
         ],
     }
@@ -809,3 +825,45 @@
         size: 21
   tool: v1.0/nameroot.cwl
   doc: Test nameroot/nameext expression in arguments, stdout
+
+- job: v1.0/dir-job.yml
+  output:
+    "outlist": {
+        "size": 20,
+        "location": "output.txt",
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592",
+        "class": "File"
+    }
+  tool: v1.0/dir6.cwl
+  doc: Test directory input with inputBinding
+
+- job: v1.0/nested-array-job.yml
+  output:
+    echo:
+        checksum: sha1$3f786850e387550fdab836ed7e6dc881de23001b
+        location: echo.txt
+        class: File
+        size: 2
+  tool: v1.0/nested-array.cwl
+  doc: Test command line generation of array-of-arrays
+
+- job: v1.0/empty.json
+  output: {}
+  tool: v1.0/envvar.cwl
+  doc: Test $HOME and $TMPDIR are set correctly
+
+- job: v1.0/empty.json
+  output: {}
+  tool: v1.0/envvar2.cwl
+  doc: Test $HOME and $TMPDIR are set correctly in Docker
+
+- job: v1.0/empty.json
+  output:
+    "out": {
+        "checksum": "sha1$7448d8798a4380162d4b56f9b452e2f6f9e24e7a",
+        "location": "whatever.txt",
+        "class": "File",
+        "size": 2
+    }
+  tool: "v1.0/js-expr-req-wf.cwl#wf"
+  doc: Test that expressionLib requirement of individual tool step overrides expressionLib of workflow.
