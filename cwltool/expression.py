@@ -31,8 +31,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
             "self": context,
             "runtime": {
                 "tmpdir": tmpdir,
-                "outdir": outdir
-                }
+                "outdir": outdir }
         }
         return sandboxjs.execjs(ex["script"], jshead(engineConfig, rootvars))
 
@@ -66,7 +65,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 
             _logger.debug(u"Invoking expression engine %s with %s",
                           runtime + aslist(r["engineCommand"]),
-                                           json.dumps(inp, indent=4))
+                          json.dumps(inp, indent=4))
 
             sp = subprocess.Popen(runtime + aslist(r["engineCommand"]),
                              shell=False,
@@ -85,7 +84,7 @@ def exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image):
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
-seg_index  = r"""\[[0-9]+\]"""
+seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
 param_re = re.compile(r"\$\((%s)%s*\)" % (seg_symbol, segments), flags=re.UNICODE)
@@ -132,10 +131,9 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
     runtime["outdir"] = outdir
 
     rootvars = {
-            "inputs": jobinput,
-            "self": context,
-            "runtime": runtime
-        }
+        "inputs": jobinput,
+        "self": context,
+        "runtime": runtime }
 
     if isinstance(ex, dict) and "engine" in ex and "script" in ex:
         return exeval(ex, jobinput, requirements, outdir, tmpdir, context, pull_image)

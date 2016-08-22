@@ -26,8 +26,8 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257
-DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pep257 sloccount
+DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257 flake8
+DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pep257 sloccount python-flake8
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -145,5 +145,16 @@ sloccount: ${PYSOURCES} Makefile
 list-author-emails:
 	@echo 'name, E-Mail Address'
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
+
+
+mypy: ${PYSOURCES}
+	rm -Rf typeshed/2.7/ruamel/yaml
+	ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+		typeshed/2.7/ruamel/yaml
+	rm -Rf typeshed/2.7/schema_salad
+	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
+		typeshed/2.7/schema_salad
+	MYPYPATH=typeshed/2.7 mypy --py2 --disallow-untyped-calls \
+		 --warn-redundant-casts --warn-unused-ignores cwltool
 
 FORCE:

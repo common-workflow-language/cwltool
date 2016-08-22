@@ -16,7 +16,8 @@ import re
 import shellescape
 from .docker_uid import docker_vm_uid
 from .builder import Builder
-from typing import Union, Iterable, Callable, Any, Mapping, IO, cast, Tuple
+from typing import (Any, Callable, Union, Iterable, Mapping, MutableMapping,
+        IO, cast, Tuple)
 from .pathmapper import PathMapper
 import functools
 
@@ -57,7 +58,7 @@ class CommandLineJob(object):
         self.output_callback = None  # type: Callable[[Any, Any], Any]
         self.outdir = None  # type: str
         self.tmpdir = None  # type: str
-        self.environment = None  # type: Dict[str,str]
+        self.environment = None  # type: MutableMapping[str, str]
         self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]]
         self.stagedir = None  # type: unicode
 
@@ -78,10 +79,11 @@ class CommandLineJob(object):
             p = self.pathmapper.mapper(knownfile)
             if p.type == "File" and not os.path.isfile(p[0]):
                 raise WorkflowException(
-                u"Input file %s (at %s) not found or is not a regular file."
-                % (knownfile, self.pathmapper.mapper(knownfile)[0]))
+                    u"Input file %s (at %s) not found or is not a regular "
+                    "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         img_id = None
+        env = None  # type: MutableMapping[str, str]
         if docker_req and kwargs.get("use_container") is not False:
             env = os.environ
             img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
@@ -174,6 +176,7 @@ class CommandLineJob(object):
                                             self.outdir, separateDirs=False)
                 _logger.debug(u"[job %s] initial work dir %s", self.name,
                               json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
+
                 def linkoutdir(src, tgt):
                     # Need to make the link to the staged file (may be inside
                     # the container)
@@ -244,7 +247,7 @@ class CommandLineJob(object):
                 def linkoutdir(src, tgt):
                     # Need to make the link to the staged file (may be inside
                     # the container)
-                    if os.path.exists(tgt) and os.path.islink(tgt):
+                    if os.path.islink(tgt):
                         os.remove(tgt)
                         os.symlink(src, tgt)
                 stageFiles(generatemapper, linkoutdir, ignoreWritable=True)

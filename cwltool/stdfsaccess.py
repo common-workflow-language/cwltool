@@ -30,8 +30,8 @@ class StdFsAccess(object):
     def listdir(self, fn):  # type: (unicode) -> List[unicode]
         return [abspath(l, fn) for l in os.listdir(self._abs(fn))]
 
-    def join(self, path, *paths): # type: (unicode, *unicode) -> unicode
+    def join(self, path, *paths):  # type: (unicode, *unicode) -> unicode
         return os.path.join(path, *paths)
 
-    def realpath(self, path):
+    def realpath(self, path):  # type: (str) -> str
         return os.path.realpath(path)

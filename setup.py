@@ -37,13 +37,12 @@ setup(name='cwltool',
                                 'schemas/v1.0/salad/schema_salad/metaschema/*.md']},
       install_requires=[
           'requests',
-          'ruamel.yaml == 0.11.11',
+          'ruamel.yaml == 0.12.4',
           'rdflib >= 4.1.0',
           'rdflib-jsonld >= 0.3.0',
           'shellescape',
-          'schema-salad==1.16.20160810195039',
-          'typing'
-        ],
+          'schema-salad==1.17.20160820171034',
+          'typing >= 3.5.2' ],
       test_suite='tests',
       tests_require=[],
       entry_points={

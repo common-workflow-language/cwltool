@@ -46,14 +46,15 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement"]
 
-cwl_files = ("Workflow.yml",
-              "CommandLineTool.yml",
-              "CommonWorkflowLanguage.yml",
-              "Process.yml",
-              "concepts.md",
-              "contrib.md",
-              "intro.md",
-              "invocation.md")
+cwl_files = (
+    "Workflow.yml",
+    "CommandLineTool.yml",
+    "CommonWorkflowLanguage.yml",
+    "Process.yml",
+    "concepts.md",
+    "contrib.md",
+    "intro.md",
+    "invocation.md")
 
 salad_files = ('metaschema.yml',
                'metaschema_base.yml',
@@ -170,7 +171,7 @@ def getListing(fs_access, rec):
         rec["listing"] = listing
 
 def stageFiles(pm, stageFunc, ignoreWritable=False):
-    # type: (PathMapper, Callable[..., Any]) -> None
+    # type: (PathMapper, Callable[..., Any], bool) -> None
     for f, p in pm.items():
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0755)
@@ -353,11 +354,11 @@ class Process(object):
 
         # Build record schema from inputs
         self.inputs_record_schema = {
-                "name": "input_record_schema", "type": "record",
-                "fields": []}  # type: Dict[unicode, Any]
+            "name": "input_record_schema", "type": "record",
+            "fields": []}  # type: Dict[unicode, Any]
         self.outputs_record_schema = {
-                "name": "outputs_record_schema", "type": "record",
-                "fields": []}  # type: Dict[unicode, Any]
+            "name": "outputs_record_schema", "type": "record",
+            "fields": []}  # type: Dict[unicode, Any]
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
@@ -374,9 +375,9 @@ class Process(object):
                     c["type"] = c["type"]
                 c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
-                    self.inputs_record_schema["fields"].append(c)  # type: ignore
+                    self.inputs_record_schema["fields"].append(c)
                 elif key == "outputs":
-                    self.outputs_record_schema["fields"].append(c)  # type: ignore
+                    self.outputs_record_schema["fields"].append(c)
 
         try:
             self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
@@ -508,7 +509,7 @@ class Process(object):
         else:
             return {
                 "cores": request["coresMin"],
-                "ram":   request["ramMin"],
+                "ram": request["ramMin"],
                 "tmpdirSize": request["tmpdirMin"],
                 "outdirSize": request["outdirMin"],
             }
@@ -521,7 +522,7 @@ class Process(object):
                     validate.validate_ex(avsc_names.get_name(r["class"], ""), r, strict=strict)
                 else:
                     _logger.info(str(validate.ValidationException(
-                    u"Unknown hint %s" % (r["class"]))))
+                        u"Unknown hint %s" % (r["class"]))))
             except validate.ValidationException as v:
                 raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], str(v)))
 

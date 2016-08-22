@@ -3,7 +3,7 @@ from .utils import aslist
 from . import expression
 import avro
 import schema_salad.validate as validate
-from typing import Any, Union, AnyStr, Callable
+from typing import Any, Union, AnyStr, Callable, Type
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
 from .pathmapper import PathMapper, adjustFileObjs, adjustDirObjs, normalizeFilesDirs
@@ -33,9 +33,10 @@ class Builder(object):
         self.timeout = None  # type: int
         self.pathmapper = None  # type: PathMapper
         self.stagedir = None  # type: unicode
+        self.make_fs_access = None  # type: Type[StdFsAccess]
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
-        # type: (Dict[unicode, Any], Any, List[int], List[int]) -> List[Dict[str, Any]]
+        # type: (Dict[unicode, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[str, Any]]
         bindings = []  # type: List[Dict[str,str]]
         binding = None  # type: Dict[str,Any]
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
@@ -84,8 +85,10 @@ class Builder(object):
                     if binding:
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
-                    bindings.extend(self.bind_input({"type": schema["items"], "inputBinding": b2},
-                                                    item, lead_pos=n, tail_pos=tail_pos))
+                    bindings.extend(
+                        self.bind_input(
+                            {"type": schema["items"], "inputBinding": b2},
+                            item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
 
             if schema["type"] == "File":

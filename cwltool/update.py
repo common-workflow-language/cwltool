@@ -143,10 +143,10 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
     if isinstance(doc, dict):
         if "@import" in doc:
             resolved_doc = loader.resolve_ref(
-                    doc["@import"], base_url=baseuri)[0]
+                doc["@import"], base_url=baseuri)[0]
             if isinstance(resolved_doc, dict):
                 return _draftDraft3dev1toDev2(
-                        resolved_doc, loader, resolved_doc["id"])
+                    resolved_doc, loader, resolved_doc["id"])
             else:
                 raise Exception("Unexpected codepath")
 
@@ -191,6 +191,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                 else:
                     imp = urlparse.urljoin(baseuri, doc["@import"])
                     impLoaded = loader.fetch(imp)
+                    r = {}  # type: Dict[str, Any]
                     if isinstance(impLoaded, list):
                         r = {"@graph": impLoaded}
                     elif isinstance(impLoaded, dict):
@@ -236,6 +237,7 @@ def traverseImport(doc, loader, baseuri, func):
         else:
             imp = urlparse.urljoin(baseuri, doc["$import"])
             impLoaded = loader.fetch(imp)
+            r = {}  # type: Dict[str, Any]
             if isinstance(impLoaded, list):
                 r = {"$graph": impLoaded}
             elif isinstance(impLoaded, dict):
@@ -435,7 +437,7 @@ UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1,
     "v1.0": None
-} # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
+}  # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 DEVUPDATES = {
     "draft-3.dev1": draftDraft3dev1toDev2,
@@ -448,7 +450,7 @@ DEVUPDATES = {
     "draft-4.dev3": draft4Dev3to1_0dev4,
     "v1.0.dev4": v1_0dev4to1_0,
     "v1.0": None
-} # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
+}  # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)

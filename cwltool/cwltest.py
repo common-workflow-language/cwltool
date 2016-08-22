@@ -43,7 +43,7 @@ def compare(a, b):  # type: (Any, Any) -> bool
                     raise CompareFail(u"%s does not end with %s" %(b[comp], a[comp]))
                 # ignore empty collections
                 b = {k: v for k, v in b.iteritems()
-                        if not isinstance(v, (list, dict)) or len(v) > 0}
+                    if not isinstance(v, (list, dict)) or len(v) > 0}
             elif a.get("class") == "Directory":
                 if len(a["listing"]) != len(b["listing"]):
                     return False
@@ -141,8 +141,7 @@ def run_test(args, i, t):  # type: (argparse.Namespace, Any, Dict[str,str]) -> i
         failed = True
 
     if outdir:
-        shutil.rmtree(outdir, True)  # type: ignore
-        # Weird AnyStr != basestring issue
+        shutil.rmtree(outdir, True)
 
     if failed:
         return 1
@@ -216,8 +215,8 @@ def main():  # type: () -> int
         _logger.error("Tests interrupted")
 
     if failures == 0 and unsupported == 0:
-         _logger.info("All tests passed")
-         return 0
+        _logger.info("All tests passed")
+        return 0
     elif failures == 0 and unsupported > 0:
         _logger.warn("%i tests passed, %i unsupported features", total - unsupported, unsupported)
         return 0

@@ -15,7 +15,7 @@ import pkg_resources  # part of setuptools
 import functools
 
 import rdflib
-from typing import Union, Any, cast, Callable, Dict, Tuple, IO
+from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO
 
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
@@ -140,8 +140,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
-    parser.add_argument("--relative-deps", choices=['primary', 'cwd'], default="primary",
-                         help="When using --print-deps, print paths relative to primary file or current working directory.")
+    parser.add_argument("--relative-deps", choices=['primary', 'cwd'],
+        default="primary", help="When using --print-deps, print paths "
+        "relative to primary file or current working directory.")
 
     parser.add_argument("--enable-dev", action="store_true",
                         help="Allow loading and running development versions "
@@ -306,8 +307,8 @@ def generate_parser(toolparser, tool, namemap):
 
         ahelp = inp.get("description", "").replace("%", "%%")
         action = None  # type: Union[argparse.Action,str]
-        atype = None # type: Any
-        default = None # type: Any
+        atype = None  # type: Any
+        default = None  # type: Any
 
         if inptype == "File":
             action = cast(argparse.Action, FileAction)
@@ -345,15 +346,15 @@ def generate_parser(toolparser, tool, namemap):
             typekw = {}
 
         toolparser.add_argument(  # type: ignore
-                flag + name, required=required, help=ahelp, action=action,
-                default=default, **typekw)
+            flag + name, required=required, help=ahelp, action=action,
+            default=default, **typekw)
 
     return toolparser
 
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any]) -> Union[int,Tuple[Dict[str,Any],str]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Type[StdFsAccess]) -> Union[int,Tuple[Dict[str,Any],str]]
 
     job_order_object = None
 
@@ -361,10 +362,10 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         loader = Loader({})
     else:
         jobloaderctx = {
-                u"path": {u"@type": u"@id"},
-                u"location": {u"@type": u"@id"},
-                u"format": {u"@type": u"@id"},
-                u"id": u"@id"}
+            u"path": {u"@type": u"@id"},
+            u"location": {u"@type": u"@id"},
+            u"format": {u"@type": u"@id"},
+            u"id": u"@id"}
         jobloaderctx.update(t.metadata.get("$namespaces", {}))
         loader = Loader(jobloaderctx)
 
@@ -383,7 +384,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
         except Exception as e:
-            _logger.error(str(e), exc_info=(e if args.debug else False))
+            _logger.error(str(e), exc_info=args.debug)
             return 1
         toolparser = None
     else:
@@ -401,7 +402,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                     input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
                     job_order_object = loader.resolve_ref(cmd_line["job_order"])
                 except Exception as e:
-                    _logger.error(str(e), exc_info=(e if args.debug else False))
+                    _logger.error(str(e), exc_info=args.debug)
                     return 1
             else:
                 job_order_object = {"id": args.workflow}
@@ -458,9 +459,9 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     def loadref(b, u):
         return document_loader.fetch(urlparse.urljoin(b, u))
 
-    sf = scandeps(basedir if basedir else uri, obj,
-                          set(("$import", "run")),
-                          set(("$include", "$schemas", "path", "location")), loadref)
+    sf = scandeps(
+        basedir if basedir else uri, obj, set(("$import", "run")),
+        set(("$include", "$schemas", "path", "location")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
@@ -471,6 +472,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             base = "file://" + os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
+
         def makeRelative(ob):
             u = ob.get("location", ob.get("path"))
             if ":" in u.split("/")[0] and not u.startswith("file://"):
@@ -521,8 +523,7 @@ def print_pack(document_loader, processobj, uri, metadata):
     def loadref(b, u):
         # type: (unicode, unicode) -> Union[Dict, List, unicode]
         return document_loader.resolve_ref(u, base_url=b)[0]
-    deps = scandeps(uri, processobj,
-                            set(("run",)), set(), loadref)
+    deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
 
     fdeps = set((uri,))
     flatten_deps(deps, fdeps)
@@ -575,7 +576,7 @@ def main(argsl=None,
          versionfunc=versionstring,
          job_order_object=None,
          make_fs_access=StdFsAccess):
-    # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]]) -> int
+    # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]], Type[StdFsAccess]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
@@ -661,18 +662,18 @@ def main(argsl=None,
                     makeTool, {})
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
-                          exc_info=(exc if args.debug else False))
+                          exc_info=args.debug)
             return 1
         except (RuntimeError, WorkflowException) as exc:
             _logger.error(u"Tool definition failed initialization:\n%s", exc,
-                          exc_info=(exc if args.debug else False))
+                          exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
                 u"I'm sorry, I couldn't load this CWL file%s",
                 ", try again with --debug for more information.\nThe error was: "
                 "%s" % exc if not args.debug else ".  The error was:",
-                exc_info=(exc if args.debug else False))
+                exc_info=args.debug)
             return 1
 
         if isinstance(tool, int):
@@ -738,24 +739,23 @@ def main(argsl=None,
             else:
                 return 1
         except (validate.ValidationException) as exc:
-            _logger.error(
-                u"Input object failed validation:\n%s", exc,
-                exc_info=(exc if args.debug else False))
+            _logger.error(u"Input object failed validation:\n%s", exc,
+                    exc_info=args.debug)
             return 1
         except UnsupportedRequirement as exc:
             _logger.error(
                 u"Workflow or tool uses unsupported feature:\n%s", exc,
-                exc_info=(exc if args.debug else False))
+                exc_info=args.debug)
             return 33
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
-                "information:\n  %s", exc, exc_info=(exc if args.debug else False))
+                "information:\n  %s", exc, exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
                 u"Unhandled error, try again with --debug for more information:\n"
-                "  %s", exc, exc_info=(exc if args.debug else False))
+                "  %s", exc, exc_info=args.debug)
             return 1
 
         return 0
