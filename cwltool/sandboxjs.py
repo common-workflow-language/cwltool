@@ -13,7 +13,7 @@ _logger = logging.getLogger("cwltool")
 
 JSON = Union[Dict[Any,Any], List[Any], unicode, int, long, float, bool, None]
 
-have_node_slim = None
+have_node_slim = False
 
 def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,str], Any, int) -> JSON
     nodejs = None
