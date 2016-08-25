@@ -120,18 +120,18 @@ def next_seg(remain, obj):  # type: (str,Any)->str
         return obj
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
-    # type: (str, unicode, Dict[unicode, Any], bool, int) -> JSON
+    # type: (str, unicode, Dict[str, Any], bool, int) -> JSON
     m = param_re.match(ex)
     if m:
         return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
     elif fullJS:
         return sandboxjs.execjs(ex, jslib, timeout=timeout)
     else:
-        raise JavascriptException("Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.", ex)
+        raise sandboxjs.JavascriptException("Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.", ex)
 
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib=""):
-    # type: (str, Dict[unicode, Any], int, bool, Union[str, unicode]) -> JSON
+    # type: (str, Dict[str, Any], int, bool, Union[str, unicode]) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
