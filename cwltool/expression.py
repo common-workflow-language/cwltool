@@ -27,6 +27,8 @@ segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
 param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
 
+JSON = Union[Dict[Any,Any], List[Any], unicode, int, long, float, bool, None]
+
 class SubstitutionError(Exception):
     pass
 
@@ -118,7 +120,7 @@ def next_seg(remain, obj):  # type: (str,Any)->str
         return obj
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
-    # type: (str, Dict[Any,Any], bool) -> Union[str, unicode]
+    # type: (unicode, unicode, Dict[unicode, Any], bool, int) -> JSON
     m = param_re.match(ex)
     if m:
         return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
@@ -129,7 +131,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
 
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib=""):
-    # type: (str, Union[str, unicode], int, bool) -> JSON
+    # type: (unicode, Dict[unicode, Any], int, bool, Union[str, unicode]) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
