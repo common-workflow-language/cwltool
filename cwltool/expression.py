@@ -127,8 +127,8 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
     else:
         raise JavascriptException("Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.", ex)
 
-def interpolate(scan, jslib, rootvars,
-                timeout=None, fullJS=None):
+def interpolate(scan, rootvars,
+                timeout=None, fullJS=None, jslib=""):
     # type: (str, Union[str, unicode], int, bool) -> JSON
     scan = scan.strip()
     parts = []
@@ -177,9 +177,9 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                 break
 
         return interpolate(unicode(ex),
-                           jslib,
                            rootvars,
                            timeout=timeout,
-                           fullJS=fullJS)
+                           fullJS=fullJS,
+                           jslib=jslib)
     else:
         return ex
