@@ -120,7 +120,7 @@ def next_seg(remain, obj):  # type: (str,Any)->str
         return obj
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
-    # type: (unicode, unicode, Dict[unicode, Any], bool, int) -> JSON
+    # type: (str, unicode, Dict[unicode, Any], bool, int) -> JSON
     m = param_re.match(ex)
     if m:
         return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
@@ -131,7 +131,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
 
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib=""):
-    # type: (unicode, Dict[unicode, Any], int, bool, Union[str, unicode]) -> JSON
+    # type: (str, Dict[unicode, Any], int, bool, Union[str, unicode]) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -178,7 +178,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                 jslib = jshead(r.get("expressionLib", []), rootvars)
                 break
 
-        return interpolate(unicode(ex),
+        return interpolate(str(ex),
                            rootvars,
                            timeout=timeout,
                            fullJS=fullJS,
