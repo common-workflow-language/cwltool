@@ -4,7 +4,7 @@ import logging
 import os
 import re
 
-from typing import Any, AnyStr, Union
+from typing import Any, AnyStr, Union, Dict, List
 import schema_salad.validate as validate
 import schema_salad.ref_resolver
 
