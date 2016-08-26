@@ -17,14 +17,14 @@ import json
 import schema_salad
 from . import expression
 from .load_tool import load_tool
-from typing import Iterable, List, Callable, Any, Union, Generator, cast
+from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
 
 _logger = logging.getLogger("cwltool")
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value'])
 
 def defaultMakeTool(toolpath_object, **kwargs):
-    # type: (Dict[str, Any], **Any) -> Process
+    # type: (Dict[Text, Any], **Any) -> Process
     if not isinstance(toolpath_object, dict):
         raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
     if "class" in toolpath_object:
@@ -37,7 +37,7 @@ def defaultMakeTool(toolpath_object, **kwargs):
 
     raise WorkflowException(u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"])
 
-def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[str, Any]]
+def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
     if fn is None:
         fn = []
     if isinstance(wo, dict):
@@ -54,7 +54,7 @@ def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[str, Any]]
 
 
 def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
-    # type: (Union[List[str],str], WorkflowStateItem, str, Dict[unicode, Any], str, str) -> bool
+    # type: (Union[List[Text],Text], WorkflowStateItem, Text, Dict[Text, Any], Text, Text) -> bool
     if isinstance(sinktype, list):
         # Sink is union type
         for st in sinktype:
@@ -111,13 +111,13 @@ def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
     return False
 
 def _compare_records(src, sink):
-    # type: (Dict[unicode, Any], Dict[unicode, Any]) -> bool
+    # type: (Dict[Text, Any], Dict[Text, Any]) -> bool
     """Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
     """
-    def _rec_fields(rec):  # type: (Dict[unicode, Any]) -> Dict[unicode, Any]
+    def _rec_fields(rec):  # type: (Dict[Text, Any]) -> Dict[Text, Any]
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
@@ -138,8 +138,8 @@ def _compare_records(src, sink):
     return True
 
 def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
-    # type: (Dict[unicode, WorkflowStateItem], List[Dict[unicode, Any]], bool, bool, unicode) -> Dict[unicode, Any]
-    inputobj = {}  # type: Dict[unicode, Any]
+    # type: (Dict[Text, WorkflowStateItem], List[Dict[Text, Any]], bool, bool, Text) -> Dict[Text, Any]
+    inputobj = {}  # type: Dict[Text, Any]
     for inp in parms:
         iid = inp["id"]
         if frag_only:
@@ -191,7 +191,7 @@ class WorkflowJobStep(object):
         self.name = uniquename(u"step %s" % shortname(self.id))
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, unicode], functools.partial[None], **Any) -> Generator
+        # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         for j in self.step.job(joborder, output_callback, **kwargs):
@@ -206,8 +206,8 @@ class WorkflowJob(object):
         self.tool = workflow.tool
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.id = workflow.tool["id"]
-        self.state = None  # type: Dict[unicode, WorkflowStateItem]
-        self.processStatus = None  # type: str
+        self.state = None  # type: Dict[Text, WorkflowStateItem]
+        self.processStatus = None  # type: Text
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
         elif "tmp_outdir_prefix" in kwargs:
@@ -221,7 +221,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] initialized step from %s", self.name, self.tool["id"])
 
     def receive_output(self, step, outputparms, jobout, processStatus):
-        # type: (WorkflowJobStep, List[Dict[str,str]], Dict[str,str], str) -> None
+        # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -274,7 +274,7 @@ class WorkflowJob(object):
             vfinputs = {shortname(k): v for k,v in inputobj.iteritems()}
 
             def postScatterEval(io):
-                # type: (Dict[unicode, Any]) -> Dict[unicode, Any]
+                # type: (Dict[Text, Any]) -> Dict[Text, Any]
                 shortio = {shortname(k): v for k,v in io.iteritems()}
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
@@ -332,7 +332,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] workflow starting", self.name)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, Any], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
         self.state = {}
         self.processStatus = "success"
 
@@ -392,7 +392,7 @@ class WorkflowJob(object):
 
 class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[unicode, Any], **Any) -> None
+        # type: (Dict[Text, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
 
         kwargs["requirements"] = self.requirements
@@ -405,7 +405,7 @@ class Workflow(Process):
         # TODO: statically validate data links instead of doing it at runtime.
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
         builder = self._init_job(joborder, **kwargs)
         wj = WorkflowJob(self, **kwargs)
         yield wj
@@ -424,11 +424,11 @@ class Workflow(Process):
 class WorkflowStep(Process):
 
     def __init__(self, toolpath_object, pos, **kwargs):
-        # type: (Dict[unicode, Any], int, **Any) -> None
+        # type: (Dict[Text, Any], int, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
-            self.id = "#step" + str(pos)
+            self.id = "#step" + Text(pos)
 
         try:
             if isinstance(toolpath_object["run"], dict):
@@ -439,13 +439,15 @@ class WorkflowStep(Process):
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"))
         except validate.ValidationException as v:
-            raise WorkflowException(u"Tool definition %s failed validation:\n%s" % (toolpath_object["run"], validate.indent(str(v))))
+            raise WorkflowException(
+                u"Tool definition %s failed validation:\n%s" %
+                (toolpath_object["run"], validate.indent(str(v))))
 
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for step_entry in toolpath_object[stepfield]:
-                if isinstance(step_entry, (str, unicode)):
-                    param = {}  # type: Dict[str, Any]
+                if isinstance(step_entry, (Text, Text)):
+                    param = {}  # type: Dict[Text, Any]
                     inputid = step_entry
                 else:
                     param = step_entry.copy()
@@ -507,7 +509,7 @@ class WorkflowStep(Process):
             self.tool["outputs"] = outputparms
 
     def receive_output(self, output_callback, jobout, processStatus):
-        # type: (Callable[...,Any], Dict[unicode, str], str) -> None
+        # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
         #_logger.debug("WorkflowStep output from run is %s", jobout)
         output = {}
         for i in self.tool["outputs"]:
@@ -519,7 +521,7 @@ class WorkflowStep(Process):
         output_callback(output, processStatus)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, Any], Callable[...,Any], **Any) -> Generator
+        # type: (Dict[Text, Any], Callable[...,Any], **Any) -> Generator
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
@@ -539,7 +541,7 @@ class WorkflowStep(Process):
             raise
         except Exception as e:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(str(e))
+            raise WorkflowException(Text(e))
 
     def visit(self, op):
         self.embedded_tool.visit(op)
@@ -548,15 +550,15 @@ class WorkflowStep(Process):
 class ReceiveScatterOutput(object):
 
     def __init__(self, output_callback, dest):
-        # type: (Callable[..., Any], Dict[str,List[str]]) -> None
+        # type: (Callable[..., Any], Dict[Text,List[Text]]) -> None
         self.dest = dest
         self.completed = 0
-        self.processStatus = "success"
+        self.processStatus = u"success"
         self.total = None  # type: int
         self.output_callback = output_callback
 
     def receive_scatter_output(self, index, jobout, processStatus):
-        # type: (int, Dict[str, str], str) -> None
+        # type: (int, Dict[Text, Text], Text) -> None
         for k,v in jobout.items():
             self.dest[k][index] = v
 
@@ -576,7 +578,7 @@ class ReceiveScatterOutput(object):
 
 
 def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[unicode, Any], List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     l = None
     for s in scatter_keys:
         if l is None:
@@ -584,7 +586,7 @@ def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwarg
         elif l != len(joborder[s]):
             raise WorkflowException("Length of input arrays must be equal when performing dotproduct scatter.")
 
-    output = {}  # type: Dict[str,List[str]]
+    output = {}  # type: Dict[Text,List[Text]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * l
 
@@ -604,10 +606,10 @@ def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwarg
 
 
 def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[unicode, Any], List[str], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
-    output = {}  # type: Dict[str,List[str]]
+    output = {}  # type: Dict[Text,List[Text]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * l
 
@@ -634,7 +636,7 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
 
 
 def crossproduct_size(joborder, scatter_keys):
-    # type: (Dict[unicode, Any], List[str]) -> int
+    # type: (Dict[Text, Any], List[Text]) -> int
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         sum = len(joborder[scatter_key])
@@ -647,13 +649,13 @@ def crossproduct_size(joborder, scatter_keys):
     return sum
 
 def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, startindex, **kwargs):
-    # type: (WorkflowJobStep, Dict[unicode, Any], List[str], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     rc = None  # type: ReceiveScatterOutput
 
     if startindex == 0 and not isinstance(output_callback, ReceiveScatterOutput):
-        output = {}  # type: Dict[str,List[str]]
+        output = {}  # type: Dict[Text,List[Text]]
         for i in process.tool["outputs"]:
             output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
         rc = ReceiveScatterOutput(output_callback, output)

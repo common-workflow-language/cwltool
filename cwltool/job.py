@@ -17,7 +17,7 @@ import shellescape
 from .docker_uid import docker_vm_uid
 from .builder import Builder
 from typing import (Any, Callable, Union, Iterable, Mapping, MutableMapping,
-        IO, cast, Tuple)
+        IO, cast, Text, Tuple)
 from .pathmapper import PathMapper
 import functools
 
@@ -42,36 +42,36 @@ class CommandLineJob(object):
 
     def __init__(self):  # type: () -> None
         self.builder = None  # type: Builder
-        self.joborder = None  # type: Dict[unicode, Union[Dict[unicode, Any], List, unicode]]
-        self.stdin = None  # type: str
-        self.stderr = None  # type: str
-        self.stdout = None  # type: str
+        self.joborder = None  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+        self.stdin = None  # type: Text
+        self.stderr = None  # type: Text
+        self.stdout = None  # type: Text
         self.successCodes = None  # type: Iterable[int]
         self.temporaryFailCodes = None  # type: Iterable[int]
         self.permanentFailCodes = None  # type: Iterable[int]
-        self.requirements = None  # type: List[Dict[str, str]]
-        self.hints = None  # type: Dict[str,str]
-        self.name = None  # type: unicode
-        self.command_line = None  # type: List[unicode]
+        self.requirements = None  # type: List[Dict[Text, Text]]
+        self.hints = None  # type: Dict[Text,Text]
+        self.name = None  # type: Text
+        self.command_line = None  # type: List[Text]
         self.pathmapper = None  # type: PathMapper
-        self.collect_outputs = None  # type: Union[Callable[[Any], Any],functools.partial[Any]]
+        self.collect_outputs = None  # type: Union[Callable[[Any], Any], functools.partial[Any]]
         self.output_callback = None  # type: Callable[[Any, Any], Any]
-        self.outdir = None  # type: str
-        self.tmpdir = None  # type: str
-        self.environment = None  # type: MutableMapping[str, str]
-        self.generatefiles = None  # type: Dict[unicode, Union[List[Dict[str, str]], Dict[str,str], str]]
-        self.stagedir = None  # type: unicode
+        self.outdir = None  # type: Text
+        self.tmpdir = None  # type: Text
+        self.environment = None  # type: MutableMapping[Text, Text]
+        self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
+        self.stagedir = None  # type: Text
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, bool, bool, unicode, **Any) -> Union[Tuple[str,Dict[None,None]],None]
+        # type: (bool, bool, bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
         #with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
         #    json.dump(self.joborder, fp)
 
-        runtime = []  # type: List[unicode]
+        runtime = []  # type: List[Text]
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -83,7 +83,7 @@ class CommandLineJob(object):
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         img_id = None
-        env = None  # type: MutableMapping[str, str]
+        env = None  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
         if docker_req and kwargs.get("use_container") is not False:
             env = os.environ
             img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
@@ -146,7 +146,7 @@ class CommandLineJob(object):
 
             stageFiles(self.pathmapper, os.symlink)
 
-        stdin = None  # type: Union[IO[Any],int]
+        stdin = None  # type: Union[IO[Any], int]
         stderr = None  # type: IO[Any]
         stdout = None  # type: IO[Any]
 
@@ -160,7 +160,7 @@ class CommandLineJob(object):
         _logger.info(u"[job %s] %s$ %s%s%s%s",
                      self.name,
                      self.outdir,
-                     " \\\n    ".join([shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg) for arg in (runtime + self.command_line)]),
+                     " \\\n    ".join([shellescape.quote(Text(arg)) if shouldquote(Text(arg)) else Text(arg) for arg in (runtime + self.command_line)]),
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
@@ -168,7 +168,7 @@ class CommandLineJob(object):
         if dry_run:
             return (self.outdir, {})
 
-        outputs = {}  # type: Dict[str,str]
+        outputs = {}  # type: Dict[Text,Text]
 
         try:
             if self.generatefiles["listing"]:
@@ -209,7 +209,7 @@ class CommandLineJob(object):
             else:
                 stdout = sys.stderr
 
-            sp = subprocess.Popen([unicode(x).encode('utf-8') for x in runtime + self.command_line],
+            sp = subprocess.Popen([Text(x).encode('utf-8') for x in runtime + self.command_line],
                                   shell=False,
                                   close_fds=True,
                                   stdin=stdin,

@@ -3,7 +3,7 @@ from . import load_tool
 from . import workflow
 import os
 from .process import Process
-from typing import Any, Union
+from typing import Any, Text, Union
 from typing import Callable as tCallable
 import argparse
 
@@ -12,7 +12,8 @@ class Callable(object):
         self.t = t
         self.factory = factory
 
-    def __call__(self, **kwargs):  # type: (**Any) -> Union[str,Dict[str,str]]
+    def __call__(self, **kwargs):
+        # type: (**Any) -> Union[Text, Dict[Text, Text]]
         execkwargs = self.factory.execkwargs.copy()
         execkwargs["basedir"] = os.getcwd()
         return self.factory.executor(self.t, kwargs, **execkwargs)
@@ -21,7 +22,7 @@ class Factory(object):
     def __init__(self, makeTool=workflow.defaultMakeTool,
                  executor=main.single_job_executor,
                  **execkwargs):
-        # type: (tCallable[[Dict[str, Any], Any], Process],tCallable[...,Union[str,Dict[str,str]]], **Any) -> None
+        # type: (tCallable[[Dict[Text, Any], Any], Process],tCallable[...,Union[Text,Dict[Text,Text]]], **Any) -> None
         self.makeTool = makeTool
         self.executor = executor
         self.execkwargs = execkwargs

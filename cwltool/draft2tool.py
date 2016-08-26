@@ -14,7 +14,7 @@ import errno
 import avro.schema
 import schema_salad.validate as validate
 import shellescape
-from typing import Callable, Any, Union, Generator, cast
+from typing import Any, Callable, cast, Generator, Text, Union
 
 from .process import Process, shortname, uniquename, getListing, normalizeFilesDirs
 from .errors import WorkflowException
@@ -33,20 +33,20 @@ _logger = logging.getLogger("cwltool")
 
 class ExpressionTool(Process):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[unicode, Any], **Any) -> None
+        # type: (Dict[Text, Any], **Any) -> None
         super(ExpressionTool, self).__init__(toolpath_object, **kwargs)
 
     class ExpressionJob(object):
 
         def __init__(self):  # type: () -> None
             self.builder = None  # type: Builder
-            self.requirements = None  # type: Dict[str,str]
-            self.hints = None  # type: Dict[str,str]
+            self.requirements = None  # type: Dict[Text, Text]
+            self.hints = None  # type: Dict[Text, Text]
             self.collect_outputs = None  # type: Callable[[Any], Any]
             self.output_callback = None  # type: Callable[[Any, Any], Any]
-            self.outdir = None  # type: str
-            self.tmpdir = None  # type: str
-            self.script = None  # type: Dict[str,str]
+            self.outdir = None  # type: Text
+            self.tmpdir = None  # type: Text
+            self.script = None  # type: Dict[Text, Text]
 
         def run(self, **kwargs):  # type: (**Any) -> None
             try:
@@ -59,7 +59,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
+        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(joborder, **kwargs)
 
         j = ExpressionTool.ExpressionJob()
@@ -74,12 +74,12 @@ class ExpressionTool(Process):
         yield j
 
 
-def remove_path(f):  # type: (Dict[str, Any]) -> None
+def remove_path(f):  # type: (Dict[Text, Any]) -> None
     if "path" in f:
         del f["path"]
 
 def revmap_file(builder, outdir, f):
-    # type: (Builder,str,Dict[str,Any]) -> Union[Dict[str,Any],None]
+    # type: (Builder, Text, Dict[Text, Any]) -> Union[Dict[Text, Any], None]
     """Remap a file back to original path. For Docker, this is outside the container.
 
     Uses either files in the pathmapper or remaps internal output directories
@@ -101,7 +101,7 @@ def revmap_file(builder, outdir, f):
 
 class CallbackJob(object):
     def __init__(self, job, output_callback, cachebuilder, jobcache):
-        # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, str) -> None
+        # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, Text) -> None
         self.job = job
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
@@ -118,7 +118,7 @@ class CallbackJob(object):
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
 def check_adjust(builder, f):
-    # type: (Builder, Dict[str, Any]) -> Dict[str,Any]
+    # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
@@ -142,14 +142,14 @@ def compute_checksums(fs_access, fileobj):
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[unicode, Any], **Any) -> None
+        # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
     def makeJobRunner(self):  # type: () -> CommandLineJob
         return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
-        # type: (List[Any], unicode, **Any) -> PathMapper
+        # type: (List[Any], Text, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
         try:
             return PathMapper(reffiles, kwargs["basedir"], stagedir)
@@ -158,7 +158,7 @@ class CommandLineTool(Process):
                 raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[unicode, unicode], Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
+        # type: (Dict[Text, Text], Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
@@ -201,7 +201,8 @@ class CommandLineTool(Process):
             keydictstr = json.dumps(keydict, separators=(',',':'), sort_keys=True)
             cachekey = hashlib.md5(keydictstr).hexdigest()
 
-            _logger.debug("[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey)
+            _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
+                    keydictstr, cachekey)
 
             jobcache = os.path.join(kwargs["cachedir"], cachekey)
             jobcachepending = jobcache + ".pending"
@@ -305,13 +306,13 @@ class CommandLineTool(Process):
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
         j.generatefiles = {"class": "Directory", "listing": [], "basename": ""}
         if initialWorkdir:
-            ls = []  # type: List[Dict[str, Any]]
-            if isinstance(initialWorkdir["listing"], (str, unicode)):
+            ls = []  # type: List[Dict[Text, Any]]
+            if isinstance(initialWorkdir["listing"], (str, Text)):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in initialWorkdir["listing"]:
                     if "entry" in t:
-                        et = {"entry": builder.do_eval(t["entry"])}
+                        et = {u"entry": builder.do_eval(t["entry"])}
                         if "entryname" in t:
                             et["entryname"] = builder.do_eval(t["entryname"])
                         else:
@@ -322,7 +323,7 @@ class CommandLineTool(Process):
                         ls.append(builder.do_eval(t))
             for i,t in enumerate(ls):
                 if "entry" in t:
-                    if isinstance(t["entry"], (str, unicode)):
+                    if isinstance(t["entry"], basestring):
                         ls[i] = {
                             "class": "File",
                             "basename": t["entryname"],
@@ -347,7 +348,7 @@ class CommandLineTool(Process):
 
         shellcmd = self.get_requirement("ShellCommandRequirement")[0]
         if shellcmd:
-            cmd = []  # type: List[str]
+            cmd = []  # type: List[Text]
             for b in builder.bindings:
                 arg = builder.generate_arg(b)
                 if b.get("shellQuote", True):
@@ -366,9 +367,9 @@ class CommandLineTool(Process):
         yield j
 
     def collect_output_ports(self, ports, builder, outdir, compute_checksum=True):
-        # type: (Set[Dict[str,Any]], Builder, str, bool) -> Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
+        # type: (Set[Dict[Text, Any]], Builder, Text, bool) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         try:
-            ret = {}  # type: Dict[unicode, Union[unicode, List[Any], Dict[unicode, Any]]]
+            ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
             if fs_access.exists(custom_output):
@@ -402,14 +403,14 @@ class CommandLineTool(Process):
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
-            raise WorkflowException("Error validating output record, " + str(e) + "\n in " + json.dumps(ret, indent=4))
+            raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
-        # type: (Dict[str,Any], Builder, str, StdFsAccess, bool) -> Union[Dict[unicode, Any], List[Union[Dict[unicode, Any], unicode]]]
+        # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]
         r = []  # type: List[Any]
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
-            globpatterns = []  # type: List[str]
+            globpatterns = []  # type: List[Text]
 
             revmap = partial(revmap_file, builder, outdir)
 
@@ -431,7 +432,7 @@ class CommandLineTool(Process):
                                    "class": "File" if fs_access.isfile(g) else "Directory"}
                                   for g in fs_access.glob(fs_access.join(outdir, gb))])
                     except (OSError, IOError) as e:
-                        _logger.warn(str(e))
+                        _logger.warn(Text(e))
 
                 for files in r:
                     if files["class"] == "Directory" and "listing" not in files:

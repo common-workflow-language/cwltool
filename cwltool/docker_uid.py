@@ -1,8 +1,8 @@
 import subprocess
-from typing import Union
+from typing import Text, Union
 
 
-def docker_vm_uid():  # type: () -> Union[int,None]
+def docker_vm_uid():  # type: () -> int
     """
     Returns the UID of the default docker user inside the VM
 
@@ -20,7 +20,7 @@ def docker_vm_uid():  # type: () -> Union[int,None]
         return None
 
 
-def check_output_and_strip(cmd):  # type: (List[str]) -> Union[str,None]
+def check_output_and_strip(cmd):  # type: (List[Text]) -> Text
     """
     Passes a command list to subprocess.check_output, returning None
     if an expected exception is raised
@@ -37,7 +37,7 @@ def check_output_and_strip(cmd):  # type: (List[str]) -> Union[str,None]
         return None
 
 
-def docker_machine_name():  # type: () -> Union[str,None]
+def docker_machine_name():  # type: () -> Text
     """
     Get the machine name of the active docker-machine machine
     :return: Name of the active machine or None if error
@@ -46,7 +46,7 @@ def docker_machine_name():  # type: () -> Union[str,None]
 
 
 def cmd_output_matches(check_cmd, expected_status):
-    # type: (List[str], str) -> bool
+    # type: (List[Text], Text) -> bool
     """
     Runs a command and compares output to expected
     :param check_cmd: Command list to execute
@@ -76,7 +76,7 @@ def docker_machine_running():  # type: () -> bool
     return cmd_output_matches(['docker-machine', 'status', machine_name], 'Running')
 
 
-def cmd_output_to_int(cmd):  # type: (List[str]) -> Union[int,None]
+def cmd_output_to_int(cmd):  # type: (List[Text]) -> int
     """
     Runs the provided command and returns the integer value of the result
     :param cmd: The command to run
@@ -91,7 +91,7 @@ def cmd_output_to_int(cmd):  # type: (List[str]) -> Union[int,None]
             return None
 
 
-def boot2docker_uid():  # type: () -> Union[int,None]
+def boot2docker_uid():  # type: () -> int
     """
     Gets the UID of the docker user inside a running boot2docker vm
     :return: the UID, or None if error (e.g. boot2docker not present or stopped)
@@ -99,7 +99,7 @@ def boot2docker_uid():  # type: () -> Union[int,None]
     return cmd_output_to_int(['boot2docker', 'ssh', 'id', '-u'])
 
 
-def docker_machine_uid():  # type: () -> Union[int,None]
+def docker_machine_uid():  # type: () -> int
     """
     Asks docker-machine for active machine and gets the UID of the docker user
     inside the vm
