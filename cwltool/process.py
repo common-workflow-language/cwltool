@@ -321,7 +321,6 @@ class Process(object):
         loader: schema_salad.ref_resolver.Loader used to load tool document
         avsc_names: CWL Avro schema object used to validate document
         strict: flag to determine strict validation (fail on unrecognized fields)
-
         """
 
         self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
@@ -409,10 +408,7 @@ class Process(object):
 
 
     def _init_job(self, joborder, **kwargs):
-<<<<<<< HEAD
         # type: (Dict[Text, Text], **Any) -> Builder
-=======
-        # type: (Dict[unicode, unicode], **Any) -> Builder
         """
         kwargs:
 
@@ -429,7 +425,6 @@ class Process(object):
         select_resources: callback to select compute resources
         """
 
->>>>>>> 5d82a7b... Record doc_loader, doc_schema in Process object.
         builder = Builder()
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
             Text]], copy.deepcopy(joborder))

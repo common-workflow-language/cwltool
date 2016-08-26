@@ -497,6 +497,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     stdout.write(json.dumps(deps, indent=4))
 
 def print_pack(document_loader, processobj, uri, metadata):
+    # type: (Loader, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Dict[unicode, Any]) -> str
     packed = pack(document_loader, processobj, uri, metadata)
     if len(packed["$graph"]) > 1:
         return json.dumps(packed, indent=4)

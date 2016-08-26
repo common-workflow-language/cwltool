@@ -443,6 +443,7 @@ class WorkflowStep(Process):
                 u"Tool definition %s failed validation:\n%s" %
                 (toolpath_object["run"], validate.indent(str(v))))
 
+        self.tool = toolpath_object = copy.deepcopy(toolpath_object)
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for step_entry in toolpath_object[stepfield]:

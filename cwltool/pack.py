@@ -1,6 +1,8 @@
 import copy
 import json
 
+from schema_salad.ref_resolver import Loader
+
 from .process import scandeps, shortname
 
 from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO
@@ -43,7 +45,7 @@ def replace_refs(d, rewrite, stem, newstem):
             replace_refs(v, rewrite, stem, newstem)
 
 def pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Any, unicode, Dict[unicode, unicode]) -> str
+    # type: (Loader, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Dict[unicode, unicode]) -> Dict[unicode, Any]
     def loadref(b, u):
         # type: (unicode, unicode) -> Union[Dict, List, unicode]
         return document_loader.resolve_ref(u, base_url=b)[0]
