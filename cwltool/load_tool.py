@@ -15,18 +15,18 @@ from . import update
 from . import process
 from .process import Process, shortname
 from .errors import WorkflowException
-from typing import Any, Callable, cast, Dict, Tuple, Union
+from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 
 _logger = logging.getLogger("cwltool")
 
 def fetch_document(argsworkflow):
-    # type: (Union[str, unicode, dict[unicode, Any]]) -> Tuple[Loader, Dict[unicode, Any], unicode]
+    # type: (Union[Text, Text, dict[Text, Any]]) -> Tuple[Loader, Dict[Text, Any], Text]
     """Retrieve a CWL document."""
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
 
-    uri = None  # type: unicode
-    workflowobj = None  # type: Dict[unicode, Any]
-    if isinstance(argsworkflow, (str, unicode)):
+    uri = None  # type: Text
+    workflowobj = None  # type: Dict[Text, Any]
+    if isinstance(argsworkflow, basestring):
         split = urlparse.urlsplit(argsworkflow)
         if split.scheme:
             uri = argsworkflow
@@ -36,14 +36,14 @@ def fetch_document(argsworkflow):
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
         workflowobj = argsworkflow
-        uri = "#" + str(id(argsworkflow))
+        uri = "#" + Text(id(argsworkflow))
     else:
         raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
     return document_loader, workflowobj, uri
 
 def _convert_stdstreams_to_files(workflowobj):
-    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]]) -> None
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> None
 
     if isinstance(workflowobj, dict):
         if ('class' in workflowobj
@@ -59,7 +59,7 @@ def _convert_stdstreams_to_files(workflowobj):
                         if streamtype in workflowobj:
                             filename = workflowobj[streamtype]
                         else:
-                            filename = unicode(uuid.uuid4())
+                            filename = Text(uuid.uuid4())
                             workflowobj[streamtype] = filename
                         out['type'] = 'File'
                         out['outputBinding'] = {'glob': filename}
@@ -72,7 +72,7 @@ def _convert_stdstreams_to_files(workflowobj):
 
 def validate_document(document_loader, workflowobj, uri,
                       enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[unicode, Any], unicode, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], Dict[unicode, Any], unicode]
+    # type: (Loader, Dict[Text, Any], Text, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
     jobobj = None
     if "cwl:tool" in workflowobj:
@@ -139,7 +139,7 @@ def validate_document(document_loader, workflowobj, uri,
 
 
 def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
-    # type: (Loader, Names, Dict[unicode, Any], unicode, Callable[..., Process], Dict[str, Any]) -> Process
+    # type: (Loader, Names, Dict[Text, Any], Text, Callable[..., Process], Dict[AnyStr, Any]) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
 
@@ -176,7 +176,7 @@ def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
 def load_tool(argsworkflow, makeTool, kwargs=None,
               enable_dev=False,
               strict=True):
-    # type: (Union[str,unicode,dict[unicode,Any]], Callable[...,Process], Dict[str, Any], bool, bool) -> Any
+    # type: (Union[Text, dict[Text,Any]], Callable[...,Process], Dict[AnyStr, Any], bool, bool) -> Any
     document_loader, workflowobj, uri = fetch_document(argsworkflow)
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,

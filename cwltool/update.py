@@ -6,7 +6,7 @@ import traceback
 
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate
-from typing import Any, Dict, Callable, List, Tuple, Union  # pylint: disable=unused-import
+from typing import Any, Callable, Dict, List, Text, Tuple, Union  # pylint: disable=unused-import
 
 from .utils import aslist
 
@@ -30,7 +30,7 @@ def fixType(doc):  # type: (Any) -> Any
     if isinstance(doc, list):
         return [fixType(f) for f in doc]
 
-    if isinstance(doc, (str, unicode)):
+    if isinstance(doc, (str, Text)):
         if doc not in (
                 "null", "boolean", "int", "long", "float", "double", "string",
                 "File", "record", "enum", "array", "Any") and "#" not in doc:
@@ -38,13 +38,13 @@ def fixType(doc):  # type: (Any) -> Any
     return doc
 
 def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
-    # type: (Any, Loader, unicode, bool) -> Any
+    # type: (Any, Loader, Text, bool) -> Any
     try:
         if isinstance(doc, dict):
             if "import" in doc:
                 imp = urlparse.urljoin(baseuri, doc["import"])
                 impLoaded = loader.fetch(imp)
-                r = None  # type: Dict[str, Any]
+                r = None  # type: Dict[Text, Any]
                 if isinstance(impLoaded, list):
                     r = {"@graph": impLoaded}
                 elif isinstance(impLoaded, dict):
@@ -94,12 +94,12 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 def draft2toDraft3dev1(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (_draft2toDraft3dev1(doc, loader, baseuri), "draft-3.dev1")
 
 digits = re.compile("\d+")
 
-def updateScript(sc):  # type: (str) -> str
+def updateScript(sc):  # type: (Text) -> Text
     sc = sc.replace("$job", "inputs")
     sc = sc.replace("$tmpdir", "runtime.tmpdir")
     sc = sc.replace("$outdir", "runtime.outdir")
@@ -117,7 +117,7 @@ def _updateDev2Script(ent):  # type: (Any) -> Any
                 if not sp[0]:
                     sp.pop(0)
                 front = sp.pop(0)
-                sp = [str(i) if digits.match(i) else "'"+i+"'"
+                sp = [Text(i) if digits.match(i) else "'"+i+"'"
                       for i in sp]
                 if front == "job":
                     return u"$(inputs[%s])" % ']['.join(sp)
@@ -134,7 +134,7 @@ def _updateDev2Script(ent):  # type: (Any) -> Any
 
 
 def _draftDraft3dev1toDev2(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     doc = _updateDev2Script(doc)
     if isinstance(doc, basestring):
         return doc
@@ -178,11 +178,11 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
 
 
 def draftDraft3dev1toDev2(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (_draftDraft3dev1toDev2(doc, loader, baseuri), "draft-3.dev2")
 
 def _draftDraft3dev2toDev3(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     try:
         if isinstance(doc, dict):
             if "@import" in doc:
@@ -191,7 +191,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                 else:
                     imp = urlparse.urljoin(baseuri, doc["@import"])
                     impLoaded = loader.fetch(imp)
-                    r = {}  # type: Dict[str, Any]
+                    r = {}  # type: Dict[Text, Any]
                     if isinstance(impLoaded, list):
                         r = {"@graph": impLoaded}
                     elif isinstance(impLoaded, dict):
@@ -225,19 +225,19 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
         raise Exception(u"Error updating '%s'\n  %s\n%s" % (err, e, traceback.format_exc()))
 
 def draftDraft3dev2toDev3(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (_draftDraft3dev2toDev3(doc, loader, baseuri), "draft-3.dev3")
 
 
 def traverseImport(doc, loader, baseuri, func):
-    # type: (Any, Loader, str, Callable[[Any, Loader, str], Any]) -> Any
+    # type: (Any, Loader, Text, Callable[[Any, Loader, Text], Any]) -> Any
     if "$import" in doc:
         if doc["$import"][0] == "#":
             return doc["$import"]
         else:
             imp = urlparse.urljoin(baseuri, doc["$import"])
             impLoaded = loader.fetch(imp)
-            r = {}  # type: Dict[str, Any]
+            r = {}  # type: Dict[Text, Any]
             if isinstance(impLoaded, list):
                 r = {"$graph": impLoaded}
             elif isinstance(impLoaded, dict):
@@ -253,7 +253,7 @@ def traverseImport(doc, loader, baseuri, func):
 
 
 def _draftDraft3dev3toDev4(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     try:
         if isinstance(doc, dict):
             r = traverseImport(doc, loader, baseuri, _draftDraft3dev3toDev4)
@@ -282,11 +282,11 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
 
 
 def draftDraft3dev3toDev4(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (_draftDraft3dev3toDev4(doc, loader, baseuri), "draft-3.dev4")
 
 def _draftDraft3dev4toDev5(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     try:
         if isinstance(doc, dict):
             r = traverseImport(doc, loader, baseuri, _draftDraft3dev4toDev5)
@@ -315,18 +315,18 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
 
 
 def draftDraft3dev4toDev5(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (_draftDraft3dev4toDev5(doc, loader, baseuri), "draft-3.dev5")
 
 def draftDraft3dev5toFinal(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (doc, "draft-3")
 
 def _draft3toDraft4dev1(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
-            def fixup(f):  # type: (str) -> str
+            def fixup(f):  # type: (Text) -> Text
                 doc, frg = urlparse.urldefrag(f)
                 frg = '/'.join(frg.rsplit('.', 1))
                 return doc + "#" + frg
@@ -355,12 +355,12 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     return doc
 
 def draft3toDraft4dev1(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for draft-3 to draft-4.dev1."""
     return (_draft3toDraft4dev1(doc, loader, baseuri), "draft-4.dev1")
 
 def _draft4Dev1toDev2(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
             for out in doc["outputs"]:
@@ -374,13 +374,13 @@ def _draft4Dev1toDev2(doc, loader, baseuri):
     return doc
 
 def draft4Dev1toDev2(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for draft-4.dev1 to draft-4.dev2."""
     return (_draft4Dev1toDev2(doc, loader, baseuri), "draft-4.dev2")
 
 
 def _draft4Dev2toDev3(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "File":
             doc["location"] = doc["path"]
@@ -407,12 +407,12 @@ def _draft4Dev2toDev3(doc, loader, baseuri):
     return doc
 
 def draft4Dev2toDev3(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for draft-4.dev2 to draft-4.dev3."""
     return (_draft4Dev2toDev3(doc, loader, baseuri), "draft-4.dev3")
 
 def _draft4Dev3to1_0dev4(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Any
+    # type: (Any, Loader, Text) -> Any
     if isinstance(doc, dict):
         if "description" in doc:
             doc["doc"] = doc["description"]
@@ -424,12 +424,12 @@ def _draft4Dev3to1_0dev4(doc, loader, baseuri):
     return doc
 
 def draft4Dev3to1_0dev4(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for draft-4.dev3 to v1.0.dev4."""
     return (_draft4Dev3to1_0dev4(doc, loader, baseuri), "v1.0.dev4")
 
 def v1_0dev4to1_0(doc, loader, baseuri):
-    # type: (Any, Loader, str) -> Tuple[Any, str]
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0.dev4 to v1.0."""
     return (doc, "v1.0")
 
@@ -437,7 +437,7 @@ UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1,
     "v1.0": None
-}  # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
+}  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 
 DEVUPDATES = {
     "draft-3.dev1": draftDraft3dev1toDev2,
@@ -450,7 +450,7 @@ DEVUPDATES = {
     "draft-4.dev3": draft4Dev3to1_0dev4,
     "v1.0.dev4": v1_0dev4to1_0,
     "v1.0": None
-}  # type: Dict[unicode, Callable[[Any, Loader, str], Tuple[Any, str]]]
+}  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
@@ -458,12 +458,12 @@ ALLUPDATES.update(DEVUPDATES)
 LATEST = "v1.0"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
-    # type: (Any, Loader, str) -> Tuple[Any, Union[str, unicode]]
+    # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]
     """The default, do-nothing, CWL document upgrade function."""
     return (doc, doc["cwlVersion"])
 
 def checkversion(doc, metadata, enable_dev):
-    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Dict[unicode, Any], bool) -> Tuple[Dict[unicode, Any], unicode]  # pylint: disable=line-too-long
+    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Dict[Text, Any], bool) -> Tuple[Dict[Text, Any], Text]  # pylint: disable=line-too-long
     """Checks the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
@@ -495,11 +495,11 @@ def checkversion(doc, metadata, enable_dev):
     return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader, str, bool, Any) -> Dict[unicode, Any]
+    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader, Text, bool, Any) -> Dict[Text, Any]
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
 
-    nextupdate = identity  # type: Callable[[Any, Loader, str], Tuple[Any, str]]
+    nextupdate = identity  # type: Callable[[Any, Loader, Text], Tuple[Any, Text]]
 
     while nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)

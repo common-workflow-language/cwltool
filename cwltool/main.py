@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import string
 import json
 import os
 import sys
@@ -15,7 +14,8 @@ import pkg_resources  # part of setuptools
 import functools
 
 import rdflib
-from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO
+from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
+    Tuple, Type, IO)
 
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
@@ -41,15 +41,15 @@ _logger.setLevel(logging.INFO)
 def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
     parser.add_argument("--conformance-test", action="store_true")
-    parser.add_argument("--basedir", type=str)
-    parser.add_argument("--outdir", type=str, default=os.path.abspath('.'),
+    parser.add_argument("--basedir", type=Text)
+    parser.add_argument("--outdir", type=Text, default=os.path.abspath('.'),
                         help="Output directory, default current directory")
 
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
 
-    parser.add_argument("--preserve-environment", type=str, nargs='+',
+    parser.add_argument("--preserve-environment", type=Text, nargs='+',
                         help="Preserve specified environment variables when running CommandLineTools",
                         metavar=("VAR1,VAR2"),
                         default=("PATH",),
@@ -64,16 +64,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         default=True, help="Do not delete Docker container used by jobs after they exit",
                         dest="rm_container")
 
-    parser.add_argument("--tmpdir-prefix", type=str,
+    parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
                         default="tmp")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--tmp-outdir-prefix", type=str,
+    exgroup.add_argument("--tmp-outdir-prefix", type=Text,
                         help="Path prefix for intermediate output directories",
                         default="tmp")
 
-    exgroup.add_argument("--cachedir", type=str, default="",
+    exgroup.add_argument("--cachedir", type=Text, default="",
                         help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -151,11 +151,11 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--enable-net", action="store_true",
                         help="Use docker's default networking for containers;"
                         " the default is to disable networking.")
-    parser.add_argument("--custom-net", type=str,
+    parser.add_argument("--custom-net", type=Text,
                         help="Will be passed to `docker run` as the '--net' "
                         "parameter. Implies '--enable-net'.")
 
-    parser.add_argument("--on-error", type=str,
+    parser.add_argument("--on-error", type=Text,
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
                         "Default is 'stop.", default="stop")
 
@@ -167,14 +167,14 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Do not compute checksum of contents while collecting outputs",
                         dest="compute_checksum")
 
-    parser.add_argument("workflow", type=str, nargs="?", default=None)
+    parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
 
 
 def single_job_executor(t, job_order_object, **kwargs):
-    # type: (Process, Dict[unicode, Any], **Any) -> Union[str,Dict[str,str]]
+    # type: (Process, Dict[Text, Any], **Any) -> Union[Text, Dict[Text, Text]]
     final_output = []
     final_status = []
 
@@ -221,7 +221,7 @@ def single_job_executor(t, job_order_object, **kwargs):
         raise
     except Exception as e:
         _logger.exception("Got workflow error")
-        raise WorkflowException(unicode(e))
+        raise WorkflowException(Text(e))
 
     if final_status[0] != "success":
         raise WorkflowException(u"Process status is %s" % (final_status))
@@ -239,48 +239,60 @@ def single_job_executor(t, job_order_object, **kwargs):
 class FileAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[str], str, Any, **Any) -> None
+        # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
-        setattr(namespace, self.dest, {"class": "File", "location": "file://%s" % os.path.abspath(values)})
+        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
+        setattr(namespace,
+            self.dest,  # type: ignore
+            {"class": "File",
+             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
 
 class DirectoryAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[str], str, Any, **Any) -> None
+        # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(DirectoryAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
-        setattr(namespace, self.dest, {"class": "Directory", "location": "file://%s" % os.path.abspath(values)})
+        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
+        setattr(namespace,
+            self.dest,  # type: ignore
+            {"class": "Directory",
+             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
 
 class FileAppendAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[str], str, Any, **Any) -> None
+        # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FileAppendAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, str, Any) -> None
-        g = getattr(namespace, self.dest)
+        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
+        g = getattr(namespace,
+                    self.dest  # type: ignore
+                    )
         if not g:
             g = []
-            setattr(namespace, self.dest, g)
-        g.append({"class": "File", "location": "file://%s" % os.path.abspath(values)})
+            setattr(namespace,
+                    self.dest,  # type: ignore
+                    g)
+        g.append(
+            {"class": "File",
+             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
 
 def generate_parser(toolparser, tool, namemap):
-    # type: (argparse.ArgumentParser, Process, Dict[unicode, unicode]) -> argparse.ArgumentParser
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text]) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -306,7 +318,7 @@ def generate_parser(toolparser, tool, namemap):
                     return None
 
         ahelp = inp.get("description", "").replace("%", "%%")
-        action = None  # type: Union[argparse.Action,str]
+        action = None  # type: Union[argparse.Action, Text]
         atype = None  # type: Any
         default = None  # type: Any
 
@@ -320,9 +332,9 @@ def generate_parser(toolparser, tool, namemap):
             else:
                 action = "append"
         elif isinstance(inptype, dict) and inptype["type"] == "enum":
-            atype = str
+            atype = Text
         if inptype == "string":
-            atype = str
+            atype = Text
         elif inptype == "int":
             atype = int
         elif inptype == "double":
@@ -354,7 +366,7 @@ def generate_parser(toolparser, tool, namemap):
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Type[StdFsAccess]) -> Union[int,Tuple[Dict[str,Any],str]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Type[StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     job_order_object = None
 
@@ -384,12 +396,12 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         try:
             job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
         except Exception as e:
-            _logger.error(str(e), exc_info=args.debug)
+            _logger.error(Text(e), exc_info=args.debug)
             return 1
         toolparser = None
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
-        namemap = {}  # type: Dict[unicode, unicode]
+        namemap = {}  # type: Dict[Text, Text]
         toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
         if toolparser:
             if args.tool_help:
@@ -402,7 +414,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                     input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(cmd_line["job_order"]))
                     job_order_object = loader.resolve_ref(cmd_line["job_order"])
                 except Exception as e:
-                    _logger.error(str(e), exc_info=args.debug)
+                    _logger.error(Text(e), exc_info=args.debug)
                     return 1
             else:
                 job_order_object = {"id": args.workflow}
@@ -452,9 +464,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Dict[unicode, Any], Loader, IO[Any], bool, unicode, str) -> None
+    # type: (Dict[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
     deps = {"class": "File",
-            "location": uri}  # type: Dict[unicode, Any]
+            "location": uri}  # type: Dict[Text, Any]
 
     def loadref(b, u):
         return document_loader.fetch(urlparse.urljoin(b, u))
@@ -483,7 +495,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
     stdout.write(json.dumps(deps, indent=4))
 
-def flatten_deps(d, files):  # type: (Any, Set[unicode]) -> None
+def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             flatten_deps(s, files)
@@ -492,43 +504,43 @@ def flatten_deps(d, files):  # type: (Any, Set[unicode]) -> None
         if "secondaryFiles" in d:
             flatten_deps(d["secondaryFiles"], files)
 
-def find_run(d, runs):  # type: (Any, Set[unicode]) -> None
+def find_run(d, runs):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             find_run(s, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], (str, unicode)):
+        if "run" in d and isinstance(d["run"], (Text, Text)):
             runs.add(d["run"])
         for s in d.values():
             find_run(s, runs)
 
 def replace_refs(d, rewrite, stem, newstem):
-    # type: (Any, Dict[unicode, unicode], unicode, unicode) -> None
+    # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s,v in enumerate(d):
-            if isinstance(v, (str, unicode)) and v.startswith(stem):
+            if isinstance(v, (str, Text)) and v.startswith(stem):
                 d[s] = newstem + v[len(stem):]
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], (str, unicode)):
+        if "run" in d and isinstance(d["run"], (str, Text)):
             d["run"] = rewrite[d["run"]]
         for s,v in d.items():
-            if isinstance(v, (str, unicode)) and v.startswith(stem):
+            if isinstance(v, (str, Text)) and v.startswith(stem):
                 d[s] = newstem + v[len(stem):]
             replace_refs(v, rewrite, stem, newstem)
 
 def print_pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Any, unicode, Dict[unicode, unicode]) -> str
+    # type: (Loader, Any, Text, Dict[Text, Text]) -> Text
     def loadref(b, u):
-        # type: (unicode, unicode) -> Union[Dict, List, unicode]
+        # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
     deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
 
     fdeps = set((uri,))
     flatten_deps(deps, fdeps)
 
-    runs = set()  # type: Set[unicode]
+    runs = set()  # type: Set[Text]
     for f in fdeps:
         find_run(document_loader.idx[f], runs)
 
@@ -543,9 +555,9 @@ def print_pack(document_loader, processobj, uri, metadata):
         rewrite[r] = "#" + shortname(r)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
-            }  # type: Dict[unicode, Any]
+            }  # type: Dict[Text, Any]
     for r,v in rewrite.items():
-        dc = cast(Dict[unicode, Any], copy.deepcopy(document_loader.idx[r]))
+        dc = cast(Dict[Text, Any], copy.deepcopy(document_loader.idx[r]))
         dc["id"] = v
         dc["name"] = v
         replace_refs(dc, rewrite, r+"/" if "#" in r else r+"#", v+"/")
@@ -557,7 +569,7 @@ def print_pack(document_loader, processobj, uri, metadata):
         return json.dumps(packed["$graph"][0], indent=4)
 
 def versionstring():
-    # type: () -> unicode
+    # type: () -> Text
     pkg = pkg_resources.require("cwltool")
     if pkg:
         return u"%s %s" % (sys.argv[0], pkg[0].version)
@@ -576,7 +588,7 @@ def main(argsl=None,
          versionfunc=versionstring,
          job_order_object=None,
          make_fs_access=StdFsAccess):
-    # type: (List[str], argparse.Namespace, Callable[..., Union[str, Dict[str, str]]], Callable[..., Process], Callable[[Dict[str, int]], Dict[str, int]], IO[Any], IO[Any], IO[Any], Callable[[], unicode], Union[int, Tuple[Dict[str, Any], str]], Type[StdFsAccess]) -> int
+    # type: (List[str], argparse.Namespace, Callable[..., Union[Text, Dict[Text, Text]]], Callable[..., Process], Callable[[Dict[Text, int]], Dict[Text, int]], IO[Any], IO[Any], IO[Any], Callable[[], Text], Union[int, Tuple[Dict[Text, Any], Text]], Type[StdFsAccess]) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)

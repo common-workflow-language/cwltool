@@ -3,7 +3,7 @@ import json
 import threading
 import errno
 import logging
-from typing import Any, Union, TypeVar, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Text, TypeVar, Union
 
 
 class JavascriptException(Exception):
@@ -11,11 +11,11 @@ class JavascriptException(Exception):
 
 _logger = logging.getLogger("cwltool")
 
-JSON = Union[Dict[Any,Any], List[Any], unicode, int, long, float, bool, None]
+JSON = Union[Dict[Any,Any], List[Any], Text, int, long, float, bool, None]
 
 have_node_slim = False
 
-def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,str], Any, int) -> JSON
+def execjs(js, jslib, timeout=None):  # type: (Union[Mapping, Text], Any, int) -> JSON
     nodejs = None
     trynodes = ("nodejs", "node")
     for n in trynodes:
@@ -76,7 +76,7 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,str], Any, int) -> 
     stdoutdata, stderrdata = nodejs.communicate(script)
     tm.cancel()
 
-    def fn_linenum():  # type: () -> unicode
+    def fn_linenum():  # type: () -> Text
         return u"\n".join(u"%04i %s" % (i+1, b) for i, b in enumerate(fn.split("\n")))
 
     if killed:

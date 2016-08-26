@@ -4,14 +4,14 @@ from schema_salad.ref_resolver import Loader
 from schema_salad.jsonld_context import makerdf
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
-from typing import Any, Union, Dict, IO
+from typing import Any, Dict, IO, Text, Union
 
 def printrdf(workflow, wf, ctx, sr, stdout):
-    # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType, str, IO[Any]) -> None
+    # type: (Union[Text, Text], Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader.ContextType, Text, IO[Any]) -> None
     stdout.write(makerdf(workflow, wf, ctx).serialize(format=sr))
 
-def lastpart(uri):  # type: (Any) -> str
-    uri = str(uri)
+def lastpart(uri):  # type: (Any) -> Text
+    uri = Text(uri)
     if "/" in uri:
         return uri[uri.rindex("/")+1:]
     else:
@@ -75,7 +75,7 @@ def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
         stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(inp)))
 
 def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
-    dotname = {}  # type: Dict[str,str]
+    dotname = {}  # type: Dict[Text,Text]
     clusternode = {}
 
     stdout.write("compound=true\n")
@@ -118,8 +118,8 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
             else:
                 currentwf = None
 
-        if str(runtype) != "https://w3id.org/cwl/cwl#Workflow":
-            stdout.write(u'"%s" [label="%s"]\n' % (dotname[step], urlparse.urldefrag(str(step))[1]))
+        if Text(runtype) != "https://w3id.org/cwl/cwl#Workflow":
+            stdout.write(u'"%s" [label="%s"]\n' % (dotname[step], urlparse.urldefrag(Text(step))[1]))
 
     if currentwf is not None:
         stdout.write("}\n")
@@ -148,7 +148,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
 
 
 def printdot(workflow, wf, ctx, stdout, include_parameters=False):
-    # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType, Any, bool) -> None
+    # type: (Union[Text, Text], Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader.ContextType, Any, bool) -> None
     g = makerdf(workflow, wf, ctx)
 
     stdout.write("digraph {")

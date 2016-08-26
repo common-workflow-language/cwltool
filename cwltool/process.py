@@ -19,7 +19,7 @@ import schema_salad.validate as validate
 import schema_salad.schema
 from schema_salad.ref_resolver import Loader
 import avro.schema
-from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO,
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO, Text,
         Tuple, Union)
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
@@ -78,13 +78,13 @@ salad_files = ('metaschema.yml',
               'vocab_res_src.yml',
               'vocab_res_proc.yml')
 
-SCHEMA_CACHE = {}  # type: Dict[str, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode, Any], Loader]]
-SCHEMA_FILE = None  # type: Dict[unicode, Any]
-SCHEMA_DIR = None  # type: Dict[unicode, Any]
-SCHEMA_ANY = None  # type: Dict[unicode, Any]
+SCHEMA_CACHE = {}  # type: Dict[Text, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text, Any], Loader]]
+SCHEMA_FILE = None  # type: Dict[Text, Any]
+SCHEMA_DIR = None  # type: Dict[Text, Any]
+SCHEMA_ANY = None  # type: Dict[Text, Any]
 
 def get_schema(version):
-    # type: (str) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode,Any], Loader]
+    # type: (Text) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text,Any], Loader]
 
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
@@ -118,7 +118,7 @@ def get_schema(version):
     return SCHEMA_CACHE[version]
 
 def shortname(inputid):
-    # type: (unicode) -> unicode
+    # type: (Text) -> Text
     d = urlparse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
@@ -156,14 +156,14 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 def getListing(fs_access, rec):
-    # type: (StdFsAccess, Dict[str, Any]) -> None
+    # type: (StdFsAccess, Dict[Text, Any]) -> None
     if "listing" not in rec:
         listing = []
         loc = rec["location"]
         for ld in fs_access.listdir(loc):
             if fs_access.isdir(ld):
-                ent = {"class": "Directory",
-                       "location": ld}
+                ent = {u"class": u"Directory",
+                       u"location": ld}
                 getListing(fs_access, ent)
                 listing.append(ent)
             else:
@@ -184,7 +184,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
                 n.write(p.resolved.encode("utf-8"))
 
 def collectFilesAndDirs(obj, out):
-    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], List[Dict[unicode, Any]]) -> None
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
     if isinstance(obj, dict):
         if obj.get("class") in ("File", "Directory"):
             out.append(obj)
@@ -196,7 +196,7 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 def relocateOutputs(outputObj, outdir, output_dirs, action):
-    # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Set[unicode], unicode) -> Union[Dict[unicode, Any], List[Dict[unicode, Any]]]
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     if action not in ("move", "copy"):
         return outputObj
 
@@ -210,7 +210,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
                     _logger.debug("Copying %s to %s", src, dst)
                     shutil.copy(src, dst)
 
-    outfiles = []  # type: List[Dict[unicode, Any]]
+    outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
     stageFiles(pm, moveIt)
@@ -224,7 +224,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
 
     return outputObj
 
-def cleanIntermediate(output_dirs):  # type: (Set[unicode]) -> None
+def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
     for a in output_dirs:
         if os.path.exists(a) and empty_subtree(a):
             _logger.debug(u"Removing intermediate output directory %s", a)
@@ -232,7 +232,7 @@ def cleanIntermediate(output_dirs):  # type: (Set[unicode]) -> None
 
 
 def formatSubclassOf(fmt, cls, ontology, visited):
-    # type: (str, str, Graph, Set[str]) -> bool
+    # type: (Text, Text, Graph, Set[Text]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
 
     if URIRef(fmt) == URIRef(cls):
@@ -267,7 +267,7 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
 
 def checkFormat(actualFile, inputFormats, ontology):
-    # type: (Union[Dict[unicode, Any], List, unicode], Union[List[unicode], unicode], Graph) -> None
+    # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
     for af in aslist(actualFile):
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
@@ -277,7 +277,7 @@ def checkFormat(actualFile, inputFormats, ontology):
         raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 def fillInDefaults(inputs, job):
-    # type: (List[Dict[unicode, unicode]], Dict[unicode, Union[Dict[unicode, Any], List, unicode]]) -> None
+    # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for inp in inputs:
         if shortname(inp[u"id"]) in job:
             pass
@@ -290,7 +290,7 @@ def fillInDefaults(inputs, job):
 
 
 def avroize_type(field_type, name_prefix=""):
-    # type: (Union[List[Dict[unicode, Any]], Dict[unicode, Any]], unicode) -> Any
+    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Text) -> Any
     """
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
@@ -300,7 +300,7 @@ def avroize_type(field_type, name_prefix=""):
     elif isinstance(field_type, dict):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
-                field_type["name"] = name_prefix+unicode(uuid.uuid4())
+                field_type["name"] = name_prefix+Text(uuid.uuid4())
         if field_type["type"] == "record":
             avroize_type(field_type["fields"], name_prefix)
         if field_type["type"] == "array":
@@ -311,18 +311,18 @@ class Process(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[unicode, Any], **Any) -> None
-        self.metadata = kwargs.get("metadata", {})  # type: Dict[str,Any]
+        # type: (Dict[Text, Any], **Any) -> None
+        self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
         self.names = None  # type: avro.schema.Names
 
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None:
             get_schema("v1.0")
-            SCHEMA_ANY = cast(Dict[unicode, Any],
+            SCHEMA_ANY = cast(Dict[Text, Any],
                     SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/salad#Any"])
-            SCHEMA_FILE = cast(Dict[unicode, Any],
+            SCHEMA_FILE = cast(Dict[Text, Any],
                     SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#File"])
-            SCHEMA_DIR = cast(Dict[unicode, Any],
+            SCHEMA_DIR = cast(Dict[Text, Any],
                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"])
 
         names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
@@ -339,9 +339,10 @@ class Process(object):
             self.formatgraph = kwargs["loader"].graph
 
         checkRequirements(self.tool, supportedProcessRequirements)
-        self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []), strict=kwargs.get("strict"))
+        self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []),
+                strict=kwargs.get("strict"))
 
-        self.schemaDefs = {}  # type: Dict[str,Dict[unicode, Any]]
+        self.schemaDefs = {}  # type: Dict[Text,Dict[Text, Any]]
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -355,10 +356,10 @@ class Process(object):
         # Build record schema from inputs
         self.inputs_record_schema = {
             "name": "input_record_schema", "type": "record",
-            "fields": []}  # type: Dict[unicode, Any]
+            "fields": []}  # type: Dict[Text, Any]
         self.outputs_record_schema = {
             "name": "outputs_record_schema", "type": "record",
-            "fields": []}  # type: Dict[unicode, Any]
+            "fields": []}  # type: Dict[Text, Any]
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
@@ -383,20 +384,20 @@ class Process(object):
             self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" % (Text(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
             self.outputs_record_schema = schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" % (str(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" % (Text(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
 
 
     def _init_job(self, joborder, **kwargs):
-        # type: (Dict[unicode, unicode], **Any) -> Builder
+        # type: (Dict[Text, Text], **Any) -> Builder
         builder = Builder()
-        builder.job = cast(Dict[unicode, Union[Dict[unicode, Any], List,
-            unicode]], copy.deepcopy(joborder))
+        builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
+            Text]], copy.deepcopy(joborder))
 
         fillInDefaults(self.tool[u"inputs"], builder.job)
         normalizeFilesDirs(builder.job)
@@ -405,7 +406,7 @@ class Process(object):
         try:
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
         except validate.ValidationException as e:
-            raise WorkflowException("Error validating input record, " + str(e))
+            raise WorkflowException("Error validating input record, " + Text(e))
 
         builder.files = []
         builder.bindings = []
@@ -474,7 +475,7 @@ class Process(object):
         return builder
 
     def evalResources(self, builder, kwargs):
-        # type: (Builder, Dict[str, Any]) -> Dict[str, Union[int, str]]
+        # type: (Builder, Dict[AnyStr, Any]) -> Dict[Text, Union[int, Text]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -515,16 +516,17 @@ class Process(object):
             }
 
     def validate_hints(self, avsc_names, hints, strict):
-        # type: (Any, List[Dict[str, Any]], bool) -> None
+        # type: (Any, List[Dict[Text, Any]], bool) -> None
         for r in hints:
             try:
                 if avsc_names.get_name(r["class"], "") is not None:
-                    validate.validate_ex(avsc_names.get_name(r["class"], ""), r, strict=strict)
+                    validate.validate_ex(avsc_names.get_name(r["class"], ""),
+                            r, strict=strict)
                 else:
-                    _logger.info(str(validate.ValidationException(
+                    _logger.info(Text(validate.ValidationException(
                         u"Unknown hint %s" % (r["class"]))))
             except validate.ValidationException as v:
-                raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], str(v)))
+                raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], Text(v)))
 
     def get_requirement(self, feature):  # type: (Any) -> Tuple[Any, bool]
         return get_feature(self, feature)
@@ -534,10 +536,10 @@ class Process(object):
 
     @abc.abstractmethod
     def job(self, job_order, output_callbacks, **kwargs):
-        # type: (Dict[unicode, unicode], Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
+        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
         return None
 
-def empty_subtree(dirpath):  # type: (AnyStr) -> bool
+def empty_subtree(dirpath):  # type: (Text) -> bool
     # Test if a directory tree contains any files (does not count empty
     # subdirectories)
     for d in os.listdir(dirpath):
@@ -555,10 +557,10 @@ def empty_subtree(dirpath):  # type: (AnyStr) -> bool
                 raise
     return True
 
-_names = set()  # type: Set[unicode]
+_names = set()  # type: Set[Text]
 
 
-def uniquename(stem):  # type: (unicode) -> unicode
+def uniquename(stem):  # type: (Text) -> Text
     c = 1
     u = stem
     while u in _names:
@@ -568,7 +570,7 @@ def uniquename(stem):  # type: (unicode) -> unicode
     return u
 
 def nestdir(base, deps):
-    # type: (unicode, Dict[unicode, Any]) -> Dict[unicode, Any]
+    # type: (Text, Dict[Text, Any]) -> Dict[Text, Any]
     dirname = os.path.dirname(base) + "/"
     subid = deps["location"]
     if subid.startswith(dirname):
@@ -585,9 +587,9 @@ def nestdir(base, deps):
     return deps
 
 def mergedirs(listing):
-    # type: (List[Dict[unicode, Any]]) -> List[Dict[unicode, Any]]
-    r = []  # type: List[Dict[unicode, Any]]
-    ents = {}  # type: Dict[unicode, Any]
+    # type: (List[Dict[Text, Any]]) -> List[Dict[Text, Any]]
+    r = []  # type: List[Dict[Text, Any]]
+    ents = {}  # type: Dict[Text, Any]
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
@@ -600,8 +602,8 @@ def mergedirs(listing):
     return r
 
 def scandeps(base, doc, reffields, urlfields, loadref):
-    # type: (unicode, Any, Set[unicode], Set[unicode], Callable[[unicode, unicode], Any]) -> List[Dict[unicode, unicode]]
-    r = []  # type: List[Dict[unicode, unicode]]
+    # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any]) -> List[Dict[Text, Text]]
+    r = []  # type: List[Dict[Text, Text]]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
@@ -624,7 +626,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         deps = {
                             "class": "File",
                             "location": subid
-                        }  # type: Dict[unicode, Any]
+                        }  # type: Dict[Text, Any]
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf

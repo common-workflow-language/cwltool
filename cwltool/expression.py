@@ -4,7 +4,7 @@ import logging
 import os
 import re
 
-from typing import Any, AnyStr, Union, Dict, List
+from typing import Any, AnyStr, Union, Text, Dict, List
 import schema_salad.validate as validate
 import schema_salad.ref_resolver
 
@@ -16,7 +16,7 @@ from . import docker
 _logger = logging.getLogger("cwltool")
 
 def jshead(engineConfig, rootvars):
-    # type: (List[unicode],Dict[str,str]) -> unicode
+    # type: (List[Text], Dict[Text, Any]) -> Text
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 seg_symbol = r"""\w+"""
@@ -105,7 +105,7 @@ def scanner(scan):  # type: (str) -> List[int]
     else:
         return None
 
-def next_seg(remain, obj):  # type: (str,Any)->str
+def next_seg(remain, obj):  # type: (Text, Any)->Text
     if remain:
         m = segment_re.match(remain)
         if m.group(0)[0] == '.':
@@ -158,16 +158,16 @@ def interpolate(scan, rootvars,
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None):
-    # type: (Union[dict, unicode], Dict[unicode, Union[Dict, List, unicode]], List[Dict[str, Any]], str, str, Dict[str, Union[int, str]], Any, bool, int) -> Any
+    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int) -> Any
 
     runtime = resources.copy()
     runtime["tmpdir"] = tmpdir
     runtime["outdir"] = outdir
 
     rootvars = {
-        "inputs": jobinput,
-        "self": context,
-        "runtime": runtime }
+        u"inputs": jobinput,
+        u"self": context,
+        u"runtime": runtime }
 
     if isinstance(ex, (str, unicode)):
         fullJS = False
