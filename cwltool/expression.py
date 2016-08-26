@@ -27,12 +27,12 @@ segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
 param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
 
-JSON = Union[Dict[Any,Any], List[Any], unicode, int, long, float, bool, None]
+JSON = Union[Dict[Any,Any], List[Any], Text, int, long, float, bool, None]
 
 class SubstitutionError(Exception):
     pass
 
-def scanner(scan):  # type: (str) -> List[int]
+def scanner(scan):  # type: (Text) -> List[int]
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -120,7 +120,7 @@ def next_seg(remain, obj):  # type: (Text, Any)->Text
         return obj
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
-    # type: (str, unicode, Dict[str, Any], bool, int) -> JSON
+    # type: (Text, Text, Dict[Text, Any], bool, int) -> JSON
     m = param_re.match(ex)
     if m:
         return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
@@ -131,7 +131,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
 
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib=""):
-    # type: (str, Dict[str, Any], int, bool, Union[str, unicode]) -> JSON
+    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text]) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -169,16 +169,16 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         u"self": context,
         u"runtime": runtime }
 
-    if isinstance(ex, (str, unicode)):
+    if isinstance(ex, (str, Text)):
         fullJS = False
-        jslib = ""
+        jslib = u""
         for r in reversed(requirements):
             if r["class"] == "InlineJavascriptRequirement":
                 fullJS = True
                 jslib = jshead(r.get("expressionLib", []), rootvars)
                 break
 
-        return interpolate(str(ex),
+        return interpolate(ex,
                            rootvars,
                            timeout=timeout,
                            fullJS=fullJS,
