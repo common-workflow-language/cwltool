@@ -13,7 +13,9 @@ _logger = logging.getLogger("cwltool")
 
 JSON = Union[Dict[Any,Any], List[Any], Text, int, long, float, bool, None]
 
-def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,Text], Any, int) -> JSON
+have_node_slim = False
+
+def execjs(js, jslib, timeout=None):  # type: (Union[Mapping, Text], Any, int) -> JSON
     nodejs = None
     trynodes = ("nodejs", "node")
     for n in trynodes:
@@ -29,10 +31,11 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,Text], Any, int) ->
     if nodejs is None:
         try:
             nodeimg = "node:slim"
-            dlist = subprocess.check_output(["docker", "images", nodeimg])
-            if "node" not in dlist:
+            global have_node_slim
+            if not have_node_slim:
                 nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
                 _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
+                have_node_slim = True
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
                                        "--sig-proxy=true", "--interactive",
@@ -86,104 +89,3 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping,Text], Any, int) ->
             return json.loads(stdoutdata)
         except ValueError as e:
             raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn_linenum(), stdoutdata, stderrdata))
-
-class SubstitutionError(Exception):
-    pass
-
-
-def scanner(scan):  # type: (Text) -> List[int]
-    DEFAULT = 0
-    DOLLAR = 1
-    PAREN = 2
-    BRACE = 3
-    SINGLE_QUOTE = 4
-    DOUBLE_QUOTE = 5
-    BACKSLASH = 6
-
-    i = 0
-    stack = [DEFAULT]
-    start = 0
-    while i < len(scan):
-        state = stack[-1]
-        c = scan[i]
-
-        if state == DEFAULT:
-            if c == '$':
-                stack.append(DOLLAR)
-            elif c == '\\':
-                stack.append(BACKSLASH)
-        elif state == BACKSLASH:
-            stack.pop()
-            if stack[-1] == DEFAULT:
-                return [i-1, i+1]
-        elif state == DOLLAR:
-            if c == '(':
-                start = i-1
-                stack.append(PAREN)
-            elif c == '{':
-                start = i-1
-                stack.append(BRACE)
-        elif state == PAREN:
-            if c == '(':
-                stack.append(PAREN)
-            elif c == ')':
-                stack.pop()
-                if stack[-1] == DOLLAR:
-                    return [start, i+1]
-            elif c == "'":
-                stack.append(SINGLE_QUOTE)
-            elif c == '"':
-                stack.append(DOUBLE_QUOTE)
-        elif state == BRACE:
-            if c == '{':
-                stack.append(BRACE)
-            elif c == '}':
-                stack.pop()
-                if stack[-1] == DOLLAR:
-                    return [start, i+1]
-            elif c == "'":
-                stack.append(SINGLE_QUOTE)
-            elif c == '"':
-                stack.append(DOUBLE_QUOTE)
-        elif state == SINGLE_QUOTE:
-            if c == "'":
-                stack.pop()
-            elif c == '\\':
-                stack.append(BACKSLASH)
-        elif state == DOUBLE_QUOTE:
-            if c == '"':
-                stack.pop()
-            elif c == '\\':
-                stack.append(BACKSLASH)
-        i += 1
-
-    if len(stack) > 1:
-        raise SubstitutionError("Substitution error, unfinished block starting at position {}: {}".format(start, scan[start:]))
-    else:
-        return None
-
-
-def interpolate(scan, jslib, timeout=None):
-    # type: (Text, Union[Text, Text], int) -> JSON
-    scan = scan.strip()
-    parts = []
-    w = scanner(scan)
-    while w:
-        parts.append(scan[0:w[0]])
-
-        if scan[w[0]] == '$':
-            e = execjs(scan[w[0]+1:w[1]], jslib, timeout=timeout)
-            if w[0] == 0 and w[1] == len(scan):
-                return e
-            leaf = json.dumps(e, sort_keys=True)
-            if leaf[0] == '"':
-                leaf = leaf[1:-1]
-            parts.append(leaf)
-        elif scan[w[0]] == '\\':
-            e = scan[w[1]-1]
-            parts.append(e)
-
-        scan = scan[w[1]:]
-        w = scanner(scan)
-    parts.append(scan)
-    return ''.join(parts)
