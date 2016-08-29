@@ -5,9 +5,9 @@ from schema_salad.ref_resolver import Loader
 
 from .process import scandeps, shortname
 
-from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO
+from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO, Text
 
-def flatten_deps(d, files):  # type: (Any, Set[unicode]) -> None
+def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             flatten_deps(s, files)
@@ -16,7 +16,7 @@ def flatten_deps(d, files):  # type: (Any, Set[unicode]) -> None
         if "secondaryFiles" in d:
             flatten_deps(d["secondaryFiles"], files)
 
-def find_run(d, runs):  # type: (Any, Set[unicode]) -> None
+def find_run(d, runs):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             find_run(s, runs)
@@ -27,7 +27,7 @@ def find_run(d, runs):  # type: (Any, Set[unicode]) -> None
             find_run(s, runs)
 
 def replace_refs(d, rewrite, stem, newstem):
-    # type: (Any, Dict[unicode, unicode], unicode, unicode) -> None
+    # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s,v in enumerate(d):
             if isinstance(v, (str, unicode)) and v.startswith(stem):
@@ -45,16 +45,16 @@ def replace_refs(d, rewrite, stem, newstem):
             replace_refs(v, rewrite, stem, newstem)
 
 def pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Dict[unicode, unicode]) -> Dict[unicode, Any]
+    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
     def loadref(b, u):
-        # type: (unicode, unicode) -> Union[Dict, List, unicode]
+        # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
     deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
 
     fdeps = set((uri,))
     flatten_deps(deps, fdeps)
 
-    runs = set()  # type: Set[unicode]
+    runs = set()  # type: Set[Text]
     for f in fdeps:
         find_run(document_loader.idx[f], runs)
 
@@ -69,9 +69,9 @@ def pack(document_loader, processobj, uri, metadata):
         rewrite[r] = "#" + shortname(r)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
-            }  # type: Dict[unicode, Any]
+            }  # type: Dict[Text, Any]
     for r,v in rewrite.items():
-        dc = cast(Dict[unicode, Any], copy.deepcopy(document_loader.idx[r]))
+        dc = cast(Dict[Text, Any], copy.deepcopy(document_loader.idx[r]))
         dc["id"] = v
         for n in ("name", "package", "cwlVersion"):
             if n in dc:
