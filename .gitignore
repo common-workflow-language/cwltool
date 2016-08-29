@@ -8,6 +8,7 @@ eggs/
 .eggs/
 *.egg-info/
 *.egg
+.tox/
 
 # Editor Temps
 .*.sw?

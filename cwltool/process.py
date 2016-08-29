@@ -312,6 +312,17 @@ class Process(object):
 
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
+        """
+        kwargs:
+
+        metadata: tool document metadata
+        requirements: inherited requirements
+        hints: inherited hints
+        loader: schema_salad.ref_resolver.Loader used to load tool document
+        avsc_names: CWL Avro schema object used to validate document
+        strict: flag to determine strict validation (fail on unrecognized fields)
+        """
+
         self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
         self.names = None  # type: avro.schema.Names
 
@@ -337,6 +348,9 @@ class Process(object):
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
+
+        self.doc_loader = kwargs["loader"]
+        self.doc_schema = kwargs["avsc_names"]
 
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []),
@@ -395,6 +409,22 @@ class Process(object):
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
+        """
+        kwargs:
+
+        eval_timeout: javascript evaluation timeout
+        use_container: do/don't use Docker when DockerRequirement hint provided
+        make_fs_access: make an FsAccess() object with given basedir
+        basedir: basedir for FsAccess
+        docker_outdir: output directory inside docker for this job
+        docker_tmpdir: tmpdir inside docker for this job
+        docker_stagedir: stagedir inside docker for this job
+        outdir: outdir on host for this job
+        tmpdir: tmpdir on host for this job
+        stagedir: stagedir on host for this job
+        select_resources: callback to select compute resources
+        """
+
         builder = Builder()
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
             Text]], copy.deepcopy(joborder))
