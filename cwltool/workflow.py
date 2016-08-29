@@ -447,7 +447,7 @@ class WorkflowStep(Process):
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for step_entry in toolpath_object[stepfield]:
-                if isinstance(step_entry, (Text, Text)):
+                if isinstance(step_entry, (str, unicode)):
                     param = {}  # type: Dict[Text, Any]
                     inputid = step_entry
                 else:
