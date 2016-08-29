@@ -70,7 +70,9 @@ def pack(document_loader, processobj, uri, metadata):
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
-    for r,v in rewrite.items():
+
+    for r in sorted(rewrite.keys()):
+        v = rewrite[r]
         dc = cast(Dict[Text, Any], copy.deepcopy(document_loader.idx[r]))
         dc["id"] = v
         for n in ("name", "package", "cwlVersion"):
