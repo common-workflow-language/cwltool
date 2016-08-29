@@ -6,6 +6,8 @@ import cwltool.workflow
 
 class TestPack(unittest.TestCase):
     def test_pack(self):
+        self.maxDiff = None
+
         document_loader, workflowobj, uri = fetch_document("tests/wf/revsort.cwl")
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
