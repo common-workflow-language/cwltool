@@ -6,6 +6,7 @@ import logging
 import select
 import os
 
+import cStringIO
 from cStringIO import StringIO
 from typing import Any, Dict, List, Mapping, Text, TypeVar, Union
 from pkg_resources import resource_stream
@@ -22,6 +23,7 @@ localdata = threading.local()
 have_node_slim = False
 
 def new_js_proc():
+    # type: () -> subprocess.Popen
 
     res = resource_stream(__name__, 'cwlNodeEngine.js')
     nodecode = res.read()
@@ -78,6 +80,7 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping, Text], Any, int) -
     fn = u"\"use strict\";\n%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
+
     def term():
         try:
             killed.append(True)
@@ -95,7 +98,7 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping, Text], Any, int) -
     stdout_buf = StringIO()
     stderr_buf = StringIO()
 
-    completed = []
+    completed = []  # type: List[Union[cStringIO.InputType, cStringIO.OutputType]]
     while len(completed) < 3:
         rready, wready, _ = select.select([nodejs.stdout, nodejs.stderr], [nodejs.stdin], [])
         if nodejs.stdin in wready:
