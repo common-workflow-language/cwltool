@@ -1,20 +1,23 @@
 import json
 import urlparse
+from .process import Process
 from schema_salad.ref_resolver import Loader
 from schema_salad.jsonld_context import makerdf
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
 from typing import Any, Dict, IO, Text, Union
 
-def gather(tool, ctx):
+def gather(tool, ctx):  # type: (Process, Loader.ContextType) -> Graph
     g = Graph()
+
     def visitor(t):
         makerdf(t["id"], t, ctx, graph=g)
+
     tool.visit(visitor)
     return g
 
 def printrdf(wf, ctx, sr, stdout):
-    # type: (Union[Text, Text], Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader.ContextType, Text, IO[Any]) -> None
+    # type: (Process, Loader.ContextType, Text, IO[Any]) -> None
     stdout.write(gather(wf, ctx).serialize(format=sr))
 
 def lastpart(uri):  # type: (Any) -> Text
@@ -155,7 +158,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
 
 
 def printdot(wf, ctx, stdout, include_parameters=False):
-    # type: (Union[Text, Text], Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader.ContextType, Any, bool) -> None
+    # type: (Process, Loader.ContextType, Any, bool) -> None
     g = gather(wf, ctx)
 
     stdout.write("digraph {")
