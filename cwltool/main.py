@@ -598,16 +598,17 @@ def main(argsl=None,
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
 
+            tool = make_tool(document_loader, avsc_names, metadata, uri,
+                    makeTool, {})
+
             if args.print_rdf:
-                printrdf(uri, processobj, document_loader.ctx, args.rdf_serializer, stdout)
+                printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)
                 return 0
 
             if args.print_dot:
-                printdot(uri, processobj, document_loader.ctx, stdout)
+                printdot(tool, document_loader.ctx, stdout)
                 return 0
 
-            tool = make_tool(document_loader, avsc_names, metadata, uri,
-                    makeTool, {})
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
                           exc_info=args.debug)
