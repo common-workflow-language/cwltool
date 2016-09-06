@@ -70,14 +70,15 @@ def _convert_stdstreams_to_files(workflowobj):
                             raise ValidationException(
                                 "Not allowed to specify inputBinding when"
                                 " using stdin shortcut.")
-                            if 'stdin' in workflowobj:
-                                raise ValidationException(
-                                    "Not allowed to specify stdin path when"
-                                    " using stdin type shortcut.")
-                            else:
-                                workflowobj['stdin'] = \
-                                    "${inputs.%s.path}" % inp['id']
-                                inp['type'] = 'File'
+                        if 'stdin' in workflowobj:
+                            raise ValidationException(
+                                "Not allowed to specify stdin path when"
+                                " using stdin type shortcut.")
+                        else:
+                            workflowobj['stdin'] = \
+                                "$(inputs.%s.path)" % \
+                                inp['id'].rpartition('#')[2]
+                            inp['type'] = 'File'
         else:
             for entry in workflowobj.itervalues():
                 _convert_stdstreams_to_files(entry)
