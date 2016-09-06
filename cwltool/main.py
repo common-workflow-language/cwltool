@@ -607,7 +607,7 @@ def main(argsl=None,
                 return 0
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                    makeTool, {})
+                    makeTool, vars(args))
         except (validate.ValidationException) as exc:
             _logger.error(u"Tool definition failed validation:\n%s", exc,
                           exc_info=args.debug)
