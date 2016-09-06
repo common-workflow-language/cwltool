@@ -47,22 +47,37 @@ def _convert_stdstreams_to_files(workflowobj):
 
     if isinstance(workflowobj, dict):
         if ('class' in workflowobj
-                and workflowobj['class'] == 'CommandLineTool'
-                and 'outputs' in workflowobj):
-            for out in workflowobj['outputs']:
-                for streamtype in ['stdout', 'stderr']:
-                    if out['type'] == streamtype:
-                        if 'outputBinding' in out:
+                and workflowobj['class'] == 'CommandLineTool'):
+            if 'outputs' in workflowobj:
+                for out in workflowobj['outputs']:
+                    for streamtype in ['stdout', 'stderr']:
+                        if out['type'] == streamtype:
+                            if 'outputBinding' in out:
+                                raise ValidationException(
+                                    "Not allowed to specify outputBinding when"
+                                    " using %s shortcut." % streamtype)
+                            if streamtype in workflowobj:
+                                filename = workflowobj[streamtype]
+                            else:
+                                filename = Text(uuid.uuid4())
+                                workflowobj[streamtype] = filename
+                            out['type'] = 'File'
+                            out['outputBinding'] = {'glob': filename}
+            if 'inputs' in workflowobj:
+                for inp in workflowobj['inputs']:
+                    if inp['type'] == 'stdin':
+                        if 'inputBinding' in inp:
                             raise ValidationException(
-                                "Not allowed to specify outputBinding when"
-                                " using %s shortcut." % streamtype)
-                        if streamtype in workflowobj:
-                            filename = workflowobj[streamtype]
-                        else:
-                            filename = Text(uuid.uuid4())
-                            workflowobj[streamtype] = filename
-                        out['type'] = 'File'
-                        out['outputBinding'] = {'glob': filename}
+                                "Not allowed to specify inputBinding when"
+                                " using stdin shortcut.")
+                            if 'stdin' in workflowobj:
+                                raise ValidationException(
+                                    "Not allowed to specify stdin path when"
+                                    " using stdin type shortcut.")
+                            else:
+                                workflowobj['stdin'] = \
+                                    "${inputs.%s.path}" % inp['id']
+                                inp['type'] = 'File'
         else:
             for entry in workflowobj.itervalues():
                 _convert_stdstreams_to_files(entry)
