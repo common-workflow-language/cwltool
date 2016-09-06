@@ -367,12 +367,6 @@ $graph:
   extends: InputParameter
   doc: An input parameter for a CommandLineTool.
   specialize:
-    - specializeFrom: InputRecordSchema
-      specializeTo: CommandInputRecordSchema
-    - specializeFrom: InputEnumSchema
-      specializeTo: CommandInputEnumSchema
-    - specializeFrom: InputArraySchema
-      specializeTo: CommandInputArraySchema
     - specializeFrom: InputBinding
       specializeTo: CommandLineBinding
   fields:
@@ -381,16 +375,16 @@ $graph:
         - "null"
         - CWLType
         - stdin
-        - InputRecordSchema
-        - InputEnumSchema
-        - InputArraySchema
+        - CommandInputRecordSchema
+        - CommandInputEnumSchema
+        - CommandInputArraySchema
         - string
         - type: array
           items:
             - CWLType
-            - InputRecordSchema
-            - InputEnumSchema
-            - InputArraySchema
+            - CommandInputRecordSchema
+            - CommandInputEnumSchema
+            - CommandInputArraySchema
             - string
       jsonldPredicate:
         "_id": "sld:type"
