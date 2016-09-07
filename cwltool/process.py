@@ -561,7 +561,7 @@ class Process(object):
     def get_requirement(self, feature):  # type: (Any) -> Tuple[Any, bool]
         return get_feature(self, feature)
 
-    def visit(self, op):
+    def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
         op(self.tool)
 
     @abc.abstractmethod

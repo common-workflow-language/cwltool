@@ -1,14 +1,24 @@
 import json
 import urlparse
+from .process import Process
 from schema_salad.ref_resolver import Loader
 from schema_salad.jsonld_context import makerdf
 from rdflib import Graph, plugin, URIRef
 from rdflib.serializer import Serializer
 from typing import Any, Dict, IO, Text, Union
 
-def printrdf(workflow, wf, ctx, sr, stdout):
-    # type: (Union[Text, Text], Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader.ContextType, Text, IO[Any]) -> None
-    stdout.write(makerdf(workflow, wf, ctx).serialize(format=sr))
+def gather(tool, ctx):  # type: (Process, Loader.ContextType) -> Graph
+    g = Graph()
+
+    def visitor(t):
+        makerdf(t["id"], t, ctx, graph=g)
+
+    tool.visit(visitor)
+    return g
+
+def printrdf(wf, ctx, sr, stdout):
+    # type: (Process, Loader.ContextType, Text, IO[Any]) -> None
+    stdout.write(gather(wf, ctx).serialize(format=sr))
 
 def lastpart(uri):  # type: (Any) -> Text
     uri = Text(uri)
@@ -129,9 +139,9 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
            WHERE {
               ?wf1 Workflow:steps ?src .
               ?wf2 Workflow:steps ?sink .
-              ?src cwl:outputs ?out .
+              ?src cwl:out ?out .
               ?inp cwl:source ?out .
-              ?sink cwl:inputs ?inp .
+              ?sink cwl:in ?inp .
               ?src cwl:run ?srcrun .
               ?sink cwl:run ?sinkrun .
            }""")
@@ -147,9 +157,9 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
         stdout.write(u'"%s" -> "%s" [%s]\n' % (dotname[src], dotname[sink], attr))
 
 
-def printdot(workflow, wf, ctx, stdout, include_parameters=False):
-    # type: (Union[Text, Text], Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader.ContextType, Any, bool) -> None
-    g = makerdf(workflow, wf, ctx)
+def printdot(wf, ctx, stdout, include_parameters=False):
+    # type: (Process, Loader.ContextType, Any, bool) -> None
+    g = gather(wf, ctx)
 
     stdout.write("digraph {")
 
