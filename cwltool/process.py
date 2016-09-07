@@ -91,7 +91,7 @@ def get_schema(version):
 
     cache = {}
     version = version.split("#")[-1]
-    if 'dev' in version:
+    if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
