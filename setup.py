@@ -48,7 +48,7 @@ setup(name='cwltool',
           'shellescape',
           'schema-salad==1.17.20160820171034',
           'typing >= 3.5.2',
-          'cwltest'],
+          'cwltest >= 1.0.20160907111242'],
       test_suite='tests',
       tests_require=[],
       entry_points={
