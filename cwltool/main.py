@@ -599,7 +599,7 @@ def main(argsl=None,
                 return 0
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                    makeTool, {})
+                    makeTool, vars(args))
 
             if args.print_rdf:
                 printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)

@@ -433,6 +433,11 @@ def v1_0dev4to1_0(doc, loader, baseuri):
     """Public updater for v1.0.dev4 to v1.0."""
     return (doc, "v1.0")
 
+def v1_0to1_1_0dev1(doc, loader, baseuri):
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
+    """Public updater for v1.0 to v1.1.0-dev1."""
+    return (doc, "v1.1.0-dev1")
+
 UPDATES = {
     "draft-2": draft2toDraft3dev1,
     "draft-3": draft3toDraft4dev1,
@@ -449,7 +454,8 @@ DEVUPDATES = {
     "draft-4.dev2": draft4Dev2toDev3,
     "draft-4.dev3": draft4Dev3to1_0dev4,
     "v1.0.dev4": v1_0dev4to1_0,
-    "v1.0": None
+    "v1.0": v1_0to1_1_0dev1,
+    "v1.1.0-dev1": None
 }  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 
 ALLUPDATES = UPDATES.copy()
