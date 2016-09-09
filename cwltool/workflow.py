@@ -305,12 +305,13 @@ class WorkflowJob(object):
                         # https://github.com/python/mypy/issues/797
                         **kwargs)
                 elif method == "flat_crossproduct":
-                    jobs = flat_crossproduct_scatter(step, inputobj,
-                                                     scatter,
-                                                     cast(Callable[[Any], Any],
+                    jobs = cast(Generator,
+                                flat_crossproduct_scatter(step, inputobj,
+                                                          scatter,
+                                                          cast(Callable[[Any], Any],
                                                          # known bug in mypy
                                                          # https://github.com/python/mypy/issues/797
-                                                         callback), 0, **kwargs)
+                                                               callback), 0, **kwargs))
             else:
                 _logger.debug(u"[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
                 inputobj = postScatterEval(inputobj)
@@ -332,7 +333,7 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] workflow starting", self.name)
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator
         self.state = {}
         self.processStatus = "success"
 
@@ -405,7 +406,7 @@ class Workflow(Process):
         # TODO: statically validate data links instead of doing it at runtime.
 
     def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[WorkflowJob, None, None]
+        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator
         builder = self._init_job(joborder, **kwargs)
         wj = WorkflowJob(self, **kwargs)
         yield wj
@@ -577,7 +578,7 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-def parallel_steps(steps, rc, kwargs):
+def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
         for step in steps:
@@ -595,7 +596,7 @@ def parallel_steps(steps, rc, kwargs):
             yield None
 
 def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator
     l = None
     for s in scatter_keys:
         if l is None:
@@ -625,7 +626,7 @@ def dotproduct_scatter(process, joborder, scatter_keys, output_callback, **kwarg
 
 
 def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
-    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     output = {}  # type: Dict[Text,List[Text]]
@@ -645,10 +646,9 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
         else:
             steps.append(nested_crossproduct_scatter(process, jo,
                     scatter_keys[1:], cast(  # known bug with mypy
-                        # https://github.com/python/mypy/issues/797
+                        # https://github.com/python/mypy/issues/797g
                         Callable[[Any], Any],
-                        functools.partial(rc.receive_scatter_output, n)),
-                    **kwargs))
+                        functools.partial(rc.receive_scatter_output, n)), **kwargs))
 
     rc.setTotal(l)
 
@@ -668,7 +668,7 @@ def crossproduct_size(joborder, scatter_keys):
     return sum
 
 def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, startindex, **kwargs):
-    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Generator[WorkflowJob, None, None]
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Union[ReceiveScatterOutput,Callable[..., Any]], int, **Any) -> Union[List[Generator], Generator]
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
     rc = None  # type: ReceiveScatterOutput
@@ -695,7 +695,7 @@ def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, 
             put += 1
         else:
             add = flat_crossproduct_scatter(process, jo, scatter_keys[1:], rc, put, **kwargs)
-            put += len(add)
+            put += len(cast(List[Generator], add))
             steps.extend(add)
 
     if startindex == 0 and not isinstance(output_callback, ReceiveScatterOutput):
