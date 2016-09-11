@@ -168,7 +168,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Do not compute checksum of contents while collecting outputs",
                         dest="compute_checksum")
 
-    parser.add_argument("workflow", type=Text, nargs="?", default=None)
+    parser.add_argument("workflow", type=Text, nargs="?", default="CWLFile")
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
