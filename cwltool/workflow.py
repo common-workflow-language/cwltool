@@ -205,7 +205,6 @@ class WorkflowJob(object):
         self.workflow = workflow
         self.tool = workflow.tool
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
-        self.id = workflow.tool["id"]
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
         if "outdir" in kwargs:
@@ -216,9 +215,9 @@ class WorkflowJob(object):
             # tmp_outdir_prefix defaults to tmp, so this is unlikely to be used
             self.outdir = tempfile.mkdtemp()
 
-        self.name = uniquename(u"workflow %s" % kwargs.get("name", shortname(self.workflow.tool["id"])))
+        self.name = uniquename(u"workflow %s" % kwargs.get("name", shortname(self.workflow.tool.get("id", "embedded"))))
 
-        _logger.debug(u"[%s] initialized step from %s", self.name, self.tool["id"])
+        _logger.debug(u"[%s] initialized from %s", self.name, self.tool.get("id", "workflow embedded in %s" % kwargs.get("part_of")))
 
     def receive_output(self, step, outputparms, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
