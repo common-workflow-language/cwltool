@@ -237,45 +237,30 @@ def single_job_executor(t, job_order_object, **kwargs):
     return final_output[0]
 
 
-class FileAction(argparse.Action):
+class FSAction(argparse.Action):
+    objclass = None  # type: Text
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FileAction, self).__init__(option_strings, dest, **kwargs)
+        super(FSAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
         setattr(namespace,
             self.dest,  # type: ignore
-            {"class": "File",
+            {"class": self.objclass,
              "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
-
-class DirectoryAction(argparse.Action):
+class FSAppendAction(argparse.Action):
+    objclass = None  # type: Text
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(DirectoryAction, self).__init__(option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
-        setattr(namespace,
-            self.dest,  # type: ignore
-            {"class": "Directory",
-             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
-
-
-class FileAppendAction(argparse.Action):
-
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[Text], Text, Any, **Any) -> None
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(FileAppendAction, self).__init__(option_strings, dest, **kwargs)
+        super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
@@ -288,9 +273,20 @@ class FileAppendAction(argparse.Action):
                     self.dest,  # type: ignore
                     g)
         g.append(
-            {"class": "File",
+            {"class": self.objclass,
              "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
+class FileAction(FSAction):
+    objclass = "File"
+
+class DirectoryAction(FSAction):
+    objclass = "Directory"
+
+class FileAppendAction(FSAppendAction):
+    objclass = "File"
+
+class DirectoryAppendAction(FSAppendAction):
+    objclass = "Directory"
 
 def generate_parser(toolparser, tool, namemap):
     # type: (argparse.ArgumentParser, Process, Dict[Text, Text]) -> argparse.ArgumentParser
@@ -330,6 +326,8 @@ def generate_parser(toolparser, tool, namemap):
         elif isinstance(inptype, dict) and inptype["type"] == "array":
             if inptype["items"] == "File":
                 action = cast(argparse.Action, FileAppendAction)
+            elif inptype["items"] == "Directory":
+                action = cast(argparse.Action, DirectoryAppendAction)
             else:
                 action = "append"
         elif isinstance(inptype, dict) and inptype["type"] == "enum":
