@@ -238,6 +238,7 @@ def single_job_executor(t, job_order_object, **kwargs):
 
 
 class FSAction(argparse.Action):
+    objclass = None
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
@@ -252,6 +253,7 @@ class FSAction(argparse.Action):
              "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
 class FSAppendAction(argparse.Action):
+    objclass = None
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
