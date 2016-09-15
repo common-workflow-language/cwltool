@@ -430,6 +430,9 @@ class WorkflowStep(Process):
         else:
             self.id = "#step" + Text(pos)
 
+        kwargs["requirements"] = kwargs.get("requirements", []) + toolpath_object.get("requirements", [])
+        kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
+
         try:
             if isinstance(toolpath_object["run"], dict):
                 self.embedded_tool = kwargs.get("makeTool")(toolpath_object["run"], **kwargs)
@@ -528,9 +531,6 @@ class WorkflowStep(Process):
             field = shortname(p)
             joborder[field] = joborder[i["id"]]
             del joborder[i["id"]]
-
-        kwargs["requirements"] = kwargs.get("requirements", []) + self.tool.get("requirements", [])
-        kwargs["hints"] = kwargs.get("hints", []) + self.tool.get("hints", [])
 
         try:
             for t in self.embedded_tool.job(joborder,
