@@ -472,7 +472,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
     sf = scandeps(
         basedir if basedir else uri, obj, set(("$import", "run")),
-        set(("$include", "$schemas", "path", "location")), loadref)
+        set(("$include", "$schemas")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
@@ -491,6 +491,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             else:
                 ob["location"] = os.path.relpath(u, base)
         adjustFileObjs(deps, makeRelative)
+        adjustDirObjs(deps, makeRelative)
 
     stdout.write(json.dumps(deps, indent=4))
 

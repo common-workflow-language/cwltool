@@ -625,7 +625,7 @@ def mergedirs(listing):
         elif e["class"] == "Directory":
             ents[e["basename"]]["listing"].extend(e["listing"])
     for e in ents.itervalues():
-        if e["class"] == "Directory":
+        if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
     r.extend(ents.itervalues())
     return r
@@ -643,45 +643,44 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         "location": df
                     })
                     base = df
-        if "class" in doc and doc["class"] in ("File", "Directory"):
-            doc = copy.copy(doc)
-            if "path" in doc and "location" not in doc:
-                doc["location"] = doc["path"]
-            if "location" in doc:
-                doc["location"] = urlparse.urljoin(base, doc["location"])
-            if "secondaryFiles" in doc:
-                r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref))
-            if "listing" in doc:
-                r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref))
-            r.append(doc)
-        else:
-            for k, v in doc.iteritems():
-                if k in reffields:
-                    for u in aslist(v):
-                        if isinstance(u, dict):
-                            r.extend(scandeps(base, u, reffields, urlfields, loadref))
-                        else:
-                            sub = loadref(base, u)
-                            subid = urlparse.urljoin(base, u)
-                            deps = {
-                                "class": "File",
-                                "location": subid
-                            }  # type: Dict[Text, Any]
-                            sf = scandeps(subid, sub, reffields, urlfields, loadref)
-                            if sf:
-                                deps["secondaryFiles"] = sf
-                            deps = nestdir(base, deps)
-                            r.append(deps)
-                elif k in urlfields:
-                    for u in aslist(v):
+
+        if doc.get("class") in ("File", "Directory"):
+            u = doc.get("location", doc.get("path"))
+            if u:
+                deps = {
+                    "class": doc["class"],
+                    "location": urlparse.urljoin(base, u)
+                }
+                deps = nestdir(base, deps)
+                r.append(deps)
+
+        for k, v in doc.iteritems():
+            if k in reffields:
+                for u in aslist(v):
+                    if isinstance(u, dict):
+                        r.extend(scandeps(base, u, reffields, urlfields, loadref))
+                    else:
+                        sub = loadref(base, u)
+                        subid = urlparse.urljoin(base, u)
                         deps = {
                             "class": "File",
-                            "location": urlparse.urljoin(base, u)
-                        }
+                            "location": subid
+                        }  # type: Dict[Text, Any]
+                        sf = scandeps(subid, sub, reffields, urlfields, loadref)
+                        if sf:
+                            deps["secondaryFiles"] = sf
                         deps = nestdir(base, deps)
                         r.append(deps)
-                else:
-                    r.extend(scandeps(base, v, reffields, urlfields, loadref))
+            elif k in urlfields:
+                for u in aslist(v):
+                    deps = {
+                        "class": "File",
+                        "location": urlparse.urljoin(base, u)
+                    }
+                    deps = nestdir(base, deps)
+                    r.append(deps)
+            else:
+                r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref))
