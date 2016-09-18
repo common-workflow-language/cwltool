@@ -1,4 +1,3 @@
-
 import os
 import json
 import copy
@@ -626,7 +625,7 @@ def mergedirs(listing):
         elif e["class"] == "Directory":
             ents[e["basename"]]["listing"].extend(e["listing"])
     for e in ents.itervalues():
-        if e["class"] == "Directory":
+        if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
     r.extend(ents.itervalues())
     return r
@@ -634,6 +633,7 @@ def mergedirs(listing):
 def scandeps(base, doc, reffields, urlfields, loadref):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
+    deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
@@ -644,6 +644,16 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         "location": df
                     })
                     base = df
+
+        if doc.get("class") in ("File", "Directory"):
+            u = doc.get("location", doc.get("path"))
+            if u:
+                deps = {
+                    "class": doc["class"],
+                    "location": urlparse.urljoin(base, u)
+                }
+                deps = nestdir(base, deps)
+                r.append(deps)
 
         for k, v in doc.iteritems():
             if k in reffields:
@@ -656,7 +666,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         deps = {
                             "class": "File",
                             "location": subid
-                        }  # type: Dict[Text, Any]
+                        }
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf
