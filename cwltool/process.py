@@ -633,6 +633,7 @@ def mergedirs(listing):
 def scandeps(base, doc, reffields, urlfields, loadref):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
+    deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
@@ -665,7 +666,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                         deps = {
                             "class": "File",
                             "location": subid
-                        }  # type: Dict[Text, Any]
+                        }
                         sf = scandeps(subid, sub, reffields, urlfields, loadref)
                         if sf:
                             deps["secondaryFiles"] = sf
