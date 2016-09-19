@@ -492,8 +492,8 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
-        adjustFileObjs(deps, partial(makeRelative, base))
-        adjustDirObjs(deps, partial(makeRelative, base))
+        adjustFileObjs(deps, functools.partial(makeRelative, base))
+        adjustDirObjs(deps, functools.partial(makeRelative, base))
 
     stdout.write(json.dumps(deps, indent=4))
 
