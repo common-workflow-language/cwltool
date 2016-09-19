@@ -461,6 +461,14 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     return (job_order_object, input_basedir)
 
+def makeRelative(base, ob):
+    u = ob.get("location", ob.get("path"))
+    if ":" in u.split("/")[0] and not u.startswith("file://"):
+        pass
+    else:
+        if u.startswith("file://"):
+            u = u[7:]
+        ob["location"] = os.path.relpath(u, base)
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     # type: (Dict[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
@@ -484,14 +492,8 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
-        def makeRelative(ob):
-            u = ob.get("location", ob.get("path"))
-            if ":" in u.split("/")[0] and not u.startswith("file://"):
-                pass
-            else:
-                ob["location"] = os.path.relpath(u, base)
-        adjustFileObjs(deps, makeRelative)
-        adjustDirObjs(deps, makeRelative)
+        adjustFileObjs(deps, partial(makeRelative, base))
+        adjustDirObjs(deps, partial(makeRelative, base))
 
     stdout.write(json.dumps(deps, indent=4))
 
