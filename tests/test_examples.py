@@ -122,7 +122,7 @@ class TestScanDeps(unittest.TestCase):
                         "id": "file:///example/foo.cwl#input1",
                         "default": {
                             "class": "File",
-                            "path": "file:///example/data.txt"
+                            "location": "file:///example/data.txt"
                         }
                     }],
                     "run": {
@@ -130,8 +130,8 @@ class TestScanDeps(unittest.TestCase):
                         "inputs": [{
                             "id": "file:///example/bar.cwl#input2",
                             "default": {
-                                "class": "File",
-                                "path": "file:///example/data2.txt"
+                                "class": "Directory",
+                                "location": "file:///example/data2"
                             }
                         }]
                     }
@@ -145,10 +145,41 @@ class TestScanDeps(unittest.TestCase):
             else:
                 raise Exception("test case can't load things")
 
-        print json.dumps(cwltool.process.scandeps(obj["id"], obj,
+        sc = cwltool.process.scandeps(obj["id"], obj,
                                        set(("$import", "run")),
-                                       set(("$include", "$schemas", "path")),
-                                                  loadref), indent=4)
+                                       set(("$include", "$schemas", "location")),
+                                                  loadref)
+
+        sc.sort(key=lambda k: k["basename"])
+
+        self.assertEquals([{
+            "basename": "bar.cwl",
+            "class": "File",
+            "location": "file:///example/bar.cwl"
+        },
+        {
+            "basename": "data.txt",
+            "class": "File",
+            "location": "file:///example/data.txt"
+        },
+        {
+            "basename": "data2",
+            "class": "Directory",
+            "location": "file:///example/data2"
+        }], sc)
+
+        sc = cwltool.process.scandeps(obj["id"], obj,
+                                       set(("run"),),
+                                       set(), loadref)
+
+        sc.sort(key=lambda k: k["basename"])
+
+        self.assertEquals([{
+            "basename": "bar.cwl",
+            "class": "File",
+            "location": "file:///example/bar.cwl"
+        }], sc)
+
 
 class TestTypeCompare(unittest.TestCase):
     def test_typecompare(self):
