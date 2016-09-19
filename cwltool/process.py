@@ -645,7 +645,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                     })
                     base = df
 
-        if doc.get("class") in ("File", "Directory"):
+        if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = doc.get("location", doc.get("path"))
             if u:
                 deps = {

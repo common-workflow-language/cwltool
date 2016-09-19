@@ -472,7 +472,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
     sf = scandeps(
         basedir if basedir else uri, obj, set(("$import", "run")),
-        set(("$include", "$schemas")), loadref)
+        set(("$include", "$schemas", "location")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
