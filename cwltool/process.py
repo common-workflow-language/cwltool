@@ -652,6 +652,8 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                     "class": doc["class"],
                     "location": urlparse.urljoin(base, u)
                 }
+                if doc["class"] == "Directory" and "listing" in doc:
+                    deps["listing"] = doc["listing"]
                 deps = nestdir(base, deps)
                 r.append(deps)
 
