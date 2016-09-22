@@ -131,7 +131,11 @@ class TestScanDeps(unittest.TestCase):
                             "id": "file:///example/bar.cwl#input2",
                             "default": {
                                 "class": "Directory",
-                                "location": "file:///example/data2"
+                                "location": "file:///example/data2",
+                                "listing": [{
+                                    "class": "File",
+                                    "location": "file:///example/data3.txt"
+                                }]
                             }
                         }]
                     }
@@ -165,7 +169,17 @@ class TestScanDeps(unittest.TestCase):
         {
             "basename": "data2",
             "class": "Directory",
-            "location": "file:///example/data2"
+            "location": "file:///example/data2",
+            "listing": [{
+                "basename": "data3.txt",
+                "class": "File",
+                "location": "file:///example/data3.txt"
+            }]
+        },
+        {
+            "basename": "data3.txt",
+            "class": "File",
+            "location": "file:///example/data3.txt"
         }], sc)
 
         sc = cwltool.process.scandeps(obj["id"], obj,
