@@ -689,7 +689,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                     }
                     deps = nestdir(base, deps)
                     r.append(deps)
-            elif k != "listing":
+            elif k not in ("listing", "secondaryFiles"):
                 r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
