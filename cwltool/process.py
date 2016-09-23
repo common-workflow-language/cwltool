@@ -647,15 +647,22 @@ def scandeps(base, doc, reffields, urlfields, loadref):
 
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = doc.get("location", doc.get("path"))
-            if u:
+            if u and not u.startswith("_:"):
                 deps = {
                     "class": doc["class"],
                     "location": urlparse.urljoin(base, u)
                 }
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
+                if doc["class"] == "File" and "secondaryFiles" in doc:
+                    deps["secondaryFiles"] = doc["secondaryFiles"]
                 deps = nestdir(base, deps)
                 r.append(deps)
+            else:
+                if doc["class"] == "Directory" and "listing" in doc:
+                    r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref))
+                elif doc["class"] == "File" and "secondaryFiles" in doc:
+                    r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref))
 
         for k, v in doc.iteritems():
             if k in reffields:
@@ -674,7 +681,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                             deps["secondaryFiles"] = sf
                         deps = nestdir(base, deps)
                         r.append(deps)
-            elif k in urlfields:
+            elif k in urlfields and k != "location":
                 for u in aslist(v):
                     deps = {
                         "class": "File",
@@ -682,12 +689,13 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                     }
                     deps = nestdir(base, deps)
                     r.append(deps)
-            else:
+            elif k not in ("listing", "secondaryFiles"):
                 r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref))
 
-    normalizeFilesDirs(r)
-    r = mergedirs(r)
+    if r:
+        normalizeFilesDirs(r)
+        r = mergedirs(r)
     return r
