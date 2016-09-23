@@ -647,7 +647,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
 
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = doc.get("location", doc.get("path"))
-            if u:
+            if u and not u.startswith("_:"):
                 deps = {
                     "class": doc["class"],
                     "location": urlparse.urljoin(base, u)
@@ -656,6 +656,11 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                     deps["listing"] = doc["listing"]
                 deps = nestdir(base, deps)
                 r.append(deps)
+            else:
+                if doc["class"] == "Directory" and "listing" in doc:
+                    r.extend(r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref)))
+                elif doc["class"] == "File" and "secondaryFiles" in doc:
+                    r.extend(r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref)))
 
         for k, v in doc.iteritems():
             if k in reffields:

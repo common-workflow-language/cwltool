@@ -76,6 +76,28 @@ def abspath(src, basedir):  # type: (Text, Text) -> Text
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
 
+def dedup(listing):
+    marks = set()
+    def mark(d):
+        marks.add(d["location"])
+
+    for l in listing:
+        if l["class"] == "Directory":
+            for e in l.get("listing", []):
+                adjustFileObjs(e, mark)
+                adjustDirObjs(e, mark)
+
+    roots = [l for l in listing if l["location"] not in marks]
+
+    dd = []
+    marks = set()
+    for r in roots:
+        if r["location"] not in marks:
+            dd.append(r)
+            marks.add(r["location"])
+
+    return dd
+
 
 class PathMapper(object):
 
@@ -117,7 +139,7 @@ class PathMapper(object):
         self._pathmap = {}  # type: Dict[Text, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
-        self.setup(referenced_files, basedir)
+        self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(self, listing, stagedir, basedir):
         # type: (List[Dict[Text, Any]], Text, Text) -> None
