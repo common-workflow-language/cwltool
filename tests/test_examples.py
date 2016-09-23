@@ -4,6 +4,7 @@ import cwltool.draft2tool as tool
 import cwltool.expression as expr
 import cwltool.factory
 import cwltool.process
+import cwltool.pathmapper
 import cwltool.workflow
 
 class TestParamMatching(unittest.TestCase):
@@ -136,6 +137,21 @@ class TestScanDeps(unittest.TestCase):
                                     "class": "File",
                                     "location": "file:///example/data3.txt"
                                 }]
+                            },
+                        }, {
+                            "id": "file:///example/bar.cwl#input3",
+                            "default": {
+                                "class": "Directory",
+                                "listing": [{
+                                    "class": "File",
+                                    "location": "file:///example/data4.txt"
+                                }]
+                            }
+                        }, {
+                            "id": "file:///example/bar.cwl#input4",
+                            "default": {
+                                "class": "File",
+                                "contents": "file literal"
                             }
                         }]
                     }
@@ -175,6 +191,10 @@ class TestScanDeps(unittest.TestCase):
                 "class": "File",
                 "location": "file:///example/data3.txt"
             }]
+        }, {
+                "basename": "data4.txt",
+                "class": "File",
+                "location": "file:///example/data4.txt"
         }], sc)
 
         sc = cwltool.process.scandeps(obj["id"], obj,
@@ -188,6 +208,42 @@ class TestScanDeps(unittest.TestCase):
             "class": "File",
             "location": "file:///example/bar.cwl"
         }], sc)
+
+class TestDedup(unittest.TestCase):
+    def test_dedup(self):
+        ex = [{
+            "class": "File",
+            "location": "file:///example/a"
+        },
+        {
+            "class": "File",
+            "location": "file:///example/a"
+        },
+        {
+            "class": "File",
+            "location": "file:///example/d"
+        },
+        {
+            "class": "Directory",
+            "location": "file:///example/c",
+            "listing": [{
+                "class": "File",
+                "location": "file:///example/d"
+            }]
+        }]
+
+        self.assertEquals([{
+            "class": "File",
+            "location": "file:///example/a"
+        },
+        {
+            "class": "Directory",
+            "location": "file:///example/c",
+            "listing": [{
+                "class": "File",
+                "location": "file:///example/d"
+            }]
+        }], cwltool.pathmapper.dedup(ex))
 
 
 class TestTypeCompare(unittest.TestCase):

@@ -76,10 +76,11 @@ def abspath(src, basedir):  # type: (Text, Text) -> Text
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
 
-def dedup(listing):
-    marks = set()
+def dedup(listing):  # type: (List[Any]) -> List[Any]
+    marksub = set()
+
     def mark(d):
-        marks.add(d["location"])
+        marksub.add(d["location"])
 
     for l in listing:
         if l["class"] == "Directory":
@@ -87,14 +88,12 @@ def dedup(listing):
                 adjustFileObjs(e, mark)
                 adjustDirObjs(e, mark)
 
-    roots = [l for l in listing if l["location"] not in marks]
-
     dd = []
-    marks = set()
-    for r in roots:
-        if r["location"] not in marks:
+    markdup = set()  # type: Set[Text]
+    for r in listing:
+        if r["location"] not in marksub and r["location"] not in markdup:
             dd.append(r)
-            marks.add(r["location"])
+            markdup.add(r["location"])
 
     return dd
 

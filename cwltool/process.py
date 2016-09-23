@@ -658,9 +658,9 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 r.append(deps)
             else:
                 if doc["class"] == "Directory" and "listing" in doc:
-                    r.extend(r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref)))
+                    r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref))
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
-                    r.extend(r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref)))
+                    r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref))
 
         for k, v in doc.iteritems():
             if k in reffields:
