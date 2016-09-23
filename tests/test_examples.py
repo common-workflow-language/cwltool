@@ -175,11 +175,6 @@ class TestScanDeps(unittest.TestCase):
                 "class": "File",
                 "location": "file:///example/data3.txt"
             }]
-        },
-        {
-            "basename": "data3.txt",
-            "class": "File",
-            "location": "file:///example/data3.txt"
         }], sc)
 
         sc = cwltool.process.scandeps(obj["id"], obj,

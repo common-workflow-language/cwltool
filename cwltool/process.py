@@ -674,7 +674,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                             deps["secondaryFiles"] = sf
                         deps = nestdir(base, deps)
                         r.append(deps)
-            elif k in urlfields:
+            elif k in urlfields and k != "location":
                 for u in aslist(v):
                     deps = {
                         "class": "File",
@@ -682,12 +682,13 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                     }
                     deps = nestdir(base, deps)
                     r.append(deps)
-            else:
+            elif k != "listing":
                 r.extend(scandeps(base, v, reffields, urlfields, loadref))
     elif isinstance(doc, list):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref))
 
-    normalizeFilesDirs(r)
-    r = mergedirs(r)
+    if r:
+        normalizeFilesDirs(r)
+        r = mergedirs(r)
     return r
