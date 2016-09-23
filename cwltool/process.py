@@ -654,6 +654,8 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 }
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
+                if doc["class"] == "File" and "secondaryFiles" in doc:
+                    deps["secondaryFiles"] = doc["secondaryFiles"]
                 deps = nestdir(base, deps)
                 r.append(deps)
             else:
