@@ -135,7 +135,11 @@ class TestScanDeps(unittest.TestCase):
                                 "location": "file:///example/data2",
                                 "listing": [{
                                     "class": "File",
-                                    "location": "file:///example/data3.txt"
+                                    "location": "file:///example/data3.txt",
+                                    "secondaryFiles": [{
+                                        "class": "File",
+                                        "location": "file:///example/data5.txt"
+                                    }]
                                 }]
                             },
                         }, {
@@ -190,6 +194,10 @@ class TestScanDeps(unittest.TestCase):
                 "basename": "data3.txt",
                 "class": "File",
                 "location": "file:///example/data3.txt"
+                "secondaryFiles": [{
+                    "class": "File",
+                    "location": "file:///example/data5.txt"
+                }]
             }]
         }, {
                 "basename": "data4.txt",
