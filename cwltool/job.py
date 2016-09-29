@@ -137,6 +137,8 @@ class CommandLineJob(object):
             if not os.path.exists(self.tmpdir):
                 os.makedirs(self.tmpdir)
             vars_to_preserve = kwargs.get("preserve_environment")
+            if kwargs.get("preserve_entire_environment"):
+                vars_to_preserve = os.environ
             if vars_to_preserve is not None:
                 for key, value in os.environ.items():
                     if key in vars_to_preserve and key not in env:
