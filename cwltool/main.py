@@ -293,21 +293,13 @@ class FileAppendAction(FSAppendAction):
 class DirectoryAppendAction(FSAppendAction):
     objclass = "Directory"
 
-def generate_parser(toolparser, tool, namemap):
-    # type: (argparse.ArgumentParser, Process, Dict[Text, Text]) -> argparse.ArgumentParser
-    toolparser.add_argument("job_order", nargs="?", help="Job input json file")
-    namemap["job_order"] = "job_order"
 
-    for inp in tool.tool["inputs"]:
-        name = shortname(inp["id"])
+def add_argument(toolparser, name, inptype, description="", default=None):
+    # type: (argparse.ArgumentParser, Text, Any, Text, Any) -> None
         if len(name) == 1:
             flag = "-"
         else:
             flag = "--"
-
-        namemap[name.replace("-", "_")] = name
-
-        inptype = inp["type"]
 
         required = True
         if isinstance(inptype, list):
@@ -319,10 +311,9 @@ def generate_parser(toolparser, tool, namemap):
                     _logger.debug(u"Can't make command line argument from %s", inptype)
                     return None
 
-        ahelp = inp.get("description", "").replace("%", "%%")
+        ahelp = description.replace("%", "%%")
         action = None  # type: Union[argparse.Action, Text]
         atype = None  # type: Any
-        default = None  # type: Any
 
         if inptype == "File":
             action = cast(argparse.Action, FileAction)
@@ -348,8 +339,7 @@ def generate_parser(toolparser, tool, namemap):
         elif inptype == "boolean":
             action = "store_true"
 
-        if "default" in inp:
-            default = inp["default"]
+        if default:
             required = False
 
         if not atype and not action:
@@ -364,6 +354,20 @@ def generate_parser(toolparser, tool, namemap):
         toolparser.add_argument(  # type: ignore
             flag + name, required=required, help=ahelp, action=action,
             default=default, **typekw)
+
+
+def generate_parser(toolparser, tool, namemap):
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text]) -> argparse.ArgumentParser
+    toolparser.add_argument("job_order", nargs="?", help="Job input json file")
+    namemap["job_order"] = "job_order"
+
+    for inp in tool.tool["inputs"]:
+        name = shortname(inp["id"])
+        namemap[name.replace("-", "_")] = name
+        inptype = inp["type"]
+        description = inp.get("description", "")
+        default = inp.get("default", None)
+        add_argument(toolparser, name, inptype, description, default)
 
     return toolparser
 
