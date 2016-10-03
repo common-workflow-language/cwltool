@@ -328,6 +328,14 @@ def add_argument(toolparser, name, inptype, description="", default=None):
                 action = "append"
         elif isinstance(inptype, dict) and inptype["type"] == "enum":
             atype = Text
+        elif isinstance(inptype, dict) and inptype["type"] == "record":
+            for field in inptype['fields']:
+                fieldname = name+"."+shortname(field['name'])
+                fieldtype = field['type']
+                fielddescription = field.get("doc", "")
+                add_argument(
+                    toolparser, fieldname, fieldtype, fielddescription)
+            return
         if inptype == "string":
             atype = Text
         elif inptype == "int":
