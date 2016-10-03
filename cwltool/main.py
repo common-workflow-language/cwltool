@@ -365,7 +365,7 @@ def generate_parser(toolparser, tool, namemap):
         name = shortname(inp["id"])
         namemap[name.replace("-", "_")] = name
         inptype = inp["type"]
-        description = inp.get("description", "")
+        description = inp.get("doc", "")
         default = inp.get("default", None)
         add_argument(toolparser, name, inptype, description, default)
 
