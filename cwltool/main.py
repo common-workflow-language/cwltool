@@ -241,7 +241,6 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     return final_output[0]
 
-
 class FSAction(argparse.Action):
     objclass = None  # type: Text
 
@@ -294,8 +293,9 @@ class DirectoryAppendAction(FSAppendAction):
     objclass = "Directory"
 
 
-def add_argument(toolparser, name, inptype, description="", default=None):
-    # type: (argparse.ArgumentParser, Text, Any, Text, Any) -> None
+def add_argument(toolparser, name, inptype, records, description="",
+        default=None):
+    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any) -> None
         if len(name) == 1:
             flag = "-"
         else:
@@ -329,12 +329,14 @@ def add_argument(toolparser, name, inptype, description="", default=None):
         elif isinstance(inptype, dict) and inptype["type"] == "enum":
             atype = Text
         elif isinstance(inptype, dict) and inptype["type"] == "record":
+            records.append(name)
             for field in inptype['fields']:
                 fieldname = name+"."+shortname(field['name'])
                 fieldtype = field['type']
                 fielddescription = field.get("doc", "")
                 add_argument(
-                    toolparser, fieldname, fieldtype, fielddescription)
+                    toolparser, fieldname, fieldtype, records,
+                    fielddescription)
             return
         if inptype == "string":
             atype = Text
@@ -364,8 +366,8 @@ def add_argument(toolparser, name, inptype, description="", default=None):
             default=default, **typekw)
 
 
-def generate_parser(toolparser, tool, namemap):
-    # type: (argparse.ArgumentParser, Process, Dict[Text, Text]) -> argparse.ArgumentParser
+def generate_parser(toolparser, tool, namemap, records):
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text]) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -375,7 +377,7 @@ def generate_parser(toolparser, tool, namemap):
         inptype = inp["type"]
         description = inp.get("doc", "")
         default = inp.get("default", None)
-        add_argument(toolparser, name, inptype, description, default)
+        add_argument(toolparser, name, inptype, records, description, default)
 
     return toolparser
 
@@ -418,12 +420,23 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
         namemap = {}  # type: Dict[Text, Text]
-        toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
+        records = []  # type: List[Text]
+        toolparser = generate_parser(
+            argparse.ArgumentParser(prog=args.workflow), t, namemap, records)
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
                 return 0
             cmd_line = vars(toolparser.parse_args(args.job_order))
+            for record_name in records:
+                record = {}
+                record_items = {
+                    k:v for k,v in cmd_line.iteritems()
+                    if k.startswith(record_name)}
+                for key, value in record_items.iteritems():
+                    record[key[len(record_name)+1:]] = value
+                    del cmd_line[key]
+                cmd_line[str(record_name)] = record
 
             if cmd_line["job_order"]:
                 try:

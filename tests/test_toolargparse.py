@@ -58,6 +58,8 @@ inputs:
         one: File
         two: string
 
+expression: $(inputs.foo.two)
+
 outputs: []
 '''
 
@@ -77,7 +79,7 @@ outputs: []
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
 
-    def test_record(self):
+    def test_record_help(self):
         with NamedTemporaryFile() as f:
             f.write(self.script3)
             f.flush()
@@ -85,6 +87,17 @@ outputs: []
                 self.assertEquals(main([f.name, '--help']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
+
+    def test_record(self):
+        with NamedTemporaryFile() as f:
+            f.write(self.script3)
+            f.flush()
+            try:
+                self.assertEquals(main([f.name, '--foo.one', 'README.rst',
+                '--foo.two', 'test']), 0)
+            except SystemExit as e:
+                self.assertEquals(e.code, 0)
+
 
 
 if __name__ == '__main__':
