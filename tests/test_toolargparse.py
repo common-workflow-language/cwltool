@@ -44,6 +44,25 @@ baseCommand:
 stdout: foo
 '''
 
+    script3='''
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo:
+    type:
+      type: record
+      fields:
+        one: File
+        two: string
+
+expression: $(inputs.foo.two)
+
+outputs: []
+'''
+
     def test_help(self):
         with NamedTemporaryFile() as f:
             f.write(self.script)
@@ -59,3 +78,27 @@ stdout: foo
                 self.assertEquals(main([f.name, '--help']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
+
+    def test_record_help(self):
+        with NamedTemporaryFile() as f:
+            f.write(self.script3)
+            f.flush()
+            try:
+                self.assertEquals(main([f.name, '--help']), 0)
+            except SystemExit as e:
+                self.assertEquals(e.code, 0)
+
+    def test_record(self):
+        with NamedTemporaryFile() as f:
+            f.write(self.script3)
+            f.flush()
+            try:
+                self.assertEquals(main([f.name, '--foo.one', 'README.rst',
+                '--foo.two', 'test']), 0)
+            except SystemExit as e:
+                self.assertEquals(e.code, 0)
+
+
+
+if __name__ == '__main__':
+    unittest.main()
