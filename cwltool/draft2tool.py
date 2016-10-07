@@ -80,24 +80,38 @@ def remove_path(f):  # type: (Dict[Text, Any]) -> None
 
 def revmap_file(builder, outdir, f):
     # type: (Builder, Text, Dict[Text, Any]) -> Union[Dict[Text, Any], None]
-    """Remap a file back to original path. For Docker, this is outside the container.
 
-    Uses either files in the pathmapper or remaps internal output directories
-    to the external directory.
+    """Remap a file from internal path to external path.
+
+    For Docker, this maps from the path inside tho container to the path
+    outside the container. Recognizes files in the pathmapper or remaps
+    internal output directories to the external directory.
     """
 
     if "location" in f:
+        if f["location"].startswith("file://"):
+            path = f["location"][7:]
+            revmap_f = builder.pathmapper.reversemap(path)
+            if revmap_f:
+                f["location"] = revmap_f[1]
+            elif path.startswith(builder.outdir):
+                f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir)+1:])
         return f
 
-    revmap_f = builder.pathmapper.reversemap(f["path"])
-    if revmap_f:
-        f["location"] = revmap_f[1]
-        return f
-    elif f["path"].startswith(builder.outdir):
-        f["location"] = builder.fs_access.join(outdir, f["path"][len(builder.outdir)+1:])
-        return f
-    else:
-        raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
+    if "path" in f:
+        path = f["path"]
+        revmap_f = builder.pathmapper.reversemap(path)
+        if revmap_f:
+            f["location"] = revmap_f[1]
+            return f
+        elif path.startswith(builder.outdir):
+            f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir)+1:])
+            return f
+        else:
+            raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
+
+    raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
+
 
 class CallbackJob(object):
     def __init__(self, job, output_callback, cachebuilder, jobcache):
