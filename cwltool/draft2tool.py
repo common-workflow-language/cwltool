@@ -88,6 +88,10 @@ def revmap_file(builder, outdir, f):
     internal output directories to the external directory.
     """
 
+    split = urlparse.urlsplit(outdir)
+    if not split.scheme:
+        outdir = "file://" + outdir
+
     if "location" in f:
         if f["location"].startswith("file://"):
             path = f["location"][7:]
@@ -100,6 +104,7 @@ def revmap_file(builder, outdir, f):
 
     if "path" in f:
         path = f["path"]
+        del f["path"]
         revmap_f = builder.pathmapper.reversemap(path)
         if revmap_f:
             f["location"] = revmap_f[1]
@@ -108,7 +113,7 @@ def revmap_file(builder, outdir, f):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir)+1:])
             return f
         else:
-            raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (f["path"], builder.outdir))
+            raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input file pass through." % (path, builder.outdir))
 
     raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
 
