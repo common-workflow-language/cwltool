@@ -155,7 +155,7 @@ class Builder(object):
             if binding.get("itemSeparator"):
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
-                value = [v["path"] if isinstance(v, dict) and v.get("class") == "File" else v for v in value]
+                value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
             elif prefix:
                 return [prefix]

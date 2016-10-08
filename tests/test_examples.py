@@ -4,6 +4,7 @@ import cwltool.draft2tool as tool
 import cwltool.expression as expr
 import cwltool.factory
 import cwltool.process
+import cwltool.pathmapper
 import cwltool.workflow
 
 class TestParamMatching(unittest.TestCase):
@@ -122,7 +123,7 @@ class TestScanDeps(unittest.TestCase):
                         "id": "file:///example/foo.cwl#input1",
                         "default": {
                             "class": "File",
-                            "path": "file:///example/data.txt"
+                            "location": "file:///example/data.txt"
                         }
                     }],
                     "run": {
@@ -130,8 +131,31 @@ class TestScanDeps(unittest.TestCase):
                         "inputs": [{
                             "id": "file:///example/bar.cwl#input2",
                             "default": {
+                                "class": "Directory",
+                                "location": "file:///example/data2",
+                                "listing": [{
+                                    "class": "File",
+                                    "location": "file:///example/data3.txt",
+                                    "secondaryFiles": [{
+                                        "class": "File",
+                                        "location": "file:///example/data5.txt"
+                                    }]
+                                }]
+                            },
+                        }, {
+                            "id": "file:///example/bar.cwl#input3",
+                            "default": {
+                                "class": "Directory",
+                                "listing": [{
+                                    "class": "File",
+                                    "location": "file:///example/data4.txt"
+                                }]
+                            }
+                        }, {
+                            "id": "file:///example/bar.cwl#input4",
+                            "default": {
                                 "class": "File",
-                                "path": "file:///example/data2.txt"
+                                "contents": "file literal"
                             }
                         }]
                     }
@@ -145,10 +169,91 @@ class TestScanDeps(unittest.TestCase):
             else:
                 raise Exception("test case can't load things")
 
-        print json.dumps(cwltool.process.scandeps(obj["id"], obj,
+        sc = cwltool.process.scandeps(obj["id"], obj,
                                        set(("$import", "run")),
-                                       set(("$include", "$schemas", "path")),
-                                                  loadref), indent=4)
+                                       set(("$include", "$schemas", "location")),
+                                                  loadref)
+
+        sc.sort(key=lambda k: k["basename"])
+
+        self.assertEquals([{
+            "basename": "bar.cwl",
+            "class": "File",
+            "location": "file:///example/bar.cwl"
+        },
+        {
+            "basename": "data.txt",
+            "class": "File",
+            "location": "file:///example/data.txt"
+        },
+        {
+            "basename": "data2",
+            "class": "Directory",
+            "location": "file:///example/data2",
+            "listing": [{
+                "basename": "data3.txt",
+                "class": "File",
+                "location": "file:///example/data3.txt",
+                "secondaryFiles": [{
+                    "class": "File",
+                    "basename": "data5.txt",
+                    "location": "file:///example/data5.txt"
+                }]
+            }]
+        }, {
+                "basename": "data4.txt",
+                "class": "File",
+                "location": "file:///example/data4.txt"
+        }], sc)
+
+        sc = cwltool.process.scandeps(obj["id"], obj,
+                                       set(("run"),),
+                                       set(), loadref)
+
+        sc.sort(key=lambda k: k["basename"])
+
+        self.assertEquals([{
+            "basename": "bar.cwl",
+            "class": "File",
+            "location": "file:///example/bar.cwl"
+        }], sc)
+
+class TestDedup(unittest.TestCase):
+    def test_dedup(self):
+        ex = [{
+            "class": "File",
+            "location": "file:///example/a"
+        },
+        {
+            "class": "File",
+            "location": "file:///example/a"
+        },
+        {
+            "class": "File",
+            "location": "file:///example/d"
+        },
+        {
+            "class": "Directory",
+            "location": "file:///example/c",
+            "listing": [{
+                "class": "File",
+                "location": "file:///example/d"
+            }]
+        }]
+
+        self.assertEquals([{
+            "class": "File",
+            "location": "file:///example/a"
+        },
+        {
+            "class": "Directory",
+            "location": "file:///example/c",
+            "listing": [{
+                "class": "File",
+                "location": "file:///example/d"
+            }]
+        }], cwltool.pathmapper.dedup(ex))
+
 
 class TestTypeCompare(unittest.TestCase):
     def test_typecompare(self):

@@ -6,7 +6,11 @@
                 {
                     "doc": "The input file to be processed.",
                     "type": "File",
-                    "id": "#main/input"
+                    "id": "#main/input",
+                    "default": {
+                      "class": "File",
+                      "location": "hello.txt"
+                    }
                 },
                 {
                     "default": true,

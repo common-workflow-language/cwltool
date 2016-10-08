@@ -23,6 +23,9 @@ inputs:
   input:
     type: File
     doc: "The input file to be processed."
+    default:
+      class: File
+      location: hello.txt
   reverse_sort:
     type: boolean
     default: true

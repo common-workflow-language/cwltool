@@ -50,11 +50,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
 
-    parser.add_argument("--preserve-environment", type=Text, nargs='+',
-                        help="Preserve specified environment variables when running CommandLineTools",
-                        metavar=("VAR1,VAR2"),
-                        default=("PATH",),
+    parser.add_argument("--preserve-environment", type=Text, action="append",
+                        help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
+                        metavar="ENVVAR",
+                        default=["PATH"],
                         dest="preserve_environment")
+
+    parser.add_argument("--preserve-entire-environment", action="store_true",
+                        help="Preserve entire parent environment when running CommandLineTools.",
+                        default=False,
+                        dest="preserve_entire_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-container", action="store_true", default=True,
@@ -236,46 +241,30 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     return final_output[0]
 
-
-class FileAction(argparse.Action):
+class FSAction(argparse.Action):
+    objclass = None  # type: Text
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FileAction, self).__init__(option_strings, dest, **kwargs)
+        super(FSAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
         setattr(namespace,
             self.dest,  # type: ignore
-            {"class": "File",
+            {"class": self.objclass,
              "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
-
-class DirectoryAction(argparse.Action):
+class FSAppendAction(argparse.Action):
+    objclass = None  # type: Text
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(DirectoryAction, self).__init__(option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
-        setattr(namespace,
-            self.dest,  # type: ignore
-            {"class": "Directory",
-             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
-
-
-class FileAppendAction(argparse.Action):
-
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[Text], Text, Any, **Any) -> None
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(FileAppendAction, self).__init__(option_strings, dest, **kwargs)
+        super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
@@ -288,25 +277,29 @@ class FileAppendAction(argparse.Action):
                     self.dest,  # type: ignore
                     g)
         g.append(
-            {"class": "File",
+            {"class": self.objclass,
              "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
 
+class FileAction(FSAction):
+    objclass = "File"
 
-def generate_parser(toolparser, tool, namemap):
-    # type: (argparse.ArgumentParser, Process, Dict[Text, Text]) -> argparse.ArgumentParser
-    toolparser.add_argument("job_order", nargs="?", help="Job input json file")
-    namemap["job_order"] = "job_order"
+class DirectoryAction(FSAction):
+    objclass = "Directory"
 
-    for inp in tool.tool["inputs"]:
-        name = shortname(inp["id"])
+class FileAppendAction(FSAppendAction):
+    objclass = "File"
+
+class DirectoryAppendAction(FSAppendAction):
+    objclass = "Directory"
+
+
+def add_argument(toolparser, name, inptype, records, description="",
+        default=None):
+    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any) -> None
         if len(name) == 1:
             flag = "-"
         else:
             flag = "--"
-
-        namemap[name.replace("-", "_")] = name
-
-        inptype = inp["type"]
 
         required = True
         if isinstance(inptype, list):
@@ -318,10 +311,9 @@ def generate_parser(toolparser, tool, namemap):
                     _logger.debug(u"Can't make command line argument from %s", inptype)
                     return None
 
-        ahelp = inp.get("description", "").replace("%", "%%")
+        ahelp = description.replace("%", "%%")
         action = None  # type: Union[argparse.Action, Text]
         atype = None  # type: Any
-        default = None  # type: Any
 
         if inptype == "File":
             action = cast(argparse.Action, FileAction)
@@ -330,10 +322,22 @@ def generate_parser(toolparser, tool, namemap):
         elif isinstance(inptype, dict) and inptype["type"] == "array":
             if inptype["items"] == "File":
                 action = cast(argparse.Action, FileAppendAction)
+            elif inptype["items"] == "Directory":
+                action = cast(argparse.Action, DirectoryAppendAction)
             else:
                 action = "append"
         elif isinstance(inptype, dict) and inptype["type"] == "enum":
             atype = Text
+        elif isinstance(inptype, dict) and inptype["type"] == "record":
+            records.append(name)
+            for field in inptype['fields']:
+                fieldname = name+"."+shortname(field['name'])
+                fieldtype = field['type']
+                fielddescription = field.get("doc", "")
+                add_argument(
+                    toolparser, fieldname, fieldtype, records,
+                    fielddescription)
+            return
         if inptype == "string":
             atype = Text
         elif inptype == "int":
@@ -345,8 +349,7 @@ def generate_parser(toolparser, tool, namemap):
         elif inptype == "boolean":
             action = "store_true"
 
-        if "default" in inp:
-            default = inp["default"]
+        if default:
             required = False
 
         if not atype and not action:
@@ -361,6 +364,20 @@ def generate_parser(toolparser, tool, namemap):
         toolparser.add_argument(  # type: ignore
             flag + name, required=required, help=ahelp, action=action,
             default=default, **typekw)
+
+
+def generate_parser(toolparser, tool, namemap, records):
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text]) -> argparse.ArgumentParser
+    toolparser.add_argument("job_order", nargs="?", help="Job input json file")
+    namemap["job_order"] = "job_order"
+
+    for inp in tool.tool["inputs"]:
+        name = shortname(inp["id"])
+        namemap[name.replace("-", "_")] = name
+        inptype = inp["type"]
+        description = inp.get("doc", "")
+        default = inp.get("default", None)
+        add_argument(toolparser, name, inptype, records, description, default)
 
     return toolparser
 
@@ -403,12 +420,23 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     else:
         input_basedir = args.basedir if args.basedir else os.getcwd()
         namemap = {}  # type: Dict[Text, Text]
-        toolparser = generate_parser(argparse.ArgumentParser(prog=args.workflow), t, namemap)
+        records = []  # type: List[Text]
+        toolparser = generate_parser(
+            argparse.ArgumentParser(prog=args.workflow), t, namemap, records)
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
                 return 0
             cmd_line = vars(toolparser.parse_args(args.job_order))
+            for record_name in records:
+                record = {}
+                record_items = {
+                    k:v for k,v in cmd_line.iteritems()
+                    if k.startswith(record_name)}
+                for key, value in record_items.iteritems():
+                    record[key[len(record_name)+1:]] = value
+                    del cmd_line[key]
+                cmd_line[str(record_name)] = record
 
             if cmd_line["job_order"]:
                 try:
@@ -463,6 +491,14 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     return (job_order_object, input_basedir)
 
+def makeRelative(base, ob):
+    u = ob.get("location", ob.get("path"))
+    if ":" in u.split("/")[0] and not u.startswith("file://"):
+        pass
+    else:
+        if u.startswith("file://"):
+            u = u[7:]
+        ob["location"] = os.path.relpath(u, base)
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     # type: (Dict[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
@@ -474,7 +510,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
     sf = scandeps(
         basedir if basedir else uri, obj, set(("$import", "run")),
-        set(("$include", "$schemas", "path", "location")), loadref)
+        set(("$include", "$schemas", "location")), loadref)
     if sf:
         deps["secondaryFiles"] = sf
 
@@ -486,13 +522,8 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
-        def makeRelative(ob):
-            u = ob.get("location", ob.get("path"))
-            if ":" in u.split("/")[0] and not u.startswith("file://"):
-                pass
-            else:
-                ob["location"] = os.path.relpath(u, base)
-        adjustFileObjs(deps, makeRelative)
+        adjustFileObjs(deps, functools.partial(makeRelative, base))
+        adjustDirObjs(deps, functools.partial(makeRelative, base))
 
     stdout.write(json.dumps(deps, indent=4))
 
