@@ -35,6 +35,7 @@ class Builder(object):
         self.pathmapper = None  # type: PathMapper
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
+        self.build_job_script = None  # type: Callable[[List[str]], Text]
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
