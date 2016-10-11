@@ -87,6 +87,9 @@ class CommandLineJob(object):
         if docker_req and kwargs.get("use_container") is not False:
             env = os.environ
             img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
+        elif kwargs.get("default_container", None) is not None:
+            env = os.environ
+            img_id = kwargs.get("default_container")
 
         if docker_is_req and img_id is None:
             raise WorkflowException("Docker is required for running this tool.")
@@ -109,7 +112,7 @@ class CommandLineJob(object):
             
             if kwargs.get("custom_net", None) is not None:
                 runtime.append("--net={0}".format(kwargs.get("custom_net")))
-            elif not kwargs.get("enable_net", None):
+            elif kwargs.get("disable_net", None):
                 runtime.append("--net=none")
 
             if self.stdout:
