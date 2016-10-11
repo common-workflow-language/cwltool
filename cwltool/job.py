@@ -109,7 +109,7 @@ class CommandLineJob(object):
             runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
-            
+
             if kwargs.get("custom_net", None) is not None:
                 runtime.append("--net={0}".format(kwargs.get("custom_net")))
             elif kwargs.get("disable_net", None):
