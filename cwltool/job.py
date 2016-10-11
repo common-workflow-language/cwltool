@@ -148,10 +148,6 @@ class CommandLineJob(object):
 
             stageFiles(self.pathmapper, os.symlink)
 
-        stdin = None  # type: Union[IO[Any], int]
-        stderr = None  # type: IO[Any]
-        stdout = None  # type: IO[Any]
-
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
         if scr:
@@ -188,51 +184,34 @@ class CommandLineJob(object):
                             break
                 stageFiles(generatemapper, linkoutdir)
 
+            stdin_path = None
             if self.stdin:
-                stdin = open(self.pathmapper.reversemap(self.stdin)[1], "rb")
-            else:
-                stdin = subprocess.PIPE
+                stdin_path = self.pathmapper.reversemap(self.stdin)[1]
 
+            stderr_path = None
             if self.stderr:
                 abserr = os.path.join(self.outdir, self.stderr)
                 dnerr = os.path.dirname(abserr)
                 if dnerr and not os.path.exists(dnerr):
                     os.makedirs(dnerr)
-                stderr = open(abserr, "wb")
-            else:
-                stderr = sys.stderr
+                stderr_path = abserr
 
+            stdout_path = None
             if self.stdout:
                 absout = os.path.join(self.outdir, self.stdout)
                 dn = os.path.dirname(absout)
                 if dn and not os.path.exists(dn):
                     os.makedirs(dn)
-                stdout = open(absout, "wb")
-            else:
-                stdout = sys.stderr
+                stdout_path = absout
 
-            sp = subprocess.Popen([Text(x).encode('utf-8') for x in runtime + self.command_line],
-                                  shell=False,
-                                  close_fds=True,
-                                  stdin=stdin,
-                                  stderr=stderr,
-                                  stdout=stdout,
-                                  env=env,
-                                  cwd=self.outdir)
-
-            if sp.stdin:
-                sp.stdin.close()
-
-            rcode = sp.wait()
-
-            if isinstance(stdin, file):
-                stdin.close()
-
-            if stderr is not sys.stderr:
-                stderr.close()
-
-            if stdout is not sys.stderr:
-                stdout.close()
+            rcode = _job_popen(
+                [Text(x).encode('utf-8') for x in runtime + self.command_line],
+                stdin_path=stdin_path,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                env=env,
+                cwd=self.outdir,
+            )
 
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
@@ -291,3 +270,58 @@ class CommandLineJob(object):
         if move_outputs == "move" and empty_subtree(self.outdir):
             _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
+
+
+def _job_popen(
+    commands,
+    stdin_path,
+    stdout_path,
+    stderr_path,
+    env,
+    cwd,
+):
+    # type: (List[str], Text, Text, Text, Union[MutableMapping[Text, Text], MutableMapping[str, str]], Text) -> int
+
+    stdin = None  # type: Union[IO[Any], int]
+    stderr = None  # type: IO[Any]
+    stdout = None  # type: IO[Any]
+
+    if stdin_path is not None:
+        stdin = open(stdin_path, "rb")
+    else:
+        stdin = subprocess.PIPE
+
+    if stdout_path is not None:
+        stdout = open(stdout_path, "wb")
+    else:
+        stdout = sys.stderr
+
+    if stderr_path is not None:
+        stderr = open(stderr_path, "wb")
+    else:
+        stderr = sys.stderr
+
+    sp = subprocess.Popen(commands,
+                          shell=False,
+                          close_fds=True,
+                          stdin=stdin,
+                          stdout=stdout,
+                          stderr=stderr,
+                          env=env,
+                          cwd=cwd)
+
+    if sp.stdin:
+        sp.stdin.close()
+
+    rcode = sp.wait()
+
+    if isinstance(stdin, file):
+        stdin.close()
+
+    if stdout is not sys.stderr:
+        stdout.close()
+
+    if stderr is not sys.stderr:
+        stderr.close()
+
+    return rcode
