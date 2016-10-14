@@ -154,9 +154,11 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Allow loading and running development versions "
                         "of CWL spec.", default=False)
 
-    parser.add_argument("--enable-net", action="store_true",
+    parser.add_argument("--default-container",
+                        help="Specify a default docker container that will be used if the workflow fails to specify one.")
+    parser.add_argument("--disable-net", action="store_true",
                         help="Use docker's default networking for containers;"
-                        " the default is to disable networking.")
+                        " the default is to enable networking.")
     parser.add_argument("--custom-net", type=Text,
                         help="Will be passed to `docker run` as the '--net' "
                         "parameter. Implies '--enable-net'.")

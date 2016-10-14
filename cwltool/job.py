@@ -87,6 +87,9 @@ class CommandLineJob(object):
         if docker_req and kwargs.get("use_container") is not False:
             env = os.environ
             img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
+        elif kwargs.get("default_container", None) is not None:
+            env = os.environ
+            img_id = kwargs.get("default_container")
 
         if docker_is_req and img_id is None:
             raise WorkflowException("Docker is required for running this tool.")
@@ -106,11 +109,11 @@ class CommandLineJob(object):
             runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
             runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
             runtime.append("--read-only=true")
-            if (kwargs.get("enable_net", None) is None and
-                    kwargs.get("custom_net", None) is not None):
-                runtime.append("--net=none")
-            elif kwargs.get("custom_net", None) is not None:
+
+            if kwargs.get("custom_net", None) is not None:
                 runtime.append("--net={0}".format(kwargs.get("custom_net")))
+            elif kwargs.get("disable_net", None):
+                runtime.append("--net=none")
 
             if self.stdout:
                 runtime.append("--log-driver=none")
