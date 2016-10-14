@@ -67,8 +67,9 @@ class Builder(object):
             st = copy.deepcopy(schema["type"])
             if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
-            if "secondaryFiles" in schema:
-                st["secondaryFiles"] = schema["secondaryFiles"]
+            for k in ("secondaryFiles", "format", "streamable"):
+                if k in schema:
+                    st[k] = schema[k]
             bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
         else:
             if schema["type"] in self.schemaDefs:
@@ -87,14 +88,15 @@ class Builder(object):
                     if binding:
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
+                    itemschema = {
+                        "type": schema["items"],
+                        "inputBinding": b2
+                    }
+                    for k in ("secondaryFiles", "format", "streamable"):
+                        if k in schema:
+                            itemschema[k] = schema[k]
                     bindings.extend(
-                        self.bind_input(
-                            {
-                                "type": schema["items"],
-                                "inputBinding": b2,
-                                "secondaryFiles": schema.get("secondaryFiles", [])
-                            },
-                            item, lead_pos=n, tail_pos=tail_pos))
+                        self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos))
                 binding = None
 
             if schema["type"] == "File":
