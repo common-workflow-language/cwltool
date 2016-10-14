@@ -608,7 +608,7 @@ def main(argsl=None,
 
         if not args.workflow:
             if os.path.isfile("CWLFile"):
-                args.workflow = "CWLFile"
+                setattr(args, "workflow", "CWLFile")
             else:
                 _logger.error("")
                 _logger.error("CWL document required, try --help for details")

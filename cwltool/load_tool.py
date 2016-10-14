@@ -94,7 +94,7 @@ def validate_document(document_loader, workflowobj, uri,
     if "cwl:tool" in workflowobj:
         jobobj, _ = document_loader.resolve_all(workflowobj, uri)
         uri = urlparse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
-        del jobobj["https://w3id.org/cwl/cwl#tool"]
+        del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
         workflowobj = fetch_document(uri)[1]
 
     if isinstance(workflowobj, list):
