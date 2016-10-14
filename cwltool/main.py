@@ -607,9 +607,12 @@ def main(argsl=None,
             _logger.info(versionfunc())
 
         if not args.workflow:
-            _logger.error("")
-            _logger.error("CWL document required, try --help for details")
-            return 1
+            if os.path.isfile("CWLFile"):
+                setattr(args, "workflow", "CWLFile")
+            else:
+                _logger.error("")
+                _logger.error("CWL document required, try --help for details")
+                return 1
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow)
