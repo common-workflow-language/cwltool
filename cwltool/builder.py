@@ -89,8 +89,8 @@ class Builder(object):
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
                     itemschema = {
-                        "type": schema["items"],
-                        "inputBinding": b2
+                        u"type": schema["items"],
+                        u"inputBinding": b2
                     }
                     for k in ("secondaryFiles", "format", "streamable"):
                         if k in schema:
