@@ -26,6 +26,7 @@ class Builder(object):
         self.fs_access = None  # type: StdFsAccess
         self.job = None  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
         self.requirements = None  # type: List[Dict[Text, Any]]
+        self.hints = None  # type: List[Dict[Text, Any]]
         self.outdir = None  # type: Text
         self.tmpdir = None  # type: Text
         self.resources = None  # type: Dict[Text, Union[int, Text]]

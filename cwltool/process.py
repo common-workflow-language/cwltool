@@ -442,6 +442,7 @@ class Process(object):
         builder.schemaDefs = self.schemaDefs
         builder.names = self.names
         builder.requirements = self.requirements
+        builder.hints = self.hints
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
 
