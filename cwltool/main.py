@@ -13,6 +13,7 @@ from typing import (IO, Any, AnyStr, Callable, Dict, Sequence, Text, Tuple,
 
 import pkg_resources  # part of setuptools
 import requests
+import string
 
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -33,6 +34,14 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+from .utils import get_feature
+try:
+    from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
+    from galaxy.tools import deps
+except ImportError:
+    ToolRequirement = None  # type: ignore
+    ToolRequirements = None # type: ignore
+    deps = None
 
 _logger = logging.getLogger("cwltool")
 
@@ -149,6 +158,15 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    # help="Dependency resolver configuration file describing how to adapt 'SoftwareRequirement' packages to current system."
+    parser.add_argument("--beta-dependency-resolvers-configuration", default=None, help=argparse.SUPPRESS)
+    # help="Defaut root directory used by dependency resolvers configuration."
+    parser.add_argument("--beta-dependencies-directory", default=None, help=argparse.SUPPRESS)
+    # help="Use biocontainers for tools without an explicitly annotated Docker container."
+    parser.add_argument("--beta-use-biocontainers", default=None, help=argparse.SUPPRESS, action="store_true")
+    # help="Short cut to use Conda to resolve 'SoftwareRequirement' packages."
+    parser.add_argument("--beta-conda-dependencies", default=None, help=argparse.SUPPRESS, action="store_true")
+
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'],
@@ -235,12 +253,6 @@ def single_job_executor(t,  # type: Process
     if jobReqs:
         for req in jobReqs:
             t.requirements.append(req)
-
-    if kwargs.get("default_container"):
-        t.requirements.insert(0, {
-            "class": "DockerRequirement",
-            "dockerPull": kwargs["default_container"]
-        })
 
     jobiter = t.job(job_order_object,
                     output_callback,
@@ -716,8 +728,20 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
 
+            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
+            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
+
+            make_tool_kwds = vars(args)
+
+            build_job_script = None  # type: Callable[[Any, List[str]], Text]
+            if conf_file or use_conda_dependencies:
+                dependencies_configuration = DependenciesConfiguration(args)  # type: DependenciesConfiguration
+                make_tool_kwds["build_job_script"] = dependencies_configuration.build_job_script
+
+            make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
+
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                             makeTool, vars(args))
+                    makeTool, make_tool_kwds)
 
             if args.validate:
                 return 0
@@ -836,6 +860,101 @@ def main(argsl=None,  # type: List[str]
     finally:
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
+
+
+COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template("""#!/bin/bash
+$handle_dependencies
+python "run_job.py" "job.json"
+""")
+
+
+def find_default_container(args, builder):
+    if args.default_container:
+        return args.default_container
+    elif args.beta_use_biocontainers:
+        try:
+            from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
+        except ImportError:
+            raise Exception("galaxy-lib not found")
+
+        app_info = AppInfo(
+            involucro_auto_init=True,
+            enable_beta_mulled_containers=True,
+            container_image_cache_path=".",
+        )  # type: AppInfo
+        container_registry = ContainerRegistry(app_info)  # type: ContainerRegistry
+        requirements = _get_dependencies(builder)
+        tool_info = ToolInfo(requirements=requirements)  # type: ToolInfo
+        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)
+        if container_description:
+            return container_description.identifier
+
+    return None
+
+
+class DependenciesConfiguration(object):
+
+    def __init__(self, args):
+        # type: (argparse.Namespace) -> None
+        conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
+        tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
+        conda_dependencies = getattr(args, "beta_conda_dependencies", None)
+        if conf_file is not None and os.path.exists(conf_file):
+            self.use_tool_dependencies = True
+            if not tool_dependency_dir:
+                tool_dependency_dir = os.path.abspath(os.path.dirname(conf_file))
+            self.tool_dependency_dir = tool_dependency_dir
+            self.dependency_resolvers_config_file = conf_file
+        elif conda_dependencies:
+            if not tool_dependency_dir:
+                tool_dependency_dir = os.path.abspath("./cwltool_deps")
+            self.tool_dependency_dir = tool_dependency_dir
+            self.use_tool_dependencies = True
+            self.dependency_resolvers_config_file = None
+        else:
+            self.use_tool_dependencies = False
+
+    @property
+    def config_dict(self):
+        return {
+            'conda_auto_install': True,
+            'conda_auto_init': True,
+        }
+
+    def build_job_script(self, builder, command):
+        # type: (Any, List[str]) -> Text
+        if deps is None:
+            raise Exception("galaxy-lib not found")
+        tool_dependency_manager = deps.build_dependency_manager(self)  # type: deps.DependencyManager
+        dependencies = _get_dependencies(builder)
+        handle_dependencies = ""  # str
+        if dependencies:
+            handle_dependencies = "\n".join(tool_dependency_manager.dependency_shell_commands(dependencies, job_directory=builder.tmpdir))
+
+        template_kwds = dict(handle_dependencies=handle_dependencies)  # type: Dict[str, str]
+        job_script = COMMAND_WITH_DEPENDENCIES_TEMPLATE.substitute(template_kwds)
+        return job_script
+
+
+def _get_dependencies(builder):
+    # type: (Any) -> List[ToolRequirement]
+    (software_requirement, _) = get_feature(builder, "SoftwareRequirement")
+    dependencies = []  # type: List[ToolRequirement]
+    if software_requirement and software_requirement.get("packages"):
+        packages = software_requirement.get("packages")
+        for package in packages:
+            version = package.get("version", None)
+            if isinstance(version, list):
+                if version:
+                    version = version[0]
+                else:
+                    version = None
+            dependencies.append(ToolRequirement.from_dict(dict(
+                name=package["package"].split("#")[-1],
+                version=version,
+                type="package",
+            )))
+    return ToolRequirements.from_list(dependencies)
 
 
 if __name__ == "__main__":
