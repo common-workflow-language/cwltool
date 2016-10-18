@@ -33,6 +33,7 @@ python "run_job.py" "job.json"
 
 PYTHON_RUN_SCRIPT = """
 import json
+import os
 import sys
 import subprocess
 
@@ -41,6 +42,7 @@ with open(sys.argv[1], "r") as f:
     commands = popen_description["commands"]
     cwd = popen_description["cwd"]
     env = popen_description["env"]
+    env["PATH"] = os.environ.get("PATH")
     stdin_path = popen_description["stdin_path"]
     stdout_path = popen_description["stdout_path"]
     stderr_path = popen_description["stderr_path"]
@@ -144,7 +146,6 @@ class JobBase(object):
                                              self.outdir, self.outdir, separateDirs=False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
-
 
     def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move"):
         # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
@@ -328,8 +329,12 @@ class DockerCommandLineJob(JobBase):
             env = cast(MutableMapping[Text, Text], os.environ)
             if docker_req and kwargs.get("use_container") is not False:
                 img_id = docker.get_from_requirements(docker_req, True, pull_image)
-            elif kwargs.get("default_container", None) is not None:
-                img_id = kwargs.get("default_container")
+            if img_id is None:
+                find_default_container = self.builder.find_default_container
+                default_container = find_default_container and find_default_container()
+                if default_container:
+                    img_id = default_container
+                    env = os.environ
 
             if docker_req and img_id is None and kwargs.get("use_container"):
                 raise Exception("Docker image not available")
