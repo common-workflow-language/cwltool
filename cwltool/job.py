@@ -331,16 +331,16 @@ class CommandLineJob(object):
 
 
 def _job_popen(
-    commands,
-    stdin_path,
-    stdout_path,
-    stderr_path,
-    env,
-    cwd,
-    job_dir=None,
-    build_job_script=None,
+    commands,  # type: List[str]
+    stdin_path,  # type: Text
+    stdout_path,  # type: Text
+    stderr_path,  # type: Text
+    env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
+    cwd,  # type: Text
+    job_dir=None,  # type: Text
+    build_job_script=None,  # type: Callable[[List[str]], Text]
 ):
-    # type: (List[str], Text, Text, Text, Union[MutableMapping[Text, Text], MutableMapping[str, str]], Text, Text, Callable[[List[str]], Text]) -> int
+    # type: (...) -> int
 
     job_script_contents = None  # type: Text
     if build_job_script:
