@@ -46,6 +46,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--outdir", type=Text, default=os.path.abspath('.'),
                         help="Output directory, default current directory")
 
+    parser.add_argument("--output-relative-location", action="store_true", default=False,
+                        help="Specify that File and Directory location fields in final output object should be relative "
+                        "to outdir instead of absolute paths.")
+
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
@@ -710,7 +714,10 @@ def main(argsl=None,
             if out is not None:
                 def locToPath(p):
                     if p["location"].startswith("file://"):
-                        p["path"] = p["location"][7:]
+                        if args.output_relative_location:
+                            p["location"] = p["path"] = os.path.relpath(p["location"][7:], args.outdir)
+                        else:
+                            p["path"] = p["location"][7:]
 
                 adjustDirObjs(out, locToPath)
                 adjustFileObjs(out, locToPath)
