@@ -45,8 +45,10 @@ def new_js_proc():
             nodeimg = "node:slim"
             global have_node_slim
             if not have_node_slim:
-                nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
-                _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
+                dockerimgs = subprocess.check_output(["docker", "images", nodeimg])
+                if len(dockerimgs.split("\n")) <= 1:
+                    nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
+                    _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
                 have_node_slim = True
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
