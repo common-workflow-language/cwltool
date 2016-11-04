@@ -201,13 +201,14 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
         return outputObj
 
     def moveIt(src, dst):
-        for a in output_dirs:
-            if action == "move" and src.startswith(a):
-                _logger.debug("Moving %s to %s", src, dst)
-                shutil.move(src, dst)
-                continue
-            _logger.debug("Copying %s to %s", src, dst)
-            shutil.copy(src, dst)
+        if action == "move":
+            for a in output_dirs:
+                if src.startswith(a):
+                    _logger.debug("Moving %s to %s", src, dst)
+                    shutil.move(src, dst)
+                    return
+        _logger.debug("Copying %s to %s", src, dst)
+        shutil.copy(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)

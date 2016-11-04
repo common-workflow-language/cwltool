@@ -105,7 +105,7 @@ def validate_document(document_loader, workflowobj, uri,
     fileuri = urlparse.urldefrag(uri)[0]
 
     if "cwlVersion" in workflowobj:
-        if not isinstance(workflowobj["cwlVersion"], basestring):
+        if not isinstance(workflowobj["cwlVersion"], (str, Text)):
             raise Exception("'cwlVersion' must be a string, got %s" % type(workflowobj["cwlVersion"]))
         workflowobj["cwlVersion"] = re.sub(
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",

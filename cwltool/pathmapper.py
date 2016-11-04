@@ -145,7 +145,7 @@ class PathMapper(object):
         for ld in listing:
             tgt = os.path.join(stagedir, ld["basename"])
             if ld["class"] == "Directory":
-                self.visit(ld, tgt, basedir, copy=ld.get("writable", False))
+                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
             else:
                 self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
 
