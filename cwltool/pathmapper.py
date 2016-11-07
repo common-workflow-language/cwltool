@@ -145,21 +145,21 @@ class PathMapper(object):
         for ld in listing:
             tgt = os.path.join(stagedir, ld["basename"])
             if ld["class"] == "Directory":
-                self.visit(ld, tgt, basedir, copy=ld.get("writable", False))
+                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
             else:
                 self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
 
     def visit(self, obj, stagedir, basedir, copy=False):
         # type: (Dict[Text, Any], Text, Text, bool) -> None
+        tgt = os.path.join(stagedir, obj["basename"])
         if obj["class"] == "Directory":
-            self._pathmap[obj["location"]] = MapperEnt(obj["location"], stagedir, "Directory")
-            self.visitlisting(obj.get("listing", []), stagedir, basedir)
+            self._pathmap[obj["location"]] = MapperEnt(obj["location"], tgt, "Directory")
+            self.visitlisting(obj.get("listing", []), tgt, basedir)
         elif obj["class"] == "File":
             path = obj["location"]
             if path in self._pathmap:
                 return
             ab = abspath(path, basedir)
-            tgt = os.path.join(stagedir, obj["basename"])
             if "contents" in obj and obj["location"].startswith("_:"):
                 self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile")
             else:
