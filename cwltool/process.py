@@ -460,7 +460,7 @@ class Process(object):
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = builder.fs_access.realpath(kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.outdir = builder.fs_access.realpath(dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
