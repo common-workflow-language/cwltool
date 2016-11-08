@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+import ez_setup
+ez_setup.use_setuptools()
 import os
 import sys
 import shutil
@@ -41,6 +42,7 @@ setup(name='cwltool',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
                                 'cwlNodeEngine.js']},
       install_requires=[
+          'setuptools >= 18.5',  # needed by html5lib
           'requests',
           'ruamel.yaml == 0.12.4',
           'rdflib >= 4.1.0',
@@ -49,6 +51,8 @@ setup(name='cwltool',
           'schema-salad >= 1.18.20161005190847',
           'typing >= 3.5.2',
           'cwltest >= 1.0.20160907111242'],
+      setup_requires=[
+          'setuptools >= 18.5'],
       test_suite='tests',
       tests_require=[],
       entry_points={
