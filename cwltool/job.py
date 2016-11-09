@@ -172,7 +172,9 @@ class CommandLineJob(object):
                 runtime.append("--log-driver=none")
 
             euid = docker_vm_uid() or os.geteuid()
-            runtime.append(u"--user=%s" % (euid))
+
+            if kwargs.get("no_match_user",None) is False:
+                runtime.append(u"--user=%s" % (euid))
 
             if rm_container:
                 runtime.append("--rm")
