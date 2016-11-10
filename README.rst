@@ -14,29 +14,43 @@ The reference implementation consists of two packages.  The "cwltool" package
 is the primary Python module containing the reference implementation in the
 "cwltool" module and console executable by the same name.
 
-The "cwl-runner" package is optional and provides an additional entry point
+The "cwlref-runner" package is optional and provides an additional entry point
 under the alias "cwl-runner", which is the implementation-agnostic name for the
 default CWL interpreter installed on a host.
 
 Install
 -------
 
-Installing the official package from PyPi (will install "cwltool" package as well)::
+Installing the official package from PyPi (will install "cwltool" package as
+well)::
 
   pip install cwlref-runner
 
-Or from source::
+If installling alongside another CWL implementation then::
+
+  pip instal cwltool
+
+To install from source::
 
   git clone https://github.com/common-workflow-language/cwltool.git
   cd cwltool && python setup.py install
-  cd cwlref-runner && python setup.py install
+  cd cwlref-runner && python setup.py install  # co-installing? skip this
+
+Remember, if co-installing multiple CWL implementations then you need to
+maintain which implementation ``cwl-runner`` points to via a symbolic file
+system link or [another facility](https://wiki.debian.org/DebianAlternatives).
 
 Run on the command line
 -----------------------
 
 Simple command::
 
-  cwl-runner [tool] [job]
+  cwl-runner [tool-or-workflow-description] [input-job-settings]
+
+Or if you have multiple CWL implementations installed and you want to override
+the default cwl-runner use::
+
+  cwltool [tool-or-workflow-description] [input-job-settings]
 
 Import as a module
 ----------------
@@ -60,3 +74,15 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+Tool or workflow loading from remote or local locations
+-------------------------------------------------------
+
+``cwltool`` can run tool and workflow descriptions on both local and remote
+systems via its support for HTTP[S] URLs.
+
+Input job files and Workflow steps (via the `run` directive) can reference CWL
+documents using absolute or relative local filesytem paths. If a relative path
+is referenced and that document isn't found in the current directory then the
+following locations will be searched:
+http://www.commonwl.org/v1.0/CommandLineTool.html#Discovering_CWL_documents_on_a_local_filesystem

@@ -22,20 +22,9 @@ def resolve_local(document_loader, uri):
             return ("file://%s.cwl" % s)
     return None
 
-def resolve_ga4gh_tool(document_loader, uri):
-    ds = "https://staging.dockstore.org:8443/api/ga4gh/v1/tools/%s/versions/master/plain-CWL/descriptor" % urllib.quote(uri, "")
-    print ds
-    try:
-        resp = document_loader.session.head(ds)
-        resp.raise_for_status()
-        return ds
-    except Exception:
-        pass
-    return None
-
 def tool_resolver(document_loader, uri):
-    for r in [resolve_local, resolve_ga4gh_tool]:
+    for r in [resolve_local]:
         ret = r(document_loader, uri)
         if ret is not None:
             return ret
-    return uri
+    return "file://" + os.path.abspath(uri)
