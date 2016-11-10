@@ -16,7 +16,7 @@ import schema_salad.validate as validate
 import shellescape
 from typing import Any, Callable, cast, Generator, Text, Union
 
-from .process import Process, shortname, uniquename, getListing, normalizeFilesDirs
+from .process import Process, shortname, uniquename, getListing, normalizeFilesDirs, compute_checksums
 from .errors import WorkflowException
 from .utils import aslist
 from . import expression
@@ -145,19 +145,6 @@ def check_adjust(builder, f):
     if not ACCEPTLIST_RE.match(f["basename"]):
         raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
     return f
-
-def compute_checksums(fs_access, fileobj):
-    if "checksum" not in fileobj:
-        checksum = hashlib.sha1()
-        with fs_access.open(fileobj["location"], "rb") as f:
-            contents = f.read(1024*1024)
-            while contents != "":
-                checksum.update(contents)
-                contents = f.read(1024*1024)
-            f.seek(0, 2)
-            filesize = f.tell()
-        fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = filesize
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):

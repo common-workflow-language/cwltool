@@ -158,9 +158,9 @@ class CommandLineJob(object):
                     with open(createtmp, "w") as f:
                         f.write(vol.resolved.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
-            runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), "/var/spool/cwl"))
+            runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), self.builder.outdir))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
-            runtime.append(u"--workdir=%s" % ("/var/spool/cwl"))
+            runtime.append(u"--workdir=%s" % (self.builder.outdir))
             runtime.append("--read-only=true")
 
             if kwargs.get("custom_net", None) is not None:
@@ -172,7 +172,9 @@ class CommandLineJob(object):
                 runtime.append("--log-driver=none")
 
             euid = docker_vm_uid() or os.geteuid()
-            runtime.append(u"--user=%s" % (euid))
+
+            if kwargs.get("no_match_user",None) is False:
+                runtime.append(u"--user=%s" % (euid))
 
             if rm_container:
                 runtime.append("--rm")
@@ -182,7 +184,7 @@ class CommandLineJob(object):
             # spec currently says "HOME must be set to the designated output
             # directory." but spec might change to designated temp directory.
             # runtime.append("--env=HOME=/tmp")
-            runtime.append("--env=HOME=/var/spool/cwl")
+            runtime.append("--env=HOME=%s" % self.builder.outdir)
 
             for t,v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))

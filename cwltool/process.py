@@ -12,6 +12,7 @@ from collections import Iterable
 import errno
 import shutil
 import uuid
+import hashlib
 
 import abc
 import schema_salad.validate as validate
@@ -200,14 +201,14 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
         return outputObj
 
     def moveIt(src, dst):
-        for a in output_dirs:
-            if src.startswith(a):
-                if action == "move":
+        if action == "move":
+            for a in output_dirs:
+                if src.startswith(a):
                     _logger.debug("Moving %s to %s", src, dst)
                     shutil.move(src, dst)
-                elif action == "copy":
-                    _logger.debug("Copying %s to %s", src, dst)
-                    shutil.copy(src, dst)
+                    return
+        _logger.debug("Copying %s to %s", src, dst)
+        shutil.copy(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -216,6 +217,10 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
 
     def _check_adjust(f):
         f["location"] = "file://" + pm.mapper(f["location"])[1]
+        if "contents" in f:
+            del f["contents"]
+        if f["class"] == "File":
+            compute_checksums(StdFsAccess(""), f)
         return f
 
     adjustFileObjs(outputObj, _check_adjust)
@@ -455,7 +460,7 @@ class Process(object):
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = builder.fs_access.realpath(kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.outdir = builder.fs_access.realpath(dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
@@ -700,3 +705,16 @@ def scandeps(base, doc, reffields, urlfields, loadref):
         normalizeFilesDirs(r)
         r = mergedirs(r)
     return r
+
+def compute_checksums(fs_access, fileobj):
+    if "checksum" not in fileobj:
+        checksum = hashlib.sha1()
+        with fs_access.open(fileobj["location"], "rb") as f:
+            contents = f.read(1024*1024)
+            while contents != "":
+                checksum.update(contents)
+                contents = f.read(1024*1024)
+            f.seek(0, 2)
+            filesize = f.tell()
+        fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
+        fileobj["size"] = filesize
