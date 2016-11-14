@@ -25,7 +25,9 @@ from .pathmapper import PathMapper
 from .job import CommandLineJob
 from .stdfsaccess import StdFsAccess
 
-ACCEPTLIST_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
+ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
+ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ a-zA-Z0-9._+-]+$")  # with spaces
+ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 
 from .flatten import flatten
 
