@@ -97,6 +97,7 @@ def draft2toDraft3dev1(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (_draft2toDraft3dev1(doc, loader, baseuri), "draft-3.dev1")
 
+
 digits = re.compile("\d+")
 
 def updateScript(sc):  # type: (Text) -> Text
@@ -437,6 +438,7 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0 to v1.1.0-dev1."""
     return (doc, "v1.1.0-dev1")
+
 
 UPDATES = {
     "draft-2": draft2toDraft3dev1,

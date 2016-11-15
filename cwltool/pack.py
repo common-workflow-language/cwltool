@@ -35,8 +35,6 @@ def replace_refs(d, rewrite, stem, newstem):
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
-        if "package" in d:
-            raise Exception("where the fuck did this come from %s" % json.dumps(d, indent=4))
         if "run" in d and isinstance(d["run"], (str, unicode)):
             d["run"] = rewrite[d["run"]]
         for s,v in d.items():
@@ -75,7 +73,7 @@ def pack(document_loader, processobj, uri, metadata):
         v = rewrite[r]
         dc = cast(Dict[Text, Any], copy.deepcopy(document_loader.idx[r]))
         dc["id"] = v
-        for n in ("name", "package", "cwlVersion"):
+        for n in ("name", "cwlVersion"):
             if n in dc:
                 del dc[n]
         replace_refs(dc, rewrite, r+"/" if "#" in r else r+"#", v+"/")

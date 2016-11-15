@@ -592,6 +592,7 @@ def empty_subtree(dirpath):  # type: (Text) -> bool
                 raise
     return True
 
+
 _names = set()  # type: Set[Text]
 
 
