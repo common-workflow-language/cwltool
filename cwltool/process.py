@@ -555,8 +555,11 @@ class Process(object):
         for r in hints:
             try:
                 if avsc_names.get_name(r["class"], "") is not None:
-                    validate.validate_ex(avsc_names.get_name(r["class"], ""),
-                            r, strict=strict)
+                    plain_hint = dict((key,r[key]) for key in r if key not in
+                            self.doc_loader.identifiers)  # strip identifiers
+                    validate.validate_ex(
+                        avsc_names.get_name(plain_hint["class"], ""),
+                        plain_hint, strict=strict)
                 else:
                     _logger.info(Text(validate.ValidationException(
                         u"Unknown hint %s" % (r["class"]))))
