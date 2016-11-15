@@ -19,6 +19,7 @@ def jshead(engineConfig, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
+
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""

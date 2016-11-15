@@ -14,6 +14,7 @@ from pkg_resources import resource_stream
 class JavascriptException(Exception):
     pass
 
+
 _logger = logging.getLogger("cwltool")
 
 JSON = Union[Dict[Text,Any], List[Any], Text, int, long, float, bool, None]
