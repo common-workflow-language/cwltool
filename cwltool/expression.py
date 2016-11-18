@@ -198,11 +198,14 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                 jslib = jshead(r.get("expressionLib", []), rootvars)
                 break
 
-        return interpolate(ex,
-                           rootvars,
-                           timeout=timeout,
-                           fullJS=fullJS,
-                           jslib=jslib,
-                           debug=debug)
+        try:
+            return interpolate(ex,
+                               rootvars,
+                               timeout=timeout,
+                               fullJS=fullJS,
+                               jslib=jslib,
+                               debug=debug)
+        except Exception as e:
+            raise WorkflowException("Expression evaluation error:\n%s" % e)
     else:
         return ex

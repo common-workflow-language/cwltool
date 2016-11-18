@@ -18,6 +18,7 @@ import abc
 import schema_salad.validate as validate
 import schema_salad.schema
 from schema_salad.ref_resolver import Loader
+from schema_salad.sourceline import SourceLine
 import avro.schema
 from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO, Text,
         Tuple, Union)
@@ -25,6 +26,7 @@ from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
 from rdflib import Graph
 from pkg_resources import resource_stream
+
 
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
@@ -285,15 +287,16 @@ def checkFormat(actualFile, inputFormats, ontology):
 
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
-    for inp in inputs:
-        if shortname(inp[u"id"]) in job:
-            pass
-        elif shortname(inp[u"id"]) not in job and u"default" in inp:
-            job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
-        elif shortname(inp[u"id"]) not in job and inp[u"type"][0] == u"null":
-            pass
-        else:
-            raise validate.ValidationException("Missing input parameter `%s`" % shortname(inp["id"]))
+    for e, inp in enumerate(inputs):
+        with SourceLine(inputs, e, WorkflowException):
+            if shortname(inp[u"id"]) in job:
+                pass
+            elif shortname(inp[u"id"]) not in job and u"default" in inp:
+                job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
+            elif shortname(inp[u"id"]) not in job and aslist(inp[u"type"])[0] == u"null":
+                pass
+            else:
+                raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -436,14 +439,13 @@ class Process(object):
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
             Text]], copy.deepcopy(joborder))
 
-        fillInDefaults(self.tool[u"inputs"], builder.job)
-        normalizeFilesDirs(builder.job)
-
         # Validate job order
         try:
+            fillInDefaults(self.tool[u"inputs"], builder.job)
+            normalizeFilesDirs(builder.job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
-        except validate.ValidationException as e:
-            raise WorkflowException("Error validating input record, " + Text(e))
+        except (validate.ValidationException, WorkflowException) as e:
+            raise WorkflowException("Invalid job input record:\n" + Text(e))
 
         builder.files = []
         builder.bindings = CommentedSeq()
@@ -565,8 +567,9 @@ class Process(object):
 
     def validate_hints(self, avsc_names, hints, strict):
         # type: (Any, List[Dict[Text, Any]], bool) -> None
-        for r in hints:
-            try:
+        for i, r in enumerate(hints):
+            sl = SourceLine(hints, i, validate.ValidationException)
+            with sl:
                 if avsc_names.get_name(r["class"], "") is not None:
                     plain_hint = dict((key,r[key]) for key in r if key not in
                             self.doc_loader.identifiers)  # strip identifiers
@@ -574,10 +577,7 @@ class Process(object):
                         avsc_names.get_name(plain_hint["class"], ""),
                         plain_hint, strict=strict)
                 else:
-                    _logger.info(Text(validate.ValidationException(
-                        u"Unknown hint %s" % (r["class"]))))
-            except validate.ValidationException as v:
-                raise validate.ValidationException(u"Validating hint `%s`: %s" % (r["class"], Text(v)))
+                    _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
 
     def get_requirement(self, feature):  # type: (Any) -> Tuple[Any, bool]
         return get_feature(self, feature)

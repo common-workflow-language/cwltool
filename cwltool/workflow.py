@@ -339,14 +339,15 @@ class WorkflowJob(object):
         if "outdir" in kwargs:
             del kwargs["outdir"]
 
-        for i in self.tool["inputs"]:
-            iid = shortname(i["id"])
-            if iid in joborder:
-                self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]))
-            elif "default" in i:
-                self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]))
-            else:
-                raise WorkflowException(u"Input '%s' not in input object and does not have a default value." % (i["id"]))
+        for e, i in enumerate(self.tool["inputs"]):
+            with SourceLine(self.tool["inputs"], e, WorkflowExecption):
+                iid = shortname(i["id"])
+                if iid in joborder:
+                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]))
+                elif "default" in i:
+                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]))
+                else:
+                    raise WorkflowException(u"Input '%s' not in input object and does not have a default value." % (i["id"]))
 
         for s in self.steps:
             for out in s.tool["outputs"]:

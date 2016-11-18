@@ -7,6 +7,7 @@ import urlparse
 from functools import partial
 from typing import Any, Callable, Set, Text, Tuple, Union
 import schema_salad.validate as validate
+from schema_salad.sourceline import SourceLine
 
 _logger = logging.getLogger("cwltool")
 
@@ -166,7 +167,17 @@ class PathMapper(object):
                 if copy:
                     self._pathmap[path] = MapperEnt(ab, tgt, "WritableFile")
                 else:
-                    self._pathmap[path] = MapperEnt(ab, tgt, "File")
+                    with SourceLine(obj, "location", validate.ValidationException):
+                        # Dereference symbolic links
+                        deref = ab
+                        st = os.lstat(deref)
+                        while stat.S_ISLNK(st.st_mode):
+                            rl = os.readlink(deref)
+                            deref = rl if os.path.isabs(rl) else os.path.join(
+                                os.path.dirname(deref), rl)
+                            st = os.lstat(deref)
+
+                    self._pathmap[path] = MapperEnt(deref, tgt, "File")
                 self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
 
     def setup(self, referenced_files, basedir):
@@ -179,20 +190,6 @@ class PathMapper(object):
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
             self.visit(fob, stagedir, basedir)
-
-        # Dereference symbolic links
-        for path, (ab, tgt, type) in self._pathmap.items():
-            if type != "File":  # or not os.path.exists(ab):
-                continue
-            deref = ab
-            st = os.lstat(deref)
-            while stat.S_ISLNK(st.st_mode):
-                rl = os.readlink(deref)
-                deref = rl if os.path.isabs(rl) else os.path.join(
-                    os.path.dirname(deref), rl)
-                st = os.lstat(deref)
-
-            self._pathmap[path] = MapperEnt(deref, tgt, "File")
 
     def mapper(self, src):  # type: (Text) -> MapperEnt
         if u"#" in src:

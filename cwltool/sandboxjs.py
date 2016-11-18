@@ -150,7 +150,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         if killed:
             raise JavascriptException(u"Long-running script killed after %s seconds: %s" % (timeout, info))
         else:
-            raise JavascriptException(u"Error evaluating expression: %s" % (info))
+            raise JavascriptException(info)
     else:
         try:
             return json.loads(stdoutdata)

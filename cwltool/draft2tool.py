@@ -165,6 +165,8 @@ class CommandLineTool(Process):
             return PathMapper(reffiles, kwargs["basedir"], stagedir)
         except OSError as e:
             if e.errno == errno.ENOENT:
+                if kwargs.get("debug"):
+                    _logger.exception(u"Missing input file %s" % e)
                 raise WorkflowException(u"Missing input file %s" % e)
 
     def job(self, joborder, output_callback, **kwargs):
