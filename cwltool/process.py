@@ -131,9 +131,10 @@ def checkRequirements(rec, supportedProcessRequirements):
     # type: (Any, Iterable[Any]) -> None
     if isinstance(rec, dict):
         if "requirements" in rec:
-            for r in rec["requirements"]:
-                if r["class"] not in supportedProcessRequirements:
-                    raise UnsupportedRequirement(u"Unsupported requirement %s" % r["class"])
+            for i, r in enumerate(rec["requirements"]):
+                with SourceLine(rec["requirements"], i, UnsupportedRequirement):
+                    if r["class"] not in supportedProcessRequirements:
+                        raise UnsupportedRequirement(u"Unsupported requirement %s" % r["class"])
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):

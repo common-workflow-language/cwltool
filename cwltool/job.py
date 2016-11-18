@@ -305,7 +305,7 @@ class CommandLineJob(object):
                 _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         except WorkflowException as e:
-            _logger.error(u"Error while running job: %s" % e)
+            _logger.error(u"[job %s] Job error:\n%s" % (self.name, e))
             processStatus = "permanentFail"
         except Exception as e:
             _logger.exception("Exception while running job")
