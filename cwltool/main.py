@@ -21,6 +21,7 @@ from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
 import schema_salad.jsonld_context
 import schema_salad.makedoc
+from schema_salad.sourceline import strip_dup_lineno
 
 from . import workflow
 from .errors import WorkflowException, UnsupportedRequirement
@@ -42,7 +43,6 @@ _logger.setLevel(logging.INFO)
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
-    parser.add_argument("--conformance-test", action="store_true")
     parser.add_argument("--basedir", type=Text)
     parser.add_argument("--outdir", type=Text, default=os.path.abspath('.'),
                         help="Output directory, default current directory")
@@ -112,9 +112,6 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
                         help="Do not try to pull Docker images", dest="enable_pull")
 
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Load and validate but do not execute")
-
     parser.add_argument("--rdf-serializer",
                         help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",
                         default="turtle")
@@ -133,6 +130,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--print-input-deps", action="store_true", help="Print input object document dependencies.")
     exgroup.add_argument("--pack", action="store_true", help="Combine components into single document and print.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
+    exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
@@ -396,16 +394,13 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     job_order_object = None
 
-    if args.conformance_test:
-        loader = Loader({})
-    else:
-        jobloaderctx = {
-            u"path": {u"@type": u"@id"},
-            u"location": {u"@type": u"@id"},
-            u"format": {u"@type": u"@id"},
-            u"id": u"@id"}
-        jobloaderctx.update(t.metadata.get("$namespaces", {}))
-        loader = Loader(jobloaderctx)
+    jobloaderctx = {
+        u"path": {u"@type": u"@id"},
+        u"location": {u"@type": u"@id"},
+        u"format": {u"@type": u"@id"},
+        u"id": u"@id"}
+    jobloaderctx.update(t.metadata.get("$namespaces", {}))
+    loader = Loader(jobloaderctx)
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
@@ -597,7 +592,8 @@ def main(argsl=None,
                     'workflow': None,
                     'job_order': None,
                     'pack': False,
-                    'on_error': 'continue'}.iteritems():
+                    'on_error': 'continue',
+                    'relax_path_checks': False}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -633,6 +629,9 @@ def main(argsl=None,
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
                                     preprocess_only=args.print_pre or args.pack)
+
+            if args.validate:
+                return 0
 
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
@@ -743,7 +742,7 @@ def main(argsl=None,
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
-                "information:\n  %s", exc, exc_info=args.debug)
+                "information:\n%s", strip_dup_lineno(unicode(exc)), exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(

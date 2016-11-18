@@ -3,6 +3,7 @@ from .utils import aslist
 from . import expression
 import avro
 import schema_salad.validate as validate
+from schema_salad.sourceline import SourceLine
 from typing import Any, Callable, Text, Type, Union
 from .errors import WorkflowException
 from .stdfsaccess import StdFsAccess
@@ -36,6 +37,7 @@ class Builder(object):
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.build_job_script = None  # type: Callable[[List[str]], Text]
+        self.debug = False  # type: bool
 
     def bind_input(self, schema, datum, lead_pos=[], tail_pos=[]):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
@@ -155,7 +157,8 @@ class Builder(object):
     def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
-            value = self.do_eval(binding["valueFrom"], context=value)
+            with SourceLine(binding, "valueFrom", WorkflowException):
+                value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
@@ -203,4 +206,5 @@ class Builder(object):
                                   self.outdir, self.tmpdir,
                                   self.resources,
                                   context=context, pull_image=pull_image,
-                                  timeout=self.timeout)
+                                  timeout=self.timeout,
+                                  debug=self.debug)

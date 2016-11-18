@@ -26,6 +26,8 @@ from rdflib.namespace import RDFS, OWL
 from rdflib import Graph
 from pkg_resources import resource_stream
 
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
+
 from .utils import aslist, get_feature
 from .stdfsaccess import StdFsAccess
 from .builder import Builder, adjustFileObjs, adjustDirObjs
@@ -443,13 +445,14 @@ class Process(object):
             raise WorkflowException("Error validating input record, " + Text(e))
 
         builder.files = []
-        builder.bindings = []
+        builder.bindings = CommentedSeq()
         builder.schemaDefs = self.schemaDefs
         builder.names = self.names
         builder.requirements = self.requirements
         builder.hints = self.hints
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
+        builder.debug = kwargs.get("debug")
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
@@ -485,6 +488,9 @@ class Process(object):
 
         if self.tool.get("arguments"):
             for i, a in enumerate(self.tool["arguments"]):
+                lc = self.tool["arguments"].lc.data[i]
+                fn = self.tool["arguments"].lc.filename
+                builder.bindings.lc.add_kv_line_col(len(builder.bindings), lc)
                 if isinstance(a, dict):
                     a = copy.copy(a)
                     if a.get("position"):
@@ -493,15 +499,21 @@ class Process(object):
                         a["position"] = [0, i]
                     builder.bindings.append(a)
                 elif ("$(" in a) or ("${" in a):
-                    builder.bindings.append({
+                    cm = CommentedMap({
                         "position": [0, i],
                         "valueFrom": a
                     })
+                    cm.lc.add_kv_line_col("valueFrom", lc)
+                    cm.lc.filename = fn
+                    builder.bindings.append(cm)
                 else:
-                    builder.bindings.append({
+                    cm = CommentedMap({
                         "position": [0, i],
                         "datum": a
                     })
+                    cm.lc.add_kv_line_col("datum", lc)
+                    cm.lc.filename = fn
+                    builder.bindings.append(cm)
 
         builder.bindings.sort(key=lambda a: a["position"])
 
