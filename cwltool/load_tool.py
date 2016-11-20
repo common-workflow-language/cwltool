@@ -19,8 +19,8 @@ from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 
 _logger = logging.getLogger("cwltool")
 
-def fetch_document(argsworkflow):
-    # type: (Union[Text, Text, dict[Text, Any]]) -> Tuple[Loader, Dict[Text, Any], Text]
+def fetch_document(argsworkflow, resolver=None):
+    # type: (Union[Text, dict[Text, Any]], Any) -> Tuple[Loader, Dict[Text, Any], Text]
     """Retrieve a CWL document."""
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
 
@@ -30,8 +30,17 @@ def fetch_document(argsworkflow):
         split = urlparse.urlsplit(argsworkflow)
         if split.scheme:
             uri = argsworkflow
-        else:
+        elif os.path.exists(os.path.abspath(argsworkflow)):
             uri = "file://" + os.path.abspath(argsworkflow)
+        elif resolver:
+            uri = resolver(document_loader, argsworkflow)
+
+        if uri is None:
+            raise ValidationException("Not found: '%s'" % argsworkflow)
+
+        if argsworkflow != uri:
+            _logger.info("Resolved '%s' to '%s'", argsworkflow, uri)
+
         fileuri = urlparse.urldefrag(uri)[0]
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
@@ -193,9 +202,10 @@ def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
 
 def load_tool(argsworkflow, makeTool, kwargs=None,
               enable_dev=False,
-              strict=True):
-    # type: (Union[Text, dict[Text,Any]], Callable[...,Process], Dict[AnyStr, Any], bool, bool) -> Any
-    document_loader, workflowobj, uri = fetch_document(argsworkflow)
+              strict=True,
+              resolver=None):
+    # type: (Union[Text, dict[Text, Any]], Callable[...,Process], Dict[AnyStr, Any], bool, bool, Any) -> Any
+    document_loader, workflowobj, uri = fetch_document(argsworkflow, resolver=resolver)
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,
         strict=strict)

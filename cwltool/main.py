@@ -28,6 +28,7 @@ from .cwlrdf import printrdf, printdot
 from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
 from .load_tool import fetch_document, validate_document, make_tool
 from . import draft2tool
+from .resolver import tool_resolver
 from .builder import adjustFileObjs, adjustDirObjs
 from .stdfsaccess import StdFsAccess
 from .pack import pack
@@ -181,6 +182,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Do not compute checksum of contents while collecting outputs",
                         dest="compute_checksum")
 
+    parser.add_argument("--relax-path-checks", action="store_true",
+            default=False, help="Relax requirements on path names. Currently "
+            "allows spaces.", dest="relax_path_checks")
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -619,9 +623,11 @@ def main(argsl=None,
                 _logger.error("")
                 _logger.error("CWL document required, try --help for details")
                 return 1
+        if args.relax_path_checks:
+            draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
 
         try:
-            document_loader, workflowobj, uri = fetch_document(args.workflow)
+            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=tool_resolver)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -756,6 +762,7 @@ def main(argsl=None,
     finally:
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
