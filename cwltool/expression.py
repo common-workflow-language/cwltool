@@ -106,16 +106,18 @@ def scanner(scan):  # type: (Text) -> List[int]
     else:
         return None
 
-def next_seg(remain, obj):  # type: (Text, Any)->Text
+def next_seg(remain, obj):  # type: (Text, Any) -> Any
     if remain:
         m = segment_re.match(remain)
-        key = None
+        key = None  # type: Union[str, int]
         if m.group(0)[0] == '.':
             key = m.group(0)[1:]
         elif m.group(0)[1] in ("'", '"'):
             key = m.group(0)[2:-2].replace("\\'", "'").replace('\\"', '"')
 
         if key:
+            if isinstance(obj, list) and key == "length" and not remain[m.end(0):]:
+                return len(obj)
             if not isinstance(obj, dict):
                 raise WorkflowException(" is a %s, cannot index on string '%s'" % (type(obj).__name__, key))
             if key not in obj:
@@ -137,7 +139,7 @@ def next_seg(remain, obj):  # type: (Text, Any)->Text
         return obj
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
-    # type: (Text, Text, Dict[Text, Any], bool, int) -> JSON
+    # type: (Text, Text, Dict[Text, Any], bool, int, bool) -> JSON
     m = param_re.match(ex)
     if m:
         try:
@@ -151,7 +153,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
 
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib="", debug=False):
-    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text]) -> JSON
+    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -178,7 +180,7 @@ def interpolate(scan, rootvars,
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None, debug=False):
-    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int) -> Any
+    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool) -> Any
 
     runtime = resources.copy()
     runtime["tmpdir"] = tmpdir

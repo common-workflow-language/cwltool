@@ -73,7 +73,7 @@ def new_js_proc():
     return nodejs
 
 
-def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int) -> JSON
+def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
 
     if not hasattr(localdata, "proc") or localdata.proc.poll() is not None:
         localdata.proc = new_js_proc()
@@ -136,13 +136,13 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             lines = lines[-maxlines:]
         return u"\n".join(u"%02i %s" % (i+ofs+1, b) for i, b in enumerate(lines))
 
-    def stdfmt(data):
+    def stdfmt(data):  # type: (unicode) -> unicode
         if "\n" in data:
             return "\n" + data.strip()
         return data
 
     if debug:
-        info = "returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" % (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
+        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" % (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
     else:
         info = stdfmt(stderrdata)
 

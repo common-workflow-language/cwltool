@@ -503,7 +503,7 @@ def checkversion(doc, metadata, enable_dev):
     return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader, Text, bool, Any) -> Dict[Text, Any]
+    # type: (Union[List[dict], dict], Loader, Text, bool, Any) -> dict
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
 

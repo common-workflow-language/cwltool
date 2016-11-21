@@ -161,13 +161,7 @@ class CommandLineTool(Process):
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        try:
-            return PathMapper(reffiles, kwargs["basedir"], stagedir)
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                if kwargs.get("debug"):
-                    _logger.exception(u"Missing input file %s" % e)
-                raise WorkflowException(u"Missing input file %s" % e)
+        return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
     def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[Text, Text], Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]

@@ -50,7 +50,8 @@ class TestParamMatching(unittest.TestCase):
                 'b"ar': {
                     "baz": None
                 }
-            }
+            },
+            "lst": ["A", "B"]
          }
 
         self.assertEqual(expr.interpolate("$(foo)", inputs), inputs["foo"])
@@ -71,6 +72,10 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("$(foo[\"b'ar\"].baz)", inputs), True)
         self.assertEqual(expr.interpolate("$(foo['b\\\"ar'].baz)", inputs), None)
 
+        self.assertEqual(expr.interpolate("$(lst[0])", inputs), "A")
+        self.assertEqual(expr.interpolate("$(lst[1])", inputs), "B")
+        self.assertEqual(expr.interpolate("$(lst.length)", inputs), 2)
+        self.assertEqual(expr.interpolate("$(lst['length'])", inputs), 2)
 
         for pattern in ("-$(foo.bar)",
                          "-$(foo['bar'])",

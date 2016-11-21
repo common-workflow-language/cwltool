@@ -6,26 +6,32 @@ import uuid
 import logging
 import re
 import urlparse
+
+from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from avro.schema import Names
+
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate as validate
 from schema_salad.validate import ValidationException
 import schema_salad.schema as schema
-from avro.schema import Names
+from schema_salad.sourceline import cmap
+
 from . import update
 from . import process
 from .process import Process, shortname
 from .errors import WorkflowException
-from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
+
 
 _logger = logging.getLogger("cwltool")
 
 def fetch_document(argsworkflow, resolver=None):
-    # type: (Union[Text, dict[Text, Any]], Any) -> Tuple[Loader, Dict[Text, Any], Text]
+    # type: (Union[Text, dict[Text, Any]], Any) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
 
     uri = None  # type: Text
-    workflowobj = None  # type: Dict[Text, Any]
+    workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, basestring):
         split = urlparse.urlsplit(argsworkflow)
         if split.scheme:
@@ -44,8 +50,8 @@ def fetch_document(argsworkflow, resolver=None):
         fileuri = urlparse.urldefrag(uri)[0]
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
-        workflowobj = argsworkflow
         uri = "#" + Text(id(argsworkflow))
+        workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
     else:
         raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
@@ -97,7 +103,7 @@ def _convert_stdstreams_to_files(workflowobj):
 
 def validate_document(document_loader, workflowobj, uri,
                       enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[Text, Any], Text, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
+    # type: (Loader, CommentedMap, Text, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
     jobobj = None
     if "cwl:tool" in workflowobj:
@@ -128,7 +134,7 @@ def validate_document(document_loader, workflowobj, uri,
             workflowobj, document_loader, uri, update_steps=False)
         if "@graph" in workflowobj:
             workflowobj["$graph"] = workflowobj["@graph"]
-            del workflowobj["@graph"]
+            del workflowobj["@graph"]  # type: ignore
 
     (document_loader, avsc_names) = \
         process.get_schema(workflowobj["cwlVersion"])[:2]
@@ -136,6 +142,7 @@ def validate_document(document_loader, workflowobj, uri,
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
+    processobj = None  # type: Union[dict, list, unicode]
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if not isinstance(processobj, (dict, list)):

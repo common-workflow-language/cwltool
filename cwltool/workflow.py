@@ -1,23 +1,27 @@
-from . import job
-from . import draft2tool
-from .utils import aslist
-from .process import Process, get_feature, empty_subtree, shortname, uniquename
-from .errors import WorkflowException
 import copy
 import logging
 import random
 import os
 from collections import namedtuple
 import functools
-import schema_salad.validate as validate
 import urlparse
 import tempfile
 import shutil
 import json
-import schema_salad
+
+from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
+
+import schema_salad.validate as validate
+from schema_salad.sourceline import SourceLine
+
+from . import job
+from . import draft2tool
+from .utils import aslist
+from .process import Process, get_feature, empty_subtree, shortname, uniquename
+from .errors import WorkflowException
 from . import expression
 from .load_tool import load_tool
-from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
+
 
 _logger = logging.getLogger("cwltool")
 
@@ -340,7 +344,7 @@ class WorkflowJob(object):
             del kwargs["outdir"]
 
         for e, i in enumerate(self.tool["inputs"]):
-            with SourceLine(self.tool["inputs"], e, WorkflowExecption):
+            with SourceLine(self.tool["inputs"], e, WorkflowException):
                 iid = shortname(i["id"])
                 if iid in joborder:
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]))
