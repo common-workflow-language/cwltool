@@ -14,10 +14,11 @@ import pkg_resources  # part of setuptools
 import functools
 
 import rdflib
+import requests
 from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
     Tuple, Type, IO)
 
-from schema_salad.ref_resolver import Loader
+from schema_salad.ref_resolver import Loader, Fetcher, DefaultFetcher
 import schema_salad.validate as validate
 import schema_salad.jsonld_context
 import schema_salad.makedoc
@@ -392,7 +393,7 @@ def generate_parser(toolparser, tool, namemap, records):
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Type[StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     job_order_object = None
 
@@ -553,18 +554,21 @@ def versionstring():
         return u"%s %s" % (sys.argv[0], "unknown version")
 
 
-def main(argsl=None,
-         args=None,
-         executor=single_job_executor,
-         makeTool=workflow.defaultMakeTool,
-         selectResources=None,
-         stdin=sys.stdin,
-         stdout=sys.stdout,
-         stderr=sys.stderr,
-         versionfunc=versionstring,
-         job_order_object=None,
-         make_fs_access=StdFsAccess):
-    # type: (List[str], argparse.Namespace, Callable[..., Union[Text, Dict[Text, Text]]], Callable[..., Process], Callable[[Dict[Text, int]], Dict[Text, int]], IO[Any], IO[Any], IO[Any], Callable[[], Text], Union[int, Tuple[Dict[Text, Any], Text]], Type[StdFsAccess]) -> int
+def main(argsl=None,  # type: List[str]
+         args=None,   # type: argparse.Namespace
+         executor=single_job_executor,  # type: Callable[..., Union[Text, Dict[Text, Text]]]
+         makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
+         selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
+         stdin=sys.stdin,  # type: IO[Any]
+         stdout=sys.stdout,  # type: IO[Any]
+         stderr=sys.stderr,  # type: IO[Any]
+         versionfunc=versionstring,  # type: Callable[[], Text]
+         job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
+         make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
+         fetcher_constructor=DefaultFetcher,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+         resolver=tool_resolver
+         ):
+    # type: (...) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
@@ -624,7 +628,7 @@ def main(argsl=None,
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
 
         try:
-            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=tool_resolver)
+            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver, fetcher_constructor=fetcher_constructor)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -633,7 +637,8 @@ def main(argsl=None,
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
-                                    preprocess_only=args.print_pre or args.pack)
+                                    preprocess_only=args.print_pre or args.pack,
+                                    fetcher_constructor=fetcher_constructor)
 
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
