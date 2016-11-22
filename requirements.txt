@@ -3,6 +3,6 @@ ruamel.yaml == 0.12.4
 rdflib >= 4.1.0
 rdflib-jsonld >= 0.3.0
 shellescape
-schema-salad==1.19.20161121214634
+schema-salad==2.0.20161122040508
 typing>=3.5.2
 cwltest>=1.0.20160907111242
