@@ -116,6 +116,9 @@ class DefaultFetcher(Fetcher):
             raise ValueError('Unsupported scheme in url: %s' % url)
 
     def check_exists(self, url):  # type: (unicode) -> bool
+        if url in self.cache:
+            return True
+
         split = urlparse.urlsplit(url)
         scheme, path = split.scheme, split.path
 

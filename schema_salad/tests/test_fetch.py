@@ -35,3 +35,11 @@ class TestFetcher(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             loader.resolve_ref("bar.txt")
         self.assertFalse(loader.check_exists("bar.txt"))
+
+    def test_cache(self):
+        loader = schema_salad.ref_resolver.Loader({})
+        foo = "file://%s/foo.txt" % os.getcwd()
+        loader.cache.update({foo: "hello: foo"})
+        print loader.cache
+        self.assertEqual({"hello": "foo"}, loader.resolve_ref("foo.txt")[0])
+        self.assertTrue(loader.check_exists(foo))
