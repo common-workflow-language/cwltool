@@ -12,6 +12,9 @@ import os
 class TestFetcher(unittest.TestCase):
     def test_fetcher(self):
         class TestFetcher(schema_salad.ref_resolver.Fetcher):
+            def __init__(self, a, b):
+                pass
+
             def fetch_text(self, url):    # type: (unicode) -> unicode
                 print url
                 if url.endswith("foo.txt"):
@@ -25,7 +28,7 @@ class TestFetcher(unittest.TestCase):
                 else:
                     return False
 
-        loader = schema_salad.ref_resolver.Loader({}, fetcher=TestFetcher())
+        loader = schema_salad.ref_resolver.Loader({}, fetcher_constructor=TestFetcher)
         self.assertEqual({"hello": "foo"}, loader.resolve_ref("foo.txt")[0])
         self.assertTrue(loader.check_exists("foo.txt"))
 

@@ -181,7 +181,7 @@ def load_schema(schema_ref, cache=None):
     # type: (Union[unicode, Dict[unicode, Any]], Dict) -> Tuple[ref_resolver.Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[unicode, Any], ref_resolver.Loader]
     metaschema_names, metaschema_doc, metaschema_loader = get_metaschema()
     if cache is not None:
-        metaschema_loader.cache = cache
+        metaschema_loader.cache.update(cache)
     schema_doc, schema_metadata = metaschema_loader.resolve_ref(schema_ref, "")
 
     if not isinstance(schema_doc, list):

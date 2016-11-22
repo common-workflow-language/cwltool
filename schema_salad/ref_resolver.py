@@ -70,7 +70,7 @@ def merge_properties(a, b):
 def SubLoader(loader):  # type: (Loader) -> Loader
     return Loader(loader.ctx, schemagraph=loader.graph,
                   foreign_properties=loader.foreign_properties, idx=loader.idx,
-                  cache=loader.cache, fetcher=loader.fetcher)
+                  cache=loader.cache, fetcher_constructor=loader.fetcher_constructor)
 
 class Fetcher(object):
     def fetch_text(self, url):    # type: (unicode) -> unicode
@@ -144,7 +144,7 @@ class Loader(object):
                  idx=None,                  # type: Dict[unicode, Union[dict, list, unicode]]
                  cache=None,                # type: Dict[unicode, Any]
                  session=None,              # type: requests.sessions.Session
-                 fetcher=None               # type: Fetcher
+                 fetcher_constructor=DefaultFetcher   # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                  ):
         # type: (...) -> None
 
@@ -170,16 +170,14 @@ class Loader(object):
         else:
             self.cache = {}
 
-        self.fetcher = None  # type: Fetcher
-        if fetcher is None:
-            if session is None:
-                self.session = CacheControl(requests.Session(),
-                                       cache=FileCache(os.path.join(os.environ["HOME"], ".cache", "salad")))
-            else:
-                self.session = session
-            self.fetcher = DefaultFetcher(self.cache, self.session)
+        if session is None:
+            self.session = CacheControl(requests.Session(),
+                                   cache=FileCache(os.path.join(os.environ["HOME"], ".cache", "salad")))
         else:
-            self.fetcher = fetcher
+            self.session = session
+
+        self.fetcher_constructor = fetcher_constructor
+        self.fetcher = self.fetcher_constructor(self.cache, self.session)
 
         self.fetch_text = self.fetcher.fetch_text
         self.check_exists = self.fetcher.check_exists
