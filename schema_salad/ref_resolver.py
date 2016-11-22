@@ -74,10 +74,10 @@ def SubLoader(loader):  # type: (Loader) -> Loader
 
 class Fetcher(object):
     def fetch_text(self, url):    # type: (unicode) -> unicode
-        pass
+        raise NotImplementedError()
 
     def check_exists(self, url):  # type: (unicode) -> bool
-        pass
+        raise NotImplementedError()
 
 class DefaultFetcher(Fetcher):
     def __init__(self, cache, session):  # type: (dict, requests.sessions.Session) -> None
