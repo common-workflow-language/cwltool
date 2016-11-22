@@ -502,18 +502,18 @@ class Process(object):
                         a["position"] = [0, i]
                     builder.bindings.append(a)
                 elif ("$(" in a) or ("${" in a):
-                    cm = CommentedMap({
-                        "position": [0, i],
-                        "valueFrom": a
-                    })
+                    cm = CommentedMap((
+                        ("position", [0, i]),
+                        ("valueFrom", a)
+                    ))
                     cm.lc.add_kv_line_col("valueFrom", lc)
                     cm.lc.filename = fn
                     builder.bindings.append(cm)
                 else:
-                    cm = CommentedMap({
-                        "position": [0, i],
-                        "datum": a
-                    })
+                    cm = CommentedMap((
+                        ("position", [0, i]),
+                        ("datum", a)
+                    ))
                     cm.lc.add_kv_line_col("datum", lc)
                     cm.lc.filename = fn
                     builder.bindings.append(cm)

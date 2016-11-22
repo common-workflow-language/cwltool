@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import copy
 
 from typing import Any, AnyStr, Union, Text, Dict, List
 import schema_salad.validate as validate
@@ -182,7 +183,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None, debug=False):
     # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool) -> Any
 
-    runtime = resources.copy()
+    runtime = copy.copy(resources)
     runtime["tmpdir"] = tmpdir
     runtime["outdir"] = outdir
 

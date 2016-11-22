@@ -459,7 +459,7 @@ class WorkflowStep(Process):
                     param = {}  # type: Dict[Text, Any]
                     inputid = step_entry
                 else:
-                    param = step_entry.copy()
+                    param = copy.copy(step_entry)
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)

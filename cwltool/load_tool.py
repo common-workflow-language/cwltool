@@ -130,8 +130,8 @@ def validate_document(document_loader, workflowobj, uri,
         workflowobj["cwlVersion"] = "draft-2"
 
     if workflowobj["cwlVersion"] == "draft-2":
-        workflowobj = update._draft2toDraft3dev1(
-            workflowobj, document_loader, uri, update_steps=False)
+        workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(
+            workflowobj, document_loader, uri, update_steps=False)))
         if "@graph" in workflowobj:
             workflowobj["$graph"] = workflowobj["@graph"]
             del workflowobj["@graph"]  # type: ignore
@@ -142,18 +142,19 @@ def validate_document(document_loader, workflowobj, uri,
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[dict, list, unicode]
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
-    if not isinstance(processobj, (dict, list)):
+    if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
     if not metadata:
         if not isinstance(processobj, dict):
             raise ValidationException("Draft-2 workflows must be a dict.")
-        metadata = {"$namespaces": processobj.get("$namespaces", {}),
-                   "$schemas": processobj.get("$schemas", []),
-                   "cwlVersion": processobj["cwlVersion"]}
+        metadata = cast(CommentedMap, cmap({"$namespaces": processobj.get("$namespaces", {}),
+                         "$schemas": processobj.get("$schemas", []),
+                         "cwlVersion": processobj["cwlVersion"]},
+                        fn=fileuri))
 
     _convert_stdstreams_to_files(workflowobj)
 
@@ -163,8 +164,8 @@ def validate_document(document_loader, workflowobj, uri,
     schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if metadata.get("cwlVersion") != update.LATEST:
-        processobj = update.update(
-            processobj, document_loader, fileuri, enable_dev, metadata)
+        processobj = cast(CommentedMap, cmap(update.update(
+            processobj, document_loader, fileuri, enable_dev, metadata)))
 
     if jobobj:
         metadata[u"cwl:defaults"] = jobobj
