@@ -42,17 +42,16 @@ setup(name='cwltool',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
                                 'cwlNodeEngine.js']},
       install_requires=[
-          'setuptools >= 18.5',  # needed by html5lib
-          'requests',
+          'setuptools',
+          'requests>=1.0',
           'ruamel.yaml == 0.12.4',
-          'rdflib >= 4.1.0',
-          'rdflib-jsonld >= 0.3.0',
+          'rdflib >= 4.2.0, < 4.3.0',
+          'rdflib-jsonld == 0.3.0',
+          'html5lib >=0.90, <= 0.9999999',
           'shellescape',
           'schema-salad >= 1.20.20161122192122, < 2',
           'typing >= 3.5.2',
           'cwltest >= 1.0.20160907111242'],
-      setup_requires=[
-          'setuptools >= 18.5'],
       test_suite='tests',
       tests_require=[],
       entry_points={
