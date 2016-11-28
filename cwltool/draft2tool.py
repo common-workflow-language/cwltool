@@ -259,11 +259,12 @@ class CommandLineTool(Process):
         j.hints = self.hints
         j.name = jobname
 
-        _logger.debug(u"[job %s] initializing from %s%s",
-                     j.name,
-                     self.tool.get("id", ""),
-                     u" as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
-        _logger.debug(u"[job %s] %s", j.name, json.dumps(joborder, indent=4))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] initializing from %s%s",
+                         j.name,
+                         self.tool.get("id", ""),
+                         u" as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
+            _logger.debug(u"[job %s] %s", j.name, json.dumps(joborder, indent=4))
 
 
         builder.pathmapper = None
@@ -274,7 +275,8 @@ class CommandLineTool(Process):
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **make_path_mapper_kwargs)
         builder.requirements = j.requirements
 
-        _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] path mappings is %s", j.name, json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
         _check_adjust = partial(check_adjust, builder)
 
@@ -297,7 +299,8 @@ class CommandLineTool(Process):
             if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
                 raise validate.ValidationException("stdout must be a relative path")
 
-        _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
         dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and kwargs.get("use_container"):
@@ -383,7 +386,8 @@ class CommandLineTool(Process):
             if fs_access.exists(custom_output):
                 with fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
-                _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
             else:
                 for port in ports:
                     fragment = shortname(port["id"])

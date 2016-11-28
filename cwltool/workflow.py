@@ -229,7 +229,8 @@ class WorkflowJob(object):
                     _logger.error(u"Output is missing expected field %s" % i["id"])
                     processStatus = "permanentFail"
 
-        _logger.debug(u"[%s] produced output %s", step.name, json.dumps(jobout, indent=4))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[%s] produced output %s", step.name, json.dumps(jobout, indent=4))
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -312,9 +313,13 @@ class WorkflowJob(object):
                                                          # https://github.com/python/mypy/issues/797
                                                                callback), 0, **kwargs))
             else:
-                _logger.debug(u"[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.debug(u"[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
+
                 inputobj = postScatterEval(inputobj)
-                _logger.debug(u"[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
+
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.debug(u"[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, callback, **kwargs)
 
             step.submitted = True
