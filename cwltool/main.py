@@ -458,7 +458,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
             job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
 
-            _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
