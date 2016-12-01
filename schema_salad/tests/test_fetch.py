@@ -3,11 +3,11 @@ import schema_salad.ref_resolver
 import schema_salad.main
 import schema_salad.schema
 from schema_salad.jsonld_context import makerdf
-from pkg_resources import Requirement, resource_filename, ResolutionError  # type: ignore
 import rdflib
 import ruamel.yaml as yaml
 import json
 import os
+import urlparse
 
 class TestFetcher(unittest.TestCase):
     def test_fetcher(self):
@@ -16,7 +16,8 @@ class TestFetcher(unittest.TestCase):
                 pass
 
             def fetch_text(self, url):    # type: (unicode) -> unicode
-                print url
+                if url == "keep:abc+123/foo.txt":
+                    return "hello: keepfoo"
                 if url.endswith("foo.txt"):
                     return "hello: foo"
                 else:
@@ -28,8 +29,19 @@ class TestFetcher(unittest.TestCase):
                 else:
                     return False
 
+            def urljoin(self, base, url):
+                urlsp = urlparse.urlsplit(url)
+                if urlsp.scheme:
+                    return url
+                basesp = urlparse.urlsplit(base)
+
+                if basesp.scheme == "keep":
+                    return base + "/" + url
+                return urlparse.urljoin(base, url)
+
         loader = schema_salad.ref_resolver.Loader({}, fetcher_constructor=TestFetcher)
         self.assertEqual({"hello": "foo"}, loader.resolve_ref("foo.txt")[0])
+        self.assertEqual({"hello": "keepfoo"}, loader.resolve_ref("foo.txt", base_url="keep:abc+123")[0])
         self.assertTrue(loader.check_exists("foo.txt"))
 
         with self.assertRaises(RuntimeError):

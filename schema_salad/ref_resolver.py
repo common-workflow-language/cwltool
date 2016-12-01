@@ -79,6 +79,10 @@ class Fetcher(object):
     def check_exists(self, url):  # type: (unicode) -> bool
         raise NotImplementedError()
 
+    def urljoin(self, base_url, url):  # type: (unicode, unicode) -> unicode
+        raise NotImplementedError()
+
+
 class DefaultFetcher(Fetcher):
     def __init__(self, cache, session):  # type: (dict, requests.sessions.Session) -> None
         self.cache = cache
@@ -134,6 +138,8 @@ class DefaultFetcher(Fetcher):
         else:
             raise ValueError('Unsupported scheme in url: %s' % url)
 
+    def urljoin(self, base_url, url):
+        return urlparse.urljoin(base_url, url)
 
 class Loader(object):
 
@@ -230,7 +236,7 @@ class Loader(object):
         elif scoped_ref is not None and not split.fragment:
             pass
         else:
-            url = urlparse.urljoin(base_url, url)
+            url = self.fetcher.urljoin(base_url, url)
 
         if vocab_term and url in self.rvocab:
             return self.rvocab[url]
@@ -254,7 +260,7 @@ class Loader(object):
     def add_schemas(self, ns, base_url):
         # type: (Union[List[unicode], unicode], unicode) -> None
         for sch in aslist(ns):
-            fetchurl = urlparse.urljoin(base_url, sch)
+            fetchurl = self.fetcher.urljoin(base_url, sch)
             if fetchurl not in self.cache:
                 _logger.debug("Getting external schema %s", fetchurl)
                 content = self.fetch_text(fetchurl)
