@@ -6,23 +6,33 @@ import uuid
 import logging
 import re
 import urlparse
-from schema_salad.ref_resolver import Loader
+
+from schema_salad.ref_resolver import Loader, Fetcher, DefaultFetcher
 import schema_salad.validate as validate
 from schema_salad.validate import ValidationException
 import schema_salad.schema as schema
+import requests
+
+from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
+
 from avro.schema import Names
+
 from . import update
 from . import process
 from .process import Process, shortname
 from .errors import WorkflowException
-from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 
 _logger = logging.getLogger("cwltool")
 
-def fetch_document(argsworkflow, resolver=None):
-    # type: (Union[Text, dict[Text, Any]], Any) -> Tuple[Loader, Dict[Text, Any], Text]
+def fetch_document(argsworkflow,   # type: Union[Text, dict[Text, Any]]
+                   resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
+                   fetcher_constructor=DefaultFetcher  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                   ):
+    # type: (...) -> Tuple[Loader, Dict[Text, Any], Text]
     """Retrieve a CWL document."""
-    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"})
+
+    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"},
+                             fetcher_constructor=fetcher_constructor)
 
     uri = None  # type: Text
     workflowobj = None  # type: Dict[Text, Any]
@@ -95,16 +105,23 @@ def _convert_stdstreams_to_files(workflowobj):
         for entry in workflowobj:
             _convert_stdstreams_to_files(entry)
 
-def validate_document(document_loader, workflowobj, uri,
-                      enable_dev=False, strict=True, preprocess_only=False):
-    # type: (Loader, Dict[Text, Any], Text, bool, bool, bool) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
+def validate_document(document_loader,   # type: Loader
+                      workflowobj,       # type: Dict[Text, Any]
+                      uri,               # type: Text
+                      enable_dev=False,  # type: bool
+                      strict=True,       # type: bool
+                      preprocess_only=False,    # type: bool
+                      fetcher_constructor=DefaultFetcher  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                      ):
+    # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
+
     jobobj = None
     if "cwl:tool" in workflowobj:
         jobobj, _ = document_loader.resolve_all(workflowobj, uri)
         uri = urlparse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
-        workflowobj = fetch_document(uri)[1]
+        workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
 
     if isinstance(workflowobj, list):
         workflowobj = {
@@ -130,11 +147,15 @@ def validate_document(document_loader, workflowobj, uri,
             workflowobj["$graph"] = workflowobj["@graph"]
             del workflowobj["@graph"]
 
-    (document_loader, avsc_names) = \
+    (sch_document_loader, avsc_names) = \
         process.get_schema(workflowobj["cwlVersion"])[:2]
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
+
+    document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
+                  idx=document_loader.idx, cache=sch_document_loader.cache,
+                             fetcher_constructor=fetcher_constructor)
 
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
@@ -165,8 +186,14 @@ def validate_document(document_loader, workflowobj, uri,
     return document_loader, avsc_names, processobj, metadata, uri
 
 
-def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
-    # type: (Loader, Names, Dict[Text, Any], Text, Callable[..., Process], Dict[AnyStr, Any]) -> Process
+def make_tool(document_loader,  # type: Loader
+              avsc_names,       # type: Names
+              metadata,         # type: Dict[Text, Any]
+              uri,              # type: Text
+              makeTool,         # type: Callable[..., Process]
+              kwargs            # type: dict
+              ):
+    # type: (...) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
 
@@ -179,8 +206,10 @@ def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
                 "one of #%s" % ", #".join(
                     urlparse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
-    else:
+    elif isinstance(resolveduri, dict):
         processobj = resolveduri
+    else:
+        raise Exception("Must resolve to list or dict")
 
     kwargs = kwargs.copy()
     kwargs.update({
@@ -200,14 +229,19 @@ def make_tool(document_loader, avsc_names, metadata, uri, makeTool, kwargs):
     return tool
 
 
-def load_tool(argsworkflow, makeTool, kwargs=None,
-              enable_dev=False,
-              strict=True,
-              resolver=None):
-    # type: (Union[Text, dict[Text, Any]], Callable[...,Process], Dict[AnyStr, Any], bool, bool, Any) -> Any
-    document_loader, workflowobj, uri = fetch_document(argsworkflow, resolver=resolver)
+def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
+              makeTool,      # type: Callable[..., Process]
+              kwargs=None,   # type: dict
+              enable_dev=False,  # type: bool
+              strict=True,       # type: bool
+              resolver=None,     # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
+              fetcher_constructor=DefaultFetcher  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+              ):
+    # type: (...) -> Process
+
+    document_loader, workflowobj, uri = fetch_document(argsworkflow, resolver=resolver, fetcher_constructor=fetcher_constructor)
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,
-        strict=strict)
+        strict=strict, fetcher_constructor=fetcher_constructor)
     return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})
