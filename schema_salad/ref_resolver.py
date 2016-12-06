@@ -153,7 +153,7 @@ class Loader(object):
                  idx=None,                  # type: Dict[unicode, Union[dict, list, unicode]]
                  cache=None,                # type: Dict[unicode, Any]
                  session=None,              # type: requests.sessions.Session
-                 fetcher_constructor=DefaultFetcher   # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                 fetcher_constructor=None   # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                  ):
         # type: (...) -> None
 
@@ -185,7 +185,10 @@ class Loader(object):
         else:
             self.session = session
 
-        self.fetcher_constructor = fetcher_constructor
+        if fetcher_constructor:
+            self.fetcher_constructor = fetcher_constructor
+        else:
+            self.fetcher_constructor = DefaultFetcher
         self.fetcher = self.fetcher_constructor(self.cache, self.session)
 
         self.fetch_text = self.fetcher.fetch_text
