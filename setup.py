@@ -28,10 +28,12 @@ else:
     requirements = []
 
 install_requires = [
-    'requests',
+    'setuptools',
+    'requests>=1.0',
     'ruamel.yaml == 0.12.4',
-    'rdflib >= 4.1.0',
-    'rdflib-jsonld >= 0.3.0',
+    'rdflib >= 4.2.0, < 4.3.0',
+    'rdflib-jsonld >= 0.3.0, <= 0.4.0',
+    'html5lib >=0.90, <= 0.9999999',
     'mistune',
     'typing >= 3.5.2',
     'CacheControl',
