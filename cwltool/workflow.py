@@ -445,7 +445,8 @@ class WorkflowStep(Process):
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], kwargs.get("makeTool"), kwargs,
                     enable_dev=kwargs.get("enable_dev"),
-                    strict=kwargs.get("strict"))
+                    strict=kwargs.get("strict"),
+                    fetcher_constructor=kwargs.get("fetcher_constructor"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
