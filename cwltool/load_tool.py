@@ -116,6 +116,11 @@ def validate_document(document_loader,   # type: Loader
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
 
+    if isinstance(workflowobj, list):
+        workflowobj = {
+            "$graph": workflowobj
+        }
+
     if not isinstance(workflowobj, dict):
         raise ValueError("workflowjobj must be a dict")
 
@@ -125,11 +130,6 @@ def validate_document(document_loader,   # type: Loader
         uri = urlparse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
         workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
-
-    if isinstance(workflowobj, list):
-        workflowobj = {
-            "$graph": workflowobj
-        }
 
     fileuri = urlparse.urldefrag(uri)[0]
 
