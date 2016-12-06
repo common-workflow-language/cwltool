@@ -392,21 +392,18 @@ def generate_parser(toolparser, tool, namemap, records):
 
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
-                   stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+                   stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     job_order_object = None
 
-    if args.conformance_test:
-        loader = Loader({})
-    else:
-        jobloaderctx = {
-            u"path": {u"@type": u"@id"},
-            u"location": {u"@type": u"@id"},
-            u"format": {u"@type": u"@id"},
-            u"id": u"@id"}
-        jobloaderctx.update(t.metadata.get("$namespaces", {}))
-        loader = Loader(jobloaderctx)
+    jobloaderctx = {
+        u"path": {u"@type": u"@id"},
+        u"location": {u"@type": u"@id"},
+        u"format": {u"@type": u"@id"},
+        u"id": u"@id"}
+    jobloaderctx.update(t.metadata.get("$namespaces", {}))
+    loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
@@ -700,7 +697,8 @@ def main(argsl=None,  # type: List[str]
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
-                                              make_fs_access=make_fs_access)
+                                              make_fs_access=make_fs_access,
+                                              fetcher_constructor=fetcher_constructor)
 
         if isinstance(job_order_object, int):
             return job_order_object
