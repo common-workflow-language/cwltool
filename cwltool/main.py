@@ -693,7 +693,7 @@ def main(argsl=None,  # type: List[str]
         if args.cachedir:
             if args.move_outputs == "move":
                 setattr(args, 'move_outputs', "copy")
-            args.tmp_outdir_prefix = args.cachedir
+            setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         if job_order_object is None:
             job_order_object = load_job_order(args, tool, stdin,
