@@ -18,7 +18,7 @@ import requests
 from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
     Tuple, Type, IO)
 
-from schema_salad.ref_resolver import Loader, Fetcher, DefaultFetcher
+from schema_salad.ref_resolver import Loader, Fetcher
 import schema_salad.validate as validate
 import schema_salad.jsonld_context
 import schema_salad.makedoc
@@ -565,7 +565,7 @@ def main(argsl=None,  # type: List[str]
          versionfunc=versionstring,  # type: Callable[[], Text]
          job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=DefaultFetcher,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+         fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
          resolver=tool_resolver
          ):
     # type: (...) -> int

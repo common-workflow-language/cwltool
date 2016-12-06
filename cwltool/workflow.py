@@ -15,7 +15,6 @@ import tempfile
 import shutil
 import json
 import schema_salad
-from schema_salad.ref_resolver import DefaultFetcher
 from . import expression
 from .load_tool import load_tool
 from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
@@ -447,7 +446,7 @@ class WorkflowStep(Process):
                     toolpath_object["run"], kwargs.get("makeTool"), kwargs,
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
-                    fetcher_constructor=kwargs.get("fetcher_constructor", DefaultFetcher))
+                    fetcher_constructor=kwargs.get("fetcher_constructor"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
