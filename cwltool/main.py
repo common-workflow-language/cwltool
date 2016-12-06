@@ -206,7 +206,7 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     output_dirs = set()
     finaloutdir = kwargs.get("outdir")
-    kwargs["outdir"] = tempfile.mkdtemp()
+    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix"))
     output_dirs.add(kwargs["outdir"])
 
     jobReqs = None
@@ -678,20 +678,22 @@ def main(argsl=None,  # type: List[str]
         if isinstance(tool, int):
             return tool
 
-        if args.tmp_outdir_prefix != 'tmp':
-            # Use user defined temp directory (if it exists)
-            setattr(args, 'tmp_outdir_prefix',
-                    os.path.abspath(args.tmp_outdir_prefix))
-            if not os.path.exists(args.tmp_outdir_prefix):
-                _logger.error("Intermediate output directory prefix doesn't exist.")
-                return 1
+        for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
+            if getattr(args, dirprefix) and getattr(args, dirprefix) != 'tmp':
+                sl = "/" if getattr(args, dirprefix).endswith("/") or dirprefix == "cachedir" else ""
+                setattr(args, dirprefix,
+                        os.path.abspath(getattr(args, dirprefix))+sl)
+                if not os.path.exists(os.path.dirname(getattr(args, dirprefix))):
+                    try:
+                        os.makedirs(os.path.dirname(getattr(args, dirprefix)))
+                    except Exception as e:
+                        _logger.error("Failed to create directory: %s", e)
+                        return 1
 
-        if args.tmpdir_prefix != 'tmp':
-            # Use user defined prefix (if the folder exists)
-            setattr(args, 'tmpdir_prefix', os.path.abspath(args.tmpdir_prefix))
-            if not os.path.exists(args.tmpdir_prefix):
-                _logger.error("Temporary directory prefix doesn't exist.")
-                return 1
+        if args.cachedir:
+            if args.move_outputs == "move":
+                setattr(args, 'move_outputs', "copy")
+            args.tmp_outdir_prefix = args.cachedir
 
         if job_order_object is None:
             job_order_object = load_job_order(args, tool, stdin,
@@ -703,14 +705,7 @@ def main(argsl=None,  # type: List[str]
         if isinstance(job_order_object, int):
             return job_order_object
 
-        if args.cachedir:
-            setattr(args, 'cachedir', os.path.abspath(args.cachedir))
-            if args.move_outputs == "move":
-                setattr(args, 'move_outputs', "copy")
-
         try:
-            setattr(args, 'tmp_outdir_prefix',
-                    args.cachedir if args.cachedir else args.tmp_outdir_prefix)
             setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
