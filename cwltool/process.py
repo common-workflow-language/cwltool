@@ -640,7 +640,7 @@ def mergedirs(listing):
     return r
 
 def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
-    # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any]) -> List[Dict[Text, Text]]
+    # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
