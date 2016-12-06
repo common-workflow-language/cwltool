@@ -516,7 +516,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             "location": uri}  # type: Dict[Text, Any]
 
     def loadref(b, u):
-        return document_loader.fetch(urlparse.urljoin(b, u))
+        return document_loader.fetch(document_loader.fetcher.urljoin(b, u))
 
     sf = scandeps(
         basedir if basedir else uri, obj, set(("$import", "run")),

@@ -116,6 +116,9 @@ def validate_document(document_loader,   # type: Loader
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
 
+    if not isinstance(workflowobj, dict):
+        raise ValueError("workflowjobj must be a dict")
+
     jobobj = None
     if "cwl:tool" in workflowobj:
         jobobj, _ = document_loader.resolve_all(workflowobj, uri)

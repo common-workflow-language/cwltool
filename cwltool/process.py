@@ -7,7 +7,6 @@ import stat
 import tempfile
 import glob
 import urlparse
-import pprint
 from collections import Iterable
 import errno
 import shutil
@@ -640,7 +639,7 @@ def mergedirs(listing):
     r.extend(ents.itervalues())
     return r
 
-def scandeps(base, doc, reffields, urlfields, loadref):
+def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
@@ -660,7 +659,7 @@ def scandeps(base, doc, reffields, urlfields, loadref):
             if u and not u.startswith("_:"):
                 deps = {
                     "class": doc["class"],
-                    "location": urlparse.urljoin(base, u)
+                    "location": urljoin(base, u)
                 }
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
@@ -670,23 +669,23 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 r.append(deps)
             else:
                 if doc["class"] == "Directory" and "listing" in doc:
-                    r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref))
+                    r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref, urljoin=urljoin))
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
-                    r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref))
+                    r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
         for k, v in doc.iteritems():
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):
-                        r.extend(scandeps(base, u, reffields, urlfields, loadref))
+                        r.extend(scandeps(base, u, reffields, urlfields, loadref, urljoin=urljoin))
                     else:
                         sub = loadref(base, u)
-                        subid = urlparse.urljoin(base, u)
+                        subid = urljoin(base, u)
                         deps = {
                             "class": "File",
                             "location": subid
                         }
-                        sf = scandeps(subid, sub, reffields, urlfields, loadref)
+                        sf = scandeps(subid, sub, reffields, urlfields, loadref, urljoin=urljoin)
                         if sf:
                             deps["secondaryFiles"] = sf
                         deps = nestdir(base, deps)
@@ -695,19 +694,20 @@ def scandeps(base, doc, reffields, urlfields, loadref):
                 for u in aslist(v):
                     deps = {
                         "class": "File",
-                        "location": urlparse.urljoin(base, u)
+                        "location": urljoin(base, u)
                     }
                     deps = nestdir(base, deps)
                     r.append(deps)
             elif k not in ("listing", "secondaryFiles"):
-                r.extend(scandeps(base, v, reffields, urlfields, loadref))
+                r.extend(scandeps(base, v, reffields, urlfields, loadref, urljoin=urljoin))
     elif isinstance(doc, list):
         for d in doc:
-            r.extend(scandeps(base, d, reffields, urlfields, loadref))
+            r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
 
     if r:
         normalizeFilesDirs(r)
         r = mergedirs(r)
+
     return r
 
 def compute_checksums(fs_access, fileobj):
