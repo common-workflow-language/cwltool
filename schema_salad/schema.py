@@ -328,6 +328,7 @@ def avro_name(url):  # type: (AnyStr) -> AnyStr
             return frg
     return url
 
+
 Avro = TypeVar('Avro', Dict[unicode, Any], List[Any], unicode)
 
 def make_valid_avro(items, alltypes, found, union=False):

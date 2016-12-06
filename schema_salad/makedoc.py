@@ -110,6 +110,7 @@ class ToC(object):
         c += """</nav>"""
         return c
 
+
 basicTypes = ("https://w3id.org/cwl/salad#null",
               "http://www.w3.org/2001/XMLSchema#boolean",
               "http://www.w3.org/2001/XMLSchema#int",
@@ -480,6 +481,7 @@ def avrold_doc(j, outdoc, renderlist, redirects, brand, brandlink):
     </div>
     </body>
     </html>""")
+
 
 if __name__ == "__main__":
 

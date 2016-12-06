@@ -364,5 +364,6 @@ class TestSchemas(unittest.TestCase):
                 'one': 'two'}
         }], ra[0])
 
+
 if __name__ == '__main__':
     unittest.main()
