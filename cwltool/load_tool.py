@@ -10,6 +10,7 @@ import urlparse
 from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 from avro.schema import Names
+import requests.sessions
 
 from schema_salad.ref_resolver import Loader, Fetcher
 import schema_salad.validate as validate
@@ -28,7 +29,7 @@ def fetch_document(argsworkflow,   # type: Union[Text, dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
                    fetcher_constructor=None  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                    ):
-    # type: (...) -> Tuple[Loader, Dict[Text, Any], Text]
+    # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"},
@@ -148,7 +149,7 @@ def validate_document(document_loader,   # type: Loader
             workflowobj, document_loader, uri, update_steps=False)))
         if "@graph" in workflowobj:
             workflowobj["$graph"] = workflowobj["@graph"]
-            del workflowobj["@graph"]  # type: ignore
+            del workflowobj["@graph"]
 
     (sch_document_loader, avsc_names) = \
         process.get_schema(workflowobj["cwlVersion"])[:2]
