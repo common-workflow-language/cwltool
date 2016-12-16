@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import copy
 
 from typing import Any, AnyStr, Union, Text, Dict, List
 import schema_salad.validate as validate
@@ -106,33 +107,54 @@ def scanner(scan):  # type: (Text) -> List[int]
     else:
         return None
 
-def next_seg(remain, obj):  # type: (Text, Any)->Text
+def next_seg(remain, obj):  # type: (Text, Any) -> Any
     if remain:
         m = segment_re.match(remain)
+        key = None  # type: Union[str, int]
         if m.group(0)[0] == '.':
-            return next_seg(remain[m.end(0):], obj[m.group(0)[1:]])
+            key = m.group(0)[1:]
         elif m.group(0)[1] in ("'", '"'):
             key = m.group(0)[2:-2].replace("\\'", "'").replace('\\"', '"')
-            return next_seg(remain[m.end(0):], obj[key])
+
+        if key:
+            if isinstance(obj, list) and key == "length" and not remain[m.end(0):]:
+                return len(obj)
+            if not isinstance(obj, dict):
+                raise WorkflowException(" is a %s, cannot index on string '%s'" % (type(obj).__name__, key))
+            if key not in obj:
+                raise WorkflowException(" does not contain key '%s'" % key)
         else:
-            key = m.group(0)[1:-1]
-            return next_seg(remain[m.end(0):], obj[int(key)])
+            try:
+                key = int(m.group(0)[1:-1])
+            except ValueError as v:
+                raise WorkflowException(unicode(v))
+            if not isinstance(obj, list):
+                raise WorkflowException(" is a %s, cannot index on int '%s'" % (type(obj).__name__, key))
+            if key >= len(obj):
+                raise WorkflowException(" list index %i out of range" % key)
+        try:
+            return next_seg(remain[m.end(0):], obj[key])
+        except WorkflowException as w:
+            raise WorkflowException("%s%s" % (m.group(0), w))
     else:
         return obj
 
-def evaluator(ex, jslib, obj, fullJS=False, timeout=None):
-    # type: (Text, Text, Dict[Text, Any], bool, int) -> JSON
+def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
+    # type: (Text, Text, Dict[Text, Any], bool, int, bool) -> JSON
     m = param_re.match(ex)
     if m:
-        return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
+        try:
+            return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
+        except Exception as w:
+            raise WorkflowException("%s%s" % (m.group(1), w))
     elif fullJS:
-        return sandboxjs.execjs(ex, jslib, timeout=timeout)
+        return sandboxjs.execjs(ex, jslib, timeout=timeout, debug=debug)
     else:
         raise sandboxjs.JavascriptException("Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.", ex)
 
 def interpolate(scan, rootvars,
-                timeout=None, fullJS=None, jslib=""):
-    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text]) -> JSON
+                timeout=None, fullJS=None, jslib="", debug=False):
+    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -141,7 +163,7 @@ def interpolate(scan, rootvars,
 
         if scan[w[0]] == '$':
             e = evaluator(scan[w[0]+1:w[1]], jslib, rootvars, fullJS=fullJS,
-                          timeout=timeout)
+                          timeout=timeout, debug=debug)
             if w[0] == 0 and w[1] == len(scan):
                 return e
             leaf = json.dumps(e, sort_keys=True)
@@ -158,10 +180,10 @@ def interpolate(scan, rootvars,
     return ''.join(parts)
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
-            context=None, pull_image=True, timeout=None):
-    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int) -> Any
+            context=None, pull_image=True, timeout=None, debug=False):
+    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool) -> Any
 
-    runtime = resources.copy()
+    runtime = copy.copy(resources)
     runtime["tmpdir"] = tmpdir
     runtime["outdir"] = outdir
 
@@ -179,10 +201,14 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                 jslib = jshead(r.get("expressionLib", []), rootvars)
                 break
 
-        return interpolate(ex,
-                           rootvars,
-                           timeout=timeout,
-                           fullJS=fullJS,
-                           jslib=jslib)
+        try:
+            return interpolate(ex,
+                               rootvars,
+                               timeout=timeout,
+                               fullJS=fullJS,
+                               jslib=jslib,
+                               debug=debug)
+        except Exception as e:
+            raise WorkflowException("Expression evaluation error:\n%s" % e)
     else:
         return ex

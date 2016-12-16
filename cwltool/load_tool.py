@@ -7,15 +7,16 @@ import logging
 import re
 import urlparse
 
+from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from avro.schema import Names
+import requests.sessions
+
 from schema_salad.ref_resolver import Loader, Fetcher
 import schema_salad.validate as validate
 from schema_salad.validate import ValidationException
 import schema_salad.schema as schema
-import requests
-
-from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
-
-from avro.schema import Names
+from schema_salad.sourceline import cmap
 
 from . import update
 from . import process
@@ -28,14 +29,14 @@ def fetch_document(argsworkflow,   # type: Union[Text, dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
                    fetcher_constructor=None  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                    ):
-    # type: (...) -> Tuple[Loader, Dict[Text, Any], Text]
+    # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
     document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"},
                              fetcher_constructor=fetcher_constructor)
 
     uri = None  # type: Text
-    workflowobj = None  # type: Dict[Text, Any]
+    workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, basestring):
         split = urlparse.urlsplit(argsworkflow)
         if split.scheme:
@@ -54,8 +55,8 @@ def fetch_document(argsworkflow,   # type: Union[Text, dict[Text, Any]]
         fileuri = urlparse.urldefrag(uri)[0]
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
-        workflowobj = argsworkflow
         uri = "#" + Text(id(argsworkflow))
+        workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
     else:
         raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
@@ -106,7 +107,7 @@ def _convert_stdstreams_to_files(workflowobj):
             _convert_stdstreams_to_files(entry)
 
 def validate_document(document_loader,   # type: Loader
-                      workflowobj,       # type: Dict[Text, Any]
+                      workflowobj,       # type: CommentedMap
                       uri,               # type: Text
                       enable_dev=False,  # type: bool
                       strict=True,       # type: bool
@@ -144,8 +145,8 @@ def validate_document(document_loader,   # type: Loader
         workflowobj["cwlVersion"] = "draft-2"
 
     if workflowobj["cwlVersion"] == "draft-2":
-        workflowobj = update._draft2toDraft3dev1(
-            workflowobj, document_loader, uri, update_steps=False)
+        workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(
+            workflowobj, document_loader, uri, update_steps=False)))
         if "@graph" in workflowobj:
             workflowobj["$graph"] = workflowobj["@graph"]
             del workflowobj["@graph"]
@@ -156,21 +157,23 @@ def validate_document(document_loader,   # type: Loader
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                   idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor)
 
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
-    if not isinstance(processobj, (dict, list)):
+    if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
     if not metadata:
         if not isinstance(processobj, dict):
             raise ValidationException("Draft-2 workflows must be a dict.")
-        metadata = {"$namespaces": processobj.get("$namespaces", {}),
-                   "$schemas": processobj.get("$schemas", []),
-                   "cwlVersion": processobj["cwlVersion"]}
+        metadata = cast(CommentedMap, cmap({"$namespaces": processobj.get("$namespaces", {}),
+                         "$schemas": processobj.get("$schemas", []),
+                         "cwlVersion": processobj["cwlVersion"]},
+                        fn=fileuri))
 
     _convert_stdstreams_to_files(workflowobj)
 
@@ -180,8 +183,8 @@ def validate_document(document_loader,   # type: Loader
     schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if metadata.get("cwlVersion") != update.LATEST:
-        processobj = update.update(
-            processobj, document_loader, fileuri, enable_dev, metadata)
+        processobj = cast(CommentedMap, cmap(update.update(
+            processobj, document_loader, fileuri, enable_dev, metadata)))
 
     if jobobj:
         metadata[u"cwl:defaults"] = jobobj

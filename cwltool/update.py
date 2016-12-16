@@ -3,10 +3,13 @@ import urlparse
 import json
 import re
 import traceback
+import copy
 
 from schema_salad.ref_resolver import Loader
 import schema_salad.validate
 from typing import Any, Callable, Dict, List, Text, Tuple, Union  # pylint: disable=unused-import
+
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
 from .utils import aslist
 
@@ -28,7 +31,9 @@ def findId(doc, frg):  # type: (Any, Any) -> Dict
 
 def fixType(doc):  # type: (Any) -> Any
     if isinstance(doc, list):
-        return [fixType(f) for f in doc]
+        for i, f in enumerate(doc):
+            doc[i] = fixType(f)
+        return doc
 
     if isinstance(doc, (str, Text)):
         if doc not in (
@@ -82,7 +87,8 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
                 doc[a] = _draft2toDraft3dev1(doc[a], loader, baseuri)
 
         if isinstance(doc, list):
-            return [_draft2toDraft3dev1(a, loader, baseuri) for a in doc]
+            for i, a in enumerate(doc):
+                doc[i] = _draft2toDraft3dev1(a, loader, baseuri)
 
         return doc
     except Exception as e:
@@ -165,7 +171,10 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
                                 "expressionLib": [updateScript(sc) for sc in aslist(r["engineConfig"])]
                             })
                             added = True
-                        doc["requirements"] = [rq for rq in doc["requirements"] if rq["class"] != "ExpressionEngineRequirement"]
+                        for i, rq in enumerate(doc["requirements"]):
+                            if rq["class"] == "ExpressionEngineRequirement":
+                                del doc["requirements"][i]
+                                break
                         break
             else:
                 doc["requirements"] = []
@@ -173,7 +182,8 @@ def _draftDraft3dev1toDev2(doc, loader, baseuri):
                 doc["requirements"].append({"class":"InlineJavascriptRequirement"})
 
     elif isinstance(doc, list):
-        return [_draftDraft3dev1toDev2(a, loader, baseuri) for a in doc]
+        for i, a in enumerate(doc):
+            doc[i] = _draftDraft3dev1toDev2(a, loader, baseuri)
 
     return doc
 
@@ -213,7 +223,8 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                 doc[a] = _draftDraft3dev2toDev3(doc[a], loader, baseuri)
 
         if isinstance(doc, list):
-            return [_draftDraft3dev2toDev3(a, loader, baseuri) for a in doc]
+            for i, a in enumerate(doc):
+                doc[i] = _draftDraft3dev2toDev3(a, loader, baseuri)
 
         return doc
     except Exception as e:
@@ -269,7 +280,8 @@ def _draftDraft3dev3toDev4(doc, loader, baseuri):
                 doc[a] = _draftDraft3dev3toDev4(doc[a], loader, baseuri)
 
         if isinstance(doc, list):
-            return [_draftDraft3dev3toDev4(a, loader, baseuri) for a in doc]
+            for i, a in enumerate(doc):
+                doc[i] = _draftDraft3dev3toDev4(a, loader, baseuri)
 
         return doc
     except Exception as e:
@@ -303,7 +315,8 @@ def _draftDraft3dev4toDev5(doc, loader, baseuri):
                 doc[a] = _draftDraft3dev4toDev5(doc[a], loader, baseuri)
 
         if isinstance(doc, list):
-            return [_draftDraft3dev4toDev5(a, loader, baseuri) for a in doc]
+            for i, a in enumerate(doc):
+                doc[i] = _draftDraft3dev4toDev5(a, loader, baseuri)
 
         return doc
     except Exception as e:
@@ -351,7 +364,8 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
         for key, value in doc.items():
             doc[key] = _draft3toDraft4dev1(value, loader, baseuri)
     elif isinstance(doc, list):
-        doc = [_draft3toDraft4dev1(item, loader, baseuri) for item in doc]
+        for i, a in enumerate(doc):
+            doc[i] = _draft3toDraft4dev1(a, loader, baseuri)
 
     return doc
 
@@ -370,7 +384,8 @@ def _draft4Dev1toDev2(doc, loader, baseuri):
         for key, value in doc.items():
             doc[key] = _draft4Dev1toDev2(value, loader, baseuri)
     elif isinstance(doc, list):
-        doc = [_draft4Dev1toDev2(item, loader, baseuri) for item in doc]
+        for i, a in enumerate(doc):
+            doc[i] = _draft4Dev1toDev2(a, loader, baseuri)
 
     return doc
 
@@ -403,7 +418,8 @@ def _draft4Dev2toDev3(doc, loader, baseuri):
         for key, value in doc.items():
             doc[key] = _draft4Dev2toDev3(value, loader, baseuri)
     elif isinstance(doc, list):
-        doc = [_draft4Dev2toDev3(item, loader, baseuri) for item in doc]
+        for i, a in enumerate(doc):
+            doc[i] = _draft4Dev2toDev3(a, loader, baseuri)
 
     return doc
 
@@ -421,7 +437,8 @@ def _draft4Dev3to1_0dev4(doc, loader, baseuri):
         for key, value in doc.items():
             doc[key] = _draft4Dev3to1_0dev4(value, loader, baseuri)
     elif isinstance(doc, list):
-        doc = [_draft4Dev3to1_0dev4(item, loader, baseuri) for item in doc]
+        for i, a in enumerate(doc):
+            doc[i] = _draft4Dev3to1_0dev4(a, loader, baseuri)
     return doc
 
 def draft4Dev3to1_0dev4(doc, loader, baseuri):
@@ -471,17 +488,24 @@ def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, doc["cwlVersion"])
 
 def checkversion(doc, metadata, enable_dev):
-    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Dict[Text, Any], bool) -> Tuple[Dict[Text, Any], Text]  # pylint: disable=line-too-long
+    # type: (Union[CommentedSeq, CommentedMap], CommentedMap, bool) -> Tuple[Dict[Text, Any], Text]  # pylint: disable=line-too-long
     """Checks the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
     """
-    if isinstance(doc, list):
-        metadata = metadata.copy()
+
+    cdoc = None  # type: CommentedMap
+    if isinstance(doc, CommentedSeq):
+        lc = metadata.lc
+        metadata = copy.copy(metadata)
+        metadata.lc.data = copy.copy(lc.data)
+        metadata.lc.filename = lc.filename
         metadata[u"$graph"] = doc
         cdoc = metadata
-    else:
+    elif isinstance(doc, CommentedMap):
         cdoc = doc
+    else:
+        raise Exception("Expected CommentedMap or CommentedSeq")
 
     version = cdoc[u"cwlVersion"]
 
@@ -503,7 +527,7 @@ def checkversion(doc, metadata, enable_dev):
     return (cdoc, version)
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Loader, Text, bool, Any) -> Dict[Text, Any]
+    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> dict
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
 

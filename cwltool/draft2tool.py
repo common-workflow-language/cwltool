@@ -25,6 +25,8 @@ from .pathmapper import PathMapper
 from .job import CommandLineJob
 from .stdfsaccess import StdFsAccess
 
+from schema_salad.sourceline import SourceLine, indent
+
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ a-zA-Z0-9._+-]+$")  # with spaces
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
@@ -159,11 +161,7 @@ class CommandLineTool(Process):
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        try:
-            return PathMapper(reffiles, kwargs["basedir"], stagedir)
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                raise WorkflowException(u"Missing input file %s" % e)
+        return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
     def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[Text, Text], Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
@@ -286,18 +284,21 @@ class CommandLineTool(Process):
         adjustDirObjs(builder.bindings, _check_adjust)
 
         if self.tool.get("stdin"):
-            j.stdin = builder.do_eval(self.tool["stdin"])
-            reffiles.append({"class": "File", "path": j.stdin})
+            with SourceLine(self.tool, "stdin", validate.ValidationException):
+                j.stdin = builder.do_eval(self.tool["stdin"])
+                reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
-            j.stderr = builder.do_eval(self.tool["stderr"])
-            if os.path.isabs(j.stderr) or ".." in j.stderr:
-                raise validate.ValidationException("stderr must be a relative path")
+            with SourceLine(self.tool, "stderr", validate.ValidationException):
+                j.stderr = builder.do_eval(self.tool["stderr"])
+                if os.path.isabs(j.stderr) or ".." in j.stderr:
+                    raise validate.ValidationException("stderr must be a relative path, got '%s'" % j.stderr)
 
         if self.tool.get("stdout"):
-            j.stdout = builder.do_eval(self.tool["stdout"])
-            if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                raise validate.ValidationException("stdout must be a relative path")
+            with SourceLine(self.tool, "stdout", validate.ValidationException):
+                j.stdout = builder.do_eval(self.tool["stdout"])
+                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
+                    raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
 
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
@@ -389,17 +390,18 @@ class CommandLineTool(Process):
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
             else:
-                for port in ports:
-                    fragment = shortname(port["id"])
-                    try:
-                        ret[fragment] = self.collect_output(port, builder, outdir, fs_access, compute_checksum=compute_checksum)
-                    except Exception as e:
-                        _logger.debug(
-                            u"Error collecting output for parameter '%s'"
-                            % shortname(port["id"]), exc_info=True)
-                        raise WorkflowException(
-                            u"Error collecting output for parameter '%s': %s"
-                            % (shortname(port["id"]), e))
+                for i, port in enumerate(ports):
+                    with SourceLine(ports, i, WorkflowException):
+                        fragment = shortname(port["id"])
+                        try:
+                            ret[fragment] = self.collect_output(port, builder, outdir, fs_access, compute_checksum=compute_checksum)
+                        except Exception as e:
+                            _logger.debug(
+                                u"Error collecting output for parameter '%s'"
+                                % shortname(port["id"]), exc_info=True)
+                            raise WorkflowException(
+                                u"Error collecting output for parameter '%s':\n%s"
+                                % (shortname(port["id"]), indent(unicode(e))))
 
             if ret:
                 adjustFileObjs(ret,
@@ -427,24 +429,25 @@ class CommandLineTool(Process):
             revmap = partial(revmap_file, builder, outdir)
 
             if "glob" in binding:
-                for gb in aslist(binding["glob"]):
-                    gb = builder.do_eval(gb)
-                    if gb:
-                        globpatterns.extend(aslist(gb))
+                with SourceLine(binding, "glob", WorkflowException):
+                    for gb in aslist(binding["glob"]):
+                        gb = builder.do_eval(gb)
+                        if gb:
+                            globpatterns.extend(aslist(gb))
 
-                for gb in globpatterns:
-                    if gb.startswith(outdir):
-                        gb = gb[len(outdir)+1:]
-                    elif gb == ".":
-                        gb = outdir
-                    elif gb.startswith("/"):
-                        raise WorkflowException("glob patterns must not start with '/'")
-                    try:
-                        r.extend([{"location": g,
-                                   "class": "File" if fs_access.isfile(g) else "Directory"}
-                                  for g in fs_access.glob(fs_access.join(outdir, gb))])
-                    except (OSError, IOError) as e:
-                        _logger.warn(Text(e))
+                    for gb in globpatterns:
+                        if gb.startswith(outdir):
+                            gb = gb[len(outdir)+1:]
+                        elif gb == ".":
+                            gb = outdir
+                        elif gb.startswith("/"):
+                            raise WorkflowException("glob patterns must not start with '/'")
+                        try:
+                            r.extend([{"location": g,
+                                       "class": "File" if fs_access.isfile(g) else "Directory"}
+                                      for g in fs_access.glob(fs_access.join(outdir, gb))])
+                        except (OSError, IOError) as e:
+                            _logger.warn(Text(e))
 
                 for files in r:
                     if files["class"] == "Directory" and "listing" not in files:
@@ -479,11 +482,13 @@ class CommandLineTool(Process):
                 single = True
 
             if "outputEval" in binding:
-                r = builder.do_eval(binding["outputEval"], context=r)
+                with SourceLine(binding, "outputEval", WorkflowException):
+                    r = builder.do_eval(binding["outputEval"], context=r)
 
             if single:
                 if not r and not optional:
-                    raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
+                    with SourceLine(binding, "glob", WorkflowException):
+                        raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
                     pass
                 elif isinstance(r, list):
@@ -498,20 +503,21 @@ class CommandLineTool(Process):
                 Callable[[Any], Any], revmap))
 
             if "secondaryFiles" in schema:
-                for primary in aslist(r):
-                    if isinstance(primary, dict):
-                        primary["secondaryFiles"] = []
-                        for sf in aslist(schema["secondaryFiles"]):
-                            if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                                sfpath = builder.do_eval(sf, context=primary)
-                                if isinstance(sfpath, basestring):
-                                    sfpath = revmap({"location": sfpath, "class": "File"})
-                            else:
-                                sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
+                with SourceLine(schema, "secondaryFiles", WorkflowException):
+                    for primary in aslist(r):
+                        if isinstance(primary, dict):
+                            primary["secondaryFiles"] = []
+                            for sf in aslist(schema["secondaryFiles"]):
+                                if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                                    sfpath = builder.do_eval(sf, context=primary)
+                                    if isinstance(sfpath, basestring):
+                                        sfpath = revmap({"location": sfpath, "class": "File"})
+                                else:
+                                    sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
 
-                            for sfitem in aslist(sfpath):
-                                if fs_access.exists(sfitem["location"]):
-                                    primary["secondaryFiles"].append(sfitem)
+                                for sfitem in aslist(sfpath):
+                                    if fs_access.exists(sfitem["location"]):
+                                        primary["secondaryFiles"].append(sfitem)
 
             if not r and optional:
                 r = None

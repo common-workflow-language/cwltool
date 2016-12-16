@@ -73,7 +73,7 @@ def new_js_proc():
     return nodejs
 
 
-def execjs(js, jslib, timeout=None):  # type: (Union[Mapping, Text], Any, int) -> JSON
+def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
 
     if not hasattr(localdata, "proc") or localdata.proc.poll() is not None:
         localdata.proc = new_js_proc()
@@ -128,13 +128,29 @@ def execjs(js, jslib, timeout=None):  # type: (Union[Mapping, Text], Any, int) -
     stderrdata = stderr_buf.getvalue()
 
     def fn_linenum():  # type: () -> Text
-        return u"\n".join(u"%04i %s" % (i+1, b) for i, b in enumerate(fn.split("\n")))
+        lines = fn.splitlines()
+        ofs = 0
+        maxlines = 99
+        if len(lines) > maxlines:
+            ofs = len(lines)-maxlines
+            lines = lines[-maxlines:]
+        return u"\n".join(u"%02i %s" % (i+ofs+1, b) for i, b in enumerate(lines))
+
+    def stdfmt(data):  # type: (unicode) -> unicode
+        if "\n" in data:
+            return "\n" + data.strip()
+        return data
+
+    if debug:
+        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" % (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
+    else:
+        info = stdfmt(stderrdata)
 
     if nodejs.poll() not in (None, 0):
         if killed:
-            raise JavascriptException(u"Long-running script killed after %s seconds.\nscript was:\n%s\n" % (timeout, fn_linenum()))
+            raise JavascriptException(u"Long-running script killed after %s seconds: %s" % (timeout, info))
         else:
-            raise JavascriptException(u"Returncode was: %s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" % (nodejs.returncode, fn_linenum(), stdoutdata, stderrdata))
+            raise JavascriptException(info)
     else:
         try:
             return json.loads(stdoutdata)
