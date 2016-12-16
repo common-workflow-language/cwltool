@@ -1,8 +1,8 @@
-requests
-ruamel.yaml == 0.12.4
-rdflib >= 4.1.0
-rdflib-jsonld >= 0.3.0
-shellescape
-schema-salad==2.0.20161122040508
-typing>=3.5.2
+requests>=1.0
+ruamel.yaml==0.12.4
+rdflib==4.2.1
+rdflib-jsonld==0.4.0
+shellescape==3.4.1
+schema-salad>=2.1.20161216194253
 cwltest>=1.0.20160907111242
+typing==3.5.2.2 ; python_version>="2.7"

@@ -14,10 +14,11 @@ import pkg_resources  # part of setuptools
 import functools
 
 import rdflib
+import requests
 from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
     Tuple, Type, IO)
 
-from schema_salad.ref_resolver import Loader
+from schema_salad.ref_resolver import Loader, Fetcher
 import schema_salad.validate as validate
 import schema_salad.jsonld_context
 import schema_salad.makedoc
@@ -203,7 +204,7 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     output_dirs = set()
     finaloutdir = kwargs.get("outdir")
-    kwargs["outdir"] = tempfile.mkdtemp()
+    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get("tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
 
     jobReqs = None
@@ -389,8 +390,8 @@ def generate_parser(toolparser, tool, namemap, records):
 
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
-                   stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Type[StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+                   stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     job_order_object = None
 
@@ -400,7 +401,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         u"format": {u"@type": u"@id"},
         u"id": u"@id"}
     jobloaderctx.update(t.metadata.get("$namespaces", {}))
-    loader = Loader(jobloaderctx)
+    loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
@@ -453,7 +454,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
             job_order_object.update({namemap[k]: v for k,v in cmd_line.items()})
 
-            _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
@@ -509,7 +511,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             "location": uri}  # type: Dict[Text, Any]
 
     def loadref(b, u):
-        return document_loader.fetch(urlparse.urljoin(b, u))
+        return document_loader.fetch(document_loader.fetcher.urljoin(b, u))
 
     sf = scandeps(
         basedir if basedir else uri, obj, set(("$import", "run")),
@@ -547,18 +549,21 @@ def versionstring():
         return u"%s %s" % (sys.argv[0], "unknown version")
 
 
-def main(argsl=None,
-         args=None,
-         executor=single_job_executor,
-         makeTool=workflow.defaultMakeTool,
-         selectResources=None,
-         stdin=sys.stdin,
-         stdout=sys.stdout,
-         stderr=sys.stderr,
-         versionfunc=versionstring,
-         job_order_object=None,
-         make_fs_access=StdFsAccess):
-    # type: (List[str], argparse.Namespace, Callable[..., Union[Text, Dict[Text, Text]]], Callable[..., Process], Callable[[Dict[Text, int]], Dict[Text, int]], IO[Any], IO[Any], IO[Any], Callable[[], Text], Union[int, Tuple[Dict[Text, Any], Text]], Type[StdFsAccess]) -> int
+def main(argsl=None,  # type: List[str]
+         args=None,   # type: argparse.Namespace
+         executor=single_job_executor,  # type: Callable[..., Union[Text, Dict[Text, Text]]]
+         makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
+         selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
+         stdin=sys.stdin,  # type: IO[Any]
+         stdout=sys.stdout,  # type: IO[Any]
+         stderr=sys.stderr,  # type: IO[Any]
+         versionfunc=versionstring,  # type: Callable[[], Text]
+         job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
+         make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
+         fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+         resolver=tool_resolver
+         ):
+    # type: (...) -> int
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logging.StreamHandler(stderr)
@@ -619,7 +624,7 @@ def main(argsl=None,
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
 
         try:
-            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=tool_resolver)
+            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver, fetcher_constructor=fetcher_constructor)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -628,7 +633,8 @@ def main(argsl=None,
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
-                                    preprocess_only=args.print_pre or args.pack)
+                                    preprocess_only=args.print_pre or args.pack,
+                                    fetcher_constructor=fetcher_constructor)
 
             if args.validate:
                 return 0
@@ -671,39 +677,35 @@ def main(argsl=None,
         if isinstance(tool, int):
             return tool
 
-        if args.tmp_outdir_prefix != 'tmp':
-            # Use user defined temp directory (if it exists)
-            setattr(args, 'tmp_outdir_prefix',
-                    os.path.abspath(args.tmp_outdir_prefix))
-            if not os.path.exists(args.tmp_outdir_prefix):
-                _logger.error("Intermediate output directory prefix doesn't exist.")
-                return 1
+        for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
+            if getattr(args, dirprefix) and getattr(args, dirprefix) != 'tmp':
+                sl = "/" if getattr(args, dirprefix).endswith("/") or dirprefix == "cachedir" else ""
+                setattr(args, dirprefix,
+                        os.path.abspath(getattr(args, dirprefix))+sl)
+                if not os.path.exists(os.path.dirname(getattr(args, dirprefix))):
+                    try:
+                        os.makedirs(os.path.dirname(getattr(args, dirprefix)))
+                    except Exception as e:
+                        _logger.error("Failed to create directory: %s", e)
+                        return 1
 
-        if args.tmpdir_prefix != 'tmp':
-            # Use user defined prefix (if the folder exists)
-            setattr(args, 'tmpdir_prefix', os.path.abspath(args.tmpdir_prefix))
-            if not os.path.exists(args.tmpdir_prefix):
-                _logger.error("Temporary directory prefix doesn't exist.")
-                return 1
+        if args.cachedir:
+            if args.move_outputs == "move":
+                setattr(args, 'move_outputs', "copy")
+            setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         if job_order_object is None:
             job_order_object = load_job_order(args, tool, stdin,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
-                                              make_fs_access=make_fs_access)
+                                              make_fs_access=make_fs_access,
+                                              fetcher_constructor=fetcher_constructor)
 
         if isinstance(job_order_object, int):
             return job_order_object
 
-        if args.cachedir:
-            setattr(args, 'cachedir', os.path.abspath(args.cachedir))
-            if args.move_outputs == "move":
-                setattr(args, 'move_outputs', "copy")
-
         try:
-            setattr(args, 'tmp_outdir_prefix',
-                    args.cachedir if args.cachedir else args.tmp_outdir_prefix)
             setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
