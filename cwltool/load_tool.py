@@ -6,10 +6,7 @@ import uuid
 import logging
 import re
 import urlparse
-try:
-    import pathlib  # type: ignore
-except:
-    import pathlib2 as pathlib  # type: ignore
+import pathlib2
 
 from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
@@ -47,7 +44,7 @@ def fetch_document(argsworkflow,   # type: Union[Text, dict[Text, Any]]
         if split.scheme:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
-            uri = pathlib.Path(os.path.abspath(argsworkflow)).as_uri()
+            uri = pathlib2.Path(os.path.abspath(argsworkflow)).as_uri()
         elif resolver:
             uri = resolver(document_loader, argsworkflow)
 
