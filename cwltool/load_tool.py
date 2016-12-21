@@ -7,9 +7,9 @@ import logging
 import re
 import urlparse
 try:
-    import pathlib
+    import pathlib  # type: ignore
 except:
-    import pathlib2 as pathlib
+    import pathlib2 as pathlib  # type: ignore
 
 from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
