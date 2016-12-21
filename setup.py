@@ -49,7 +49,9 @@ setup(name='cwltool',
           'shellescape >= 3.4.1, < 3.5',
           'schema-salad >= 2.1.20161216210732, < 3',
           'typing >= 3.5.2, < 3.6',
-          'cwltest >= 1.0.20160907111242'],
+          'cwltest >= 1.0.20160907111242',
+          'pathlib2 >= 2.1.0'
+      ],
       test_suite='tests',
       tests_require=[],
       entry_points={

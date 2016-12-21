@@ -3,6 +3,7 @@ import logging
 import stat
 import collections
 import uuid
+import urllib
 import urlparse
 from functools import partial
 from typing import Any, Callable, Set, Text, Tuple, Union
@@ -72,7 +73,7 @@ def normalizeFilesDirs(job):
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
-        ab = src[7:]
+        ab = urllib.url2pathname(urlparse.urlparse(src).path)
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
