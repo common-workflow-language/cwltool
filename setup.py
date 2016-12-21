@@ -51,7 +51,7 @@ setup(name='cwltool',
           'typing >= 3.5.2, < 3.6',
           'cwltest >= 1.0.20160907111242',
           'pathlib2 >= 2.1.0'
-          ],
+      ],
       test_suite='tests',
       tests_require=[],
       entry_points={
