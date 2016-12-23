@@ -561,12 +561,16 @@ def main(argsl=None,  # type: List[str]
          job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
          fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
-         resolver=tool_resolver
+         resolver=tool_resolver,
+         logger_handler=None
          ):
     # type: (...) -> int
 
     _logger.removeHandler(defaultStreamHandler)
-    stderr_handler = logging.StreamHandler(stderr)
+    if logger_handler:
+        stderr_handler = logger_handler
+    else:
+        stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
     try:
         if args is None:
@@ -598,7 +602,8 @@ def main(argsl=None,  # type: List[str]
                     'job_order': None,
                     'pack': False,
                     'on_error': 'continue',
-                    'relax_path_checks': False}.iteritems():
+                    'relax_path_checks': False,
+                    'validate': False}.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
