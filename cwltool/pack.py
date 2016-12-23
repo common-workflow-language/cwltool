@@ -2,6 +2,7 @@ import copy
 import json
 
 from schema_salad.ref_resolver import Loader
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .process import scandeps, shortname
 
@@ -42,6 +43,26 @@ def replace_refs(d, rewrite, stem, newstem):
                 d[s] = newstem + v[len(stem):]
             replace_refs(v, rewrite, stem, newstem)
 
+def yamlcopy(d):
+    if isinstance(d, CommentedMap):
+        cm = CommentedMap()
+        for k,v in d.iteritems():
+            cm[k] = yamlcopy(v)
+        cm.__dict__ = copy.deepcopy(d.__dict__)
+        return cm
+    elif isinstance(d, CommentedSeq):
+        cs = CommentedSeq()
+        for v in d:
+            cs.append(yamlcopy(v))
+        cs.__dict__ = copy.deepcopy(d.__dict__)
+        return cs
+    elif isinstance(d, dict):
+        return {k: yamlcopy(v) for k,v in d.iteritems()}
+    elif isinstance(d, list):
+        return [yamlcopy(v) for v in d]
+    else:
+        return d
+
 def pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
     def loadref(b, u):
@@ -71,7 +92,7 @@ def pack(document_loader, processobj, uri, metadata):
 
     for r in sorted(rewrite.keys()):
         v = rewrite[r]
-        dc = cast(Dict[Text, Any], copy.deepcopy(document_loader.idx[r]))
+        dc = cast(Dict[Text, Any], yamlcopy(document_loader.idx[r]))
         dc["id"] = v
         for n in ("name", "cwlVersion"):
             if n in dc:
