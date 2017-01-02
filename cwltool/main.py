@@ -167,7 +167,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--on-error", type=Text,
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
-                        "Default is 'stop.", default="stop")
+                        "Default is 'stop'.", default="stop", choices=("stop", "continue"))
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--compute-checksum", action="store_true", default=True,
