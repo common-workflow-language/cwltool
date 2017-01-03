@@ -314,7 +314,7 @@ class CommandLineJob(object):
         if processStatus != "success":
             _logger.warn(u"[job %s] completed %s", self.name, processStatus)
         else:
-            _logger.debug(u"[job %s] completed %s", self.name, processStatus)
+            _logger.info(u"[job %s] completed %s", self.name, processStatus)
 
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))

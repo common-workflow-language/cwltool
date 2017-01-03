@@ -165,7 +165,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Will be passed to `docker run` as the '--net' "
                         "parameter. Implies '--enable-net'.")
 
-    parser.add_argument("--on-error", type=Text,
+    parser.add_argument("--on-error", type=str,
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
                         "Default is 'stop'.", default="stop", choices=("stop", "continue"))
 
@@ -193,10 +193,6 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     def output_callback(out, processStatus):
         final_status.append(processStatus)
-        if processStatus == "success":
-            _logger.info(u"Final process status is %s", processStatus)
-        else:
-            _logger.warn(u"Final process status is %s", processStatus)
         final_output.append(out)
 
     if "basedir" not in kwargs:
@@ -223,30 +219,30 @@ def single_job_executor(t, job_order_object, **kwargs):
 
     try:
         for r in jobiter:
-            if r.outdir:
-                output_dirs.add(r.outdir)
-
             if r:
+                if r.outdir:
+                    output_dirs.add(r.outdir)
                 r.run(**kwargs)
             else:
-                raise WorkflowException("Workflow cannot make any more progress.")
+                _logger.error("Workflow cannot make any more progress.")
+                break
     except WorkflowException:
         raise
     except Exception as e:
         _logger.exception("Got workflow error")
         raise WorkflowException(Text(e))
 
-    if final_status[0] != "success":
-        raise WorkflowException(u"Process status is %s" % (final_status))
-
-    if final_output[0] and finaloutdir:
+    if final_output and final_output[0] and finaloutdir:
         final_output[0] = relocateOutputs(final_output[0], finaloutdir,
                                           output_dirs, kwargs.get("move_outputs"))
 
     if kwargs.get("rm_tmpdir"):
         cleanIntermediate(output_dirs)
 
-    return final_output[0]
+    if final_output and final_status:
+        return (final_output[0], final_status[0])
+    else:
+        return (None, "permanentFail")
 
 class FSAction(argparse.Action):
     objclass = None  # type: Text
@@ -714,7 +710,7 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
-            out = executor(tool, job_order_object[0],
+            (out, status) = executor(tool, job_order_object[0],
                            makeTool=makeTool,
                            select_resources=selectResources,
                            make_fs_access=make_fs_access,
@@ -735,8 +731,14 @@ def main(argsl=None,  # type: List[str]
                     stdout.write(json.dumps(out, indent=4))
                 stdout.write("\n")
                 stdout.flush()
-            else:
+
+            if status != "success":
+                _logger.warn(u"Final process status is %s", status)
                 return 1
+            else:
+                _logger.info(u"Final process status is %s", status)
+                return 0
+
         except (validate.ValidationException) as exc:
             _logger.error(u"Input object failed validation:\n%s", exc,
                     exc_info=args.debug)

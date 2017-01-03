@@ -225,6 +225,7 @@ class WorkflowJob(object):
 
     def receive_output(self, step, outputparms, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
+
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -240,9 +241,9 @@ class WorkflowJob(object):
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            _logger.warn(u"[%s] completion status is %s", step.name, processStatus)
+            _logger.warn(u"[%s] completed %s", step.name, processStatus)
         else:
-            _logger.info(u"[%s] completion status is %s", step.name, processStatus)
+            _logger.info(u"[%s] completed %s", step.name, processStatus)
 
         step.completed = True
 
@@ -606,7 +607,8 @@ class ReceiveScatterOutput(object):
 def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
-        for step in steps:
+        for index in xrange(len(steps)):
+            step = steps[index]
             if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
                 break
             try:
@@ -621,7 +623,7 @@ def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatter
             except WorkflowException as e:
                 _logger.error(u"Cannot make scatter job: %s", e)
                 _logger.debug("", exc_info=True)
-                rc.processStatus = "permanentFail"
+                rc.receive_scatter_output(index, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
             yield None
 
