@@ -7,6 +7,12 @@ from typing import Any, Text, Union
 from typing import Callable as tCallable
 import argparse
 
+class WorkflowStatus(Exception):
+    def __init__(self, out, status):
+        super(WorkflowStatus, self).__init__("Completed %s" % status)
+        self.out = out
+        self.status = status
+
 class Callable(object):
     def __init__(self, t, factory):  # type: (Process, Factory) -> None
         self.t = t
@@ -16,7 +22,11 @@ class Callable(object):
         # type: (**Any) -> Union[Text, Dict[Text, Text]]
         execkwargs = self.factory.execkwargs.copy()
         execkwargs["basedir"] = os.getcwd()
-        return self.factory.executor(self.t, kwargs, **execkwargs)
+        out, status = self.factory.executor(self.t, kwargs, **execkwargs)
+        if status != "success":
+            raise WorkflowStatus(out, status)
+        else:
+            return out
 
 class Factory(object):
     def __init__(self, makeTool=workflow.defaultMakeTool,
