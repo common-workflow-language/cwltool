@@ -3,12 +3,13 @@ from . import load_tool
 from . import workflow
 import os
 from .process import Process
-from typing import Any, Text, Union
+from typing import Any, Text, Union, Tuple
 from typing import Callable as tCallable
 import argparse
 
 class WorkflowStatus(Exception):
     def __init__(self, out, status):
+        # type: (Dict[Text,Any], Text) -> None
         super(WorkflowStatus, self).__init__("Completed %s" % status)
         self.out = out
         self.status = status
@@ -32,7 +33,7 @@ class Factory(object):
     def __init__(self, makeTool=workflow.defaultMakeTool,
                  executor=main.single_job_executor,
                  **execkwargs):
-        # type: (tCallable[[Dict[Text, Any], Any], Process],tCallable[...,Union[Text,Dict[Text,Text]]], **Any) -> None
+        # type: (tCallable[[Dict[Text, Any], Any], Process],tCallable[...,Tuple[Dict[Text,Any], Text]], **Any) -> None
         self.makeTool = makeTool
         self.executor = executor
         self.execkwargs = execkwargs

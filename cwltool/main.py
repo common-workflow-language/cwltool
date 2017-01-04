@@ -187,7 +187,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
 
 def single_job_executor(t, job_order_object, **kwargs):
-    # type: (Process, Dict[Text, Any], **Any) -> Union[Text, Dict[Text, Text]]
+    # type: (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
     final_output = []
     final_status = []
 
@@ -547,7 +547,7 @@ def versionstring():
 
 def main(argsl=None,  # type: List[str]
          args=None,   # type: argparse.Namespace
-         executor=single_job_executor,  # type: Callable[..., Union[Text, Dict[Text, Text]]]
+         executor=single_job_executor,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
          makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
          selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,  # type: IO[Any]
