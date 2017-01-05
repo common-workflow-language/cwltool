@@ -141,8 +141,8 @@ def _compare_records(src, sink):
             return False
     return True
 
-def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField):
-    # type: (Dict[Text, WorkflowStateItem], List[Dict[Text, Any]], bool, bool, Text) -> Dict[Text, Any]
+def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField, incomplete=False):
+    # type: (Dict[Text, WorkflowStateItem], List[Dict[Text, Any]], bool, bool, Text, bool) -> Dict[Text, Any]
     inputobj = {}  # type: Dict[Text, Any]
     for inp in parms:
         iid = inp["id"]
@@ -172,7 +172,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
                     raise WorkflowException(
                         u"Connect source '%s' on parameter '%s' does not "
                         "exist" % (src, inp["id"]))
-                else:
+                elif not incomplete:
                     return None
         elif "default" in inp:
             inputobj[iid] = inp["default"]
@@ -225,12 +225,13 @@ class WorkflowJob(object):
 
     def receive_output(self, step, outputparms, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
+
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
                     self.state[i["id"]] = WorkflowStateItem(i, jobout[i["id"]])
                 else:
-                    _logger.error(u"Output is missing expected field %s" % i["id"])
+                    _logger.error(u"[%s] Output is missing expected field %s", step.name, i["id"])
                     processStatus = "permanentFail"
 
         if _logger.isEnabledFor(logging.DEBUG):
@@ -240,9 +241,9 @@ class WorkflowJob(object):
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            _logger.warn(u"[%s] completion status is %s", step.name, processStatus)
+            _logger.warn(u"[%s] completed %s", step.name, processStatus)
         else:
-            _logger.info(u"[%s] completion status is %s", step.name, processStatus)
+            _logger.info(u"[%s] completed %s", step.name, processStatus)
 
         step.completed = True
 
@@ -363,7 +364,7 @@ class WorkflowJob(object):
                 self.state[out["id"]] = None
 
         completed = 0
-        while completed < len(self.steps) and self.processStatus == "success":
+        while completed < len(self.steps):
             made_progress = False
 
             for step in self.steps:
@@ -371,29 +372,44 @@ class WorkflowJob(object):
                     break
 
                 if not step.submitted:
-                    step.iterable = self.try_make_job(step, **kwargs)
+                    try:
+                        step.iterable = self.try_make_job(step, **kwargs)
+                    except WorkflowException as e:
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, e)
+                        _logger.debug("", exc_info=True)
+                        self.processStatus = "permanentFail"
 
                 if step.iterable:
-                    for newjob in step.iterable:
-                        if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
-                            break
-                        if newjob:
-                            made_progress = True
-                            yield newjob
-                        else:
-                            break
+                    try:
+                        for newjob in step.iterable:
+                            if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
+                                break
+                            if newjob:
+                                made_progress = True
+                                yield newjob
+                            else:
+                                break
+                    except WorkflowException as e:
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, e)
+                        _logger.debug("", exc_info=True)
+                        self.processStatus = "permanentFail"
 
             completed = sum(1 for s in self.steps if s.completed)
 
             if not made_progress and completed < len(self.steps):
-                yield None
+                if self.processStatus != "success":
+                    break
+                else:
+                    yield None
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
-        wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource")
-
-        if wo is None:
-            raise WorkflowException("Output for workflow not available")
+        try:
+            wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource", incomplete=True)
+        except WorkflowException as e:
+            _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
+            wo = {}
+            self.processStatus = "permanentFail"
 
         _logger.info(u"[%s] outdir is %s", self.name, self.outdir)
 
@@ -591,17 +607,23 @@ class ReceiveScatterOutput(object):
 def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
-        for step in steps:
+        for index in xrange(len(steps)):
+            step = steps[index]
             if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
                 break
-            for j in step:
-                if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
-                    break
-                if j:
-                    made_progress = True
-                    yield j
-                else:
-                    break
+            try:
+                for j in step:
+                    if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
+                        break
+                    if j:
+                        made_progress = True
+                        yield j
+                    else:
+                        break
+            except WorkflowException as e:
+                _logger.error(u"Cannot make scatter job: %s", e)
+                _logger.debug("", exc_info=True)
+                rc.receive_scatter_output(index, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
             yield None
 

@@ -117,6 +117,29 @@ class TestFactory(unittest.TestCase):
         echo = f.make("tests/echo.cwl")
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
+    def test_partial_scatter(self):
+        f = cwltool.factory.Factory(on_error="continue")
+        fail = f.make("tests/wf/scatterfail.cwl")
+        try:
+            fail()
+        except cwltool.factory.WorkflowStatus as e:
+            self.assertEquals('sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e', e.out["out"][0]["checksum"])
+            self.assertIsNone(e.out["out"][1])
+            self.assertEquals('sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436', e.out["out"][2]["checksum"])
+        else:
+            self.fail("Should have raised WorkflowStatus")
+
+    def test_partial_output(self):
+        f = cwltool.factory.Factory(on_error="continue")
+        fail = f.make("tests/wf/wffail.cwl")
+        try:
+            fail()
+        except cwltool.factory.WorkflowStatus as e:
+            self.assertEquals('sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e', e.out["out1"]["checksum"])
+            self.assertNotIn("out2", e.out)
+        else:
+            self.fail("Should have raised WorkflowStatus")
+
 class TestScanDeps(unittest.TestCase):
     def test_scandeps(self):
         obj = {
