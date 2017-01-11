@@ -6,15 +6,13 @@ import uuid
 import logging
 import re
 import urlparse
-import pathlib2
 
 from typing import Any, AnyStr, Callable, cast, Dict, Text, Tuple, Union
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 from avro.schema import Names
 import requests.sessions
 
-
-from schema_salad.ref_resolver import Loader, Fetcher
+from schema_salad.ref_resolver import Loader, Fetcher, file_uri
 import schema_salad.validate as validate
 from schema_salad.validate import ValidationException
 import schema_salad.schema as schema
@@ -44,7 +42,7 @@ def fetch_document(argsworkflow,   # type: Union[Text, dict[Text, Any]]
         if split.scheme:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
-            uri = pathlib2.Path(os.path.abspath(argsworkflow)).as_uri()
+            uri = file_uri(os.path.abspath(argsworkflow))
         elif resolver:
             uri = resolver(document_loader, argsworkflow)
 
