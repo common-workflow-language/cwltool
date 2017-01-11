@@ -144,7 +144,6 @@ class CallbackJob(object):
 def check_adjust(builder, f):
     # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
-    print "XXXXXX", f["path"]
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
         f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
