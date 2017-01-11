@@ -13,6 +13,7 @@ import errno
 
 import avro.schema
 import schema_salad.validate as validate
+from schema_salad.ref_resolver import file_uri, uri_file_path
 import shellescape
 from typing import Any, Callable, cast, Generator, Text, Union
 
@@ -94,11 +95,11 @@ def revmap_file(builder, outdir, f):
 
     split = urlparse.urlsplit(outdir)
     if not split.scheme:
-        outdir = "file://" + outdir
+        outdir = file_uri(str(outdir))
 
     if "location" in f:
         if f["location"].startswith("file://"):
-            path = f["location"][7:]
+            path = uri_file_path(f["location"])
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]

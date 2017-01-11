@@ -2,6 +2,7 @@ from typing import Any, BinaryIO, Text
 from .pathmapper import abspath
 import glob
 import os
+from schema_salad.ref_resolver import file_uri
 
 class StdFsAccess(object):
 
@@ -12,7 +13,7 @@ class StdFsAccess(object):
         return abspath(p, self.basedir)
 
     def glob(self, pattern):  # type: (Text) -> List[Text]
-        return ["file://%s" % self._abs(l) for l in glob.glob(self._abs(pattern))]
+        return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
 
     def open(self, fn, mode):  # type: (Text, Text) -> BinaryIO
         return open(self._abs(fn), mode)

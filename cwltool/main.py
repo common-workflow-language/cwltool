@@ -18,7 +18,7 @@ import requests
 from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
     Tuple, Type, IO)
 
-from schema_salad.ref_resolver import Loader, Fetcher
+from schema_salad.ref_resolver import Loader, Fetcher, file_uri, uri_file_path
 import schema_salad.validate as validate
 import schema_salad.jsonld_context
 import schema_salad.makedoc
@@ -258,7 +258,7 @@ class FSAction(argparse.Action):
         setattr(namespace,
             self.dest,  # type: ignore
             {"class": self.objclass,
-             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
+             "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
 
 class FSAppendAction(argparse.Action):
     objclass = None  # type: Text
@@ -281,7 +281,7 @@ class FSAppendAction(argparse.Action):
                     g)
         g.append(
             {"class": self.objclass,
-             "location": "file://%s" % os.path.abspath(cast(AnyStr, values))})
+             "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
 
 class FileAction(FSAction):
     objclass = "File"
@@ -471,7 +471,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
-                  basedir=u"file://%s/" % input_basedir)
+                  basedir=file_uri(input_basedir+"/"))
         return 0
 
     def pathToLoc(p):
@@ -498,7 +498,7 @@ def makeRelative(base, ob):
         pass
     else:
         if u.startswith("file://"):
-            u = u[7:]
+            u = uri_file_path(u)
         ob["location"] = os.path.relpath(u, base)
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
@@ -519,7 +519,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         if relative_deps == "primary":
             base = basedir if basedir else os.path.dirname(uri)
         elif relative_deps == "cwd":
-            base = "file://" + os.getcwd()
+            base = file_uri(os.getcwd())
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
@@ -720,7 +720,7 @@ def main(argsl=None,  # type: List[str]
             if out is not None:
                 def locToPath(p):
                     if p["location"].startswith("file://"):
-                        p["path"] = p["location"][7:]
+                        p["path"] = uri_file_path(p["location"])
 
                 adjustDirObjs(out, locToPath)
                 adjustFileObjs(out, locToPath)
