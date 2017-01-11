@@ -66,8 +66,8 @@ def pack(document_loader, processobj, uri, metadata):
     else:
         rewrite[uri] = "#main"
 
-    for r in runs:
-        rewrite[r] = "#" + shortname(r)
+    for r in sorted(runs):
+        rewrite[r] = "#" + uniquename(shortname(r))
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
