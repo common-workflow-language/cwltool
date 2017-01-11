@@ -3,7 +3,7 @@ import json
 
 from schema_salad.ref_resolver import Loader
 
-from .process import scandeps, shortname
+from .process import scandeps, shortname, uniquename
 
 from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO, Text
 
@@ -62,7 +62,7 @@ def pack(document_loader, processobj, uri, metadata):
     rewrite = {}
     if isinstance(processobj, list):
         for p in processobj:
-            rewrite[p["id"]] = "#" + shortname(p["id"])
+            rewrite[p["id"]] = "#" + uniquename(shortname(p["id"]))
     else:
         rewrite[uri] = "#main"
 
