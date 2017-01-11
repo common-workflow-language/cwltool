@@ -95,7 +95,7 @@ def revmap_file(builder, outdir, f):
 
     split = urlparse.urlsplit(outdir)
     if not split.scheme:
-        outdir = file_uri(outdir)
+        outdir = file_uri(str(outdir))
 
     if "location" in f:
         if f["location"].startswith("file://"):

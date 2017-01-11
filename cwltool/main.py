@@ -258,7 +258,7 @@ class FSAction(argparse.Action):
         setattr(namespace,
             self.dest,  # type: ignore
             {"class": self.objclass,
-             "location": file_uri(os.path.abspath(cast(AnyStr, values)))})
+             "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
 
 class FSAppendAction(argparse.Action):
     objclass = None  # type: Text
@@ -281,7 +281,7 @@ class FSAppendAction(argparse.Action):
                     g)
         g.append(
             {"class": self.objclass,
-             "location": file_uri(os.path.abspath(cast(AnyStr, values)))})
+             "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
 
 class FileAction(FSAction):
     objclass = "File"

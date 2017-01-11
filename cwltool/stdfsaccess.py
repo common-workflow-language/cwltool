@@ -13,7 +13,7 @@ class StdFsAccess(object):
         return abspath(p, self.basedir)
 
     def glob(self, pattern):  # type: (Text) -> List[Text]
-        return [file_uri(self._abs(l)) for l in glob.glob(self._abs(pattern))]
+        return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
 
     def open(self, fn, mode):  # type: (Text, Text) -> BinaryIO
         return open(self._abs(fn), mode)
