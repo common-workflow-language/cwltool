@@ -6,4 +6,3 @@ shellescape==3.4.1
 schema-salad>=2.1.20161227155225,<3
 cwltest>=1.0.20160907111242
 typing==3.5.2.2 ; python_version>="2.7"
-pathlib2==2.1.0
