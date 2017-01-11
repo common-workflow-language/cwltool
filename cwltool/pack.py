@@ -12,9 +12,12 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         for s in d:
             flatten_deps(s, files)
     elif isinstance(d, dict):
-        files.add(d["location"])
+        if d["class"] == "File":
+            files.add(d["location"])
         if "secondaryFiles" in d:
             flatten_deps(d["secondaryFiles"], files)
+        if "listing" in d:
+            flatten_deps(d["listing"], files)
 
 def find_run(d, runs):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
