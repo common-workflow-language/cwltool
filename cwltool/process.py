@@ -16,7 +16,7 @@ import hashlib
 import abc
 import schema_salad.validate as validate
 import schema_salad.schema
-from schema_salad.ref_resolver import Loader
+from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 import avro.schema
 from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO, Text,
@@ -220,7 +220,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
     stageFiles(pm, moveIt)
 
     def _check_adjust(f):
-        f["location"] = "file://" + pm.mapper(f["location"])[1]
+        f["location"] = file_uri(pm.mapper(f["location"])[1])
         if "contents" in f:
             del f["contents"]
         if f["class"] == "File":

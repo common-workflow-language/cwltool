@@ -9,6 +9,7 @@ from functools import partial
 from typing import Any, Callable, Set, Text, Tuple, Union
 import schema_salad.validate as validate
 from schema_salad.sourceline import SourceLine
+from schema_salad.ref_resolver import uri_file_path
 
 _logger = logging.getLogger("cwltool")
 
@@ -65,7 +66,7 @@ def normalizeFilesDirs(job):
 
         if "basename" not in d:
             parse = urlparse.urlparse(d["location"])
-            d["basename"] = os.path.basename(parse.path)
+            d["basename"] = os.path.basename(urllib.url2pathname(parse.path))
 
     adjustFileObjs(job, addLocation)
     adjustDirObjs(job, addLocation)
@@ -73,7 +74,7 @@ def normalizeFilesDirs(job):
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
-        ab = urllib.url2pathname(urlparse.urlparse(src).path)
+        ab = uri_file_path(src)
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
