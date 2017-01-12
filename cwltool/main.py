@@ -499,7 +499,7 @@ def makeRelative(base, ob):
     else:
         if u.startswith("file://"):
             u = uri_file_path(u)
-        ob["location"] = os.path.relpath(u, base)
+            ob["location"] = os.path.relpath(u, base)
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     # type: (Dict[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
@@ -517,9 +517,9 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
     if relative_deps:
         if relative_deps == "primary":
-            base = basedir if basedir else os.path.dirname(uri)
+            base = basedir if basedir else os.path.dirname(uri_file_path(str(uri)))
         elif relative_deps == "cwd":
-            base = file_uri(os.getcwd())
+            base = os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
