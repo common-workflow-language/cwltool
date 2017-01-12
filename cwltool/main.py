@@ -517,7 +517,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
     if relative_deps:
         if relative_deps == "primary":
-            base = basedir if basedir else os.path.dirname(uri_file_path(uri))
+            base = basedir if basedir else os.path.dirname(uri_file_path(str(uri)))
         elif relative_deps == "cwd":
             base = os.getcwd()
         else:
