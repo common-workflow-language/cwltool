@@ -1,1 +1,1 @@
-include gittaggers.py ez_setup.py Makefile
+include gittaggers.py ez_setup.py Makefile cwltool.py
