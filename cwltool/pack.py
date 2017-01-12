@@ -3,7 +3,7 @@ import json
 
 from schema_salad.ref_resolver import Loader
 
-from .process import scandeps, shortname
+from .process import scandeps, shortname, uniquename
 
 from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO, Text
 
@@ -12,9 +12,12 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         for s in d:
             flatten_deps(s, files)
     elif isinstance(d, dict):
-        files.add(d["location"])
+        if d["class"] == "File":
+            files.add(d["location"])
         if "secondaryFiles" in d:
             flatten_deps(d["secondaryFiles"], files)
+        if "listing" in d:
+            flatten_deps(d["listing"], files)
 
 def find_run(d, runs):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
@@ -59,12 +62,12 @@ def pack(document_loader, processobj, uri, metadata):
     rewrite = {}
     if isinstance(processobj, list):
         for p in processobj:
-            rewrite[p["id"]] = "#" + shortname(p["id"])
+            rewrite[p["id"]] = "#" + uniquename(shortname(p["id"]))
     else:
         rewrite[uri] = "#main"
 
-    for r in runs:
-        rewrite[r] = "#" + shortname(r)
+    for r in sorted(runs):
+        rewrite[r] = "#" + uniquename(shortname(r))
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
