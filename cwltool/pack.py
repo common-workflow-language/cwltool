@@ -59,15 +59,16 @@ def pack(document_loader, processobj, uri, metadata):
     for f in fdeps:
         find_run(document_loader.idx[f], runs)
 
+    names = set()  # type: Set[Text]
     rewrite = {}
     if isinstance(processobj, list):
         for p in processobj:
-            rewrite[p["id"]] = "#" + uniquename(shortname(p["id"]))
+            rewrite[p["id"]] = "#" + uniquename(shortname(p["id"]), names)
     else:
         rewrite[uri] = "#main"
 
     for r in sorted(runs):
-        rewrite[r] = "#" + uniquename(shortname(r))
+        rewrite[r] = "#" + uniquename(shortname(r), names)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]

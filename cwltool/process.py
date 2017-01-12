@@ -610,14 +610,16 @@ def empty_subtree(dirpath):  # type: (Text) -> bool
 
 _names = set()  # type: Set[Text]
 
-
-def uniquename(stem):  # type: (Text) -> Text
+def uniquename(stem, names=None):  # type: (Text, Set[Text]) -> Text
+    global _names
+    if names is None:
+        names = _names
     c = 1
     u = stem
-    while u in _names:
+    while u in names:
         c += 1
         u = u"%s_%s" % (stem, c)
-    _names.add(u)
+    names.add(u)
     return u
 
 def nestdir(base, deps):
