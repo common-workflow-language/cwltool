@@ -48,8 +48,7 @@ setup(name='cwltool',
           'rdflib >= 4.2.0, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
           'schema-salad >= 2.2.20170111180227, < 3',
-          'typing >= 3.5.2, < 3.6',
-          'cwltest >= 1.0.20161227194859'
+          'typing >= 3.5.2, < 3.6'
       ],
       test_suite='tests',
       tests_require=[],
