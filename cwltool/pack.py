@@ -1,5 +1,5 @@
 import copy
-import json
+import urlparse
 
 from schema_salad.ref_resolver import Loader
 
@@ -19,30 +19,35 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
-def find_run(d, runs):  # type: (Any, Set[Text]) -> None
+def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
-            find_run(s, runs)
+            find_ids(s, ids)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], (str, unicode)):
-            runs.add(d["run"])
+        for i in ("id", "name"):
+            if i in d and  isinstance(d[i], (str, unicode)):
+                ids.add(d[i])
         for s in d.values():
-            find_run(s, runs)
+            find_ids(s, ids)
 
 def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s,v in enumerate(d):
-            if isinstance(v, (str, unicode)) and v.startswith(stem):
-                d[s] = newstem + v[len(stem):]
+            if isinstance(v, (str, unicode)):
+                if v in rewrite:
+                    d[s] = rewrite[v]
+                elif v.startswith(stem):
+                    d[s] = newstem + v[len(stem):]
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], (str, unicode)):
-            d["run"] = rewrite[d["run"]]
         for s,v in d.items():
-            if isinstance(v, (str, unicode)) and v.startswith(stem):
-                d[s] = newstem + v[len(stem):]
+            if isinstance(v, (str, unicode)):
+                if v in rewrite:
+                    d[s] = rewrite[v]
+                elif v.startswith(stem):
+                    d[s] = newstem + v[len(stem):]
             replace_refs(v, rewrite, stem, newstem)
 
 def pack(document_loader, processobj, uri, metadata):
@@ -55,9 +60,9 @@ def pack(document_loader, processobj, uri, metadata):
     fdeps = set((uri,))
     flatten_deps(deps, fdeps)
 
-    runs = set()  # type: Set[Text]
+    ids = set()  # type: Set[Text]
     for f in fdeps:
-        find_run(document_loader.idx[f], runs)
+        find_ids(document_loader.idx[f], ids)
 
     names = set()  # type: Set[Text]
     rewrite = {}
@@ -67,20 +72,36 @@ def pack(document_loader, processobj, uri, metadata):
     else:
         rewrite[uri] = "#main"
 
-    for r in sorted(runs):
-        rewrite[r] = "#" + uniquename(shortname(r), names)
+    sortedids = sorted(ids)
+
+    for r in sortedids:
+        path, frag = urlparse.urldefrag(r)
+        if path not in rewrite:
+            rewrite[path] = "#" + uniquename(shortname(path), names)
+        if r != path:
+            rewrite[r] = "%s/%s" % (rewrite[path], frag)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
 
-    for r in sorted(rewrite.keys()):
+    for r in sortedids:
+        dcr = document_loader.idx[r]
+        if "$namespaces" in dcr:
+            if "$namespaces" not in packed:
+                packed["$namespaces"] = {}
+            packed["$namespaces"].update(dcr["$namespaces"])
+        if not isinstance(dcr, dict) or dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
+            continue
+        dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
         v = rewrite[r]
-        dc = cast(Dict[Text, Any], copy.deepcopy(document_loader.idx[r]))
         dc["id"] = v
         for n in ("name", "cwlVersion"):
             if n in dc:
                 del dc[n]
-        replace_refs(dc, rewrite, r+"/" if "#" in r else r+"#", v+"/")
         packed["$graph"].append(dc)
+
+    for r in rewrite:
+        v = rewrite[r]
+        replace_refs(packed, rewrite, r+"/" if "#" in r else r+"#", v+"/")
 
     return packed
