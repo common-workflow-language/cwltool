@@ -19,13 +19,25 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
+def find_run(d, loadref, runs):  # type: (Any, Set[Text]) -> None
+    if isinstance(d, list):
+        for s in d:
+            find_run(s, loadref, runs)
+    elif isinstance(d, dict):
+        if "run" in d and isinstance(d["run"], (str, unicode)):
+            if d["run"] not in runs:
+                runs.add(d["run"])
+                find_run(loadref(None, d["run"]), loadref, runs)
+        for s in d.values():
+            find_run(s, loadref, runs)
+
 def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             find_ids(s, ids)
     elif isinstance(d, dict):
         for i in ("id", "name"):
-            if i in d and  isinstance(d[i], (str, unicode)):
+            if i in d and isinstance(d[i], (str, unicode)):
                 ids.add(d[i])
         for s in d.values():
             find_ids(s, ids)
@@ -55,37 +67,46 @@ def pack(document_loader, processobj, uri, metadata):
     def loadref(b, u):
         # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
-    deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
 
-    fdeps = set((uri,))
-    flatten_deps(deps, fdeps)
+    runs = set((uri,))
+    find_run(processobj, loadref, runs)
+
+    #deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
+    #fdeps = set((uri,))
+    #flatten_deps(deps, fdeps)
 
     ids = set()  # type: Set[Text]
-    for f in fdeps:
-        find_ids(document_loader.idx[f], ids)
+    for f in runs:
+        find_ids(document_loader.resolve_ref(f)[0], ids)
 
     names = set()  # type: Set[Text]
     rewrite = {}
-    if isinstance(processobj, list):
-        for p in processobj:
-            rewrite[p["id"]] = "#" + uniquename(shortname(p["id"]), names)
-    else:
-        rewrite[uri] = "#main"
+
+    mainpath, _ = urlparse.urldefrag(uri)
+
+    def rewrite_id(r, mainuri):
+        if r == mainuri:
+            rewrite[r] = "#main"
+        elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
+            pass
+        else:
+            path, frag = urlparse.urldefrag(r)
+            if path == mainpath:
+                rewrite[r] = "#" + uniquename(frag, names)
+            else:
+                if path not in rewrite:
+                    rewrite[path] = "#" + uniquename(shortname(path), names)
 
     sortedids = sorted(ids)
 
     for r in sortedids:
-        path, frag = urlparse.urldefrag(r)
-        if path not in rewrite:
-            rewrite[path] = "#" + uniquename(shortname(path), names)
-        if r != path:
-            rewrite[r] = "%s/%s" % (rewrite[path], frag)
+        rewrite_id(r, uri)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
 
-    for r in sortedids:
-        dcr = document_loader.idx[r]
+    for r in sorted(runs):
+        dcr = document_loader.resolve_ref(r)[0]
         if "$namespaces" in dcr:
             if "$namespaces" not in packed:
                 packed["$namespaces"] = {}
@@ -95,7 +116,7 @@ def pack(document_loader, processobj, uri, metadata):
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
         v = rewrite[r]
         dc["id"] = v
-        for n in ("name", "cwlVersion"):
+        for n in ("name", "cwlVersion", "$namespaces"):
             if n in dc:
                 del dc[n]
         packed["$graph"].append(dc)
