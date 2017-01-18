@@ -100,7 +100,8 @@ def pack(document_loader, processobj, uri, metadata):
     sortedids = sorted(ids)
 
     for r in sortedids:
-        rewrite_id(r, uri)
+        if r.startswith("file://"):
+            rewrite_id(r, uri)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
