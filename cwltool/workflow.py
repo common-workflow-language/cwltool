@@ -246,6 +246,7 @@ class WorkflowJob(object):
             _logger.info(u"[%s] completed %s", step.name, processStatus)
 
         step.completed = True
+        self.made_progress = True
 
     def try_make_job(self, step, **kwargs):
         # type: (WorkflowJobStep, **Any) -> Generator
@@ -365,7 +366,7 @@ class WorkflowJob(object):
 
         completed = 0
         while completed < len(self.steps):
-            made_progress = False
+            self.made_progress = False
 
             for step in self.steps:
                 if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
@@ -385,7 +386,7 @@ class WorkflowJob(object):
                             if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
                                 break
                             if newjob:
-                                made_progress = True
+                                self.made_progress = True
                                 yield newjob
                             else:
                                 break
@@ -396,7 +397,7 @@ class WorkflowJob(object):
 
             completed = sum(1 for s in self.steps if s.completed)
 
-            if not made_progress and completed < len(self.steps):
+            if not self.made_progress and completed < len(self.steps):
                 if self.processStatus != "success":
                     break
                 else:
