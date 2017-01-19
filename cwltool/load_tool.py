@@ -123,7 +123,7 @@ def validate_document(document_loader,   # type: Loader
         }
 
     if not isinstance(workflowobj, dict):
-        raise ValueError("workflowjobj must be a dict")
+        raise ValueError("workflowjobj must be a dict, got '%s': %s" % (type(workflowobj), workflowobj))
 
     jobobj = None
     if "cwl:tool" in workflowobj:
