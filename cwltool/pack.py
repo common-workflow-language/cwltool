@@ -106,21 +106,30 @@ def pack(document_loader, processobj, uri, metadata):
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
 
+    schemas = set()
     for r in sorted(runs):
         dcr = document_loader.resolve_ref(r)[0]
+        if not isinstance(dcr, dict):
+            continue
         if "$namespaces" in dcr:
             if "$namespaces" not in packed:
                 packed["$namespaces"] = {}
             packed["$namespaces"].update(dcr["$namespaces"])
-        if not isinstance(dcr, dict) or dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
+        if "$schemas" in dcr:
+            for s in dcr["$schemas"]:
+                schemas.add(s)
+        if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
         v = rewrite[r]
         dc["id"] = v
-        for n in ("name", "cwlVersion", "$namespaces"):
+        for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
             if n in dc:
                 del dc[n]
         packed["$graph"].append(dc)
+
+    if schemas:
+        packed["$schemas"] = list(schemas)
 
     for r in rewrite:
         v = rewrite[r]
