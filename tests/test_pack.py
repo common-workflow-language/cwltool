@@ -22,5 +22,8 @@ class TestPack(unittest.TestCase):
             expect_packed = json.load(f)
         adjustFileObjs(packed, partial(makeRelative, os.path.abspath("tests/wf")))
         adjustDirObjs(packed, partial(makeRelative, os.path.abspath("tests/wf")))
+        self.assertIn("$schemas", packed)
+        del packed["$schemas"]
+        del expect_packed["$schemas"]
 
         self.assertEqual(expect_packed, packed)

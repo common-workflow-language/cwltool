@@ -19,7 +19,7 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
-def find_run(d, loadref, runs):  # type: (Any, Set[Text]) -> None
+def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict, List, Text]], Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             find_run(s, loadref, runs)
@@ -71,20 +71,17 @@ def pack(document_loader, processobj, uri, metadata):
     runs = set((uri,))
     find_run(processobj, loadref, runs)
 
-    #deps = scandeps(uri, processobj, set(("run",)), set(), loadref)
-    #fdeps = set((uri,))
-    #flatten_deps(deps, fdeps)
-
     ids = set()  # type: Set[Text]
     for f in runs:
         find_ids(document_loader.resolve_ref(f)[0], ids)
 
     names = set()  # type: Set[Text]
-    rewrite = {}
+    rewrite = {}   # type: Dict[Text, Text]
 
     mainpath, _ = urlparse.urldefrag(uri)
 
     def rewrite_id(r, mainuri):
+        # type: (Text, Text) -> None
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
@@ -106,18 +103,15 @@ def pack(document_loader, processobj, uri, metadata):
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
             }  # type: Dict[Text, Any]
 
-    schemas = set()
+    schemas = set()  # type: Set[Text]
     for r in sorted(runs):
-        dcr = document_loader.resolve_ref(r)[0]
+        dcr, metadata = document_loader.resolve_ref(r)
         if not isinstance(dcr, dict):
             continue
-        if "$namespaces" in dcr:
-            if "$namespaces" not in packed:
-                packed["$namespaces"] = {}
-            packed["$namespaces"].update(dcr["$namespaces"])
-        if "$schemas" in dcr:
-            for s in dcr["$schemas"]:
-                schemas.add(s)
+        for doc in (dcr, metadata):
+            if "$schemas" in doc:
+                for s in doc["$schemas"]:
+                    schemas.add(s)
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))

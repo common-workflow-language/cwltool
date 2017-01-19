@@ -1,5 +1,6 @@
 {
     "cwlVersion": "v1.0",
+    "$schemas": ["file:///home/peter/work/cwltool/tests/wf/empty.ttl"],
     "$graph": [
         {
             "inputs": [
