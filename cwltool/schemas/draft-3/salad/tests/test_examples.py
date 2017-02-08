@@ -1,9 +1,10 @@
 import unittest
-import schema_salad.ref_resolver
+
 import schema_salad.main
+import schema_salad.ref_resolver
 import schema_salad.schema
-import rdflib
 import yaml
+
 
 class TestSchemas(unittest.TestCase):
     def test_schemas(self):
@@ -13,15 +14,13 @@ class TestSchemas(unittest.TestCase):
             "$schemas": ["tests/EDAM.owl"],
             "$namespaces": {"edam": "http://edamontology.org/"},
             "edam:has_format": "edam:format_1915"
-            }, "")
+        }, "")
 
         self.assertEquals(ra, {
             "$schemas": ["tests/EDAM.owl"],
             "$namespaces": {"edam": "http://edamontology.org/"},
             'http://edamontology.org/has_format': 'http://edamontology.org/format_1915'
         })
-
-
 
     # def test_domain(self):
     #     l = schema_salad.ref_resolver.Loader({})

@@ -13,17 +13,16 @@ the appropriate options to ``use_setuptools()``.
 
 This file can also be run as a script to install or upgrade setuptools.
 """
+import contextlib
+import optparse
 import os
+import platform
 import shutil
+import subprocess
 import sys
 import tempfile
-import zipfile
-import optparse
-import subprocess
-import platform
 import textwrap
-import contextlib
-
+import zipfile
 from distutils import log
 
 try:
@@ -33,6 +32,7 @@ except ImportError:
 
 DEFAULT_VERSION = "3.4.1"
 DEFAULT_URL = "https://pypi.python.org/packages/source/s/setuptools/"
+
 
 def _python_cmd(*args):
     """
@@ -68,11 +68,14 @@ def get_zip_class():
     """
     Supplement ZipFile class to support context manager for Python 2.6
     """
+
     class ContextualZipFile(zipfile.ZipFile):
         def __enter__(self):
             return self
+
         def __exit__(self, type, value, traceback):
-            self.close
+            self.close()
+
     return zipfile.ZipFile if hasattr(zipfile.ZipFile, '__exit__') else \
         ContextualZipFile
 
@@ -118,7 +121,7 @@ def _do_download(version, download_base, to_dir, download_delay):
 
 
 def use_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL,
-        to_dir=os.curdir, download_delay=15):
+                   to_dir=os.curdir, download_delay=15):
     to_dir = os.path.abspath(to_dir)
     rep_modules = 'pkg_resources', 'setuptools'
     imported = set(sys.modules).intersection(rep_modules)
@@ -148,6 +151,7 @@ def use_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL,
         del pkg_resources, sys.modules['pkg_resources']
         return _do_download(version, download_base, to_dir, download_delay)
 
+
 def _clean_check(cmd, target):
     """
     Run the command to download target. If the command fails, clean up before
@@ -159,6 +163,7 @@ def _clean_check(cmd, target):
         if os.access(target, os.F_OK):
             os.unlink(target)
         raise
+
 
 def download_file_powershell(url, target):
     """
@@ -172,6 +177,7 @@ def download_file_powershell(url, target):
         "(new-object System.Net.WebClient).DownloadFile(%(url)r, %(target)r)" % vars(),
     ]
     _clean_check(cmd, target)
+
 
 def has_powershell():
     if platform.system() != 'Windows':
@@ -187,11 +193,14 @@ def has_powershell():
         devnull.close()
     return True
 
+
 download_file_powershell.viable = has_powershell
+
 
 def download_file_curl(url, target):
     cmd = ['curl', url, '--silent', '--output', target]
     _clean_check(cmd, target)
+
 
 def has_curl():
     cmd = ['curl', '--version']
@@ -205,11 +214,14 @@ def has_curl():
         devnull.close()
     return True
 
+
 download_file_curl.viable = has_curl
+
 
 def download_file_wget(url, target):
     cmd = ['wget', url, '--quiet', '--output-document', target]
     _clean_check(cmd, target)
+
 
 def has_wget():
     cmd = ['wget', '--version']
@@ -223,7 +235,9 @@ def has_wget():
         devnull.close()
     return True
 
+
 download_file_wget.viable = has_wget
+
 
 def download_file_insecure(url, target):
     """
@@ -248,7 +262,9 @@ def download_file_insecure(url, target):
         if dst:
             dst.close()
 
+
 download_file_insecure.viable = lambda: True
+
 
 def get_best_downloader():
     downloaders = [
@@ -262,8 +278,9 @@ def get_best_downloader():
         if dl.viable():
             return dl
 
+
 def download_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL,
-        to_dir=os.curdir, delay=15, downloader_factory=get_best_downloader):
+                        to_dir=os.curdir, delay=15, downloader_factory=get_best_downloader):
     """
     Download setuptools from a specified location and return its filename
 
@@ -287,11 +304,13 @@ def download_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL,
         downloader(url, saveto)
     return os.path.realpath(saveto)
 
+
 def _build_install_args(options):
     """
     Build the arguments to 'python setup.py install' on the setuptools package
     """
     return ['--user'] if options.user_install else []
+
 
 def _parse_args():
     """
@@ -318,6 +337,7 @@ def _parse_args():
     # positional arguments are ignored
     return options
 
+
 def main():
     """Install or upgrade setuptools and EasyInstall"""
     options = _parse_args()
@@ -327,6 +347,7 @@ def main():
         downloader_factory=options.downloader_factory,
     )
     return _install(archive, _build_install_args(options))
+
 
 if __name__ == '__main__':
     sys.exit(main())

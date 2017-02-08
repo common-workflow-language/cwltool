@@ -198,9 +198,9 @@ class TestScanDeps(unittest.TestCase):
                 raise Exception("test case can't load things")
 
         sc = cwltool.process.scandeps(obj["id"], obj,
-                                       set(("$import", "run")),
-                                       set(("$include", "$schemas", "location")),
-                                                  loadref)
+                                      {"$import", "run"},
+                                      {"$include", "$schemas", "location"},
+                                      loadref)
 
         sc.sort(key=lambda k: k["basename"])
 

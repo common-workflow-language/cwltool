@@ -1,25 +1,24 @@
 from __future__ import print_function
+
 import argparse
-import logging
-import sys
-import traceback
-import pkg_resources  # part of setuptools
-from . import schema
-from . import jsonld_context
-from . import makedoc
 import json
-from rdflib import Graph, plugin
-from rdflib.serializer import Serializer
+import logging
 import os
+import sys
 import urlparse
 
-from .ref_resolver import Loader
-from . import validate
+import pkg_resources  # part of setuptools
 from typing import Any, Dict, List, Union
+
+from . import jsonld_context
+from . import schema
+from . import validate
+from .ref_resolver import Loader
 
 _logger = logging.getLogger("salad")
 
 from rdflib.plugin import register, Parser
+
 register('json-ld', Parser, 'rdflib_jsonld.parser', 'JsonLDParser')
 
 
@@ -58,7 +57,8 @@ def main(argsl=None):  # type: (List[str]) -> int
                          help="Print version")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
+    exgroup.add_argument("--strict", action="store_true",
+                         help="Strict validation (unrecognized or out of place fields are error)",
                          default=True, dest="strict")
     exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
                          default=True, dest="strict")
@@ -104,7 +104,7 @@ def main(argsl=None):  # type: (List[str]) -> int
             schema_raw_doc, schema_uri)
     except (validate.ValidationException) as e:
         _logger.error("Schema `%s` failed link checking:\n%s",
-                args.schema, e, exc_info=(True if args.debug else False))
+                      args.schema, e, exc_info=(True if args.debug else False))
         _logger.debug("Index is %s", metaschema_loader.idx.keys())
         _logger.debug("Vocabulary is %s", metaschema_loader.vocab.keys())
         return 1
@@ -149,8 +149,8 @@ def main(argsl=None):  # type: (List[str]) -> int
 
     if isinstance(avsc_names, Exception):
         _logger.error("Schema `%s` error:\n%s", args.schema,
-                avsc_names, exc_info=((type(avsc_names), avsc_names,
-                    None) if args.debug else None))
+                      avsc_names, exc_info=((type(avsc_names), avsc_names,
+                                             None) if args.debug else None))
         if args.print_avro:
             print(json.dumps(avsc_obj, indent=4))
         return 1

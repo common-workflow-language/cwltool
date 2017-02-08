@@ -1,11 +1,13 @@
 import pprint
-import avro.schema
-import sys
 import urlparse
+
+import avro.schema
 from typing import Any
+
 
 class ValidationException(Exception):
     pass
+
 
 def validate(expected_schema, datum, identifiers=set(), strict=False, foreign_properties=set()):
     # type: (avro.schema.Schema, Any, Set[unicode], bool, Set[unicode]) -> bool
@@ -14,16 +16,19 @@ def validate(expected_schema, datum, identifiers=set(), strict=False, foreign_pr
     except ValidationException:
         return False
 
+
 INT_MIN_VALUE = -(1 << 31)
 INT_MAX_VALUE = (1 << 31) - 1
 LONG_MIN_VALUE = -(1 << 63)
 LONG_MAX_VALUE = (1 << 63) - 1
+
 
 def indent(v, nolead=False):  # type: (str, bool) -> str
     if nolead:
         return v.splitlines()[0] + "\n".join(["  " + l for l in v.splitlines()[1:]])
     else:
         return "\n".join(["  " + l for l in v.splitlines()])
+
 
 def friendly(v):  # type: (Any) -> Any
     if isinstance(v, avro.schema.NamedSchema):
@@ -37,11 +42,13 @@ def friendly(v):  # type: (Any) -> Any
     else:
         return v
 
+
 def multi(v, q=""):  # type: (str, str) -> str
     if '\n' in v:
         return "%s%s%s\n" % (q, v, q)
     else:
         return "%s%s%s" % (q, v, q)
+
 
 def vpformat(datum):  # type: (Any) -> str
     a = pprint.pformat(datum)
@@ -49,8 +56,9 @@ def vpformat(datum):  # type: (Any) -> str
         a = a[0:160] + "[...]"
     return a
 
+
 def validate_ex(expected_schema, datum, identifiers=None, strict=False,
-        foreign_properties=None):
+                foreign_properties=None):
     # type: (avro.schema.Schema, Any, Set[unicode], bool, Set[unicode]) -> bool
     """Determine if a python datum is an instance of a schema."""
 
@@ -117,24 +125,28 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
         if datum in expected_schema.symbols:
             return True
         else:
-            raise ValidationException("the value `%s`\n is not a valid symbol in enum %s, expected one of %s" % (vpformat(datum), expected_schema.name, "'" + "', '".join(expected_schema.symbols) + "'"))
+            raise ValidationException("the value `%s`\n is not a valid symbol in enum %s, expected one of %s" % (
+            vpformat(datum), expected_schema.name, "'" + "', '".join(expected_schema.symbols) + "'"))
     elif isinstance(expected_schema, avro.schema.ArraySchema):
         if isinstance(datum, list):
             for i, d in enumerate(datum):
                 try:
-                    validate_ex(expected_schema.items, d, identifiers, strict=strict, foreign_properties=foreign_properties)
+                    validate_ex(expected_schema.items, d, identifiers, strict=strict,
+                                foreign_properties=foreign_properties)
                 except ValidationException as v:
                     raise ValidationException("At position %i\n%s" % (i, indent(str(v))))
             return True
         else:
-            raise ValidationException("the value `%s` is not a list, expected list of %s" % (vpformat(datum), friendly(expected_schema.items)))
+            raise ValidationException("the value `%s` is not a list, expected list of %s" % (
+            vpformat(datum), friendly(expected_schema.items)))
     elif isinstance(expected_schema, avro.schema.MapSchema):
         if (isinstance(datum, dict) and
-            False not in [isinstance(k, basestring) for k in datum.keys()] and
-            False not in [validate(expected_schema.values, v, strict=strict) for v in datum.values()]):
+                    False not in [isinstance(k, basestring) for k in datum.keys()] and
+                    False not in [validate(expected_schema.values, v, strict=strict) for v in datum.values()]):
             return True
         else:
-            raise ValidationException("`%s` is not a valid map value, expected\n %s" % (vpformat(datum), vpformat(expected_schema.values)))
+            raise ValidationException(
+                "`%s` is not a valid map value, expected\n %s" % (vpformat(datum), vpformat(expected_schema.values)))
     elif isinstance(expected_schema, avro.schema.UnionSchema):
         if True in [validate(s, datum, identifiers, strict=strict) for s in expected_schema.schemas]:
             return True
@@ -145,7 +157,10 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
                     validate_ex(s, datum, identifiers, strict=strict, foreign_properties=foreign_properties)
                 except ValidationException as e:
                     errors.append(str(e))
-            raise ValidationException("the value %s is not a valid type in the union, expected one of:\n%s" % (multi(vpformat(datum), '`'), "\n".join(["- %s, but\n %s" % (friendly(expected_schema.schemas[i]), indent(multi(errors[i]))) for i in range(0, len(expected_schema.schemas))])))
+            raise ValidationException("the value %s is not a valid type in the union, expected one of:\n%s" % (
+            multi(vpformat(datum), '`'), "\n".join(
+                ["- %s, but\n %s" % (friendly(expected_schema.schemas[i]), indent(multi(errors[i]))) for i in
+                 range(0, len(expected_schema.schemas))])))
 
     elif isinstance(expected_schema, avro.schema.RecordSchema):
         if not isinstance(datum, dict):
@@ -178,9 +193,13 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
                     if d not in identifiers and d not in foreign_properties and d[0] not in ("@", "$"):
                         split = urlparse.urlsplit(d)
                         if split.scheme:
-                            errors.append("could not validate extension field `%s` because it is not recognized and strict is True.  Did you include a $schemas section?" % (d))
+                            errors.append(
+                                "could not validate extension field `%s` because it is not recognized and strict is True.  Did you include a $schemas section?" % (
+                                d))
                         else:
-                            errors.append("could not validate field `%s` because it is not recognized and strict is True, valid fields are: %s" % (d, ", ".join(fn.name for fn in expected_schema.fields)))
+                            errors.append(
+                                "could not validate field `%s` because it is not recognized and strict is True, valid fields are: %s" % (
+                                d, ", ".join(fn.name for fn in expected_schema.fields)))
 
         if errors:
             raise ValidationException("\n".join(errors))

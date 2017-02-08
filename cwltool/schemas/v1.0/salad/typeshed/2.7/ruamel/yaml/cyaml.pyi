@@ -4,5 +4,6 @@
 
 from .loader import SafeLoader
 
+
 class CSafeLoader(SafeLoader):
     pass

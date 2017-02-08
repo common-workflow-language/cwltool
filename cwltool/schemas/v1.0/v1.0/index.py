@@ -3,8 +3,8 @@
 # Toy program to generate inverted index of word to line.
 # Takes input text file on stdin and prints output index on stdout.
 
-import sys
 import os
+import sys
 
 words = {}
 

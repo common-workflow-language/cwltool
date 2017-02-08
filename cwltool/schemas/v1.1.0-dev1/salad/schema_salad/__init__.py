@@ -1,6 +1,4 @@
 import logging
-import sys
-import typing
 
 __author__ = 'peter.amstutz@curoverse.com'
 

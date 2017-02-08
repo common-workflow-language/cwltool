@@ -2,17 +2,16 @@
 
 import os
 import sys
-import shutil
 
 import setuptools.command.egg_info as egg_info_cmd
-
-from setuptools import setup, find_packages
+from setuptools import setup
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, 'README.rst')
 
 try:
     import gittaggers
+
     tagger = gittaggers.EggInfoFromGit
 except ImportError:
     tagger = egg_info_cmd.egg_info
@@ -43,7 +42,7 @@ install_requires.append("avro")  # TODO: remove me once cwltool is
 # extras_require={                # TODO: uncomment me, same conditions as above
 #        ':python_version<"3"': ['avro'],
 #        ':python_version>="3"': ['avro-python3']}
-extras_require = {}               # TODO: to be removed when the above is added
+extras_require = {}  # TODO: to be removed when the above is added
 
 setup(name='schema-salad',
       version='1.17',
@@ -74,8 +73,8 @@ setup(name='schema-salad',
           "Operating System :: MacOS :: MacOS X",
           "Development Status :: 4 - Beta",
           "Programming Language :: Python :: 2.7",
-          #"Programming Language :: Python :: 3.3",  # TODO: uncomment these
-          #"Programming Language :: Python :: 3.4",  # lines
-          #"Programming Language :: Python :: 3.5"
+          # "Programming Language :: Python :: 3.3",  # TODO: uncomment these
+          # "Programming Language :: Python :: 3.4",  # lines
+          # "Programming Language :: Python :: 3.5"
       ]
       )

@@ -4,10 +4,14 @@
 
 from typing import Any
 
+
 class Serializer:
-    store = ... # type: Any
-    encoding = ... # type: Any
-    base = ... # type: Any
+    store = ...  # type: Any
+    encoding = ...  # type: Any
+    base = ...  # type: Any
+
     def __init__(self, store): ...
+
     def serialize(self, stream, base=None, encoding=None, **args): ...
+
     def relativize(self, uri): ...

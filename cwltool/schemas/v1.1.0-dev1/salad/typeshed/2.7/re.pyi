@@ -5,8 +5,7 @@
 # based on: http://docs.python.org/2.7/library/re.html
 
 from typing import (
-    List, Iterator, overload, Callable, Tuple, Sequence, Dict,
-    Generic, AnyStr, Match, Pattern, Any
+    List, Iterator, overload, Callable, Tuple, AnyStr, Match, Pattern, Any
 )
 
 # ----- re variables and constants -----
@@ -26,34 +25,51 @@ UNICODE = 0
 T = 0
 TEMPLATE = 0
 
+
 class error(Exception): ...
+
 
 @overload
 def compile(pattern: AnyStr, flags: int = ...) -> Pattern[AnyStr]: ...
+
+
 @overload
 def compile(pattern: Pattern[AnyStr], flags: int = ...) -> Pattern[AnyStr]: ...
 
+
 @overload
 def search(pattern: AnyStr, string: AnyStr, flags: int = ...) -> Match[AnyStr]: ...
+
+
 @overload
 def search(pattern: Pattern[AnyStr], string: AnyStr, flags: int = ...) -> Match[AnyStr]: ...
 
+
 @overload
 def match(pattern: AnyStr, string: AnyStr, flags: int = ...) -> Match[AnyStr]: ...
+
+
 @overload
 def match(pattern: Pattern[AnyStr], string: AnyStr, flags: int = ...) -> Match[AnyStr]: ...
+
 
 @overload
 def split(pattern: AnyStr, string: AnyStr,
           maxsplit: int = ..., flags: int = ...) -> List[AnyStr]: ...
+
+
 @overload
 def split(pattern: Pattern[AnyStr], string: AnyStr,
           maxsplit: int = ..., flags: int = ...) -> List[AnyStr]: ...
 
+
 @overload
 def findall(pattern: AnyStr, string: AnyStr, flags: int = ...) -> List[Any]: ...
+
+
 @overload
 def findall(pattern: Pattern[AnyStr], string: AnyStr, flags: int = ...) -> List[Any]: ...
+
 
 # Return an iterator yielding match objects over all non-overlapping matches
 # for the RE pattern in string. The string is scanned left-to-right, and
@@ -62,38 +78,56 @@ def findall(pattern: Pattern[AnyStr], string: AnyStr, flags: int = ...) -> List[
 @overload
 def finditer(pattern: AnyStr, string: AnyStr,
              flags: int = ...) -> Iterator[Match[AnyStr]]: ...
+
+
 @overload
 def finditer(pattern: Pattern[AnyStr], string: AnyStr,
              flags: int = ...) -> Iterator[Match[AnyStr]]: ...
 
+
 @overload
 def sub(pattern: AnyStr, repl: AnyStr, string: AnyStr, count: int = ...,
         flags: int = ...) -> AnyStr: ...
+
+
 @overload
 def sub(pattern: AnyStr, repl: Callable[[Match[AnyStr]], AnyStr],
         string: AnyStr, count: int = ..., flags: int = ...) -> AnyStr: ...
+
+
 @overload
 def sub(pattern: Pattern[AnyStr], repl: AnyStr, string: AnyStr, count: int = ...,
         flags: int = ...) -> AnyStr: ...
+
+
 @overload
 def sub(pattern: Pattern[AnyStr], repl: Callable[[Match[AnyStr]], AnyStr],
         string: AnyStr, count: int = ..., flags: int = ...) -> AnyStr: ...
 
+
 @overload
 def subn(pattern: AnyStr, repl: AnyStr, string: AnyStr, count: int = ...,
          flags: int = ...) -> Tuple[AnyStr, int]: ...
+
+
 @overload
 def subn(pattern: AnyStr, repl: Callable[[Match[AnyStr]], AnyStr],
          string: AnyStr, count: int = ...,
          flags: int = ...) -> Tuple[AnyStr, int]: ...
+
+
 @overload
 def subn(pattern: Pattern[AnyStr], repl: AnyStr, string: AnyStr, count: int = ...,
          flags: int = ...) -> Tuple[AnyStr, int]: ...
+
+
 @overload
 def subn(pattern: Pattern[AnyStr], repl: Callable[[Match[AnyStr]], AnyStr],
          string: AnyStr, count: int = ...,
          flags: int = ...) -> Tuple[AnyStr, int]: ...
 
+
 def escape(string: AnyStr) -> AnyStr: ...
+
 
 def purge() -> None: ...

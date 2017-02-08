@@ -1,18 +1,18 @@
 # Stubs for requests.sessions (Python 3)
 
-from typing import Any, AnyStr, Union, MutableMapping
-from . import auth
+from typing import Any, AnyStr, MutableMapping
+
+from . import adapters
 from . import compat
 from . import cookies
-from . import models
-from .models import Response
-from . import hooks
-from . import utils
 from . import exceptions
-from .packages.urllib3 import _collections
-from . import structures
-from . import adapters
+from . import hooks
+from . import models
 from . import status_codes
+from . import structures
+from . import utils
+from .models import Response
+from .packages.urllib3 import _collections
 
 OrderedDict = compat.OrderedDict
 cookiejar_from_dict = cookies.cookiejar_from_dict
@@ -42,51 +42,76 @@ get_auth_from_url = utils.get_auth_from_url
 codes = status_codes.codes
 REDIRECT_STATI = models.REDIRECT_STATI
 
-REDIRECT_CACHE_SIZE = ... # type: Any
+REDIRECT_CACHE_SIZE = ...  # type: Any
+
 
 def merge_setting(request_setting, session_setting, dict_class=...): ...
+
+
 def merge_hooks(request_hooks, session_hooks, dict_class=...): ...
+
 
 class SessionRedirectMixin:
     def resolve_redirects(self, resp, req, stream=..., timeout=..., verify=..., cert=...,
                           proxies=...): ...
+
     def rebuild_auth(self, prepared_request, response): ...
+
     def rebuild_proxies(self, prepared_request, proxies): ...
 
+
 class Session(SessionRedirectMixin):
-    __attrs__ = ... # type: Any
-    headers = ... # type: MutableMapping[str, str]
-    auth = ... # type: Any
-    proxies = ... # type: Any
-    hooks = ... # type: Any
-    params = ... # type: Any
-    stream = ... # type: Any
-    verify = ... # type: Any
-    cert = ... # type: Any
-    max_redirects = ... # type: Any
-    trust_env = ... # type: Any
-    cookies = ... # type: Any
-    adapters = ... # type: Any
-    redirect_cache = ... # type: Any
+    __attrs__ = ...  # type: Any
+    headers = ...  # type: MutableMapping[str, str]
+    auth = ...  # type: Any
+    proxies = ...  # type: Any
+    hooks = ...  # type: Any
+    params = ...  # type: Any
+    stream = ...  # type: Any
+    verify = ...  # type: Any
+    cert = ...  # type: Any
+    max_redirects = ...  # type: Any
+    trust_env = ...  # type: Any
+    cookies = ...  # type: Any
+    adapters = ...  # type: Any
+    redirect_cache = ...  # type: Any
+
     def __init__(self) -> None: ...
+
     def __enter__(self) -> 'Session': ...
+
     def __exit__(self, *args) -> None: ...
+
     def prepare_request(self, request): ...
+
     def request(self, method: str, url: str, params=..., data=..., headers=...,
                 cookies=..., files=..., auth=..., timeout=..., allow_redirects=...,
                 proxies=..., hooks=..., stream=..., verify=..., cert=...,
                 json=...) -> Response: ...
+
     def get(self, url: AnyStr, **kwargs) -> Response: ...
+
     def options(self, url: str, **kwargs) -> Response: ...
+
     def head(self, url: str, **kwargs) -> Response: ...
+
     def post(self, url: str, data=..., json=..., **kwargs) -> Response: ...
+
     def put(self, url: str, data=..., **kwargs) -> Response: ...
+
     def patch(self, url: str, data=..., **kwargs) -> Response: ...
+
     def delete(self, url: str, **kwargs) -> Response: ...
+
     def send(self, request, **kwargs): ...
+
     def merge_environment_settings(self, url, proxies, stream, verify, cert): ...
+
     def get_adapter(self, url): ...
+
     def close(self) -> None: ...
+
     def mount(self, prefix, adapter): ...
+
 
 def session() -> Session: ...

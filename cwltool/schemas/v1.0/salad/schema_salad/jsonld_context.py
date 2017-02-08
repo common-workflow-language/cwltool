@@ -1,17 +1,10 @@
 import collections
-import shutil
 import json
-import ruamel.yaml as yaml
+
 try:
     from ruamel.yaml import CSafeLoader as SafeLoader
 except ImportError:
     from ruamel.yaml import SafeLoader  # type: ignore
-import os
-import subprocess
-import copy
-import pprint
-import re
-import sys
 import rdflib
 from rdflib import Graph, URIRef
 import rdflib.namespace
@@ -176,6 +169,7 @@ def salad_to_jsonld_context(j, schema_ctx):
 
     return (context, g)
 
+
 def fix_jsonld_ids(obj, ids):
     # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], List[unicode]) -> None
     if isinstance(obj, dict):
@@ -188,11 +182,12 @@ def fix_jsonld_ids(obj, ids):
         for entry in obj:
             fix_jsonld_ids(entry, ids)
 
+
 def makerdf(workflow, wf, ctx):
     # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType) -> Graph
     prefixes = {}
     idfields = []
-    for k,v in ctx.iteritems():
+    for k, v in ctx.iteritems():
         if isinstance(v, dict):
             url = v["@id"]
         else:
@@ -217,10 +212,10 @@ def makerdf(workflow, wf, ctx):
     g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow)
 
     # Bug in json-ld loader causes @id fields to be added to the graph
-    for s,p,o in g.triples((None, URIRef("@id"), None)):
+    for s, p, o in g.triples((None, URIRef("@id"), None)):
         g.remove((s, p, o))
 
-    for k2,v2 in prefixes.iteritems():
+    for k2, v2 in prefixes.iteritems():
         g.namespace_manager.bind(k2, v2)
 
     return g

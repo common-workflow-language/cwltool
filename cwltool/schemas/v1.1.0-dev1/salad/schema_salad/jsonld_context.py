@@ -1,17 +1,10 @@
 import collections
-import shutil
 import json
-import ruamel.yaml as yaml
+
 try:
     from ruamel.yaml import CSafeLoader as SafeLoader
 except ImportError:
     from ruamel.yaml import SafeLoader  # type: ignore
-import os
-import subprocess
-import copy
-import pprint
-import re
-import sys
 import rdflib
 from rdflib import Graph, URIRef
 import rdflib.namespace
@@ -178,6 +171,7 @@ def salad_to_jsonld_context(j, schema_ctx):
 
     return (context, g)
 
+
 def fix_jsonld_ids(obj, ids):
     # type: (Union[Dict[unicode, Any], List[Dict[unicode, Any]]], List[unicode]) -> None
     if isinstance(obj, dict):
@@ -189,6 +183,7 @@ def fix_jsonld_ids(obj, ids):
     if isinstance(obj, list):
         for entry in obj:
             fix_jsonld_ids(entry, ids)
+
 
 def makerdf(workflow, wf, ctx, graph=None):
     # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType, Graph) -> Graph

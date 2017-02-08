@@ -1,43 +1,44 @@
-import avro
 import copy
-from  makedoc import add_dictlist
-import sys
-import pprint
-from pkg_resources import resource_stream
-import yaml
-import avro.schema
-import validate
 import json
-import urlparse
-import ref_resolver
-from flatten import flatten
 import logging
-from aslist import aslist
-import jsonld_context
+import urlparse
+
+import avro
+import avro.schema
 import schema_salad.schema
+import yaml
+from pkg_resources import resource_stream
+
+import jsonld_context
+import ref_resolver
+import validate
+from aslist import aslist
+from flatten import flatten
+from  makedoc import add_dictlist
 
 _logger = logging.getLogger("salad")
 
 salad_files = ('metaschema.yml',
-              'salad.md',
-              'field_name.yml',
-              'import_include.md',
-              'link_res.yml',
-              'ident_res.yml',
-              'vocab_res.yml',
-              'vocab_res.yml',
-              'field_name_schema.yml',
-              'field_name_src.yml',
-              'field_name_proc.yml',
-              'ident_res_schema.yml',
-              'ident_res_src.yml',
-              'ident_res_proc.yml',
-              'link_res_schema.yml',
-              'link_res_src.yml',
-              'link_res_proc.yml',
-              'vocab_res_schema.yml',
-              'vocab_res_src.yml',
-              'vocab_res_proc.yml')
+               'salad.md',
+               'field_name.yml',
+               'import_include.md',
+               'link_res.yml',
+               'ident_res.yml',
+               'vocab_res.yml',
+               'vocab_res.yml',
+               'field_name_schema.yml',
+               'field_name_src.yml',
+               'field_name_proc.yml',
+               'ident_res_schema.yml',
+               'ident_res_src.yml',
+               'ident_res_proc.yml',
+               'link_res_schema.yml',
+               'link_res_src.yml',
+               'link_res_proc.yml',
+               'vocab_res_schema.yml',
+               'vocab_res_src.yml',
+               'vocab_res_proc.yml')
+
 
 def get_metaschema():
     loader = ref_resolver.Loader({
@@ -138,7 +139,7 @@ def get_metaschema():
     j = yaml.load(loader.cache["https://w3id.org/cwl/salad"])
     j, _ = loader.resolve_all(j, "https://w3id.org/cwl/salad#")
 
-    #pprint.pprint(j)
+    # pprint.pprint(j)
 
     (sch_names, sch_obj) = make_avro_schema(j, loader)
     if isinstance(sch_names, Exception):
@@ -146,6 +147,7 @@ def get_metaschema():
         raise sch_names
     validate_doc(sch_names, j, loader, strict=True)
     return (sch_names, j, loader)
+
 
 def load_schema(schema_ref, cache=None):
     metaschema_names, metaschema_doc, metaschema_loader = get_metaschema()
@@ -166,6 +168,7 @@ def load_schema(schema_ref, cache=None):
 
     return document_loader, avsc_names, schema_metadata
 
+
 def load_and_validate(document_loader, avsc_names, document, strict):
     if isinstance(document, dict):
         data, metadata = document_loader.resolve_all(document, document["id"])
@@ -175,6 +178,7 @@ def load_and_validate(document_loader, avsc_names, document, strict):
     document_loader.validate_links(data)
     validate_doc(avsc_names, data, document_loader, strict)
     return data, metadata
+
 
 def validate_doc(schema_names, validate_doc, loader, strict):
     has_root = False
@@ -200,11 +204,13 @@ def validate_doc(schema_names, validate_doc, loader, strict):
         for r in schema_names.names.values():
             if r.get_prop("documentRoot"):
                 try:
-                    validate.validate_ex(r, item, loader.identifiers, strict, foreign_properties=loader.foreign_properties)
+                    validate.validate_ex(r, item, loader.identifiers, strict,
+                                         foreign_properties=loader.foreign_properties)
                     success = True
                     break
                 except validate.ValidationException as e:
-                    errors.append("Could not validate as `%s` because\n%s" % (r.get_prop("name"), validate.indent(str(e), nolead=False)))
+                    errors.append("Could not validate as `%s` because\n%s" % (
+                    r.get_prop("name"), validate.indent(str(e), nolead=False)))
         if not success:
             objerr = "Validation error at position %i" % pos
             for ident in loader.identifiers:
@@ -254,14 +260,16 @@ def replace_type(items, spec, loader, found):
             return replace_type(replace_with, spec, loader, found)
     return items
 
+
 def avro_name(url):
     doc_url, frg = urlparse.urldefrag(url)
     if frg:
         if '/' in frg:
-            return frg[frg.rindex('/')+1:]
+            return frg[frg.rindex('/') + 1:]
         else:
             return frg
     return url
+
 
 def make_valid_avro(items, alltypes, found, union=False):
     items = copy.deepcopy(items)
@@ -269,7 +277,8 @@ def make_valid_avro(items, alltypes, found, union=False):
         if items.get("name"):
             items["name"] = avro_name(items["name"])
 
-        if "type" in items and items["type"] in ("https://w3id.org/cwl/salad#record", "https://w3id.org/cwl/salad#enum", "record", "enum"):
+        if "type" in items and items["type"] in (
+        "https://w3id.org/cwl/salad#record", "https://w3id.org/cwl/salad#enum", "record", "enum"):
             if items.get("abstract"):
                 return items
             if not items.get("name"):
@@ -339,15 +348,16 @@ def extend_and_specialize(items, loader):
                 fieldnames = set()
                 for field in t["fields"]:
                     if field["name"] in fieldnames:
-                        raise validate.ValidationException("Field name %s appears twice in %s" % (field["name"], t["name"]))
+                        raise validate.ValidationException(
+                            "Field name %s appears twice in %s" % (field["name"], t["name"]))
                     else:
                         fieldnames.add(field["name"])
 
                 for y in [x for x in t["fields"] if x["name"] == "class"]:
                     y["type"] = {"type": "enum",
                                  "symbols": [r["name"]],
-                                 "name": r["name"]+"_class",
-                    }
+                                 "name": r["name"] + "_class",
+                                 }
                     y["doc"] = "Must be `%s` to indicate this is a %s object." % (r["name"], r["name"])
             elif t["type"] == "enum":
                 exsym.extend(t.get("symbols", []))
@@ -373,10 +383,11 @@ def extend_and_specialize(items, loader):
 
     return n
 
+
 def make_avro_schema(j, loader):
     names = avro.schema.Names()
 
-    #pprint.pprint(j)
+    # pprint.pprint(j)
 
     j = extend_and_specialize(j, loader)
 

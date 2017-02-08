@@ -1,5 +1,5 @@
-import sys
-from typing import Any, Tuple
+from typing import Any
+
 
 # http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
 def flatten(l, ltypes=(list, tuple)):

@@ -1,5 +1,5 @@
-from . import main
 import sys
-import typing
+
+from . import main
 
 sys.exit(main.main())
