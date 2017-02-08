@@ -5,5 +5,6 @@
 class Loader():
     pass
 
+
 class SafeLoader(Loader):
-    pass 
+    pass

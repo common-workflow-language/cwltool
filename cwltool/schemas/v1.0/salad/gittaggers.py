@@ -1,6 +1,8 @@
-from setuptools.command.egg_info import egg_info
 import subprocess
 import time
+
+from setuptools.command.egg_info import egg_info
+
 
 class EggInfoFromGit(egg_info):
     """Tag the build with git commit timestamp.
@@ -8,6 +10,7 @@ class EggInfoFromGit(egg_info):
     If a build tag has already been set (e.g., "egg_info -b", building
     from source package), leave it alone.
     """
+
     def git_timestamp_tag(self):
         gitinfo = subprocess.check_output(
             ['git', 'log', '--first-parent', '--max-count=1',

@@ -1,20 +1,17 @@
-import sys
-import os
-import json
-import hashlib
-import logging
-import collections
-import requests
-import urlparse
-import re
 import copy
+import logging
+import os
+import re
+import urlparse
+
+import requests
 import ruamel.yaml as yaml
+
 try:
     from ruamel.yaml import CSafeLoader as SafeLoader
 except ImportError:
     from ruamel.yaml import SafeLoader  # type: ignore
 from . import validate
-import pprint
 from StringIO import StringIO
 from .aslist import aslist
 from .flatten import flatten
@@ -22,13 +19,13 @@ import rdflib
 from rdflib.namespace import RDF, RDFS, OWL
 from rdflib.plugins.parsers.notation3 import BadSyntax
 import xml.sax
-from typing import (Any, AnyStr, Callable, cast, Dict, List, Iterable, Tuple,
-         TypeVar, Union)
+from typing import (Any, Dict, List, Iterable, Tuple,
+                    TypeVar, Union)
 
 _logger = logging.getLogger("salad")
 
-class NormDict(dict):
 
+class NormDict(dict):
     def __init__(self, normalize=unicode):  # type: (type) -> None
         super(NormDict, self).__init__()
         self.normalize = normalize
@@ -68,7 +65,6 @@ def SubLoader(loader):  # type: (Loader) -> Loader
 
 
 class Loader(object):
-
     ContextType = Dict[unicode, Union[Dict, unicode, Iterable[unicode]]]
     DocumentType = TypeVar('DocumentType', List, Dict[unicode, Any])
 
@@ -153,9 +149,9 @@ class Loader(object):
         for _, _, rng in self.graph.triples((s, RDFS.range, None)):
             literal = ((unicode(rng).startswith(
                 u"http://www.w3.org/2001/XMLSchema#") and
-                not unicode(rng) == u"http://www.w3.org/2001/XMLSchema#anyURI")
-                or unicode(rng) ==
-                u"http://www.w3.org/2000/01/rdf-schema#Literal")
+                        not unicode(rng) == u"http://www.w3.org/2001/XMLSchema#anyURI")
+                       or unicode(rng) ==
+                       u"http://www.w3.org/2000/01/rdf-schema#Literal")
             if not literal:
                 self.url_fields.add(unicode(s))
         self.foreign_properties.add(unicode(s))
@@ -342,7 +338,7 @@ class Loader(object):
                 resolved_obj = self.idx[url]
             else:
                 raise RuntimeError("Reference `%s` is not in the index. "
-                    "Index contains:\n  %s" % (url, "\n  ".join(self.idx)))
+                                   "Index contains:\n  %s" % (url, "\n  ".join(self.idx)))
 
         if isinstance(resolved_obj, (dict)):
             if u"$graph" in resolved_obj:
@@ -353,7 +349,6 @@ class Loader(object):
         else:
             return resolved_obj, metadata
 
-
     def _resolve_idmap(self, document, loader):
         # type: (Dict[unicode, Union[Dict[unicode, Dict[unicode, unicode]], List[Dict[unicode, Any]]]], Loader) -> None
         # Convert fields with mapSubject into lists
@@ -362,8 +357,8 @@ class Loader(object):
             if (idmapField in document):
                 idmapFieldValue = document[idmapField]
                 if (isinstance(idmapFieldValue, dict)
-                        and "$import" not in idmapFieldValue
-                        and "$include" not in idmapFieldValue):
+                    and "$import" not in idmapFieldValue
+                    and "$include" not in idmapFieldValue):
                     ls = []
                     for k in sorted(idmapFieldValue.keys()):
                         val = idmapFieldValue[k]
@@ -395,7 +390,7 @@ class Loader(object):
         second = third = None
         if m.group(2):
             second = {u"type": u"array",
-                 u"items": first}
+                      u"items": first}
         if m.group(3):
             third = [u"null", second or first]
         return third or second or first
@@ -429,8 +424,8 @@ class Loader(object):
                     document[identifer] = loader.expand_url(
                         document[identifer], base_url, scoped_id=True)
                     if (document[identifer] not in loader.idx
-                            or isinstance(
-                                loader.idx[document[identifer]], basestring)):
+                        or isinstance(
+                            loader.idx[document[identifer]], basestring)):
                         loader.idx[document[identifer]] = document
                     base_url = document[identifer]
                 else:
@@ -482,7 +477,6 @@ class Loader(object):
                         if isinstance(url, (str, unicode))
                         else url for url in datum]
 
-
     def resolve_all(self, document, base_url, file_base=None, checklinks=True):
         # type: (DocumentType, unicode, unicode, bool) -> Tuple[Union[List, Dict[unicode, Any], unicode], Dict[unicode, Any]]
         loader = self
@@ -532,7 +526,7 @@ class Loader(object):
                 metadata = _copy_dict_without_key(document, u"$graph")
                 document = document[u"$graph"]
                 resolved_metadata = loader.resolve_all(metadata, base_url,
-                        file_base=file_base, checklinks=False)[0]
+                                                       file_base=file_base, checklinks=False)[0]
                 if isinstance(resolved_metadata, dict):
                     metadata = resolved_metadata
                 else:
@@ -548,8 +542,9 @@ class Loader(object):
             self._resolve_identity(document, loader, base_url)
             self._resolve_uris(document, loader, base_url)
 
-            try:
-                for key, val in document.items():
+            for key, val in document.items():
+                try:
+
                     document[key], _ = loader.resolve_all(
                         val, base_url, file_base=file_base, checklinks=False)
             except validate.ValidationException as v:

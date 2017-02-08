@@ -1,29 +1,30 @@
 import argparse
-import logging
-import sys
-import pkg_resources  # part of setuptools
-import schema
-import jsonld_context
-import makedoc
 import json
-from rdflib import Graph, plugin
-from rdflib.serializer import Serializer
-import yaml
+import logging
 import os
+import sys
 import urlparse
 
-from ref_resolver import Loader
+import pkg_resources  # part of setuptools
+from rdflib import Graph
+
+import jsonld_context
+import makedoc
+import schema
 import validate
+from ref_resolver import Loader
 
 _logger = logging.getLogger("salad")
 
 from rdflib.plugin import register, Parser
-import rdflib_jsonld.parser
+
 register('json-ld', Parser, 'rdflib_jsonld.parser', 'JsonLDParser')
+
 
 def printrdf(workflow, wf, ctx, sr):
     g = Graph().parse(data=json.dumps(wf), format='json-ld', location=workflow, context=ctx)
     print(g.serialize(format=sr))
+
 
 def main(args=None):
     if args is None:
@@ -47,7 +48,8 @@ def main(args=None):
     exgroup.add_argument("--version", action="store_true", help="Print version")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
+    exgroup.add_argument("--strict", action="store_true",
+                         help="Strict validation (unrecognized or out of place fields are error)",
                          default=True, dest="strict")
     exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
                          default=True, dest="strict")
@@ -184,7 +186,8 @@ def main(args=None):
     try:
         document_loader.validate_links(document)
     except (validate.ValidationException) as e:
-        _logger.error("Document `%s` failed link checking:\n%s", args.document, e, exc_info=(e if args.debug else False))
+        _logger.error("Document `%s` failed link checking:\n%s", args.document, e,
+                      exc_info=(e if args.debug else False))
         _logger.debug("Index is %s", json.dumps(document_loader.idx.keys(), indent=4))
         return 1
 

@@ -1,10 +1,11 @@
-import avro
 import copy
-from .add_dictlist import add_dictlist
-import sys
-import pprint
-from pkg_resources import resource_stream
+
+import avro
 import ruamel.yaml as yaml
+from pkg_resources import resource_stream
+
+from .add_dictlist import add_dictlist
+
 try:
     from ruamel.yaml import CSafeLoader as SafeLoader
 except ImportError:
@@ -13,6 +14,7 @@ import avro.schema
 from . import validate
 import json
 import urlparse
+
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 # AvroSchemaFromJSONData=avro.schema.SchemaFromJSONData
 from . import ref_resolver
@@ -163,7 +165,7 @@ def get_metaschema():
     rs.close()
 
     j = yaml.load(loader.cache["https://w3id.org/cwl/salad"],
-            Loader=SafeLoader)
+                  Loader=SafeLoader)
     j, _ = loader.resolve_all(j, "https://w3id.org/cwl/salad#")
 
     # pprint.pprint(j)
@@ -202,6 +204,7 @@ def load_schema(schema_ref, cache=None):
 
     return document_loader, avsc_names, schema_metadata, metaschema_loader
 
+
 def load_and_validate(document_loader, avsc_names, document, strict):
     # type: (ref_resolver.Loader, avro.schema.Names, Union[Dict[unicode, Any], unicode], bool) -> Tuple[Any, Dict[unicode, Any]]
     if isinstance(document, dict):
@@ -218,7 +221,7 @@ def validate_doc(schema_names, doc, loader, strict):
     has_root = False
     for r in schema_names.names.values():
         if ((hasattr(r, 'get_prop') and r.get_prop(u"documentRoot")) or (
-                u"documentRoot" in r.props)):
+                    u"documentRoot" in r.props)):
             has_root = True
             break
 
@@ -239,7 +242,7 @@ def validate_doc(schema_names, doc, loader, strict):
         success = False
         for r in schema_names.names.values():
             if ((hasattr(r, "get_prop") and r.get_prop(u"documentRoot")) or (
-                    u"documentRoot" in r.props)):
+                        u"documentRoot" in r.props)):
                 try:
                     validate.validate_ex(
                         r, item, loader.identifiers, strict, foreign_properties=loader.foreign_properties)
@@ -314,7 +317,9 @@ def avro_name(url):  # type: (AnyStr) -> AnyStr
             return frg
     return url
 
+
 Avro = TypeVar('Avro', Dict[unicode, Any], List[Any], unicode)
+
 
 def make_valid_avro(items, alltypes, found, union=False):
     # type: (Avro, Dict[unicode, Dict[unicode, Any]], Set[unicode], bool) -> Union[Avro, Dict]
@@ -323,7 +328,8 @@ def make_valid_avro(items, alltypes, found, union=False):
         if items.get("name"):
             items["name"] = avro_name(items["name"])
 
-        if "type" in items and items["type"] in ("https://w3id.org/cwl/salad#record", "https://w3id.org/cwl/salad#enum", "record", "enum"):
+        if "type" in items and items["type"] in (
+        "https://w3id.org/cwl/salad#record", "https://w3id.org/cwl/salad#enum", "record", "enum"):
             if (hasattr(items, "get") and items.get("abstract")) or ("abstract"
                                                                      in items):
                 return items
@@ -350,7 +356,7 @@ def make_valid_avro(items, alltypes, found, union=False):
     if union and isinstance(items, (str, unicode)):
         if items in alltypes and avro_name(items) not in found:
             return cast(Dict, make_valid_avro(alltypes[items], alltypes, found,
-                        union=union))
+                                              union=union))
         items = avro_name(items)
     return items
 

@@ -1,12 +1,11 @@
+import os
 import unittest
-import schema_salad.ref_resolver
+
+import ruamel.yaml as yaml
 import schema_salad.main
+import schema_salad.ref_resolver
 import schema_salad.schema
 from schema_salad.jsonld_context import makerdf
-import rdflib
-import ruamel.yaml as yaml
-import json
-import os
 
 try:
     from ruamel.yaml import CSafeLoader as SafeLoader
@@ -52,7 +51,7 @@ class TestSchemas(unittest.TestCase):
     def test_self_validate(self):
         self.assertEqual(0, schema_salad.main.main(argsl=["schema_salad/metaschema/metaschema.yml"]))
         self.assertEqual(0, schema_salad.main.main(argsl=["schema_salad/metaschema/metaschema.yml",
-                                     "schema_salad/metaschema/metaschema.yml"]))
+                                                          "schema_salad/metaschema/metaschema.yml"]))
 
     def test_avro_regression(self):
         self.assertEqual(0, schema_salad.main.main(argsl=["tests/Process.yml"]))
@@ -183,36 +182,35 @@ class TestSchemas(unittest.TestCase):
                 'id': 'http://example2.com/#inp2',
                 'type': 'string'
             }],
-             'outputs': [{
-                'id': 'http://example2.com/#out',
-                 'type': 'string',
-                 'source': 'http://example2.com/#step2/out'
-             }],
-            'steps': [{
+                'outputs': [{
+                    'id': 'http://example2.com/#out',
+                    'type': 'string',
+                    'source': 'http://example2.com/#step2/out'
+                }],
+                'steps': [{
                     'id': 'http://example2.com/#step1',
                     'scatter': 'http://example2.com/#step1/inp',
                     'in': [{
-                            'id': 'http://example2.com/#step1/inp',
-                            'source': 'http://example2.com/#inp'
+                        'id': 'http://example2.com/#step1/inp',
+                        'source': 'http://example2.com/#inp'
                     }, {
-                            'id': 'http://example2.com/#step1/inp2',
-                            'source': 'http://example2.com/#inp2'
+                        'id': 'http://example2.com/#step1/inp2',
+                        'source': 'http://example2.com/#inp2'
                     }, {
-                            'id': 'http://example2.com/#step1/inp3',
-                            'source': ['http://example2.com/#inp', 'http://example2.com/#inp2']
+                        'id': 'http://example2.com/#step1/inp3',
+                        'source': ['http://example2.com/#inp', 'http://example2.com/#inp2']
                     }],
                     "out": ["http://example2.com/#step1/out"],
-            }, {
+                }, {
                     'id': 'http://example2.com/#step2',
                     'scatter': 'http://example2.com/#step2/inp',
                     'in': [{
-                            'id': 'http://example2.com/#step2/inp',
-                            'source': 'http://example2.com/#step1/out'
+                        'id': 'http://example2.com/#step2/inp',
+                        'source': 'http://example2.com/#step1/out'
                     }],
                     "out": ["http://example2.com/#step2/out"],
                 }]
-        }, ra)
-
+            }, ra)
 
     def test_examples(self):
         self.maxDiff = None
@@ -275,7 +273,7 @@ class TestSchemas(unittest.TestCase):
         self.assertEqual({'id': 'http://example.com/#foo',
                           'bar': {
                               'id': 'http://example.com/#foo/baz'},
-                      }, ra)
+                          }, ra)
 
         g = makerdf(None, ra, ctx)
         print(g.serialize(format="n3"))
@@ -289,7 +287,7 @@ class TestSchemas(unittest.TestCase):
         self.assertEqual({'location': 'http://example.com/foo',
                           'bar': {
                               'location': 'http://example.com/baz'},
-                      }, ra)
+                          }, ra)
 
         g = makerdf(None, ra, ctx)
         print(g.serialize(format="n3"))
@@ -303,7 +301,7 @@ class TestSchemas(unittest.TestCase):
         self.assertEqual({'id': 'http://example.com/#foo',
                           'bar': {
                               'location': 'http://example.com/baz'},
-                      }, ra)
+                          }, ra)
 
         g = makerdf(None, ra, ctx)
         print(g.serialize(format="n3"))
@@ -317,20 +315,19 @@ class TestSchemas(unittest.TestCase):
         self.assertEqual({'location': 'http://example.com/foo',
                           'bar': {
                               'id': 'http://example.com/#baz'},
-                      }, ra)
+                          }, ra)
 
         g = makerdf(None, ra, ctx)
         print(g.serialize(format="n3"))
 
-
     def test_mixin(self):
         ldr = schema_salad.ref_resolver.Loader({})
         ra = ldr.resolve_ref({"$mixin": "mixin.yml", "one": "five"},
-                             base_url="file://"+os.getcwd()+"/tests/")
+                             base_url="file://" + os.getcwd() + "/tests/")
         self.assertEqual({'id': 'four', 'one': 'five'}, ra[0])
 
         ldr = schema_salad.ref_resolver.Loader({"id": "@id"})
-        base_url="file://"+os.getcwd()+"/tests/"
+        base_url = "file://" + os.getcwd() + "/tests/"
         ra = ldr.resolve_all([{
             "id": "a",
             "m": {"$mixin": "mixin.yml"}
@@ -339,17 +336,18 @@ class TestSchemas(unittest.TestCase):
             "m": {"$mixin": "mixin.yml"}
         }], base_url=base_url)
         self.assertEqual([{
-            'id': base_url+'#a',
+            'id': base_url + '#a',
             'm': {
-                'id': base_url+u'#a/four',
+                'id': base_url + u'#a/four',
                 'one': 'two'
             },
         }, {
-            'id': base_url+'#b',
+            'id': base_url + '#b',
             'm': {
-                'id': base_url+u'#b/four',
+                'id': base_url + u'#b/four',
                 'one': 'two'}
         }], ra[0])
+
 
 if __name__ == '__main__':
     unittest.main()

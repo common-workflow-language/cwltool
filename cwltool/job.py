@@ -1,26 +1,24 @@
-import subprocess
-import io
-import os
-import tempfile
-import glob
+import functools
 import json
 import logging
-import sys
-import requests
-from . import docker
-from .process import get_feature, empty_subtree, stageFiles
-from .errors import WorkflowException
+import os
+import re
 import shutil
 import stat
-import re
+import subprocess
+import sys
+import tempfile
+
 import shellescape
-import string
-from .docker_uid import docker_vm_uid
+from typing import (Any, Callable, Union, Iterable, MutableMapping,
+                    IO, Text, Tuple)
+
+from . import docker
 from .builder import Builder
-from typing import (Any, Callable, Union, Iterable, Mapping, MutableMapping,
-        IO, cast, Text, Tuple)
+from .docker_uid import docker_vm_uid
+from .errors import WorkflowException
 from .pathmapper import PathMapper
-import functools
+from .process import get_feature, empty_subtree, stageFiles
 
 _logger = logging.getLogger("cwltool")
 
@@ -91,8 +89,8 @@ def deref_links(outputs):  # type: (Any) -> None
         for v in outputs:
             deref_links(v)
 
-class CommandLineJob(object):
 
+class CommandLineJob(object):
     def __init__(self):  # type: () -> None
         self.builder = None  # type: Builder
         self.joborder = None  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
@@ -121,7 +119,7 @@ class CommandLineJob(object):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
-        #with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
+        # with open(os.path.join(outdir, "cwl.input.json"), "w") as fp:
         #    json.dump(self.joborder, fp)
 
         runtime = []  # type: List[Text]
@@ -173,7 +171,7 @@ class CommandLineJob(object):
 
             euid = docker_vm_uid() or os.geteuid()
 
-            if kwargs.get("no_match_user",None) is False:
+            if kwargs.get("no_match_user", None) is False:
                 runtime.append(u"--user=%s" % (euid))
 
             if rm_container:
@@ -186,7 +184,7 @@ class CommandLineJob(object):
             # runtime.append("--env=HOME=/tmp")
             runtime.append("--env=HOME=%s" % self.builder.outdir)
 
-            for t,v in self.environment.items():
+            for t, v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))
 
             runtime.append(img_id)
@@ -216,7 +214,8 @@ class CommandLineJob(object):
         _logger.info(u"[job %s] %s$ %s%s%s%s",
                      self.name,
                      self.outdir,
-                     " \\\n    ".join([shellescape.quote(Text(arg)) if shouldquote(Text(arg)) else Text(arg) for arg in (runtime + self.command_line)]),
+                     " \\\n    ".join([shellescape.quote(Text(arg)) if shouldquote(Text(arg)) else Text(arg) for arg in
+                                       (runtime + self.command_line)]),
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
@@ -240,6 +239,7 @@ class CommandLineJob(object):
                         if src == item.resolved:
                             os.symlink(item.target, tgt)
                             break
+
                 stageFiles(generatemapper, linkoutdir)
 
             stdin_path = None
@@ -291,6 +291,7 @@ class CommandLineJob(object):
                     if os.path.islink(tgt):
                         os.remove(tgt)
                         os.symlink(src, tgt)
+
                 stageFiles(generatemapper, linkoutdir, ignoreWritable=True)
 
             outputs = self.collect_outputs(self.outdir)
@@ -335,14 +336,14 @@ class CommandLineJob(object):
 
 
 def _job_popen(
-    commands,  # type: List[str]
-    stdin_path,  # type: Text
-    stdout_path,  # type: Text
-    stderr_path,  # type: Text
-    env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
-    cwd,  # type: Text
-    job_dir=None,  # type: Text
-    build_job_script=None,  # type: Callable[[List[str]], Text]
+        commands,  # type: List[str]
+        stdin_path,  # type: Text
+        stdout_path,  # type: Text
+        stderr_path,  # type: Text
+        env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
+        cwd,  # type: Text
+        job_dir=None,  # type: Text
+        build_job_script=None,  # type: Callable[[List[str]], Text]
 ):
     # type: (...) -> int
 

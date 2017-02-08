@@ -1,21 +1,20 @@
 # Stubs for requests.models (Python 3)
 
-from typing import Any, List, MutableMapping, Iterator, Dict
 import datetime
 
-from . import hooks
-from . import structures
+from typing import Any, List, MutableMapping, Iterator, Dict
+
 from . import auth
 from . import cookies
+from . import exceptions
+from . import hooks
+from . import status_codes
+from . import structures
+from . import utils
 from .cookies import RequestsCookieJar
+from .packages.urllib3 import exceptions as urllib3_exceptions
 from .packages.urllib3 import fields
 from .packages.urllib3 import filepost
-from .packages.urllib3 import util
-from .packages.urllib3 import exceptions as urllib3_exceptions
-from . import exceptions
-from . import utils
-from . import compat
-from . import status_codes
 
 default_hooks = hooks.default_hooks
 CaseInsensitiveDict = structures.CaseInsensitiveDict
@@ -53,13 +52,17 @@ CONTENT_CHUNK_SIZE = ...  # type: Any
 ITER_CHUNK_SIZE = ...  # type: Any
 json_dumps = ...  # type: Any
 
+
 class RequestEncodingMixin:
     @property
     def path_url(self): ...
 
+
 class RequestHooksMixin:
     def register_hook(self, event, hook): ...
+
     def deregister_hook(self, event, hook): ...
+
 
 class Request(RequestHooksMixin):
     hooks = ...  # type: Any
@@ -72,9 +75,12 @@ class Request(RequestHooksMixin):
     params = ...  # type: Any
     auth = ...  # type: Any
     cookies = ...  # type: Any
+
     def __init__(self, method=..., url=..., headers=..., files=..., data=..., params=...,
                  auth=..., cookies=..., hooks=..., json=...): ...
+
     def prepare(self): ...
+
 
 class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
     method = ...  # type: Any
@@ -82,18 +88,30 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
     headers = ...  # type: Any
     body = ...  # type: Any
     hooks = ...  # type: Any
+
     def __init__(self) -> None: ...
+
     def prepare(self, method=..., url=..., headers=..., files=..., data=..., params=...,
                 auth=..., cookies=..., hooks=..., json=...): ...
+
     def copy(self): ...
+
     def prepare_method(self, method): ...
+
     def prepare_url(self, url, params): ...
+
     def prepare_headers(self, headers): ...
+
     def prepare_body(self, data, files, json=...): ...
+
     def prepare_content_length(self, body): ...
+
     def prepare_auth(self, auth, url=...): ...
+
     def prepare_cookies(self, cookies): ...
+
     def prepare_hooks(self, hooks): ...
+
 
 class Response:
     __attrs__ = ...  # type: Any
@@ -107,27 +125,43 @@ class Response:
     cookies = ...  # type: RequestsCookieJar
     elapsed = ...  # type: datetime.timedelta
     request = ...  # type: PreparedRequest
+
     def __init__(self) -> None: ...
+
     def __bool__(self) -> bool: ...
+
     def __nonzero__(self) -> bool: ...
+
     def __iter__(self) -> Iterator[str]: ...
+
     @property
     def ok(self) -> bool: ...
+
     @property
     def is_redirect(self) -> bool: ...
+
     @property
     def is_permanent_redirect(self) -> bool: ...
+
     @property
     def apparent_encoding(self) -> str: ...
+
     def iter_content(self, chunk_size: int = ...,
                      decode_unicode: bool = ...) -> Iterator[Any]: ...
+
     def iter_lines(self, chunk_size=..., decode_unicode=..., delimiter=...): ...
+
     @property
     def content(self) -> str: ...
+
     @property
     def text(self) -> str: ...
+
     def json(self, **kwargs) -> Any: ...
+
     @property
     def links(self) -> Dict[Any, Any]: ...
+
     def raise_for_status(self) -> None: ...
+
     def close(self) -> None: ...

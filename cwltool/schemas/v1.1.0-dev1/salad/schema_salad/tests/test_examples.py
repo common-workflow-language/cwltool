@@ -1,13 +1,12 @@
-import unittest
-import schema_salad.ref_resolver
-import schema_salad.main
-import schema_salad.schema
-from schema_salad.jsonld_context import makerdf
-from pkg_resources import Requirement, resource_filename, ResolutionError  # type: ignore
-import rdflib
-import ruamel.yaml as yaml
-import json
 import os
+import unittest
+
+import ruamel.yaml as yaml
+import schema_salad.main
+import schema_salad.ref_resolver
+import schema_salad.schema
+from pkg_resources import Requirement, resource_filename, ResolutionError  # type: ignore
+from schema_salad.jsonld_context import makerdf
 
 try:
     from ruamel.yaml import CSafeLoader as SafeLoader
@@ -363,6 +362,7 @@ class TestSchemas(unittest.TestCase):
                 'id': base_url + u'#b/four',
                 'one': 'two'}
         }], ra[0])
+
 
 if __name__ == '__main__':
     unittest.main()

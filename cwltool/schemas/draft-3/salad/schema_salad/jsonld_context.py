@@ -1,21 +1,18 @@
-import shutil
 import json
-import yaml
-import os
-import subprocess
-import copy
-import pprint
-import re
-import sys
-import rdflib
-from rdflib import Graph, URIRef
-import rdflib.namespace
-from rdflib.namespace import RDF, RDFS
-import urlparse
 import logging
+import sys
+import urlparse
+
+import rdflib
+import rdflib.namespace
+import yaml
+from rdflib import Graph, URIRef
+from rdflib.namespace import RDF, RDFS
+
 from aslist import aslist
 
 _logger = logging.getLogger("salad")
+
 
 def pred(datatype, field, name, context, defaultBase, namespaces):
     split = urlparse.urlsplit(name)
@@ -32,8 +29,8 @@ def pred(datatype, field, name, context, defaultBase, namespaces):
 
     if field and "jsonldPredicate" in field:
         if isinstance(field["jsonldPredicate"], dict):
-            v = {("@"+k[1:] if k.startswith("_") else k): v
-                 for k,v in field["jsonldPredicate"].items() }
+            v = {("@" + k[1:] if k.startswith("_") else k): v
+                 for k, v in field["jsonldPredicate"].items()}
         else:
             v = field["jsonldPredicate"]
     elif "jsonldPredicate" in datatype:
@@ -57,6 +54,7 @@ def pred(datatype, field, name, context, defaultBase, namespaces):
         context[name] = v
 
     return v
+
 
 def process_type(t, g, context, defaultBase, namespaces, defaultPrefix):
     if t["type"] == "record":
@@ -129,7 +127,7 @@ def salad_to_jsonld_context(j, schema_ctx):
     g = Graph()
     defaultPrefix = ""
 
-    for k,v in schema_ctx.items():
+    for k, v in schema_ctx.items():
         context[k] = v
         namespaces[k] = rdflib.namespace.Namespace(v)
 
@@ -139,13 +137,14 @@ def salad_to_jsonld_context(j, schema_ctx):
     else:
         defaultBase = ""
 
-    for k,v in namespaces.items():
+    for k, v in namespaces.items():
         g.bind(k, v)
 
     for t in j:
         process_type(t, g, context, defaultBase, namespaces, defaultPrefix)
 
     return (context, g)
+
 
 if __name__ == "__main__":
     with open(sys.argv[1]) as f:

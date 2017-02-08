@@ -1,24 +1,24 @@
 from __future__ import print_function
+
 import argparse
-import logging
-import sys
-import pkg_resources  # part of setuptools
-from . import schema
-from . import jsonld_context
-from . import makedoc
 import json
-from rdflib import Graph, plugin
-from rdflib.serializer import Serializer
+import logging
 import os
+import sys
 import urlparse
 
-from .ref_resolver import Loader
-from . import validate
+import pkg_resources  # part of setuptools
 from typing import Any, Dict, List, Union
+
+from . import jsonld_context
+from . import schema
+from . import validate
+from .ref_resolver import Loader
 
 _logger = logging.getLogger("salad")
 
 from rdflib.plugin import register, Parser
+
 register('json-ld', Parser, 'rdflib_jsonld.parser', 'JsonLDParser')
 
 
@@ -57,7 +57,8 @@ def main(argsl=None):  # type: (List[str]) -> int
                          help="Print version")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--strict", action="store_true", help="Strict validation (unrecognized or out of place fields are error)",
+    exgroup.add_argument("--strict", action="store_true",
+                         help="Strict validation (unrecognized or out of place fields are error)",
                          default=True, dest="strict")
     exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
                          default=True, dest="strict")

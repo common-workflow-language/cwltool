@@ -1,17 +1,16 @@
 # Stubs for requests.adapters (Python 3)
 
 from typing import Any
+
+from . import cookies
+from . import exceptions
 from . import models
+from . import structures
+from . import utils
+from .packages.urllib3 import exceptions as urllib3_exceptions
 from .packages.urllib3 import poolmanager
 from .packages.urllib3 import response
 from .packages.urllib3.util import retry
-from . import compat
-from . import utils
-from . import structures
-from .packages.urllib3 import exceptions as urllib3_exceptions
-from . import cookies
-from . import exceptions
-from . import auth
 
 Response = models.Response
 PoolManager = poolmanager.PoolManager
@@ -41,29 +40,45 @@ DEFAULT_POOLBLOCK = ...  # type: Any
 DEFAULT_POOLSIZE = ...  # type: Any
 DEFAULT_RETRIES = ...  # type: Any
 
+
 class BaseAdapter:
     def __init__(self) -> None: ...
+
     # TODO: "request" parameter not actually supported, added to please mypy.
     def send(self, request=...): ...
+
     def close(self): ...
+
 
 class HTTPAdapter(BaseAdapter):
     __attrs__ = ...  # type: Any
     max_retries = ...  # type: Any
     config = ...  # type: Any
     proxy_manager = ...  # type: Any
+
     def __init__(self, pool_connections=..., pool_maxsize=..., max_retries=...,
                  pool_block=...): ...
+
     poolmanager = ...  # type: Any
+
     def init_poolmanager(self, connections, maxsize, block=..., **pool_kwargs): ...
+
     def proxy_manager_for(self, proxy, **proxy_kwargs): ...
+
     def cert_verify(self, conn, url, verify, cert): ...
+
     def build_response(self, req, resp): ...
+
     def get_connection(self, url, proxies=...): ...
+
     def close(self): ...
+
     def request_url(self, request, proxies): ...
+
     def add_headers(self, request, **kwargs): ...
+
     def proxy_headers(self, proxy): ...
+
     # TODO: "request" is not actually optional, modified to please mypy.
     def send(self, request=..., stream=..., timeout=..., verify=..., cert=...,
              proxies=...): ...

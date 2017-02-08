@@ -1,12 +1,13 @@
 # Stubs for requests (based on version 2.6.0, Python 3)
 
-from typing import Any
-from requests import models
+import logging
+
 from requests import api
+from requests import exceptions
+from requests import models
 from requests import sessions
 from requests import status_codes
-from requests import exceptions
-import logging
+from typing import Any
 
 __title__ = ...  # type: Any
 __build__ = ...  # type: Any
@@ -33,6 +34,7 @@ URLRequired = exceptions.URLRequired
 TooManyRedirects = exceptions.TooManyRedirects
 HTTPError = exceptions.HTTPError
 ConnectionError = exceptions.ConnectionError
+
 
 class NullHandler(logging.Handler):
     def emit(self, record): ...

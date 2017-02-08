@@ -1,18 +1,18 @@
-import mistune
-from . import schema
-import json
-import os
+import StringIO
+import argparse
 import copy
+import logging
+import os
 import re
 import sys
-import StringIO
-import logging
 import urlparse
-from .aslist import aslist
-from .add_dictlist import add_dictlist
-import re
-import argparse
+
+import mistune
 from typing import Any, IO, Union
+
+from . import schema
+from .add_dictlist import add_dictlist
+from .aslist import aslist
 
 _logger = logging.getLogger("salad")
 
@@ -41,7 +41,6 @@ def linkto(item):
 
 
 class MyRenderer(mistune.Renderer):
-
     def __init__(self):  # type: () -> None
         super(mistune.Renderer, self).__init__()
         self.options = {}
@@ -62,7 +61,6 @@ def to_id(text):  # type: (Union[str, unicode]) -> Union[str, unicode]
 
 
 class ToC(object):
-
     def __init__(self):  # type: () -> None
         self.first_toc_entry = True
         self.numbering = [0]
@@ -103,6 +101,7 @@ class ToC(object):
             c += "</li></ol>"
         c += """</nav>"""
         return c
+
 
 basicTypes = ("https://w3id.org/cwl/salad#null",
               "http://www.w3.org/2001/XMLSchema#boolean",
@@ -150,7 +149,6 @@ def fix_doc(doc):  # type: (Union[List[str], str]) -> str
 
 
 class RenderType(object):
-
     def __init__(self, toc, j, renderlist, redirects):
         # type: (ToC, List[Dict], str, Dict) -> None
         self.typedoc = StringIO.StringIO()
@@ -207,10 +205,10 @@ class RenderType(object):
 
         for f in alltypes:
             if (f["name"] in renderlist or
-                ((not renderlist) and
-                 ("extends" not in f) and
-                 ("docParent" not in f) and
-                 ("docAfter" not in f))):
+                    ((not renderlist) and
+                         ("extends" not in f) and
+                         ("docParent" not in f) and
+                         ("docAfter" not in f))):
                 self.render_type(f, 1)
 
     def typefmt(self, tp, redirects, nbsp=False, jsonldPredicate=None):
@@ -227,12 +225,12 @@ class RenderType(object):
                 if jsonldPredicate and "mapSubject" in jsonldPredicate:
                     if "mapPredicate" in jsonldPredicate:
                         ar += " | map&lt;%s.%s,&nbsp;%s.%s&gt" % (self.typefmt(tp["items"], redirects),
-                                                           jsonldPredicate["mapSubject"],
-                                                           self.typefmt(tp["items"], redirects),
-                                                           jsonldPredicate["mapPredicate"])
+                                                                  jsonldPredicate["mapSubject"],
+                                                                  self.typefmt(tp["items"], redirects),
+                                                                  jsonldPredicate["mapPredicate"])
                     ar += " | map&lt;%s.%s,&nbsp;%s&gt" % (self.typefmt(tp["items"], redirects),
-                                                          jsonldPredicate["mapSubject"],
-                                                          self.typefmt(tp["items"], redirects))
+                                                           jsonldPredicate["mapSubject"],
+                                                           self.typefmt(tp["items"], redirects))
                 return ar
             if tp["type"] in ("https://w3id.org/cwl/salad#record", "https://w3id.org/cwl/salad#enum"):
                 frg = schema.avro_name(tp["name"])
@@ -353,12 +351,12 @@ class RenderType(object):
                 #    desc = "%s _Inherited from %s_" % (desc, linkto(i["inherited_from"]))
 
                 rfrg = schema.avro_name(i["name"])
-                tr = "<td><code>%s</code></td><td>%s</td><td>%s</td>"\
-                    "<td>%s</td>" % (
-                        rfrg, self.typefmt(tp, self.redirects,
-                                           jsonldPredicate=i.get("jsonldPredicate")),
-                        "Optional" if opt else "Required",
-                        mistune.markdown(desc))
+                tr = "<td><code>%s</code></td><td>%s</td><td>%s</td>" \
+                     "<td>%s</td>" % (
+                         rfrg, self.typefmt(tp, self.redirects,
+                                            jsonldPredicate=i.get("jsonldPredicate")),
+                         "Optional" if opt else "Required",
+                         mistune.markdown(desc))
                 if opt:
                     required.append(tr)
                 else:
@@ -383,7 +381,7 @@ class RenderType(object):
         self.typedoc.write(f["doc"])
 
         subs = self.docParent.get(f["name"], []) + \
-            self.record_refs.get(f["name"], [])
+               self.record_refs.get(f["name"], [])
         if len(subs) == 1:
             self.render_type(self.typemap[subs[0]], depth)
         else:
@@ -474,6 +472,7 @@ def avrold_doc(j, outdoc, renderlist, redirects, brand, brandlink):
     </div>
     </body>
     </html>""")
+
 
 if __name__ == "__main__":
 

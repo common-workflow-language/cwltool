@@ -2,10 +2,10 @@ import copy
 import urlparse
 
 from schema_salad.ref_resolver import Loader
+from typing import Union, Any, cast, Callable, Dict, Text
 
-from .process import scandeps, shortname, uniquename
+from .process import shortname, uniquename
 
-from typing import Union, Any, cast, Callable, Dict, Tuple, Type, IO, Text
 
 def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
@@ -19,6 +19,7 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
+
 def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict, List, Text]], Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
@@ -31,6 +32,7 @@ def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict
         for s in d.values():
             find_run(s, loadref, runs)
 
+
 def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
@@ -42,10 +44,11 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
         for s in d.values():
             find_ids(s, ids)
 
+
 def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
-        for s,v in enumerate(d):
+        for s, v in enumerate(d):
             if isinstance(v, (str, unicode)):
                 if v in rewrite:
                     d[s] = rewrite[v]
@@ -54,7 +57,7 @@ def replace_refs(d, rewrite, stem, newstem):
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
-        for s,v in d.items():
+        for s, v in d.items():
             if isinstance(v, (str, unicode)):
                 if v in rewrite:
                     d[s] = rewrite[v]
@@ -62,13 +65,14 @@ def replace_refs(d, rewrite, stem, newstem):
                     d[s] = newstem + v[len(stem):]
             replace_refs(v, rewrite, stem, newstem)
 
+
 def pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
     def loadref(b, u):
         # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
 
-    runs = set((uri,))
+    runs = {uri}
     find_run(processobj, loadref, runs)
 
     ids = set()  # type: Set[Text]
@@ -76,7 +80,7 @@ def pack(document_loader, processobj, uri, metadata):
         find_ids(document_loader.resolve_ref(f)[0], ids)
 
     names = set()  # type: Set[Text]
-    rewrite = {}   # type: Dict[Text, Text]
+    rewrite = {}  # type: Dict[Text, Text]
 
     mainpath, _ = urlparse.urldefrag(uri)
 
@@ -101,7 +105,7 @@ def pack(document_loader, processobj, uri, metadata):
             rewrite_id(r, uri)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
-            }  # type: Dict[Text, Any]
+              }  # type: Dict[Text, Any]
 
     schemas = set()  # type: Set[Text]
     for r in sorted(runs):
@@ -127,6 +131,6 @@ def pack(document_loader, processobj, uri, metadata):
 
     for r in rewrite:
         v = rewrite[r]
-        replace_refs(packed, rewrite, r+"/" if "#" in r else r+"#", v+"/")
+        replace_refs(packed, rewrite, r + "/" if "#" in r else r + "#", v + "/")
 
     return packed

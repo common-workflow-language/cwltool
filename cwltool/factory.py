@@ -1,11 +1,13 @@
-from . import main
-from . import load_tool
-from . import workflow
 import os
-from .process import Process
+
 from typing import Any, Text, Union, Tuple
 from typing import Callable as tCallable
-import argparse
+
+from . import load_tool
+from . import main
+from . import workflow
+from .process import Process
+
 
 class WorkflowStatus(Exception):
     def __init__(self, out, status):
@@ -13,6 +15,7 @@ class WorkflowStatus(Exception):
         super(WorkflowStatus, self).__init__("Completed %s" % status)
         self.out = out
         self.status = status
+
 
 class Callable(object):
     def __init__(self, t, factory):  # type: (Process, Factory) -> None
@@ -28,6 +31,7 @@ class Callable(object):
             raise WorkflowStatus(out, status)
         else:
             return out
+
 
 class Factory(object):
     def __init__(self, makeTool=workflow.defaultMakeTool,
