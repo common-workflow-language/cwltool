@@ -1,14 +1,17 @@
-import subprocess
 import logging
-import sys
-import requests
 import os
-from .errors import WorkflowException
 import re
+import subprocess
+import sys
 import tempfile
-from typing import Any, Text, Union
+
+import requests
+from typing import Text
+
+from .errors import WorkflowException
 
 _logger = logging.getLogger("cwltool")
+
 
 def get_image(dockerRequirement, pull_image, dry_run=False):
     # type: (Dict[Text, Text], bool, bool) -> bool
@@ -44,7 +47,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as df:
                 df.write(dockerRequirement["dockerFile"])
             cmd = ["docker", "build", "--tag=%s" %
-                str(dockerRequirement["dockerImageId"]), dockerfile_dir]
+                   str(dockerRequirement["dockerImageId"]), dockerfile_dir]
             _logger.info(Text(cmd))
             if not dry_run:
                 subprocess.check_call(cmd, stdout=sys.stderr)
@@ -62,7 +65,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                     _logger.info(u"Sending GET request to %s", dockerRequirement["dockerLoad"])
                     req = requests.get(dockerRequirement["dockerLoad"], stream=True)
                     n = 0
-                    for chunk in req.iter_content(1024*1024):
+                    for chunk in req.iter_content(1024 * 1024):
                         n += len(chunk)
                         _logger.info("\r%i bytes" % (n))
                         loadproc.stdin.write(chunk)
@@ -73,7 +76,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 found = True
         elif "dockerImport" in dockerRequirement:
             cmd = ["docker", "import", str(dockerRequirement["dockerImport"]),
-                str(dockerRequirement["dockerImageId"])]
+                   str(dockerRequirement["dockerImageId"])]
             _logger.info(Text(cmd))
             if not dry_run:
                 subprocess.check_call(cmd, stdout=sys.stderr)

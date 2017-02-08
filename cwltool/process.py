@@ -1,39 +1,36 @@
-import os
-import json
+import abc
 import copy
+import errno
+import hashlib
+import json
 import logging
-import pprint
+import os
+import shutil
 import stat
 import tempfile
-import glob
 import urlparse
-from collections import Iterable
-import errno
-import shutil
 import uuid
-import hashlib
+from collections import Iterable
 
-import abc
-import schema_salad.validate as validate
-import schema_salad.schema
-from schema_salad.ref_resolver import Loader, file_uri
-from schema_salad.sourceline import SourceLine
 import avro.schema
-from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, IO, Text,
-        Tuple, Union)
+import schema_salad.schema
+import schema_salad.validate as validate
+from pkg_resources import resource_stream
+from rdflib import Graph
 from rdflib import URIRef
 from rdflib.namespace import RDFS, OWL
-from rdflib import Graph
-from pkg_resources import resource_stream
-
-
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from schema_salad.ref_resolver import Loader, file_uri
+from schema_salad.sourceline import SourceLine
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
+                    Tuple, Union)
 
-from .utils import aslist, get_feature
-from .stdfsaccess import StdFsAccess
-from .builder import Builder, adjustFileObjs, adjustDirObjs
+from .builder import Builder, adjustFileObjs
+from .pathmapper import adjustDirObjs
 from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import PathMapper, abspath, normalizeFilesDirs
+from .pathmapper import PathMapper, normalizeFilesDirs
+from .stdfsaccess import StdFsAccess
+from .utils import aslist, get_feature
 
 _logger = logging.getLogger("cwltool")
 
@@ -61,30 +58,31 @@ cwl_files = (
 
 salad_files = ('metaschema.yml',
                'metaschema_base.yml',
-              'salad.md',
-              'field_name.yml',
-              'import_include.md',
-              'link_res.yml',
-              'ident_res.yml',
-              'vocab_res.yml',
-              'vocab_res.yml',
-              'field_name_schema.yml',
-              'field_name_src.yml',
-              'field_name_proc.yml',
-              'ident_res_schema.yml',
-              'ident_res_src.yml',
-              'ident_res_proc.yml',
-              'link_res_schema.yml',
-              'link_res_src.yml',
-              'link_res_proc.yml',
-              'vocab_res_schema.yml',
-              'vocab_res_src.yml',
-              'vocab_res_proc.yml')
+               'salad.md',
+               'field_name.yml',
+               'import_include.md',
+               'link_res.yml',
+               'ident_res.yml',
+               'vocab_res.yml',
+               'vocab_res.yml',
+               'field_name_schema.yml',
+               'field_name_src.yml',
+               'field_name_proc.yml',
+               'ident_res_schema.yml',
+               'ident_res_src.yml',
+               'ident_res_proc.yml',
+               'link_res_schema.yml',
+               'link_res_src.yml',
+               'link_res_proc.yml',
+               'vocab_res_schema.yml',
+               'vocab_res_src.yml',
+               'vocab_res_proc.yml')
 
 SCHEMA_CACHE = {}  # type: Dict[Text, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text, Any], Loader]]
 SCHEMA_FILE = None  # type: Dict[Text, Any]
 SCHEMA_DIR = None  # type: Dict[Text, Any]
 SCHEMA_ANY = None  # type: Dict[Text, Any]
+
 
 def get_schema(version):
     # type: (Text) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text,Any], Loader]
@@ -108,7 +106,7 @@ def get_schema(version):
         try:
             res = resource_stream(
                 __name__, 'schemas/%s/salad/schema_salad/metaschema/%s'
-                % (version, f))
+                          % (version, f))
             cache["https://w3id.org/cwl/salad/schema_salad/metaschema/"
                   + f] = res.read()
             res.close()
@@ -120,6 +118,7 @@ def get_schema(version):
 
     return SCHEMA_CACHE[version]
 
+
 def shortname(inputid):
     # type: (Text) -> Text
     d = urlparse.urlparse(inputid)
@@ -127,6 +126,7 @@ def shortname(inputid):
         return d.fragment.split(u"/")[-1]
     else:
         return d.path.split(u"/")[-1]
+
 
 def checkRequirements(rec, supportedProcessRequirements):
     # type: (Any, Iterable[Any]) -> None
@@ -141,6 +141,7 @@ def checkRequirements(rec, supportedProcessRequirements):
     if isinstance(rec, list):
         for d in rec:
             checkRequirements(d, supportedProcessRequirements)
+
 
 def adjustFilesWithSecondary(rec, op, primary=None):
     """Apply a mapping function to each File path in the object `rec`, propagating
@@ -159,6 +160,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
 
+
 def getListing(fs_access, rec):
     # type: (StdFsAccess, Dict[Text, Any]) -> None
     if "listing" not in rec:
@@ -174,6 +176,7 @@ def getListing(fs_access, rec):
                 listing.append({"class": "File", "location": ld})
         rec["listing"] = listing
 
+
 def stageFiles(pm, stageFunc, ignoreWritable=False):
     # type: (PathMapper, Callable[..., Any], bool) -> None
     for f, p in pm.items():
@@ -187,6 +190,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             with open(p.target, "w") as n:
                 n.write(p.resolved.encode("utf-8"))
 
+
 def collectFilesAndDirs(obj, out):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
     if isinstance(obj, dict):
@@ -198,6 +202,7 @@ def collectFilesAndDirs(obj, out):
     if isinstance(obj, list):
         for l in obj:
             collectFilesAndDirs(l, out)
+
 
 def relocateOutputs(outputObj, outdir, output_dirs, action):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -232,6 +237,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
 
     return outputObj
 
+
 def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
     for a in output_dirs:
         if os.path.exists(a) and empty_subtree(a):
@@ -256,17 +262,17 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     uriRefFmt = URIRef(fmt)
 
-    for s,p,o in ontology.triples( (uriRefFmt, RDFS.subClassOf, None) ):
+    for s, p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
         # Find parent classes of `fmt` and search upward
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (uriRefFmt, OWL.equivalentClass, None) ):
+    for s, p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s,p,o in ontology.triples( (None, OWL.equivalentClass, uriRefFmt) ):
+    for s, p, o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(s, cls, ontology, visited):
             return True
@@ -282,7 +288,9 @@ def checkFormat(actualFile, inputFormats, ontology):
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
-        raise validate.ValidationException(u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+        raise validate.ValidationException(
+            u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+
 
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
@@ -309,12 +317,13 @@ def avroize_type(field_type, name_prefix=""):
     elif isinstance(field_type, dict):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
-                field_type["name"] = name_prefix+Text(uuid.uuid4())
+                field_type["name"] = name_prefix + Text(uuid.uuid4())
         if field_type["type"] == "record":
             avroize_type(field_type["fields"], name_prefix)
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
     return field_type
+
 
 class Process(object):
     __metaclass__ = abc.ABCMeta
@@ -339,9 +348,9 @@ class Process(object):
         if SCHEMA_FILE is None:
             get_schema("v1.0")
             SCHEMA_ANY = cast(Dict[Text, Any],
-                    SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/salad#Any"])
+                              SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/salad#Any"])
             SCHEMA_FILE = cast(Dict[Text, Any],
-                    SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#File"])
+                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#File"])
             SCHEMA_DIR = cast(Dict[Text, Any],
                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"])
 
@@ -363,7 +372,7 @@ class Process(object):
 
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []),
-                strict=kwargs.get("strict"))
+                            strict=kwargs.get("strict"))
 
         self.schemaDefs = {}  # type: Dict[Text,Dict[Text, Any]]
 
@@ -407,14 +416,17 @@ class Process(object):
             self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" % (Text(e), self.tool["id"], json.dumps(self.inputs_record_schema, indent=4)))
+            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
+                                               (Text(e), self.tool["id"],
+                                                json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
             self.outputs_record_schema = schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set())
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" % (Text(e), self.tool["id"], json.dumps(self.outputs_record_schema, indent=4)))
-
+            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
+                                               (Text(e), self.tool["id"],
+                                                json.dumps(self.outputs_record_schema, indent=4)))
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
@@ -436,7 +448,7 @@ class Process(object):
 
         builder = Builder()
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
-            Text]], copy.deepcopy(joborder))
+                                            Text]], copy.deepcopy(joborder))
 
         # Validate job order
         try:
@@ -459,13 +471,15 @@ class Process(object):
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
         if dockerReq and is_req and not kwargs.get("use_container"):
-            raise WorkflowException("Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
+            raise WorkflowException(
+                "Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = builder.fs_access.realpath(dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.outdir = builder.fs_access.realpath(
+                dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
@@ -541,18 +555,18 @@ class Process(object):
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = None
             mx = None
-            if resourceReq.get(a+"Min"):
-                mn = builder.do_eval(resourceReq[a+"Min"])
-            if resourceReq.get(a+"Max"):
-                mx = builder.do_eval(resourceReq[a+"Max"])
+            if resourceReq.get(a + "Min"):
+                mn = builder.do_eval(resourceReq[a + "Min"])
+            if resourceReq.get(a + "Max"):
+                mx = builder.do_eval(resourceReq[a + "Max"])
             if mn is None:
                 mn = mx
             elif mx is None:
                 mx = mn
 
             if mn:
-                request[a+"Min"] = mn
-                request[a+"Max"] = mx
+                request[a + "Min"] = mn
+                request[a + "Max"] = mx
 
         if kwargs.get("select_resources"):
             return kwargs["select_resources"](request)
@@ -570,8 +584,8 @@ class Process(object):
             sl = SourceLine(hints, i, validate.ValidationException)
             with sl:
                 if avsc_names.get_name(r["class"], "") is not None:
-                    plain_hint = dict((key,r[key]) for key in r if key not in
-                            self.doc_loader.identifiers)  # strip identifiers
+                    plain_hint = dict((key, r[key]) for key in r if key not in
+                                      self.doc_loader.identifiers)  # strip identifiers
                     validate.validate_ex(
                         avsc_names.get_name(plain_hint["class"], ""),
                         plain_hint, strict=strict)
@@ -588,6 +602,7 @@ class Process(object):
     def job(self, job_order, output_callbacks, **kwargs):
         # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
         return None
+
 
 def empty_subtree(dirpath):  # type: (Text) -> bool
     # Test if a directory tree contains any files (does not count empty
@@ -610,6 +625,7 @@ def empty_subtree(dirpath):  # type: (Text) -> bool
 
 _names = set()  # type: Set[Text]
 
+
 def uniquename(stem, names=None):  # type: (Text, Set[Text]) -> Text
     global _names
     if names is None:
@@ -621,6 +637,7 @@ def uniquename(stem, names=None):  # type: (Text, Set[Text]) -> Text
         u = u"%s_%s" % (stem, c)
     names.add(u)
     return u
+
 
 def nestdir(base, deps):
     # type: (Text, Dict[Text, Any]) -> Dict[Text, Any]
@@ -639,6 +656,7 @@ def nestdir(base, deps):
             }
     return deps
 
+
 def mergedirs(listing):
     # type: (List[Dict[Text, Any]]) -> List[Dict[Text, Any]]
     r = []  # type: List[Dict[Text, Any]]
@@ -653,6 +671,7 @@ def mergedirs(listing):
             e["listing"] = mergedirs(e["listing"])
     r.extend(ents.itervalues())
     return r
+
 
 def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
@@ -725,14 +744,15 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin)
 
     return r
 
+
 def compute_checksums(fs_access, fileobj):
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()
         with fs_access.open(fileobj["location"], "rb") as f:
-            contents = f.read(1024*1024)
+            contents = f.read(1024 * 1024)
             while contents != "":
                 checksum.update(contents)
-                contents = f.read(1024*1024)
+                contents = f.read(1024 * 1024)
             f.seek(0, 2)
             filesize = f.tell()
         fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()

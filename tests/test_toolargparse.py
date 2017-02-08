@@ -1,12 +1,11 @@
 import unittest
 from tempfile import NamedTemporaryFile
+
 from cwltool.main import main
 
 
 class ToolArgparse(unittest.TestCase):
-
-
-    script='''
+    script = '''
 #!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
@@ -26,7 +25,7 @@ stdout: test.txt
 baseCommand: [cat]
 '''
 
-    script2='''
+    script2 = '''
 #!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
@@ -44,7 +43,7 @@ baseCommand:
 stdout: foo
 '''
 
-    script3='''
+    script3 = '''
 #!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
@@ -94,10 +93,9 @@ outputs: []
             f.flush()
             try:
                 self.assertEquals(main([f.name, '--foo.one', 'README.rst',
-                '--foo.two', 'test']), 0)
+                                        '--foo.two', 'test']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
-
 
 
 if __name__ == '__main__':

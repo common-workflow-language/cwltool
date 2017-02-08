@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 import ez_setup
+
 ez_setup.use_setuptools()
 import os
-import sys
-import shutil
 
 import setuptools.command.egg_info as egg_info_cmd
-from setuptools import setup, find_packages
+from setuptools import setup
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, 'README.rst')
 
 try:
     import gittaggers
+
     tagger = gittaggers.EggInfoFromGit
 except ImportError:
     tagger = egg_info_cmd.egg_info
@@ -53,8 +53,8 @@ setup(name='cwltool',
       test_suite='tests',
       tests_require=[],
       entry_points={
-          'console_scripts': [ "cwltool=cwltool.main:main" ]
+          'console_scripts': ["cwltool=cwltool.main:main"]
       },
       zip_safe=True,
       cmdclass={'egg_info': tagger},
-)
+      )
