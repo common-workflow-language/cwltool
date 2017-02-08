@@ -4,6 +4,7 @@ import logging
 import re
 
 from typing import Any, AnyStr, Union, Text, Dict, List
+from six import u
 
 from . import sandboxjs
 from .errors import WorkflowException
@@ -24,7 +25,7 @@ segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
 param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
 
-JSON = Union[Dict[Any, Any], List[Any], Text, int, long, float, bool, None]
+JSON = Union[Dict[Any, Any], List[Any], Text, int, int, float, bool, None]
 
 
 class SubstitutionError(Exception):
@@ -126,7 +127,7 @@ def next_seg(remain, obj):  # type: (Text, Any) -> Any
             try:
                 key = int(m.group(0)[1:-1])
             except ValueError as v:
-                raise WorkflowException(unicode(v))
+                raise WorkflowException(u(v))
             if not isinstance(obj, list):
                 raise WorkflowException(" is a %s, cannot index on int '%s'" % (type(obj).__name__, key))
             if key >= len(obj):

@@ -1,4 +1,3 @@
-import cStringIO
 import errno
 import json
 import logging
@@ -6,7 +5,7 @@ import os
 import select
 import subprocess
 import threading
-from cStringIO import StringIO
+from io import BytesIO
 
 from pkg_resources import resource_stream
 from typing import Any, Dict, List, Mapping, Text, Union
@@ -18,7 +17,7 @@ class JavascriptException(Exception):
 
 _logger = logging.getLogger("cwltool")
 
-JSON = Union[Dict[Text, Any], List[Any], Text, int, long, float, bool, None]
+JSON = Union[Dict[Text, Any], List[Any], Text, int, int, float, bool, None]
 
 localdata = threading.local()
 
@@ -101,9 +100,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     tm = threading.Timer(timeout, term)
     tm.start()
 
-    stdin_buf = StringIO(json.dumps(fn) + "\n")
-    stdout_buf = StringIO()
-    stderr_buf = StringIO()
+    stdin_buf = BytesIO(json.dumps(fn) + "\n")
+    stdout_buf = BytesIO()
+    stderr_buf = BytesIO()
 
     completed = []  # type: List[Union[cStringIO.InputType, cStringIO.OutputType]]
     while len(completed) < 3:

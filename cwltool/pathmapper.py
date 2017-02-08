@@ -2,8 +2,6 @@ import collections
 import logging
 import os
 import stat
-import urllib
-import urlparse
 import uuid
 from functools import partial
 
@@ -11,6 +9,7 @@ import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from typing import Any, Callable, Set, Text, Tuple, Union
+from six.moves import urllib
 
 _logger = logging.getLogger("cwltool")
 
@@ -71,8 +70,8 @@ def normalizeFilesDirs(job):
                 d["basename"] = Text(uuid.uuid4())
 
         if "basename" not in d:
-            parse = urlparse.urlparse(d["location"])
-            d["basename"] = os.path.basename(urllib.url2pathname(parse.path))
+            parse = urllib.parse.urlparse(d["location"])
+            d["basename"] = os.path.basename(urllib.request.url2pathname(parse.path))
 
     adjustFileObjs(job, addLocation)
     adjustDirObjs(job, addLocation)

@@ -4,6 +4,7 @@ import avro
 import schema_salad.validate as validate
 from schema_salad.sourceline import SourceLine
 from typing import Any, Callable, Text, Type, Union
+from six import string_types, iteritems
 
 from . import expression
 from .errors import WorkflowException
@@ -121,7 +122,7 @@ class Builder(object):
                     for sf in aslist(schema["secondaryFiles"]):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             secondary_eval = self.do_eval(sf, context=datum)
-                            if isinstance(secondary_eval, basestring):
+                            if isinstance(secondary_eval, string_types):
                                 sfpath = {"location": secondary_eval,
                                           "class": "File"}
                             else:
@@ -203,7 +204,7 @@ class Builder(object):
         # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
-                return {k: self.do_eval(v, context, pull_image, recursive) for k, v in ex.iteritems()}
+                return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
             if isinstance(ex, list):
                 return [self.do_eval(v, context, pull_image, recursive) for v in ex]
 
