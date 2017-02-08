@@ -182,8 +182,11 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     return parser
 
 
-def single_job_executor(t, job_order_object, **kwargs):
-    # type: (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
+def single_job_executor(t,  # type: Process
+                        job_order_object,  # type: Dict[Text, Any]
+                        **kwargs  # type: Any
+                        ):
+    # type: (...) -> Tuple[Dict[Text, Any], Text]
     final_output = []
     final_status = []
 
