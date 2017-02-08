@@ -1,11 +1,11 @@
-import unittest
 import json
 import os
+import unittest
 from functools import partial
 
-from cwltool.load_tool import fetch_document, validate_document
 import cwltool.pack
 import cwltool.workflow
+from cwltool.load_tool import fetch_document, validate_document
 from cwltool.main import makeRelative
 from cwltool.process import adjustFileObjs, adjustDirObjs
 

@@ -1,11 +1,13 @@
-from typing import Any, BinaryIO, Text
-from .pathmapper import abspath
 import glob
 import os
+
 from schema_salad.ref_resolver import file_uri
+from typing import BinaryIO, Text
+
+from .pathmapper import abspath
+
 
 class StdFsAccess(object):
-
     def __init__(self, basedir):  # type: (Text) -> None
         self.basedir = basedir
 

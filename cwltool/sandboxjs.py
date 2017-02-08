@@ -1,15 +1,16 @@
-import subprocess
-import json
-import threading
-import errno
-import logging
-import select
-import os
-
 import cStringIO
+import errno
+import json
+import logging
+import os
+import select
+import subprocess
+import threading
 from cStringIO import StringIO
-from typing import Any, Dict, List, Mapping, Text, TypeVar, Union
+
 from pkg_resources import resource_stream
+from typing import Any, Dict, List, Mapping, Text, Union
+
 
 class JavascriptException(Exception):
     pass
@@ -17,11 +18,12 @@ class JavascriptException(Exception):
 
 _logger = logging.getLogger("cwltool")
 
-JSON = Union[Dict[Text,Any], List[Any], Text, int, long, float, bool, None]
+JSON = Union[Dict[Text, Any], List[Any], Text, int, long, float, bool, None]
 
 localdata = threading.local()
 
 have_node_slim = False
+
 
 def new_js_proc():
     # type: () -> subprocess.Popen
@@ -33,7 +35,8 @@ def new_js_proc():
     trynodes = ("nodejs", "node")
     for n in trynodes:
         try:
-            nodejs = subprocess.Popen([n, "--eval", nodecode], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            nodejs = subprocess.Popen([n, "--eval", nodecode], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
             break
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -80,7 +83,8 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     nodejs = localdata.proc
 
-    fn = u"\"use strict\";\n%s\n(function()%s)()" % (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
+    fn = u"\"use strict\";\n%s\n(function()%s)()" %\
+         (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
 
@@ -97,7 +101,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     tm = threading.Timer(timeout, term)
     tm.start()
 
-    stdin_buf = StringIO(json.dumps(fn)+"\n")
+    stdin_buf = StringIO(json.dumps(fn) + "\n")
     stdout_buf = StringIO()
     stderr_buf = StringIO()
 
@@ -132,9 +136,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         ofs = 0
         maxlines = 99
         if len(lines) > maxlines:
-            ofs = len(lines)-maxlines
+            ofs = len(lines) - maxlines
             lines = lines[-maxlines:]
-        return u"\n".join(u"%02i %s" % (i+ofs+1, b) for i, b in enumerate(lines))
+        return u"\n".join(u"%02i %s" % (i + ofs + 1, b) for i, b in enumerate(lines))
 
     def stdfmt(data):  # type: (unicode) -> unicode
         if "\n" in data:
@@ -142,7 +146,8 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         return data
 
     if debug:
-        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" % (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
+        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
+               (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
     else:
         info = stdfmt(stderrdata)
 
@@ -155,4 +160,5 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         try:
             return json.loads(stdoutdata)
         except ValueError as e:
-            raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" % (e, fn_linenum(), stdoutdata, stderrdata))
+            raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
+                                      (e, fn_linenum(), stdoutdata, stderrdata))

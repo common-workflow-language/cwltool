@@ -1,14 +1,13 @@
 import unittest
-import json
-import cwltool.draft2tool as tool
+
 import cwltool.expression as expr
 import cwltool.factory
-import cwltool.process
 import cwltool.pathmapper
+import cwltool.process
 import cwltool.workflow
 
-class TestParamMatching(unittest.TestCase):
 
+class TestParamMatching(unittest.TestCase):
     def test_params(self):
         self.assertTrue(expr.param_re.match("(foo)"))
         self.assertTrue(expr.param_re.match("(foo.bar)"))
@@ -52,19 +51,19 @@ class TestParamMatching(unittest.TestCase):
                 }
             },
             "lst": ["A", "B"]
-         }
+        }
 
         self.assertEqual(expr.interpolate("$(foo)", inputs), inputs["foo"])
 
         for pattern in ("$(foo.bar)",
-                         "$(foo['bar'])",
-                         "$(foo[\"bar\"])"):
+                        "$(foo['bar'])",
+                        "$(foo[\"bar\"])"):
             self.assertEqual(expr.interpolate(pattern, inputs), inputs["foo"]["bar"])
 
         for pattern in ("$(foo.bar.baz)",
-                         "$(foo['bar'].baz)",
-                         "$(foo['bar'][\"baz\"])",
-                         "$(foo.bar['baz'])"):
+                        "$(foo['bar'].baz)",
+                        "$(foo['bar'][\"baz\"])",
+                        "$(foo.bar['baz'])"):
             self.assertEqual(expr.interpolate(pattern, inputs), "zab1")
 
         self.assertEqual(expr.interpolate("$(foo['b ar'].baz)", inputs), 2)
@@ -78,14 +77,14 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("$(lst['length'])", inputs), 2)
 
         for pattern in ("-$(foo.bar)",
-                         "-$(foo['bar'])",
-                         "-$(foo[\"bar\"])"):
+                        "-$(foo['bar'])",
+                        "-$(foo[\"bar\"])"):
             self.assertEqual(expr.interpolate(pattern, inputs), """-{"baz": "zab1"}""")
 
         for pattern in ("-$(foo.bar.baz)",
-                         "-$(foo['bar'].baz)",
-                         "-$(foo['bar'][\"baz\"])",
-                         "-$(foo.bar['baz'])"):
+                        "-$(foo['bar'].baz)",
+                        "-$(foo['bar'][\"baz\"])",
+                        "-$(foo.bar['baz'])"):
             self.assertEqual(expr.interpolate(pattern, inputs), "-zab1")
 
         self.assertEqual(expr.interpolate("-$(foo['b ar'].baz)", inputs), "-2")
@@ -93,16 +92,15 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("-$(foo[\"b\\'ar\"].baz)", inputs), "-true")
         self.assertEqual(expr.interpolate("-$(foo['b\\\"ar'].baz)", inputs), "-null")
 
-
         for pattern in ("$(foo.bar) $(foo.bar)",
-                         "$(foo['bar']) $(foo['bar'])",
-                         "$(foo[\"bar\"]) $(foo[\"bar\"])"):
+                        "$(foo['bar']) $(foo['bar'])",
+                        "$(foo[\"bar\"]) $(foo[\"bar\"])"):
             self.assertEqual(expr.interpolate(pattern, inputs), """{"baz": "zab1"} {"baz": "zab1"}""")
 
         for pattern in ("$(foo.bar.baz) $(foo.bar.baz)",
-                         "$(foo['bar'].baz) $(foo['bar'].baz)",
-                         "$(foo['bar'][\"baz\"]) $(foo['bar'][\"baz\"])",
-                         "$(foo.bar['baz']) $(foo.bar['baz'])"):
+                        "$(foo['bar'].baz) $(foo['bar'].baz)",
+                        "$(foo['bar'][\"baz\"]) $(foo['bar'][\"baz\"])",
+                        "$(foo.bar['baz']) $(foo.bar['baz'])"):
             self.assertEqual(expr.interpolate(pattern, inputs), "zab1 zab1")
 
         self.assertEqual(expr.interpolate("$(foo['b ar'].baz) $(foo['b ar'].baz)", inputs), "2 2")
@@ -110,8 +108,8 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs), "true true")
         self.assertEqual(expr.interpolate("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
 
-class TestFactory(unittest.TestCase):
 
+class TestFactory(unittest.TestCase):
     def test_factory(self):
         f = cwltool.factory.Factory()
         echo = f.make("tests/echo.cwl")
@@ -139,6 +137,7 @@ class TestFactory(unittest.TestCase):
             self.assertNotIn("out2", e.out)
         else:
             self.fail("Should have raised WorkflowStatus")
+
 
 class TestScanDeps(unittest.TestCase):
     def test_scandeps(self):
@@ -198,9 +197,9 @@ class TestScanDeps(unittest.TestCase):
                 raise Exception("test case can't load things")
 
         sc = cwltool.process.scandeps(obj["id"], obj,
-                                       set(("$import", "run")),
-                                       set(("$include", "$schemas", "location")),
-                                                  loadref)
+                                      {"$import", "run"},
+                                      {"$include", "$schemas", "location"},
+                                      loadref)
 
         sc.sort(key=lambda k: k["basename"])
 
@@ -209,34 +208,34 @@ class TestScanDeps(unittest.TestCase):
             "class": "File",
             "location": "file:///example/bar.cwl"
         },
-        {
-            "basename": "data.txt",
-            "class": "File",
-            "location": "file:///example/data.txt"
-        },
-        {
-            "basename": "data2",
-            "class": "Directory",
-            "location": "file:///example/data2",
-            "listing": [{
-                "basename": "data3.txt",
+            {
+                "basename": "data.txt",
                 "class": "File",
-                "location": "file:///example/data3.txt",
-                "secondaryFiles": [{
+                "location": "file:///example/data.txt"
+            },
+            {
+                "basename": "data2",
+                "class": "Directory",
+                "location": "file:///example/data2",
+                "listing": [{
+                    "basename": "data3.txt",
                     "class": "File",
-                    "basename": "data5.txt",
-                    "location": "file:///example/data5.txt"
+                    "location": "file:///example/data3.txt",
+                    "secondaryFiles": [{
+                        "class": "File",
+                        "basename": "data5.txt",
+                        "location": "file:///example/data5.txt"
+                    }]
                 }]
-            }]
-        }, {
+            }, {
                 "basename": "data4.txt",
                 "class": "File",
                 "location": "file:///example/data4.txt"
-        }], sc)
+            }], sc)
 
         sc = cwltool.process.scandeps(obj["id"], obj,
-                                       set(("run"),),
-                                       set(), loadref)
+                                      set(("run"), ),
+                                      set(), loadref)
 
         sc.sort(key=lambda k: k["basename"])
 
@@ -245,6 +244,7 @@ class TestScanDeps(unittest.TestCase):
             "class": "File",
             "location": "file:///example/bar.cwl"
         }], sc)
+
 
 class TestDedup(unittest.TestCase):
     def test_dedup(self):
@@ -252,35 +252,35 @@ class TestDedup(unittest.TestCase):
             "class": "File",
             "location": "file:///example/a"
         },
-        {
-            "class": "File",
-            "location": "file:///example/a"
-        },
-        {
-            "class": "File",
-            "location": "file:///example/d"
-        },
-        {
-            "class": "Directory",
-            "location": "file:///example/c",
-            "listing": [{
+            {
+                "class": "File",
+                "location": "file:///example/a"
+            },
+            {
                 "class": "File",
                 "location": "file:///example/d"
+            },
+            {
+                "class": "Directory",
+                "location": "file:///example/c",
+                "listing": [{
+                    "class": "File",
+                    "location": "file:///example/d"
+                }]
             }]
-        }]
 
         self.assertEquals([{
             "class": "File",
             "location": "file:///example/a"
         },
-        {
-            "class": "Directory",
-            "location": "file:///example/c",
-            "listing": [{
-                "class": "File",
-                "location": "file:///example/d"
-            }]
-        }], cwltool.pathmapper.dedup(ex))
+            {
+                "class": "Directory",
+                "location": "file:///example/c",
+                "listing": [{
+                    "class": "File",
+                    "location": "file:///example/d"
+                }]
+            }], cwltool.pathmapper.dedup(ex))
 
 
 class TestTypeCompare(unittest.TestCase):
@@ -304,30 +304,29 @@ class TestTypeCompare(unittest.TestCase):
     def test_recordcompare(self):
         src = {
             'fields': [{
-                'type': { 'items': 'string', 'type': 'array' },
+                'type': {'items': 'string', 'type': 'array'},
                 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
             },
-            {
-                'type': { 'items': 'File', 'type': 'array' },
-                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
-            }],
-               'type': 'record',
-               'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'
+                {
+                    'type': {'items': 'File', 'type': 'array'},
+                    'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
+                }],
+            'type': 'record',
+            'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'
         }
         sink = {
             'fields': [{
                 'type': {'items': 'string', 'type': 'array'},
                 'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/description'
             },
-            {
-                'type': {'items': 'File', 'type': 'array'},
-                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/vrn_file'
-            }],
+                {
+                    'type': {'items': 'File', 'type': 'array'},
+                    'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/vrn_file'
+                }],
             'type': 'record',
             'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec'}
 
         self.assertTrue(cwltool.workflow.can_assign_src_to_sink(src, sink))
-
 
     def test_lifting(self):
         # check that lifting the types of the process outputs to the workflow step

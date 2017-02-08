@@ -6,6 +6,7 @@ or `./setup.py develop` and then using the generated `cwltool` executable.
 """
 
 import sys
+
 from cwltool import main
 
 if __name__ == "__main__":

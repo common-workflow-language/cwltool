@@ -1,19 +1,21 @@
-import os
-import logging
-import stat
 import collections
-import uuid
+import logging
+import os
+import stat
 import urllib
 import urlparse
+import uuid
 from functools import partial
-from typing import Any, Callable, Set, Text, Tuple, Union
+
 import schema_salad.validate as validate
-from schema_salad.sourceline import SourceLine
 from schema_salad.ref_resolver import uri_file_path
+from schema_salad.sourceline import SourceLine
+from typing import Any, Callable, Set, Text, Tuple, Union
 
 _logger = logging.getLogger("cwltool")
 
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type"])
+
 
 def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
@@ -27,6 +29,7 @@ def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]
         for d in rec:
             adjustFiles(d, op)
 
+
 def adjustFileObjs(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each File object in the object `rec`."""
 
@@ -38,6 +41,7 @@ def adjustFileObjs(rec, op):  # type: (Any, Union[Callable[..., Any], partial[An
     if isinstance(rec, list):
         for d in rec:
             adjustFileObjs(d, op)
+
 
 def adjustDirObjs(rec, op):
     # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
@@ -52,6 +56,7 @@ def adjustDirObjs(rec, op):
         for d in rec:
             adjustDirObjs(d, op)
 
+
 def normalizeFilesDirs(job):
     # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]]) -> None
     def addLocation(d):
@@ -59,7 +64,8 @@ def normalizeFilesDirs(job):
             if d["class"] == "File" and ("contents" not in d):
                 raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
             if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
-                raise validate.ValidationException("Anonymous directory object must have 'listing' and 'basename' fields.")
+                raise validate.ValidationException(
+                    "Anonymous directory object must have 'listing' and 'basename' fields.")
             d["location"] = "_:" + Text(uuid.uuid4())
             if "basename" not in d:
                 d["basename"] = Text(uuid.uuid4())
@@ -78,6 +84,7 @@ def abspath(src, basedir):  # type: (Text, Text) -> Text
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
+
 
 def dedup(listing):  # type: (List[Any]) -> List[Any]
     marksub = set()
@@ -102,7 +109,6 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 
 
 class PathMapper(object):
-
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)
 
