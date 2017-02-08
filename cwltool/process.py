@@ -599,8 +599,12 @@ class Process(object):
         op(self.tool)
 
     @abc.abstractmethod
-    def job(self, job_order, output_callbacks, **kwargs):
-        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[Any, None, None]
+    def job(self,
+            job_order,  # type: Dict[Text, Text]
+            output_callbacks,  # type: Callable[[Any, Any], Any]
+            **kwargs  # type: Any
+            ):
+        # type: (...) -> Generator[Any, None, None]
         return None
 
 

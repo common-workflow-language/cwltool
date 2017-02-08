@@ -206,6 +206,7 @@ class CommandLineJob(object):
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
+        shouldquote = None  # type: Callable[[Any], Any]
         if scr:
             shouldquote = lambda x: False
         else:
