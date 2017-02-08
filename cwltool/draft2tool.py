@@ -407,7 +407,7 @@ class CommandLineTool(Process):
                                 % shortname(port["id"]), exc_info=True)
                             raise WorkflowException(
                                 u"Error collecting output for parameter '%s':\n%s"
-                                % (shortname(port["id"]), indent(u(e))))
+                                % (shortname(port["id"]), indent(u(str(e)))))
 
             if ret:
                 adjustFileObjs(ret,

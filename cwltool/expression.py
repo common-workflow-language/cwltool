@@ -127,7 +127,7 @@ def next_seg(remain, obj):  # type: (Text, Any) -> Any
             try:
                 key = int(m.group(0)[1:-1])
             except ValueError as v:
-                raise WorkflowException(u(v))
+                raise WorkflowException(u(str(v)))
             if not isinstance(obj, list):
                 raise WorkflowException(" is a %s, cannot index on int '%s'" % (type(obj).__name__, key))
             if key >= len(obj):
