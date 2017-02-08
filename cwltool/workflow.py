@@ -22,8 +22,10 @@ _logger = logging.getLogger("cwltool")
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value'])
 
 
-def defaultMakeTool(toolpath_object, **kwargs):
-    # type: (Dict[Text, Any], **Any) -> Process
+def defaultMakeTool(toolpath_object,  # type: Dict[Text, Any]
+                    **kwargs  # type: Any
+                   ):
+    # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
         raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
     if "class" in toolpath_object:

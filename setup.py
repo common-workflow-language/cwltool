@@ -47,7 +47,7 @@ setup(name='cwltool',
           'ruamel.yaml >= 0.12.4',
           'rdflib >= 4.2.0, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 2.2.20170111180227, < 3',
+          'schema-salad >= 2.2.20170208112505, < 3',
           'typing >= 3.5.2, < 3.6'
       ],
       test_suite='tests',

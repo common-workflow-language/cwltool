@@ -34,10 +34,13 @@ class Callable(object):
 
 
 class Factory(object):
-    def __init__(self, makeTool=workflow.defaultMakeTool,
-                 executor=main.single_job_executor,
-                 **execkwargs):
-        # type: (tCallable[[Dict[Text, Any], Any], Process],tCallable[...,Tuple[Dict[Text,Any], Text]], **Any) -> None
+    def __init__(self,
+                 makeTool=workflow.defaultMakeTool,  # type: tCallable[[Any], Process]
+                 # should be tCallable[[Dict[Text, Any], Any], Process] ?
+                 executor=main.single_job_executor,  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
+                 **execkwargs  # type: Any
+                 ):
+        # type: (...) -> None
         self.makeTool = makeTool
         self.executor = executor
         self.execkwargs = execkwargs
