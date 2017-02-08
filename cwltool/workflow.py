@@ -436,15 +436,19 @@ class Workflow(Process):
 
         # TODO: statically validate data links instead of doing it at runtime.
 
-    def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator
-        builder = self._init_job(joborder, **kwargs)
+    def job(self,
+            job_order,  # type: Dict[Text, Text]
+            output_callbacks,  # type: Callable[[Any, Any], Any]
+            **kwargs  # type: Any
+            ):
+        # type: (...) -> Generator[Any, None, None]
+        builder = self._init_job(job_order, **kwargs)
         wj = WorkflowJob(self, **kwargs)
         yield wj
 
         kwargs["part_of"] = u"workflow %s" % wj.name
 
-        for w in wj.job(builder.job, output_callback, **kwargs):
+        for w in wj.job(builder.job, output_callbacks, **kwargs):
             yield w
 
     def visit(self, op):
@@ -561,17 +565,23 @@ class WorkflowStep(Process):
                 processStatus = "permanentFail"
         output_callback(output, processStatus)
 
-    def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[Text, Any], Callable[...,Any], **Any) -> Generator
+    def job(self,
+            job_order,  # type: Dict[Text, Text]
+            output_callbacks,  # type: Callable[[Any, Any], Any]
+            **kwargs  # type: Any
+            ):
+        # type: (...) -> Generator[Any, None, None]
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
-            joborder[field] = joborder[i["id"]]
-            del joborder[i["id"]]
+            job_order[field] = job_order[i["id"]]
+            del job_order[i["id"]]
 
         try:
-            for t in self.embedded_tool.job(joborder,
-                                            functools.partial(self.receive_output, output_callback),
+            for t in self.embedded_tool.job(job_order,
+                                            functools.partial(
+                                                self.receive_output,
+                                                output_callbacks),
                                             **kwargs):
                 yield t
         except WorkflowException:

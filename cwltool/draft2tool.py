@@ -60,14 +60,18 @@ class ExpressionTool(Process):
                              e, exc_info=kwargs.get('debug'))
                 self.output_callback({}, "permanentFail")
 
-    def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[Text, Text], Callable[[Any, Any], Any], **Any) -> Generator[ExpressionTool.ExpressionJob, None, None]
-        builder = self._init_job(joborder, **kwargs)
+    def job(self,
+            job_order,  # type: Dict[Text, Text]
+            output_callbacks,  # type: Callable[[Any, Any], Any]
+            **kwargs  # type: Any
+            ):
+        # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
+        builder = self._init_job(job_order, **kwargs)
 
         j = ExpressionTool.ExpressionJob()
         j.builder = builder
         j.script = self.tool["expression"]
-        j.output_callback = output_callback
+        j.output_callback = output_callbacks
         j.requirements = self.requirements
         j.hints = self.hints
         j.outdir = None
@@ -165,8 +169,12 @@ class CommandLineTool(Process):
         dockerReq, _ = self.get_requirement("DockerRequirement")
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
-    def job(self, joborder, output_callback, **kwargs):
-        # type: (Dict[Text, Text], Callable[..., Any], **Any) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
+    def job(self,
+            job_order,  # type: Dict[Text, Text]
+            output_callbacks,  # type: Callable[[Any, Any], Any]
+            **kwargs  # type: Any
+            ):
+        # type: (...) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
@@ -175,7 +183,7 @@ class CommandLineTool(Process):
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
             cacheargs["stagedir"] = "/stage"
-            cachebuilder = self._init_job(joborder, **cacheargs)
+            cachebuilder = self._init_job(job_order, **cacheargs)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,
                                                  kwargs["basedir"],
                                                  cachebuilder.stagedir,
@@ -222,7 +230,7 @@ class CommandLineTool(Process):
                     cachebuilder.outdir = jobcache
 
                 _logger.info("[job %s] Using cached output in %s", jobname, jobcache)
-                yield CallbackJob(self, output_callback, cachebuilder, jobcache)
+                yield CallbackJob(self, output_callbacks, cachebuilder, jobcache)
                 return
             else:
                 _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
@@ -231,19 +239,19 @@ class CommandLineTool(Process):
                 kwargs["outdir"] = jobcache
                 open(jobcachepending, "w").close()
 
-                def rm_pending_output_callback(output_callback, jobcachepending,
+                def rm_pending_output_callback(output_callbacks, jobcachepending,
                                                outputs, processStatus):
                     if processStatus == "success":
                         os.remove(jobcachepending)
-                    output_callback(outputs, processStatus)
+                    output_callbacks(outputs, processStatus)
 
-                output_callback = cast(
+                output_callbacks = cast(
                     Callable[..., Any],  # known bug in mypy
                     # https://github.com/python/mypy/issues/797
-                    partial(rm_pending_output_callback, output_callback,
+                    partial(rm_pending_output_callback, output_callbacks,
                             jobcachepending))
 
-        builder = self._init_job(joborder, **kwargs)
+        builder = self._init_job(job_order, **kwargs)
 
         reffiles = copy.deepcopy(builder.files)
 
@@ -265,7 +273,7 @@ class CommandLineTool(Process):
                           j.name,
                           self.tool.get("id", ""),
                           u" as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
-            _logger.debug(u"[job %s] %s", j.name, json.dumps(joborder, indent=4))
+            _logger.debug(u"[job %s] %s", j.name, json.dumps(job_order, indent=4))
 
         builder.pathmapper = None
         make_path_mapper_kwargs = kwargs
@@ -377,7 +385,7 @@ class CommandLineTool(Process):
         j.collect_outputs = partial(
             self.collect_output_ports, self.tool["outputs"], builder,
             compute_checksum=kwargs.get("compute_checksum", True))
-        j.output_callback = output_callback
+        j.output_callback = output_callbacks
 
         yield j
 
