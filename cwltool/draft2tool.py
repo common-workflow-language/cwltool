@@ -461,6 +461,9 @@ class CommandLineTool(Process):
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
                             _logger.warn(Text(e))
+                        except:
+                            _logger.error("Unexpected error from fs_access", exc_info=True)
+                            raise
 
                 for files in r:
                     if files["class"] == "Directory" and "listing" not in files:

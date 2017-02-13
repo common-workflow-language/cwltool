@@ -12,6 +12,8 @@ inputs:
       else:
         f = open("foo"+sys.argv[1]+".txt", "w")
         f.write(sys.argv[1]+"\n")
+      if sys.argv[1] == "5":
+        exit(1)
 outputs:
   out:
     type: File

@@ -2,6 +2,7 @@ class: Workflow
 cwlVersion: v1.0
 requirements:
   ScatterFeatureRequirement: {}
+  SubworkflowFeatureRequirement: {}
 inputs:
   range:
     type: string[]
@@ -16,10 +17,22 @@ steps:
       r: range
     scatter: r
     out: [out]
-    run: echo.cwl
-  step2:
-    in:
-      r: step1/out
-    scatter: r
-    out: []
-    run: cat.cwl
+    run:
+      class: Workflow
+      inputs:
+        r: string
+      outputs:
+        out:
+          type: File
+          outputSource: sstep1/out
+      steps:
+        sstep1:
+          in:
+            r: r
+          out: [out]
+          run: echo.cwl
+        sstep2:
+          in:
+            r: sstep1/out
+          out: []
+          run: cat.cwl
