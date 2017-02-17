@@ -1,1 +1,19 @@
 include gittaggers.py Makefile cwltool.py
+include tests/*
+include tests/wf/*
+include cwltool/schemas/v1.0/*.yml
+include cwltool/schemas/draft-2/*.yml
+include cwltool/schemas/draft-3/*.yml
+include cwltool/schemas/draft-3/*.md
+include cwltool/schemas/draft-3/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/draft-3/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.0/*.yml
+include cwltool/schemas/v1.0/*.md
+include cwltool/schemas/v1.0/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.0/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.1.0-dev1/*.yml
+include cwltool/schemas/v1.1.0-dev1/*.md
+include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md
+include cwltool/cwlNodeEngine.js
+global-exclude *.pyc
