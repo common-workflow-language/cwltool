@@ -11,4 +11,5 @@ RUN apt-get update -qq && apt-get install -qqy \
 ADD setup.py README.rst cwltool/ /root/cwltool/
 ADD cwltool/ /root/cwltool/cwltool
 ADD cwltool/schemas/ /root/cwltool/cwltool/schemas
+ADD tests/ /root/cwltool/tests
 RUN cd /root/cwltool && python setup.py install
