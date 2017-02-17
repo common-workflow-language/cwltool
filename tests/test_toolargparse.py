@@ -2,7 +2,7 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 from cwltool.main import main
-
+from .util import get_data
 
 class ToolArgparse(unittest.TestCase):
     script = '''
@@ -66,8 +66,10 @@ outputs: []
         with NamedTemporaryFile() as f:
             f.write(self.script)
             f.flush()
-            self.assertEquals(main(["--debug", f.name, '--input', 'README.rst']), 0)
-            self.assertEquals(main(["--debug", f.name, '--input', 'README.rst']), 0)
+            self.assertEquals(main(["--debug", f.name, '--input',
+                get_data('tests/echo.cwl')]), 0)
+            self.assertEquals(main(["--debug", f.name, '--input',
+                get_data('tests/echo.cwl')]), 0)
 
     def test_bool(self):
         with NamedTemporaryFile() as f:
@@ -92,8 +94,8 @@ outputs: []
             f.write(self.script3)
             f.flush()
             try:
-                self.assertEquals(main([f.name, '--foo.one', 'README.rst',
-                                        '--foo.two', 'test']), 0)
+                self.assertEquals(main([f.name, '--foo.one',
+                    get_data('tests/echo.cwl'), '--foo.two', 'test']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
 

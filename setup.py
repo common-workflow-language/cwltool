@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sys
 
 import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
@@ -14,6 +15,9 @@ try:
 except ImportError:
     tagger = egg_info_cmd.egg_info
 
+needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
+pytest_runner = ['pytest-runner'] if needs_pytest else []
+
 setup(name='cwltool',
       version='1.0',
       description='Common workflow language reference implementation',
@@ -23,7 +27,8 @@ setup(name='cwltool',
       url="https://github.com/common-workflow-language/cwltool",
       download_url="https://github.com/common-workflow-language/cwltool",
       license='Apache 2.0',
-      packages=["cwltool"],
+      packages=["cwltool", 'cwltool.tests'],
+      package_dir={'cwltool.tests': 'tests'},
       package_data={'cwltool': ['schemas/draft-2/*.yml',
                                 'schemas/draft-3/*.yml',
                                 'schemas/draft-3/*.md',
@@ -38,6 +43,7 @@ setup(name='cwltool',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
                                 'cwlNodeEngine.js']},
+      include_package_data=True,
       install_requires=[
           'setuptools',
           'requests >= 1.0',
@@ -47,8 +53,9 @@ setup(name='cwltool',
           'schema-salad >= 2.2.20170216125639, < 3',
           'typing >= 3.5.2, < 3.6'
       ],
+      setup_requires=[] + pytest_runner,
       test_suite='tests',
-      tests_require=[],
+      tests_require=['pytest'],
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:main"]
       },
