@@ -8,7 +8,7 @@ RUN apt-get update -qq && apt-get install -qqy \
     python-setuptools gcc python-dev
 
 # Install cwltool
-ADD setup.py README.rst ez_setup.py cwltool/ /root/cwltool/
+ADD setup.py README.rst cwltool/ /root/cwltool/
 ADD cwltool/ /root/cwltool/cwltool
 ADD cwltool/schemas/ /root/cwltool/cwltool/schemas
-RUN cd /root/cwltool && ./ez_setup.py && easy_install .
+RUN cd /root/cwltool && python setup.py install
