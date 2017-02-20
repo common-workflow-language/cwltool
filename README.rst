@@ -98,7 +98,7 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
   # result["out"] == "foo"
 
 
-Cwltool Architecture
+Cwltool control flow
 --------------------
 
 #. Use CWL `load_tool()` to load document.
@@ -132,9 +132,11 @@ Cwltool Architecture
    #. When a step is ready, it constructs an input object for that step and
       iterates on the `job()` method of the workflow job step.
    #. Each runnable item is yielded back up to top level run loop
-   #. When the workflow completes, intermediate files are moved to a final
+   #. When a step job completes and receives an output callback, the
+      job outputs are assigned to the output of the workflow step.
+   #. When all steps are complete, the intermediate files are moved to a final
       workflow output, intermediate directories are deleted, and the output
-      callback is called.
+      callback for the workflow is called.
 
 #. "CommandLineTool" job() objects yield a single runnable object.
 
@@ -159,12 +161,13 @@ Extension points
 ----------------
 
 The following functions can be provided to main(), to load_tool(), or to the
-executor to override certain behaviors.
+executor to override or augment the listed behaviors.
 
 executor(tool, job_order_object, **kwargs)
   (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
 
-  Synchronously execute a process object and return the output object.
+  A toplevel workflow execution loop, should synchronously execute a process
+  object and return an output object.
 
 makeTool(toolpath_object, **kwargs)
   (Dict[Text, Any], **Any) -> Process
