@@ -162,49 +162,33 @@ The following functions can be provided to main(), to load_tool(), or to the
 executor to override certain behaviors.
 
 executor(tool, job_order_object, **kwargs)
-
   (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
-
   Synchronously execute a process object and return the output object.
 
 makeTool(toolpath_object, **kwargs)
-
   (Dict[Text, Any], **Any) -> Process
-
   Construct a Process object from a document.
 
 selectResources(request)
-
   (Dict[Text, int]) -> Dict[Text, int]
-
   Take a resource request and turn it into a concrete resource assignment.
 
 versionfunc()
-
   () -> Text
-
   Return version string.
 
 make_fs_access(basedir)
-
   (Text) -> StdFsAccess
-
   Return a file system access object.
 
 fetcher_constructor(cache, session)
-
   (Dict[unicode, unicode], requests.sessions.Session) -> Fetcher
-
   Construct a Fetcher object with the supplied cache and HTTP session.
 
 resolver(document_loader, document)
-
   (Loader, Union[Text, dict[Text, Any]]) -> Text
-
   Resolve a relative document identifier to an absolute one which can be fetched.
 
 logger_handler
-
   logging.Handler
-
   Handler object for logging.
