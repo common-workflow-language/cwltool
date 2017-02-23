@@ -150,7 +150,7 @@ class PathMapper(object):
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(self, listing, stagedir, basedir, copy=False):
-        # type: (List[Dict[Text, Any]], Text, Text) -> None
+        # type: (List[Dict[Text, Any]], Text, Text, bool) -> None
         for ld in listing:
             tgt = os.path.join(stagedir, ld["basename"])
             if ld["class"] == "Directory":
