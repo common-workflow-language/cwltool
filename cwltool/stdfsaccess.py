@@ -1,5 +1,6 @@
 import glob
 import os
+import urllib
 
 from schema_salad.ref_resolver import file_uri
 from typing import BinaryIO, Text
@@ -30,7 +31,7 @@ class StdFsAccess(object):
         return os.path.isdir(self._abs(fn))
 
     def listdir(self, fn):  # type: (Text) -> List[Text]
-        return [abspath(l, fn) for l in os.listdir(self._abs(fn))]
+        return [abspath(urllib.quote(str(l)), fn) for l in os.listdir(self._abs(fn))]
 
     def join(self, path, *paths):  # type: (Text, *Text) -> Text
         return os.path.join(path, *paths)
