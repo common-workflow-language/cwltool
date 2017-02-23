@@ -29,4 +29,4 @@ def tool_resolver(document_loader, uri):
         ret = r(document_loader, uri)
         if ret is not None:
             return ret
-    return file_uri(os.path.abspath(uri))
+    return file_uri(os.path.abspath(uri), split_frag=True)
