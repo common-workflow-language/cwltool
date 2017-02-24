@@ -354,9 +354,10 @@ class CommandLineTool(Process):
                             "writable": t.get("writable")
                         }
                     else:
-                        if t["entryname"]:
+                        if t["entryname"] or t["writable"]:
                             t = copy.deepcopy(t)
-                            t["entry"]["basename"] = t["entryname"]
+                            if t["entryname"]:
+                                t["entry"]["basename"] = t["entryname"]
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
