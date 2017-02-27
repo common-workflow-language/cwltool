@@ -25,7 +25,7 @@ segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
 param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
 
-JSON = Union[Dict[Any, Any], List[Any], Text, int, int, float, bool, None]
+JSON = Union[Dict[Any, Any], List[Any], Text, int, long, float, bool, None]
 
 
 class SubstitutionError(Exception):

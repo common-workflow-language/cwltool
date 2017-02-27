@@ -17,7 +17,7 @@ class JavascriptException(Exception):
 
 _logger = logging.getLogger("cwltool")
 
-JSON = Union[Dict[Text, Any], List[Any], Text, int, int, float, bool, None]
+JSON = Union[Dict[Text, Any], List[Any], Text, int, long, float, bool, None]
 
 localdata = threading.local()
 
@@ -104,7 +104,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
 
-    completed = []  # type: List[Union[cStringIO.InputType, cStringIO.OutputType]]
+    completed = []  # type: List[BytesIO]
     while len(completed) < 3:
         rready, wready, _ = select.select([nodejs.stdout, nodejs.stderr], [nodejs.stdin], [])
         if nodejs.stdin in wready:
