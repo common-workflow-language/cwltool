@@ -148,21 +148,21 @@ class PathMapper(object):
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
 
-    def visitlisting(self, listing, stagedir, basedir):
-        # type: (List[Dict[Text, Any]], Text, Text) -> None
+    def visitlisting(self, listing, stagedir, basedir, copy=False):
+        # type: (List[Dict[Text, Any]], Text, Text, bool) -> None
         for ld in listing:
             tgt = os.path.join(stagedir, ld["basename"])
             if ld["class"] == "Directory":
-                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
+                self.visit(ld, stagedir, basedir, copy=ld.get("writable", copy))
             else:
-                self.visit(ld, stagedir, basedir, copy=ld.get("writable", False))
+                self.visit(ld, stagedir, basedir, copy=ld.get("writable", copy))
 
     def visit(self, obj, stagedir, basedir, copy=False):
         # type: (Dict[Text, Any], Text, Text, bool) -> None
         tgt = os.path.join(stagedir, obj["basename"])
         if obj["class"] == "Directory":
             self._pathmap[obj["location"]] = MapperEnt(obj["location"], tgt, "Directory")
-            self.visitlisting(obj.get("listing", []), tgt, basedir)
+            self.visitlisting(obj.get("listing", []), tgt, basedir, copy=copy)
         elif obj["class"] == "File":
             path = obj["location"]
             if path in self._pathmap:
@@ -185,7 +185,7 @@ class PathMapper(object):
                             st = os.lstat(deref)
 
                     self._pathmap[path] = MapperEnt(deref, tgt, "File")
-                self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir)
+                self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy)
 
     def setup(self, referenced_files, basedir):
         # type: (List[Any], Text) -> None

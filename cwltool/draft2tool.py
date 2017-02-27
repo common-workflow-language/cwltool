@@ -26,7 +26,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
-ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ a-zA-Z0-9._+-]+$")  # with spaces
+ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ #a-zA-Z0-9._+-]+$")  # with spaces and hashes
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 
 from .flatten import flatten
@@ -355,9 +355,10 @@ class CommandLineTool(Process):
                             "writable": t.get("writable")
                         }
                     else:
-                        if t["entryname"]:
+                        if t["entryname"] or t["writable"]:
                             t = copy.deepcopy(t)
-                            t["entry"]["basename"] = t["entryname"]
+                            if t["entryname"]:
+                                t["entry"]["basename"] = t["entryname"]
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
@@ -462,6 +463,9 @@ class CommandLineTool(Process):
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
                             _logger.warn(Text(e))
+                        except:
+                            _logger.error("Unexpected error from fs_access", exc_info=True)
+                            raise
 
                 for files in r:
                     if files["class"] == "Directory" and "listing" not in files:
