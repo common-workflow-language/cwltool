@@ -135,18 +135,22 @@ class CommandLineJob(object):
 
         img_id = None
         env = None  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
-        if docker_req and kwargs.get("use_container") is not False:
-            env = os.environ
-            img_id = docker.get_from_requirements(docker_req, True, pull_image)
-        elif kwargs.get("default_container", None) is not None:
-            env = os.environ
-            img_id = kwargs.get("default_container")
+        try:
+            if docker_req and kwargs.get("use_container") is not False:
+                env = os.environ
+                img_id = docker.get_from_requirements(docker_req, True, pull_image)
+            elif kwargs.get("default_container", None) is not None:
+                env = os.environ
+                img_id = kwargs.get("default_container")
 
-        if docker_req and img_id is None:
+            if docker_req and img_id is None and kwargs.get("use_container"):
+                raise Exception("Docker image not available")
+        except Exception as e:
+            _logger.debug("Docker error", exc_info=True)
             if docker_is_req:
-                raise WorkflowException("Docker is required to run this tool.")
+                raise WorkflowException("Docker is required to run this tool: %s" % e)
             else:
-                raise WorkflowException("Docker is not available for this tool, try --no-container to disable Docker.")
+                raise WorkflowException("Docker is not available for this tool, try --no-container to disable Docker: %s" % e)
 
         if img_id:
             runtime = ["docker", "run", "-i"]
