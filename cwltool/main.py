@@ -469,7 +469,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     if not job_order_object and len(t.tool["inputs"]) > 0:
         if toolparser:
-            print u"\nOptions for %s " % args.workflow
+            print(u"\nOptions for {} ".format(args.workflow))
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
@@ -619,7 +619,7 @@ def main(argsl=None,  # type: List[str]
             _logger.setLevel(logging.DEBUG)
 
         if args.version:
-            print versionfunc()
+            print(versionfunc())
             return 0
         else:
             _logger.info(versionfunc())
