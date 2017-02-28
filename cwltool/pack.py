@@ -1,8 +1,8 @@
 import copy
-import urlparse
 
 from schema_salad.ref_resolver import Loader
 from typing import Union, Any, cast, Callable, Dict, Text
+from six.moves import urllib
 
 from .process import shortname, uniquename
 
@@ -82,7 +82,7 @@ def pack(document_loader, processobj, uri, metadata):
     names = set()  # type: Set[Text]
     rewrite = {}  # type: Dict[Text, Text]
 
-    mainpath, _ = urlparse.urldefrag(uri)
+    mainpath, _ = urllib.parse.urldefrag(uri)
 
     def rewrite_id(r, mainuri):
         # type: (Text, Text) -> None
@@ -91,7 +91,7 @@ def pack(document_loader, processobj, uri, metadata):
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
             pass
         else:
-            path, frag = urlparse.urldefrag(r)
+            path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
                 rewrite[r] = "#" + uniquename(frag, names)
             else:

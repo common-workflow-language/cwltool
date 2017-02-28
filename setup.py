@@ -51,7 +51,9 @@ setup(name='cwltool',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
           'schema-salad >= 2.2.20170222151604, < 3',
-          'typing >= 3.5.2, < 3.6'
+          'typing >= 3.5.2, < 3.6',
+          'six >= 1.10.0',
+
       ],
       setup_requires=[] + pytest_runner,
       test_suite='tests',

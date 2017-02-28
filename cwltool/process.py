@@ -181,7 +181,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
     # type: (PathMapper, Callable[..., Any], bool) -> None
     for f, p in pm.items():
         if not os.path.exists(os.path.dirname(p.target)):
-            os.makedirs(os.path.dirname(p.target), 0755)
+            os.makedirs(os.path.dirname(p.target), 0o0755)
         if p.type == "File":
             stageFunc(p.resolved, p.target)
         elif p.type == "WritableFile" and not ignoreWritable:

@@ -1,3 +1,4 @@
+from __future__ import print_function
 import subprocess
 
 from typing import Text
@@ -111,4 +112,4 @@ def docker_machine_uid():  # type: () -> int
 
 
 if __name__ == '__main__':
-    print docker_vm_uid()
+    print(docker_vm_uid())
