@@ -1,9 +1,8 @@
-import urlparse
-
 from rdflib import Graph
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 from typing import Any, Dict, IO, Text
+from six.moves import urllib
 
 from .process import Process
 
@@ -133,7 +132,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
                 currentwf = None
 
         if Text(runtype) != "https://w3id.org/cwl/cwl#Workflow":
-            stdout.write(u'"%s" [label="%s"]\n' % (dotname[step], urlparse.urldefrag(Text(step))[1]))
+            stdout.write(u'"%s" [label="%s"]\n' % (dotname[step], urllib.parse.urldefrag(Text(step))[1]))
 
     if currentwf is not None:
         stdout.write("}\n")
