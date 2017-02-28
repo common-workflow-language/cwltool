@@ -11,6 +11,7 @@ import tempfile
 import urlparse
 import uuid
 from collections import Iterable
+import functools
 
 import avro.schema
 import schema_salad.schema
@@ -26,7 +27,7 @@ from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
                     Tuple, Union)
 
 from .builder import Builder, adjustFileObjs
-from .pathmapper import adjustDirObjs
+from .pathmapper import adjustDirObjs, get_listing
 from .errors import WorkflowException, UnsupportedRequirement
 from .pathmapper import PathMapper, normalizeFilesDirs
 from .stdfsaccess import StdFsAccess
@@ -44,7 +45,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ShellCommandRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
-                                "InitialWorkDirRequirement"]
+                                "InitialWorkDirRequirement",
+                                "LoadListingRequirement"]
 
 cwl_files = (
     "Workflow.yml",
@@ -83,6 +85,10 @@ SCHEMA_FILE = None  # type: Dict[Text, Any]
 SCHEMA_DIR = None  # type: Dict[Text, Any]
 SCHEMA_ANY = None  # type: Dict[Text, Any]
 
+custom_schemas = {}
+
+def use_custom_schema(version, name, text):
+    custom_schemas[version] = (name, text)
 
 def get_schema(version):
     # type: (Text) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text,Any], Loader]
@@ -113,8 +119,13 @@ def get_schema(version):
         except IOError:
             pass
 
-    SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
-        "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
+    if version in custom_schemas:
+        cache[custom_schemas[version][0]] = custom_schemas[version][1]
+        SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+            custom_schemas[version][0], cache=cache)
+    else:
+        SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+            "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
     return SCHEMA_CACHE[version]
 
@@ -192,8 +203,11 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+
+    adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
+
     if action not in ("move", "copy"):
         return outputObj
 
@@ -217,7 +231,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
         if "contents" in f:
             del f["contents"]
         if f["class"] == "File":
-            compute_checksums(StdFsAccess(""), f)
+            compute_checksums(fs_access, f)
         return f
 
     adjustFileObjs(outputObj, _check_adjust)
@@ -467,7 +481,7 @@ class Process(object):
 
         loadListingReq, _ = self.get_requirement("LoadListingRequirement")
         if loadListingReq:
-            builder.loadListing = loadListingReq.get("loadListing", True)
+            builder.loadListing = loadListingReq.get("loadListing")
 
         if dockerReq and kwargs.get("use_container"):
             builder.outdir = builder.fs_access.realpath(

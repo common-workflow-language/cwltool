@@ -20,7 +20,7 @@ from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs
 from .errors import WorkflowException
 from .job import CommandLineJob
-from .pathmapper import PathMapper, getListing
+from .pathmapper import PathMapper, get_listing, trim_listing
 from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
@@ -419,6 +419,7 @@ class CommandLineTool(Process):
                                 % (shortname(port["id"]), indent(u(str(e)))))
 
             if ret:
+                adjustDirObjs(ret, trim_listing)
                 adjustFileObjs(ret,
                                cast(Callable[[Any], Any],  # known bug in mypy
                                     # https://github.com/python/mypy/issues/797
@@ -471,7 +472,7 @@ class CommandLineTool(Process):
                     if files["class"] == "Directory":
                         ll = builder.loadListing or (binding and binding.get("loadListing"))
                         if ll:
-                            getListing(fs_access, files, (ll == "deep"))
+                            get_listing(fs_access, files, (ll == "deep"))
                     else:
                         with fs_access.open(files["location"], "rb") as f:
                             contents = ""

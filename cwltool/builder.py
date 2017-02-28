@@ -8,7 +8,7 @@ from six import string_types, iteritems
 
 from . import expression
 from .errors import WorkflowException
-from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs, getListing
+from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs, get_listing
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -149,7 +149,7 @@ class Builder(object):
             if schema["type"] == "Directory":
                 ll = self.loadListing or (binding and binding.get("loadListing"))
                 if ll:
-                    getListing(self.fs_access, datum, (ll == "deep"))
+                    get_listing(self.fs_access, datum, (ll == "deep"))
                 self.files.append(datum)
 
         # Position to front of the sort key

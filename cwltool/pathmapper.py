@@ -106,21 +106,21 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 
     return dd
 
-def getListing(fs_access, rec, recursive=True):
+def get_listing(fs_access, rec, recursive=True):
     # type: (StdFsAccess, Dict[Text, Any], bool) -> None
     if "listing" in rec:
         return
     listing = []
     loc = rec["location"]
     for ld in fs_access.listdir(loc):
-        parse = urlparse.urlparse(ld)
-        bn = os.path.basename(urllib.url2pathname(parse.path))
+        parse = urllib.parse.urlparse(ld)
+        bn = os.path.basename(urllib.request.url2pathname(parse.path))
         if fs_access.isdir(ld):
             ent = {u"class": u"Directory",
                    u"location": ld,
                    u"basename": bn}
             if recursive:
-                getListing(fs_access, ent, recursive)
+                get_listing(fs_access, ent, recursive)
             listing.append(ent)
         else:
             listing.append({"class": "File", "location": ld, "basename": bn})
@@ -182,12 +182,12 @@ class PathMapper(object):
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(self, listing, stagedir, basedir, copy=False, staged=False):
-        # type: (List[Dict[Text, Any]], Text, Text, bool) -> None
+        # type: (List[Dict[Text, Any]], Text, Text, bool, bool) -> None
         for ld in listing:
             self.visit(ld, stagedir, basedir, copy=ld.get("writable", copy), staged=staged)
 
     def visit(self, obj, stagedir, basedir, copy=False, staged=False):
-        # type: (Dict[Text, Any], Text, Text, bool) -> None
+        # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
         tgt = os.path.join(stagedir, obj["basename"])
         if obj["location"] in self._pathmap:
             return
