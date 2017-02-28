@@ -217,6 +217,7 @@ def single_job_executor(t,  # type: Process
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
+    kwargs["mutation_manager"] = workflow.MutationManager()
 
     jobReqs = None
     if "cwl:requirements" in job_order_object:

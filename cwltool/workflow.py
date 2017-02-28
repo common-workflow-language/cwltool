@@ -760,3 +760,18 @@ def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, 
         return parallel_steps(steps, rc, kwargs)
     else:
         return steps
+
+class MutationManager(object):
+    def __init__(self):
+        self.generations = {}  # type: Dict[Tuple[int, int]]
+
+    def register_mutation(self, stepname, obj):
+        loc = obj["location"]
+        if obj.get("_generation", 0) == self.generations.get(loc, 0):
+            self.generations[loc] = obj.get("_generation", 0)+1
+        else:
+            raise WorkflowException("[job %s] wants to modify %s on generation %s but input is generation %i" % (
+                                    stepname, obj["location"], self.generations[loc], obj.get("_generation", 0)))
+
+    def set_generation(self, obj):
+        obj["_generation"] = self.generations.get(obj["location"], 0)

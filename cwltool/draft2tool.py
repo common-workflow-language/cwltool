@@ -364,6 +364,7 @@ class CommandLineTool(Process):
             j.generatefiles[u"listing"] = ls
 
         normalizeFilesDirs(j.generatefiles)
+        adjustFileObjs(j.generatefiles, partial(builder.mutation_manager.register_mutation, j.name))
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
@@ -427,6 +428,7 @@ class CommandLineTool(Process):
                 adjustFileObjs(ret, remove_path)
                 adjustDirObjs(ret, remove_path)
                 normalizeFilesDirs(ret)
+                adjustFileObjs(ret, builder.mutation_manager.set_generation)
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
 

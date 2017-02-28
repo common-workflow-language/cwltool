@@ -484,6 +484,7 @@ class Process(object):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
         builder.debug = kwargs.get("debug")
+        builder.mutation_manager = kwargs.get("mutation_manager")
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
