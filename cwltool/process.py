@@ -182,11 +182,14 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
         if p.type in ("File", "Directory") and p.resolved.startswith("/"):
             stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
-            os.makedirs(p.target, 0o0755)
+            os.makedirs(p.target, 0o0544)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
         elif p.type == "WritableDirectory" and not ignoreWritable:
-            shutil.copytree(p.resolved, p.target)
+            if p.resolved.startswith("_:"):
+                os.makedirs(p.target, 0o0755)
+            else:
+                shutil.copytree(p.resolved, p.target)
         elif p.type == "CreateFile" and not ignoreWritable:
             with open(p.target, "w") as n:
                 n.write(p.resolved.encode("utf-8"))
