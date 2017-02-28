@@ -10,14 +10,13 @@ from io import BytesIO
 from pkg_resources import resource_stream
 from typing import Any, Dict, List, Mapping, Text, Union
 
-
 class JavascriptException(Exception):
     pass
 
 
 _logger = logging.getLogger("cwltool")
 
-JSON = Union[Dict[Text, Any], List[Any], Text, int, long, float, bool, None]
+JSON = Union[Dict[Text, Any], List[Any], Text, int, float, bool, None]
 
 localdata = threading.local()
 

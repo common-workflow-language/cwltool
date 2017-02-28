@@ -158,4 +158,15 @@ mypy: ${PYSOURCES}
 		 --warn-redundant-casts --warn-unused-ignores --fast-parser \
 		 cwltool
 
+mypy3: ${PYSOURCES}
+	rm -Rf typeshed/3/ruamel/yaml
+	ln -s $(shell python3 -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+		typeshed/3/ruamel/yaml
+	rm -Rf typeshed/3/schema_salad
+	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
+		typeshed/3/schema_salad
+	MYPYPATH=typeshed/3 mypy --disallow-untyped-calls \
+		 --warn-redundant-casts --warn-unused-ignores --fast-parser \
+		 cwltool
+
 FORCE:
