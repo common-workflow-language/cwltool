@@ -20,13 +20,12 @@ from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
 
 from . import draft2tool
 from . import workflow
-from .builder import adjustFileObjs
-from .pathmapper import adjustDirObjs
+from .pathmapper import adjustDirObjs, getListing, adjustFileObjs, trim_listing
 from .cwlrdf import printrdf, printdot
 from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
 from .pack import pack
-from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
+from .process import shortname, Process, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
 from .resolver import tool_resolver
 from .stdfsaccess import StdFsAccess
 
@@ -488,9 +487,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     adjustDirObjs(job_order_object, pathToLoc)
     adjustFileObjs(job_order_object, pathToLoc)
+    adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
-    adjustDirObjs(job_order_object, cast(Callable[..., Any],
-                                         functools.partial(getListing, make_fs_access(input_basedir))))
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]

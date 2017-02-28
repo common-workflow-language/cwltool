@@ -20,8 +20,8 @@ from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs
 from .errors import WorkflowException
 from .job import CommandLineJob
-from .pathmapper import PathMapper
-from .process import Process, shortname, uniquename, getListing, normalizeFilesDirs, compute_checksums
+from .pathmapper import PathMapper, getListing
+from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -468,8 +468,10 @@ class CommandLineTool(Process):
                             raise
 
                 for files in r:
-                    if files["class"] == "Directory" and "listing" not in files:
-                        getListing(fs_access, files)
+                    if files["class"] == "Directory":
+                        ll = builder.loadListing or (binding and binding.get("loadListing"))
+                        if ll:
+                            getListing(fs_access, files, (ll == "deep"))
                     else:
                         with fs_access.open(files["location"], "rb") as f:
                             contents = ""

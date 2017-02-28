@@ -8,7 +8,7 @@ from six import string_types, iteritems
 
 from . import expression
 from .errors import WorkflowException
-from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs
+from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs, getListing
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -41,6 +41,10 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
+
+        # One of None, "shallow", "deep"
+        # Will be default None for CWL v1.1
+        self.loadListing = "deep"  # type: Union[None, str]
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
@@ -112,9 +116,10 @@ class Builder(object):
 
             if schema["type"] == "File":
                 self.files.append(datum)
-                if binding and binding.get("loadContents"):
-                    with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT)
+                if binding:
+                    if binding.get("loadContents"):
+                        with self.fs_access.open(datum["location"], "rb") as f:
+                            datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -142,6 +147,9 @@ class Builder(object):
                 adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
 
             if schema["type"] == "Directory":
+                ll = self.loadListing or (binding and binding.get("loadListing"))
+                if ll:
+                    getListing(self.fs_access, datum, (ll == "deep"))
                 self.files.append(datum)
 
         # Position to front of the sort key

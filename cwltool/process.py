@@ -161,31 +161,19 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def getListing(fs_access, rec):
-    # type: (StdFsAccess, Dict[Text, Any]) -> None
-    if "listing" not in rec:
-        listing = []
-        loc = rec["location"]
-        for ld in fs_access.listdir(loc):
-            if fs_access.isdir(ld):
-                ent = {u"class": u"Directory",
-                       u"location": ld}
-                getListing(fs_access, ent)
-                listing.append(ent)
-            else:
-                listing.append({"class": "File", "location": ld})
-        rec["listing"] = listing
-
-
 def stageFiles(pm, stageFunc, ignoreWritable=False):
     # type: (PathMapper, Callable[..., Any], bool) -> None
     for f, p in pm.items():
+        if not p.staged:
+            continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type == "File":
+        if p.type in ("File", "Directory") and p.resolved.startswith("/"):
             stageFunc(p.resolved, p.target)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
+        elif p.type == "WritableDirectory" and not ignoreWritable:
+            shutil.copytree(p.resolved, p.target)
         elif p.type == "CreateFile" and not ignoreWritable:
             with open(p.target, "w") as n:
                 n.write(p.resolved.encode("utf-8"))
@@ -476,6 +464,10 @@ class Process(object):
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
+
+        loadListingReq, _ = self.get_requirement("LoadListingRequirement")
+        if loadListingReq:
+            builder.loadListing = loadListingReq.get("loadListing", True)
 
         if dockerReq and kwargs.get("use_container"):
             builder.outdir = builder.fs_access.realpath(
