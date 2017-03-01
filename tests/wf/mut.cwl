@@ -8,9 +8,9 @@ steps:
     in:
       r: a
     out: []
-    run: cat_mut.cwl
+    run: updateval.cwl
   step2:
     in:
       r: a
     out: []
-    run: cat_mut.cwl
+    run: updateval.cwl

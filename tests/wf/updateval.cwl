@@ -7,9 +7,14 @@ requirements:
         writable: true
 inputs:
   r: File
+  script:
+    type: File
+    default:
+      class: File
+      location: updateval.py
 outputs:
   out:
     type: File
     outputBinding:
-      outputEval: $(inputs.r)
-arguments: [cat, $(inputs.r.basename)]
+      glob: $(inputs.r.basename)
+arguments: [python, $(inputs.script), $(inputs.r.basename)]

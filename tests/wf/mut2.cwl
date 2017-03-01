@@ -2,15 +2,18 @@ cwlVersion: v1.0
 class: Workflow
 inputs:
   a: File
-outputs: []
+outputs:
+  out:
+    type: File
+    outputSource: step2/out
 steps:
   step1:
     in:
       r: a
     out: [out]
-    run: cat_mut.cwl
+    run: updateval.cwl
   step2:
     in:
       r: step1/out
-    out: []
-    run: cat_mut.cwl
+    out: [out]
+    run: updateval.cwl
