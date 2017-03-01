@@ -1,5 +1,6 @@
 import logging
 import os
+import urllib
 
 from schema_salad.ref_resolver import file_uri
 

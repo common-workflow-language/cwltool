@@ -162,11 +162,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Will be passed to `docker run` as the '--net' "
                              "parameter. Implies '--enable-net'.")
 
-    parser.add_argument("--enable-tool-registry", action="store_true", help="Enable resolution using tool registry",
-                        dest="enable_tool_registry")
-    parser.add_argument("--disable-tool-registry", action="store_false", help="Disable resolution using registry",
-                        dest="enable_tool_registry")
-    parser.add_argument("--add-tool-registry", action="append", help="Add a tool registry to use for resolution, default %s" % ,
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--enable-tool-registry", action="store_true", help="Enable resolution using tool registry",
+                        dest="enable_tool_registry", default=True)
+    exgroup.add_argument("--disable-tool-registry", action="store_false", help="Disable resolution using registry",
+                        dest="enable_tool_registry", default=True)
+
+    parser.add_argument("--add-tool-registry", action="append", help="Add a tool registry to use for resolution, default %s" % tool_registries,
                         dest="tool_registries", default=[])
 
     parser.add_argument("--on-error", type=Text,
