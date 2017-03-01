@@ -86,3 +86,16 @@ documents using absolute or relative local filesytem paths. If a relative path
 is referenced and that document isn't found in the current directory then the
 following locations will be searched:
 http://www.commonwl.org/v1.0/CommandLineTool.html#Discovering_CWL_documents_on_a_local_filesystem
+
+Use with Dockstore
+------------------
+
+This allows cwltool to launch tools from https://dockstore.org/ in one of two ways ::
+
+  cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats:master test.json
+
+and (defaults to latest when a version is not specified) ::
+
+  cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats test.json
+
+For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats
