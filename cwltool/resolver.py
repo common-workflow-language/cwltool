@@ -36,7 +36,7 @@ def resolve_ga4gh_tool(document_loader, uri):
     path, version = uri.partition(":")[::2]
     if not version:
         version = "latest"
-    ds = "https://dockstore.org:8443/api/ga4gh/v1/tools/{0}/versions/{1}/plain-CWL/descriptor".format(urllib.quote(path, "") , urllib.quote(version, ""))
+    ds = "https://dockstore.org:8443/api/ga4gh/v1/tools/{0}/versions/{1}/plain-CWL/descriptor".format(urllib.quote(path, ""), urllib.quote(version, ""))
     print ds
     try:
         resp = document_loader.session.head(ds)
