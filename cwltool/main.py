@@ -171,7 +171,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--add-tool-registry", action="append", help="Add a tool registry to use for resolution, default %s" % tool_registries,
                         dest="tool_registries", default=[])
 
-    parser.add_argument("--on-error", type=Text,
+    parser.add_argument("--on-error",
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
                              "Default is 'stop'.", default="stop", choices=("stop", "continue"))
 
