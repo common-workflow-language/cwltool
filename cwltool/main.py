@@ -27,7 +27,7 @@ from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
 from .pack import pack
 from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
-from .resolver import tool_resolver
+from .resolver import tool_resolver, tool_registries
 from .stdfsaccess import StdFsAccess
 
 _logger = logging.getLogger("cwltool")
@@ -162,7 +162,14 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Will be passed to `docker run` as the '--net' "
                              "parameter. Implies '--enable-net'.")
 
-    parser.add_argument("--on-error", type=str,
+    parser.add_argument("--enable-tool-registry", action="store_true", help="Enable resolution using tool registry",
+                        dest="enable_tool_registry")
+    parser.add_argument("--disable-tool-registry", action="store_false", help="Disable resolution using registry",
+                        dest="enable_tool_registry")
+    parser.add_argument("--add-tool-registry", action="append", help="Add a tool registry to use for resolution, default %s" % ,
+                        dest="tool_registries", default=[])
+
+    parser.add_argument("--on-error", type=Text,
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
                              "Default is 'stop'.", default="stop", choices=("stop", "continue"))
 
@@ -634,6 +641,11 @@ def main(argsl=None,  # type: List[str]
                 return 1
         if args.relax_path_checks:
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
+
+        if args.tool_registries:
+            tool_registries[:] = args.tool_registries
+        if not args.enable_tool_registry:
+            del tool_registries[:]
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
