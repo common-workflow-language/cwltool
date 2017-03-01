@@ -159,7 +159,7 @@ class CommandLineJob(object):
                     continue
                 if vol.type in ("File", "Directory"):
                     runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
-                if vol.type == "CreateFile":
+                elif vol.type == "CreateFile":
                     createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
                     with open(createtmp, "w") as f:
                         f.write(vol.resolved.encode("utf-8"))
