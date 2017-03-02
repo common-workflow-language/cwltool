@@ -25,7 +25,8 @@ from .cwlrdf import printrdf, printdot
 from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
 from .pack import pack
-from .process import shortname, Process, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs, use_custom_schema
+from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
+                      scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
 from .resolver import tool_resolver
 from .stdfsaccess import StdFsAccess
 
@@ -644,6 +645,8 @@ def main(argsl=None,  # type: List[str]
             res = pkg_resources.resource_stream(__name__, 'extensions.yml')
             use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
             res.close()
+        else:
+            use_standard_schema("v1.0")
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
@@ -717,13 +720,16 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, 'move_outputs', "copy")
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
-        if job_order_object is None:
-            job_order_object = load_job_order(args, tool, stdin,
-                                              print_input_deps=args.print_input_deps,
-                                              relative_deps=args.relative_deps,
-                                              stdout=stdout,
-                                              make_fs_access=make_fs_access,
-                                              fetcher_constructor=fetcher_constructor)
+        try:
+            if job_order_object is None:
+                    job_order_object = load_job_order(args, tool, stdin,
+                                                      print_input_deps=args.print_input_deps,
+                                                      relative_deps=args.relative_deps,
+                                                      stdout=stdout,
+                                                      make_fs_access=make_fs_access,
+                                                      fetcher_constructor=fetcher_constructor)
+        except SystemExit as e:
+            return e.code
 
         if isinstance(job_order_object, int):
             return job_order_object

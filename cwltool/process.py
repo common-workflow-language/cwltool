@@ -87,8 +87,16 @@ SCHEMA_ANY = None  # type: Dict[Text, Any]
 
 custom_schemas = {}
 
+def use_standard_schema(version):
+    if version in custom_schemas:
+        del custom_schemas[version]
+    if version in SCHEMA_CACHE:
+        del SCHEMA_CACHE[version]
+
 def use_custom_schema(version, name, text):
     custom_schemas[version] = (name, text)
+    if version in SCHEMA_CACHE:
+        del SCHEMA_CACHE[version]
 
 def get_schema(version):
     # type: (Text) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text,Any], Loader]

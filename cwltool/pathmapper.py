@@ -129,11 +129,10 @@ def get_listing(fs_access, rec, recursive=True):
 def trim_listing(obj):
     """Remove 'listing' field from Directory objects that are file references.
 
-    When Directory objects represent Keep references, it redundant and
-    potentially very expensive to pass fully enumerated Directory objects
-    between instances of cwl-runner (e.g. a submitting a job, or using the
-    RunInSingleContainer feature), so delete the 'listing' field when it is
-    safe to do so.
+    It redundant and potentially expensive to pass fully enumerated Directory
+    objects around if not explicitly needed, so delete the 'listing' field when
+    it is safe to do so.
+
     """
 
     if obj.get("location", "").startswith("file://") and "listing" in obj:
