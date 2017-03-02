@@ -32,13 +32,13 @@ def tool_resolver(document_loader, uri):
             return ret
     return file_uri(os.path.abspath(uri), split_frag=True)
 
-tool_registries = ["https://dockstore.org:8443"]
+ga4gh_tool_registries = ["https://dockstore.org:8443"]
 
 def resolve_ga4gh_tool(document_loader, uri):
     path, version = uri.partition(":")[::2]
     if not version:
         version = "latest"
-    for reg in tool_registries:
+    for reg in ga4gh_tool_registries:
         ds = "{0}/api/ga4gh/v1/tools/{1}/versions/{2}/plain-CWL/descriptor".format(reg, urllib.quote(path, ""), urllib.quote(version, ""))
         try:
             resp = document_loader.session.head(ds)

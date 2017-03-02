@@ -27,7 +27,7 @@ from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
 from .pack import pack
 from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
-from .resolver import tool_resolver, tool_registries
+from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
 
 _logger = logging.getLogger("cwltool")
@@ -163,13 +163,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                              "parameter. Implies '--enable-net'.")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--enable-tool-registry", action="store_true", help="Enable resolution using tool registry",
-                        dest="enable_tool_registry", default=True)
-    exgroup.add_argument("--disable-tool-registry", action="store_false", help="Disable resolution using registry",
-                        dest="enable_tool_registry", default=True)
+    exgroup.add_argument("--enable-ga4gh-tool-registry", action="store_true", help="Enable resolution using GA4GH tool registry API",
+                        dest="enable_ga4gh_tool_registry", default=True)
+    exgroup.add_argument("--disable-ga4gh-tool-registry", action="store_false", help="Disable resolution using GA4GH tool registry API",
+                        dest="enable_ga4gh_tool_registry", default=True)
 
-    parser.add_argument("--add-tool-registry", action="append", help="Add a tool registry to use for resolution, default %s" % tool_registries,
-                        dest="tool_registries", default=[])
+    parser.add_argument("--add-ga4gh-tool-registry", action="append", help="Add a GA4GH tool registry endpoint to use for resolution, default %s" % ga4gh_tool_registries,
+                        dest="ga4gh_tool_registries", default=[])
 
     parser.add_argument("--on-error",
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
@@ -644,10 +644,10 @@ def main(argsl=None,  # type: List[str]
         if args.relax_path_checks:
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
 
-        if args.tool_registries:
-            tool_registries[:] = args.tool_registries
-        if not args.enable_tool_registry:
-            del tool_registries[:]
+        if args.ga4gh_tool_registries:
+            ga4gh_tool_registries[:] = args.ga4gh_tool_registries
+        if not args.enable_ga4gh_tool_registry:
+            del ga4gh_tool_registries[:]
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
