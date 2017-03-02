@@ -87,10 +87,14 @@ is referenced and that document isn't found in the current directory then the
 following locations will be searched:
 http://www.commonwl.org/v1.0/CommandLineTool.html#Discovering_CWL_documents_on_a_local_filesystem
 
-Use with Dockstore
-------------------
+Use with GA4GH Tool Registry API
+--------------------------------
 
-This allows cwltool to launch tools from https://dockstore.org/ in one of two ways ::
+Cwltool can launch tools directly from `GA4GH Tool Registry API`_ endpoints.
+
+By default, cwltool searches https://dockstore.org/ .  Use --add-tool-registry to add other registries to the search path.
+
+For example ::
 
   cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats:master test.json
 
@@ -99,3 +103,5 @@ and (defaults to latest when a version is not specified) ::
   cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats test.json
 
 For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats
+
+.. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
