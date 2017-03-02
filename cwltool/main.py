@@ -228,6 +228,12 @@ def single_job_executor(t,  # type: Process
         for req in jobReqs:
             t.requirements.append(req)
 
+    if kwargs.get("default_container"):
+        t.requirements.insert(0, {
+            "class": "DockerRequirement",
+            "dockerPull": kwargs["default_container"]
+        })
+
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)

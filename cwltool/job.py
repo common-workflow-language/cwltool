@@ -89,6 +89,36 @@ def deref_links(outputs):  # type: (Any) -> None
         for v in outputs:
             deref_links(v)
 
+def add_volumes(pathmapper, runtime, host_outdir=None, container_outdir=None, inplace_update=False):
+    for src, vol in pathmapper.items():
+        if not vol.staged:
+            continue
+        if host_outdir:
+            containertgt = container_outdir + vol.target[len(host_outdir):]
+        else:
+            containertgt = vol.target
+        if vol.type in ("File", "Directory"):
+            if not vol.resolved.startswith("_:"):
+                runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, containertgt))
+        elif vol.type == "WritableFile":
+            if inplace_update:
+                runtime.append(u"--volume=%s:%s:rw" % (vol.resolved, containertgt))
+            else:
+                shutil.copy(vol.resolved, vol.target)
+        elif vol.type == "WritableDirectory":
+            if vol.resolved.startswith("_:"):
+                os.makedirs(vol.target, 0o0755)
+            else:
+                if inplace_update:
+                    runtime.append(u"--volume=%s:%s:rw" % (vol.resolved, containertgt))
+                else:
+                    shutil.copytree(vol.resolved, vol.target)
+        elif vol.type == "CreateFile":
+            createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
+            with open(createtmp, "w") as f:
+                f.write(vol.resolved.encode("utf-8"))
+            runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
+
 
 class CommandLineJob(object):
     def __init__(self):  # type: () -> None
@@ -152,20 +182,23 @@ class CommandLineJob(object):
             else:
                 raise WorkflowException("Docker is not available for this tool, try --no-container to disable Docker: %s" % e)
 
+        generatemapper = None
+        if self.generatefiles["listing"]:
+            generatemapper = PathMapper([self.generatefiles], self.outdir,
+                                        self.outdir, separateDirs=False)
+            _logger.debug(u"[job %s] initial work dir %s", self.name,
+                          json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
+
         if img_id:
             runtime = ["docker", "run", "-i"]
-            for src, vol in self.pathmapper.items():
-                if not vol.staged:
-                    continue
-                if vol.type in ("File", "Directory"):
-                    runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
-                elif vol.type == "CreateFile":
-                    createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
-                    with open(createtmp, "w") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
+
             runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), self.builder.outdir))
             runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
+
+            add_volumes(self.pathmapper, runtime)
+            if generatemapper:
+                add_volumes(generatemapper, runtime, self.outdir, self.builder.outdir)
+
             runtime.append(u"--workdir=%s" % (self.builder.outdir))
             runtime.append("--read-only=true")
 
@@ -212,6 +245,17 @@ class CommandLineJob(object):
 
             stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
 
+            if generatemapper:
+                def linkoutdir(src, tgt):
+                    # Need to make the link to the staged file (may be inside
+                    # the container)
+                    for _, item in self.pathmapper.items():
+                        if src == item.resolved:
+                            os.symlink(item.target, tgt)
+                            break
+
+                stageFiles(generatemapper, linkoutdir)
+
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
         shouldquote = None  # type: Callable[[Any], Any]
@@ -235,22 +279,6 @@ class CommandLineJob(object):
         outputs = {}  # type: Dict[Text,Text]
 
         try:
-            if self.generatefiles["listing"]:
-                generatemapper = PathMapper([self.generatefiles], self.outdir,
-                                            self.outdir, separateDirs=False)
-                _logger.debug(u"[job %s] initial work dir %s", self.name,
-                              json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
-
-                def linkoutdir(src, tgt):
-                    # Need to make the link to the staged file (may be inside
-                    # the container)
-                    for _, item in self.pathmapper.items():
-                        if src == item.resolved:
-                            os.symlink(item.target, tgt)
-                            break
-
-                stageFiles(generatemapper, linkoutdir)
-
             stdin_path = None
             if self.stdin:
                 stdin_path = self.pathmapper.reversemap(self.stdin)[1]
