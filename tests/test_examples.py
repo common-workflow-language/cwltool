@@ -6,6 +6,7 @@ import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
 from .util import get_data
+from cwltool.main import main
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -335,6 +336,11 @@ class TestTypeCompare(unittest.TestCase):
             f = cwltool.factory.Factory()
             echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+
+class TestPrintDot(unittest.TestCase):
+    def test_print_dot(self):
+        # Require that --enable-ext is provided.
+        self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
 
 if __name__ == '__main__':
