@@ -85,15 +85,17 @@ SCHEMA_FILE = None  # type: Dict[Text, Any]
 SCHEMA_DIR = None  # type: Dict[Text, Any]
 SCHEMA_ANY = None  # type: Dict[Text, Any]
 
-custom_schemas = {}
+custom_schemas = {}  # type: Dict[Text, Tuple[Text, Text]]
 
 def use_standard_schema(version):
+    # type: (Text) -> None
     if version in custom_schemas:
         del custom_schemas[version]
     if version in SCHEMA_CACHE:
         del SCHEMA_CACHE[version]
 
 def use_custom_schema(version, name, text):
+    # type: (Text, Text, Text) -> None
     custom_schemas[version] = (name, text)
     if version in SCHEMA_CACHE:
         del SCHEMA_CACHE[version]
@@ -104,7 +106,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}
+    cache = {}  # type: Dict[Text, Text]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])

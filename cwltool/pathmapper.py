@@ -11,6 +11,8 @@ from schema_salad.sourceline import SourceLine
 from typing import Any, Callable, Set, Text, Tuple, Union
 from six.moves import urllib
 
+from .stdfsaccess import abspath, StdFsAccess
+
 _logger = logging.getLogger("cwltool")
 
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
@@ -77,12 +79,6 @@ def normalizeFilesDirs(job):
     adjustDirObjs(job, addLocation)
 
 
-def abspath(src, basedir):  # type: (Text, Text) -> Text
-    if src.startswith(u"file://"):
-        ab = unicode(uri_file_path(str(src)))
-    else:
-        ab = src if os.path.isabs(src) else os.path.join(basedir, src)
-    return ab
 
 
 def dedup(listing):  # type: (List[Any]) -> List[Any]
@@ -232,7 +228,7 @@ class PathMapper(object):
         if u"#" in src:
             i = src.index(u"#")
             p = self._pathmap[src[:i]]
-            return MapperEnt(p.resolved, p.target + src[i:], None)
+            return MapperEnt(p.resolved, p.target + src[i:], p.type, p.staged)
         else:
             return self._pathmap[src]
 
