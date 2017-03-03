@@ -125,7 +125,8 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
             continue
         if vol.type in ("File", "Directory") or (inplace_update and
                                                  vol.type in ("WritableFile", "WritableDirectory")):
-            os.remove(vol.target)
+            if os.path.exists(vol.target):
+                os.remove(vol.target)
             os.symlink(vol.resolved, vol.target)
 
 class CommandLineJob(object):
@@ -257,18 +258,8 @@ class CommandLineJob(object):
             env["TMPDIR"] = self.tmpdir
 
             stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
-
             if generatemapper:
-                def linkoutdir(src, tgt):
-                    # Need to make the link to the staged file (may be inside
-                    # the container)
-                    print "ABC", src, tgt
-                    for _, item in self.pathmapper.items():
-                        if src == item.resolved:
-                            os.symlink(item.target, tgt)
-                            break
-
-                stageFiles(generatemapper, linkoutdir)
+                relink_initialworkdir(generatemapper, inplace_update=self.inplace_update)
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
