@@ -432,6 +432,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
+                print("this is print help")
                 return 0
             cmd_line = vars(toolparser.parse_args(args.job_order))
             for record_name in records:
@@ -630,7 +631,8 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, "workflow", "CWLFile")
             else:
                 _logger.error("")
-                _logger.error("CWL document required, try --help for details")
+                _logger.error("CWL document required, No input file was passed\n")
+                arg_parser().print_help()
                 return 1
         if args.relax_path_checks:
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
