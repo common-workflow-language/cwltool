@@ -34,6 +34,7 @@ def tool_resolver(document_loader, uri):
 
 ga4gh_tool_registries = ["https://dockstore.org:8443"]
 
+
 def resolve_ga4gh_tool(document_loader, uri):
     path, version = uri.partition(":")[::2]
     if not version:
