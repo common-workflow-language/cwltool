@@ -630,7 +630,8 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, "workflow", "CWLFile")
             else:
                 _logger.error("")
-                _logger.error("CWL document required, try --help for details")
+                _logger.error("CWL document required, no input file was provided")
+                arg_parser().print_help()
                 return 1
         if args.relax_path_checks:
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
