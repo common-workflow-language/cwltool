@@ -119,6 +119,14 @@ def add_volumes(pathmapper, runtime, host_outdir=None, container_outdir=None, in
                 f.write(vol.resolved.encode("utf-8"))
             runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
 
+def relink_initialworkdir(pathmapper, inplace_update=False):
+    for src, vol in pathmapper.items():
+        if not vol.staged:
+            continue
+        if vol.type in ("File", "Directory") or (inplace_update and
+                                                 vol.type in ("WritableFile", "WritableDirectory")):
+            os.remove(vol.target)
+            os.symlink(vol.resolved, vol.target)
 
 class CommandLineJob(object):
     def __init__(self):  # type: () -> None
@@ -142,6 +150,7 @@ class CommandLineJob(object):
         self.environment = None  # type: MutableMapping[Text, Text]
         self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
         self.stagedir = None  # type: Text
+        self.inplace_update = False  # type: bool
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -184,7 +193,8 @@ class CommandLineJob(object):
 
         generatemapper = None
         if self.generatefiles["listing"]:
-            generatemapper = PathMapper([self.generatefiles], self.outdir,
+            print self.generatefiles["listing"]
+            generatemapper = PathMapper(self.generatefiles["listing"], self.outdir,
                                         self.outdir, separateDirs=False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: generatemapper.mapper(p) for p in generatemapper.files()}, indent=4))
@@ -197,7 +207,10 @@ class CommandLineJob(object):
 
             add_volumes(self.pathmapper, runtime)
             if generatemapper:
-                add_volumes(generatemapper, runtime, self.outdir, self.builder.outdir)
+                add_volumes(generatemapper, runtime,
+                            self.outdir,
+                            self.builder.outdir,
+                            inplace_update=self.inplace_update)
 
             runtime.append(u"--workdir=%s" % (self.builder.outdir))
             runtime.append("--read-only=true")
@@ -249,6 +262,7 @@ class CommandLineJob(object):
                 def linkoutdir(src, tgt):
                     # Need to make the link to the staged file (may be inside
                     # the container)
+                    print "ABC", src, tgt
                     for _, item in self.pathmapper.items():
                         if src == item.resolved:
                             os.symlink(item.target, tgt)
@@ -322,14 +336,7 @@ class CommandLineJob(object):
                 processStatus = "permanentFail"
 
             if self.generatefiles["listing"]:
-                def linkoutdir(src, tgt):
-                    # Need to make the link to the staged file (may be inside
-                    # the container)
-                    if os.path.islink(tgt):
-                        os.remove(tgt)
-                        os.symlink(src, tgt)
-
-                stageFiles(generatemapper, linkoutdir, ignoreWritable=True)
+                relink_initialworkdir(generatemapper, inplace_update=self.inplace_update)
 
             outputs = self.collect_outputs(self.outdir)
 

@@ -222,7 +222,7 @@ class PathMapper(object):
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
-            self.visit(fob, stagedir, basedir, staged=True)
+            self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
 
     def mapper(self, src):  # type: (Text) -> MapperEnt
         if u"#" in src:
