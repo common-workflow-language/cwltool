@@ -19,7 +19,7 @@ from typing import Any, Callable, cast, Generator, Text, Union
 from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs
 from .errors import WorkflowException
-from .job import CommandLineJob
+from .job import CommandLineJob, DockerCommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
 from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
 from .stdfsaccess import StdFsAccess
@@ -163,11 +163,14 @@ class CommandLineTool(Process):
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
     def makeJobRunner(self):  # type: () -> CommandLineJob
-        return CommandLineJob()
+        dockerReq, _ = self.get_requirement("DockerRequirement")
+        if dockerReq:
+            return DockerCommandLineJob()
+        else:
+            return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
-        dockerReq, _ = self.get_requirement("DockerRequirement")
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
     def job(self,
