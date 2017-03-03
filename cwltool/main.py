@@ -432,7 +432,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
-                print("this is print help")
+                
                 return 0
             cmd_line = vars(toolparser.parse_args(args.job_order))
             for record_name in records:
