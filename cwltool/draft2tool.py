@@ -418,12 +418,14 @@ class CommandLineTool(Process):
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
             self.collect_output_ports, self.tool["outputs"], builder,
-            compute_checksum=kwargs.get("compute_checksum", True), readers=readers)
+            compute_checksum=kwargs.get("compute_checksum", True),
+            jobname=jobname,
+            readers=readers)
         j.output_callback = output_callbacks
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, readers=None):
+    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, jobname="", readers=None):
         # type: (Set[Dict[Text, Any]], Builder, Text, bool) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         try:
@@ -468,7 +470,7 @@ class CommandLineTool(Process):
             raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))
         finally:
             for r in readers.values():
-                builder.mutation_manager.release_reader(r)
+                builder.mutation_manager.release_reader(jobname, r)
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]
