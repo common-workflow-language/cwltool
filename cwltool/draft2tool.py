@@ -146,8 +146,9 @@ class CallbackJob(object):
 
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-def check_adjust(builder, f):
+def check_adjust(builder, stepname, f):
     # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
+
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
@@ -192,7 +193,7 @@ class CommandLineTool(Process):
                                                  kwargs["basedir"],
                                                  cachebuilder.stagedir,
                                                  separateDirs=False)
-            _check_adjust = partial(check_adjust, cachebuilder)
+            _check_adjust = partial(check_adjust, cachebuilder, jobname)
             adjustFileObjs(cachebuilder.files, _check_adjust)
             adjustFileObjs(cachebuilder.bindings, _check_adjust)
             adjustDirObjs(cachebuilder.files, _check_adjust)
@@ -291,7 +292,7 @@ class CommandLineTool(Process):
             _logger.debug(u"[job %s] path mappings is %s", j.name,
                           json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
-        _check_adjust = partial(check_adjust, builder)
+        _check_adjust = partial(check_adjust, builder, jobname)
 
         adjustFileObjs(builder.files, _check_adjust)
         adjustFileObjs(builder.bindings, _check_adjust)
@@ -371,10 +372,30 @@ class CommandLineTool(Process):
         if inplaceUpdateReq:
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
+
+        readers = {}
+        muts = set()
+        def register_mut(f):
+            muts.add(f["location"])
+            builder.mutation_manager.register_mutation(j.name, f)
+
+        def register_reader(f):
+            if f["location"] not in muts:
+                builder.mutation_manager.register_reader(j.name, f)
+                readers[f["location"]] = f
+
         for i in j.generatefiles["listing"]:
             if i.get("writable") and j.inplace_update:
-                adjustFileObjs(i, partial(builder.mutation_manager.register_mutation, j.name))
-                adjustDirObjs(i, partial(builder.mutation_manager.register_mutation, j.name))
+                adjustFileObjs(i, register_mut)
+                adjustDirObjs(i, register_mut)
+            else:
+                adjustFileObjs(i, register_reader)
+                adjustDirObjs(i, register_reader)
+
+        adjustFileObjs(builder.files, register_reader)
+        adjustFileObjs(builder.bindings, register_reader)
+        adjustDirObjs(builder.files, register_reader)
+        adjustDirObjs(builder.bindings, register_reader)
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
@@ -397,16 +418,15 @@ class CommandLineTool(Process):
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
             self.collect_output_ports, self.tool["outputs"], builder,
-            compute_checksum=kwargs.get("compute_checksum", True))
+            compute_checksum=kwargs.get("compute_checksum", True), readers=readers)
         j.output_callback = output_callbacks
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True):
+    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, readers=None):
         # type: (Set[Dict[Text, Any]], Builder, Text, bool) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         try:
-
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
             if fs_access.exists(custom_output):
@@ -446,6 +466,9 @@ class CommandLineTool(Process):
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))
+        finally:
+            for r in readers.values():
+                builder.mutation_manager.release_reader(r)
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]

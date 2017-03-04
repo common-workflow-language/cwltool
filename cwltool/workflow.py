@@ -761,17 +761,55 @@ def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, 
     else:
         return steps
 
+MutationState = namedtuple("MutationTracker", ["generation", "readers"])
+
 class MutationManager(object):
     def __init__(self):
-        self.generations = {}  # type: Dict[Tuple[int, int]]
+        self.generations = {}  # type: Dict[Text, MutationTracking]
+
+    def register_reader(self, stepname, obj):
+        # type: (Text, Dict[Text, Any]) -> None
+        loc = obj["location"]
+        current = self.generations.get(loc, MutationState(0,0))
+        obj_generation = obj.get("_generation", 0)
+
+        if obj_generation != current.generation:
+            raise WorkflowException("[job %s] wants to read %s from generation %i but current generation is %s" % (
+                                    stepname, loc, obj_generation, current.generation))
+
+        self.generations[loc] = MutationState(current.generation, current.readers+1)
+
+    def release_reader(self, obj):
+        # type: (Text, Dict[Text, Any]) -> None
+        loc = obj["location"]
+        current = self.generations.get(loc, MutationState(0,0))
+        obj_generation = obj.get("_generation", 0)
+
+        if obj_generation != current.generation:
+            raise WorkflowException("wants to release reader on %s from generation %i but current generation is %s" % (
+                                    loc, obj_generation, current.generation))
+
+        self.generations[loc] = MutationState(current.generation, current.readers-1)
 
     def register_mutation(self, stepname, obj):
+        # type: (Text, Dict[Text, Any]) -> None
         loc = obj["location"]
-        if obj.get("_generation", 0) == self.generations.get(loc, 0):
-            self.generations[loc] = obj.get("_generation", 0)+1
-        else:
-            raise WorkflowException("[job %s] wants to modify %s on generation %s but input is generation %i" % (
-                                    stepname, obj["location"], self.generations[loc], obj.get("_generation", 0)))
+        current = self.generations.get(loc, MutationState(0,0))
+        obj_generation = obj.get("_generation", 0)
+
+        if current.readers > 0:
+            raise WorkflowException("[job %s] wants to modify %s but has %i reader%s" % (
+                stepname, loc, current.readers,
+                "s" if current.readers > 1 else ""))
+
+        if obj_generation != current.generation:
+            raise WorkflowException("[job %s] wants to modify %s from generation %i but current generation is %s" % (
+                                    stepname, loc, obj_generation, current.generation))
+
+        self.generations[loc] = MutationState(current.generation+1, current.readers)
 
     def set_generation(self, obj):
-        obj["_generation"] = self.generations.get(obj["location"], 0)
+        # type: (Dict) -> None
+        loc = obj["location"]
+        current = self.generations.get(loc, MutationState(0,0))
+        obj["_generation"] = current.generation
