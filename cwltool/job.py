@@ -154,9 +154,10 @@ class CommandLineJob(object):
 
         if img_id:
             runtime = ["docker", "run", "-i"]
-            for src in self.pathmapper.files():
-                vol = self.pathmapper.mapper(src)
-                if vol.type == "File":
+            for src, vol in self.pathmapper.items():
+                if not vol.staged:
+                    continue
+                if vol.type in ("File", "Directory"):
                     runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
                 if vol.type == "CreateFile":
                     createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
@@ -209,7 +210,7 @@ class CommandLineJob(object):
             env["HOME"] = self.outdir
             env["TMPDIR"] = self.tmpdir
 
-            stageFiles(self.pathmapper, os.symlink)
+            stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
