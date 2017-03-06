@@ -20,7 +20,7 @@ from .utils import aslist
 
 _logger = logging.getLogger("cwltool")
 
-WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value'])
+WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
 
 def defaultMakeTool(toolpath_object,  # type: Dict[Text, Any]
@@ -204,7 +204,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
                     "declared.")
             connections = aslist(inp[sourceField])
             for src in connections:
-                if src in state and state[src] is not None:
+                if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
                     if not match_types(
                             inp["type"], state[src], iid, inputobj,
                             inp.get("linkMerge", ("merge_nested"
@@ -275,7 +275,7 @@ class WorkflowJob(object):
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
-                    self.state[i["id"]] = WorkflowStateItem(i, jobout[i["id"]])
+                    self.state[i["id"]] = WorkflowStateItem(i, jobout[i["id"]], processStatus)
                 else:
                     _logger.error(u"[%s] Output is missing expected field %s", step.name, i["id"])
                     processStatus = "permanentFail"
@@ -402,9 +402,9 @@ class WorkflowJob(object):
             with SourceLine(self.tool["inputs"], e, WorkflowException):
                 iid = shortname(i["id"])
                 if iid in joborder:
-                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]))
+                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
                 elif "default" in i:
-                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]))
+                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]), "success")
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a default value." % (i["id"]))

@@ -1,0 +1,22 @@
+$base: http://commonwl.org/cwltool#
+$namespaces:
+  cwl: "https://w3id.org/cwl/cwl#"
+$graph:
+- $import: https://w3id.org/cwl/CommonWorkflowLanguage.yml
+
+- name: LoadListingRequirement
+  type: record
+  extends: cwl:ProcessRequirement
+  fields:
+    class:
+      type: string
+      doc: "Always 'LoadListingRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    loadListing:
+      type:
+        - "null"
+        - type: enum
+          name: LoadListingEnum
+          symbols: [shallow, deep]

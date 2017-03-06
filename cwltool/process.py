@@ -11,6 +11,7 @@ import tempfile
 import urlparse
 import uuid
 from collections import Iterable
+import functools
 
 import avro.schema
 import schema_salad.schema
@@ -26,7 +27,7 @@ from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
                     Tuple, Union)
 
 from .builder import Builder, adjustFileObjs
-from .pathmapper import adjustDirObjs
+from .pathmapper import adjustDirObjs, get_listing
 from .errors import WorkflowException, UnsupportedRequirement
 from .pathmapper import PathMapper, normalizeFilesDirs
 from .stdfsaccess import StdFsAccess
@@ -44,7 +45,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "ShellCommandRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
-                                "InitialWorkDirRequirement"]
+                                "InitialWorkDirRequirement",
+                                "LoadListingRequirement"]
 
 cwl_files = (
     "Workflow.yml",
@@ -83,6 +85,20 @@ SCHEMA_FILE = None  # type: Dict[Text, Any]
 SCHEMA_DIR = None  # type: Dict[Text, Any]
 SCHEMA_ANY = None  # type: Dict[Text, Any]
 
+custom_schemas = {}  # type: Dict[Text, Tuple[Text, Text]]
+
+def use_standard_schema(version):
+    # type: (Text) -> None
+    if version in custom_schemas:
+        del custom_schemas[version]
+    if version in SCHEMA_CACHE:
+        del SCHEMA_CACHE[version]
+
+def use_custom_schema(version, name, text):
+    # type: (Text, Text, Text) -> None
+    custom_schemas[version] = (name, text)
+    if version in SCHEMA_CACHE:
+        del SCHEMA_CACHE[version]
 
 def get_schema(version):
     # type: (Text) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text,Any], Loader]
@@ -90,7 +106,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}
+    cache = {}  # type: Dict[Text, Text]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
@@ -113,8 +129,13 @@ def get_schema(version):
         except IOError:
             pass
 
-    SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
-        "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
+    if version in custom_schemas:
+        cache[custom_schemas[version][0]] = custom_schemas[version][1]
+        SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+            custom_schemas[version][0], cache=cache)
+    else:
+        SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+            "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
     return SCHEMA_CACHE[version]
 
@@ -161,31 +182,24 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def getListing(fs_access, rec):
-    # type: (StdFsAccess, Dict[Text, Any]) -> None
-    if "listing" not in rec:
-        listing = []
-        loc = rec["location"]
-        for ld in fs_access.listdir(loc):
-            if fs_access.isdir(ld):
-                ent = {u"class": u"Directory",
-                       u"location": ld}
-                getListing(fs_access, ent)
-                listing.append(ent)
-            else:
-                listing.append({"class": "File", "location": ld})
-        rec["listing"] = listing
-
-
 def stageFiles(pm, stageFunc, ignoreWritable=False):
     # type: (PathMapper, Callable[..., Any], bool) -> None
     for f, p in pm.items():
+        if not p.staged:
+            continue
         if not os.path.exists(os.path.dirname(p.target)):
-            os.makedirs(os.path.dirname(p.target), 0755)
-        if p.type == "File":
+            os.makedirs(os.path.dirname(p.target), 0o0755)
+        if p.type in ("File", "Directory") and p.resolved.startswith("/"):
             stageFunc(p.resolved, p.target)
+        elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
+            os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
+        elif p.type == "WritableDirectory" and not ignoreWritable:
+            if p.resolved.startswith("_:"):
+                os.makedirs(p.target, 0o0755)
+            else:
+                shutil.copytree(p.resolved, p.target)
         elif p.type == "CreateFile" and not ignoreWritable:
             with open(p.target, "w") as n:
                 n.write(p.resolved.encode("utf-8"))
@@ -204,8 +218,11 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+
+    adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
+
     if action not in ("move", "copy"):
         return outputObj
 
@@ -229,7 +246,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action):
         if "contents" in f:
             del f["contents"]
         if f["class"] == "File":
-            compute_checksums(StdFsAccess(""), f)
+            compute_checksums(fs_access, f)
         return f
 
     adjustFileObjs(outputObj, _check_adjust)
@@ -476,6 +493,10 @@ class Process(object):
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
+
+        loadListingReq, _ = self.get_requirement("LoadListingRequirement")
+        if loadListingReq:
+            builder.loadListing = loadListingReq.get("loadListing")
 
         if dockerReq and kwargs.get("use_container"):
             builder.outdir = builder.fs_access.realpath(

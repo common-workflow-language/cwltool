@@ -7,6 +7,8 @@ import cwltool.process
 import cwltool.workflow
 import schema_salad.validate
 
+from .util import get_data
+from cwltool.main import main
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -113,12 +115,12 @@ class TestParamMatching(unittest.TestCase):
 class TestFactory(unittest.TestCase):
     def test_factory(self):
         f = cwltool.factory.Factory()
-        echo = f.make("tests/echo.cwl")
+        echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
     def test_partial_scatter(self):
         f = cwltool.factory.Factory(on_error="continue")
-        fail = f.make("tests/wf/scatterfail.cwl")
+        fail = f.make(get_data("tests/wf/scatterfail.cwl"))
         try:
             fail()
         except cwltool.factory.WorkflowStatus as e:
@@ -130,7 +132,7 @@ class TestFactory(unittest.TestCase):
 
     def test_partial_output(self):
         f = cwltool.factory.Factory(on_error="continue")
-        fail = f.make("tests/wf/wffail.cwl")
+        fail = f.make(get_data("tests/wf/wffail.cwl"))
         try:
             fail()
         except cwltool.factory.WorkflowStatus as e:
@@ -453,7 +455,7 @@ class TestTypeCompare(unittest.TestCase):
         # fails if the step 'out' doesn't match.
         with self.assertRaises(cwltool.workflow.WorkflowException):
             f = cwltool.factory.Factory()
-            echo = f.make("tests/test_bad_outputs_wf.cwl")
+            echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
 
@@ -463,6 +465,12 @@ class TestTypeCompare(unittest.TestCase):
         with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
             f.make("tests/checker_wf/broken-wf.cwl")
+
+
+class TestPrintDot(unittest.TestCase):
+    def test_print_dot(self):
+        # Require that --enable-ext is provided.
+        self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
 
 if __name__ == '__main__':

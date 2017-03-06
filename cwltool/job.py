@@ -135,21 +135,29 @@ class CommandLineJob(object):
 
         img_id = None
         env = None  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
-        if docker_req and kwargs.get("use_container") is not False:
-            env = os.environ
-            img_id = docker.get_from_requirements(docker_req, docker_is_req, pull_image)
-        elif kwargs.get("default_container", None) is not None:
-            env = os.environ
-            img_id = kwargs.get("default_container")
+        try:
+            if docker_req and kwargs.get("use_container") is not False:
+                env = os.environ
+                img_id = docker.get_from_requirements(docker_req, True, pull_image)
+            elif kwargs.get("default_container", None) is not None:
+                env = os.environ
+                img_id = kwargs.get("default_container")
 
-        if docker_is_req and img_id is None:
-            raise WorkflowException("Docker is required for running this tool.")
+            if docker_req and img_id is None and kwargs.get("use_container"):
+                raise Exception("Docker image not available")
+        except Exception as e:
+            _logger.debug("Docker error", exc_info=True)
+            if docker_is_req:
+                raise WorkflowException("Docker is required to run this tool: %s" % e)
+            else:
+                raise WorkflowException("Docker is not available for this tool, try --no-container to disable Docker: %s" % e)
 
         if img_id:
             runtime = ["docker", "run", "-i"]
-            for src in self.pathmapper.files():
-                vol = self.pathmapper.mapper(src)
-                if vol.type == "File":
+            for src, vol in self.pathmapper.items():
+                if not vol.staged:
+                    continue
+                if vol.type in ("File", "Directory"):
                     runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
                 if vol.type == "CreateFile":
                     createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
@@ -202,7 +210,7 @@ class CommandLineJob(object):
             env["HOME"] = self.outdir
             env["TMPDIR"] = self.tmpdir
 
-            stageFiles(self.pathmapper, os.symlink)
+            stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 

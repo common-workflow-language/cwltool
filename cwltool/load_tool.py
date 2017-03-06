@@ -4,7 +4,6 @@
 import logging
 import os
 import re
-import urlparse
 import uuid
 
 import requests.sessions
@@ -15,6 +14,8 @@ from schema_salad.ref_resolver import Loader, Fetcher, file_uri
 from schema_salad.sourceline import cmap
 from schema_salad.validate import ValidationException
 from typing import Any, Callable, cast, Dict, Text, Tuple, Union
+from six.moves import urllib
+from six import itervalues, string_types
 
 from . import process
 from . import update
@@ -37,8 +38,8 @@ def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
 
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
-    if isinstance(argsworkflow, basestring):
-        split = urlparse.urlsplit(argsworkflow)
+    if isinstance(argsworkflow, string_types):
+        split = urllib.parse.urlsplit(argsworkflow)
         if split.scheme:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
@@ -52,7 +53,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
         if argsworkflow != uri:
             _logger.info("Resolved '%s' to '%s'", argsworkflow, uri)
 
-        fileuri = urlparse.urldefrag(uri)[0]
+        fileuri = urllib.parse.urldefrag(uri)[0]
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
         uri = "#" + Text(id(argsworkflow))
@@ -101,7 +102,7 @@ def _convert_stdstreams_to_files(workflowobj):
                                 inp['id'].rpartition('#')[2]
                             inp['type'] = 'File'
         else:
-            for entry in workflowobj.itervalues():
+            for entry in itervalues(workflowobj):
                 _convert_stdstreams_to_files(entry)
     if isinstance(workflowobj, list):
         for entry in workflowobj:
@@ -131,11 +132,11 @@ def validate_document(document_loader,  # type: Loader
     jobobj = None
     if "cwl:tool" in workflowobj:
         jobobj, _ = document_loader.resolve_all(workflowobj, uri)
-        uri = urlparse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
+        uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
         workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
 
-    fileuri = urlparse.urldefrag(uri)[0]
+    fileuri = urllib.parse.urldefrag(uri)[0]
 
     if "cwlVersion" in workflowobj:
         if not isinstance(workflowobj["cwlVersion"], (str, Text)):
@@ -213,7 +214,7 @@ def make_tool(document_loader,  # type: Loader
             raise WorkflowException(
                 u"Tool file contains graph of multiple objects, must specify "
                 "one of #%s" % ", #".join(
-                    urlparse.urldefrag(i["id"])[1] for i in resolveduri
+                    urllib.parse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
     elif isinstance(resolveduri, dict):
         processobj = resolveduri

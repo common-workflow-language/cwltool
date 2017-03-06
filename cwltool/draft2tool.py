@@ -6,7 +6,8 @@ import os
 import re
 import shutil
 import tempfile
-import urlparse
+from six.moves import urllib
+from six import string_types, u
 from functools import partial
 
 import schema_salad.validate as validate
@@ -19,13 +20,13 @@ from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs
 from .errors import WorkflowException
 from .job import CommandLineJob
-from .pathmapper import PathMapper
-from .process import Process, shortname, uniquename, getListing, normalizeFilesDirs, compute_checksums
+from .pathmapper import PathMapper, get_listing, trim_listing
+from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
-ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ a-zA-Z0-9._+-]+$")  # with spaces
+ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ #a-zA-Z0-9._+-]+$")  # with spaces and hashes
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 
 from .flatten import flatten
@@ -95,7 +96,7 @@ def revmap_file(builder, outdir, f):
     internal output directories to the external directory.
     """
 
-    split = urlparse.urlsplit(outdir)
+    split = urllib.parse.urlsplit(outdir)
     if not split.scheme:
         outdir = file_uri(str(outdir))
 
@@ -346,7 +347,7 @@ class CommandLineTool(Process):
                         ls.append(builder.do_eval(t))
             for i, t in enumerate(ls):
                 if "entry" in t:
-                    if isinstance(t["entry"], basestring):
+                    if isinstance(t["entry"], string_types):
                         ls[i] = {
                             "class": "File",
                             "basename": t["entryname"],
@@ -354,9 +355,10 @@ class CommandLineTool(Process):
                             "writable": t.get("writable")
                         }
                     else:
-                        if t["entryname"]:
+                        if t["entryname"] or t["writable"]:
                             t = copy.deepcopy(t)
-                            t["entry"]["basename"] = t["entryname"]
+                            if t["entryname"]:
+                                t["entry"]["basename"] = t["entryname"]
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
@@ -414,9 +416,10 @@ class CommandLineTool(Process):
                                 % shortname(port["id"]), exc_info=True)
                             raise WorkflowException(
                                 u"Error collecting output for parameter '%s':\n%s"
-                                % (shortname(port["id"]), indent(unicode(e))))
+                                % (shortname(port["id"]), indent(u(str(e)))))
 
             if ret:
+                adjustDirObjs(ret, trim_listing)
                 adjustFileObjs(ret,
                                cast(Callable[[Any], Any],  # known bug in mypy
                                     # https://github.com/python/mypy/issues/797
@@ -461,10 +464,15 @@ class CommandLineTool(Process):
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
                             _logger.warn(Text(e))
+                        except:
+                            _logger.error("Unexpected error from fs_access", exc_info=True)
+                            raise
 
                 for files in r:
-                    if files["class"] == "Directory" and "listing" not in files:
-                        getListing(fs_access, files)
+                    if files["class"] == "Directory":
+                        ll = builder.loadListing or (binding and binding.get("loadListing"))
+                        if ll:
+                            get_listing(fs_access, files, (ll == "deep"))
                     else:
                         with fs_access.open(files["location"], "rb") as f:
                             contents = ""
@@ -523,7 +531,7 @@ class CommandLineTool(Process):
                             for sf in aslist(schema["secondaryFiles"]):
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
-                                    if isinstance(sfpath, basestring):
+                                    if isinstance(sfpath, string_types):
                                         sfpath = revmap({"location": sfpath, "class": "File"})
                                 else:
                                     sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
