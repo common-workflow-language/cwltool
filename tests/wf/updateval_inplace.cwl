@@ -5,6 +5,8 @@ requirements:
     listing:
       - entry: $(inputs.r)
         writable: true
+  InplaceUpdateRequirement:
+    inplaceUpdate: true
 inputs:
   r: File
   script:
