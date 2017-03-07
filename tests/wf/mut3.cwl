@@ -18,4 +18,4 @@ steps:
     in:
       r: a
     out: []
-    run: updateval.cwl
+    run: updateval_inplace.cwl

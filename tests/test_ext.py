@@ -77,6 +77,8 @@ class TestInplaceUpdate(unittest.TestCase):
                 f.write("1")
 
             self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut.cwl'), "-a", os.path.join(tmp, "value")]), 1)
+            with open(os.path.join(tmp, "value"), "r") as f:
+                self.assertEquals("2", f.read())
         finally:
             shutil.rmtree(tmp)
 
@@ -86,7 +88,9 @@ class TestInplaceUpdate(unittest.TestCase):
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
 
-            self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut.cwl'), "-a", os.path.join(tmp, "value")]), 0)
+            self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut2.cwl'), "-a", os.path.join(tmp, "value")]), 0)
+            with open(os.path.join(tmp, "value"), "r") as f:
+                self.assertEquals("3", f.read())
         finally:
             shutil.rmtree(tmp)
 

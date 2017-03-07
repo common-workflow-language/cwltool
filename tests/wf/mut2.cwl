@@ -11,9 +11,9 @@ steps:
     in:
       r: a
     out: [out]
-    run: updateval.cwl
+    run: updateval_inplace.cwl
   step2:
     in:
       r: step1/out
     out: [out]
-    run: updateval.cwl
+    run: updateval_inplace.cwl

@@ -761,6 +761,7 @@ def flat_crossproduct_scatter(process, joborder, scatter_keys, output_callback, 
     else:
         return steps
 
+
 MutationState = namedtuple("MutationTracker", ["generation", "readers", "stepname"])
 
 class MutationManager(object):

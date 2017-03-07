@@ -147,7 +147,7 @@ class CallbackJob(object):
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
 def check_adjust(builder, stepname, f):
-    # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
+    # type: (Builder, Text, Dict[Text, Any]) -> Dict[Text, Any]
 
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
     f["dirname"], f["basename"] = os.path.split(f["path"])
@@ -375,6 +375,7 @@ class CommandLineTool(Process):
 
         readers = {}
         muts = set()
+
         def register_mut(f):
             muts.add(f["location"])
             builder.mutation_manager.register_mutation(j.name, f)
@@ -426,7 +427,7 @@ class CommandLineTool(Process):
         yield j
 
     def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, jobname="", readers=None):
-        # type: (Set[Dict[Text, Any]], Builder, Text, bool) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
+        # type: (Set[Dict[Text, Any]], Builder, Text, bool, Text, Dict[Text, Any]) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         try:
             fs_access = builder.make_fs_access(outdir)

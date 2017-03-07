@@ -41,6 +41,7 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
+        self.mutation_manager = None  # type: MutationManager
 
         # One of None, "shallow", "deep"
         # Will be default None for CWL v1.1
