@@ -14,7 +14,7 @@ import schema_salad.validate as validate
 import shellescape
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, indent
-from typing import Any, Callable, cast, Generator, Text, Union
+from typing import Any, Callable, cast, Generator, Text, Union, Dict
 
 from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs

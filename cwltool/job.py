@@ -11,7 +11,7 @@ import tempfile
 
 import shellescape
 from typing import (Any, Callable, Union, Iterable, MutableMapping,
-                    IO, Text, Tuple, cast)
+                    IO, Text, Tuple, cast, List)
 
 from . import docker
 from .builder import Builder
