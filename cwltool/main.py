@@ -29,6 +29,7 @@ from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
                       scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
 from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
+from .mutation import MutationManager
 
 _logger = logging.getLogger("cwltool")
 
@@ -217,7 +218,7 @@ def single_job_executor(t,  # type: Process
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
-    kwargs["mutation_manager"] = workflow.MutationManager()
+    kwargs["mutation_manager"] = MutationManager()
 
     jobReqs = None
     if "cwl:requirements" in job_order_object:

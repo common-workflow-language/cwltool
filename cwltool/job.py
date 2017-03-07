@@ -11,7 +11,7 @@ import tempfile
 
 import shellescape
 from typing import (Any, Callable, Union, Iterable, MutableMapping,
-                    IO, Text, Tuple)
+                    IO, Text, Tuple, cast)
 
 from . import docker
 from .builder import Builder
@@ -90,6 +90,7 @@ def deref_links(outputs):  # type: (Any) -> None
             deref_links(v)
 
 def relink_initialworkdir(pathmapper, inplace_update=False):
+    # type: (PathMapper, bool) -> None
     for src, vol in pathmapper.items():
         if not vol.staged:
             continue
@@ -99,7 +100,7 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
                 os.remove(vol.target)
             os.symlink(vol.resolved, vol.target)
 
-class JobBase():
+class JobBase(object):
     def __init__(self):  # type: () -> None
         self.builder = None  # type: Builder
         self.joborder = None  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
@@ -124,7 +125,7 @@ class JobBase():
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
 
-    def _setup(self):
+    def _setup(self):  # type: () -> None
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -136,13 +137,15 @@ class JobBase():
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         if self.generatefiles["listing"]:
-            self.generatemapper = PathMapper(self.generatefiles["listing"], self.outdir,
-                                        self.outdir, separateDirs=False)
+            self.generatemapper = PathMapper(cast(List[Any], self.generatefiles["listing"]),
+                                             self.outdir, self.outdir, separateDirs=False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
 
     def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move"):
+        # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
+
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
         shouldquote = None  # type: Callable[[Any], Any]
@@ -281,6 +284,8 @@ class CommandLineJob(JobBase):
 class DockerCommandLineJob(JobBase):
 
     def add_volumes(self, pathmapper, runtime, stage_output):
+        # type: (PathMapper, List[Text], bool) -> None
+
         host_outdir = self.outdir
         container_outdir = self.builder.outdir
         for src, vol in pathmapper.items():
@@ -314,18 +319,17 @@ class DockerCommandLineJob(JobBase):
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
+        # type: (bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         img_id = None
-        env = None  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
+        env = None  # type: MutableMapping[Text, Text]
         try:
+            env = cast(MutableMapping[Text, Text], os.environ)
             if docker_req and kwargs.get("use_container") is not False:
-                env = os.environ
                 img_id = docker.get_from_requirements(docker_req, True, pull_image)
             elif kwargs.get("default_container", None) is not None:
-                env = os.environ
                 img_id = kwargs.get("default_container")
 
             if docker_req and img_id is None and kwargs.get("use_container"):
@@ -339,7 +343,7 @@ class DockerCommandLineJob(JobBase):
 
         self._setup()
 
-        runtime = ["docker", "run", "-i"]
+        runtime = [u"docker", u"run", u"-i"]
 
         runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), self.builder.outdir))
         runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
@@ -349,12 +353,12 @@ class DockerCommandLineJob(JobBase):
             self.add_volumes(self.generatemapper, runtime, True)
 
         runtime.append(u"--workdir=%s" % (self.builder.outdir))
-        runtime.append("--read-only=true")
+        runtime.append(u"--read-only=true")
 
         if kwargs.get("custom_net", None) is not None:
-            runtime.append("--net={0}".format(kwargs.get("custom_net")))
+            runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
         elif kwargs.get("disable_net", None):
-            runtime.append("--net=none")
+            runtime.append(u"--net=none")
 
         if self.stdout:
             runtime.append("--log-driver=none")
@@ -365,14 +369,14 @@ class DockerCommandLineJob(JobBase):
             runtime.append(u"--user=%s" % (euid))
 
         if rm_container:
-            runtime.append("--rm")
+            runtime.append(u"--rm")
 
-        runtime.append("--env=TMPDIR=/tmp")
+        runtime.append(u"--env=TMPDIR=/tmp")
 
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
         # runtime.append("--env=HOME=/tmp")
-        runtime.append("--env=HOME=%s" % self.builder.outdir)
+        runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         for t, v in self.environment.items():
             runtime.append(u"--env=%s=%s" % (t, v))

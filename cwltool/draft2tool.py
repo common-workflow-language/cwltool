@@ -19,7 +19,7 @@ from typing import Any, Callable, cast, Generator, Text, Union
 from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs
 from .errors import WorkflowException
-from .job import CommandLineJob, DockerCommandLineJob
+from .job import JobBase, CommandLineJob, DockerCommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
 from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
 from .stdfsaccess import StdFsAccess
@@ -163,7 +163,7 @@ class CommandLineTool(Process):
         # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
-    def makeJobRunner(self):  # type: () -> CommandLineJob
+    def makeJobRunner(self):  # type: () -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq:
             return DockerCommandLineJob()
@@ -179,7 +179,7 @@ class CommandLineTool(Process):
             output_callbacks,  # type: Callable[[Any, Any], Any]
             **kwargs  # type: Any
             ):
-        # type: (...) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
+        # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
@@ -385,13 +385,14 @@ class CommandLineTool(Process):
                 builder.mutation_manager.register_reader(j.name, f)
                 readers[f["location"]] = f
 
-        for i in j.generatefiles["listing"]:
-            if i.get("writable") and j.inplace_update:
-                adjustFileObjs(i, register_mut)
-                adjustDirObjs(i, register_mut)
+        for li in j.generatefiles["listing"]:
+            li = cast(Dict[Text, Any], li)
+            if li.get("writable") and j.inplace_update:
+                adjustFileObjs(li, register_mut)
+                adjustDirObjs(li, register_mut)
             else:
-                adjustFileObjs(i, register_reader)
-                adjustDirObjs(i, register_reader)
+                adjustFileObjs(li, register_reader)
+                adjustDirObjs(li, register_reader)
 
         adjustFileObjs(builder.files, register_reader)
         adjustFileObjs(builder.bindings, register_reader)

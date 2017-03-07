@@ -11,6 +11,7 @@ from .errors import WorkflowException
 from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs, get_listing
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
+from .mutation import MutationManager
 
 CONTENT_LIMIT = 64 * 1024
 
