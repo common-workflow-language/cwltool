@@ -1,7 +1,7 @@
 "use strict";
-process.stdin.setEncoding('utf8');
+process.stdin.setEncoding("utf8");
 var incoming = "";
-process.stdin.on('data', function(chunk) {
+process.stdin.on("data", function(chunk) {
   incoming += chunk;
   var i = incoming.indexOf("\n");
   if (i > -1) {
@@ -10,4 +10,4 @@ process.stdin.on('data', function(chunk) {
     process.stdout.write(JSON.stringify(require("vm").runInNewContext(fn, {})) + "\n");
   }
 });
-process.stdin.on('end', process.exit);
+process.stdin.on("end", process.exit);

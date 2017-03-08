@@ -33,9 +33,15 @@ def new_js_proc():
     trynodes = ("nodejs", "node")
     for n in trynodes:
         try:
-            nodejs = subprocess.Popen([n, "--eval", nodecode], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]) != "t":
+                continue
+            nodejs = subprocess.Popen([n, "--eval", nodecode],
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
             break
+        except subprocess.CalledProcessError:
+            pass
         except OSError as e:
             if e.errno == errno.ENOENT:
                 pass
@@ -103,26 +109,28 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
 
-    completed = []  # type: List[BytesIO]
-    while len(completed) < 3:
-        rready, wready, _ = select.select([nodejs.stdout, nodejs.stderr], [nodejs.stdin], [])
-        if nodejs.stdin in wready:
-            b = stdin_buf.read(select.PIPE_BUF)
-            if b:
-                os.write(nodejs.stdin.fileno(), b)
-            elif stdin_buf not in completed:
-                completed.append(stdin_buf)
-        for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
-            if pipes[0] in rready:
-                b = os.read(pipes[0].fileno(), select.PIPE_BUF)
+    rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
+    wselect = [nodejs.stdin]  # type: List[BytesIO]
+    while (len(wselect) + len(rselect)) > 0:
+        rready, wready, _ = select.select(rselect, wselect, [])
+        try:
+            if nodejs.stdin in wready:
+                b = stdin_buf.read(select.PIPE_BUF)
                 if b:
-                    pipes[1].write(b)
-                elif pipes[1] not in completed:
-                    completed.append(pipes[1])
-        if stdout_buf.getvalue().endswith("\n"):
-            for buf in (stdout_buf, stderr_buf):
-                if buf not in completed:
-                    completed.append(buf)
+                    os.write(nodejs.stdin.fileno(), b)
+                else:
+                    wselect = []
+            for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
+                if pipes[0] in rready:
+                    b = os.read(pipes[0].fileno(), select.PIPE_BUF)
+                    if b:
+                        pipes[1].write(b)
+                    else:
+                        rselect.remove(pipes[0])
+            if stdout_buf.getvalue().endswith("\n"):
+                rselect = []
+        except OSError as e:
+            break
     tm.cancel()
 
     stdin_buf.close()
@@ -142,6 +150,8 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         if "\n" in data:
             return "\n" + data.strip()
         return data
+
+    nodejs.poll()
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
