@@ -46,7 +46,7 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement",
-                                "LoadListingRequirement"]
+                                "http://commonwl.org/cwltool#LoadListingRequirement"]
 
 cwl_files = (
     "Workflow.yml",
@@ -494,7 +494,7 @@ class Process(object):
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
-        loadListingReq, _ = self.get_requirement("LoadListingRequirement")
+        loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
         if loadListingReq:
             builder.loadListing = loadListingReq.get("loadListing")
 
