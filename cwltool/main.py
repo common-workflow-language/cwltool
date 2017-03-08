@@ -20,13 +20,13 @@ from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
 
 from . import draft2tool
 from . import workflow
-from .builder import adjustFileObjs
-from .pathmapper import adjustDirObjs
+from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing
 from .cwlrdf import printrdf, printdot
 from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
 from .pack import pack
-from .process import shortname, Process, getListing, relocateOutputs, cleanIntermediate, scandeps, normalizeFilesDirs
+from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
+                      scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
 from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
 
@@ -148,8 +148,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                                                 "relative to primary file or current working directory.")
 
     parser.add_argument("--enable-dev", action="store_true",
-                        help="Allow loading and running development versions "
+                        help="Enable loading and running development versions "
                              "of CWL spec.", default=False)
+
+    parser.add_argument("--enable-ext", action="store_true",
+                        help="Enable loading and running cwltool extensions "
+                             "to CWL spec.", default=False)
 
     parser.add_argument("--default-container",
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")
@@ -184,8 +188,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          dest="compute_checksum")
 
     parser.add_argument("--relax-path-checks", action="store_true",
-                        default=False, help="Relax requirements on path names. Currently "
-                                            "allows spaces.", dest="relax_path_checks")
+                        default=False, help="Relax requirements on path names to permit "
+                        "spaces and hash characters.", dest="relax_path_checks")
+
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -243,7 +248,8 @@ def single_job_executor(t,  # type: Process
 
     if final_output and final_output[0] and finaloutdir:
         final_output[0] = relocateOutputs(final_output[0], finaloutdir,
-                                          output_dirs, kwargs.get("move_outputs"))
+                                          output_dirs, kwargs.get("move_outputs"),
+                                          kwargs["make_fs_access"](""))
 
     if kwargs.get("rm_tmpdir"):
         cleanIntermediate(output_dirs)
@@ -497,9 +503,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     adjustDirObjs(job_order_object, pathToLoc)
     adjustFileObjs(job_order_object, pathToLoc)
+    adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
-    adjustDirObjs(job_order_object, cast(Callable[..., Any],
-                                         functools.partial(getListing, make_fs_access(input_basedir))))
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
@@ -610,6 +615,7 @@ def main(argsl=None,  # type: List[str]
                      'debug': False,
                      'version': False,
                      'enable_dev': False,
+                     'enable_ext': False,
                      'strict': True,
                      'rdf_serializer': None,
                      'basedir': None,
@@ -639,7 +645,8 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, "workflow", "CWLFile")
             else:
                 _logger.error("")
-                _logger.error("CWL document required, try --help for details")
+                _logger.error("CWL document required, no input file was provided")
+                arg_parser().print_help()
                 return 1
         if args.relax_path_checks:
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
@@ -648,6 +655,13 @@ def main(argsl=None,  # type: List[str]
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
+
+        if args.enable_ext:
+            res = pkg_resources.resource_stream(__name__, 'extensions.yml')
+            use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
+            res.close()
+        else:
+            use_standard_schema("v1.0")
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
@@ -721,13 +735,16 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, 'move_outputs', "copy")
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
-        if job_order_object is None:
-            job_order_object = load_job_order(args, tool, stdin,
-                                              print_input_deps=args.print_input_deps,
-                                              relative_deps=args.relative_deps,
-                                              stdout=stdout,
-                                              make_fs_access=make_fs_access,
-                                              fetcher_constructor=fetcher_constructor)
+        try:
+            if job_order_object is None:
+                    job_order_object = load_job_order(args, tool, stdin,
+                                                      print_input_deps=args.print_input_deps,
+                                                      relative_deps=args.relative_deps,
+                                                      stdout=stdout,
+                                                      make_fs_access=make_fs_access,
+                                                      fetcher_constructor=fetcher_constructor)
+        except SystemExit as e:
+            return e.code
 
         if isinstance(job_order_object, int):
             return job_order_object
@@ -744,6 +761,7 @@ def main(argsl=None,  # type: List[str]
 
             # This is the workflow output, it needs to be written
             if out is not None:
+
                 def locToPath(p):
                     if p["location"].startswith("file://"):
                         p["path"] = uri_file_path(p["location"])
