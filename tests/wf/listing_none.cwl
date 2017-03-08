@@ -1,7 +1,9 @@
 class: CommandLineTool
 cwlVersion: v1.0
+$namespaces:
+  cwltool: http://commonwl.org/cwltool#
 requirements:
-  LoadListingRequirement:
+  cwltool:LoadListingRequirement:
     loadListing: null
 inputs:
   d: Directory

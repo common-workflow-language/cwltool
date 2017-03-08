@@ -46,7 +46,7 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement",
-                                "LoadListingRequirement"]
+                                "http://commonwl.org/cwltool#LoadListingRequirement"]
 
 cwl_files = (
     "Workflow.yml",
@@ -430,7 +430,7 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set())
+            self.inputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
@@ -438,7 +438,7 @@ class Process(object):
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set())
+            self.outputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
@@ -494,7 +494,7 @@ class Process(object):
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
-        loadListingReq, _ = self.get_requirement("LoadListingRequirement")
+        loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
         if loadListingReq:
             builder.loadListing = loadListingReq.get("loadListing")
 
