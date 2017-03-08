@@ -32,8 +32,8 @@ def tool_resolver(document_loader, uri):
             return ret
     return file_uri(os.path.abspath(uri), split_frag=True)
 
-ga4gh_tool_registries = ["https://dockstore.org:8443"]
 
+ga4gh_tool_registries = ["https://dockstore.org:8443"]
 
 def resolve_ga4gh_tool(document_loader, uri):
     path, version = uri.partition(":")[::2]
