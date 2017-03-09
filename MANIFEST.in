@@ -16,4 +16,6 @@ include cwltool/schemas/v1.1.0-dev1/*.md
 include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
+include cwltool/extensions.yml
+global-exclude *~
 global-exclude *.pyc
