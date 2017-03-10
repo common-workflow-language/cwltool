@@ -96,8 +96,10 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
             continue
         if vol.type in ("File", "Directory") or (inplace_update and
                                                  vol.type in ("WritableFile", "WritableDirectory")):
-            if os.path.exists(vol.target):
+            if os.path.islink(vol.target) or os.path.isfile(vol.target):
                 os.remove(vol.target)
+            elif os.path.isdir(vol.target):
+                os.rmdir(vol.target)
             os.symlink(vol.resolved, vol.target)
 
 class JobBase(object):
@@ -275,7 +277,7 @@ class CommandLineJob(JobBase):
 
         stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
         if self.generatemapper:
-            stageFiles(self.generatemapper, os.symlink)
+            stageFiles(self.generatemapper, os.symlink, ignoreWritable=self.inplace_update)
             relink_initialworkdir(self.generatemapper, inplace_update=self.inplace_update)
 
         self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)

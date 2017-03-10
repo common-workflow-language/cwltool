@@ -103,3 +103,39 @@ class TestInplaceUpdate(unittest.TestCase):
     #         self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut3.cwl'), "-a", os.path.join(tmp, "value")]), 0)
     #     finally:
     #         shutil.rmtree(tmp)
+
+    def test_updatedir(self):
+        try:
+            tmp = tempfile.mkdtemp()
+            with open(os.path.join(tmp, "value"), "w") as f:
+                f.write("1")
+            out = tempfile.mkdtemp()
+
+            self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
+            self.assertFalse(os.path.exists(os.path.join(out, "blurb")))
+
+            self.assertEquals(main(["--outdir", out, get_data('tests/wf/updatedir.cwl'), "-r", tmp]), 0)
+
+            self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
+            self.assertTrue(os.path.exists(os.path.join(out, "inp/blurb")))
+        finally:
+            shutil.rmtree(tmp)
+            shutil.rmtree(out)
+
+    def test_updateval_inplace(self):
+        try:
+            tmp = tempfile.mkdtemp()
+            with open(os.path.join(tmp, "value"), "w") as f:
+                f.write("1")
+            out = tempfile.mkdtemp()
+
+            self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
+            self.assertFalse(os.path.exists(os.path.join(out, "blurb")))
+
+            self.assertEquals(main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]), 0)
+
+            self.assertTrue(os.path.exists(os.path.join(tmp, "blurb")))
+            self.assertFalse(os.path.exists(os.path.join(out, "inp/blurb")))
+        finally:
+            shutil.rmtree(tmp)
+            shutil.rmtree(out)
