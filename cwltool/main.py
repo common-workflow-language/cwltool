@@ -15,8 +15,8 @@ import ruamel.yaml as yaml
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import Loader, Fetcher, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
-                    Tuple, IO)
+from typing import (Union, Any, AnyStr, cast, Callable, Dict, List, Sequence,
+    Text, Tuple, IO)
 
 from . import draft2tool
 from . import workflow

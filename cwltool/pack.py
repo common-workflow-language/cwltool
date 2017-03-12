@@ -1,7 +1,7 @@
 import copy
 
 from schema_salad.ref_resolver import Loader
-from typing import Union, Any, cast, Callable, Dict, Text
+from typing import Union, Any, cast, Callable, Dict, List, Set, Text
 from six.moves import urllib
 
 from .process import shortname, uniquename

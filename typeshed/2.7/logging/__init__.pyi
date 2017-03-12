@@ -1,8 +1,8 @@
 ## Stubs for logging (Python 3.4)
 
 from typing import (
-    Any, Callable, Iterable, Mapping, MutableMapping, Optional, IO, Tuple,
-    Text, Union,
+    Any, Callable, Dict, Iterable, List, Mapping, MutableMapping, Optional, IO,
+    Text, Tuple, Union,
     overload,
 )
 from types import TracebackType

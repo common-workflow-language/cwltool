@@ -3,7 +3,7 @@ import os
 import urllib
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
-from typing import BinaryIO, Text
+from typing import BinaryIO, List, Text
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):

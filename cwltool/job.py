@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 import shellescape
-from typing import (Any, Callable, Union, Iterable, MutableMapping,
+from typing import (Any, Callable, Dict, Union, Iterable, List, MutableMapping,
                     IO, Text, Tuple)
 
 from . import docker
@@ -342,6 +342,8 @@ class CommandLineJob(object):
         if move_outputs == "move" and empty_subtree(self.outdir):
             _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
             shutil.rmtree(self.outdir, True)
+
+        return None
 
 
 def _job_popen(

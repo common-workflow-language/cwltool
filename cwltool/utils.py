@@ -1,6 +1,6 @@
 # no imports from cwltool allowed
 
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 
 def aslist(l):  # type: (Any) -> List[Any]

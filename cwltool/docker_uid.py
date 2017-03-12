@@ -1,7 +1,7 @@
 from __future__ import print_function
 import subprocess
 
-from typing import Text
+from typing import List, Text
 
 
 def docker_vm_uid():  # type: () -> int
@@ -91,6 +91,8 @@ def cmd_output_to_int(cmd):  # type: (List[Text]) -> int
         except ValueError:
             # ValueError is raised if int conversion fails
             return None
+    else:
+        return None
 
 
 def boot2docker_uid():  # type: () -> int

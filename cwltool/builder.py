@@ -3,7 +3,7 @@ import copy
 import avro
 import schema_salad.validate as validate
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, Text, Type, Union
+from typing import Any, Callable, Dict, List, Set, Text, Type, Union
 from six import string_types, iteritems
 
 from . import expression

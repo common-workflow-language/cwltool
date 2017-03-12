@@ -8,7 +8,8 @@ from collections import namedtuple
 
 import schema_salad.validate as validate
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
+from typing import (Any, Callable, cast, Dict, Generator, Iterable, List, Text,
+    Union)
 
 from . import draft2tool
 from . import expression
