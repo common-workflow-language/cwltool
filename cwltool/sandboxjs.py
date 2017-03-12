@@ -8,7 +8,7 @@ import threading
 from io import BytesIO
 
 from pkg_resources import resource_stream
-from typing import Any, Dict, List, Mapping, Text, Union
+from typing import cast, Any, Dict, List, Mapping, Text, Union
 
 class JavascriptException(Exception):
     pass
@@ -92,7 +92,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     killed = []
 
-    def term():
+    def term():  # type: () -> None
         try:
             killed.append(True)
             nodejs.kill()
@@ -116,14 +116,14 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         try:
             if nodejs.stdin in wready:
                 b = stdin_buf.read(select.PIPE_BUF)
-                if b:
+                if bool(b):
                     os.write(nodejs.stdin.fileno(), b)
                 else:
                     wselect = []
             for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
                 if pipes[0] in rready:
                     b = os.read(pipes[0].fileno(), select.PIPE_BUF)
-                    if b:
+                    if bool(b):
                         pipes[1].write(b)
                     else:
                         rselect.remove(pipes[0])
@@ -160,13 +160,13 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         info = stdfmt(stderrdata)
 
     if nodejs.poll() not in (None, 0):
-        if killed:
+        if len(killed) > 0:
             raise JavascriptException(u"Long-running script killed after %s seconds: %s" % (timeout, info))
         else:
             raise JavascriptException(info)
     else:
         try:
-            return json.loads(stdoutdata)
+            return cast(JSON, json.loads(stdoutdata))
         except ValueError as e:
             raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
                                       (e, fn_linenum(), stdoutdata, stderrdata))

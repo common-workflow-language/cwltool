@@ -1,6 +1,6 @@
 # no imports from cwltool allowed
 
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 
 def aslist(l):  # type: (Any) -> List[Any]
@@ -10,7 +10,9 @@ def aslist(l):  # type: (Any) -> List[Any]
         return [l]
 
 
-def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
+def get_feature(self,    # type: Any
+                feature  # type: Any
+                ):  # type: (...) -> Union[Tuple[Any, bool], Tuple[None, None]]
     for t in reversed(self.requirements):
         if t["class"] == feature:
             return (t, True)
