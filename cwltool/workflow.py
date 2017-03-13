@@ -1,7 +1,6 @@
 import copy
 import functools
 import json
-import ruamel.yaml as yaml
 import logging
 import random
 import tempfile
@@ -488,70 +487,8 @@ class Workflow(Process):
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
 
-        # source parameters: workflow_inputs and step_outputs
-        # sink parameters: step_inputs and workflow_outputs
+        static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
 
-        # make a dictionary of source parameters, indexed by the "id" field
-        src_parms = workflow_inputs + step_outputs
-        src_dict = {}
-        for parm in src_parms:
-            src_dict[parm["id"]] = parm
-
-        SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
-
-        def check_all_types(sinks, sourceField):
-            # type: (List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
-            # sourceField is either "soure" or "outputSource"
-            validation = {"warning": [], "exception": []}
-            for sink in sinks:
-                if sourceField in sink:
-                    valueFrom = sink.get("valueFrom")
-                    if isinstance(sink[sourceField], list):
-                        srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
-                        linkMerge = sink.get("linkMerge", "merge_nested")
-                    else:
-                        parm_id = sink[sourceField]
-                        srcs_of_sink = [src_dict[parm_id]]
-                        linkMerge = sink.get("linkMerge")
-                    for src in srcs_of_sink:
-                        if check_types(src["type"], sink["type"], linkMerge, valueFrom) == "warning":
-                            validation["warning"].append(SrcSink(src, sink, linkMerge))
-                        elif check_types(src["type"], sink["type"], linkMerge, valueFrom) == "exception":
-                            validation["exception"].append(SrcSink(src, sink, linkMerge))
-            return validation
-
-        warnings = check_all_types(step_inputs, "source")["warning"] + \
-                    check_all_types(workflow_outputs, "outputSource")["warning"]
-        exceptions = check_all_types(step_inputs, "source")["exception"] + \
-                    check_all_types(workflow_outputs, "outputSource")["exception"]
-
-        warning_msgs = []; exception_msgs = []
-        for warning in warnings:
-            src = warning.src; sink = warning.sink; linkMerge = warning.linkMerge
-            msg = ("Warning: potential type mismatch between source '%s' (%s) and "
-                    "sink '%s' (%s)" %
-                    (src["id"], yaml.safe_load(json.dumps(src["type"])),
-                    sink["id"], yaml.safe_load(json.dumps(sink["type"])))
-                    )
-            if linkMerge:
-                msg += ", with source linkMerge method being %s" % linkMerge
-            warning_msgs.append(msg)
-        for exception in exceptions:
-            src = exception.src; sink = exception.sink; linkMerge = exception.linkMerge
-            msg = ("Type mismatch between source '%s' (%s) and "
-                    "sink '%s' (%s)" %
-                    (src["id"], yaml.safe_load(json.dumps(src["type"])),
-                    sink["id"], yaml.safe_load(json.dumps(sink["type"])))
-                    )
-            if linkMerge:
-                msg += ", with source linkMerge method being %s" % linkMerge
-            exception_msgs.append(msg)
-        all_warning_msg = "\n".join(warning_msgs); all_exception_msg = "\n".join(exception_msgs)
-
-        if warnings:
-            print all_warning_msg
-        if exceptions:
-            raise validate.ValidationException(all_exception_msg)
 
     def job(self,
             job_order,  # type: Dict[Text, Text]
@@ -572,6 +509,84 @@ class Workflow(Process):
         op(self.tool)
         for s in self.steps:
             s.visit(op)
+
+
+def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs):
+    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]]) -> None
+    """Check if all source and sink types of a workflow are compatible before run time.
+    """
+
+    # source parameters: workflow_inputs and step_outputs
+    # sink parameters: step_inputs and workflow_outputs
+
+    # make a dictionary of source parameters, indexed by the "id" field
+    src_parms = workflow_inputs + step_outputs
+    src_dict = {}
+    for parm in src_parms:
+        src_dict[parm["id"]] = parm
+
+    step_inputs_val = check_all_types(src_dict, step_inputs, "source")
+    workflow_outputs_val = check_all_types(src_dict, workflow_outputs, "outputSource")
+
+    warnings = step_inputs_val["warning"] + workflow_outputs_val["warning"]
+    exceptions = step_inputs_val["exception"] + workflow_outputs_val["exception"]
+
+    warning_msgs = []; exception_msgs = []
+    for warning in warnings:
+        src = warning.src; sink = warning.sink; linkMerge = warning.linkMerge
+        msg = ("Warning: potential type mismatch between source '%s' (%s) and "
+                "sink '%s' (%s)" %
+                (src["id"], json.dumps(src["type"]),
+                sink["id"], json.dumps(sink["type"]))
+                )
+        if linkMerge:
+            msg += ", with source linkMerge method being %s" % linkMerge
+        warning_msgs.append(msg)
+    for exception in exceptions:
+        src = exception.src; sink = exception.sink; linkMerge = exception.linkMerge
+        msg = ("Type mismatch between source '%s' (%s) and "
+                "sink '%s' (%s)" %
+                (src["id"], json.dumps(src["type"]),
+                sink["id"], json.dumps(sink["type"]))
+                )
+        if linkMerge:
+            msg += ", with source linkMerge method being %s" % linkMerge
+        exception_msgs.append(msg)
+    all_warning_msg = "\n".join(warning_msgs); all_exception_msg = "\n".join(exception_msgs)
+
+    if warnings:
+        print all_warning_msg
+    if exceptions:
+        raise validate.ValidationException(all_exception_msg)
+
+
+SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
+
+def check_all_types(src_dict, sinks, sourceField):
+    # type: (Dict[Text, Any], List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
+    # sourceField is either "soure" or "outputSource"
+    """Given a list of sinks, check if their types match with the types of their sources.
+    """
+
+    validation = {"warning": [], "exception": []}
+    for sink in sinks:
+        if sourceField in sink:
+            valueFrom = sink.get("valueFrom")
+            if isinstance(sink[sourceField], list):
+                srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
+                linkMerge = sink.get("linkMerge", ("merge_nested" if len(sink[sourceField]) > 1
+                                                    else None))
+            else:
+                parm_id = sink[sourceField]
+                srcs_of_sink = [src_dict[parm_id]]
+                linkMerge = None
+            for src in srcs_of_sink:
+                check_result = check_types(src["type"], sink["type"], linkMerge, valueFrom)
+                if check_result == "warning":
+                    validation["warning"].append(SrcSink(src, sink, linkMerge))
+                elif check_result == "exception":
+                    validation["exception"].append(SrcSink(src, sink, linkMerge))
+    return validation
 
 
 class WorkflowStep(Process):
