@@ -7,6 +7,7 @@ $graph:
 - name: LoadListingRequirement
   type: record
   extends: cwl:ProcessRequirement
+  inVocab: false
   fields:
     class:
       type: string
