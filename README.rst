@@ -38,7 +38,7 @@ To install from source::
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
-system link or [another facility](https://wiki.debian.org/DebianAlternatives).
+system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
 Run on the command line
 -----------------------
