@@ -54,6 +54,7 @@ setup(name='cwltool',
           'schema-salad >= 2.4.20170308171942, < 3',
           'typing >= 3.5.2, < 3.6',
           'six >= 1.10.0',
+          'mock >= 2.0.0',
 
       ],
       setup_requires=[] + pytest_runner,
