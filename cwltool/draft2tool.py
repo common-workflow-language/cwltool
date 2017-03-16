@@ -471,8 +471,9 @@ class CommandLineTool(Process):
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))
         finally:
-            for r in readers.values():
-                builder.mutation_manager.release_reader(jobname, r)
+            if readers:
+                for r in readers.values():
+                    builder.mutation_manager.release_reader(jobname, r)
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]
