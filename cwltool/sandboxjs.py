@@ -23,6 +23,19 @@ localdata = threading.local()
 have_node_slim = False
 
 
+def check_js_threshold_version(working_alias):
+    # type: (str) -> bool
+    """ parse node version: 'v4.2.6\n' -> ['4', '2', '6'],
+    https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog """
+
+    v1, v2, v3 = [int(v) for v in subprocess.check_output(
+        [working_alias, "-v"]).decode('ascii').strip().strip('v').split('.')]
+
+    if v1 == 0:
+        if v2 == 10 and v3 <= 25 or v2 < 10:
+            return False
+    return True
+
 def new_js_proc():
     # type: () -> subprocess.Popen
 
@@ -31,9 +44,11 @@ def new_js_proc():
 
     nodejs = None
     trynodes = ("nodejs", "node")
+    working_alias = None
     for n in trynodes:
         try:
             if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]) != "t":
+                working_alias = n
                 continue
             nodejs = subprocess.Popen([n, "--eval", nodecode],
                                       stdin=subprocess.PIPE,
@@ -47,6 +62,14 @@ def new_js_proc():
                 pass
             else:
                 raise
+
+    """ check nodejs version, if it is below certain threshold version,
+    raise Runtime Exception. Such a test won't be required for docker nodejs"""
+    if nodejs is not None:
+        if check_js_threshold_version(working_alias) is False:
+            raise JavascriptException(u"cwltool requires updated version of Node.js engine. "
+                                      "Try updating: https://docs.npmjs.com/getting-started/installing-node")
+
 
     if nodejs is None:
         try:
