@@ -27,7 +27,7 @@ from .load_tool import fetch_document, validate_document, make_tool
 from .pack import pack
 from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
                       scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
-from .resolver import tool_resolver
+from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
 
 _logger = logging.getLogger("cwltool")
@@ -166,7 +166,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Will be passed to `docker run` as the '--net' "
                              "parameter. Implies '--enable-net'.")
 
-    parser.add_argument("--on-error", type=str,
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--enable-ga4gh-tool-registry", action="store_true", help="Enable resolution using GA4GH tool registry API",
+                        dest="enable_ga4gh_tool_registry", default=True)
+    exgroup.add_argument("--disable-ga4gh-tool-registry", action="store_false", help="Disable resolution using GA4GH tool registry API",
+                        dest="enable_ga4gh_tool_registry", default=True)
+
+    parser.add_argument("--add-ga4gh-tool-registry", action="append", help="Add a GA4GH tool registry endpoint to use for resolution, default %s" % ga4gh_tool_registries,
+                        dest="ga4gh_tool_registries", default=[])
+
+    parser.add_argument("--on-error",
                         help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
                              "Default is 'stop'.", default="stop", choices=("stop", "continue"))
 
@@ -641,6 +650,11 @@ def main(argsl=None,  # type: List[str]
                 return 1
         if args.relax_path_checks:
             draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
+
+        if args.ga4gh_tool_registries:
+            ga4gh_tool_registries[:] = args.ga4gh_tool_registries
+        if not args.enable_ga4gh_tool_registry:
+            del ga4gh_tool_registries[:]
 
         if args.enable_ext:
             res = pkg_resources.resource_stream(__name__, 'extensions.yml')
