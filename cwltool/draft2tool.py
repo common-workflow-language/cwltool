@@ -367,7 +367,7 @@ class CommandLineTool(Process):
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
 
-        inplaceUpdateReq = self.get_requirement("InplaceUpdateRequirement")[0]
+        inplaceUpdateReq = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")[0]
 
         if inplaceUpdateReq:
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]

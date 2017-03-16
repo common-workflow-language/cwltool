@@ -1,12 +1,14 @@
 class: CommandLineTool
 cwlVersion: v1.0
+$namespaces:
+  cwltool: http://commonwl.org/cwltool#
 requirements:
   InitialWorkDirRequirement:
     listing:
       - entry: $(inputs.r)
         entryname: inp
         writable: true
-  InplaceUpdateRequirement:
+  cwltool:InplaceUpdateRequirement:
     inplaceUpdate: true
 inputs:
   r: Directory
