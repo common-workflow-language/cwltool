@@ -363,9 +363,13 @@ class CommandLineTool(Process):
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
 
+        inplaceUpdateReq = self.get_requirement("InplaceUpdateRequirement")[0]
+
+        if inplaceUpdateReq:
+            j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
         for i in j.generatefiles["listing"]:
-            if i.get("writable"):
+            if i.get("writable") and j.inplace_update:
                 adjustFileObjs(i, partial(builder.mutation_manager.register_mutation, j.name))
                 adjustDirObjs(i, partial(builder.mutation_manager.register_mutation, j.name))
 

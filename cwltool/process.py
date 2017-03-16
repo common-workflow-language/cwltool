@@ -46,7 +46,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement",
-                                "http://commonwl.org/cwltool#LoadListingRequirement"]
+                                "http://commonwl.org/cwltool#LoadListingRequirement",
+                                "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
 
 cwl_files = (
     "Workflow.yml",

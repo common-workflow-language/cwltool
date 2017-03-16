@@ -151,7 +151,7 @@ class CommandLineJob(object):
         self.environment = None  # type: MutableMapping[Text, Text]
         self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
         self.stagedir = None  # type: Text
-        self.inplace_update = False  # type: bool
+        self.inplace_update = None  # type: bool
 
     def run(self, dry_run=False, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -259,6 +259,7 @@ class CommandLineJob(object):
 
             stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
             if generatemapper:
+                stageFiles(generatemapper, os.symlink)
                 relink_initialworkdir(generatemapper, inplace_update=self.inplace_update)
 
         scr, _ = get_feature(self, "ShellCommandRequirement")

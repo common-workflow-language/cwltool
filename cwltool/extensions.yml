@@ -21,3 +21,16 @@ $graph:
         - type: enum
           name: LoadListingEnum
           symbols: [shallow, deep]
+
+- name: InplaceUpdateRequirement
+  type: record
+  extends: cwl:ProcessRequirement
+  fields:
+    class:
+      type: string
+      doc: "Always 'InplaceUpdateRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    inplaceUpdate:
+      type: boolean
