@@ -235,7 +235,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
         if inputobj.get(iid) is None and "default" in inp:
             inputobj[iid] = copy.copy(inp["default"])
 
-        if iid not in inputobj and "valueFrom" in inp:
+        if iid not in inputobj and ("valueFrom" in inp or incomplete):
             inputobj[iid] = None
 
         if iid not in inputobj:
