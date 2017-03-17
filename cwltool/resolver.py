@@ -1,5 +1,6 @@
 import logging
 import os
+import urllib
 
 from schema_salad.ref_resolver import file_uri
 
@@ -25,8 +26,25 @@ def resolve_local(document_loader, uri):
 
 
 def tool_resolver(document_loader, uri):
-    for r in [resolve_local]:
+    for r in [resolve_local, resolve_ga4gh_tool]:
         ret = r(document_loader, uri)
         if ret is not None:
             return ret
     return file_uri(os.path.abspath(uri), split_frag=True)
+
+
+ga4gh_tool_registries = ["https://dockstore.org:8443"]
+
+def resolve_ga4gh_tool(document_loader, uri):
+    path, version = uri.partition(":")[::2]
+    if not version:
+        version = "latest"
+    for reg in ga4gh_tool_registries:
+        ds = "{0}/api/ga4gh/v1/tools/{1}/versions/{2}/plain-CWL/descriptor".format(reg, urllib.quote(path, ""), urllib.quote(version, ""))
+        try:
+            resp = document_loader.session.head(ds)
+            resp.raise_for_status()
+            return ds
+        except Exception:
+            pass
+    return None
