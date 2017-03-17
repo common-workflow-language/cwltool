@@ -483,7 +483,8 @@ class Workflow(Process):
         workflow_inputs = self.tool["inputs"]
         workflow_outputs = self.tool["outputs"]
 
-        step_inputs = []; step_outputs = []
+        step_inputs = [] # type: List[Any]
+        step_outputs = [] # type: List[Any]
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
@@ -532,22 +533,31 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     warnings = step_inputs_val["warning"] + workflow_outputs_val["warning"]
     exceptions = step_inputs_val["exception"] + workflow_outputs_val["exception"]
 
-    warning_msgs = []; exception_msgs = []
+    warning_msgs = []
+    exception_msgs = []
     for warning in warnings:
-        src = warning.src; sink = warning.sink; linkMerge = warning.linkMerge
-        msg = SourceLine(src).makeError("Source '%s' with type %s may be incompatible"
-                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-                SourceLine(sink).makeError("with sink '%s' with type %s"
-                % (shortname(sink["id"]), json.dumps(sink["type"])))
+        src = warning.src
+        sink = warning.sink
+        linkMerge = warning.linkMerge
+        msg = SourceLine(src).makeError(
+                    "Source '%s' with type %s may be incompatible"
+                    % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+              SourceLine(sink).makeError(
+                    "with sink '%s' with type %s"
+                    % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
             msg += ", with source linkMerge method being %s" % linkMerge
         warning_msgs.append(msg)
     for exception in exceptions:
-        src = exception.src; sink = exception.sink; linkMerge = exception.linkMerge
-        msg = SourceLine(src).makeError("Source '%s' with type %s is incompatible"
-                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-                SourceLine(sink).makeError("with sink '%s' with type %s"
-                % (shortname(sink["id"]), json.dumps(sink["type"])))
+        src = exception.src
+        sink = exception.sink
+        linkMerge = exception.linkMerge
+        msg = SourceLine(src).makeError(
+                    "Source '%s' with type %s is incompatible"
+                    % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+              SourceLine(sink).makeError(
+                    "with sink '%s' with type %s"
+                    % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
             msg += ", with source linkMerge method being %s" % linkMerge
         exception_msgs.append(msg)
@@ -569,14 +579,16 @@ def check_all_types(src_dict, sinks, sourceField):
     """Given a list of sinks, check if their types match with the types of their sources.
     """
 
-    validation = {"warning": [], "exception": []}
+    validation = {"warning": [], # type: List[SrcSink]
+                  "exception": [] # type: List[SrcSink]
+                  }
     for sink in sinks:
         if sourceField in sink:
             valueFrom = sink.get("valueFrom")
             if isinstance(sink[sourceField], list):
                 srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
-                linkMerge = sink.get("linkMerge", ("merge_nested" if len(sink[sourceField]) > 1
-                                                    else None))
+                linkMerge = sink.get("linkMerge", ("merge_nested"
+                                                   if len(sink[sourceField]) > 1 else None))
             else:
                 parm_id = sink[sourceField]
                 srcs_of_sink = [src_dict[parm_id]]
