@@ -349,6 +349,8 @@ class TestTypeCompare(unittest.TestCase):
 
         self.assertTrue(cwltool.workflow.can_assign_src_to_sink(src, sink))
 
+        self.assertFalse(cwltool.workflow.can_assign_src_to_sink(src, {'items': 'string', 'type': 'array'}))
+
     def test_typecheck(self):
         self.assertEquals(cwltool.workflow.check_types(
             ['string', 'int'], ['string', 'int', 'null'], linkMerge=None, valueFrom=None),

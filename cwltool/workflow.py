@@ -128,7 +128,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
     sink: admissible sink types
 
     In non-strict comparison, at least one source type must match one sink type.
-    In strict comparison, all source types must match one sink type.
+    In strict comparison, all source types must match at least one sink type.
     """
 
     if sink == "Any":
@@ -138,6 +138,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
             return can_assign_src_to_sink(src["items"], sink["items"], strict)
         elif src["type"] == "record" and sink["type"] == "record":
             return _compare_records(src, sink, strict)
+        return False
     elif isinstance(src, list):
         if strict:
             for t in src:
@@ -534,28 +535,28 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     warning_msgs = []; exception_msgs = []
     for warning in warnings:
         src = warning.src; sink = warning.sink; linkMerge = warning.linkMerge
-        msg = ("Warning: potential type mismatch between source '%s' (%s) and "
-                "sink '%s' (%s)" %
-                (src["id"], json.dumps(src["type"]),
-                sink["id"], json.dumps(sink["type"]))
-                )
+        msg = SourceLine(src).makeError("Source '%s' with type %s may be incompatible"
+                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+                SourceLine(sink).makeError("with sink '%s' with type %s"
+                % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
             msg += ", with source linkMerge method being %s" % linkMerge
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src; sink = exception.sink; linkMerge = exception.linkMerge
-        msg = ("Type mismatch between source '%s' (%s) and "
-                "sink '%s' (%s)" %
-                (src["id"], json.dumps(src["type"]),
-                sink["id"], json.dumps(sink["type"]))
-                )
+        msg = SourceLine(src).makeError("Source '%s' with type %s is incompatible"
+                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+                SourceLine(sink).makeError("with sink '%s' with type %s"
+                % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
             msg += ", with source linkMerge method being %s" % linkMerge
         exception_msgs.append(msg)
-    all_warning_msg = "\n".join(warning_msgs); all_exception_msg = "\n".join(exception_msgs)
+    all_warning_msg = "\n" + "\n".join(warning_msgs)
+    all_exception_msg = "\n" + "\n".join(exception_msgs)
 
+    print warnings
     if warnings:
-        print all_warning_msg
+        _logger.warn(all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
