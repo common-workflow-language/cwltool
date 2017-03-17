@@ -542,7 +542,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         msg = SourceLine(src).makeError(
             "Source '%s' with type %s may be incompatible"
             % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-              SourceLine(sink).makeError(
+            SourceLine(sink).makeError(
             "with sink '%s' with type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
@@ -555,7 +555,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         msg = SourceLine(src).makeError(
             "Source '%s' with type %s is incompatible"
             % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-              SourceLine(sink).makeError(
+            SourceLine(sink).makeError(
             "with sink '%s' with type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
