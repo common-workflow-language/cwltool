@@ -561,8 +561,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         if linkMerge:
             msg += ", with source linkMerge method being %s" % linkMerge
         exception_msgs.append(msg)
-    all_warning_msg = "\n" + "\n".join(warning_msgs)
-    all_exception_msg = "\n" + "\n".join(exception_msgs)
+    all_warning_msg = "\n".join(warning_msgs)
+    all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
         _logger.warn(all_warning_msg)
