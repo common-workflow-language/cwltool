@@ -40,6 +40,23 @@ Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
+Running tests locally
+---------------------
+
+-  Running unnittests ``(/tests)``:
+
+.. code:: bash
+
+    python setup.py test
+
+-  Running conformance tests:
+
+The conformance tests are intended to test feature coverage of a CWL
+implementation. It uses the module “cwltool.cwltest” from the cwltool
+reference implementation.
+
+These tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/master/CONFORMANCE_TESTS.md
+
 Run on the command line
 -----------------------
 
