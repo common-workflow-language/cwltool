@@ -564,7 +564,6 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_warning_msg = "\n" + "\n".join(warning_msgs)
     all_exception_msg = "\n" + "\n".join(exception_msgs)
 
-    print warnings
     if warnings:
         _logger.warn(all_warning_msg)
     if exceptions:
