@@ -21,7 +21,7 @@ from .pathmapper import adjustDirObjs
 from .errors import WorkflowException
 from .job import JobBase, CommandLineJob, DockerCommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
-from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
+from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums, DebugLogger
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -466,7 +466,8 @@ class CommandLineTool(Process):
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
 
-            validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
+            validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret,
+                                 strict=False, logger=DebugLogger())
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))

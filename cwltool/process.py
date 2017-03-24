@@ -234,8 +234,9 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                     _logger.debug("Moving %s to %s", src, dst)
                     shutil.move(src, dst)
                     return
-        _logger.debug("Copying %s to %s", src, dst)
-        shutil.copy(src, dst)
+        if src != dst:
+            _logger.debug("Copying %s to %s", src, dst)
+            shutil.copy(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -341,6 +342,19 @@ def avroize_type(field_type, name_prefix=""):
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
     return field_type
+
+class DebugLogger(object):
+    def debug(*args, **kwargs):
+        _logger.debug(*args, **kwargs)
+
+    def info(*args, **kwargs):
+        _logger.debug(*args, **kwargs)
+
+    def warn(*args, **kwargs):
+        _logger.debug(*args, **kwargs)
+
+    def error(*args, **kwargs):
+        _logger.debug(*args, **kwargs)
 
 
 class Process(object):
@@ -472,7 +486,8 @@ class Process(object):
         try:
             fillInDefaults(self.tool[u"inputs"], builder.job)
             normalizeFilesDirs(builder.job)
-            validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
+            validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job,
+                                 strict=False, logger=DebugLogger())
         except (validate.ValidationException, WorkflowException) as e:
             raise WorkflowException("Invalid job input record:\n" + Text(e))
 
