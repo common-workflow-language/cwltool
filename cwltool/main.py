@@ -626,7 +626,10 @@ def main(argsl=None,  # type: List[str]
                      'pack': False,
                      'on_error': 'continue',
                      'relax_path_checks': False,
-                     'validate': False}.iteritems():
+                     'validate': False,
+                     'enable_ga4gh_tool_registry': False,
+                     'ga4gh_tool_registries': []
+        }.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
