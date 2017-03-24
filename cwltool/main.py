@@ -583,7 +583,8 @@ def main(argsl=None,  # type: List[str]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
          fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
          resolver=tool_resolver,
-         logger_handler=None
+         logger_handler=None,
+         custom_schema_callback=None  # type: Callable[[], None]
          ):
     # type: (...) -> int
 
@@ -656,7 +657,9 @@ def main(argsl=None,  # type: List[str]
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
 
-        if args.enable_ext:
+        if custom_schema_callback:
+            custom_schema_callback()
+        elif args.enable_ext:
             res = pkg_resources.resource_stream(__name__, 'extensions.yml')
             use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
             res.close()
