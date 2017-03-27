@@ -43,7 +43,7 @@ class Builder(object):
         self.debug = False  # type: bool
 
         # One of "no_listing", "shallow_listing", "deep_listing"
-        # Will be default None for CWL v1.1
+        # Will be default "no_listing" for CWL v1.1
         self.loadListing = "deep_listing"  # type: Union[None, str]
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
