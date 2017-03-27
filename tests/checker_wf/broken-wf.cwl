@@ -30,6 +30,11 @@ outputs:
     outputSource: cat/txt
 
 steps:
+  echo_v:
+    run: echo.cwl
+    in:
+      echo_in: {}
+    out: [txt]
   echo_w:
     run: echo.cwl
     in:

@@ -561,6 +561,15 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         if linkMerge:
             msg += ", with source linkMerge method being %s" % linkMerge
         exception_msgs.append(msg)
+
+    for sink in step_inputs:
+        if ('null' not in sink["type"] and "source" not in sink and \
+            "default" not in sink and "valueFrom" not in sink):
+            msg = SourceLine(sink).makeError(
+                "Required parameter '%s' does not have source, default, or valueFrom expression"
+                % shortname(sink["id"]))
+            exception_msgs.append(msg)
+
     all_warning_msg = "\n".join(warning_msgs)
     all_exception_msg = "\n".join(exception_msgs)
 
