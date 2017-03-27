@@ -51,8 +51,8 @@ Running tests locally
 
 -  Running the entire suite of CWL conformance tests:
 
-The GitHub repostiory for the CWL specifications contains a script that tests a CWL
-implementation against a wide array of valid CWL files using the [cwltest](https://github.com/common-workflow-language/cwltest)
+The GitHub repository for the CWL specifications contains a script that tests a CWL
+implementation against a wide array of valid CWL files using the `cwltest <https://github.com/common-workflow-language/cwltest>`_
 program
 
 Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/master/CONFORMANCE_TESTS.md
