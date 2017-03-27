@@ -470,6 +470,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             else:
                 job_order_object = {"id": args.workflow}
 
+            del cmd_line["job_order"]
+
             job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
 
             if _logger.isEnabledFor(logging.DEBUG):
@@ -583,7 +585,8 @@ def main(argsl=None,  # type: List[str]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
          fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
          resolver=tool_resolver,
-         logger_handler=None
+         logger_handler=None,
+         custom_schema_callback=None  # type: Callable[[], None]
          ):
     # type: (...) -> int
 
@@ -625,7 +628,10 @@ def main(argsl=None,  # type: List[str]
                      'pack': False,
                      'on_error': 'continue',
                      'relax_path_checks': False,
-                     'validate': False}.iteritems():
+                     'validate': False,
+                     'enable_ga4gh_tool_registry': False,
+                     'ga4gh_tool_registries': []
+        }.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -656,7 +662,9 @@ def main(argsl=None,  # type: List[str]
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
 
-        if args.enable_ext:
+        if custom_schema_callback:
+            custom_schema_callback()
+        elif args.enable_ext:
             res = pkg_resources.resource_stream(__name__, 'extensions.yml')
             use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
             res.close()
