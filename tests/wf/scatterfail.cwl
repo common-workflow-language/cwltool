@@ -19,6 +19,7 @@ steps:
     out: [out]
     run:
       class: Workflow
+      id: subtool
       inputs:
         r: string
       outputs:
