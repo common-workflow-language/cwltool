@@ -11,6 +11,7 @@ steps:
     out: [c]
     run:
       class: CommandLineTool
+      id: subtool
       inputs: []
       outputs:
         b:
@@ -24,6 +25,7 @@ steps:
     out: [c]
     run:
       class: CommandLineTool
+      id: subtool
       inputs:
         a: string
       outputs:
