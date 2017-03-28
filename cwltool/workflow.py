@@ -563,7 +563,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         exception_msgs.append(msg)
 
     for sink in step_inputs:
-        if ('null' not in sink["type"] and "source" not in sink and \
+        if ('null' not in sink["type"] and "source" not in sink and
             "default" not in sink and "valueFrom" not in sink):
             msg = SourceLine(sink).makeError(
                 "Required parameter '%s' does not have source, default, or valueFrom expression"
