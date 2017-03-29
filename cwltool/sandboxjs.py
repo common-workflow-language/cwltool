@@ -26,10 +26,15 @@ have_node_slim = False
 def check_js_threshold_version(working_alias):
     # type: (str) -> bool
     """ parse node version: 'v4.2.6\n' -> ['4', '2', '6'],
-    https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog """
+    https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog"""
 
-    v1, v2, v3 = [int(v) for v in subprocess.check_output(
-        [working_alias, "-v"]).decode('ascii').strip().strip('v').split('.')]
+    try:
+        v1, v2, v3 = [int(v) for v in subprocess.check_output(
+            [working_alias, "-v"]).decode('ascii').strip().strip('v').split('.')]
+    except Exception as e:
+        _logger.debug(str(e))
+        _logger.debug("Calling subprocess failed")
+        return True
 
     if v1 == 0:
         if v2 == 10 and v3 <= 25 or v2 < 10:
