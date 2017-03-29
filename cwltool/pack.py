@@ -66,7 +66,7 @@ def replace_refs(d, rewrite, stem, newstem):
             replace_refs(v, rewrite, stem, newstem)
 
 def import_embed(d, seen):
-      # type: (Any, Set[Text]) -> None
+    # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for v in d:
             import_embed(v, seen)
