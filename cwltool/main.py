@@ -470,6 +470,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             else:
                 job_order_object = {"id": args.workflow}
 
+            del cmd_line["job_order"]
+
             job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
 
             if _logger.isEnabledFor(logging.DEBUG):

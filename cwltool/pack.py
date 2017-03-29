@@ -65,6 +65,26 @@ def replace_refs(d, rewrite, stem, newstem):
                     d[s] = newstem + v[len(stem):]
             replace_refs(v, rewrite, stem, newstem)
 
+def import_embed(d, seen):
+    # type: (Any, Set[Text]) -> None
+    if isinstance(d, list):
+        for v in d:
+            import_embed(v, seen)
+    elif isinstance(d, dict):
+        for n in ("id", "name"):
+            if n in d:
+                if d[n] in seen:
+                    this = d[n]
+                    d.clear()
+                    d["$import"] = this
+                else:
+                    this = d[n]
+                    seen.add(this)
+                    break
+
+        for v in d.values():
+            import_embed(v, seen)
+
 
 def pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
@@ -132,5 +152,7 @@ def pack(document_loader, processobj, uri, metadata):
     for r in rewrite:
         v = rewrite[r]
         replace_refs(packed, rewrite, r + "/" if "#" in r else r + "#", v + "/")
+
+    import_embed(packed, set())
 
     return packed
