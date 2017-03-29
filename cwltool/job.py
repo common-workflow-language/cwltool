@@ -158,7 +158,11 @@ class CommandLineJob(object):
                 if not vol.staged:
                     continue
                 if vol.type in ("File", "Directory"):
-                    runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
+                    if vol.resolved.startswith("_:"):
+                        createtmp_dir = os.path.join(self.stagedir, os.path.basename(vol.target))
+                        runtime.append(u"--volume=%s:%s:rw" % (createtmp_dir, vol.target))
+                    else:
+                        runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, vol.target))
                 if vol.type == "CreateFile":
                     createtmp = os.path.join(self.stagedir, os.path.basename(vol.target))
                     with open(createtmp, "w") as f:
