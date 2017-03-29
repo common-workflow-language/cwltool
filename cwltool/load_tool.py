@@ -108,6 +108,20 @@ def _convert_stdstreams_to_files(workflowobj):
         for entry in workflowobj:
             _convert_stdstreams_to_files(entry)
 
+def _add_blank_ids(workflowobj):
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> None
+
+    if isinstance(workflowobj, dict):
+        if ("run" in workflowobj and
+            isinstance(workflowobj["run"], dict) and
+            "id" not in workflowobj["run"] and
+            "$import" not in workflowobj["run"]):
+            workflowobj["run"]["id"] = Text(uuid.uuid4())
+        for entry in itervalues(workflowobj):
+            _add_blank_ids(entry)
+    if isinstance(workflowobj, list):
+        for entry in workflowobj:
+            _add_blank_ids(entry)
 
 def validate_document(document_loader,  # type: Loader
                       workflowobj,  # type: CommentedMap
@@ -165,6 +179,8 @@ def validate_document(document_loader,  # type: Loader
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor)
+
+    _add_blank_ids(workflowobj)
 
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
