@@ -236,7 +236,15 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                     return
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
-            shutil.copy(src, dst)
+            try:
+                # first try a tree copy
+                shutil.copytree(src, dst)
+            except OSError as exc:
+                # check for exception is faster
+                if exc.errno == errno.ENOTDIR:
+                    # if no dir copy file
+                    shutil.copy(src, dst)
+                else: raise
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
