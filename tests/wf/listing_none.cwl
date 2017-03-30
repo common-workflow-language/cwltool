@@ -4,7 +4,7 @@ $namespaces:
   cwltool: http://commonwl.org/cwltool#
 requirements:
   cwltool:LoadListingRequirement:
-    loadListing: null
+    loadListing: no_listing
 inputs:
   d: Directory
 outputs: []

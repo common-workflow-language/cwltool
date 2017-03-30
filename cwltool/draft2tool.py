@@ -512,8 +512,8 @@ class CommandLineTool(Process):
                 for files in r:
                     if files["class"] == "Directory":
                         ll = builder.loadListing or (binding and binding.get("loadListing"))
-                        if ll:
-                            get_listing(fs_access, files, (ll == "deep"))
+                        if ll and ll != "no_listing":
+                            get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
                         with fs_access.open(files["location"], "rb") as f:
                             contents = ""
