@@ -244,7 +244,8 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 if exc.errno == errno.ENOTDIR:
                     # if no dir copy file
                     shutil.copy(src, dst)
-                else: raise
+                else:
+                    raise
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
