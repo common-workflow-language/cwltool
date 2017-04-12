@@ -26,7 +26,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
-ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ #a-zA-Z0-9._+-]+$")  # with spaces and hashes
+ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 
 from .flatten import flatten
