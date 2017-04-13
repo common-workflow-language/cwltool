@@ -689,8 +689,8 @@ def mergedirs(listing):
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
-        elif e["class"] == "Directory":
-            ents[e["basename"]]["listing"].extend(e["listing"])
+        elif e["class"] == "Directory" and e.get("listing"):
+            ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
     for e in ents.itervalues():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
