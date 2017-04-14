@@ -16,8 +16,8 @@ from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, indent
 from typing import Any, Callable, cast, Generator, Text, Union
 
-from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
-from .pathmapper import adjustDirObjs
+from .builder import CONTENT_LIMIT, substitute, Builder
+from .pathmapper import adjustFileObjs, adjustDirObjs, visit_class
 from .errors import WorkflowException
 from .job import CommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
@@ -190,10 +190,9 @@ class CommandLineTool(Process):
                                                  cachebuilder.stagedir,
                                                  separateDirs=False)
             _check_adjust = partial(check_adjust, cachebuilder)
-            adjustFileObjs(cachebuilder.files, _check_adjust)
-            adjustFileObjs(cachebuilder.bindings, _check_adjust)
-            adjustDirObjs(cachebuilder.files, _check_adjust)
-            adjustDirObjs(cachebuilder.bindings, _check_adjust)
+
+            visit_class([cachebuilder.files, cachebuilder.bindings],
+                       ("File", "Directory"), _check_adjust)
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
@@ -290,10 +289,7 @@ class CommandLineTool(Process):
 
         _check_adjust = partial(check_adjust, builder)
 
-        adjustFileObjs(builder.files, _check_adjust)
-        adjustFileObjs(builder.bindings, _check_adjust)
-        adjustDirObjs(builder.files, _check_adjust)
-        adjustDirObjs(builder.bindings, _check_adjust)
+        visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", validate.ValidationException):
@@ -419,13 +415,10 @@ class CommandLineTool(Process):
                                 % (shortname(port["id"]), indent(u(str(e)))))
 
             if ret:
+                revmap = partial(revmap_file, builder, outdir)
                 adjustDirObjs(ret, trim_listing)
-                adjustFileObjs(ret,
-                               cast(Callable[[Any], Any],  # known bug in mypy
-                                    # https://github.com/python/mypy/issues/797
-                                    partial(revmap_file, builder, outdir)))
-                adjustFileObjs(ret, remove_path)
-                adjustDirObjs(ret, remove_path)
+                visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
+                visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))

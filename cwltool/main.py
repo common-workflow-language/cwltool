@@ -20,7 +20,7 @@ from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
 
 from . import draft2tool
 from . import workflow
-from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing
+from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing, visit_class
 from .cwlrdf import printrdf, printdot
 from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
@@ -503,8 +503,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             p["location"] = p["path"]
             del p["path"]
 
-    adjustDirObjs(job_order_object, pathToLoc)
-    adjustFileObjs(job_order_object, pathToLoc)
+    visit_class(job_order_object, ("File", "Directory"), pathToLoc)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 
@@ -548,8 +547,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
-        adjustFileObjs(deps, functools.partial(makeRelative, base))
-        adjustDirObjs(deps, functools.partial(makeRelative, base))
+        visit_class(deps, ("File", "Directory"), functools.partial(makeRelative, base))
 
     stdout.write(json.dumps(deps, indent=4))
 
@@ -774,8 +772,7 @@ def main(argsl=None,  # type: List[str]
                     if p["location"].startswith("file://"):
                         p["path"] = uri_file_path(p["location"])
 
-                adjustDirObjs(out, locToPath)
-                adjustFileObjs(out, locToPath)
+                visit_class(out, ("File", "Directory"), locToPath)
 
                 if isinstance(out, basestring):
                     stdout.write(out)

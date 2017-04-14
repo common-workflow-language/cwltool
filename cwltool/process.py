@@ -26,10 +26,10 @@ from schema_salad.sourceline import SourceLine
 from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
                     Tuple, Union)
 
-from .builder import Builder, adjustFileObjs
+from .builder import Builder
 from .pathmapper import adjustDirObjs, get_listing
 from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import PathMapper, normalizeFilesDirs
+from .pathmapper import PathMapper, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
@@ -249,8 +249,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
             compute_checksums(fs_access, f)
         return f
 
-    adjustFileObjs(outputObj, _check_adjust)
-    adjustDirObjs(outputObj, _check_adjust)
+    visit_class(outputObj, ("File", "Directory"), _check_adjust)
 
     return outputObj
 
