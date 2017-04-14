@@ -69,16 +69,23 @@ def normalizeFilesDirs(job):
                     "Anonymous directory object must have 'listing' and 'basename' fields.")
             d["location"] = "_:" + Text(uuid.uuid4())
             if "basename" not in d:
-                d["basename"] = Text(uuid.uuid4())
+                d["basename"] = d["location"][2:]
+
+        parse = urllib.parse.urlparse(d["location"])
+        path = parse.path
+        # strip trailing slash
+        if path.endswith("/"):
+            if d["class"] != "Directory":
+                raise validate.ValidationException(
+                    "location '%s' ends with '/' but is not a Directory" % d["location"])
+            path = path.rstrip("/")
+            d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
 
         if "basename" not in d:
-            parse = urllib.parse.urlparse(d["location"])
-            d["basename"] = os.path.basename(urllib.request.url2pathname(parse.path))
+            d["basename"] = os.path.basename(urllib.request.url2pathname(path))
 
     adjustFileObjs(job, addLocation)
     adjustDirObjs(job, addLocation)
-
-
 
 
 def dedup(listing):  # type: (List[Any]) -> List[Any]
