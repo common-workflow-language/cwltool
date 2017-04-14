@@ -156,6 +156,13 @@ def check_adjust(builder, f):
         raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
     return f
 
+def check_valid_locations(fs_access, ob):
+    if ob["location"].startswith("_:"):
+        pass
+    if ob["class"] == "File" and not fs_access.isfile(ob["location"]):
+        raise validate.ValidationException("Does not exist or is not a File: '%s'" % ob["location"])
+    if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
+        raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -420,6 +427,7 @@ class CommandLineTool(Process):
                 visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
+                visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
 
