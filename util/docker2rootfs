@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+from sys import stderr
+try:
+    import docker
+except ImportError:
+    print("ERROR: This script requires the docker python library.",
+          "Please install this with `pip install docker-py` and try again",
+          file=stderr)
+    exit(1)
+
+CLI = """
+
+USAGE:
+    docker2rootfs [-o <rootfs.tar>] <IMAGE>
+
+OPTIONS:
+    -o <rootfs.tar>     Output tarball path. [default: rootfs.tar]
+
+"""
+
+def export_rootfs(image, rootfs_path):
+    dclient = docker.Client()
+    print("Pulling image '{}'".format(image), file=stderr)
+    dclient.pull(image)
+    print("Creating container, ID is: ", file=stderr, end='')
+    ctr_id = dclient.create_container(image, '/bin/sh')['Id']
+    print(ctr_id[:10], file=stderr)
+    try:
+        print("Starting container,  ", file=stderr, end='')
+        resp = dclient.start(ctr_id)
+        print("Up!", file=stderr)
+        print("Exporting filesystem to '{}'".format(rootfs_path), file=stderr)
+        resp =  dclient.export(ctr_id)
+        with open(rootfs_path, 'wb') as ofh:
+            for chunk in resp.stream():
+                ofh.write(chunk)
+        print("Export successful, killing and removing container", file=stderr)
+    except IOError as exc:
+        print("Error writing to rootfs file:", str(exc))
+        return
+    finally:
+        dclient.stop(ctr_id)
+        dclient.remove_container(ctr_id)
+
+
+if __name__ == "__main__":
+    import docopt
+
+    opts = docopt.docopt(CLI)
+    image = opts['<IMAGE>']
+    outpath = opts['-o']
+    if not outpath:
+        outpath = '/dev/stdout'
+
+    export_rootfs(image, outpath)
