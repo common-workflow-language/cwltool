@@ -106,6 +106,8 @@ def revmap_file(builder, outdir, f):
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]
+            elif path == builder.outdir:
+                f["location"] = outdir
             elif path.startswith(builder.outdir):
                 f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
         return f

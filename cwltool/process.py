@@ -189,7 +189,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and p.resolved.startswith("/"):
+        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
             stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
@@ -234,7 +234,10 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                     shutil.move(src, dst)
                     return
         _logger.debug("Copying %s to %s", src, dst)
-        shutil.copy(src, dst)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -245,11 +248,11 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
         if "contents" in f:
             del f["contents"]
-        if f["class"] == "File":
-            compute_checksums(fs_access, f)
         return f
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
+
+    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     return outputObj
 
