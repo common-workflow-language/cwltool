@@ -477,7 +477,17 @@ class Workflow(Process):
         kwargs["hints"] = self.hints
 
         makeTool = kwargs.get("makeTool")
-        self.steps = [WorkflowStep(step, n, **kwargs) for n, step in enumerate(self.tool.get("steps", []))]
+        self.steps = []
+        validation_errors = []
+        for n, step in enumerate(self.tool.get("steps", [])):
+            try:
+                self.steps.append(WorkflowStep(step, n, **kwargs))
+            except validate.ValidationException as v:
+                validation_errors.append(v)
+
+        if validation_errors:
+            raise validate.ValidationException("\n".join(str(v) for v in validation_errors))
+
         random.shuffle(self.steps)
 
         # statically validate data links instead of doing it at runtime.
@@ -665,7 +675,7 @@ class WorkflowStep(Process):
                             SourceLine(self.tool["out"], n).makeError(
                             "Workflow step output '%s' does not correspond to" % shortname(step_entry))
                             + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
-                                "  tool output (expected one of '%s')" % (
+                                "  tool output (expected '%s')" % (
                                      "', '".join(
                                         [shortname(tool_entry["id"]) for tool_entry in
                                          self.embedded_tool.tool[toolfield]]))))

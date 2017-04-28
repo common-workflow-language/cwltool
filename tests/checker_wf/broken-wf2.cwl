@@ -32,14 +32,13 @@ outputs:
 steps:
   echo_v:
     run: echo.cwl
-    in:
-      echo_in: {}
+    in: {}
     out: [txt]
   echo_w:
     run: echo.cwl
     in:
       echo_in: letters0
-    out: [txt]
+    out: [txt, other]
   echo_x:
     run: echo.cwl
     scatter: echo_in

@@ -455,7 +455,7 @@ class TestTypeCompare(unittest.TestCase):
     def test_lifting(self):
         # check that lifting the types of the process outputs to the workflow step
         # fails if the step 'out' doesn't match.
-        with self.assertRaises(cwltool.workflow.WorkflowException):
+        with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
             echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
@@ -467,6 +467,9 @@ class TestTypeCompare(unittest.TestCase):
         with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
             f.make("tests/checker_wf/broken-wf.cwl")
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            f = cwltool.factory.Factory()
+            f.make("tests/checker_wf/broken-wf2.cwl")
 
 
 class TestPrintDot(unittest.TestCase):
