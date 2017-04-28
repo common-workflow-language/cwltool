@@ -5,9 +5,10 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
 import schema_salad.validate as validate
-from schema_salad.sourceline import SourceLine
+from schema_salad.sourceline import SourceLine, cmap
 from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
 
 from . import draft2tool
@@ -539,27 +540,27 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         src = warning.src
         sink = warning.sink
         linkMerge = warning.linkMerge
-        msg = SourceLine(src).makeError(
-            "Source '%s' with type %s may be incompatible"
+        msg = SourceLine(src, "type").makeError(
+            "Source '%s' of type %s is partially incompatible"
             % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-            SourceLine(sink).makeError(
-            "with sink '%s' with type %s"
+            SourceLine(sink, "type").makeError(
+            "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
-            msg += ", with source linkMerge method being %s" % linkMerge
+            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src
         sink = exception.sink
         linkMerge = exception.linkMerge
-        msg = SourceLine(src).makeError(
-            "Source '%s' with type %s is incompatible"
+        msg = SourceLine(src, "type").makeError(
+            "Source '%s' of type %s is incompatible"
             % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-            SourceLine(sink).makeError(
-            "with sink '%s' with type %s"
+            SourceLine(sink, "type").makeError(
+            "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
-            msg += ", with source linkMerge method being %s" % linkMerge
+            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
 
     for sink in step_inputs:
@@ -574,6 +575,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
+        _logger.warn("Workflow checker warning:")
         _logger.warn(all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
@@ -633,15 +635,17 @@ class WorkflowStep(Process):
                 u"Tool definition %s failed validation:\n%s" %
                 (toolpath_object["run"], validate.indent(str(v))))
 
+        validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
+        bound = set()
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
-            for step_entry in toolpath_object[stepfield]:
+            for n, step_entry in enumerate(toolpath_object[stepfield]):
                 if isinstance(step_entry, (str, unicode)):
-                    param = {}  # type: Dict[Text, Any]
+                    param = CommentedMap()  # type: Dict[Text, Any]
                     inputid = step_entry
                 else:
-                    param = copy.copy(step_entry)
+                    param = CommentedMap(step_entry.iteritems())
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)
@@ -651,18 +655,38 @@ class WorkflowStep(Process):
                     if frag == shortinputid:
                         param.update(tool_entry)
                         found = True
+                        bound.add(frag)
                         break
                 if not found:
                     if stepfield == "in":
                         param["type"] = "Any"
                     else:
-                        raise WorkflowException(
-                            "[%s] Workflow step output '%s' not found in the outputs of the tool (expected one of '%s')" % (
-                                self.id, shortname(step_entry), "', '".join(
-                                    [shortname(tool_entry["id"]) for tool_entry in
-                                     self.embedded_tool.tool[toolfield]])))
+                        validation_errors.append(
+                            SourceLine(self.tool["out"], n).makeError(
+                            "Workflow step output '%s' does not correspond to" % shortname(step_entry))
+                            + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
+                                "  tool output (expected one of '%s')" % (
+                                     "', '".join(
+                                        [shortname(tool_entry["id"]) for tool_entry in
+                                         self.embedded_tool.tool[toolfield]]))))
                 param["id"] = inputid
+                param.lc.line = toolpath_object[stepfield].lc.data[n][0]
+                param.lc.col = toolpath_object[stepfield].lc.data[n][1]
+                param.lc.filename = toolpath_object[stepfield].lc.filename
                 toolpath_object[toolfield].append(param)
+
+        missing = []
+        for i, tool_entry in enumerate(self.embedded_tool.tool["inputs"]):
+            if shortname(tool_entry["id"]) not in bound:
+                if "null" not in tool_entry["type"] and "default" not in tool_entry:
+                    missing.append(shortname(tool_entry["id"]))
+
+        if missing:
+            validation_errors.append(SourceLine(self.tool, "in").makeError(
+                "Step is missing required parameter%s '%s'" % ("s" if len(missing) > 1 else "", "', '".join(missing))))
+
+        if validation_errors:
+            raise validate.ValidationException("\n".join(validation_errors))
 
         super(WorkflowStep, self).__init__(toolpath_object, **kwargs)
 

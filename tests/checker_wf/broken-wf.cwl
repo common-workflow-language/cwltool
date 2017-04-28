@@ -32,9 +32,8 @@ outputs:
 steps:
   echo_v:
     run: echo.cwl
-    in:
-      echo_in: {}
-    out: [txt]
+    in: {}
+    out: [txt, other]
   echo_w:
     run: echo.cwl
     in:
