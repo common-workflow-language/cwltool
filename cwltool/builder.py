@@ -8,7 +8,7 @@ from six import string_types, iteritems
 
 from . import expression
 from .errors import WorkflowException
-from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs, get_listing
+from .pathmapper import PathMapper, normalizeFilesDirs, get_listing, visit_class
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 from .mutation import MutationManager
@@ -146,7 +146,7 @@ class Builder(object):
                     self.files.append(f)
                     return f
 
-                adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
+                visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
                 ll = self.loadListing or (binding and binding.get("loadListing"))
