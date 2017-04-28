@@ -343,10 +343,6 @@ class CommandLineJob(object):
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
-        if move_outputs == "move" and empty_subtree(self.outdir):
-            _logger.debug(u"[job %s] Removing empty output directory %s", self.name, self.outdir)
-            shutil.rmtree(self.outdir, True)
-
 
 def _job_popen(
         commands,  # type: List[str]

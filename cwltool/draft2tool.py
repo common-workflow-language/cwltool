@@ -16,8 +16,8 @@ from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, indent
 from typing import Any, Callable, cast, Generator, Text, Union
 
-from .builder import CONTENT_LIMIT, substitute, Builder, adjustFileObjs
-from .pathmapper import adjustDirObjs
+from .builder import CONTENT_LIMIT, substitute, Builder
+from .pathmapper import adjustFileObjs, adjustDirObjs, visit_class
 from .errors import WorkflowException
 from .job import CommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
@@ -26,7 +26,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
-ACCEPTLIST_EN_RELAXED_RE = re.compile(r"^[ #a-zA-Z0-9._+-]+$")  # with spaces and hashes
+ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 
 from .flatten import flatten
@@ -106,6 +106,8 @@ def revmap_file(builder, outdir, f):
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]
+            elif path == builder.outdir:
+                f["location"] = outdir
             elif path.startswith(builder.outdir):
                 f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
         return f
@@ -156,6 +158,13 @@ def check_adjust(builder, f):
         raise WorkflowException("Invalid filename: '%s' contains illegal characters" % (f["basename"]))
     return f
 
+def check_valid_locations(fs_access, ob):
+    if ob["location"].startswith("_:"):
+        pass
+    if ob["class"] == "File" and not fs_access.isfile(ob["location"]):
+        raise validate.ValidationException("Does not exist or is not a File: '%s'" % ob["location"])
+    if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
+        raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -190,10 +199,9 @@ class CommandLineTool(Process):
                                                  cachebuilder.stagedir,
                                                  separateDirs=False)
             _check_adjust = partial(check_adjust, cachebuilder)
-            adjustFileObjs(cachebuilder.files, _check_adjust)
-            adjustFileObjs(cachebuilder.bindings, _check_adjust)
-            adjustDirObjs(cachebuilder.files, _check_adjust)
-            adjustDirObjs(cachebuilder.bindings, _check_adjust)
+
+            visit_class([cachebuilder.files, cachebuilder.bindings],
+                       ("File", "Directory"), _check_adjust)
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
@@ -290,10 +298,7 @@ class CommandLineTool(Process):
 
         _check_adjust = partial(check_adjust, builder)
 
-        adjustFileObjs(builder.files, _check_adjust)
-        adjustFileObjs(builder.bindings, _check_adjust)
-        adjustDirObjs(builder.files, _check_adjust)
-        adjustDirObjs(builder.bindings, _check_adjust)
+        visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", validate.ValidationException):
@@ -419,21 +424,19 @@ class CommandLineTool(Process):
                                 % (shortname(port["id"]), indent(u(str(e)))))
 
             if ret:
+                revmap = partial(revmap_file, builder, outdir)
                 adjustDirObjs(ret, trim_listing)
-                adjustFileObjs(ret,
-                               cast(Callable[[Any], Any],  # known bug in mypy
-                                    # https://github.com/python/mypy/issues/797
-                                    partial(revmap_file, builder, outdir)))
-                adjustFileObjs(ret, remove_path)
-                adjustDirObjs(ret, remove_path)
+                visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
+                visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
+                visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
 
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
-            raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))
+            raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]

@@ -26,10 +26,10 @@ from schema_salad.sourceline import SourceLine
 from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
                     Tuple, Union)
 
-from .builder import Builder, adjustFileObjs
+from .builder import Builder
 from .pathmapper import adjustDirObjs, get_listing
 from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import PathMapper, normalizeFilesDirs
+from .pathmapper import PathMapper, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
@@ -189,7 +189,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and p.resolved.startswith("/"):
+        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
             stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
@@ -234,7 +234,10 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                     shutil.move(src, dst)
                     return
         _logger.debug("Copying %s to %s", src, dst)
-        shutil.copy(src, dst)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -245,12 +248,11 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
         if "contents" in f:
             del f["contents"]
-        if f["class"] == "File":
-            compute_checksums(fs_access, f)
         return f
 
-    adjustFileObjs(outputObj, _check_adjust)
-    adjustDirObjs(outputObj, _check_adjust)
+    visit_class(outputObj, ("File", "Directory"), _check_adjust)
+
+    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     return outputObj
 
@@ -689,8 +691,8 @@ def mergedirs(listing):
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
-        elif e["class"] == "Directory":
-            ents[e["basename"]]["listing"].extend(e["listing"])
+        elif e["class"] == "Directory" and e.get("listing"):
+            ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
     for e in ents.itervalues():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
