@@ -436,7 +436,7 @@ class CommandLineTool(Process):
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
-            raise WorkflowException("Error validating output record, " + Text(e) + "\n in " + json.dumps(ret, indent=4))
+            raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]
