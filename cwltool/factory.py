@@ -1,6 +1,6 @@
 import os
 
-from typing import Any, Text, Union, Tuple
+from typing import Any, Dict, Text, Union, Tuple
 from typing import Callable as tCallable
 
 from . import load_tool

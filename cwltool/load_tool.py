@@ -13,7 +13,7 @@ from ruamel.yaml.comments import CommentedSeq, CommentedMap
 from schema_salad.ref_resolver import Loader, Fetcher, file_uri
 from schema_salad.sourceline import cmap
 from schema_salad.validate import ValidationException
-from typing import Any, Callable, cast, Dict, Text, Tuple, Union
+from typing import Any, Callable, cast, Dict, List, Text, Tuple, Union
 from six.moves import urllib
 from six import itervalues, string_types
 

@@ -8,7 +8,7 @@ from functools import partial
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, Set, Text, Tuple, Union
+from typing import Any, Callable, Set, Dict, List, Text, Tuple, Union
 from six.moves import urllib
 
 from .stdfsaccess import abspath, StdFsAccess

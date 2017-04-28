@@ -6,7 +6,7 @@ import sys
 import tempfile
 
 import requests
-from typing import Text
+from typing import List, Dict, Text
 
 from .errors import WorkflowException
 

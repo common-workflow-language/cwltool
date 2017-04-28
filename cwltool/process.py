@@ -23,8 +23,8 @@ from rdflib.namespace import RDFS, OWL
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
-from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
-                    Tuple, Union)
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Set,
+    Text, Tuple, Union)
 
 from .builder import Builder, adjustFileObjs
 from .pathmapper import adjustDirObjs, get_listing
