@@ -53,7 +53,7 @@ setup(name='cwltool',
           'shellescape >= 3.4.1, < 3.5',
           'schema-salad >= 2.4.20170308171942, < 3',
           'typing >= 3.5.2, < 3.6',
-          'six >= 1.10.0',
+          'six >= 1.8.0',
 
       ],
       setup_requires=[] + pytest_runner,
