@@ -348,6 +348,11 @@ class WorkflowJob(object):
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
                 kwargs["postScatterEval"] = postScatterEval
 
+                tot = 1
+                emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
+                if emptyscatter:
+                    _logger.warn(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
+
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, scatter,
                                               cast(  # known bug with mypy
@@ -717,13 +722,14 @@ class WorkflowStep(Process):
 
             method = self.tool.get("scatterMethod")
             if method is None and len(scatter) != 1:
-                raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
+                raise validate.ValidationException("Must specify scatterMethod when scattering over multiple inputs")
 
             inp_map = {i["id"]: i for i in inputparms}
             for s in scatter:
                 if s not in inp_map:
-                    raise WorkflowException(u"Scatter parameter '%s' does not correspond to an input parameter of this "
-                                            u"step, inputs are %s" % (s, inp_map.keys()))
+                    raise validate.ValidationException(
+                        SourceLine(self.tool, "scatter").makeError(u"Scatter parameter '%s' does not correspond to an input parameter of this "
+                                                                   u"step, expecting '%s'" % (shortname(s), "', '".join(shortname(k) for k in inp_map.keys()))))
 
                 inp_map[s]["type"] = {"type": "array", "items": inp_map[s]["type"]}
 
