@@ -84,6 +84,9 @@ def normalizeFilesDirs(job):
         if "basename" not in d:
             d["basename"] = os.path.basename(urllib.request.url2pathname(path))
 
+        if "nameroot" not in d:
+            d["nameroot"] = ('.').join(d["basename"].split('.')[:-1])  # for basenames like a.b.xyz
+
     adjustFileObjs(job, addLocation)
     adjustDirObjs(job, addLocation)
 
