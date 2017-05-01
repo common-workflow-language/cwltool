@@ -678,10 +678,10 @@ class WorkflowStep(Process):
                     else:
                         validation_errors.append(
                             SourceLine(self.tool["out"], n).makeError(
-                            "Workflow step output '%s' does not correspond to" % shortname(step_entry))
+                                "Workflow step output '%s' does not correspond to" % shortname(step_entry))
                             + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
                                 "  tool output (expected '%s')" % (
-                                     "', '".join(
+                                    "', '".join(
                                         [shortname(tool_entry["id"]) for tool_entry in
                                          self.embedded_tool.tool[toolfield]]))))
                 param["id"] = inputid
