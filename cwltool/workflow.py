@@ -657,7 +657,7 @@ class WorkflowStep(Process):
             toolpath_object[toolfield] = []
             for n, step_entry in enumerate(toolpath_object[stepfield]):
                 if isinstance(step_entry, (str, unicode)):
-                    param = CommentedMap()  # type: Dict[Text, Any]
+                    param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:
                     param = CommentedMap(step_entry.iteritems())
@@ -668,7 +668,7 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
-                        param.update(tool_entry)
+                        param.update(tool_entry)  # type: ignore
                         found = True
                         bound.add(frag)
                         break
@@ -739,8 +739,8 @@ class WorkflowStep(Process):
                 nesting = 1
 
             for r in xrange(0, nesting):
-                for i in outputparms:
-                    i["type"] = {"type": "array", "items": i["type"]}
+                for op in outputparms:
+                    op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
 
