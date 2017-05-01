@@ -482,7 +482,7 @@ class Workflow(Process):
         kwargs["hints"] = self.hints
 
         makeTool = kwargs.get("makeTool")
-        self.steps = []
+        self.steps = []  # type: List[WorkflowStep]
         validation_errors = []
         for n, step in enumerate(self.tool.get("steps", [])):
             try:
