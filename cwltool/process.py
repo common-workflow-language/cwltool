@@ -34,12 +34,13 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
 class LogAsDebugFilter(logging.Filter):
-    def __init__(self, name, parent):
+    def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
     def filter(self, record):
         return self.parent.isEnabledFor(logging.DEBUG)
+
 
 _logger = logging.getLogger("cwltool")
 _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
