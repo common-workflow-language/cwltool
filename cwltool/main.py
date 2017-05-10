@@ -214,7 +214,7 @@ def single_job_executor(t,  # type: Process
         raise WorkflowException("Must provide 'basedir' in kwargs")
 
     output_dirs = set()
-    finaloutdir = kwargs.get("outdir")
+    finaloutdir = os.path.abspath(kwargs.get("outdir"))
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])

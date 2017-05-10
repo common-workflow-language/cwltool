@@ -241,9 +241,15 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     def moveIt(src, dst):
         if action == "move":
             for a in output_dirs:
-                if src.startswith(a):
+                if src.startswith(a+"/"):
                     _logger.debug("Moving %s to %s", src, dst)
-                    shutil.move(src, dst)
+                    if os.path.isdir(src) and os.path.isdir(dst):
+                        # merge directories
+                        for root, dirs, files in os.walk(src):
+                            for f in dirs+files:
+                                moveIt(os.path.join(root, f), os.path.join(dst, f))
+                    else:
+                        shutil.move(src, dst)
                     return
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
@@ -266,6 +272,27 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
 
     visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+
+    # If there are symlinks to intermediate output directories, we want to move
+    # the real files into the final output location.  If a file is linked more than once,
+    # make an internal relative symlink.
+    if action == "move":
+        relinked = {}
+        for root, dirs, files in os.walk(outdir):
+            for f in dirs+files:
+                path = os.path.join(root, f)
+                rp = os.path.realpath(path)
+                if path != rp:
+                    if rp in relinked:
+                        os.unlink(path)
+                        os.symlink(os.path.relpath(relinked[rp], path), path)
+                    else:
+                        for od in output_dirs:
+                            if rp.startswith(od+"/"):
+                                os.unlink(path)
+                                os.rename(rp, path)
+                                relinked[rp] = path
+                                break
 
     return outputObj
 
