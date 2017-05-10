@@ -381,28 +381,29 @@ class CommandLineTool(Process):
         readers = {}
         muts = set()
 
-        def register_mut(f):
-            muts.add(f["location"])
-            builder.mutation_manager.register_mutation(j.name, f)
+        if builder.mutation_manager:
+            def register_mut(f):
+                muts.add(f["location"])
+                builder.mutation_manager.register_mutation(j.name, f)
 
-        def register_reader(f):
-            if f["location"] not in muts:
-                builder.mutation_manager.register_reader(j.name, f)
-                readers[f["location"]] = f
+            def register_reader(f):
+                if f["location"] not in muts:
+                    builder.mutation_manager.register_reader(j.name, f)
+                    readers[f["location"]] = f
 
-        for li in j.generatefiles["listing"]:
-            li = cast(Dict[Text, Any], li)
-            if li.get("writable") and j.inplace_update:
-                adjustFileObjs(li, register_mut)
-                adjustDirObjs(li, register_mut)
-            else:
-                adjustFileObjs(li, register_reader)
-                adjustDirObjs(li, register_reader)
+            for li in j.generatefiles["listing"]:
+                li = cast(Dict[Text, Any], li)
+                if li.get("writable") and j.inplace_update:
+                    adjustFileObjs(li, register_mut)
+                    adjustDirObjs(li, register_mut)
+                else:
+                    adjustFileObjs(li, register_reader)
+                    adjustDirObjs(li, register_reader)
 
-        adjustFileObjs(builder.files, register_reader)
-        adjustFileObjs(builder.bindings, register_reader)
-        adjustDirObjs(builder.files, register_reader)
-        adjustDirObjs(builder.bindings, register_reader)
+            adjustFileObjs(builder.files, register_reader)
+            adjustFileObjs(builder.bindings, register_reader)
+            adjustDirObjs(builder.files, register_reader)
+            adjustDirObjs(builder.bindings, register_reader)
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
@@ -464,7 +465,8 @@ class CommandLineTool(Process):
                 visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
-                adjustFileObjs(ret, builder.mutation_manager.set_generation)
+                if builder.mutation_manager:
+                    adjustFileObjs(ret, builder.mutation_manager.set_generation)
                 visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
 
                 if compute_checksum:
@@ -476,7 +478,7 @@ class CommandLineTool(Process):
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
         finally:
-            if readers:
+            if builder.mutation_manager and readers:
                 for r in readers.values():
                     builder.mutation_manager.release_reader(jobname, r)
 
