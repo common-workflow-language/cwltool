@@ -6,6 +6,8 @@ from .errors import WorkflowException
 
 MutationState = namedtuple("MutationTracker", ["generation", "readers", "stepname"])
 
+_generation = "http://commonwl.org/cwltool#generation"
+
 class MutationManager(object):
     """Lock manager for checking correctness of in-place update of files.
 
@@ -23,7 +25,7 @@ class MutationManager(object):
         # type: (Text, Dict[Text, Any]) -> None
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0, [], ""))
-        obj_generation = obj.get("_generation", 0)
+        obj_generation = obj.get(_generation, 0)
 
         if obj_generation != current.generation:
             raise WorkflowException("[job %s] wants to read %s from generation %i but current generation is %s (last updated by %s)" % (
@@ -36,7 +38,7 @@ class MutationManager(object):
         # type: (Text, Dict[Text, Any]) -> None
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0, [], ""))
-        obj_generation = obj.get("_generation", 0)
+        obj_generation = obj.get(_generation, 0)
 
         if obj_generation != current.generation:
             raise WorkflowException("[job %s] wants to release reader on %s from generation %i but current generation is %s (last updated by %s)" % (
@@ -48,7 +50,7 @@ class MutationManager(object):
         # type: (Text, Dict[Text, Any]) -> None
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0,[], ""))
-        obj_generation = obj.get("_generation", 0)
+        obj_generation = obj.get(_generation, 0)
 
         if len(current.readers) > 0:
             raise WorkflowException("[job %s] wants to modify %s but has readers: %s" % (
@@ -64,4 +66,4 @@ class MutationManager(object):
         # type: (Dict) -> None
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0,[], ""))
-        obj["_generation"] = current.generation
+        obj[_generation] = current.generation

@@ -33,7 +33,18 @@ from .pathmapper import PathMapper, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
+class LogAsDebugFilter(logging.Filter):
+    def __init__(self, name, parent):
+        super(LogAsDebugFilter, self).__init__(name)
+        self.parent = parent
+
+    def filter(self, record):
+        return self.parent.isEnabledFor(logging.DEBUG)
+
 _logger = logging.getLogger("cwltool")
+_logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
+_logger_validation_warnings.setLevel(_logger.getEffectiveLevel())
+_logger_validation_warnings.addFilter(LogAsDebugFilter("cwltool.validation_warnings", _logger))
 
 supportedProcessRequirements = ["DockerRequirement",
                                 "SchemaDefRequirement",
@@ -345,20 +356,6 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class DebugLogger(object):
-    def debug(*args, **kwargs):
-        _logger.debug(*args, **kwargs)
-
-    def info(*args, **kwargs):
-        _logger.debug(*args, **kwargs)
-
-    def warn(*args, **kwargs):
-        _logger.debug(*args, **kwargs)
-
-    def error(*args, **kwargs):
-        _logger.debug(*args, **kwargs)
-
-
 class Process(object):
     __metaclass__ = abc.ABCMeta
 
@@ -489,7 +486,7 @@ class Process(object):
             fillInDefaults(self.tool[u"inputs"], builder.job)
             normalizeFilesDirs(builder.job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job,
-                                 strict=False, logger=DebugLogger())
+                                 strict=False, logger=_logger_validation_warnings)
         except (validate.ValidationException, WorkflowException) as e:
             raise WorkflowException("Invalid job input record:\n" + Text(e))
 
