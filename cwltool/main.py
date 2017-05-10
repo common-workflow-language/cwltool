@@ -29,6 +29,7 @@ from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
                       scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
 from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
+from .mutation import MutationManager
 
 _logger = logging.getLogger("cwltool")
 
@@ -213,10 +214,11 @@ def single_job_executor(t,  # type: Process
         raise WorkflowException("Must provide 'basedir' in kwargs")
 
     output_dirs = set()
-    finaloutdir = kwargs.get("outdir")
+    finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
+    kwargs["mutation_manager"] = MutationManager()
 
     jobReqs = None
     if "cwl:requirements" in job_order_object:
@@ -226,6 +228,12 @@ def single_job_executor(t,  # type: Process
     if jobReqs:
         for req in jobReqs:
             t.requirements.append(req)
+
+    if kwargs.get("default_container"):
+        t.requirements.insert(0, {
+            "class": "DockerRequirement",
+            "dockerPull": kwargs["default_container"]
+        })
 
     jobiter = t.job(job_order_object,
                     output_callback,

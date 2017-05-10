@@ -14,14 +14,14 @@ import schema_salad.validate as validate
 import shellescape
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, indent
-from typing import Any, Callable, cast, Generator, Text, Union
+from typing import Any, Callable, cast, Generator, Text, Union, Dict
 
 from .builder import CONTENT_LIMIT, substitute, Builder
 from .pathmapper import adjustFileObjs, adjustDirObjs, visit_class
 from .errors import WorkflowException
-from .job import CommandLineJob
+from .job import JobBase, CommandLineJob, DockerCommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
-from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums
+from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums, _logger_validation_warnings
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -148,8 +148,9 @@ class CallbackJob(object):
 
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-def check_adjust(builder, f):
-    # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
+def check_adjust(builder, stepname, f):
+    # type: (Builder, Text, Dict[Text, Any]) -> Dict[Text, Any]
+
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
@@ -171,12 +172,15 @@ class CommandLineTool(Process):
         # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
-    def makeJobRunner(self):  # type: () -> CommandLineJob
-        return CommandLineJob()
+    def makeJobRunner(self):  # type: () -> JobBase
+        dockerReq, _ = self.get_requirement("DockerRequirement")
+        if dockerReq:
+            return DockerCommandLineJob()
+        else:
+            return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
-        dockerReq, _ = self.get_requirement("DockerRequirement")
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
     def job(self,
@@ -184,7 +188,7 @@ class CommandLineTool(Process):
             output_callbacks,  # type: Callable[[Any, Any], Any]
             **kwargs  # type: Any
             ):
-        # type: (...) -> Generator[Union[CommandLineJob, CallbackJob], None, None]
+        # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
 
@@ -199,9 +203,9 @@ class CommandLineTool(Process):
                                                  cachebuilder.stagedir,
                                                  separateDirs=False)
             _check_adjust = partial(check_adjust, cachebuilder)
-
             visit_class([cachebuilder.files, cachebuilder.bindings],
                        ("File", "Directory"), _check_adjust)
+
             cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
@@ -296,7 +300,7 @@ class CommandLineTool(Process):
             _logger.debug(u"[job %s] path mappings is %s", j.name,
                           json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
-        _check_adjust = partial(check_adjust, builder)
+        _check_adjust = partial(check_adjust, builder, jobname)
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
@@ -368,7 +372,37 @@ class CommandLineTool(Process):
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
 
+        inplaceUpdateReq = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")[0]
+
+        if inplaceUpdateReq:
+            j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
+
+        readers = {}
+        muts = set()
+
+        def register_mut(f):
+            muts.add(f["location"])
+            builder.mutation_manager.register_mutation(j.name, f)
+
+        def register_reader(f):
+            if f["location"] not in muts:
+                builder.mutation_manager.register_reader(j.name, f)
+                readers[f["location"]] = f
+
+        for li in j.generatefiles["listing"]:
+            li = cast(Dict[Text, Any], li)
+            if li.get("writable") and j.inplace_update:
+                adjustFileObjs(li, register_mut)
+                adjustDirObjs(li, register_mut)
+            else:
+                adjustFileObjs(li, register_reader)
+                adjustDirObjs(li, register_reader)
+
+        adjustFileObjs(builder.files, register_reader)
+        adjustFileObjs(builder.bindings, register_reader)
+        adjustDirObjs(builder.files, register_reader)
+        adjustDirObjs(builder.bindings, register_reader)
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
@@ -391,16 +425,17 @@ class CommandLineTool(Process):
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
             self.collect_output_ports, self.tool["outputs"], builder,
-            compute_checksum=kwargs.get("compute_checksum", True))
+            compute_checksum=kwargs.get("compute_checksum", True),
+            jobname=jobname,
+            readers=readers)
         j.output_callback = output_callbacks
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True):
-        # type: (Set[Dict[Text, Any]], Builder, Text, bool) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
+    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, jobname="", readers=None):
+        # type: (Set[Dict[Text, Any]], Builder, Text, bool, Text, Dict[Text, Any]) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         try:
-
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
             if fs_access.exists(custom_output):
@@ -429,14 +464,21 @@ class CommandLineTool(Process):
                 visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
+                adjustFileObjs(ret, builder.mutation_manager.set_generation)
                 visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
+
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
 
-            validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret)
+            validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret,
+                                 strict=False, logger=_logger_validation_warnings)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
+        finally:
+            if readers:
+                for r in readers.values():
+                    builder.mutation_manager.release_reader(jobname, r)
 
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]

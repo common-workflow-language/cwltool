@@ -11,6 +11,7 @@ from .errors import WorkflowException
 from .pathmapper import PathMapper, normalizeFilesDirs, get_listing, visit_class
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
+from .mutation import MutationManager
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -41,6 +42,7 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
+        self.mutation_manager = None  # type: MutationManager
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
