@@ -34,7 +34,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
 class LogAsDebugFilter(logging.Filter):
-    def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
+    def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
@@ -278,7 +278,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     # the real files into the final output location.  If a file is linked more than once,
     # make an internal relative symlink.
     if action == "move":
-        relinked = {}
+        relinked = {}  # type: Dict[str, str]
         for root, dirs, files in os.walk(outdir):
             for f in dirs+files:
                 path = os.path.join(root, f)
