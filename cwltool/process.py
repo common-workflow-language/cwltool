@@ -278,7 +278,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     # the real files into the final output location.  If a file is linked more than once,
     # make an internal relative symlink.
     if action == "move":
-        relinked = {}  # type: Dict[str, str]
+        relinked = {}  # type: Dict[Text, Text]
         for root, dirs, files in os.walk(outdir):
             for f in dirs+files:
                 path = os.path.join(root, f)
