@@ -148,8 +148,8 @@ class CallbackJob(object):
 
 # map files to assigned path inside a container. We need to also explicitly
 # walk over input as implicit reassignment doesn't reach everything in builder.bindings
-def check_adjust(builder, stepname, f):
-    # type: (Builder, Text, Dict[Text, Any]) -> Dict[Text, Any]
+def check_adjust(builder, f):
+    # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
 
     f["path"] = builder.pathmapper.mapper(f["location"])[1]
     f["dirname"], f["basename"] = os.path.split(f["path"])
@@ -300,7 +300,7 @@ class CommandLineTool(Process):
             _logger.debug(u"[job %s] path mappings is %s", j.name,
                           json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
-        _check_adjust = partial(check_adjust, builder, jobname)
+        _check_adjust = partial(check_adjust, builder)
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
