@@ -1,0 +1,38 @@
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+
+class: CommandLineTool
+
+doc: "unify hashed values into a single output"
+
+hints:
+  - class: DockerRequirement
+    dockerPull: openssl
+
+inputs:  
+  - id: md5
+    type: File
+    inputBinding:
+      position: 1
+
+  - id: sha
+    type: File
+    inputBinding:
+      position: 2
+
+  - id: whirlpool
+    type: File
+    inputBinding:
+      position: 3
+
+outputs:
+  - id: output
+    type: File
+    streamable: True
+    outputBinding:
+      glob: unify
+
+stdout: unify
+
+baseCommand: [cat]

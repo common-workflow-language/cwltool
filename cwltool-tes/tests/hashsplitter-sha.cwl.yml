@@ -1,0 +1,28 @@
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+
+class: CommandLineTool
+
+doc: "hash input through sha"
+
+hints:
+  - class: DockerRequirement
+    dockerPull: openssl
+
+inputs:
+  - id: input
+    type: File
+    doc: "original content"
+    inputBinding:
+      position: 1
+
+outputs:
+  - id: output
+    type: stdout
+
+stdout: sha
+
+baseCommand: ["openssl", "dgst"]
+
+arguments: ["-sha"]
