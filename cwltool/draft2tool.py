@@ -172,9 +172,9 @@ class CommandLineTool(Process):
         # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
-    def makeJobRunner(self):  # type: () -> JobBase
+    def makeJobRunner(self, use_container=True):  # type: () -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        if dockerReq:
+        if dockerReq and use_container:
             return DockerCommandLineJob()
         else:
             return CommandLineJob()
@@ -268,7 +268,7 @@ class CommandLineTool(Process):
 
         reffiles = copy.deepcopy(builder.files)
 
-        j = self.makeJobRunner()
+        j = self.makeJobRunner(kwargs.get("use_container"))
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
