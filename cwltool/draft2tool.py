@@ -181,7 +181,8 @@ class CommandLineTool(Process):
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
-        return PathMapper(reffiles, kwargs["basedir"], stagedir)
+        return PathMapper(reffiles, kwargs["basedir"], stagedir,
+                          eliminate_symlinks=kwargs.get("eliminate_symlinks", True))
 
     def job(self,
             job_order,  # type: Dict[Text, Text]
