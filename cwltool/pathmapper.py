@@ -8,7 +8,7 @@ from functools import partial
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, Set, Text, Tuple, Union
+from typing import Any, Callable, Set, Text, Tuple, Union, Iterable
 from six.moves import urllib
 
 from .stdfsaccess import abspath, StdFsAccess
@@ -30,33 +30,26 @@ def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]
         for d in rec:
             adjustFiles(d, op)
 
+def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to with "class" in cls."""
+
+    if isinstance(rec, dict):
+        if rec.get("class") in cls:
+            op(rec)
+        for d in rec:
+            visit_class(rec[d], cls, op)
+    if isinstance(rec, list):
+        for d in rec:
+            visit_class(d, cls, op)
 
 def adjustFileObjs(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each File object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "File":
-            op(rec)
-        for d in rec:
-            adjustFileObjs(rec[d], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustFileObjs(d, op)
-
+    visit_class(rec, ("File",), op)
 
 def adjustDirObjs(rec, op):
     # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each Directory object in the object `rec`."""
-
-    if isinstance(rec, dict):
-        if rec.get("class") == "Directory":
-            op(rec)
-        for key in rec:
-            adjustDirObjs(rec[key], op)
-    if isinstance(rec, list):
-        for d in rec:
-            adjustDirObjs(d, op)
-
+    visit_class(rec, ("Directory",), op)
 
 def normalizeFilesDirs(job):
     # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]]) -> None
@@ -69,16 +62,22 @@ def normalizeFilesDirs(job):
                     "Anonymous directory object must have 'listing' and 'basename' fields.")
             d["location"] = "_:" + Text(uuid.uuid4())
             if "basename" not in d:
-                d["basename"] = Text(uuid.uuid4())
+                d["basename"] = d["location"][2:]
+
+        parse = urllib.parse.urlparse(d["location"])
+        path = parse.path
+        # strip trailing slash
+        if path.endswith("/"):
+            if d["class"] != "Directory":
+                raise validate.ValidationException(
+                    "location '%s' ends with '/' but is not a Directory" % d["location"])
+            path = path.rstrip("/")
+            d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
 
         if "basename" not in d:
-            parse = urllib.parse.urlparse(d["location"])
-            d["basename"] = os.path.basename(urllib.request.url2pathname(parse.path))
+            d["basename"] = os.path.basename(urllib.request.url2pathname(path))
 
-    adjustFileObjs(job, addLocation)
-    adjustDirObjs(job, addLocation)
-
-
+    visit_class(job, ("File", "Directory"), addLocation)
 
 
 def dedup(listing):  # type: (List[Any]) -> List[Any]
@@ -222,7 +221,7 @@ class PathMapper(object):
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
-            self.visit(fob, stagedir, basedir, staged=True)
+            self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
 
     def mapper(self, src):  # type: (Text) -> MapperEnt
         if u"#" in src:

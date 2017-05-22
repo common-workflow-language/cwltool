@@ -8,9 +8,10 @@ from six import string_types, iteritems
 
 from . import expression
 from .errors import WorkflowException
-from .pathmapper import PathMapper, adjustFileObjs, normalizeFilesDirs, get_listing
+from .pathmapper import PathMapper, normalizeFilesDirs, get_listing, visit_class
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
+from .mutation import MutationManager
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -41,6 +42,7 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
+        self.mutation_manager = None  # type: MutationManager
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
@@ -144,7 +146,7 @@ class Builder(object):
                     self.files.append(f)
                     return f
 
-                adjustFileObjs(datum.get("secondaryFiles", []), _capture_files)
+                visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
                 ll = self.loadListing or (binding and binding.get("loadListing"))
