@@ -20,7 +20,7 @@ from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
 
 from . import draft2tool
 from . import workflow
-from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing, visit_class
+from .pathmapper import adjustDirObjs, trim_listing, visit_class
 from .cwlrdf import printrdf, printdot
 from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
@@ -642,7 +642,7 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, k, v)
 
         if args.quiet:
-            _logger.setLevel(logging.WARN)
+            _logger.setLevel(logging.WARNING)
         if args.debug:
             _logger.setLevel(logging.DEBUG)
 
@@ -790,7 +790,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.flush()
 
             if status != "success":
-                _logger.warn(u"Final process status is %s", status)
+                _logger.warning(u"Final process status is %s", status)
                 return 1
             else:
                 _logger.info(u"Final process status is %s", status)

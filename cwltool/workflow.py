@@ -5,10 +5,10 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from ruamel.yaml.comments import CommentedMap
 
 import schema_salad.validate as validate
-from schema_salad.sourceline import SourceLine, cmap
+from schema_salad.sourceline import SourceLine
 from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
 
 from . import draft2tool
@@ -288,7 +288,7 @@ class WorkflowJob(object):
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            _logger.warn(u"[%s] completed %s", step.name, processStatus)
+            _logger.warning(u"[%s] completed %s", step.name, processStatus)
         else:
             _logger.info(u"[%s] completed %s", step.name, processStatus)
 
@@ -351,7 +351,7 @@ class WorkflowJob(object):
                 tot = 1
                 emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
                 if emptyscatter:
-                    _logger.warn(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
+                    _logger.warning(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, scatter,
@@ -590,8 +590,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
-        _logger.warn("Workflow checker warning:")
-        _logger.warn(all_warning_msg)
+        _logger.warning("Workflow checker warning:")
+        _logger.warning(all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
