@@ -8,6 +8,12 @@ from setuptools import setup
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, 'README.rst')
 
+# if python3 runtime and `setup.py install` is called
+if sys.version_info.major == 3 and sys.argv[1] == 'install': 
+    print("Aborting installation. CWL Tool doesn't support Python 3 currently.")
+    print("Install using Python 2 pip.")
+    exit(1)
+
 try:
     import gittaggers
 
@@ -64,4 +70,10 @@ setup(name='cwltool',
       },
       zip_safe=True,
       cmdclass={'egg_info': tagger},
+      classifiers=[
+          'Development Status :: 5 - Production/Stable',
+          'Operating System :: POSIX',
+          'Operating System :: OS Independent',
+          'Programming Language :: Python :: 2 :: Only',
+      ]
       )
