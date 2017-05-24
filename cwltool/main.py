@@ -20,7 +20,7 @@ from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
 
 from . import draft2tool
 from . import workflow
-from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing
+from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing, visit_class
 from .cwlrdf import printrdf, printdot
 from .errors import WorkflowException, UnsupportedRequirement
 from .load_tool import fetch_document, validate_document, make_tool
@@ -29,6 +29,7 @@ from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
                       scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
 from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
+from .mutation import MutationManager
 
 _logger = logging.getLogger("cwltool")
 
@@ -213,10 +214,11 @@ def single_job_executor(t,  # type: Process
         raise WorkflowException("Must provide 'basedir' in kwargs")
 
     output_dirs = set()
-    finaloutdir = kwargs.get("outdir")
+    finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
+    kwargs["mutation_manager"] = MutationManager()
 
     jobReqs = None
     if "cwl:requirements" in job_order_object:
@@ -226,6 +228,12 @@ def single_job_executor(t,  # type: Process
     if jobReqs:
         for req in jobReqs:
             t.requirements.append(req)
+
+    if kwargs.get("default_container"):
+        t.requirements.insert(0, {
+            "class": "DockerRequirement",
+            "dockerPull": kwargs["default_container"]
+        })
 
     jobiter = t.job(job_order_object,
                     output_callback,
@@ -503,8 +511,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             p["location"] = p["path"]
             del p["path"]
 
-    adjustDirObjs(job_order_object, pathToLoc)
-    adjustFileObjs(job_order_object, pathToLoc)
+    visit_class(job_order_object, ("File", "Directory"), pathToLoc)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 
@@ -548,8 +555,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
 
-        adjustFileObjs(deps, functools.partial(makeRelative, base))
-        adjustDirObjs(deps, functools.partial(makeRelative, base))
+        visit_class(deps, ("File", "Directory"), functools.partial(makeRelative, base))
 
     stdout.write(json.dumps(deps, indent=4))
 
@@ -685,9 +691,6 @@ def main(argsl=None,  # type: List[str]
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor)
 
-            if args.validate:
-                return 0
-
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
@@ -698,6 +701,9 @@ def main(argsl=None,  # type: List[str]
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
                              makeTool, vars(args))
+
+            if args.validate:
+                return 0
 
             if args.print_rdf:
                 printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)
@@ -774,8 +780,7 @@ def main(argsl=None,  # type: List[str]
                     if p["location"].startswith("file://"):
                         p["path"] = uri_file_path(p["location"])
 
-                adjustDirObjs(out, locToPath)
-                adjustFileObjs(out, locToPath)
+                visit_class(out, ("File", "Directory"), locToPath)
 
                 if isinstance(out, basestring):
                     stdout.write(out)

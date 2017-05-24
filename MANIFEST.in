@@ -1,5 +1,6 @@
 include gittaggers.py Makefile cwltool.py
 include tests/*
+include tests/tmp1/tmp2/tmp3/.gitkeep
 include tests/wf/*
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/draft-2/*.yml
