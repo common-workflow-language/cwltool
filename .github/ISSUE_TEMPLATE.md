@@ -1,6 +1,6 @@
 Issue tracker is a tool to address bugs in cwltool (reference implementation) itself.
 Please use the [Gitter channel](https://gitter.im/common-workflow-language/common-workflow-language) or [Biostars forum](https://www.biostars.org/) 
-for general questions about using cwltool to create/run workflows or issues not related to cwltool.
+for general questions about using cwltool to create/run workflows or issues not related to cwltool. Don't forget to use cwl tag when posting on Biostars Forum.
 
 If you'd like to report a bug, fill out the template below and provide
 any extra information that may be useful / related to your problem.
