@@ -26,6 +26,12 @@ log = logging.getLogger('tes-backend')
 class TESService:
 
     def __init__(self, addr):
+        if not addr.startswith("http"):
+            addr = "http://" + addr
+
+        if addr.endswith("/"):
+            addr = addr[:-1]
+
         self.addr = addr
 
     def submit(self, task):
@@ -111,6 +117,9 @@ class TESPipelineJob(PipelineJob):
         for k, v in self.joborder.items():
             if isinstance(v, dict):
                 inputs[k] = v['location']
+            elif isinstance(v, list):
+                for i in range(len(v)):
+                    inputs["{}[{}]".format(k, i)] = v[i]['location']
 
         input_parameters = self.create_parameters(inputs)
 
@@ -164,8 +173,8 @@ class TESPipelineJob(PipelineJob):
         cpus = None
         ram = None
         disk = None
-        reqs = self.spec.get('requirements', []) + self.spec.get('hints', [])
-        for i in reqs:
+        # reqs = self.spec.get('requirements', []) + self.spec.get('hints', [])
+        for i in self.requirements:
             if i.get('class', 'NA') == 'ResourceRequirement':
                 cpus = i.get('coresMin', i.get('coresMax', None))
                 ram = i.get('ramMin', i.get('ramMax', None))
@@ -190,7 +199,8 @@ class TESPipelineJob(PipelineJob):
                 'workdir': self.docker_workdir,
                 'stdout': self.output2path(self.stdout),
                 'stderr': self.output2path(self.stderr),
-                'stdin': self.stdin
+                'stdin': self.stdin,
+                'environ': self.environment
             }],
             'inputs': input_parameters,
             'outputs': output_parameters,

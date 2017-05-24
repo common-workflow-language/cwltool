@@ -19,7 +19,7 @@ setup(
     download_url="https://github.com/common-workflow-language/cwltool-tes",
     license='Apache 2.0',
     install_requires=[
-        'cwltool==1.0.20170510165748'
+        'cwltool==1.0.20170516234254'
     ],
     entry_points={
         'console_scripts': ["cwltool-tes=cwltool_tes.main:main"]},
