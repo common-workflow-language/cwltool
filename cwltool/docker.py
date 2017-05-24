@@ -27,6 +27,17 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             sp = dockerRequirement["dockerImageId"].split(":")
             if len(sp) == 1:
                 sp.append("latest")
+            elif len(sp) == 2:
+                #  if sp[1] doesn't  match valid tag names, it is a part of repository
+                if not re.match(r'[\w][\w.-]{0,127}', sp[1]):
+                    sp[0] = sp[0] + ":" + sp[1]
+                    sp[1] = "latest"
+            elif len(sp) == 3:
+                if re.match(r'[\w][\w.-]{0,127}', sp[2]):
+                    sp[0] = sp[0] + ":" + sp[1]
+                    sp[1] = sp[2]
+                    del sp[2]
+
             # check for repository:tag match or image id match
             if ((sp[0] == m.group(1) and sp[1] == m.group(2)) or dockerRequirement["dockerImageId"] == m.group(3)):
                 found = True
