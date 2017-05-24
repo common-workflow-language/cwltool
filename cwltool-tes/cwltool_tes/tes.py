@@ -119,7 +119,10 @@ class TESPipelineJob(PipelineJob):
                 inputs[k] = v['location']
             elif isinstance(v, list):
                 for i in range(len(v)):
-                    inputs["{}[{}]".format(k, i)] = v[i]['location']
+                    try:
+                        inputs["{}[{}]".format(k, i)] = v[i]['location']
+                    except:
+                        continue
 
         input_parameters = self.create_parameters(inputs)
 
