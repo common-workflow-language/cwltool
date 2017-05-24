@@ -89,69 +89,91 @@ class TESPipelineJob(PipelineJob):
         self.docker_workdir = '/var/spool/cwl'
         self.fs_access = fs_access
 
-    def create_parameters(self, puts, output=False):
-        parameters = []
-        for put, path in puts.items():
-            if not output:
-                ent = self.pathmapper.mapper(path)
-                if ent is not None:
-                    parameter = {
-                        'name': put,
-                        'description': 'cwl_input:%s' % (put),
-                        'url': ent.resolved,
-                        'path': ent.target
-                    }
-                    parameters.append(parameter)
-            else:
-                parameter = {
-                    'name': put,
-                    'description': 'cwl_output:%s' % (put),
-                    'url': self.output2url(path),
-                    'path': self.output2path(path)
-                }
+    def create_input_parameter(self, name, d):
+            return {
+                'name': name,
+                'description': 'cwl_input:{}'.format(name),
+                'url': d['location'],
+                'path': d['path']
+            }
 
-        return parameters
-
-    def create_task(self):
-        inputs = {}
+    def collect_input_parameters(self):
+        inputs = []
         for k, v in self.joborder.items():
             if isinstance(v, dict):
-                inputs[k] = v['location']
+                inputs.append(
+                    self.create_input_parameter(k, v)
+                )
+                if 'secondaryFiles' in v:
+                    for f in v['secondaryFiles']:
+                        inputs.append(
+                            self.create_input_parameter(f['basename'], f)
+                        )
             elif isinstance(v, list):
                 for i in range(len(v)):
                     try:
-                        inputs["{}[{}]".format(k, i)] = v[i]['location']
+                        inputs.append(
+                            self.create_input_parameter(
+                                "{}[{}]".format(k, i),
+                                v[i]
+                            )
+                        )
+                        if 'secondaryFiles' in v[i]:
+                            for f in v[i]['secondaryFiles']:
+                                inputs.append(
+                                    self.create_input_parameter(
+                                        f['basename'],
+                                        f
+                                    )
+                                )
                     except:
                         continue
 
-        input_parameters = self.create_parameters(inputs)
-
-        # manage InitialWorkDirRequirement file generation
+        # manage InitialWorkDirRequirement
         for listing in self.generatefiles['listing']:
             if listing['class'] == 'File':
                 loc = self.fs_access.join(self.tmpdir, listing['basename'])
                 with self.fs_access.open(loc, 'wb') as gen:
-                    gen.write(listing['contents'])
+                    if 'contents' in listing:
+                        gen.write(listing['contents'])
+                    else:
+                        loc = listing['location']
                 parameter = {
                     'name': listing['basename'],
-                    'description': 'cwl_generated_input:%s' % (loc),
+                    'description': 'InitialWorkDirRequirement:cwl_input:{}'.format(listing['basename']),
                     'url': file_uri(loc),
                     'path': self.fs_access.join(self.docker_workdir, listing['basename'])
                 }
-                input_parameters.append(parameter)
+                inputs.append(parameter)
 
-        docid = self.spec.get('id')
-        outputs = {output['id'].replace(docid + '#', ''): output['outputBinding']['glob']
-                   for output in self.spec['outputs'] if 'outputBinding' in output}
+        return inputs
 
-        output_parameters = self.create_parameters(outputs, True)
+    # def collect_output_parameters(self):
+    #     outputs = []
+    #     docid = self.spec.get('id')
+    #     for output in self.spec['outputs']:
+    #         if output['type'] == "File" and 'outputBinding' in output:
+    #             name = output['id'].replace(docid + '#', '')
+    #             path = output['outputBinding']['glob']
+    #             parameter = {
+    #                 'name': name,
+    #                 'description': 'cwl_output:{}'.format(name),
+    #                 'url': self.output2url(path),
+    #                 'path': self.output2path(path)
+    #             }
+    #             outputs.append(parameter)
+    #     return outputs
+
+    def create_task(self):
+        input_parameters = self.collect_input_parameters()
+        # output_parameters = self.collect_output_parameters()
+        output_parameters = []
 
         if self.stdout is not None:
             parameter = {
                 'name': 'stdout',
                 'url': self.output2url(self.stdout),
                 'path': self.output2path(self.stdout),
-                'type': 'FILE'
             }
             output_parameters.append(parameter)
 
@@ -160,7 +182,6 @@ class TESPipelineJob(PipelineJob):
                 'name': 'stderr',
                 'url': self.output2url(self.stderr),
                 'path': self.output2path(self.stderr),
-                'type': 'FILE'
             }
             output_parameters.append(parameter)
 
@@ -207,7 +228,8 @@ class TESPipelineJob(PipelineJob):
             }],
             'inputs': input_parameters,
             'outputs': output_parameters,
-            'resources': resources
+            'resources': resources,
+            'tags': {'CWLDocumentId': self.spec.get('id')}
         }
 
         return create_body
