@@ -1,27 +1,37 @@
 # GA4GH CWL Task Execution 
 
-## Quickstart
- 
-* Install Docker
-* Install Funnel
+___cwltool-tes___ submits your tasks to a TES server. Task submission is parallelized when possible.
 
-```
-go get github.com/ohsu-comp-bio/funnel
-```
+[Funnel](https://ohsu-comp-bio.github.io/funnel) is an implementation of the [GA4GH task execution API](https://github.com/ga4gh/task-execution-schemas). It runs your dockerized tasks on slurm, htcondor, google compute engine, etc.
+
+It 
+
+## Requirements
+
+* Python 2.7
+
+* [Docker](https://docs.docker.com/)
+
+* [Funnel](https://ohsu-comp-bio.github.io/funnel)
+
+## Quickstart
 
 * Start the task server
 
 ```
-$GOPATH/bin/funnel server
+funnel server
 ```
 
 * Run your CWL tool/workflow
 
 ```
-TMPDIR=./ ./cwltool-tes --tes http://localhost:8000 tests/hashsplitter-md5.cwl.yml --input tests/resources/test.txt
+TMPDIR=./ ./cwltool-tes --tes http://localhost:8000 tests/hashsplitter-workflow.cwl.yml --input tests/resources/test.txt
 ```
 
-## Resources
+## Install
 
-* [GA4GH Task Execution Schema](https://github.com/ga4gh/task-execution-schemas)
-* [Funnel](https://github.com/ohsu-comp-bio/funnel)
+To install from source:
+
+```
+python setup.py install
+```
