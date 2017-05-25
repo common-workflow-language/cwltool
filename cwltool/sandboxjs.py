@@ -26,7 +26,7 @@ have_node_slim = False
 minimum_node_version_str = '0.10.26'
 
 def check_js_threshold_version(working_alias):
-    # type: (str) -> Tuple[bool, str]
+    # type: (str) -> bool
 
     """Checks if the nodeJS engine version on the system
     with the allowed minimum version.
