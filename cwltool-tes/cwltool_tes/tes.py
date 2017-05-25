@@ -97,37 +97,38 @@ class TESPipelineJob(PipelineJob):
                 'path': d['path']
             }
 
+
+    def parse_job_order(self, k, v, inputs=[]):
+        if isinstance(v, dict):
+            if 'location' in v and "path" in v:
+                inputs.append(self.create_input_parameter(k, v))
+
+                if 'secondaryFiles' in v:
+                    for f in v['secondaryFiles']:
+                        self.parse_job_order(f['basename'], f, inputs)
+
+            else:
+                for sk, sv in v.items():
+                    if isinstance(sv, dict):
+                        self.parse_job_order(sk, sv, inputs)
+
+                    else:
+                        break
+
+        elif isinstance(v, list):
+            for i in range(len(v)):
+                if isinstance(v[i], dict):
+                    self.parse_job_order("{}[{}]".format(k, i), v[i], inputs)
+
+                else:
+                    break
+
+        return inputs
+
     def collect_input_parameters(self):
         inputs = []
         for k, v in self.joborder.items():
-            if isinstance(v, dict):
-                inputs.append(
-                    self.create_input_parameter(k, v)
-                )
-                if 'secondaryFiles' in v:
-                    for f in v['secondaryFiles']:
-                        inputs.append(
-                            self.create_input_parameter(f['basename'], f)
-                        )
-            elif isinstance(v, list):
-                for i in range(len(v)):
-                    try:
-                        inputs.append(
-                            self.create_input_parameter(
-                                "{}[{}]".format(k, i),
-                                v[i]
-                            )
-                        )
-                        if 'secondaryFiles' in v[i]:
-                            for f in v[i]['secondaryFiles']:
-                                inputs.append(
-                                    self.create_input_parameter(
-                                        f['basename'],
-                                        f
-                                    )
-                                )
-                    except:
-                        continue
+            inputs += self.parse_job_order(k, v, inputs)
 
         # manage InitialWorkDirRequirement
         for listing in self.generatefiles['listing']:
@@ -148,25 +149,8 @@ class TESPipelineJob(PipelineJob):
 
         return inputs
 
-    # def collect_output_parameters(self):
-    #     outputs = []
-    #     docid = self.spec.get('id')
-    #     for output in self.spec['outputs']:
-    #         if output['type'] == "File" and 'outputBinding' in output:
-    #             name = output['id'].replace(docid + '#', '')
-    #             path = output['outputBinding']['glob']
-    #             parameter = {
-    #                 'name': name,
-    #                 'description': 'cwl_output:{}'.format(name),
-    #                 'url': self.output2url(path),
-    #                 'path': self.output2path(path)
-    #             }
-    #             outputs.append(parameter)
-    #     return outputs
-
     def create_task(self):
         input_parameters = self.collect_input_parameters()
-        # output_parameters = self.collect_output_parameters()
         output_parameters = []
 
         if self.stdout is not None:

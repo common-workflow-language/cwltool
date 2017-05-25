@@ -1,0 +1,527 @@
+~/Projects/cwltool/cwltool-tes/common-workflow-language ~/Projects/cwltool/cwltool-tes
+--- Running conformance test v1.0 on /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes ---
+/Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes 1.0.20170516234254
+Test [1/87] 
+Test [2/87] 
+Test [3/87] 
+Test [4/87] 
+Test [5/87] 
+Test [6/87] 
+Test [7/87] 
+Test [8/87] 
+Test [9/87] 
+Test [10/87] 
+Test [11/87] 
+Test [12/87] 
+Test [13/87] 
+Test [14/87] 
+Test [15/87] 
+Test [16/87] 
+Test [17/87] 
+Test [18/87] 
+Test [19/87] 
+Test [20/87] 
+Test [21/87] 
+Test [22/87] 
+Test [23/87] 
+Test [24/87] 
+Test [25/87] 
+Test [26/87] 
+Test [27/87] 
+Test [28/87] 
+Test [29/87] 
+Test [30/87] 
+Test [31/87] 
+Test [32/87] 
+Test [33/87] 
+Test [34/87] 
+Test [35/87] 
+Test [36/87] 
+Test [37/87] 
+Test [38/87] 
+Test [39/87] 
+Test [40/87] 
+Test [41/87] 
+Test [42/87] 
+Test [43/87] 
+Test [44/87] 
+Test [45/87] 
+Test [46/87] 
+Test [47/87] 
+Test [48/87] 
+Test [49/87] 
+Test [50/87] 
+Test [51/87] 
+Test [52/87] 
+Test [53/87] 
+Test [54/87] 
+Test [55/87] 
+Test [56/87] 
+Test [57/87] 
+Test [58/87] 
+Test [59/87] 
+Test [60/87] 
+Test [61/87] 
+Test [62/87] 
+Test [63/87] 
+Test [64/87] 
+Test [65/87] 
+Test [66/87] 
+Test [67/87] 
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS --quiet v1.0/dir.cwl v1.0/dir-job.yml
+Test directory input with parameter reference
+Compare failure expected: {
+    "outlist": {
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+        "class": "File", 
+        "location": "output.txt", 
+        "size": 20
+    }
+}
+got: {
+    "outlist": {
+        "basename": "output.txt", 
+        "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+        "class": "File", 
+        "http://commonwl.org/cwltool#generation": 0, 
+        "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS/output.txt", 
+        "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS/output.txt", 
+        "size": 2
+    }
+}
+caused by: failed comparison for key 'outlist': expected: {
+    "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+    "class": "File", 
+    "location": "output.txt", 
+    "size": 20
+}
+got: {
+    "basename": "output.txt", 
+    "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+    "class": "File", 
+    "http://commonwl.org/cwltool#generation": 0, 
+    "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS/output.txt", 
+    "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0C96DWS/output.txt", 
+    "size": 2
+}
+caused by: field 'checksum' failed comparison: expected: "sha1$13cda8661796ae241da3a18668fb552161a72592"
+got: "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa"
+Test [68/87] 
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB --quiet v1.0/dir2.cwl v1.0/dir-job.yml
+Test directory input in Docker
+Compare failure expected: {
+    "outlist": {
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+        "class": "File", 
+        "location": "output.txt", 
+        "size": 20
+    }
+}
+got: {
+    "outlist": {
+        "basename": "output.txt", 
+        "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+        "class": "File", 
+        "http://commonwl.org/cwltool#generation": 0, 
+        "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB/output.txt", 
+        "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB/output.txt", 
+        "size": 2
+    }
+}
+caused by: failed comparison for key 'outlist': expected: {
+    "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+    "class": "File", 
+    "location": "output.txt", 
+    "size": 20
+}
+got: {
+    "basename": "output.txt", 
+    "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+    "class": "File", 
+    "http://commonwl.org/cwltool#generation": 0, 
+    "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB/output.txt", 
+    "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0EWZHNB/output.txt", 
+    "size": 2
+}
+caused by: field 'checksum' failed comparison: expected: "sha1$13cda8661796ae241da3a18668fb552161a72592"
+got: "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa"
+Test [69/87] 
+Test [70/87] 
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo --quiet v1.0/dir4.cwl v1.0/dir4-job.yml
+Test directories in secondaryFiles
+Compare failure expected: {
+    "outlist": {
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+        "class": "File", 
+        "location": "output.txt", 
+        "size": 20
+    }
+}
+got: {
+    "outlist": {
+        "basename": "output.txt", 
+        "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+        "class": "File", 
+        "http://commonwl.org/cwltool#generation": 0, 
+        "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo/output.txt", 
+        "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo/output.txt", 
+        "size": 2
+    }
+}
+caused by: failed comparison for key 'outlist': expected: {
+    "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+    "class": "File", 
+    "location": "output.txt", 
+    "size": 20
+}
+got: {
+    "basename": "output.txt", 
+    "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+    "class": "File", 
+    "http://commonwl.org/cwltool#generation": 0, 
+    "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo/output.txt", 
+    "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0YEtSEo/output.txt", 
+    "size": 2
+}
+caused by: field 'checksum' failed comparison: expected: "sha1$13cda8661796ae241da3a18668fb552161a72592"
+got: "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa"
+Test [71/87] 
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY --quiet v1.0/dir5.cwl v1.0/dir-job.yml
+Test dynamic initial work dir
+Compare failure expected: {
+    "outlist": {
+        "checksum": "sha1$907a866a3e0b7f1fc5a2222531c5fb9063704438", 
+        "class": "File", 
+        "location": "output.txt", 
+        "size": 33
+    }
+}
+got: {
+    "outlist": {
+        "basename": "output.txt", 
+        "checksum": "sha1$96465724a16bca8049228be59635be4d123c9216", 
+        "class": "File", 
+        "http://commonwl.org/cwltool#generation": 0, 
+        "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY/output.txt", 
+        "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY/output.txt", 
+        "size": 15
+    }
+}
+caused by: failed comparison for key 'outlist': expected: {
+    "checksum": "sha1$907a866a3e0b7f1fc5a2222531c5fb9063704438", 
+    "class": "File", 
+    "location": "output.txt", 
+    "size": 33
+}
+got: {
+    "basename": "output.txt", 
+    "checksum": "sha1$96465724a16bca8049228be59635be4d123c9216", 
+    "class": "File", 
+    "http://commonwl.org/cwltool#generation": 0, 
+    "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY/output.txt", 
+    "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0tDxaTY/output.txt", 
+    "size": 15
+}
+caused by: field 'checksum' failed comparison: expected: "sha1$907a866a3e0b7f1fc5a2222531c5fb9063704438"
+got: "sha1$96465724a16bca8049228be59635be4d123c9216"
+Test [72/87] 
+No JSON object could be decoded
+
+Got workflow error
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/site-packages/cwltool/main.py", line 243, in single_job_executor
+    for r in jobiter:
+  File "/usr/local/lib/python2.7/site-packages/cwltool/draft2tool.py", line 396, in job
+    if li.get("writable") and j.inplace_update:
+AttributeError: 'TESPipelineJob' object has no attribute 'inplace_update'
+Workflow error, try again with --debug for more information:
+'TESPipelineJob' object has no attribute 'inplace_update'
+
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.040oSIE --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.040oSIE --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.040oSIE --quiet v1.0/stagefile.cwl v1.0/stagefile-job.yml
+Test writable staged files.
+Compare failure expected: {
+    "outfile": {
+        "checksum": "sha1$b769c7b2e316edd4b5eb2d24799b2c1f9d8c86e6", 
+        "class": "File", 
+        "location": "bob.txt", 
+        "size": 1111
+    }
+}
+got: {}
+caused by: failed comparison for key 'outfile': expected: {
+    "checksum": "sha1$b769c7b2e316edd4b5eb2d24799b2c1f9d8c86e6", 
+    "class": "File", 
+    "location": "bob.txt", 
+    "size": 1111
+}
+got: null
+Test [73/87] 
+No JSON object could be decoded
+
+DIR JOB ----------------------
+{'builder': <cwltool.builder.Builder object at 0x108c29fd0>,
+ 'collect_outputs': <functools.partial object at 0x108ce2aa0>,
+ 'command_line': [u'cat',
+                  u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5'],
+ 'docker_workdir': '/var/spool/cwl',
+ 'environment': {},
+ 'fs_access': <cwltool.stdfsaccess.StdFsAccess object at 0x108b24fd0>,
+ 'generatefiles': {'basename': '',
+                   'class': 'Directory',
+                   'listing': [],
+                   'location': u'_:acf39315-43ef-4ad2-99bf-f65d58b077d6'},
+ 'hints': [ordereddict([('dockerPull', 'debian:wheezy'), ('class', 'DockerRequirement')])],
+ 'joborder': ordereddict([('file1', ordereddict([('class', 'File'), ('contents', 'Hello file literal'), ('location', u'_:11a9c538-c002-4dad-999c-ea4c2a4509f5'), ('basename', u'11a9c538-c002-4dad-999c-ea4c2a4509f5'), ('path', u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5'), ('dirname', u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da'), ('nameroot', u'11a9c538-c002-4dad-999c-ea4c2a4509f5'), ('nameext', '')]))]),
+ 'name': u'cat3-tool.cwl',
+ 'outdir': u'/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFM97WS1X',
+ 'output_callback': <function output_callback at 0x108b6cc80>,
+ 'pathmapper': <cwltool.pathmapper.PathMapper object at 0x108b62f50>,
+ 'permanentFailCodes': None,
+ 'pipeline': <cwltool_tes.tes.TESPipeline object at 0x108b24f90>,
+ 'requirements': [],
+ 'running': True,
+ 'spec': ordereddict([('class', 'CommandLineTool'), ('cwlVersion', 'v1.0'), ('doc', "Print the contents of a file to stdout using 'cat' running in a docker container."), ('hints', [ordereddict([('dockerPull', 'debian:wheezy'), ('class', 'DockerRequirement')])]), ('inputs', [ordereddict([('type', 'File'), ('label', 'Input File'), ('doc', "The file that will be copied using 'cat'"), ('inputBinding', ordereddict([('position', 1)])), ('id', 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/cat3-tool.cwl#file1')])]), ('outputs', [ordereddict([('type', 'File'), ('outputBinding', ordereddict([('glob', 'output.txt')])), ('id', 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/cat3-tool.cwl#output_file')])]), ('baseCommand', 'cat'), ('stdout', 'output.txt'), ('id', 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/cat3-tool.cwl')]),
+ 'stagedir': u'/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFMuZiiG9',
+ 'stderr': None,
+ 'stdin': None,
+ 'stdout': 'output.txt',
+ 'successCodes': None,
+ 'temporaryFailCodes': None,
+ 'tmpdir': u'/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFMGmig5F'}
+INPUTS ---------------
+[{'description': 'cwl_input:file1',
+  'name': 'file1',
+  'path': u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5',
+  'url': u'_:11a9c538-c002-4dad-999c-ea4c2a4509f5'},
+ {'description': 'cwl_input:file1',
+  'name': 'file1',
+  'path': u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5',
+  'url': u'_:11a9c538-c002-4dad-999c-ea4c2a4509f5'}]
+CREATED TASK MSG----------------------
+{'description': "Print the contents of a file to stdout using 'cat' running in a docker container.",
+ 'executors': [{'cmd': [u'cat',
+                        u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5'],
+                'environ': {},
+                'image_name': 'debian:wheezy',
+                'stderr': None,
+                'stdin': None,
+                'stdout': '/var/spool/cwl/output.txt',
+                'workdir': '/var/spool/cwl'}],
+ 'inputs': [{'description': 'cwl_input:file1',
+             'name': 'file1',
+             'path': u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5',
+             'url': u'_:11a9c538-c002-4dad-999c-ea4c2a4509f5'},
+            {'description': 'cwl_input:file1',
+             'name': 'file1',
+             'path': u'/private/var/lib/cwl/stg44520c39-0b97-4b0a-908f-59734cdb73da/11a9c538-c002-4dad-999c-ea4c2a4509f5',
+             'url': u'_:11a9c538-c002-4dad-999c-ea4c2a4509f5'}],
+ 'name': u'cat3-tool.cwl',
+ 'outputs': [{'name': 'stdout',
+              'path': '/var/spool/cwl/output.txt',
+              'url': u'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFM97WS1X/output.txt'},
+             {'name': 'workdir',
+              'path': '/var/spool/cwl',
+              'type': 'DIRECTORY',
+              'url': u'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFM97WS1X/'}],
+ 'resources': {},
+ 'tags': {'CWLDocumentId': 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/cat3-tool.cwl'}}
+SUBMITTED TASK ----------------------
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+POLLING u'b4jhrbbuns0hf2bakhbg'
+STARTING CLEAN UP ------------------
+[job cat3-tool.cwl] Removing input staging directory /Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFMuZiiG9
+[job cat3-tool.cwl] Removing temporary directory /Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFMGmig5F
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python/2.7.13/Frameworks/Python.framework/Versions/2.7/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/Users/strucka/Projects/cwltool/cwltool-tes/cwltool_tes/poll.py", line 37, in run
+    self.complete(self.operation)
+  File "/Users/strucka/Projects/cwltool/cwltool-tes/cwltool_tes/tes.py", line 346, in complete
+    self.callback(operation)
+  File "/Users/strucka/Projects/cwltool/cwltool-tes/cwltool_tes/tes.py", line 292, in callback
+    raise e
+WorkflowException: v1.0/cat3-tool.cwl:15:3: Error collecting output for parameter 'output_file':
+v1.0/cat3-tool.cwl:17:21:   Did not find output file with glob pattern: '['output.txt']'
+
+JOB COMPLETE------------------
+Final process status is permanentFail
+
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFM --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFM --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0plEvFM --quiet v1.0/cat3-tool.cwl v1.0/file-literal.yml
+Test file literal as input
+Compare failure expected: {
+    "output_file": {
+        "checksum": "sha1$d0e04ff6c413c7d57f9a0ca0a33cd3ab52e2dd9c", 
+        "class": "File", 
+        "location": "output.txt", 
+        "size": 18
+    }
+}
+got: {}
+caused by: failed comparison for key 'output_file': expected: {
+    "checksum": "sha1$d0e04ff6c413c7d57f9a0ca0a33cd3ab52e2dd9c", 
+    "class": "File", 
+    "location": "output.txt", 
+    "size": 18
+}
+got: null
+Test [74/87] 
+Test [75/87] 
+Test [76/87] 
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN --quiet v1.0/dir6.cwl v1.0/dir-job.yml
+Test directory input with inputBinding
+Compare failure expected: {
+    "outlist": {
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+        "class": "File", 
+        "location": "output.txt", 
+        "size": 20
+    }
+}
+got: {
+    "outlist": {
+        "basename": "output.txt", 
+        "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+        "class": "File", 
+        "http://commonwl.org/cwltool#generation": 0, 
+        "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN/output.txt", 
+        "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN/output.txt", 
+        "size": 2
+    }
+}
+caused by: failed comparison for key 'outlist': expected: {
+    "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592", 
+    "class": "File", 
+    "location": "output.txt", 
+    "size": 20
+}
+got: {
+    "basename": "output.txt", 
+    "checksum": "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa", 
+    "class": "File", 
+    "http://commonwl.org/cwltool#generation": 0, 
+    "location": "file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN/output.txt", 
+    "path": "/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0HaGTpN/output.txt", 
+    "size": 2
+}
+caused by: field 'checksum' failed comparison: expected: "sha1$13cda8661796ae241da3a18668fb552161a72592"
+got: "sha1$a5d5b61aa8a61b7d9d765e1daf971a9a578f1cfa"
+Test [77/87] 
+Test [78/87] 
+Test [79/87] 
+Test [80/87] 
+Test [81/87] 
+Test [82/87] 
+Test [83/87] 
+Test [84/87] 
+Test [85/87] 
+Test [86/87] 
+No JSON object could be decoded
+
+DIR JOB ----------------------
+{'builder': <cwltool.builder.Builder object at 0x10e7d0590>,
+ 'collect_outputs': <functools.partial object at 0x10e886aa0>,
+ 'command_line': [u'touch', u'/other/thing'],
+ 'docker_workdir': '/var/spool/cwl',
+ 'environment': {},
+ 'fs_access': <cwltool.stdfsaccess.StdFsAccess object at 0x10e6cbfd0>,
+ 'generatefiles': {'basename': '',
+                   'class': 'Directory',
+                   'listing': [],
+                   'location': u'_:46573e55-8aba-44f0-b239-917cb70dd353'},
+ 'hints': [],
+ 'joborder': ordereddict([]),
+ 'name': u'docker-output-dir.cwl',
+ 'outdir': u'/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4mAB0cBz',
+ 'output_callback': <function output_callback at 0x10e713c80>,
+ 'pathmapper': <cwltool.pathmapper.PathMapper object at 0x10e709d90>,
+ 'permanentFailCodes': None,
+ 'pipeline': <cwltool_tes.tes.TESPipeline object at 0x10e6cbf90>,
+ 'requirements': [ordereddict([('dockerPull', 'debian:8'), ('dockerOutputDirectory', '/other'), ('class', 'DockerRequirement')])],
+ 'running': True,
+ 'spec': ordereddict([('class', 'CommandLineTool'), ('cwlVersion', 'v1.0'), ('requirements', [ordereddict([('dockerPull', 'debian:8'), ('dockerOutputDirectory', '/other'), ('class', 'DockerRequirement')])]), ('inputs', []), ('outputs', [ordereddict([('type', 'File'), ('outputBinding', ordereddict([('glob', 'thing')])), ('id', 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/docker-output-dir.cwl#thing')])]), ('baseCommand', ['touch', '/other/thing']), ('id', 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/docker-output-dir.cwl')]),
+ 'stagedir': u'/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4mnvmWLQ',
+ 'stderr': None,
+ 'stdin': None,
+ 'stdout': None,
+ 'successCodes': None,
+ 'temporaryFailCodes': None,
+ 'tmpdir': u'/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4mWfYDgh'}
+INPUTS ---------------
+[]
+CREATED TASK MSG----------------------
+{'description': '',
+ 'executors': [{'cmd': [u'touch', u'/other/thing'],
+                'environ': {},
+                'image_name': 'debian:8',
+                'stderr': None,
+                'stdin': None,
+                'stdout': None,
+                'workdir': '/var/spool/cwl'}],
+ 'inputs': [],
+ 'name': u'docker-output-dir.cwl',
+ 'outputs': [{'name': 'workdir',
+              'path': '/var/spool/cwl',
+              'type': 'DIRECTORY',
+              'url': u'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4mAB0cBz/'}],
+ 'resources': {},
+ 'tags': {'CWLDocumentId': 'file:///Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0/v1.0/docker-output-dir.cwl'}}
+SUBMITTED TASK ----------------------
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+POLLING u'b4jhs8juns0hf2bakhh0'
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python/2.7.13/Frameworks/Python.framework/Versions/2.7/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/Users/strucka/Projects/cwltool/cwltool-tes/cwltool_tes/poll.py", line 37, in run
+    self.complete(self.operation)
+  File "/Users/strucka/Projects/cwltool/cwltool-tes/cwltool_tes/tes.py", line 346, in complete
+    self.callback(operation)
+  File "/Users/strucka/Projects/cwltool/cwltool-tes/cwltool_tes/tes.py", line 292, in callback
+    raise e
+WorkflowException: v1.0/docker-output-dir.cwl:9:3: Error collecting output for parameter 'thing':
+v1.0/docker-output-dir.cwl:12:7:   Did not find output file with glob pattern: '['thing']'
+
+STARTING CLEAN UP ------------------
+[job docker-output-dir.cwl] Removing input staging directory /Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4mnvmWLQ
+[job docker-output-dir.cwl] Removing temporary directory /Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4mWfYDgh
+JOB COMPLETE------------------
+Final process status is permanentFail
+
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4m --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4m --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.0MdOe4m --quiet v1.0/docker-output-dir.cwl v1.0/empty.json
+Test dockerOutputDirectory
+Compare failure expected: {
+    "thing": {
+        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709", 
+        "class": "File", 
+        "location": "thing", 
+        "size": 0
+    }
+}
+got: {}
+caused by: failed comparison for key 'thing': expected: {
+    "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709", 
+    "class": "File", 
+    "location": "thing", 
+    "size": 0
+}
+got: null
+Test [87/87] 
+79 tests passed, 8 failures, 0 unsupported features
+
+1 tool tests failed
+~/Projects/cwltool/cwltool-tes
