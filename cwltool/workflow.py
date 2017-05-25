@@ -260,6 +260,8 @@ class WorkflowJob(object):
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
+        self.did_callback = False
+
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
         elif "tmp_outdir_prefix" in kwargs:
@@ -272,6 +274,23 @@ class WorkflowJob(object):
 
         _logger.debug(u"[%s] initialized from %s", self.name,
                       self.tool.get("id", "workflow embedded in %s" % kwargs.get("part_of")))
+
+    def do_output_callback(self, final_output_callback):
+        supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
+
+        try:
+            wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource",
+                                   incomplete=True)
+        except WorkflowException as e:
+            _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
+            wo = {}
+            self.processStatus = "permanentFail"
+
+        _logger.info(u"[%s] completed %s", self.name, self.processStatus)
+
+        self.did_callback = True
+
+        final_output_callback(wo, self.processStatus)
 
     def receive_output(self, step, outputparms, final_output_callback, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
@@ -300,19 +319,7 @@ class WorkflowJob(object):
 
         completed = sum(1 for s in self.steps if s.completed)
         if completed == len(self.steps):
-            supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
-
-            try:
-                wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource",
-                                       incomplete=True)
-            except WorkflowException as e:
-                _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
-                wo = {}
-                self.processStatus = "permanentFail"
-
-            _logger.info(u"[%s] completed %s", self.name, self.processStatus)
-
-            final_output_callback(wo, self.processStatus)
+            self.do_output_callback(final_output_callback)
 
     def try_make_job(self, step, final_output_callback, **kwargs):
         # type: (WorkflowJobStep, **Any) -> Generator
@@ -476,6 +483,9 @@ class WorkflowJob(object):
                     break
                 else:
                     yield None
+
+        if not self.did_callback:
+            self.do_output_callback(output_callback)
 
 
 class Workflow(Process):
