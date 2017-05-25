@@ -1,10 +1,16 @@
 import unittest
-from mock import Mock
+from mock import Mock, patch
 
 # we should modify the subprocess imported from cwltool.sandboxjs
-from cwltool.sandboxjs import check_js_threshold_version, subprocess
+from cwltool.sandboxjs import check_js_threshold_version, subprocess, minimum_node_version_str
 
 class Javascript_Sanity_Checks(unittest.TestCase):
+
+    def setUp(self):
+        self.check_output = subprocess.check_output 
+
+    def tearDown(self):
+        subprocess.check_output = self.check_output
 
     def test_node_version(self):
         subprocess.check_output = Mock(return_value=b'v0.8.26\n')

@@ -8,7 +8,8 @@ import threading
 from io import BytesIO
 
 from pkg_resources import resource_stream
-from typing import Any, Dict, List, Mapping, Text, Union
+from typing import Any, Dict, List, Mapping, Text, Union, Tuple
+
 
 class JavascriptException(Exception):
     pass
@@ -21,25 +22,28 @@ JSON = Union[Dict[Text, Any], List[Any], Text, int, float, bool, None]
 localdata = threading.local()
 
 have_node_slim = False
-
+# minimum acceptable version of nodejs engine
+minimum_node_version_str = '0.10.26'
 
 def check_js_threshold_version(working_alias):
-    # type: (str) -> bool
-    """ parse node version: 'v4.2.6\n' -> ['4', '2', '6'],
-    https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog"""
+    # type: (str) -> Tuple[bool, str]
 
-    # try:
-    v1, v2, v3 = [int(v) for v in subprocess.check_output(
-        [working_alias, "-v"]).decode('ascii').strip().strip('v').split('.')]
-    # except Exception as e:
-        # _logger.debug(str(e))
-        # _logger.debug("Calling subprocess failed")
-        # return True
+    """Checks if the nodeJS engine version on the system
+    with the allowed minimum version.
+    https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog
+    """
+    # parse nodejs version into int Tuple: 'v4.2.6\n' -> [4, 2, 6]
+    current_version_str = subprocess.check_output(
+        [working_alias, "-v"]).decode('ascii')
 
-    if v1 == 0:
-        if v2 == 10 and v3 <= 25 or v2 < 10:
-            return False
-    return True
+    current_version = [int(v) for v in current_version_str.strip().strip('v').split('.')]
+    minimum_node_version = [int(v) for v in minimum_node_version_str.split('.')]
+
+    if current_version >= minimum_node_version:
+        return True
+    else:
+        return False
+
 
 def new_js_proc():
     # type: () -> subprocess.Popen
@@ -47,19 +51,21 @@ def new_js_proc():
     res = resource_stream(__name__, 'cwlNodeEngine.js')
     nodecode = res.read()
 
+    required_node_version, docker = (False,)*2
     nodejs = None
     trynodes = ("nodejs", "node")
-    working_alias = None
     for n in trynodes:
         try:
             if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]) != "t":
-                working_alias = n
                 continue
-            nodejs = subprocess.Popen([n, "--eval", nodecode],
-                                      stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
-            break
+            else:
+                nodejs = subprocess.Popen([n, "--eval", nodecode],
+                                          stdin=subprocess.PIPE,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE)
+
+                required_node_version = check_js_threshold_version(n)
+                break
         except subprocess.CalledProcessError:
             pass
         except OSError as e:
@@ -68,15 +74,7 @@ def new_js_proc():
             else:
                 raise
 
-    """ check nodejs version, if it is below certain threshold version,
-    raise Runtime Exception. Such a test won't be required for docker nodejs"""
-    if nodejs is not None:
-        if check_js_threshold_version(working_alias) is False:
-            raise JavascriptException(u"cwltool requires updated version of Node.js engine. "
-                                      "Try updating: https://docs.npmjs.com/getting-started/installing-node")
-
-
-    if nodejs is None:
+    if nodejs is None or nodejs is not None and required_node_version is False:
         try:
             nodeimg = "node:slim"
             global have_node_slim
@@ -91,6 +89,7 @@ def new_js_proc():
                                        "--sig-proxy=true", "--interactive",
                                        "--rm", nodeimg, "node", "--eval", nodecode],
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            docker = True
         except OSError as e:
             if e.errno == errno.ENOENT:
                 pass
@@ -99,11 +98,18 @@ def new_js_proc():
         except subprocess.CalledProcessError:
             pass
 
+    # docker failed and nodejs not on system
     if nodejs is None:
         raise JavascriptException(
             u"cwltool requires Node.js engine to evaluate Javascript "
             "expressions, but couldn't find it.  Tried %s, docker run "
             "node:slim" % u", ".join(trynodes))
+
+    # docker failed, but nodejs is installed on system but the version is below the required version
+    if docker is False and required_node_version is False:
+        raise JavascriptException(
+            u'cwltool requires minimum v{} version of Node.js engine.'.format(minimum_node_version_str),
+            u'Try updating: https://docs.npmjs.com/getting-started/installing-node')
 
     return nodejs
 
@@ -115,7 +121,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     nodejs = localdata.proc
 
-    fn = u"\"use strict\";\n%s\n(function()%s)()" %\
+    fn = u"\"use strict\";\n%s\n(function()%s)()" % \
          (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
@@ -182,7 +188,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     nodejs.poll()
 
     if debug:
-        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
+        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" % \
                (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
     else:
         info = stdfmt(stderrdata)
