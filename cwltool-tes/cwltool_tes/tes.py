@@ -90,17 +90,26 @@ class TESPipelineJob(PipelineJob):
         self.fs_access = fs_access
 
     def create_input_parameter(self, name, d):
+        if 'contents' in d:
+            return {
+                'name': name,
+                'description': 'cwl_input:{}'.format(name),
+                'path': d['path'],
+                'contents': d['contents'],
+                'type': d['class'].upper()
+            }
+        else:
             return {
                 'name': name,
                 'description': 'cwl_input:{}'.format(name),
                 'url': d['location'],
-                'path': d['path']
+                'path': d['path'],
+                'type': d['class'].upper()
             }
 
-
-    def parse_job_order(self, k, v, inputs=[]):
+    def parse_job_order(self, k, v, inputs):
         if isinstance(v, dict):
-            if 'location' in v and "path" in v:
+            if all([i in v for i in ['location', 'path', 'class']]):
                 inputs.append(self.create_input_parameter(k, v))
 
                 if 'secondaryFiles' in v:
@@ -128,24 +137,23 @@ class TESPipelineJob(PipelineJob):
     def collect_input_parameters(self):
         inputs = []
         for k, v in self.joborder.items():
-            inputs += self.parse_job_order(k, v, inputs)
+            self.parse_job_order(k, v, inputs)
 
         # manage InitialWorkDirRequirement
         for listing in self.generatefiles['listing']:
-            if listing['class'] == 'File':
-                loc = self.fs_access.join(self.tmpdir, listing['basename'])
-                with self.fs_access.open(loc, 'wb') as gen:
-                    if 'contents' in listing:
-                        gen.write(listing['contents'])
-                    else:
-                        loc = listing['location']
-                parameter = {
-                    'name': listing['basename'],
-                    'description': 'InitialWorkDirRequirement:cwl_input:{}'.format(listing['basename']),
-                    'url': file_uri(loc),
-                    'path': self.fs_access.join(self.docker_workdir, listing['basename'])
-                }
-                inputs.append(parameter)
+            loc = self.fs_access.join(self.tmpdir, listing['basename'])
+            with self.fs_access.open(loc, 'wb') as gen:
+                if 'contents' in listing:
+                    gen.write(listing['contents'])
+                else:
+                    loc = listing['location']
+            parameter = {
+                'name': listing['basename'],
+                'description': 'InitialWorkDirRequirement:cwl_input:{}'.format(listing['basename']),
+                'url': file_uri(loc),
+                'path': self.fs_access.join(self.docker_workdir, listing['basename'])
+            }
+            inputs.append(parameter)
 
         return inputs
 
@@ -157,7 +165,7 @@ class TESPipelineJob(PipelineJob):
             parameter = {
                 'name': 'stdout',
                 'url': self.output2url(self.stdout),
-                'path': self.output2path(self.stdout),
+                'path': self.output2path(self.stdout)
             }
             output_parameters.append(parameter)
 
@@ -165,7 +173,7 @@ class TESPipelineJob(PipelineJob):
             parameter = {
                 'name': 'stderr',
                 'url': self.output2url(self.stderr),
-                'path': self.output2path(self.stderr),
+                'path': self.output2path(self.stderr)
             }
             output_parameters.append(parameter)
 
@@ -173,7 +181,7 @@ class TESPipelineJob(PipelineJob):
             'name': 'workdir',
             'url': self.output2url(''),
             'path': self.docker_workdir,
-            'type': 'DIRECTORY',
+            'type': 'DIRECTORY'
         })
 
         container = self.find_docker_requirement()
@@ -187,6 +195,14 @@ class TESPipelineJob(PipelineJob):
                 cpus = i.get('coresMin', i.get('coresMax', None))
                 ram = i.get('ramMin', i.get('ramMax', None))
                 disk = i.get('outdirMin', i.get('outdirMax', None))
+            elif i.get('class', 'NA') == 'DockerRequirement':
+                if i.get('dockerOutputDirectory', None) is not None:
+                    output_parameters.append({
+                        'name': 'dockerOutputDirectory',
+                        'url': self.output2url(''),
+                        'path': i.get('dockerOutputDirectory'),
+                        'type': 'DIRECTORY'
+                    })
 
         resources = {}
         if cpus is not None:
