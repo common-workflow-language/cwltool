@@ -52,7 +52,6 @@ setup(name='cwltool',
                                 'extensions.yml']},
       include_package_data=True,
       install_requires=[
-          'mock >= 2.0.0',
           'setuptools',
           'requests >= 1.0',
           'ruamel.yaml >= 0.12.4',
@@ -64,7 +63,7 @@ setup(name='cwltool',
       ],
       setup_requires=[] + pytest_runner,
       test_suite='tests',
-      tests_require=['pytest'],
+      tests_require=['pytest', 'mock >= 2.0.0',],
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:main"]
       },
