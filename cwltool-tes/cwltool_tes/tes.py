@@ -252,13 +252,15 @@ class TESPipelineJob(PipelineJob):
 
         def callback(operation):
             try:
-                outputs = self.collect_outputs(self.outdir)
-                log.debug('FINAL OUTPUTS ------------------')
-                log.debug(pformat(outputs))
-                self.output_callback(outputs, 'success')
+                self.outputs = self.collect_outputs(self.outdir)
+                self.output_callback(self.outputs, 'success')
             except Exception as e:
                 raise e
             finally:
+                log.debug('FINAL OUTPUTS ------------------')
+                log.debug(pformat(self.outputs))
+                self.cleanup(rm_tmpdir)
+                log.debug('JOB COMPLETE------------------')
                 self.running = False
 
         poll = TESPipelinePoll(
@@ -270,11 +272,12 @@ class TESPipelineJob(PipelineJob):
         self.pipeline.add_thread(poll)
         poll.start()
 
-        while True:
-            if not self.running:
-                log.debug('STARTING CLEAN UP ------------------')
-                break
+        # while True:
+        #     if not self.running:
+        #         break
 
+    def cleanup(self, rm_tmpdir):
+        log.debug('STARTING CLEAN UP ------------------')
         if self.stagedir and os.path.exists(self.stagedir):
             log.debug('[job %s] Removing input staging directory %s', self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
@@ -282,8 +285,6 @@ class TESPipelineJob(PipelineJob):
         if rm_tmpdir:
             log.debug('[job %s] Removing temporary directory %s', self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
-
-        log.debug('JOB COMPLETE------------------')
 
     def output2url(self, path):
         if path is not None:

@@ -27,6 +27,7 @@ def main(args):
         pipeline = TESPipeline(parsed_args.tes, vars(parsed_args))
         cwltool.main.main(
             args=parsed_args,
+            executor=pipeline.executor,
             makeTool=pipeline.make_tool
         )
     else:
