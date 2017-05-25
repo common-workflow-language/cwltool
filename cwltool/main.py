@@ -649,8 +649,8 @@ def main(argsl=None,  # type: List[str]
         if args.version:
             print(versionfunc())
             return 0
-        else:
-            _logger.info(versionfunc())
+        # else:
+            # _logger.info(versionfunc())
 
         if not args.workflow:
             if os.path.isfile("CWLFile"):
