@@ -121,7 +121,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     nodejs = localdata.proc
 
-    fn = u"\"use strict\";\n%s\n(function()%s)()" % \
+    fn = u"\"use strict\";\n%s\n(function()%s)()" %\
          (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
@@ -188,7 +188,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     nodejs.poll()
 
     if debug:
-        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" % \
+        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
                (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
     else:
         info = stdfmt(stderrdata)
