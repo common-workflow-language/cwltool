@@ -276,6 +276,8 @@ class WorkflowJob(object):
                       self.tool.get("id", "workflow embedded in %s" % kwargs.get("part_of")))
 
     def do_output_callback(self, final_output_callback):
+        # type: (Callable[[Any, Any], Any]) -> None
+
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
         try:
@@ -293,7 +295,7 @@ class WorkflowJob(object):
         final_output_callback(wo, self.processStatus)
 
     def receive_output(self, step, outputparms, final_output_callback, jobout, processStatus):
-        # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
+        # type: (WorkflowJobStep, List[Dict[Text,Text]], Callable[[Any, Any], Any], Dict[Text,Text], Text) -> None
 
         for i in outputparms:
             if "id" in i:
@@ -322,7 +324,7 @@ class WorkflowJob(object):
             self.do_output_callback(final_output_callback)
 
     def try_make_job(self, step, final_output_callback, **kwargs):
-        # type: (WorkflowJobStep, **Any) -> Generator
+        # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
