@@ -43,7 +43,7 @@ class TESService:
         return data['id']
 
     def get_job(self, task_id):
-        r = requests.get('%s/v1/tasks/%s' % (self.addr, task_id))
+        r = requests.get('%s/v1/tasks/%s?view=MINIMAL' % (self.addr, task_id))
         return r.json()
 
 
@@ -94,7 +94,7 @@ class TESPipelineJob(PipelineJob):
         if 'contents' in d:
             return {
                 'name': name,
-                'description': 'cwl_input:{}'.format(name),
+                'description': 'cwl_input:%s' % (name),
                 'path': d['path'],
                 'contents': d['contents'],
                 'type': d['class'].upper()
@@ -102,7 +102,7 @@ class TESPipelineJob(PipelineJob):
         else:
             return {
                 'name': name,
-                'description': 'cwl_input:{}'.format(name),
+                'description': 'cwl_input:%s' % (name),
                 'url': d['location'],
                 'path': d['path'],
                 'type': d['class'].upper()
@@ -128,7 +128,7 @@ class TESPipelineJob(PipelineJob):
         elif isinstance(v, list):
             for i in range(len(v)):
                 if isinstance(v[i], dict):
-                    self.parse_job_order("{}[{}]".format(k, i), v[i], inputs)
+                    self.parse_job_order("%s[%s]" % (k, i), v[i], inputs)
 
                 else:
                     break
@@ -150,7 +150,7 @@ class TESPipelineJob(PipelineJob):
                     loc = listing['location']
             parameter = {
                 'name': listing['basename'],
-                'description': 'InitialWorkDirRequirement:cwl_input:{}'.format(listing['basename']),
+                'description': 'InitialWorkDirRequirement:cwl_input:%s' % (listing['basename']),
                 'url': file_uri(loc),
                 'path': self.fs_access.join(self.docker_workdir, listing['basename'])
             }
@@ -263,13 +263,10 @@ class TESPipelineJob(PipelineJob):
             except Exception as e:
                 log.exception("Exception while running job")
                 self.output_callback({}, 'permanentFail')
-                # self.output_callback(self.outputs, 'permanentFail')
-                # raise e
             finally:
                 log.debug('[job %s] OUTPUTS ------------------' % (self.name))
                 log.debug(pformat(self.outputs))
                 self.cleanup(rm_tmpdir)
-                log.debug('[job %s ] COMPLETE ------------------' % (self.name))
 
         poll = TESPipelinePoll(
             jobname=self.name,
@@ -315,7 +312,11 @@ class TESPipelinePoll(PollThread):
 
     def is_done(self, operation):
         terminal_states = ['COMPLETE', 'CANCELED', 'ERROR', 'SYSTEM_ERROR']
-        return operation['state'] in terminal_states
+        if operation['state'] in terminal_states:
+            log.debug('[job %s] JOB %s ------------------' %
+                      (self.name, operation['state']))
+            return True
+        return False
 
     def complete(self, operation):
         self.callback(operation)

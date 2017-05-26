@@ -20,7 +20,7 @@ class TestConformance(SimpleServerTest):
         tool_entry = os.path.join(self.testdir,
                                   "../cwltool-tes")
         cmd = ["cwltest", "--test", ctest_def, "--basedir", tmpdir,
-               "--tool", tool_entry, "-n", "1-30", "-j", "10"]
+               "--tool", tool_entry, "-n", "1-71,73-87", "-j", "86"]
         process = popen(cmd,
                         cwd=os.path.join(self.testdir,
                                          "../../cwltool/schemas/v1.0")

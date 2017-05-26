@@ -30,7 +30,7 @@ class PollThread(threading.Thread):
             # if self.poll_interval < 30:
             #     self.poll_interval += 1
             log.debug(
-                '[job %s] POLLING TASK %s' %
+                '[job %s] POLLING %s' %
                 (self.name, pformat(self.operation.get('id', "NA")))
             )
 
