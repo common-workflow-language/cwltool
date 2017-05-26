@@ -3,7 +3,7 @@
 import os
 import sys
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 # if python3 runtime and `setup.py install` is called
@@ -21,8 +21,8 @@ setup(
     description='Common workflow language reference implementation backended \
     by a GA4GH Task Execution Service',
     long_description=open(README).read(),
-    author='Common workflow language working group',
-    author_email='common-workflow-language@googlegroups.com',
+    author='Adam Struck',
+    author_email='strucka@ohsu.edu',
     url="https://github.com/common-workflow-language/cwltool-tes",
     download_url="https://github.com/common-workflow-language/cwltool-tes",
     license='Apache 2.0',
