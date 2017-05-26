@@ -5,6 +5,7 @@ import logging
 import hashlib
 
 from cwltool.draft2tool import CommandLineTool
+from cwltool.errors import WorkflowException
 from cwltool.pathmapper import MapperEnt, PathMapper, dedup
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.workflow import defaultMakeTool
@@ -237,16 +238,18 @@ class TESPipelineJob(PipelineJob):
 
     def run(self, pull_image=True, rm_container=True, rm_tmpdir=True,
             move_outputs='move', **kwargs):
-        log.debug('DIR JOB ----------------------')
-        log.debug(pformat(self.__dict__))
+        # useful for debugging
+        # log.debug('[job %s] DIR JOB ----------------------' % (self.name))
+        # log.debug(pformat(self.__dict__))
 
         task = self.create_task()
 
-        log.debug('CREATED TASK MSG----------------------')
+        log.debug('[job %s] CREATED TASK MSG----------------------' % (self.name))
         log.debug(pformat(task))
 
         task_id = self.pipeline.service.submit(task)
-        log.debug('SUBMITTED TASK ----------------------')
+        log.debug('[job %s] SUBMITTED TASK ----------------------' % (self.name))
+        log.debug('[job %s] task id: %s ' % (self.name, task_id))
 
         operation = self.pipeline.service.get_job(task_id)
 
@@ -254,15 +257,22 @@ class TESPipelineJob(PipelineJob):
             try:
                 self.outputs = self.collect_outputs(self.outdir)
                 self.output_callback(self.outputs, 'success')
+            except WorkflowException as e:
+                log.error(u"[job %s] Job error:\n%s" % (self.name, e))
+                self.output_callback({}, 'permanentFail')
             except Exception as e:
-                raise e
+                log.exception("Exception while running job")
+                self.output_callback({}, 'permanentFail')
+                # self.output_callback(self.outputs, 'permanentFail')
+                # raise e
             finally:
-                log.debug('FINAL OUTPUTS ------------------')
+                log.debug('[job %s] OUTPUTS ------------------' % (self.name))
                 log.debug(pformat(self.outputs))
                 self.cleanup(rm_tmpdir)
-                log.debug('JOB COMPLETE------------------')
+                log.debug('[job %s ] COMPLETE ------------------' % (self.name))
 
         poll = TESPipelinePoll(
+            jobname=self.name,
             service=self.pipeline.service,
             operation=operation,
             callback=callback
@@ -272,7 +282,7 @@ class TESPipelineJob(PipelineJob):
         poll.start()
 
     def cleanup(self, rm_tmpdir):
-        log.debug('STARTING CLEAN UP ------------------')
+        log.debug('[job %s] STARTING CLEAN UP ------------------' % (self.name))
         if self.stagedir and os.path.exists(self.stagedir):
             log.debug('[job %s] Removing input staging directory %s', self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
@@ -294,8 +304,9 @@ class TESPipelineJob(PipelineJob):
 
 class TESPipelinePoll(PollThread):
 
-    def __init__(self, service, operation, callback):
+    def __init__(self, jobname, service, operation, callback):
         super(TESPipelinePoll, self).__init__(operation)
+        self.name = jobname
         self.service = service
         self.callback = callback
 

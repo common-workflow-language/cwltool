@@ -10,6 +10,7 @@ class PollThread(threading.Thread):
 
     def __init__(self, operation, poll_interval=1):
         super(PollThread, self).__init__()
+        self.name = "NA"
         self.operation = operation
         self.poll_interval = poll_interval
 
@@ -29,7 +30,8 @@ class PollThread(threading.Thread):
             # if self.poll_interval < 30:
             #     self.poll_interval += 1
             log.debug(
-                'POLLING ' + pformat(self.operation.get('id', "NA"))
+                '[job %s] POLLING TASK %s' %
+                (self.name, pformat(self.operation.get('id', "NA")))
             )
 
             self.operation = self.poll()

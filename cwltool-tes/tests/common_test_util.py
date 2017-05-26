@@ -54,11 +54,12 @@ class SimpleServerTest(unittest.TestCase):
 
     def setUp(self):
         self.addCleanup(self.cleanup)
-        self.testdir = os.path.dirname(os.path.realpath(__file__))
         self.rootprojectdir = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.realpath(__file__)
         )))
+        self.testdir = os.path.join(self.rootprojectdir, "cwltool-tes", "tests")
         self.tmpdir = os.path.join(self.testdir, "test_tmp")
+        os.environ['TMPDIR'] = self.tmpdir
         if not os.path.exists(self.tmpdir):
             os.mkdir(self.tmpdir)
         self.task_server = None
