@@ -15,3 +15,8 @@ eggs/
 *~
 \#*\#
 .desktop
+
+# testing tmp dirs
+funnel-work-dir
+test_tmp
+v1.0[a-zA-Z0-9_]*

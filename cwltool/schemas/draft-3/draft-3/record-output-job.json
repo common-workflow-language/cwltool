@@ -1,6 +1,0 @@
-{
-  "irec": {
-    "ifoo": {"path": "whale.txt", "class": "File"},
-    "ibar": {"path": "ref.fasta", "class": "File"}
-  }
-}

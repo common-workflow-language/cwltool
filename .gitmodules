@@ -1,0 +1,3 @@
+[submodule "cwltool-tes/common-workflow-language"]
+	path = cwltool/schemas
+	url = https://github.com/common-workflow-language/common-workflow-language.git

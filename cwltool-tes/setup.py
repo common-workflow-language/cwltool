@@ -1,8 +1,16 @@
 #!/usr/bin/env python
 
 import os
+import sys
 
 from setuptools import setup, find_packages
+
+
+# if python3 runtime and `setup.py install` is called
+if sys.version_info.major == 3 and sys.argv[1] == 'install':
+    print("Aborting installation. CWL Tool doesn't support Python 3 currently.")
+    print("Install using Python 2 pip.")
+    exit(1)
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, 'README.md')

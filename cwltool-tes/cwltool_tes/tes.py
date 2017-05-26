@@ -85,7 +85,7 @@ class TESPipelineJob(PipelineJob):
 
     def __init__(self, spec, pipeline, fs_access):
         super(TESPipelineJob, self).__init__(spec, pipeline)
-        self.running = True
+        self.outputs = None
         self.docker_workdir = '/var/spool/cwl'
         self.fs_access = fs_access
 
@@ -261,7 +261,6 @@ class TESPipelineJob(PipelineJob):
                 log.debug(pformat(self.outputs))
                 self.cleanup(rm_tmpdir)
                 log.debug('JOB COMPLETE------------------')
-                self.running = False
 
         poll = TESPipelinePoll(
             service=self.pipeline.service,
@@ -271,10 +270,6 @@ class TESPipelineJob(PipelineJob):
 
         self.pipeline.add_thread(poll)
         poll.start()
-
-        # while True:
-        #     if not self.running:
-        #         break
 
     def cleanup(self, rm_tmpdir):
         log.debug('STARTING CLEAN UP ------------------')
