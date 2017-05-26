@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -13,6 +14,8 @@ import yaml
 WORK_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                         "test_work")
 
+def cmd_exists(cmd):
+    return subprocess.Popen(["type", cmd]).communicate() == 0
 
 def popen(*args, **kwargs):
     kwargs['preexec_fn'] = os.setsid
@@ -54,6 +57,14 @@ class SimpleServerTest(unittest.TestCase):
 
     def setUp(self):
         self.addCleanup(self.cleanup)
+        if not cmd_exists("funnel"):
+            print(
+                "-bash: funnel: command not found\n",
+                "see https://ohsu-comp-bio.github.io/funnel/install/",
+                "for instuctions on how to install",
+                file=sys.stdout
+            )
+            raise RuntimeError
         self.rootprojectdir = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.realpath(__file__)
         )))

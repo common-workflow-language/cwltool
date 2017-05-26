@@ -9,7 +9,7 @@ import tempfile
 import time
 import unittest
 
-from common_test_util import SimpleServerTest, popen
+from funnel_test_util import SimpleServerTest, popen
 
 class TestConformance(SimpleServerTest):
     def test_conformance(self):
