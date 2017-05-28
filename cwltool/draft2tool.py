@@ -14,7 +14,7 @@ import schema_salad.validate as validate
 import shellescape
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, indent
-from typing import Any, Callable, cast, Generator, Text, Union, Dict
+from typing import Any, Callable, cast, Generator, Optional, Text, Union, Dict
 
 from .builder import CONTENT_LIMIT, substitute, Builder
 from .pathmapper import adjustFileObjs, adjustDirObjs, visit_class
@@ -172,9 +172,9 @@ class CommandLineTool(Process):
         # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
 
-    def makeJobRunner(self):  # type: () -> JobBase
+    def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        if dockerReq:
+        if dockerReq and use_container:
             return DockerCommandLineJob()
         else:
             return CommandLineJob()
@@ -268,7 +268,7 @@ class CommandLineTool(Process):
 
         reffiles = copy.deepcopy(builder.files)
 
-        j = self.makeJobRunner()
+        j = self.makeJobRunner(kwargs.get("use_container"))
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
