@@ -21,7 +21,9 @@ from .pathmapper import adjustFileObjs, adjustDirObjs, visit_class
 from .errors import WorkflowException
 from .job import JobBase, CommandLineJob, DockerCommandLineJob
 from .pathmapper import PathMapper, get_listing, trim_listing
-from .process import Process, shortname, uniquename, normalizeFilesDirs, compute_checksums, _logger_validation_warnings
+from .process import (Process, shortname, uniquename, normalizeFilesDirs,
+                      compute_checksums, _logger_validation_warnings,
+                      UnsupportedRequirement)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -177,6 +179,11 @@ class CommandLineTool(Process):
         if dockerReq and use_container:
             return DockerCommandLineJob()
         else:
+            for t in reversed(self.requirements):
+                if t["class"] == "DockerRequirement":
+                    raise UnsupportedRequirement(
+                        "--no-container, but this CommandLineTool has "
+                        "DockerRequirement under 'requirements'.")
             return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):

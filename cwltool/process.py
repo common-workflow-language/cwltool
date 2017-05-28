@@ -530,11 +530,6 @@ class Process(object):
         builder.mutation_manager = kwargs.get("mutation_manager")
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
-
-        if dockerReq and is_req and not kwargs.get("use_container"):
-            raise WorkflowException(
-                "Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
-
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
