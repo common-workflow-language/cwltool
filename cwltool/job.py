@@ -18,7 +18,8 @@ from .builder import Builder
 from .docker_uid import docker_vm_uid
 from .errors import WorkflowException
 from .pathmapper import PathMapper
-from .process import get_feature, empty_subtree, stageFiles
+from .process import (get_feature, empty_subtree, stageFiles,
+                      UnsupportedRequirement)
 
 _logger = logging.getLogger("cwltool")
 
@@ -335,9 +336,12 @@ class DockerCommandLineJob(JobBase):
         except Exception as e:
             _logger.debug("Docker error", exc_info=True)
             if docker_is_req:
-                raise WorkflowException("Docker is required to run this tool: %s" % e)
+                raise UnsupportedRequirement(
+                    "Docker is required to run this tool: %s" % e)
             else:
-                raise WorkflowException("Docker is not available for this tool, try --no-container to disable Docker: %s" % e)
+                raise WorkflowException(
+                    "Docker is not available for this tool, try --no-container"
+                    " to disable Docker: %s" % e)
 
         self._setup()
 
