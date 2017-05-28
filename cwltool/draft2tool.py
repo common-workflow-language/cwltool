@@ -183,7 +183,7 @@ class CommandLineTool(Process):
                 if t["class"] == "DockerRequirement":
                     raise UnsupportedRequirement(
                         "--no-container, but this CommandLineTool has "
-                        "DockerRequiremen under 'requirements'.")
+                        "DockerRequirement under 'requirements'.")
             return CommandLineJob()
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
