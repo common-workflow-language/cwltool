@@ -14,13 +14,13 @@ from .funnel_test_util import SimpleServerTest, popen, kill
 class TestConformance(SimpleServerTest):
 
     def test_conformance(self):
-        tmpdir = tempfile.mkdtemp(dir=self.tmpdir,
+        cwltest_tmpdir = tempfile.mkdtemp(dir=self.tmpdir,
                                   prefix="v1.0_ctest_")
         cwl_testdir = os.path.join(self.testdir, "../../cwltool/schemas/v1.0")
         ctest_def = os.path.join(cwl_testdir, "conformance_test_v1.0.yaml")
         tool_entry = os.path.join(self.testdir,
                                   "../cwltool-tes")
-        cmd = ["cwltest", "--test", ctest_def, "--basedir", tmpdir,
+        cmd = ["cwltest", "--test", ctest_def, "--basedir", cwltest_tmpdir,
                "--tool", tool_entry, "-n", "1-71,73-87", "-j", "20"]
         cwltest_process = popen(
             cmd,
@@ -29,7 +29,7 @@ class TestConformance(SimpleServerTest):
         cwltest_process.wait()
         ctest_dirs = glob.glob(cwl_testdir + "[a-zA-Z0-9_]*")
         cleanup_tmpdirs(self.tmpdir, ctest_dirs)
-        assert process.returncode == 0
+        assert cwltest_process.returncode == 0
 
 def cleanup_tmpdirs(*args):
     for d in args:
