@@ -41,7 +41,7 @@ def kill(p):
         pass
 
 def temp_config(config):
-    configFile = tempfile.NamedTemporaryFile(delete=False)
+    configFile = tempfile.NamedTemporaryFile(mode='w', delete=False)
     yaml.dump(config, configFile)
     return configFile
 
