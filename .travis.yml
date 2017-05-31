@@ -1,7 +1,5 @@
-sudo: true
+sudo: false
 language: python
-services:
-  - docker
 python:
   - 2.7
     #  - 3.4
@@ -10,20 +8,8 @@ python:
 os:
   - linux
 
-before_install:
-  - git submodule update --init --recursive
 install:
-  # - pip install tox-travis
-  - pip install -r ./cwltool-tes/tests/requirements.txt
-  - pip install -r ./cwltool-tes/requirements.txt
-before_script:
-  - wget https://github.com/ohsu-comp-bio/funnel/releases/download/dev/funnel-linux-amd64.tar.gz -O /tmp/funnel-linux-amd64.tar.gz
-  - tar -zxvf /tmp/funnel-linux-amd64.tar.gz -C /tmp
-  - mv /tmp/funnel-linux-amd64 /tmp/funnel
-  - export PATH=$PATH:/tmp
-  - docker pull python:2.7
-script: 
-  # - tox
-  - nosetests -w ./cwltool-tes/tests
+  - pip install tox-travis
+script: tox
 notifications:
   email: false
