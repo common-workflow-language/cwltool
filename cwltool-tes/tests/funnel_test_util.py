@@ -11,9 +11,6 @@ import unittest
 import yaml
 
 
-WORK_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                        "test_work")
-
 def cmd_exists(program):
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
@@ -43,18 +40,6 @@ def kill(p):
     except OSError:
         pass
 
-
-def get_abspath(path):
-    return os.path.join(os.path.dirname(__file__), path)
-
-
-def which(file):
-    for path in os.environ["PATH"].split(":"):
-        p = os.path.join(path, file)
-        if os.path.exists(p):
-            return p
-
-
 def temp_config(config):
     configFile = tempfile.NamedTemporaryFile(delete=False)
     yaml.dump(config, configFile)
@@ -70,7 +55,10 @@ def config_seconds(sec):
 class SimpleServerTest(unittest.TestCase):
 
     def setUp(self):
+        self.tmpdir = None
+        self.task_server = None
         self.addCleanup(self.cleanup)
+
         if not cmd_exists("funnel"):
             print(
                 "-bash: funnel: command not found\n",
@@ -79,21 +67,23 @@ class SimpleServerTest(unittest.TestCase):
                 file=sys.stdout
             )
             raise RuntimeError
-        self.rootprojectdir = os.path.dirname(os.path.dirname(os.path.dirname(
+
+        rootprojectdir = os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.realpath(__file__)
         )))
-        self.testdir = os.path.join(self.rootprojectdir, "cwltool-tes", "tests")
+
+        self.testdir = os.path.join(rootprojectdir, "cwltool-tes", "tests")
         self.tmpdir = os.path.join(self.testdir, "test_tmp")
         os.environ['TMPDIR'] = self.tmpdir
         if not os.path.exists(self.tmpdir):
             os.mkdir(self.tmpdir)
-        self.task_server = None
+
         f, db_path = tempfile.mkstemp(dir=self.tmpdir, prefix="tes_task_db.")
         os.close(f)
-        self.storage_dir = os.path.abspath(db_path + ".storage")
-        self.funnel_work_dir = os.path.abspath(db_path + ".work-dir")
-        os.mkdir(self.storage_dir)
-        os.mkdir(self.funnel_work_dir)
+        storage_dir = os.path.abspath(db_path + ".storage")
+        funnel_work_dir = os.path.abspath(db_path + ".work-dir")
+        os.mkdir(storage_dir)
+        os.mkdir(funnel_work_dir)
 
         # Build server config file (YAML)
         rate = config_seconds(0.05)
@@ -102,10 +92,10 @@ class SimpleServerTest(unittest.TestCase):
             "HTTPPort": "8000",
             "RPCPort": "9090",
             "DBPath": db_path,
-            "WorkDir": self.funnel_work_dir,
+            "WorkDir": funnel_work_dir,
             "Storage": [{
                 "Local": {
-                    "AllowedDirs": [self.rootprojectdir]
+                    "AllowedDirs": [rootprojectdir]
                 }
             }],
             "LogLevel": "debug",

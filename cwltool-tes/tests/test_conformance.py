@@ -9,9 +9,10 @@ import tempfile
 import time
 import unittest
 
-from funnel_test_util import SimpleServerTest, popen
+from .funnel_test_util import SimpleServerTest, popen, kill
 
 class TestConformance(SimpleServerTest):
+
     def test_conformance(self):
         tmpdir = tempfile.mkdtemp(dir=self.tmpdir,
                                   prefix="v1.0_ctest_")
@@ -20,18 +21,17 @@ class TestConformance(SimpleServerTest):
         tool_entry = os.path.join(self.testdir,
                                   "../cwltool-tes")
         cmd = ["cwltest", "--test", ctest_def, "--basedir", tmpdir,
-               "--tool", tool_entry, "-n", "1-71,73-87", "-j", "86"]
-        process = popen(cmd,
-                        cwd=os.path.join(self.testdir,
-                                         "../../cwltool/schemas/v1.0")
+               "--tool", tool_entry, "-n", "1-71,73-87", "-j", "20"]
+        cwltest_process = popen(
+            cmd,
+            cwd=os.path.join(self.testdir, "../../cwltool/schemas/v1.0")
         )
-        process.wait()
+        cwltest_process.wait()
         ctest_dirs = glob.glob(cwl_testdir + "[a-zA-Z0-9_]*")
-        cleanup(self.tmpdir, ctest_dirs)
+        cleanup_tmpdirs(self.tmpdir, ctest_dirs)
         assert process.returncode == 0
 
-
-def cleanup(*args):
+def cleanup_tmpdirs(*args):
     for d in args:
         if isinstance(d, list):
             for sd in d:
