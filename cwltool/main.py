@@ -30,6 +30,7 @@ from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
 from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
 from .mutation import MutationManager
+from .update import UPDATES, ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
 
@@ -129,6 +130,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--pack", action="store_true", help="Combine components into single document and print.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
+    exgroup.add_argument("--print-supported-versions", action="store_true", help="Print supported CWL specs.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true",
@@ -577,6 +579,14 @@ def versionstring():
     else:
         return u"%s %s" % (sys.argv[0], "unknown version")
 
+def supportedCWLversions(enable_dev):
+    # type: (bool) -> List[Text]
+    if enable_dev:
+        versions = ALLUPDATES.keys()
+    else:
+        versions = UPDATES.keys()
+    versions.sort()
+    return versions
 
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
@@ -651,6 +661,10 @@ def main(argsl=None,  # type: List[str]
             return 0
         else:
             _logger.info(versionfunc())
+
+        if args.print_supported_versions:
+            print("\n".join(supportedCWLversions(args.enable_dev)))
+            return 0
 
         if not args.workflow:
             if os.path.isfile("CWLFile"):
