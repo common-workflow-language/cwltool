@@ -40,8 +40,8 @@ def kill(p):
     except OSError:
         pass
 
-def temp_config(config):
-    configFile = tempfile.NamedTemporaryFile(mode='w', delete=False)
+def temp_config(dir, config):
+    configFile = tempfile.NamedTemporaryFile(dir=dir, mode='w', delete=False)
     yaml.dump(config, configFile)
     return configFile
 
@@ -80,14 +80,20 @@ class SimpleServerTest(unittest.TestCase):
 
         f, db_path = tempfile.mkstemp(dir=self.tmpdir, prefix="tes_task_db.")
         os.close(f)
-        storage_dir = os.path.abspath(db_path + ".storage")
         funnel_work_dir = os.path.abspath(db_path + ".work-dir")
-        os.mkdir(storage_dir)
         os.mkdir(funnel_work_dir)
 
         # Build server config file (YAML)
         rate = config_seconds(0.05)
-        configFile = temp_config({
+        slogFile = tempfile.NamedTemporaryFile(dir=self.tmpdir,
+                                              prefix="funnel_server_log.",
+                                              mode="w",
+                                              delete=False).name
+        wlogFile = tempfile.NamedTemporaryFile(dir=self.tmpdir,
+                                              prefix="funnel_worker_log.",
+                                              mode="w",
+                                              delete=False).name
+        configFile = temp_config(dir=self.tmpdir, config={
             "HostName": "localhost",
             "HTTPPort": "8000",
             "RPCPort": "9090",
@@ -98,14 +104,17 @@ class SimpleServerTest(unittest.TestCase):
                     "AllowedDirs": [rootprojectdir]
                 }
             }],
-            "LogLevel": "debug",
+            "LogLevel": "info",
+            "LogPath": slogFile,
             "Worker": {
                 "Timeout": -1,
                 "StatusPollRate": rate,
                 "LogUpdateRate": rate,
                 "NewJobPollRate": rate,
                 "UpdateRate": rate,
-                "TrackerRate": rate
+                "TrackerRate": rate,
+                "LogLevel": "info",
+                "LogPath": wlogFile,
             },
             "ScheduleRate": rate,
         })
