@@ -30,7 +30,7 @@ from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
 from .resolver import tool_resolver, ga4gh_tool_registries
 from .stdfsaccess import StdFsAccess
 from .mutation import MutationManager
-from .update import ALLUPDATES
+from .update import UPDATES, ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
 
@@ -579,9 +579,12 @@ def versionstring():
     else:
         return u"%s %s" % (sys.argv[0], "unknown version")
 
-def supportedCWLversions():
-    # type: () -> List[Text]
-    versions = ALLUPDATES.keys()
+def supportedCWLversions(enable_dev):
+    # type: (bool) -> List[Text]
+    if enable_dev:
+        versions = ALLUPDATES.keys()
+    else:
+        versions = UPDATES.keys()
     versions.sort()
     return versions
 
@@ -660,7 +663,7 @@ def main(argsl=None,  # type: List[str]
             _logger.info(versionfunc())
 
         if args.print_supported_versions:
-            print("\n".join(supportedCWLversions()))
+            print("\n".join(supportedCWLversions(args.enable_dev)))
             return 0
 
         if not args.workflow:
