@@ -580,6 +580,7 @@ def versionstring():
         return u"%s %s" % (sys.argv[0], "unknown version")
 
 def supportedCWLversions():
+    # type: () -> List[Text]
     versions = ALLUPDATES.keys()
     versions.sort()
     return versions
