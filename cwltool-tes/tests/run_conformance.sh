@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 BDIR="$(cd `dirname $0`; pwd)"
 
@@ -8,6 +8,6 @@ fi
 
 pushd $BDIR/../../cwltool/schemas
 ./run_test.sh $TEST RUNNER=$BDIR/../cwltool-tes DRAFT=v1.0
-## cleanup tmpdir from execution
+## cleanup tmp dirs from execution
 rm -rf v1.0[0-9a-zA-Z_]*
 popd

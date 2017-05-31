@@ -36,13 +36,14 @@ class TESService:
         self.addr = addr
 
     def submit(self, task):
-        r = requests.post('%s/v1/tasks' % (self.addr), json=task)
+        r = requests.post(url='%s/v1/tasks' % (self.addr), json=task)
         r.raise_for_status()
         data = r.json()
         return data['id']
 
     def get_job(self, task_id):
-        r = requests.get('%s/v1/tasks/%s?view=MINIMAL' % (self.addr, task_id))
+        r = requests.get(url='%s/v1/tasks/%s' % (self.addr, task_id),
+                         params={'view': 'MINIMAL'})
         r.raise_for_status()
         return r.json()
 
