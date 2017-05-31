@@ -23,7 +23,7 @@ before_script:
   - export PATH=$PATH:/tmp
   - docker pull python:2.7
 script: 
-  #- tox
+  # - tox
   - nosetests -w ./cwltool-tes/tests
 notifications:
   email: false

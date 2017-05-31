@@ -8,11 +8,12 @@ log = logging.getLogger('tes-backend')
 
 class PollThread(threading.Thread):
 
-    def __init__(self, operation, poll_interval=1):
+    def __init__(self, operation, poll_interval=1, poll_retries=10):
         super(PollThread, self).__init__()
         self.name = "NA"
         self.operation = operation
         self.poll_interval = poll_interval
+        self.poll_retries = poll_retries
 
     def poll(self):
         raise Exception('PollThread.poll() not implemented')
@@ -33,7 +34,15 @@ class PollThread(threading.Thread):
                 '[job %s] POLLING %s' %
                 (self.name, pformat(self.operation.get('id', "NA")))
             )
-
-            self.operation = self.poll()
+            try:
+                self.operation = self.poll()
+            except Exception as e:
+                log.debug('[job %s] POLLING ERROR %s' % (self.name, e))
+                if self.poll_retries > 0:
+                    self.poll_retries -= 1
+                    continue
+                else:
+                    log.debug('[job %s] MAX POLLING RETRIES EXCEEDED' % (self.name))
+                    break
 
         self.complete(self.operation)

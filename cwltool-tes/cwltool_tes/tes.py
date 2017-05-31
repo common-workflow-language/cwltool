@@ -37,13 +37,13 @@ class TESService:
 
     def submit(self, task):
         r = requests.post('%s/v1/tasks' % (self.addr), json=task)
+        r.raise_for_status()
         data = r.json()
-        if 'Error' in data:
-            raise Exception('Request Error: %s' % (data['Error']))
         return data['id']
 
     def get_job(self, task_id):
         r = requests.get('%s/v1/tasks/%s?view=MINIMAL' % (self.addr, task_id))
+        r.raise_for_status()
         return r.json()
 
 
@@ -190,7 +190,6 @@ class TESPipelineJob(PipelineJob):
         cpus = None
         ram = None
         disk = None
-        # reqs = self.spec.get('requirements', []) + self.spec.get('hints', [])
         for i in self.requirements:
             if i.get('class', 'NA') == 'ResourceRequirement':
                 cpus = i.get('coresMin', i.get('coresMax', None))
@@ -239,7 +238,7 @@ class TESPipelineJob(PipelineJob):
     def run(self, pull_image=True, rm_container=True, rm_tmpdir=True,
             move_outputs='move', **kwargs):
         # useful for debugging
-        # log.debug('[job %s] DIR JOB ----------------------' % (self.name))
+        # log.debug('[job %s] self.__dict__ from run() ----------------------' % (self.name))
         # log.debug(pformat(self.__dict__))
 
         task = self.create_task()
@@ -247,11 +246,14 @@ class TESPipelineJob(PipelineJob):
         log.debug('[job %s] CREATED TASK MSG----------------------' % (self.name))
         log.debug(pformat(task))
 
-        task_id = self.pipeline.service.submit(task)
-        log.debug('[job %s] SUBMITTED TASK ----------------------' % (self.name))
-        log.debug('[job %s] task id: %s ' % (self.name, task_id))
-
-        operation = self.pipeline.service.get_job(task_id)
+        try:
+            task_id = self.pipeline.service.submit(task)
+            log.debug('[job %s] SUBMITTED TASK ----------------------' % (self.name))
+            log.debug('[job %s] task id: %s ' % (self.name, task_id))
+            operation = self.pipeline.service.get_job(task_id)
+        except Exception as e:
+            log.error(u"[job %s] Failed to submit task to TES service:\n%s" % (self.name, e))
+            return WorkflowException(e)
 
         def callback(operation):
             try:
@@ -264,8 +266,9 @@ class TESPipelineJob(PipelineJob):
                 log.exception("Exception while running job")
                 self.output_callback({}, 'permanentFail')
             finally:
-                log.debug('[job %s] OUTPUTS ------------------' % (self.name))
-                log.debug(pformat(self.outputs))
+                if self.outputs is not None:
+                    log.debug('[job %s] OUTPUTS ------------------' % (self.name))
+                    log.debug(pformat(self.outputs))
                 self.cleanup(rm_tmpdir)
 
         poll = TESPipelinePoll(
@@ -312,10 +315,12 @@ class TESPipelinePoll(PollThread):
 
     def is_done(self, operation):
         terminal_states = ['COMPLETE', 'CANCELED', 'ERROR', 'SYSTEM_ERROR']
-        if operation['state'] in terminal_states:
-            log.debug('[job %s] JOB %s ------------------' %
-                      (self.name, operation['state']))
-            return True
+        if 'state' in operation:
+            if operation['state'] in terminal_states:
+                log.debug('[job %s] JOB %s ------------------' %
+                          (self.name, operation['state'])
+                )
+                return True
         return False
 
     def complete(self, operation):
