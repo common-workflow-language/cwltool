@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
