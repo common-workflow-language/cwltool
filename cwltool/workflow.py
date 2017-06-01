@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import functools
 import json
@@ -16,6 +17,8 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename
 from .utils import aslist
+import six
+from six.moves import range
 
 _logger = logging.getLogger("cwltool")
 
@@ -176,7 +179,7 @@ def _compare_records(src, sink, strict=False):
 
     srcfields = _rec_fields(src)
     sinkfields = _rec_fields(sink)
-    for key in sinkfields.iterkeys():
+    for key in six.iterkeys(sinkfields):
         if (not can_assign_src_to_sink(
                 srcfields.get(key, "null"), sinkfields.get(key, "null"), strict)
             and sinkfields.get(key) is not None):
@@ -352,11 +355,11 @@ class WorkflowJob(object):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
-            vfinputs = {shortname(k): v for k, v in inputobj.iteritems()}
+            vfinputs = {shortname(k): v for k, v in six.iteritems(inputobj)}
 
             def postScatterEval(io):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
-                shortio = {shortname(k): v for k, v in io.iteritems()}
+                shortio = {shortname(k): v for k, v in six.iteritems(io)}
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
@@ -672,11 +675,11 @@ class WorkflowStep(Process):
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for n, step_entry in enumerate(toolpath_object[stepfield]):
-                if isinstance(step_entry, (str, unicode)):
+                if isinstance(step_entry, (str, six.text_type)):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:
-                    param = CommentedMap(step_entry.iteritems())
+                    param = CommentedMap(six.iteritems(step_entry))
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)
@@ -754,7 +757,7 @@ class WorkflowStep(Process):
             else:
                 nesting = 1
 
-            for r in xrange(0, nesting):
+            for r in range(0, nesting):
                 for op in outputparms:
                     op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
@@ -834,7 +837,7 @@ class ReceiveScatterOutput(object):
 def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
-        for index in xrange(len(steps)):
+        for index in range(len(steps)):
             step = steps[index]
             if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
                 break

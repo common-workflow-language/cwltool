@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import json
 import re
@@ -11,6 +12,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader
 
 from .utils import aslist
+import six
 
 
 def findId(doc, frg):  # type: (Any, Any) -> Dict
@@ -146,7 +148,7 @@ def _updateDev2Script(ent):  # type: (Any) -> Any
 def _draftDraft3dev1toDev2(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Any
     doc = _updateDev2Script(doc)
-    if isinstance(doc, basestring):
+    if isinstance(doc, six.string_types):
         return doc
 
     # Convert expressions
@@ -537,7 +539,7 @@ def checkversion(doc, metadata, enable_dev):
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(
-                        UPDATES.keys())))
+                        list(UPDATES.keys()))))
         else:
             raise schema_salad.validate.ValidationException(
                 u"Unrecognized version %s" % version)
