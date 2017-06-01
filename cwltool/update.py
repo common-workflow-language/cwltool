@@ -3,17 +3,16 @@ import copy
 import json
 import re
 import traceback
-import urlparse
 from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import
                     Tuple, Union)
 
+import six
+from six.moves import urllib
 import schema_salad.validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader
 
 from .utils import aslist
-import six
-
 
 def findId(doc, frg):  # type: (Any, Any) -> Dict
     if isinstance(doc, dict):
@@ -51,7 +50,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
     try:
         if isinstance(doc, dict):
             if "import" in doc:
-                imp = urlparse.urljoin(baseuri, doc["import"])
+                imp = urllib.parse.urljoin(baseuri, doc["import"])
                 impLoaded = loader.fetch(imp)
                 r = None  # type: Dict[Text, Any]
                 if isinstance(impLoaded, list):
@@ -61,14 +60,14 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
                 else:
                     raise Exception("Unexpected code path.")
                 r["id"] = imp
-                _, frag = urlparse.urldefrag(imp)
+                _, frag = urllib.parse.urldefrag(imp)
                 if frag:
                     frag = "#" + frag
                     r = findId(r, frag)
                 return _draft2toDraft3dev1(r, loader, imp)
 
             if "include" in doc:
-                return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
+                return loader.fetch_text(urllib.parse.urljoin(baseuri, doc["include"]))
 
             for typename in ("type", "items"):
                 if typename in doc:
@@ -206,7 +205,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                 if doc["@import"][0] == "#":
                     return doc["@import"]
                 else:
-                    imp = urlparse.urljoin(baseuri, doc["@import"])
+                    imp = urllib.parse.urljoin(baseuri, doc["@import"])
                     impLoaded = loader.fetch(imp)
                     r = {}  # type: Dict[Text, Any]
                     if isinstance(impLoaded, list):
@@ -216,14 +215,14 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     else:
                         raise Exception("Unexpected code path.")
                     r["id"] = imp
-                    frag = urlparse.urldefrag(imp)[1]
+                    frag = urllib.parse.urldefrag(imp)[1]
                     if frag:
                         frag = "#" + frag
                         r = findId(r, frag)
                     return _draftDraft3dev2toDev3(r, loader, imp)
 
             if "@include" in doc:
-                return loader.fetch_text(urlparse.urljoin(baseuri, doc["@include"]))
+                return loader.fetch_text(urllib.parse.urljoin(baseuri, doc["@include"]))
 
             for a in doc:
                 doc[a] = _draftDraft3dev2toDev3(doc[a], loader, baseuri)
@@ -254,7 +253,7 @@ def traverseImport(doc, loader, baseuri, func):
         if doc["$import"][0] == "#":
             return doc["$import"]
         else:
-            imp = urlparse.urljoin(baseuri, doc["$import"])
+            imp = urllib.parse.urljoin(baseuri, doc["$import"])
             impLoaded = loader.fetch(imp)
             r = {}  # type: Dict[Text, Any]
             if isinstance(impLoaded, list):
@@ -264,7 +263,7 @@ def traverseImport(doc, loader, baseuri, func):
             else:
                 raise Exception("Unexpected code path.")
             r["id"] = imp
-            _, frag = urlparse.urldefrag(imp)
+            _, frag = urllib.parse.urldefrag(imp)
             if frag:
                 frag = "#" + frag
                 r = findId(r, frag)
@@ -351,7 +350,7 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
             def fixup(f):  # type: (Text) -> Text
-                doc, frg = urlparse.urldefrag(f)
+                doc, frg = urllib.parse.urldefrag(f)
                 frg = '/'.join(frg.rsplit('.', 1))
                 return doc + "#" + frg
 
