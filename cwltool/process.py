@@ -36,6 +36,10 @@ from .utils import aslist, get_feature
 import six
 from six.moves import urllib
 
+if six.PY3:
+    AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+else:
+    AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
@@ -446,7 +450,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i
-            avro.schema.make_avsc_object(av, self.names)
+            AvroSchemaFromJSONData(av, self.names)
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -477,7 +481,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         try:
             self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
+            AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
@@ -485,7 +489,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         try:
             self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],

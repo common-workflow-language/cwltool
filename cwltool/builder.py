@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import copy
 from typing import Any, Callable, Text, Type, Union
 
+import six
 from six import iteritems, string_types
 
 import avro
@@ -15,6 +16,11 @@ from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
+
+if six.PY3:
+    AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+else:
+    AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -77,7 +83,7 @@ class Builder(object):
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
                 else:
-                    avsc = avro.schema.make_avsc_object(t, self.names)
+                    avsc = AvroSchemaFromJSONData(t, self.names)
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
