@@ -10,7 +10,6 @@ import os
 import shutil
 import stat
 import tempfile
-import urlparse
 import uuid
 from collections import Iterable
 from typing import (Any, AnyStr, Callable, Dict, Generator, List, Text, Tuple,
@@ -33,7 +32,9 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
+
 import six
+from six.moves import urllib
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -158,7 +159,7 @@ def get_schema(version):
 
 def shortname(inputid):
     # type: (Text) -> Text
-    d = urlparse.urlparse(inputid)
+    d = urllib.parse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
     else:
@@ -738,14 +739,14 @@ def mergedirs(listing):
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
+def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
-                df, _ = urlparse.urldefrag(doc["id"])
+                df, _ = urllib.parse.urldefrag(doc["id"])
                 if base != df:
                     r.append({
                         "class": "File",
