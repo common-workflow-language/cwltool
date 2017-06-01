@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import errno
 import json
 import logging
@@ -10,6 +11,7 @@ from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 
 from pkg_resources import resource_stream
 
+import six
 
 class JavascriptException(Exception):
     pass
@@ -122,7 +124,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     nodejs = localdata.proc
 
     fn = u"\"use strict\";\n%s\n(function()%s)()" %\
-         (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
+         (jslib, js if isinstance(js, six.string_types) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
 

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import hashlib
 import json
@@ -28,6 +29,7 @@ from .process import (Process, UnsupportedRequirement,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
+from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -214,7 +216,7 @@ class CommandLineTool(Process):
             visit_class([cachebuilder.files, cachebuilder.bindings],
                        ("File", "Directory"), _check_adjust)
 
-            cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
+            cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
@@ -429,7 +431,7 @@ class CommandLineTool(Process):
                 cmd.extend(aslist(arg))
             j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
         else:
-            j.command_line = flatten(map(builder.generate_arg, builder.bindings))
+            j.command_line = flatten(list(map(builder.generate_arg, builder.bindings)))
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
