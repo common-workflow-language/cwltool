@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 import logging
 import os
-import urllib
+
+from six.moves import urllib
 
 from schema_salad.ref_resolver import file_uri
 
@@ -41,7 +42,7 @@ def resolve_ga4gh_tool(document_loader, uri):
     if not version:
         version = "latest"
     for reg in ga4gh_tool_registries:
-        ds = "{0}/api/ga4gh/v1/tools/{1}/versions/{2}/plain-CWL/descriptor".format(reg, urllib.quote(path, ""), urllib.quote(version, ""))
+        ds = "{0}/api/ga4gh/v1/tools/{1}/versions/{2}/plain-CWL/descriptor".format(reg, urllib.parse.quote(path, ""), urllib.parse.quote(version, ""))
         try:
             resp = document_loader.session.head(ds)
             resp.raise_for_status()
