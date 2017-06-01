@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import abc
 import copy
 import errno
@@ -32,6 +33,7 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
+import six
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -385,9 +387,7 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class Process(object):
-    __metaclass__ = abc.ABCMeta
-
+class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
@@ -473,7 +473,7 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
+            self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
             avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
@@ -481,7 +481,7 @@ class Process(object):
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
@@ -731,10 +731,10 @@ def mergedirs(listing):
             ents[e["basename"]] = e
         elif e["class"] == "Directory" and e.get("listing"):
             ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-    for e in ents.itervalues():
+    for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(ents.itervalues())
+    r.extend(six.itervalues(ents))
     return r
 
 
@@ -772,7 +772,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin)
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in doc.iteritems():
+        for k, v in six.iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):

@@ -1,14 +1,16 @@
+from __future__ import absolute_import
 import glob
 import os
 import urllib
 from typing import BinaryIO, Text
 
+import six
 from schema_salad.ref_resolver import file_uri, uri_file_path
 
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
-        ab = unicode(uri_file_path(str(src)))
+        ab = six.text_type(uri_file_path(str(src)))
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab

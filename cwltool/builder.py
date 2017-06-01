@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 from typing import Any, Callable, Text, Type, Union
 
