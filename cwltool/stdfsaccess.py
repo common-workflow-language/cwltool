@@ -1,9 +1,10 @@
 import glob
 import os
 import urllib
+from typing import BinaryIO, Text
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
-from typing import BinaryIO, Text
+
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):

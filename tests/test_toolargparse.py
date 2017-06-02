@@ -2,7 +2,9 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 from cwltool.main import main
+
 from .util import get_data
+
 
 class ToolArgparse(unittest.TestCase):
     script = '''

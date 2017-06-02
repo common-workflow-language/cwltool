@@ -6,9 +6,9 @@ import select
 import subprocess
 import threading
 from io import BytesIO
+from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 
 from pkg_resources import resource_stream
-from typing import Any, Dict, List, Mapping, Text, Union, Tuple
 
 
 class JavascriptException(Exception):

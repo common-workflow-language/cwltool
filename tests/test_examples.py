@@ -6,9 +6,10 @@ import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
 import schema_salad.validate
+from cwltool.main import main
 
 from .util import get_data
-from cwltool.main import main
+
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
