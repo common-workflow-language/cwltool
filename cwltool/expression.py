@@ -2,8 +2,8 @@ import copy
 import json
 import logging
 import re
+from typing import Any, AnyStr, Dict, List, Text, Union
 
-from typing import Any, AnyStr, Union, Text, Dict, List
 from six import u
 
 from . import sandboxjs

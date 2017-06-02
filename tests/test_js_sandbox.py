@@ -1,8 +1,10 @@
 import unittest
-from mock import Mock, patch
 
 # we should modify the subprocess imported from cwltool.sandboxjs
-from cwltool.sandboxjs import check_js_threshold_version, subprocess, minimum_node_version_str
+from cwltool.sandboxjs import (check_js_threshold_version,
+                               minimum_node_version_str, subprocess)
+from mock import Mock, patch
+
 
 class Javascript_Sanity_Checks(unittest.TestCase):
 

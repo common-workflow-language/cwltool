@@ -3,7 +3,6 @@ import unittest
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
-
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.workflow import defaultMakeTool

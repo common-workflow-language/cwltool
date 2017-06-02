@@ -1,6 +1,5 @@
 from collections import namedtuple
-
-from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
+from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
 
 from .errors import WorkflowException
 

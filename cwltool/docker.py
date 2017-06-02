@@ -4,9 +4,9 @@ import re
 import subprocess
 import sys
 import tempfile
+from typing import Text
 
 import requests
-from typing import Text
 
 from .errors import WorkflowException
 

@@ -5,14 +5,13 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
 
 import schema_salad.validate as validate
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
-from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
 
-from . import draft2tool
-from . import expression
+from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename

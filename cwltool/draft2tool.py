@@ -6,24 +6,26 @@ import os
 import re
 import shutil
 import tempfile
-from six.moves import urllib
-from six import string_types, u
 from functools import partial
+from typing import Any, Callable, Dict, Generator, Optional, Text, Union, cast
+
+from six import string_types, u
 
 import schema_salad.validate as validate
 import shellescape
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, indent
-from typing import Any, Callable, cast, Generator, Optional, Text, Union, Dict
+from six.moves import urllib
 
-from .builder import CONTENT_LIMIT, substitute, Builder
-from .pathmapper import adjustFileObjs, adjustDirObjs, visit_class
+from .builder import CONTENT_LIMIT, Builder, substitute
 from .errors import WorkflowException
-from .job import JobBase, CommandLineJob, DockerCommandLineJob
-from .pathmapper import PathMapper, get_listing, trim_listing
-from .process import (Process, shortname, uniquename, normalizeFilesDirs,
-                      compute_checksums, _logger_validation_warnings,
-                      UnsupportedRequirement)
+from .flatten import flatten
+from .job import CommandLineJob, DockerCommandLineJob, JobBase
+from .pathmapper import (PathMapper, adjustDirObjs, adjustFileObjs,
+                         get_listing, trim_listing, visit_class)
+from .process import (Process, UnsupportedRequirement,
+                      _logger_validation_warnings, compute_checksums,
+                      normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
@@ -31,7 +33,6 @@ ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 
-from .flatten import flatten
 
 _logger = logging.getLogger("cwltool")
 

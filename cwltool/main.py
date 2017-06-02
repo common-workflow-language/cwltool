@@ -8,29 +8,31 @@ import logging
 import os
 import sys
 import tempfile
+from typing import (IO, Any, AnyStr, Callable, Dict, Sequence, Text, Tuple,
+                    Union, cast)
 
 import pkg_resources  # part of setuptools
 import requests
+
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
-from schema_salad.ref_resolver import Loader, Fetcher, file_uri, uri_file_path
+from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
-                    Tuple, IO)
 
-from . import draft2tool
-from . import workflow
-from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing, visit_class
-from .cwlrdf import printrdf, printdot
-from .errors import WorkflowException, UnsupportedRequirement
-from .load_tool import fetch_document, validate_document, make_tool
-from .pack import pack
-from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
-                      scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
-from .resolver import tool_resolver, ga4gh_tool_registries
-from .stdfsaccess import StdFsAccess
+from . import draft2tool, workflow
+from .cwlrdf import printdot, printrdf
+from .errors import UnsupportedRequirement, WorkflowException
+from .load_tool import fetch_document, make_tool, validate_document
 from .mutation import MutationManager
-from .update import UPDATES, ALLUPDATES
+from .pack import pack
+from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
+                         trim_listing, visit_class)
+from .process import (Process, cleanIntermediate, normalizeFilesDirs,
+                      relocateOutputs, scandeps, shortname, use_custom_schema,
+                      use_standard_schema)
+from .resolver import ga4gh_tool_registries, tool_resolver
+from .stdfsaccess import StdFsAccess
+from .update import ALLUPDATES, UPDATES
 
 _logger = logging.getLogger("cwltool")
 

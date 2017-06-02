@@ -1,15 +1,17 @@
-import unittest
-import tempfile
 import os
 import shutil
+import tempfile
+import unittest
 
 import cwltool.expression as expr
 import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-from .util import get_data
 from cwltool.main import main
+
+from .util import get_data
+
 
 class TestListing(unittest.TestCase):
     def test_missing_enable_ext(self):
