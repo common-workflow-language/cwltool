@@ -344,7 +344,8 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 def checkFormat(actualFile, inputFormats, ontology):
     # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
     for af in aslist(actualFile):
-        if not af: continue
+        if not af:
+            continue
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
