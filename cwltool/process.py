@@ -551,7 +551,7 @@ class Process(object):
         if self.formatgraph:
             for i in self.tool["inputs"]:
                 d = shortname(i["id"])
-                if d in builder.job and i.get("format"):
+                if d in builder.job and i.get("format") and builder.job[d]:
                     checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
