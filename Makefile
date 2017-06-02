@@ -26,7 +26,7 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257 flake8 pytest
+DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257 flake8 pytest isort
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pep257 sloccount python-flake8
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
@@ -64,6 +64,11 @@ clean: FORCE
 	./setup.py clean --all || true
 	rm -Rf .coverage
 	rm -f diff-cover.html
+
+# Linting and code style related targets
+## sorting imports using isort: https://github.com/timothycrosley/isort
+sort_imports:
+	isort ${MODULE}/*.py tests/*.py setup.py
 
 ## pep8        : check Python code style
 pep8: $(PYSOURCES)

@@ -4,14 +4,14 @@ import os
 import stat
 import uuid
 from functools import partial
+from typing import Any, Callable, Iterable, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, Set, Text, Tuple, Union, Iterable
 from six.moves import urllib
 
-from .stdfsaccess import abspath, StdFsAccess
+from .stdfsaccess import StdFsAccess, abspath
 
 _logger = logging.getLogger("cwltool")
 
@@ -221,7 +221,7 @@ class PathMapper(object):
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
-            self.visit(fob, stagedir, basedir, staged=True)
+            self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
 
     def mapper(self, src):  # type: (Text) -> MapperEnt
         if u"#" in src:

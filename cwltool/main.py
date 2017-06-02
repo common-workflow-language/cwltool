@@ -8,27 +8,31 @@ import logging
 import os
 import sys
 import tempfile
+from typing import (IO, Any, AnyStr, Callable, Dict, Sequence, Text, Tuple,
+                    Union, cast)
 
 import pkg_resources  # part of setuptools
 import requests
+
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
-from schema_salad.ref_resolver import Loader, Fetcher, file_uri, uri_file_path
+from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-from typing import (Union, Any, AnyStr, cast, Callable, Dict, Sequence, Text,
-                    Tuple, IO)
 
-from . import draft2tool
-from . import workflow
-from .pathmapper import adjustDirObjs, get_listing, adjustFileObjs, trim_listing, visit_class
-from .cwlrdf import printrdf, printdot
-from .errors import WorkflowException, UnsupportedRequirement
-from .load_tool import fetch_document, validate_document, make_tool
+from . import draft2tool, workflow
+from .cwlrdf import printdot, printrdf
+from .errors import UnsupportedRequirement, WorkflowException
+from .load_tool import fetch_document, make_tool, validate_document
+from .mutation import MutationManager
 from .pack import pack
-from .process import (shortname, Process, relocateOutputs, cleanIntermediate,
-                      scandeps, normalizeFilesDirs, use_custom_schema, use_standard_schema)
-from .resolver import tool_resolver, ga4gh_tool_registries
+from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
+                         trim_listing, visit_class)
+from .process import (Process, cleanIntermediate, normalizeFilesDirs,
+                      relocateOutputs, scandeps, shortname, use_custom_schema,
+                      use_standard_schema)
+from .resolver import ga4gh_tool_registries, tool_resolver
 from .stdfsaccess import StdFsAccess
+from .update import ALLUPDATES, UPDATES
 
 _logger = logging.getLogger("cwltool")
 
@@ -128,6 +132,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--pack", action="store_true", help="Combine components into single document and print.")
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
+    exgroup.add_argument("--print-supported-versions", action="store_true", help="Print supported CWL specs.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true",
@@ -213,10 +218,11 @@ def single_job_executor(t,  # type: Process
         raise WorkflowException("Must provide 'basedir' in kwargs")
 
     output_dirs = set()
-    finaloutdir = kwargs.get("outdir")
+    finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
+    kwargs["mutation_manager"] = MutationManager()
 
     jobReqs = None
     if "cwl:requirements" in job_order_object:
@@ -226,6 +232,12 @@ def single_job_executor(t,  # type: Process
     if jobReqs:
         for req in jobReqs:
             t.requirements.append(req)
+
+    if kwargs.get("default_container"):
+        t.requirements.insert(0, {
+            "class": "DockerRequirement",
+            "dockerPull": kwargs["default_container"]
+        })
 
     jobiter = t.job(job_order_object,
                     output_callback,
@@ -423,7 +435,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.round_trip_load(stdin) # type: ignore
+        job_order_object = yaml.round_trip_load(stdin)  # type: ignore
         job_order_object, _ = loader.resolve_all(job_order_object, file_uri(os.getcwd()) + "/")
     else:
         job_order_file = None
@@ -569,6 +581,14 @@ def versionstring():
     else:
         return u"%s %s" % (sys.argv[0], "unknown version")
 
+def supportedCWLversions(enable_dev):
+    # type: (bool) -> List[Text]
+    if enable_dev:
+        versions = ALLUPDATES.keys()
+    else:
+        versions = UPDATES.keys()
+    versions.sort()
+    return versions
 
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
@@ -644,6 +664,10 @@ def main(argsl=None,  # type: List[str]
         else:
             _logger.info(versionfunc())
 
+        if args.print_supported_versions:
+            print("\n".join(supportedCWLversions(args.enable_dev)))
+            return 0
+
         if not args.workflow:
             if os.path.isfile("CWLFile"):
                 setattr(args, "workflow", "CWLFile")
@@ -683,9 +707,6 @@ def main(argsl=None,  # type: List[str]
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor)
 
-            if args.validate:
-                return 0
-
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
@@ -696,6 +717,9 @@ def main(argsl=None,  # type: List[str]
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
                              makeTool, vars(args))
+
+            if args.validate:
+                return 0
 
             if args.print_rdf:
                 printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)

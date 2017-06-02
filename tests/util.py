@@ -1,5 +1,8 @@
-from pkg_resources import Requirement, resource_filename, ResolutionError  # type: ignore
 import os
+
+from pkg_resources import (Requirement, ResolutionError,  # type: ignore
+                           resource_filename)
+
 
 def get_data(filename):
     filepath = None

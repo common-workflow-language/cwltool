@@ -5,20 +5,20 @@ import logging
 import os
 import re
 import uuid
+from typing import Any, Callable, Dict, Text, Tuple, Union, cast
 
 import requests.sessions
-import schema_salad.schema as schema
-from avro.schema import Names
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
-from schema_salad.ref_resolver import Loader, Fetcher, file_uri
-from schema_salad.sourceline import cmap
-from schema_salad.validate import ValidationException
-from typing import Any, Callable, cast, Dict, Text, Tuple, Union
-from six.moves import urllib
 from six import itervalues, string_types
 
-from . import process
-from . import update
+import schema_salad.schema as schema
+from avro.schema import Names
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad.ref_resolver import Fetcher, Loader, file_uri
+from schema_salad.sourceline import cmap
+from schema_salad.validate import ValidationException
+from six.moves import urllib
+
+from . import process, update
 from .errors import WorkflowException
 from .process import Process, shortname
 
