@@ -65,6 +65,12 @@ clean: FORCE
 	rm -Rf .coverage
 	rm -f diff-cover.html
 
+# Linting and code style related targets
+## sorting imports using isort: https://github.com/timothycrosley/isort
+sort_imports:
+	pip install isort
+	isort ${MODULE}/*.py tests/*.py setup.py
+
 ## pep8        : check Python code style
 pep8: $(PYSOURCES)
 	pep8 --exclude=_version.py  --show-source --show-pep8 $^ || true
