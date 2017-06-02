@@ -59,7 +59,7 @@ class ExpressionTool(Process):
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
             except Exception as e:
-                _logger.warn(u"Failed to evaluate expression:\n%s",
+                _logger.warning(u"Failed to evaluate expression:\n%s",
                              e, exc_info=kwargs.get('debug'))
                 self.output_callback({}, "permanentFail")
 
@@ -517,7 +517,7 @@ class CommandLineTool(Process):
                                        "class": "File" if fs_access.isfile(g) else "Directory"}
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
-                            _logger.warn(Text(e))
+                            _logger.warning(Text(e))
                         except:
                             _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise
