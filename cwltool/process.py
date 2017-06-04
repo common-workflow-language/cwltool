@@ -820,7 +820,7 @@ def compute_checksums(fs_access, fileobj):
         checksum = hashlib.sha1()
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
-            while contents != "":
+            while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
             f.seek(0, 2)
