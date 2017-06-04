@@ -74,7 +74,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
                 return True
         return False
     elif linkMerge:
-        if not can_assign_src_to_sink(src.parameter["type"], sinktype, strict = True):
+        if not can_assign_src_to_sink(src.parameter["type"], sinktype, strict=True):
             return False
         if iid not in inputobj:
             inputobj[iid] = []
