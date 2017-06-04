@@ -40,7 +40,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
     workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, string_types):
         split = urllib.parse.urlsplit(argsworkflow)
-        if split.scheme:
+        if split.scheme and split.scheme in [u'http',u'https',u'file']:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
             uri = file_uri(str(os.path.abspath(argsworkflow)))
