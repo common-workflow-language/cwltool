@@ -539,7 +539,7 @@ class CommandLineTool(Process):
                                 files["contents"] = contents
                             if compute_checksum:
                                 checksum = hashlib.sha1()
-                                while contents != "":
+                                while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()
