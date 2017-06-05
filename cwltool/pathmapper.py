@@ -168,11 +168,13 @@ class PathMapper(object):
 
     """
 
-    def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
+    def __init__(self, referenced_files, basedir, stagedir, separateDirs=True,
+                 eliminate_symlinks=True):
         # type: (List[Any], Text, Text, bool) -> None
         self._pathmap = {}  # type: Dict[Text, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
+        self.eliminate_symlinks = eliminate_symlinks
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(self, listing, stagedir, basedir, copy=False, staged=False):
@@ -201,14 +203,15 @@ class PathMapper(object):
                 self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile", staged)
             else:
                 with SourceLine(obj, "location", validate.ValidationException):
-                    # Dereference symbolic links
                     deref = ab
-                    st = os.lstat(deref)
-                    while stat.S_ISLNK(st.st_mode):
-                        rl = os.readlink(deref)
-                        deref = rl if os.path.isabs(rl) else os.path.join(
-                            os.path.dirname(deref), rl)
+                    # Dereference symbolic links
+                    if self.eliminate_symlinks:
                         st = os.lstat(deref)
+                        while stat.S_ISLNK(st.st_mode):
+                            rl = os.readlink(deref)
+                            deref = rl if os.path.isabs(rl) else os.path.join(
+                                os.path.dirname(deref), rl)
+                            st = os.lstat(deref)
                     self._pathmap[path] = MapperEnt(deref, tgt, "WritableFile" if copy else "File", staged)
                     self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy, staged=staged)
 
