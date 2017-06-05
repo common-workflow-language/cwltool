@@ -1,0 +1,124 @@
+~/Projects/cwltool/cwltool-tes/common-workflow-language ~/Projects/cwltool/cwltool-tes
+--- Running conformance test v1.0 on /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes ---
+/Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes 1.0.20170516234254
+Test [1/87] 
+Test [2/87] 
+Test [3/87] 
+Test [4/87] 
+Test [5/87] 
+Test [6/87] 
+Test [7/87] 
+Test [8/87] 
+Test [9/87] 
+Test [10/87] 
+Test [11/87] 
+Test [12/87] 
+Test [13/87] 
+Test [14/87] 
+Test [15/87] 
+Test [16/87] 
+Test [17/87] 
+Test [18/87] 
+Test [19/87] 
+Test [20/87] 
+Test [21/87] 
+Test [22/87] 
+Test [23/87] 
+Test [24/87] 
+Test [25/87] 
+Test [26/87] 
+Test [27/87] 
+Test [28/87] 
+Test [29/87] 
+Test [30/87] 
+Test [31/87] 
+Test [32/87] 
+Test [33/87] 
+Test [34/87] 
+Test [35/87] 
+Test [36/87] 
+Test [37/87] 
+Test [38/87] 
+Test [39/87] 
+Test [40/87] 
+Test [41/87] 
+Test [42/87] 
+Test [43/87] 
+Test [44/87] 
+Test [45/87] 
+Test [46/87] 
+Test [47/87] 
+Test [48/87] 
+Test [49/87] 
+Test [50/87] 
+Test [51/87] 
+Test [52/87] 
+Test [53/87] 
+Test [54/87] 
+Test [55/87] 
+Test [56/87] 
+Test [57/87] 
+Test [58/87] 
+Test [59/87] 
+Test [60/87] 
+Test [61/87] 
+Test [62/87] 
+Test [63/87] 
+Test [64/87] 
+Test [65/87] 
+Test [66/87] 
+Test [67/87] 
+Test [68/87] 
+Test [69/87] 
+Test [70/87] 
+Test [71/87] 
+Test [72/87] 
+No JSON object could be decoded
+
+Got workflow error
+Traceback (most recent call last):
+  File "/usr/local/lib/python2.7/site-packages/cwltool/main.py", line 243, in single_job_executor
+    for r in jobiter:
+  File "/usr/local/lib/python2.7/site-packages/cwltool/draft2tool.py", line 396, in job
+    if li.get("writable") and j.inplace_update:
+AttributeError: 'TESPipelineJob' object has no attribute 'inplace_update'
+Workflow error, try again with --debug for more information:
+'TESPipelineJob' object has no attribute 'inplace_update'
+
+Test failed: /Users/strucka/Projects/cwltool/cwltool-tes/cwltool-tes --tmp-outdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.03oTbQf --tmpdir-prefix=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.03oTbQf --outdir=/Users/strucka/Projects/cwltool/cwltool-tes/common-workflow-language/v1.03oTbQf --quiet v1.0/stagefile.cwl v1.0/stagefile-job.yml
+Test writable staged files.
+Compare failure expected: {
+    "outfile": {
+        "checksum": "sha1$b769c7b2e316edd4b5eb2d24799b2c1f9d8c86e6", 
+        "class": "File", 
+        "location": "bob.txt", 
+        "size": 1111
+    }
+}
+got: {}
+caused by: failed comparison for key 'outfile': expected: {
+    "checksum": "sha1$b769c7b2e316edd4b5eb2d24799b2c1f9d8c86e6", 
+    "class": "File", 
+    "location": "bob.txt", 
+    "size": 1111
+}
+got: null
+Test [73/87] 
+Test [74/87] 
+Test [75/87] 
+Test [76/87] 
+Test [77/87] 
+Test [78/87] 
+Test [79/87] 
+Test [80/87] 
+Test [81/87] 
+Test [82/87] 
+Test [83/87] 
+Test [84/87] 
+Test [85/87] 
+Test [86/87] 
+Test [87/87] 
+86 tests passed, 1 failures, 0 unsupported features
+
+1 tool tests failed
+~/Projects/cwltool/cwltool-tes

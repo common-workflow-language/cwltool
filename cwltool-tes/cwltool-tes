@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+"""
+cwltool-tes entrypoint script
+"""
+import sys
+
+import cwltool_tes.main
+
+if __name__ == "__main__":
+    cwltool_tes.main.main((sys.argv[1:]))
