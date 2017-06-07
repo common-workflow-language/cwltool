@@ -44,13 +44,9 @@ class TestInplaceUpdate(unittest.TestCase):
     def test_updateval(self):
         try:
             tmp = tempfile.mkdtemp()
-            shutil.rmtree(tmp)
-            os.mkdir(tmp)
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
             out = tempfile.mkdtemp()
-            shutil.rmtree(out)
-            os.mkdir(out)
             self.assertEquals(main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", os.path.join(tmp, "value")]), 0)
 
             with open(os.path.join(tmp, "value"), "r") as f:
