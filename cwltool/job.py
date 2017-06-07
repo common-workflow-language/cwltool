@@ -427,7 +427,7 @@ def _job_popen(
 
         sp = subprocess.Popen(commands,
                               shell=False,
-                              close_fds=False,
+                              close_fds=True,
                               stdin=stdin,
                               stdout=stdout,
                               stderr=stderr,
