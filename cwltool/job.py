@@ -101,7 +101,7 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
                 os.remove(vol.target)
             elif os.path.isdir(vol.target):
                 os.rmdir(vol.target)
-            os.symlink(vol.resolved, vol.target)
+            shutil.copy(vol.resolved, vol.target)
 
 class JobBase(object):
     def __init__(self):  # type: () -> None
@@ -272,9 +272,9 @@ class CommandLineJob(JobBase):
         env["HOME"] = self.outdir
         env["TMPDIR"] = self.tmpdir
 
-        stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
+        stageFiles(self.pathmapper, shutil.copy, ignoreWritable=True)
         if self.generatemapper:
-            stageFiles(self.generatemapper, os.symlink, ignoreWritable=self.inplace_update)
+            stageFiles(self.generatemapper, shutil.copy, ignoreWritable=self.inplace_update)
             relink_initialworkdir(self.generatemapper, inplace_update=self.inplace_update)
 
         self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
