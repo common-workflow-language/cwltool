@@ -203,8 +203,14 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
-            stageFunc(p.resolved, p.target)
+        # if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
+        #     stageFunc(p.resolved, p.target)
+        if (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
+            if p.type == "File":
+                shutil.copy(p.resolved,p.target)
+            elif p.type == "Directory":
+                os.removedirs(p.target)
+                shutil.copytree(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
@@ -287,7 +293,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 if path != rp:
                     if rp in relinked:
                         os.unlink(path)
-                        shutil.copy(os.path.relpath(relinked[rp], path), path)
+                        os.symlink(os.path.relpath(relinked[rp], path), path)
                     else:
                         for od in output_dirs:
                             if rp.startswith(od+"/"):
