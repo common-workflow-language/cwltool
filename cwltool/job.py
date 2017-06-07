@@ -97,11 +97,14 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
             continue
         if vol.type in ("File", "Directory") or (inplace_update and
                                                  vol.type in ("WritableFile", "WritableDirectory")):
-            if os.path.islink(vol.target) or os.path.isfile(vol.target):
-                os.remove(vol.target)
-            elif os.path.isdir(vol.target):
-                os.rmdir(vol.target)
-            shutil.copy(vol.resolved, vol.target)
+            if vol.type in ("File", "WritableFile"):
+                if os.path.islink(vol.target) or os.path.isfile(vol.target):
+                    os.remove(vol.target)
+                shutil.copy(vol.resolved,vol.target)
+            if vol.type in ("Directory", "WritableDirectory"):
+                if os.path.exists(vol.target) and os.path.isdir(vol.target):
+                    shutil.rmtree(vol.target)
+                shutil.copytree(vol.resolved, vol.target)
 
 class JobBase(object):
     def __init__(self):  # type: () -> None
