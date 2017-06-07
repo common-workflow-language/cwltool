@@ -24,10 +24,12 @@ baseCommand: [cat]
 '''
 
     def test_spaces_in_input_files(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(delete=False) as f:
             f.write(self.script)
             f.flush()
-            with NamedTemporaryFile(prefix="test with spaces") as spaces:
+            f.close()
+            with NamedTemporaryFile(prefix="test with spaces",delete=False) as spaces:
+                spaces.close()
                 self.assertEquals(
                     main(["--debug", f.name, '--input', spaces.name]), 1)
                 self.assertEquals(
