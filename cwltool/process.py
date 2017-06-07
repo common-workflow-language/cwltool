@@ -209,7 +209,8 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             if p.type == "File":
                 shutil.copy(p.resolved,p.target)
             elif p.type == "Directory":
-                os.removedirs(p.target)
+                if os.path.exists(p.target):
+                    shutil.rmtree(p.target)
                 shutil.copytree(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
