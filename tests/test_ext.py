@@ -44,9 +44,13 @@ class TestInplaceUpdate(unittest.TestCase):
     def test_updateval(self):
         try:
             tmp = tempfile.mkdtemp()
+            print("tmp val is")
+            print(os.path.join(tmp, "value"))
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
             out = tempfile.mkdtemp()
+            print("out val is")
+            print(out)
             self.assertEquals(main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", os.path.join(tmp, "value")]), 0)
 
             with open(os.path.join(tmp, "value"), "r") as f:
@@ -60,9 +64,13 @@ class TestInplaceUpdate(unittest.TestCase):
     def test_updateval_inplace(self):
         try:
             tmp = tempfile.mkdtemp()
+            print("tmp val is")
+            print(tmp)
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
             out = tempfile.mkdtemp()
+            print("out val is")
+            print(out)
             self.assertEquals(main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updateval_inplace.cwl'), "-r", os.path.join(tmp, "value")]), 0)
 
             with open(os.path.join(tmp, "value"), "r") as f:
@@ -75,6 +83,8 @@ class TestInplaceUpdate(unittest.TestCase):
     def test_write_write_conflict(self):
         try:
             tmp = tempfile.mkdtemp()
+            print("tmp val is")
+            print(tmp)
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
 
@@ -87,6 +97,8 @@ class TestInplaceUpdate(unittest.TestCase):
     def test_sequencing(self):
         try:
             tmp = tempfile.mkdtemp()
+            print("tmp val is")
+            print(tmp)
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
 
@@ -109,9 +121,13 @@ class TestInplaceUpdate(unittest.TestCase):
     def test_updatedir(self):
         try:
             tmp = tempfile.mkdtemp()
+            print("tmp val is")
+            print(tmp)
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
             out = tempfile.mkdtemp()
+            print("out val is")
+            print(out)
 
             self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
             self.assertFalse(os.path.exists(os.path.join(out, "blurb")))
@@ -130,11 +146,13 @@ class TestInplaceUpdate(unittest.TestCase):
             with open(os.path.join(tmp, "value"), "w") as f:
                 f.write("1")
             out = tempfile.mkdtemp()
+            print("out val is")
+            print(out)
 
             self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
             self.assertFalse(os.path.exists(os.path.join(out, "blurb")))
 
-            self.assertEquals(main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]), 0)
+            self.assertEquals(main(["--enable-ext", "--outdir", out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]), 0)
 
             self.assertTrue(os.path.exists(os.path.join(tmp, "blurb")))
             self.assertFalse(os.path.exists(os.path.join(out, "inp/blurb")))
