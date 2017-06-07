@@ -68,16 +68,19 @@ outputs: []
         with NamedTemporaryFile() as f:
             f.write(self.script)
             f.flush()
+            f.close()
             self.assertEquals(main(["--debug", f.name, '--input',
                 get_data('tests/echo.cwl')]), 0)
             self.assertEquals(main(["--debug", f.name, '--input',
                 get_data('tests/echo.cwl')]), 0)
 
     def test_bool(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(delete=False) as f:
             f.write(self.script2)
             f.flush()
+            f.close()
             try:
+                print(f.name)
                 self.assertEquals(main([f.name, '--help']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)

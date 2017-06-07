@@ -287,7 +287,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 if path != rp:
                     if rp in relinked:
                         os.unlink(path)
-                        os.symlink(os.path.relpath(relinked[rp], path), path)
+                        shutil.copy(os.path.relpath(relinked[rp], path), path)
                     else:
                         for od in output_dirs:
                             if rp.startswith(od+"/"):

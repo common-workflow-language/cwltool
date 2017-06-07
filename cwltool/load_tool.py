@@ -43,6 +43,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
         if split.scheme and split.scheme in [u'http',u'https',u'file']:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
+            print("entered here")
             uri = file_uri(str(os.path.abspath(argsworkflow)))
         elif resolver:
             uri = resolver(document_loader, argsworkflow)
