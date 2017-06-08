@@ -51,7 +51,7 @@ class TestInplaceUpdate(unittest.TestCase):
             out = tempfile.mkdtemp()
             print("out val is")
             print(out)
-            self.assertEquals(main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", os.path.join(tmp, "value")]), 0)
+            self.assertEquals(main(["--debug","--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", os.path.join(tmp, "value")]), 0)
 
             with open(os.path.join(tmp, "value"), "r") as f:
                 self.assertEquals("1", f.read())

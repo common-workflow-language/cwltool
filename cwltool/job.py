@@ -13,6 +13,7 @@ from typing import (IO, Any, Callable, Iterable, List, MutableMapping, Text,
 
 import shellescape
 
+from .utils import copytree_with_merge
 from . import docker
 from .builder import Builder
 from .docker_uid import docker_vm_uid
@@ -102,9 +103,9 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
                     os.remove(vol.target)
                 shutil.copy(vol.resolved,vol.target)
             if vol.type in ("Directory", "WritableDirectory"):
-                if os.path.exists(vol.target) and os.path.isdir(vol.target):
-                    shutil.rmtree(vol.target)
-                shutil.copytree(vol.resolved, vol.target)
+                # if os.path.exists(vol.target) and os.path.isdir(vol.target):
+                #     shutil.rmtree(vol.target)
+                copytree_with_merge(vol.resolved, vol.target)
 
 class JobBase(object):
     def __init__(self):  # type: () -> None
