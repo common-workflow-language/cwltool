@@ -98,9 +98,13 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
             continue
         if vol.type in ("File", "Directory") or (inplace_update and
                                                  vol.type in ("WritableFile", "WritableDirectory")):
+            #if vol.type in ("File", "WritableFile"):
+            if os.path.islink(vol.target) or os.path.isfile(vol.target):
+                os.remove(vol.target)
+                #shutil.copy(vol.resolved,vol.target)
+            elif os.path.isdir(vol.target):
+                shutil.rmtree(vol.target)
             if vol.type in ("File", "WritableFile"):
-                if os.path.islink(vol.target) or os.path.isfile(vol.target):
-                    os.remove(vol.target)
                 shutil.copy(vol.resolved,vol.target)
             if vol.type in ("Directory", "WritableDirectory"):
                 # if os.path.exists(vol.target) and os.path.isdir(vol.target):

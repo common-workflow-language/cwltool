@@ -201,8 +201,6 @@ def stageFiles(pm, stageFunc, ignoreWritable=False, usecopy=False):
     for f, p in pm.items():
         if not p.staged:
             continue
-            print("p.resolved")
-            print(p.resolved)
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
         if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
@@ -244,7 +242,6 @@ def collectFilesAndDirs(obj, out):
 
 def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
-    print("boss was here")
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -273,7 +270,6 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    print("mover is here")
     stageFiles(pm, moveIt)
 
     def _check_adjust(f):
@@ -368,7 +364,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 
 
 def fillInDefaults(inputs, job):
-    # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
+    # type: (List[Dict[Text, Text]], Dict[Text "--leave-outputs",, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException):
             if shortname(inp[u"id"]) in job:
