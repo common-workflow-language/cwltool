@@ -80,7 +80,6 @@ outputs: []
             f.flush()
             f.close()
             try:
-                print(f.name)
                 self.assertEquals(main([f.name, '--help']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)

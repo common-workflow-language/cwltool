@@ -2,7 +2,7 @@
 import os
 import shutil
 import stat
-from typing import Any, Tuple
+from typing import (Any, Callable, List, Text, Tuple)
 
 
 def aslist(l):  # type: (Any) -> List[Any]
@@ -23,6 +23,7 @@ def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
 
 
 def copytree_with_merge(src, dst, symlinks=False, ignore=None):
+    # type: (Text, Text, bool, Callable[..., Any]) -> None
     if not os.path.exists(dst):
         os.makedirs(dst)
         shutil.copystat(src, dst)

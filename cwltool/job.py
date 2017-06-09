@@ -98,18 +98,17 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
             continue
         if vol.type in ("File", "Directory") or (inplace_update and
                                                  vol.type in ("WritableFile", "WritableDirectory")):
-            #if vol.type in ("File", "WritableFile"):
             if os.path.islink(vol.target) or os.path.isfile(vol.target):
                 os.remove(vol.target)
-                #shutil.copy(vol.resolved,vol.target)
             elif os.path.isdir(vol.target):
                 shutil.rmtree(vol.target)
-            if vol.type in ("File", "WritableFile"):
-                shutil.copy(vol.resolved,vol.target)
-            if vol.type in ("Directory", "WritableDirectory"):
-                # if os.path.exists(vol.target) and os.path.isdir(vol.target):
-                #     shutil.rmtree(vol.target)
-                copytree_with_merge(vol.resolved, vol.target)
+            if os.name == 'nt':
+                if vol.type in ("File", "WritableFile"):
+                    shutil.copy(vol.resolved,vol.target)
+                elif vol.type in ("Directory", "WritableDirectory"):
+                    copytree_with_merge(vol.resolved, vol.target)
+            else:
+                os.symlink(vol.resolved, vol.target)
 
 class JobBase(object):
     def __init__(self):  # type: () -> None
@@ -280,9 +279,9 @@ class CommandLineJob(JobBase):
         env["HOME"] = self.outdir
         env["TMPDIR"] = self.tmpdir
 
-        stageFiles(self.pathmapper, shutil.copy, ignoreWritable=True,usecopy=True)
+        stageFiles(self.pathmapper, ignoreWritable=True, symFunc=True)
         if self.generatemapper:
-            stageFiles(self.generatemapper, shutil.copy, ignoreWritable=self.inplace_update,usecopy=True)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symFunc=True)
             relink_initialworkdir(self.generatemapper, inplace_update=self.inplace_update)
 
         self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)

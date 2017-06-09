@@ -196,22 +196,25 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc, ignoreWritable=False, usecopy=False):
-    # type: (PathMapper, Callable[..., Any], bool) -> None
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symFunc=True):
+    # type: (PathMapper, Callable[..., Any], bool, bool) -> None
     for f, p in pm.items():
         if not p.staged:
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
         if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
-            if usecopy:
-                if p.type == "File":
-                    shutil.copy(p.resolved, p.target)
-                elif p.type == "Directory":
-                    # if os.path.exists(p.target) and os.path.isdir(p.target):
-                    #     shutil.rmtree(p.target)
-                    copytree_with_merge(p.resolved, p.target)
-            else:
+            if symFunc:  # Use symlink func if allowed
+                if os.name == 'nt':
+                    if p.type == "File":
+                        shutil.copy(p.resolved, p.target)
+                    elif p.type == "Directory":
+                        if os.path.exists(p.target) and os.path.isdir(p.target):
+                            shutil.rmtree(p.target)
+                        copytree_with_merge(p.resolved, p.target)
+                else:
+                    os.symlink(p.resolved, p.target)
+            elif stageFunc is not None:
                 stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
@@ -270,7 +273,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, moveIt)
+    stageFiles(pm, stageFunc=moveIt,symFunc=False)
 
     def _check_adjust(f):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
@@ -293,11 +296,15 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 rp = os.path.realpath(path)
                 if path != rp:
                     if rp in relinked:
-                        os.unlink(path)
-                        if os.path.isfile(path):
-                            shutil.copy(os.path.relpath(relinked[rp], path), path)
-                        elif os.path.isdir(path):
-                            shutil.copytree(os.path.relpath(relinked[rp], path), path)
+                        if os.name == 'nt':
+                            if os.path.isfile(path):
+                                shutil.copy(os.path.relpath(relinked[rp], path), path)
+                            elif os.path.exists(path) and os.path.isdir(path):
+                                shutil.rmtree(path)
+                                copytree_with_merge(os.path.relpath(relinked[rp], path), path)
+                        else:
+                            os.unlink(path)
+                            os.symlink(os.path.relpath(relinked[rp], path), path)
                     else:
                         for od in output_dirs:
                             if rp.startswith(od+"/"):
@@ -364,7 +371,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 
 
 def fillInDefaults(inputs, job):
-    # type: (List[Dict[Text, Text]], Dict[Text "--leave-outputs",, Union[Dict[Text, Any], List, Text]]) -> None
+    # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException):
             if shortname(inp[u"id"]) in job:
