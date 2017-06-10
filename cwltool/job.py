@@ -275,9 +275,10 @@ class CommandLineJob(JobBase):
         if vars_to_preserve is not None:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
-                    env[key] = value
-        env["HOME"] = self.outdir
-        env["TMPDIR"] = self.tmpdir
+                    # On Windows, subprocess env can't handle unicode.
+                    env[key] = str(value)
+        env["HOME"] = str(self.outdir)
+        env["TMPDIR"] = str(self.tmpdir)
 
         stageFiles(self.pathmapper, ignoreWritable=True, symFunc=True)
         if self.generatemapper:
