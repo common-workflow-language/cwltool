@@ -279,6 +279,8 @@ class CommandLineJob(JobBase):
                     env[key] = str(value)
         env["HOME"] = str(self.outdir)
         env["TMPDIR"] = str(self.tmpdir)
+        if "PATH" not in env:
+            env["PATH"] = str(os.environ["PATH"])
 
         stageFiles(self.pathmapper, ignoreWritable=True, symFunc=True)
         if self.generatemapper:
