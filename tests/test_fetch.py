@@ -1,4 +1,5 @@
 import unittest
+import urlparse
 
 import schema_salad.main
 import schema_salad.ref_resolver
@@ -25,6 +26,9 @@ outputs: []
 """
                 else:
                     raise RuntimeError("Not foo.cwl")
+
+            def urljoin(self, base_url, url):  # type: (Text, Text) -> Text
+                return urlparse.urljoin(base_url, url)
 
             def check_exists(self, url):  # type: (unicode) -> bool
                 if url == "baz:bar/foo.cwl":
