@@ -211,14 +211,14 @@ class TestScanDeps(unittest.TestCase):
             "basename": "bar.cwl",
             "nameroot": "bar",
             "class": "File",
-            "nameext": "cwl",
+            "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         },
             {
                 "basename": "data.txt",
                 "nameroot": "data",
                 "class": "File",
-                "nameext": "txt",
+                "nameext": ".txt",
                 "location": "file:///example/data.txt"
             },
             {
@@ -229,13 +229,13 @@ class TestScanDeps(unittest.TestCase):
                     "basename": "data3.txt",
                     "nameroot": "data3",
                     "class": "File",
-                    "nameext": "txt",
+                    "nameext": ".txt",
                     "location": "file:///example/data3.txt",
                     "secondaryFiles": [{
                         "class": "File",
                         "basename": "data5.txt",
                         "location": "file:///example/data5.txt",
-                        "nameext": "txt",
+                        "nameext": ".txt",
                         "nameroot": "data5"
                     }]
                 }]
@@ -243,7 +243,7 @@ class TestScanDeps(unittest.TestCase):
                 "basename": "data4.txt",
                 "nameroot": "data4",
                 "class": "File",
-                "nameext": "txt",
+                "nameext": ".txt",
                 "location": "file:///example/data4.txt"
             }], sc)
 
@@ -257,7 +257,7 @@ class TestScanDeps(unittest.TestCase):
             "basename": "bar.cwl",
             "nameroot": "bar",
             "class": "File",
-            "nameext": "cwl",
+            "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         }], sc)
 

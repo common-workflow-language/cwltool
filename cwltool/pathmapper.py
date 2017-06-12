@@ -79,16 +79,7 @@ def normalizeFilesDirs(job):
 
         if d["class"] == "File":
             if "nameroot" or "nameext" not in d:
-                split = d["basename"].rsplit(".", 1)
-                if split[0] == "" or len(split) == 1 or split[1] == "":
-                    name_root = d["basename"]
-                    name_ext = ""
-                else:
-                    name_root = split[0]
-                    name_ext = split[1]
-
-                d["nameroot"] = name_root
-                d["nameext"] = name_ext
+                d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
 
     visit_class(job, ("File", "Directory"), addLocation)
 

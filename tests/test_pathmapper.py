@@ -34,11 +34,11 @@ class TestPathMapper(unittest.TestCase):
         }
         # (filename, expected: (nameroot, nameext))
         testdata = [
-            ("foo.bar",     ("foo",     "bar")),
+            ("foo.bar",     ("foo",     ".bar")),
             ("foo",         ("foo",     '')),
             (".foo",        (".foo",    '')),
-            ("foo.",        ("foo.",    '')),
-            ("foo.bar.baz", ("foo.bar", "baz"))
+            ("foo.",        ("foo",    '.')),
+            ("foo.bar.baz", ("foo.bar", ".baz"))
         ]
 
         for filename, (nameroot, nameext) in testdata:
