@@ -78,8 +78,7 @@ def normalizeFilesDirs(job):
             d["basename"] = os.path.basename(urllib.request.url2pathname(path))
 
         if d["class"] == "File":
-            if "nameroot" or "nameext" not in d:
-                d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
+            d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
 
     visit_class(job, ("File", "Directory"), addLocation)
 
