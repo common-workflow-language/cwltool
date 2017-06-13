@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import collections
 import logging
 import os
@@ -235,10 +236,10 @@ class PathMapper(object):
             return self._pathmap[src]
 
     def files(self):  # type: () -> List[Text]
-        return self._pathmap.keys()
+        return list(self._pathmap.keys())
 
     def items(self):  # type: () -> List[Tuple[Text, MapperEnt]]
-        return self._pathmap.items()
+        return list(self._pathmap.items())
 
     def reversemap(self, target):  # type: (Text) -> Tuple[Text, Text]
         for k, v in self._pathmap.items():

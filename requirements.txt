@@ -4,4 +4,4 @@ rdflib==4.2.2
 rdflib-jsonld==0.4.0
 shellescape==3.4.1
 schema-salad>=2.4.20170308171942,<3
-typing==3.5.2.2 ; python_version>="2.7"
+typing==3.5.3

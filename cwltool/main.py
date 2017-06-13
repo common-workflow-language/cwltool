@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import absolute_import
 
 import argparse
 import functools
@@ -13,6 +14,7 @@ from typing import (IO, Any, AnyStr, Callable, Dict, Sequence, Text, Tuple,
 
 import pkg_resources  # part of setuptools
 import requests
+import six
 
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -33,6 +35,7 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+
 
 _logger = logging.getLogger("cwltool")
 
@@ -435,7 +438,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.round_trip_load(stdin)  # type: ignore
+        job_order_object = yaml.round_trip_load(stdin)
         job_order_object, _ = loader.resolve_all(job_order_object, file_uri(os.getcwd()) + "/")
     else:
         job_order_file = None
@@ -464,9 +467,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in cmd_line.iteritems()
+                    k: v for k, v in six.iteritems(cmd_line)
                     if k.startswith(record_name)}
-                for key, value in record_items.iteritems():
+                for key, value in six.iteritems(record_items):
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -623,7 +626,7 @@ def main(argsl=None,  # type: List[str]
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
         # dereferencing them in args.
-        for k, v in {'print_deps': False,
+        for k, v in six.iteritems({'print_deps': False,
                      'print_pre': False,
                      'print_rdf': False,
                      'print_dot': False,
@@ -649,7 +652,7 @@ def main(argsl=None,  # type: List[str]
                      'validate': False,
                      'enable_ga4gh_tool_registry': False,
                      'ga4gh_tool_registries': []
-        }.iteritems():
+        }):
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -798,7 +801,7 @@ def main(argsl=None,  # type: List[str]
 
                 visit_class(out, ("File", "Directory"), locToPath)
 
-                if isinstance(out, basestring):
+                if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
                     stdout.write(json.dumps(out, indent=4))
@@ -824,7 +827,7 @@ def main(argsl=None,  # type: List[str]
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
-                "information:\n%s", strip_dup_lineno(unicode(exc)), exc_info=args.debug)
+                "information:\n%s", strip_dup_lineno(six.text_type(exc)), exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(

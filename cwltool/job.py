@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 import functools
+import io
 import json
 import logging
 import os
@@ -439,7 +441,7 @@ def _job_popen(
 
         rcode = sp.wait()
 
-        if isinstance(stdin, file):
+        if isinstance(stdin, io.IOBase):
             stdin.close()
 
         if stdout is not sys.stderr:
