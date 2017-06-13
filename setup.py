@@ -51,6 +51,7 @@ setup(name='cwltool',
                                 'cwlNodeEngine.js',
                                 'extensions.yml']},
       include_package_data=True,
+      dependency_links = ['https://github.com/kapilkd13/schema_salad/tarball/windows#egg=schema_salad-2.4.20170612171942'],
       install_requires=[
           'setuptools',
           'requests >= 1.0',
