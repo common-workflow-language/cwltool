@@ -66,7 +66,7 @@ outputs: []
 '''
 
     def test_help(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(mode='w') as f:
             f.write(self.script)
             f.flush()
             self.assertEquals(main(["--debug", f.name, '--input',
@@ -75,7 +75,7 @@ outputs: []
                 get_data('tests/echo.cwl')]), 0)
 
     def test_bool(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(mode='w') as f:
             f.write(self.script2)
             f.flush()
             try:
@@ -84,7 +84,7 @@ outputs: []
                 self.assertEquals(e.code, 0)
 
     def test_record_help(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(mode='w') as f:
             f.write(self.script3)
             f.flush()
             try:
@@ -93,7 +93,7 @@ outputs: []
                 self.assertEquals(e.code, 0)
 
     def test_record(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(mode='w') as f:
             f.write(self.script3)
             f.flush()
             try:
