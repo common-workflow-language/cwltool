@@ -687,7 +687,7 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
-                        param.update(tool_entry)  # type: ignore
+                        param.update(tool_entry)
                         found = True
                         bound.add(frag)
                         break
