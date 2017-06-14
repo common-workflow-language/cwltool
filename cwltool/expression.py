@@ -1,4 +1,6 @@
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from __future__ import unicode_literals
 import copy
 import json
 import logging
@@ -17,14 +19,16 @@ def jshead(engineConfig, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
-
+# all these raw strings are decoded to unicode
+# object due to the __future__ import
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
 segment_re = re.compile(segments, flags=re.UNICODE)
-param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
+param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
+param_re = re.compile(param_str, flags=re.UNICODE)
 
 JSON = Union[Dict[Any, Any], List[Any], Text, int, float, bool, None]
 
