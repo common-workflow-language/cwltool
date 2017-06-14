@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 from __future__ import absolute_import
 import logging
 import os
@@ -47,7 +49,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             pass
 
     if not found and pull_image:
-        cmd = []  # type: List[str]
+        cmd = []  # type: List[Text]
         if "dockerPull" in dockerRequirement:
             cmd = ["docker", "pull", str(dockerRequirement["dockerPull"])]
             _logger.info(Text(cmd))
@@ -56,8 +58,8 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 found = True
         elif "dockerFile" in dockerRequirement:
             dockerfile_dir = str(tempfile.mkdtemp())
-            with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as df:
-                df.write(dockerRequirement["dockerFile"])
+            with open(os.path.join(dockerfile_dir, "Dockerfile"), str("w")) as df:
+                df.write(dockerRequirement["dockerFile"].encode('utf-8'))
             cmd = ["docker", "build", "--tag=%s" %
                    str(dockerRequirement["dockerImageId"]), dockerfile_dir]
             _logger.info(Text(cmd))
@@ -70,7 +72,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             if not dry_run:
                 if os.path.exists(dockerRequirement["dockerLoad"]):
                     _logger.info(u"Loading docker image from %s", dockerRequirement["dockerLoad"])
-                    with open(dockerRequirement["dockerLoad"], "rb") as f:
+                    with open(dockerRequirement["dockerLoad"], str("rb")) as f:
                         loadproc = subprocess.Popen(cmd, stdin=f, stdout=sys.stderr)
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=sys.stderr)
