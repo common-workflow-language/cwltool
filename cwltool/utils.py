@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 # no imports from cwltool allowed
 
 from __future__ import absolute_import

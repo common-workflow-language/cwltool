@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 # pylint: disable=unused-import
 """Loads a CWL document."""
 
