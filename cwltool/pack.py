@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 import copy
-from typing import Any, Callable, Dict, Text, Union, cast
+from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
 from schema_salad.ref_resolver import Loader
 from six.moves import urllib

@@ -5,7 +5,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from typing import Text
+from typing import Dict, List, Text
 
 import requests
 

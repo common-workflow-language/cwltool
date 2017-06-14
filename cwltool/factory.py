@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import os
 from typing import Callable as tCallable
-from typing import Any, Text, Tuple, Union
+from typing import Any, Dict, Text, Tuple, Union
 
 from . import load_tool, main, workflow
 from .process import Process

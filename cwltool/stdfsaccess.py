@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import glob
 import os
-from typing import BinaryIO, Text
+from typing import BinaryIO, List, Text
 
 import six
 from six.moves import urllib

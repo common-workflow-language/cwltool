@@ -6,7 +6,7 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
 
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -687,7 +687,7 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
-                        param.update(tool_entry)  # type: ignore
+                        param.update(tool_entry)
                         found = True
                         bound.add(frag)
                         break

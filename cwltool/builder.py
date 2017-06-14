@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 import copy
-from typing import Any, Callable, Text, Type, Union
+from typing import Any, Callable, Dict, List, Text, Type, Union
 
 import six
 from six import iteritems, string_types

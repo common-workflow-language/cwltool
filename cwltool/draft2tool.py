@@ -8,7 +8,7 @@ import re
 import shutil
 import tempfile
 from functools import partial
-from typing import Any, Callable, Dict, Generator, Optional, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, List, Optional, Set, Text, Union, cast
 
 from six import string_types, u
 

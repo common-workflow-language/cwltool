@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import uuid
-from typing import Any, Callable, Dict, Text, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast
 
 import requests.sessions
 from six import itervalues, string_types
@@ -33,8 +33,8 @@ jobloaderctx = {
     u"id": u"@id"
 }
 
-def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
-                   resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
+def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
+                   resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
                    fetcher_constructor=None
                    # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                    ):
@@ -262,10 +262,10 @@ def make_tool(document_loader,  # type: Loader
 
 def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               makeTool,  # type: Callable[..., Process]
-              kwargs=None,  # type: dict
+              kwargs=None,  # type: Dict
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
-              resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
+              resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
               fetcher_constructor=None  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
               ):
     # type: (...) -> Process

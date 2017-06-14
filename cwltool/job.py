@@ -10,7 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
-from typing import (IO, Any, Callable, Iterable, List, MutableMapping, Text,
+from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Tuple, Union, cast)
 
 import shellescape
@@ -257,7 +257,7 @@ class CommandLineJob(JobBase):
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
+        # type: (bool, bool, bool, Text, **Any) -> None
 
         self._setup()
 
@@ -320,7 +320,7 @@ class DockerCommandLineJob(JobBase):
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
+        # type: (bool, bool, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 

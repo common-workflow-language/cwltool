@@ -5,7 +5,7 @@ import os
 import stat
 import uuid
 from functools import partial
-from typing import Any, Callable, Iterable, Set, Text, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
