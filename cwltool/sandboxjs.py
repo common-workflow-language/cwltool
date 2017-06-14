@@ -182,7 +182,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             lines = lines[-maxlines:]
         return u"\n".join(u"%02i %s" % (i + ofs + 1, b) for i, b in enumerate(lines))
 
-    def stdfmt(data):  # type: (unicode) -> unicode
+    def stdfmt(data):  # type: (Text) -> Text
         if "\n" in data:
             return "\n" + data.strip()
         return data

@@ -36,7 +36,7 @@ jobloaderctx = {
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
                    fetcher_constructor=None
-                   # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                   # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                    ):
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
@@ -135,7 +135,7 @@ def validate_document(document_loader,  # type: Loader
                       strict=True,  # type: bool
                       preprocess_only=False,  # type: bool
                       fetcher_constructor=None
-                      # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                      # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -180,7 +180,7 @@ def validate_document(document_loader,  # type: Loader
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text]
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor)
@@ -266,7 +266,7 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
               resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
-              fetcher_constructor=None  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+              fetcher_constructor=None  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
               ):
     # type: (...) -> Process
 
