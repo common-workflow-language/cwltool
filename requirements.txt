@@ -1,7 +1,7 @@
 requests>=1.0
-ruamel.yaml==0.13.7
+ruamel.yaml==0.15.2
 rdflib==4.2.2
 rdflib-jsonld==0.4.0
 shellescape==3.4.1
-schema-salad>=2.4.20170308171942,<3
-typing==3.5.3
+https://github.com/manu-chroma/schema_salad/archive/mypy_updates.zip#egg=schema_salad-3.0
+typing >= 3.5.3
