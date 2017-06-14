@@ -124,7 +124,7 @@ class TestInplaceUpdate(unittest.TestCase):
             shutil.rmtree(tmp)
             shutil.rmtree(out)
 
-    def test_updateval_inplace(self):
+    def test_updatedir_inplace(self):
         try:
             tmp = tempfile.mkdtemp()
             with open(os.path.join(tmp, "value"), "w") as f:
