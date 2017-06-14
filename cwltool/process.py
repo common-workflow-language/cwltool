@@ -203,7 +203,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symFunc=True):
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
+        if p.type in ("File", "Directory") and (os.path.exists(p.resolved)):
             if symFunc:  # Use symlink func if allowed
                 if os.name == 'nt':
                     if p.type == "File":
