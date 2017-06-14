@@ -23,8 +23,8 @@ seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
-segment_re = re.compile(segments, flags=re.UNICODE)
-param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
+segment_re = re.compile(u(segments), flags=re.UNICODE)
+param_re = re.compile(u(r"\((%s)%s*\)$" % (seg_symbol, segments)), flags=re.UNICODE)
 
 JSON = Union[Dict[Any, Any], List[Any], Text, int, float, bool, None]
 
@@ -111,7 +111,7 @@ def scanner(scan):  # type: (Text) -> List[int]
 def next_seg(remain, obj):  # type: (Text, Any) -> Any
     if remain:
         m = segment_re.match(remain)
-        key = None  # type: Union[str, int]
+        key = None  # type: Union[Text, int]
         if m.group(0)[0] == '.':
             key = m.group(0)[1:]
         elif m.group(0)[1] in ("'", '"'):
