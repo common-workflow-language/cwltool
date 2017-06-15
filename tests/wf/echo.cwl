@@ -11,7 +11,7 @@ inputs:
         exit(1)
       else:
         f = open("foo"+sys.argv[1]+".txt", "w")
-        f.write(sys.argv[1]+"\n")
+        f.write(sys.argv[1])
       if sys.argv[1] == "5":
         exit(1)
 outputs:
