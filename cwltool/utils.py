@@ -41,9 +41,9 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
             try:
                 st = os.lstat(s)
                 mode = stat.S_IMODE(st.st_mode)
-                os.lchmod(d, mode)
+                os.lchmod(d, mode)  # type: ignore
             except:
-                pass  # lchmod not available
+                pass  # lchmod not available, only available on unix
         elif os.path.isdir(s):
             copytree_with_merge(s, d, symlinks, ignore)
         else:
