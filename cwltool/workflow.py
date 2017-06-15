@@ -66,13 +66,13 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
                 return True
     elif isinstance(src.parameter["type"], list):
         # Source is union type
-        # Check that every source type is compatible with the sink.
+        # Check that at least one source type is compatible with the sink.
         for st in src.parameter["type"]:
             srccopy = copy.deepcopy(src)
             srccopy.parameter["type"] = st
-            if not match_types(st, srccopy, iid, inputobj, linkMerge, valueFrom):
-                return False
-        return True
+            if match_types(sinktype, srccopy, iid, inputobj, linkMerge, valueFrom):
+                return True
+        return False
     elif linkMerge:
         if iid not in inputobj:
             inputobj[iid] = []
