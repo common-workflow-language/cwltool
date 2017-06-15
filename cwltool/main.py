@@ -22,7 +22,7 @@ from schema_salad.sourceline import strip_dup_lineno
 from . import draft2tool, workflow
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .load_tool import fetch_document, make_tool, validate_document
+from .load_tool import fetch_document, make_tool, validate_document, jobloaderctx
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
@@ -424,13 +424,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     job_order_object = None
 
-    jobloaderctx = {
-        u"path": {u"@type": u"@id"},
-        u"location": {u"@type": u"@id"},
-        u"format": {u"@type": u"@id"},
-        u"id": u"@id"}
-    jobloaderctx.update(t.metadata.get("$namespaces", {}))
-    loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
+    _jobloaderctx = jobloaderctx.copy()
+    _jobloaderctx.update(t.metadata.get("$namespaces", {}))
+    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]

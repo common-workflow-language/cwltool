@@ -4,6 +4,11 @@ Common workflow language tool description reference implementation
 
 CWL Conformance test: |Build Status|
 
+Travis: |Unix Build Status|
+
+.. |Unix Build Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=unix%20build
+   :target: https://travis-ci.org/common-workflow-language/cwltool
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.

@@ -24,6 +24,13 @@ from .process import Process, shortname
 
 _logger = logging.getLogger("cwltool")
 
+jobloaderctx = {
+    u"cwl": "https://w3id.org/cwl/cwl#",
+    u"path": {u"@type": u"@id"},
+    u"location": {u"@type": u"@id"},
+    u"format": {u"@type": u"@id"},
+    u"id": u"@id"
+}
 
 def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
@@ -33,7 +40,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
-    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"},
+    document_loader = Loader(jobloaderctx,
                              fetcher_constructor=fetcher_constructor)
 
     uri = None  # type: Text

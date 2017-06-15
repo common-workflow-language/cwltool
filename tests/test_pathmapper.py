@@ -26,3 +26,30 @@ class TestPathMapper(unittest.TestCase):
                 "basename": "bar"
             },
             d)
+
+    def test_basename_field_generation(self):
+        base_file = {
+            "class": "File",
+            "location": "/foo/"
+        }
+        # (filename, expected: (nameroot, nameext))
+        testdata = [
+            ("foo.bar",     ("foo",     ".bar")),
+            ("foo",         ("foo",     '')),
+            (".foo",        (".foo",    '')),
+            ("foo.",        ("foo",    '.')),
+            ("foo.bar.baz", ("foo.bar", ".baz"))
+        ]
+
+        for filename, (nameroot, nameext) in testdata:
+            file = dict(base_file)
+            file["location"] = file["location"] + filename
+
+            expected = dict(file)
+            expected["basename"] = filename
+            expected["nameroot"] = nameroot
+            expected["nameext"] = nameext
+
+            normalizeFilesDirs(file)
+            self.assertEqual(file, expected)
+
