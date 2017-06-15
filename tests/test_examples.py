@@ -125,7 +125,7 @@ class TestFactory(unittest.TestCase):
         try:
             fail()
         except cwltool.factory.WorkflowStatus as e:
-            self.assertEquals('sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e', e.out["out"][0]["checksum"])
+            self.assertEquals('sha1$356a192b7913b04c54574d18c28d46e6395428ab', e.out["out"][0]["checksum"])
             self.assertIsNone(e.out["out"][1])
             self.assertEquals('sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436', e.out["out"][2]["checksum"])
         else:
@@ -137,7 +137,7 @@ class TestFactory(unittest.TestCase):
         try:
             fail()
         except cwltool.factory.WorkflowStatus as e:
-            self.assertEquals('sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e', e.out["out1"]["checksum"])
+            self.assertEquals('sha1$356a192b7913b04c54574d18c28d46e6395428ab', e.out["out1"]["checksum"])
             self.assertNotIn("out2", e.out)
         else:
             self.fail("Should have raised WorkflowStatus")
