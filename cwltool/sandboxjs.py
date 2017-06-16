@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from __future__ import absolute_import
 import errno
@@ -29,7 +30,7 @@ have_node_slim = False
 minimum_node_version_str = '0.10.26'
 
 def check_js_threshold_version(working_alias):
-    # type: (str) -> bool
+    # type: (Text) -> bool
 
     """Checks if the nodeJS engine version on the system
     with the allowed minimum version.
@@ -142,7 +143,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     tm = threading.Timer(timeout, term)
     tm.start()
 
-    stdin_buf = BytesIO(json.dumps(fn) + "\n")
+    stdin_buf = BytesIO((json.dumps(fn) + "\n").encode('utf-8'))
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
 
@@ -164,7 +165,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
                         pipes[1].write(b)
                     else:
                         rselect.remove(pipes[0])
-            if stdout_buf.getvalue().endswith("\n"):
+            if stdout_buf.getvalue().endswith("\n".encode()):
                 rselect = []
         except OSError as e:
             break
@@ -192,9 +193,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
-               (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
+               (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata.decode('utf-8')), stdfmt(stderrdata.decode('utf-8')))
     else:
-        info = stdfmt(stderrdata)
+        info = stdfmt(stderrdata.decode('utf-8'))
 
     if nodejs.poll() not in (None, 0):
         if killed:
