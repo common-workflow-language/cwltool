@@ -1,5 +1,6 @@
-from __future__ import unicode_literals
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -583,10 +584,11 @@ def versionstring():
 
 def supportedCWLversions(enable_dev):
     # type: (bool) -> List[Text]
+    # ALLUPDATES and UPDATES are dicts
     if enable_dev:
-        versions = ALLUPDATES.keys()
+        versions = list(ALLUPDATES)
     else:
-        versions = UPDATES.keys()
+        versions = list(UPDATES)
     versions.sort()
     return versions
 
