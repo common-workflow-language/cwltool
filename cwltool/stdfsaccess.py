@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from __future__ import absolute_import
 import glob
 import os
-from typing import BinaryIO, List, Text
+from typing import BinaryIO, List, Text, IO
 
 import six
 from six.moves import urllib
@@ -25,7 +26,7 @@ class StdFsAccess(object):
     def glob(self, pattern):  # type: (Text) -> List[Text]
         return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
 
-    def open(self, fn, mode):  # type: (Text, Text) -> BinaryIO
+    def open(self, fn, mode):  # type: (Text, str) -> IO[bytes]
         return open(self._abs(fn), mode)
 
     def exists(self, fn):  # type: (Text) -> bool
