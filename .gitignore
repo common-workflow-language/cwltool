@@ -15,3 +15,14 @@ eggs/
 *~
 \#*\#
 .desktop
+
+# virtualenv
+venv/
+venv3/
+
+# pycharm
+.idea/
+
+# typshed repo
+typeshed/2and3/schema_salad
+typeshed/2and3/ruamel/yaml
