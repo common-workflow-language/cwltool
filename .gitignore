@@ -26,3 +26,7 @@ venv3/
 # typshed repo
 typeshed/2and3/schema_salad
 typeshed/2and3/ruamel/yaml
+
+
+#mypy
+.mypy_cache/
