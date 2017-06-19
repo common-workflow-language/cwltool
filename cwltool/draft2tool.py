@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from __future__ import absolute_import
 import copy
@@ -239,7 +240,7 @@ class CommandLineTool(Process):
                         keydict[r["class"]] = r
 
             keydictstr = json.dumps(keydict, separators=(',', ':'), sort_keys=True)
-            cachekey = hashlib.md5(keydictstr).hexdigest()
+            cachekey = hashlib.md5(keydictstr.encode('utf-8')).hexdigest()
 
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
                           keydictstr, cachekey)
@@ -533,7 +534,7 @@ class CommandLineTool(Process):
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
                         with fs_access.open(files["location"], "rb") as f:
-                            contents = ""
+                            contents = b""
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
