@@ -10,7 +10,7 @@ _logger = logging.getLogger("cwltool")
 def resolve_local(document_loader, uri):
     if uri.startswith("/"):
         return None
-    shares = [os.environ.get("XDG_DATA_HOME", os.path.join(os.environ["HOME"], ".local", "share"))]
+    shares = [os.environ.get("XDG_DATA_HOME", os.path.join(os.path.expanduser('~'), ".local", "share"))]
     shares.extend(os.environ.get("XDG_DATA_DIRS", "/usr/local/share/:/usr/share/").split(":"))
     shares = [os.path.join(s, "commonwl", uri) for s in shares]
     shares.insert(0, os.path.join(os.getcwd(), uri))
