@@ -575,7 +575,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
             "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
-            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
+            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src
@@ -588,7 +588,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
             "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
-            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
+            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
 
     for sink in step_inputs:
