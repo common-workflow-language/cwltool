@@ -94,7 +94,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
 
 
 def check_types(srctype, sinktype, linkMerge, valueFrom):
-    # type: (Union[List[Text],Text], Union[List[Text],Text], Text, Text) -> Text
+    # type: (Any, Any, Text, Text) -> Text
     """Check if the source and sink types are "pass", "warning", or "exception".
     """
 
