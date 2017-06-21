@@ -384,9 +384,12 @@ class DockerCommandLineJob(JobBase):
         if self.stdout:
             runtime.append("--log-driver=none")
 
-        euid = docker_vm_uid() or os.geteuid()
-        
-        if kwargs.get("no_match_user", None) is False:
+        if os.name=='nt': # windows os dont have getuid or geteuid functions
+            euid = docker_vm_uid()
+        else:
+            euid = docker_vm_uid() or os.geteuid()
+
+        if kwargs.get("no_match_user", None) is False and euid is not None:
             runtime.append(u"--user=%s" % (euid))
 
         if rm_container:
