@@ -107,18 +107,15 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
             return "warning"
         else:
             return "exception"
-    else:
-        if not isinstance(sinktype, dict):
-            return "exception"
-        elif linkMerge == "merge_nested":
-            return check_types(srctype, sinktype["items"], None, None)
-        elif linkMerge == "merge_flattened":
-            if not isinstance(srctype, dict):
-                return check_types(srctype, sinktype["items"], None, None)
-            else:
-                return check_types(srctype, sinktype, None, None)
+    elif linkMerge == "merge_nested":
+        return check_types({"items": srctype, "type": "array"}, sinktype, None, None)
+    elif linkMerge == "merge_flattened":
+        if isinstance(srctype, dict) and srctype.get("type") == "array":
+            return check_types(srctype, sinktype, None, None)
         else:
-            raise WorkflowException(u"Unrecognized linkMerge enum '%s'" % linkMerge)
+            return check_types({"items": srctype, "type": "array"}, sinktype, None, None)
+    else:
+        raise WorkflowException(u"Unrecognized linkMerge enum '%s'" % linkMerge)
 
 
 def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -> bool
