@@ -116,7 +116,7 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
 
 
 def merge_flatten_type(src):
-    # type: Any -> Any
+    # type: (Any) -> Any
     """Return the merge flattened type of the source type
     """
 
