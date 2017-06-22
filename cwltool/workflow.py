@@ -322,7 +322,7 @@ class WorkflowJob(object):
         if completed == len(self.steps):
             self.do_output_callback(final_output_callback)
 
-    def try_make_job(self, step, final_output_callback, **kwargs):
+    def try_make_job(self, step, final_output_callback, debug=False, js_console=False, **kwargs):
         # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
@@ -362,7 +362,7 @@ class WorkflowJob(object):
                     if k in valueFrom:
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
-                            None, None, {}, context=v)
+                            None, None, {}, context=v, debug=debug, js_console=js_console)
                     else:
                         return v
 
