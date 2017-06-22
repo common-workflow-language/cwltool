@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import abc
 import copy
 import errno
@@ -9,7 +10,6 @@ import os
 import shutil
 import stat
 import tempfile
-import urlparse
 import uuid
 from collections import Iterable
 from typing import (Any, AnyStr, Callable, Dict, Generator, List, Text, Tuple,
@@ -33,6 +33,13 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
+import six
+from six.moves import urllib
+
+if six.PY3:
+    AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+else:
+    AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
@@ -156,7 +163,7 @@ def get_schema(version):
 
 def shortname(inputid):
     # type: (Text) -> Text
-    d = urlparse.urlparse(inputid)
+    d = urllib.parse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
     else:
@@ -387,9 +394,7 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class Process(object):
-    __metaclass__ = abc.ABCMeta
-
+class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
@@ -445,7 +450,7 @@ class Process(object):
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i
-            avro.schema.make_avsc_object(av, self.names)
+            AvroSchemaFromJSONData(av, self.names)
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -475,16 +480,16 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
+            self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
+            AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
@@ -733,21 +738,21 @@ def mergedirs(listing):
             ents[e["basename"]] = e
         elif e["class"] == "Directory" and e.get("listing"):
             ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-    for e in ents.itervalues():
+    for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(ents.itervalues())
+    r.extend(six.itervalues(ents))
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
+def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
-                df, _ = urlparse.urldefrag(doc["id"])
+                df, _ = urllib.parse.urldefrag(doc["id"])
                 if base != df:
                     r.append({
                         "class": "File",
@@ -774,7 +779,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin)
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in doc.iteritems():
+        for k, v in six.iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):
@@ -817,7 +822,7 @@ def compute_checksums(fs_access, fileobj):
         checksum = hashlib.sha1()
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
-            while contents != "":
+            while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
             f.seek(0, 2)

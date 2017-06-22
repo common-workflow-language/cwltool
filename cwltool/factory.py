@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os
 from typing import Callable as tCallable
 from typing import Any, Text, Tuple, Union
