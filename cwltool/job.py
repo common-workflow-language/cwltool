@@ -306,10 +306,10 @@ class DockerCommandLineJob(JobBase):
                 containertgt = vol.target
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, containertgt))
+                    runtime.append(u"--volume=%s:%s:ro" % (self.docker_windows_path_adjust(vol.resolved), self.docker_windows_path_adjust(containertgt)))
             elif vol.type == "WritableFile":
                 if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (vol.resolved, containertgt))
+                    runtime.append(u"--volume=%s:%s:rw" % (self.docker_windows_path_adjust(vol.resolved), self.docker_windows_path_adjust(containertgt)))
                 else:
                     shutil.copy(vol.resolved, vol.target)
             elif vol.type == "WritableDirectory":
@@ -317,14 +317,14 @@ class DockerCommandLineJob(JobBase):
                     os.makedirs(vol.target, 0o0755)
                 else:
                     if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (vol.resolved, containertgt))
+                        runtime.append(u"--volume=%s:%s:rw" % (self.docker_windows_path_adjust(vol.resolved), self.docker_windows_path_adjust(containertgt)))
                     else:
                         shutil.copytree(vol.resolved, vol.target)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
                 with open(createtmp, "w") as f:
                     f.write(vol.resolved.encode("utf-8"))
-                runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
+                runtime.append(u"--volume=%s:%s:ro" % (self.docker_windows_path_adjust(createtmp), self.docker_windows_path_adjust(vol.target)))
 
      # changes windowspath(only) appropriately to be passed to docker run command
      # as docker treat them as unix paths so convert C:\Users\foo to /c/Users/foo
