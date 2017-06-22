@@ -26,8 +26,8 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257 flake8 pytest isort
-DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pep257 sloccount python-flake8
+DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257 flake8 pytest isort mock
+DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pep257 sloccount python-flake8 python-mock
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
