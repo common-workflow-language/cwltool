@@ -474,6 +474,13 @@ class TestTypeCompare(unittest.TestCase):
             linkMerge="merge_flattened", valueFrom=None),
             "pass")
 
+        # check linkMerge: merge_flattened when srctype is a list
+        self.assertEquals(cwltool.workflow.check_types(
+            [{'items': 'string', 'type': 'array'}],
+            {'items': 'string', 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
         # check valueFrom
         self.assertEquals(cwltool.workflow.check_types(
             {'items': ['File', 'int'], 'type': 'array'},
