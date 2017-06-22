@@ -44,7 +44,7 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
-        self.js_console = False # type: bool
+        self.js_console = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
 
         # One of "no_listing", "shallow_listing", "deep_listing"
