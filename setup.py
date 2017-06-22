@@ -49,6 +49,7 @@ setup(name='cwltool',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
                                 'cwlNodeEngine.js',
+                                'cwlNodeEngineJSConsole.js',
                                 'extensions.yml']},
       include_package_data=True,
       install_requires=[

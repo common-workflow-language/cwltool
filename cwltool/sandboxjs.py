@@ -2,6 +2,7 @@ import errno
 import json
 import logging
 import os
+import re
 import select
 import subprocess
 import threading
@@ -45,10 +46,15 @@ def check_js_threshold_version(working_alias):
         return False
 
 
-def new_js_proc():
-    # type: () -> subprocess.Popen
+def new_js_proc(js_console=False):
+    # type: (bool) -> subprocess.Popen
 
-    res = resource_stream(__name__, 'cwlNodeEngine.js')
+    cwl_node_engine_js = 'cwlNodeEngine.js'
+    if js_console:
+        cwl_node_engine_js = 'cwlNodeEngineJSConsole.js'
+        _logger.warn("Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
+
+    res = resource_stream(__name__, cwl_node_engine_js)
     nodecode = res.read()
 
     required_node_version, docker = (False,)*2
@@ -114,10 +120,10 @@ def new_js_proc():
     return nodejs
 
 
-def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
+def execjs(js, jslib, timeout=None, debug=False, js_console=False):  # type: (Union[Mapping, Text], Any, int, bool, bool) -> JSON
 
     if not hasattr(localdata, "proc") or localdata.proc.poll() is not None:
-        localdata.proc = new_js_proc()
+        localdata.proc = new_js_proc(js_console=js_console)
 
     nodejs = localdata.proc
 
@@ -186,6 +192,12 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         return data
 
     nodejs.poll()
+
+    if js_console:
+        print("Javascript console output:")
+        print("----------------------------------------")
+        print('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderrdata, flags=re.MULTILINE)))
+        print("----------------------------------------")
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
