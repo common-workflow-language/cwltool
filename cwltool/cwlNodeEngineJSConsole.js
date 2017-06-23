@@ -1,9 +1,9 @@
 "use strict";
 function js_console_log(){
-  console.error("[log] "+util.format.apply(this, arguments).split("\n").join("\n[log] "));
+    console.error("[log] "+require("util").format.apply(this, arguments).split("\n").join("\n[log] "));
 }
 function js_console_err(){
-  console.error("[err] "+util.format.apply(this, arguments).split("\n").join("\n[err] "));
+    console.error("[err] "+require("util").format.apply(this, arguments).split("\n").join("\n[err] "));
 }
 process.stdin.setEncoding("utf8");
 var incoming = "";
