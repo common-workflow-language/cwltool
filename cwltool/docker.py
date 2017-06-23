@@ -24,7 +24,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
         dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
 
     for ln in subprocess.check_output(
-            ["docker", "images", "--no-trunc", "--all"]).splitlines():
+            ["docker", "images", "--no-trunc", "--all"]).decode('utf-8').splitlines():
         try:
             m = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", ln)
             sp = dockerRequirement["dockerImageId"].split(":")
