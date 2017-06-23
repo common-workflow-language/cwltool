@@ -194,10 +194,11 @@ def execjs(js, jslib, timeout=None, debug=False, js_console=False):  # type: (Un
     nodejs.poll()
 
     if js_console:
-        print("Javascript console output:")
-        print("----------------------------------------")
-        print('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderrdata, flags=re.MULTILINE)))
-        print("----------------------------------------")
+        if len(stderrdata) > 0:
+            print("Javascript console output:")
+            print("----------------------------------------")
+            print('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderrdata, flags=re.MULTILINE)))
+            print("----------------------------------------")
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
