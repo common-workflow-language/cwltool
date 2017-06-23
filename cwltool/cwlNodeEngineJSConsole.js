@@ -8,6 +8,7 @@ process.stdin.on("data", function(chunk) {
     var fn = JSON.parse(incoming.substr(0, i));
     incoming = incoming.substr(i+1);
     process.stdout.write(JSON.stringify(require("vm").runInNewContext(fn, {
+	util: {format: util.format},
 	console: {
 	    log: function(){
 		console.error("[log] "+util.format.apply(this, arguments).split("\n").join("\n[log] "));
