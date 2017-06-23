@@ -323,7 +323,7 @@ class WorkflowJob(object):
             self.do_output_callback(final_output_callback)
 
     def try_make_job(self, step, final_output_callback, debug=False, js_console=False, **kwargs):
-        # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
+        # type: (WorkflowJobStep, Callable[[Any, Any], Any], bool, bool, **Any) -> Generator
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
