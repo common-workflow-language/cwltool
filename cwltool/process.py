@@ -1,5 +1,7 @@
-from __future__ import unicode_literals
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from __future__ import unicode_literals
+
 import abc
 import copy
 import errno
@@ -13,20 +15,23 @@ import stat
 import tempfile
 import uuid
 from collections import Iterable
-from typing import (Any, AnyStr, Callable, Dict, Generator, List, Set, Text,
+from functools import cmp_to_key
+from typing import (Any, Callable, Dict, Generator, List, Set, Text,
                     Tuple, Union, cast)
-
-from pkg_resources import resource_stream
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
 
 import avro.schema
 import schema_salad.schema
 import schema_salad.validate as validate
+import six
+from pkg_resources import resource_stream
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
+from six.moves import urllib
 
+from cwltool.utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
@@ -34,16 +39,14 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
-import six
-from six.moves import urllib
-
-if six.PY3:
-    AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
-else:
-    AvroSchemaFromJSONData = avro.schema.make_avsc_object
+# if six.PY3:
+    # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+# else:
+AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 class LogAsDebugFilter(logging.Filter):
-    def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
+    def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
+        name = str(name)
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
@@ -128,7 +131,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[Text, Text]
+    cache = {}  # type: Dict[Text, Union[bytes, Text]]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
@@ -223,7 +226,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             else:
                 shutil.copytree(p.resolved, p.target)
         elif p.type == "CreateFile" and not ignoreWritable:
-            with open(p.target, "w") as n:
+            with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
 
 
@@ -450,8 +453,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
             sdtypes = sd["types"]
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
-                self.schemaDefs[i["name"]] = i
-            AvroSchemaFromJSONData(av, self.names)
+                 self.schemaDefs[i["name"]] = i  # type: ignore
+            AvroSchemaFromJSONData(av, self.names) # type: ignore
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -600,14 +603,15 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
                     cm.lc.filename = fn
                     builder.bindings.append(cm)
 
-        builder.bindings.sort(key=lambda a: a["position"])
-
+        # use python2 like sorting of heterogeneous lists
+        # (containing str and int types)
+        builder.bindings.sort(key=cmp_to_key(cmp_like_py2))
         builder.resources = self.evalResources(builder, kwargs)
 
         return builder
 
     def evalResources(self, builder, kwargs):
-        # type: (Builder, Dict[AnyStr, Any]) -> Dict[Text, Union[int, Text]]
+        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
