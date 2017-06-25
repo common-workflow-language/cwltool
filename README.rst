@@ -31,7 +31,7 @@ well)::
 
   pip install cwlref-runner
 
-If installling alongside another CWL implementation then::
+If installing alongside another CWL implementation then::
 
   pip install cwltool
 
@@ -77,7 +77,7 @@ the default cwl-runner use::
 Use with boot2docker
 --------------------
 boot2docker is running docker inside a virtual machine and it only mounts ``Users``
-on it. The default behavoir of CWL is to create temporary directories under e.g.
+on it. The default behavior of CWL is to create temporary directories under e.g.
 ``/Var`` which is not accessible to Docker containers.
 
 To run CWL successfully with boot2docker you need to set the ``--tmpdir-prefix``
