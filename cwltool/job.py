@@ -326,8 +326,8 @@ class DockerCommandLineJob(JobBase):
                     f.write(vol.resolved.encode("utf-8"))
                 runtime.append(u"--volume=%s:%s:ro" % (self.docker_windows_path_adjust(createtmp), self.docker_windows_path_adjust(vol.target)))
 
-     # changes windowspath(only) appropriately to be passed to docker run command
-     # as docker treat them as unix paths so convert C:\Users\foo to /c/Users/foo
+    # changes windowspath(only) appropriately to be passed to docker run command
+    # as docker treat them as unix paths so convert C:\Users\foo to /c/Users/foo
     def docker_windows_path_adjust(self,path):
         # type: (Text) -> (Text)
         if os.name == 'nt':
@@ -384,7 +384,7 @@ class DockerCommandLineJob(JobBase):
         if self.stdout:
             runtime.append("--log-driver=none")
 
-        if os.name=='nt': # windows os dont have getuid or geteuid functions
+        if os.name=='nt':  # windows os dont have getuid or geteuid functions
             euid = docker_vm_uid()
         else:
             euid = docker_vm_uid() or os.geteuid()

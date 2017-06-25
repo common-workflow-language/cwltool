@@ -5,6 +5,8 @@ import os
 import select
 import subprocess
 import threading
+import Queue
+import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 
@@ -145,26 +147,114 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
-    while (len(wselect) + len(rselect)) > 0:
-        rready, wready, _ = select.select(rselect, wselect, [])
-        try:
-            if nodejs.stdin in wready:
-                b = stdin_buf.read(select.PIPE_BUF)
+
+    # On windows system standard input/output are not handled properly by select  module(modules like  pywin32, msvcrt, gevent don't work either)
+    if sys.platform=='win32':
+        READ_BYTES_SIZE = 512
+
+        # creating queue for reading from a thread to queue
+        input_queue = Queue.Queue()
+        output_queue = Queue.Queue()
+        error_queue = Queue.Queue()
+
+        # To tell threads that output has ended and threads can safely exit
+        no_more_output = threading.Lock()
+        no_more_output.acquire()
+        no_more_error = threading.Lock()
+        no_more_error.acquire()
+
+        # put constructed command to input queue which then will be passed to nodejs's stdin
+        def put_input(input_queue):
+            while True:
+                sys.stdout.flush()
+                b = stdin_buf.read(READ_BYTES_SIZE)
                 if b:
-                    os.write(nodejs.stdin.fileno(), b)
+                    input_queue.put(b)
                 else:
-                    wselect = []
-            for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
-                if pipes[0] in rready:
-                    b = os.read(pipes[0].fileno(), select.PIPE_BUF)
+                    break
+
+        # get the output from nodejs's stdout and continue till otuput ends
+        def get_output(output_queue):
+            while not no_more_output.acquire(False):
+                b=os.read(nodejs.stdout.fileno(), READ_BYTES_SIZE)
+                if b:
+                    output_queue.put(b)
+
+        # get the output from nodejs's stderr and continue till error output ends
+        def get_error(error_queue):
+            while not no_more_error.acquire(False):
+                b = os.read(nodejs.stderr.fileno(), READ_BYTES_SIZE)
+                if b:
+                    error_queue.put(b)
+
+        # Threads managing nodejs.stdin, nodejs.stdout and nodejs.stderr respectively
+        input_thread = threading.Thread(target=put_input, args=(input_queue,))
+        input_thread.start()
+        output_thread = threading.Thread(target=get_output, args=(output_queue,))
+        output_thread.start()
+        error_thread = threading.Thread(target=get_error, args=(error_queue,))
+        error_thread.start()
+
+        # mark if output/error is ready
+        output_ready=False
+        error_ready=False
+
+        while (len(wselect) + len(rselect)) > 0:
+            try:
+                if nodejs.stdin in wselect:
+                    if not input_queue.empty():
+                        os.write(nodejs.stdin.fileno(), input_queue.get())
+                    elif not input_thread.is_alive():
+                        wselect = []
+                if nodejs.stdout in rselect:
+                    if not output_queue.empty():
+                        output_ready = True
+                        stdout_buf.write(output_queue.get())
+                    elif output_ready:
+                        rselect = []
+                        no_more_output.release()
+                        no_more_error.release()
+                        output_thread.join()
+
+                if nodejs.stderr in rselect:
+                    if not error_queue.empty():
+                        error_ready = True
+                        stderr_buf.write(error_queue.get())
+                    elif error_ready:
+                        rselect = []
+                        no_more_output.release()
+                        no_more_error.release()
+                        output_thread.join()
+                        error_thread.join()
+                if stdout_buf.getvalue().endswith("\n"):
+                    rselect = []
+                    no_more_output.release()
+                    no_more_error.release()
+                    output_thread.join()
+            except OSError as e:
+                break
+
+    else:
+        while (len(wselect) + len(rselect)) > 0:
+            rready, wready, _ = select.select(rselect, wselect, [])
+            try:
+                if nodejs.stdin in wready:
+                    b = stdin_buf.read(select.PIPE_BUF)
                     if b:
-                        pipes[1].write(b)
+                        os.write(nodejs.stdin.fileno(), b)
                     else:
-                        rselect.remove(pipes[0])
-            if stdout_buf.getvalue().endswith("\n"):
-                rselect = []
-        except OSError as e:
-            break
+                        wselect = []
+                for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
+                    if pipes[0] in rready:
+                        b = os.read(pipes[0].fileno(), select.PIPE_BUF)
+                        if b:
+                            pipes[1].write(b)
+                        else:
+                            rselect.remove(pipes[0])
+                if stdout_buf.getvalue().endswith("\n"):
+                    rselect = []
+            except OSError as e:
+                break
     tm.cancel()
 
     stdin_buf.close()
