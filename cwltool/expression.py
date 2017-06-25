@@ -144,6 +144,8 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
     # type: (Text, Text, Dict[Text, Any], bool, int, bool) -> JSON
     m = param_re.match(ex)
     if m:
+        if m.end(1)+1 == len(ex) and m.group(1) == "null":
+            return None
         try:
             return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
         except Exception as w:

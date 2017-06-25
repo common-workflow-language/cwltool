@@ -22,7 +22,7 @@ from schema_salad.sourceline import strip_dup_lineno
 from . import draft2tool, workflow
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .load_tool import fetch_document, make_tool, validate_document
+from .load_tool import fetch_document, make_tool, validate_document, jobloaderctx
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
@@ -140,6 +140,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, dest="strict")
     exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
                          default=True, dest="strict")
+
+    parser.add_argument("--skip-schemas", action="store_true",
+            help="Skip loading of schemas", default=True, dest="skip_schemas")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
@@ -424,13 +427,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     job_order_object = None
 
-    jobloaderctx = {
-        u"path": {u"@type": u"@id"},
-        u"location": {u"@type": u"@id"},
-        u"format": {u"@type": u"@id"},
-        u"id": u"@id"}
-    jobloaderctx.update(t.metadata.get("$namespaces", {}))
-    loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
+    _jobloaderctx = jobloaderctx.copy()
+    _jobloaderctx.update(t.metadata.get("$namespaces", {}))
+    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
@@ -638,6 +637,7 @@ def main(argsl=None,  # type: List[str]
                      'enable_dev': False,
                      'enable_ext': False,
                      'strict': True,
+                     'skip_schemas': False,
                      'rdf_serializer': None,
                      'basedir': None,
                      'tool_help': False,
@@ -705,7 +705,8 @@ def main(argsl=None,  # type: List[str]
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
                                     preprocess_only=args.print_pre or args.pack,
-                                    fetcher_constructor=fetcher_constructor)
+                                    fetcher_constructor=fetcher_constructor,
+                                    skip_schemas=args.skip_schemas)
 
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
