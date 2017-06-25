@@ -83,7 +83,7 @@ def new_js_proc():
             nodeimg = "node:slim"
             global have_node_slim
             if not have_node_slim:
-                dockerimgs = subprocess.check_output(["docker", "images", nodeimg])
+                dockerimgs = subprocess.check_output(["docker", "images", nodeimg]).decode('utf-8')
                 if len(dockerimgs.split("\n")) <= 1:
                     nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
                     _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
@@ -204,7 +204,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             raise JavascriptException(info)
     else:
         try:
-            return json.loads(stdoutdata)
+            return json.loads(stdoutdata.decode('utf-8'))
         except ValueError as e:
             raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
                                       (e, fn_linenum(), stdoutdata, stderrdata))
