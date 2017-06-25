@@ -5,7 +5,7 @@ from __future__ import absolute_import
 # no imports from cwltool allowed
 
 from six.moves import zip_longest
-from typing import Any, Dict, List, Tuple, Text
+from typing import Any, Dict, List, Tuple, Text, Union
 
 
 def aslist(l):  # type: (Any) -> List[Any]
@@ -24,11 +24,11 @@ def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
             return (t, False)
     return (None, None)
 
-# comparsion function to be used in sorting
+# comparision function to be used in sorting
 # python3 doesn't allow sorting of different
 # types like str() and int().
 # this function re-creates sorting nature in py2
-# of hetrogenous list of `int` and `str`
+# of heterogeneous list of `int` and `str`
 def cmp_like_py2(dict1, dict2):  # type: (Dict[Text, Any], Dict[Text, Any]) -> int
     # extract lists from both dicts
     a = dict1["position"]; b = dict2["position"]
