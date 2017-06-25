@@ -16,12 +16,13 @@ install:
   - "python --version"
   - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
   - "pip install --disable-pip-version-check --user --upgrade pip"
+  - "pip install --upgrade --no-deps --force-reinstall git+git://github.com/kapilkd13/schema_salad@windows#egg=schema_salad-2.4.201706261942"
 
 build_script:
   - "%CMD_IN_ENV% python setup.py install"
 
 
 test_script:
-  - "pip install -r requirements.txt"
+
   - "%CMD_IN_ENV% python setup.py test"
 

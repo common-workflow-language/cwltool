@@ -3,5 +3,5 @@ ruamel.yaml==0.13.7
 rdflib==4.2.2
 rdflib-jsonld==0.4.0
 shellescape==3.4.1
-git+git://github.com/kapilkd13/schema_salad@windows#egg=schema_salad-2.4.201706261942
+schema-salad>=2.4.20170308171942,<3
 typing==3.5.2.2 ; python_version>="2.7"
