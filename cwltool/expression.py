@@ -6,17 +6,24 @@ import json
 import logging
 import re
 from typing import Any, AnyStr, Dict, List, Text, Union
-
 from six import u
 
 from . import sandboxjs
 from .errors import WorkflowException
+from .utils import bytes2str_in_dicts
 
 _logger = logging.getLogger("cwltool")
 
 
 def jshead(engineConfig, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
+
+    # make sure all the byte strings are converted 
+    # to str in `rootvars` dict.
+    # TODO: need to make sure the `rootvars dict`
+    # contains no bytes type in the first place.
+    rootvars = bytes2str_in_dicts(rootvars)
+
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 # all these raw strings are decoded to unicode
