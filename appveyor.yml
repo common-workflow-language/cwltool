@@ -22,5 +22,6 @@ build_script:
 
 
 test_script:
+  - "pip install -r requirements.txt"
   - "%CMD_IN_ENV% python setup.py test"
 
