@@ -741,7 +741,7 @@ def main(argsl=None,  # type: List[str]
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                    makeTool, make_tool_kwds)
+                             makeTool, make_tool_kwds)
 
             if args.validate:
                 return 0
