@@ -1,5 +1,0 @@
-<dependency_resolvers>
-    <!-- Normally this would be an abspath - but it isn't so it will only work if invoked
-         from CWLTOOL_ROOT -->
-    <galaxy_packages base_path="./tests/test_deps_env" />
-</dependency_resolvers>
