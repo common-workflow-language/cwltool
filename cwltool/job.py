@@ -487,8 +487,8 @@ def _job_popen(
                 ["bash", job_script.encode("utf-8")],
                 shell=False,
                 cwd=job_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=sys.stderr,  # The nested script will output the paths to the correct files if they need
+                stderr=sys.stderr,  # to be captured. Else just write everything to stderr (same as above).
                 stdin=subprocess.PIPE,
             )
             if sp.stdin:
