@@ -949,11 +949,14 @@ def _get_dependencies(builder):
                     version = version[0]
                 else:
                     version = None
+            specs = [{"uri": s} for s in package.get("specs", [])]
             dependencies.append(ToolRequirement.from_dict(dict(
                 name=package["package"].split("#")[-1],
                 version=version,
                 type="package",
+                specs=specs,
             )))
+
     return ToolRequirements.from_list(dependencies)
 
 
