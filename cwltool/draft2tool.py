@@ -286,7 +286,7 @@ class CommandLineTool(Process):
 
         reffiles = copy.deepcopy(builder.files)
 
-        j = self.makeJobRunner(kwargs.get("find_default_container"))
+        j = self.makeJobRunner(kwargs.get("use_container"))
         j.builder = builder
         j.joborder = builder.job
         j.stdin = None
