@@ -69,7 +69,7 @@ with open(sys.argv[1], "r") as f:
     if sp.stdin:
         sp.stdin.close()
     rcode = sp.wait()
-    if isinstance(stdin, file):
+    if stdin is not subprocess.PIPE:
         stdin.close()
     if stdout is not sys.stderr:
         stdout.close()
