@@ -13,7 +13,7 @@ outputs:
     type: File
     outputBinding:
       glob: out
-baseCommand: ["blast", "--help"]
+baseCommand: ["seqtk", "seq"]
 arguments: []
 stdout: out
 hints:
