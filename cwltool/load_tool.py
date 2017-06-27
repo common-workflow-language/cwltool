@@ -133,7 +133,8 @@ def validate_document(document_loader,  # type: Loader
                       enable_dev=False,  # type: bool
                       strict=True,  # type: bool
                       preprocess_only=False,  # type: bool
-                      fetcher_constructor=None
+                      fetcher_constructor=None,
+                      skip_schemas=None
                       # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
@@ -180,9 +181,10 @@ def validate_document(document_loader,  # type: Loader
         raise avsc_names
 
     processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
+
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
-                             fetcher_constructor=fetcher_constructor)
+                             fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
 
     _add_blank_ids(workflowobj)
 
