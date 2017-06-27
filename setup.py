@@ -62,7 +62,7 @@ setup(name='cwltool',
           'six >= 1.8.0',
       ],
       extras_require = {
-          'deps':  ["galaxy-lib >= 17.09.1"]
+          'deps':  ["galaxy-lib >= 17.09.3"]
       },
       setup_requires=[] + pytest_runner,
       test_suite='tests',
