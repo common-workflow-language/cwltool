@@ -48,3 +48,13 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
             copytree_with_merge(s, d, symlinks, ignore)
         else:
             shutil.copy2(s, d)
+
+
+# changes windowspath(only) appropriately to be passed to docker run command
+# as docker treat them as unix paths so convert C:\Users\foo to /c/Users/foo
+def docker_windows_path_adjust(path):
+    # type: (Text) -> (Text)
+    if os.name == 'nt':
+        path = path.replace(':', '').replace('\\', '/')
+        return path if path[0] == '/' else '/' + path
+    return path
