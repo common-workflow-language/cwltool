@@ -334,7 +334,7 @@ class DockerCommandLineJob(JobBase):
                 default_container = find_default_container and find_default_container()
                 if default_container:
                     img_id = default_container
-                    env = os.environ
+                    env = cast(MutableMapping[Text, Text], os.environ)
 
             if docker_req and img_id is None and kwargs.get("use_container"):
                 raise Exception("Docker image not available")
