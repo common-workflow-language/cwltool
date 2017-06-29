@@ -218,6 +218,8 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     else:
                         raise Exception("Unexpected code path.")
                     r["id"] = imp
+                    # explicit conversion of urldfrag to unicode,
+                    # to avoid mypy error
                     frag = u(urllib.parse.urldefrag(imp)[1])
                     if frag:
                         frag = "#" + frag
@@ -353,7 +355,7 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
             def fixup(f):  # type: (Text) -> Text
-                doc, frg = urllib.parse.urldefrag(f).decode('ascii')
+                doc, frg = u(urllib.parse.urldefrag(f))
                 frg = '/'.join(frg.rsplit('.', 1))
                 return doc + "#" + frg
 
