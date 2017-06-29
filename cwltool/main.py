@@ -40,7 +40,7 @@ try:
     from galaxy.tools import deps
 except ImportError:
     ToolRequirement = None  # type: ignore
-    ToolRequirements = None # type: ignore
+    ToolRequirements = None  # type: ignore
     deps = None
 
 _logger = logging.getLogger("cwltool")
