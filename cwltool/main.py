@@ -660,7 +660,8 @@ def main(argsl=None,  # type: List[str]
                      'relax_path_checks': False,
                      'validate': False,
                      'enable_ga4gh_tool_registry': False,
-                     'ga4gh_tool_registries': []
+                     'ga4gh_tool_registries': [],
+                     'find_default_container': None
         }.iteritems():
             if not hasattr(args, k):
                 setattr(args, k, v)
