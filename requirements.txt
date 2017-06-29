@@ -1,5 +1,5 @@
 requests>=1.0
-ruamel.yaml<0.15
+ruamel.yaml>=0.12.4,<0.15
 rdflib==4.2.2
 rdflib-jsonld==0.4.0
 shellescape==3.4.1
