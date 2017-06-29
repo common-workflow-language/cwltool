@@ -40,7 +40,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
 # if six.PY3:
-    # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
 # else:
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
@@ -453,8 +453,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
             sdtypes = sd["types"]
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
-                 self.schemaDefs[i["name"]] = i  # type: ignore
-            AvroSchemaFromJSONData(av, self.names) # type: ignore
+                self.schemaDefs[i["name"]] = i  # type: ignore
+            AvroSchemaFromJSONData(av, self.names)  # type: ignore
 
         # Build record schema from inputs
         self.inputs_record_schema = {

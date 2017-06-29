@@ -20,7 +20,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist
 
 # if six.PY3:
-    # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
 # else:
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
