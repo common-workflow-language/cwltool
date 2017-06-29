@@ -26,7 +26,7 @@ class StdFsAccess(object):
     def glob(self, pattern):  # type: (Text) -> List[Text]
         return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
 
-    def open(self, fn, mode):  # type: (Text, str) -> IO[bytes]
+    def open(self, fn, mode):  # type: (Text, Text) -> IO[bytes]
         return open(self._abs(fn), mode)
 
     def exists(self, fn):  # type: (Text) -> bool
