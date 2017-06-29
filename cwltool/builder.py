@@ -1,4 +1,5 @@
 import copy
+import os
 from typing import Any, Callable, Text, Type, Union
 
 from six import iteritems, string_types
@@ -13,7 +14,7 @@ from .mutation import MutationManager
 from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, get_feature, docker_windows_path_adjust
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -168,6 +169,11 @@ class Builder(object):
         if isinstance(value, dict) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
+
+            # Path adjust for windows file path when passing to docker, docker accepts unix like path only
+            (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+            if os.name == 'nt' and docker_req is not None: # docker_req is none when there is no dockerRequirement mentioned in hints and Requirement
+                return docker_windows_path_adjust(value["path"])
             return value["path"]
         else:
             return Text(value)
