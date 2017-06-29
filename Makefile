@@ -156,9 +156,9 @@ mypy2: ${PYSOURCES}
 	rm -Rf typeshed/2and3/ruamel/yaml
 	ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
 		typeshed/2and3/ruamel/yaml
-	rm -Rf typeshed/2.7/schema_salad
+	rm -Rf typeshed/2and3/schema_salad
 	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
-		typeshed/2.7/schema_salad
+		typeshed/2and3/schema_salad
 	MYPYPATH=$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
 		 --warn-redundant-casts --warn-unused-ignores \
 		 cwltool
