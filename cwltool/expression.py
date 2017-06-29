@@ -18,13 +18,14 @@ _logger = logging.getLogger("cwltool")
 def jshead(engineConfig, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
 
-    # make sure all the byte strings are converted 
+    # make sure all the byte strings are converted
     # to str in `rootvars` dict.
     # TODO: need to make sure the `rootvars dict`
     # contains no bytes type in the first place.
     rootvars = bytes2str_in_dicts(rootvars)
 
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
+
 
 # all these raw strings are decoded to unicode
 # object due to the __future__ import
