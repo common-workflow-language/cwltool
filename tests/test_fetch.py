@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 import unittest
 
+from six.moves import urllib
+
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
@@ -34,6 +36,16 @@ outputs: []
                     return True
                 else:
                     return False
+
+	    def urljoin(self, base, url):
+                urlsp = urllib.parse.urlsplit(url)
+                if urlsp.scheme:
+                    return url
+                basesp = urllib.parse.urlsplit(base)
+
+                if basesp.scheme == "keep":
+                    return base + "/" + url
+                return urllib.parse.urljoin(base, url)
 
         def test_resolver(d, a):
             return "baz:bar/" + a
