@@ -28,7 +28,7 @@ def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], six.string_types)):
+        if "run" in d and isinstance(d["run"], six.string_types):
             if d["run"] not in runs:
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
@@ -42,7 +42,7 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
             find_ids(s, ids)
     elif isinstance(d, dict):
         for i in ("id", "name"):
-            if i in d and isinstance(d[i], six.string_types)):
+            if i in d and isinstance(d[i], six.string_types):
                 ids.add(d[i])
         for s in d.values():
             find_ids(s, ids)

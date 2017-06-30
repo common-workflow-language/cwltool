@@ -137,7 +137,7 @@ def validate_document(document_loader,  # type: Loader
                       preprocess_only=False,  # type: bool
                       fetcher_constructor=None,
                       skip_schemas=None
-                      # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                      # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""

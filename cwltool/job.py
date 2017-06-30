@@ -460,6 +460,7 @@ def _job_popen(
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
+        key = None  # type: Union[Text, bytes]
         for key in env:
             key = key.encode("utf-8")
             env_copy[key] = env[key]
