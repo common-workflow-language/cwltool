@@ -50,7 +50,7 @@ class Builder(object):
         self.pathmapper = None  # type: PathMapper
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
-        self.build_job_script = None  # type: Callable[[List[str]], Text]
+        self.build_job_script = None  # type: Callable[[List[str]], str]
         self.debug = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
 

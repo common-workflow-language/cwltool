@@ -192,7 +192,7 @@ class JobBase(object):
                     os.makedirs(dn)
                 stdout_path = absout
 
-            build_job_script = self.builder.build_job_script  # type: Callable[[List[str]], Text]
+            build_job_script = self.builder.build_job_script  # type: Callable[[List[str]], str]
             rcode = _job_popen(
                 [Text(x).encode('utf-8') for x in runtime + self.command_line],
                 stdin_path=stdin_path,
@@ -315,7 +315,7 @@ class DockerCommandLineJob(JobBase):
                         shutil.copytree(vol.resolved, vol.target)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
-                with open(createtmp, "w") as f:
+                with open(createtmp, "wb") as f:
                     f.write(vol.resolved.encode("utf-8"))
                 runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
 
@@ -399,11 +399,11 @@ def _job_popen(
         env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
         cwd,  # type: Text
         job_dir=None,  # type: Text
-        build_job_script=None,  # type: Callable[[List[str]], Text]
+        build_job_script=None,  # type: Callable[[List[str]], str]
 ):
     # type: (...) -> int
 
-    job_script_contents = None  # type: Text
+    job_script_contents = None
     if build_job_script:
         job_script_contents = build_job_script(commands)
 
