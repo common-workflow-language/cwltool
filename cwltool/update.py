@@ -9,7 +9,6 @@ from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import
 
 import six
 from six.moves import urllib
-from six import u
 import schema_salad.validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader
@@ -62,7 +61,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
                 else:
                     raise Exception("Unexpected code path.")
                 r["id"] = imp
-                _, frag = u(urllib.parse.urldefrag(imp))
+                _, frag = urllib.parse.urldefrag(imp)
                 if frag:
                     frag = "#" + frag
                     r = findId(r, frag)
@@ -217,9 +216,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     else:
                         raise Exception("Unexpected code path.")
                     r["id"] = imp
-                    # explicit conversion of urldfrag to unicode,
-                    # to avoid mypy error
-                    frag = u(urllib.parse.urldefrag(imp)[1])
+                    frag = urllib.parse.urldefrag(imp)[1]
                     if frag:
                         frag = "#" + frag
                         r = findId(r, frag)
@@ -267,7 +264,7 @@ def traverseImport(doc, loader, baseuri, func):
             else:
                 raise Exception("Unexpected code path.")
             r["id"] = imp
-            _, frag = urllib.parse.urldefrag(imp).decode('ascii')
+            _, frag = urllib.parse.urldefrag(imp)
             if frag:
                 frag = "#" + frag
                 r = findId(r, frag)
@@ -354,7 +351,7 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
             def fixup(f):  # type: (Text) -> Text
-                doc, frg = u(urllib.parse.urldefrag(f))
+                doc, frg = urllib.parse.urldefrag(f)
                 frg = '/'.join(frg.rsplit('.', 1))
                 return doc + "#" + frg
 

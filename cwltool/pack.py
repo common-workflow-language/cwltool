@@ -28,7 +28,7 @@ def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], (str, six.text_type)):
+        if "run" in d and isinstance(d["run"], six.string_types)):
             if d["run"] not in runs:
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
@@ -42,7 +42,7 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
             find_ids(s, ids)
     elif isinstance(d, dict):
         for i in ("id", "name"):
-            if i in d and isinstance(d[i], (str, six.text_type)):
+            if i in d and isinstance(d[i], six.string_types)):
                 ids.add(d[i])
         for s in d.values():
             find_ids(s, ids)
@@ -52,7 +52,7 @@ def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s, v in enumerate(d):
-            if isinstance(v, (str, six.text_type)):
+            if isinstance(v, six.string_types):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -61,7 +61,7 @@ def replace_refs(d, rewrite, stem, newstem):
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
         for s, v in d.items():
-            if isinstance(v, (str, six.text_type)):
+            if isinstance(v, six.string_types):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):

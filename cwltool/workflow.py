@@ -676,7 +676,7 @@ class WorkflowStep(Process):
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for n, step_entry in enumerate(toolpath_object[stepfield]):
-                if isinstance(step_entry, (str, six.text_type)):
+                if isinstance(step_entry, six.string_types):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:

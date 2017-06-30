@@ -56,7 +56,7 @@ class Builder(object):
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
-        self.loadListing = "deep_listing"  # type: Union[None, Text]
+        self.loadListing = "deep_listing"  # type: Union[None, str]
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
@@ -130,7 +130,7 @@ class Builder(object):
                 self.files.append(datum)
                 if binding:
                     if binding.get("loadContents"):
-                        with self.fs_access.open(datum["location"], str("rb")) as f:
+                        with self.fs_access.open(datum["location"], "rb") as f:
                             datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:

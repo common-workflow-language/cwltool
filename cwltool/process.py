@@ -30,7 +30,7 @@ from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
-from cwltool.utils import cmp_like_py2
+from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
@@ -603,8 +603,13 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
                     builder.bindings.append(cm)
 
         # use python2 like sorting of heterogeneous lists
-        # (containing str and int types)
-        builder.bindings.sort(key=cmp_to_key(cmp_like_py2))
+        # (containing str and int types),
+        # TODO: unify for both runtime
+        if six.PY3:
+            key = cmp_to_key(cmp_like_py2)
+        else:  # PY2
+            key = lambda dict: dict["position"]
+        builder.bindings.sort(key=key)
         builder.resources = self.evalResources(builder, kwargs)
 
         return builder

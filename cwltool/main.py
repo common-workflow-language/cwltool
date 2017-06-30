@@ -37,7 +37,6 @@ from .resolver import ga4gh_tool_registries, tool_resolver
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 
-
 _logger = logging.getLogger("cwltool")
 
 defaultStreamHandler = logging.StreamHandler()
