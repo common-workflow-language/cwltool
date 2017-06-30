@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from __future__ import unicode_literals
 import copy
 import json
 import logging
@@ -120,7 +119,7 @@ def scanner(scan):  # type: (Text) -> List[int]
         return None
 
 
-def next_seg(remain, obj):  # type: (Text, Any) -> Any
+def next_seg(remain, obj):  # type: (str, Any) -> Any
     if remain:
         m = segment_re.match(remain)
         key = None  # type: Union[Text, int]
@@ -154,7 +153,7 @@ def next_seg(remain, obj):  # type: (Text, Any) -> Any
 
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
-    # type: (Text, Text, Dict[Text, Any], bool, int, bool) -> JSON
+    # type: (str, Text, Dict[Text, Any], bool, int, bool) -> JSON
     m = param_re.match(ex)
     if m:
         if m.end(1)+1 == len(ex) and m.group(1) == "null":
