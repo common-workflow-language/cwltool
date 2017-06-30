@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from typing import Any, AnyStr, Dict, List, Text, Union
+import six
 from six import u
 
 from . import sandboxjs
@@ -21,21 +22,21 @@ def jshead(engineConfig, rootvars):
     # to str in `rootvars` dict.
     # TODO: need to make sure the `rootvars dict`
     # contains no bytes type in the first place.
-    rootvars = bytes2str_in_dicts(rootvars)
+    if six.PY3:
+        rootvars = bytes2str_in_dicts(rootvars)  # type -> ignore
 
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 
-# all these raw strings are decoded to unicode
-# object due to the __future__ import
+# decode all raw strings to unicode
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
-segment_re = re.compile(segments, flags=re.UNICODE)
+segment_re = re.compile(u(segments), flags=re.UNICODE)
 param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
-param_re = re.compile(param_str, flags=re.UNICODE)
+param_re = re.compile(u(param_str), flags=re.UNICODE)
 
 JSON = Union[Dict[Any, Any], List[Any], Text, int, float, bool, None]
 
@@ -119,7 +120,7 @@ def scanner(scan):  # type: (Text) -> List[int]
         return None
 
 
-def next_seg(remain, obj):  # type: (str, Any) -> Any
+def next_seg(remain, obj):  # type: (Text, Any) -> Any
     if remain:
         m = segment_re.match(remain)
         key = None  # type: Union[Text, int]
@@ -153,7 +154,7 @@ def next_seg(remain, obj):  # type: (str, Any) -> Any
 
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
-    # type: (str, Text, Dict[Text, Any], bool, int, bool) -> JSON
+    # type: (Text, Text, Dict[Text, Any], bool, int, bool) -> JSON
     m = param_re.match(ex)
     if m:
         if m.end(1)+1 == len(ex) and m.group(1) == "null":
