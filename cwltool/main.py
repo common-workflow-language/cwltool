@@ -141,6 +141,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
                          default=True, dest="strict")
 
+    parser.add_argument("--skip-schemas", action="store_true",
+            help="Skip loading of schemas", default=True, dest="skip_schemas")
+
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
@@ -431,7 +434,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.round_trip_load(stdin)  # type: ignore
+        job_order_object = yaml.round_trip_load(stdin)
         job_order_object, _ = loader.resolve_all(job_order_object, file_uri(os.getcwd()) + "/")
     else:
         job_order_file = None
@@ -634,6 +637,7 @@ def main(argsl=None,  # type: List[str]
                      'enable_dev': False,
                      'enable_ext': False,
                      'strict': True,
+                     'skip_schemas': False,
                      'rdf_serializer': None,
                      'basedir': None,
                      'tool_help': False,
@@ -701,7 +705,8 @@ def main(argsl=None,  # type: List[str]
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
                                     preprocess_only=args.print_pre or args.pack,
-                                    fetcher_constructor=fetcher_constructor)
+                                    fetcher_constructor=fetcher_constructor,
+                                    skip_schemas=args.skip_schemas)
 
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
