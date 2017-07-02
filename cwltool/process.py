@@ -226,7 +226,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symFunc=True):
             else:
                 shutil.copytree(p.resolved, p.target)
         elif p.type == "CreateFile" and not ignoreWritable:
-            with open(p.target, "w") as n:
+            with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
 
 

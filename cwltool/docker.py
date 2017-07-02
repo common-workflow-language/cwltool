@@ -55,7 +55,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 found = True
         elif "dockerFile" in dockerRequirement:
             dockerfile_dir = str(tempfile.mkdtemp())
-            with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as df:
+            with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as df:
                 df.write(dockerRequirement["dockerFile"])
             cmd = ["docker", "build", "--tag=%s" %
                    str(dockerRequirement["dockerImageId"]), dockerfile_dir]

@@ -322,7 +322,7 @@ class DockerCommandLineJob(JobBase):
                         shutil.copytree(vol.resolved, vol.target)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
-                with open(createtmp, "w") as f:
+                with open(createtmp, "wb") as f:
                     f.write(vol.resolved.encode("utf-8"))
                 runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
 
@@ -483,14 +483,14 @@ def _job_popen(
             stderr_path=stderr_path,
             stdin_path=stdin_path,
         )
-        with open(os.path.join(job_dir, "job.json"), "w") as f:
+        with open(os.path.join(job_dir, "job.json"), "wb") as f:
             json.dump(job_description, f)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "w") as f:
+            with open(job_script, "wb") as f:
                 f.write(job_script_contents)
             job_run = os.path.join(job_dir, "run_job.py")
-            with open(job_run, "w") as f:
+            with open(job_run, "wb") as f:
                 f.write(PYTHON_RUN_SCRIPT)
             sp = subprocess.Popen(
                 ["bash", job_script.encode("utf-8")],
