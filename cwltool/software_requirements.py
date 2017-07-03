@@ -7,8 +7,10 @@ Homebrew, Conda, custom scripts, environment modules. We'd be happy to find
 ways to adapt new packages managers and such as well.
 """
 
+import argparse
 import os
 import string
+from typing import (Any, Dict, List, Text)
 
 try:
     from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
@@ -72,7 +74,7 @@ class DependenciesConfiguration(object):
 
 
 def get_dependencies(builder):
-    # type: (Any) -> List[ToolRequirement]
+    # type: (Any) -> ToolRequirements
     (software_requirement, _) = get_feature(builder, "SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):

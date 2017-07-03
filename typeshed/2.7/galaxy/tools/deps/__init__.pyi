@@ -12,7 +12,7 @@ from .resolvers.tool_shed_packages import ToolShedPackageDependencyResolver as T
 log = ...  # type: Any
 CONFIG_VAL_NOT_FOUND = ...  # type: Any
 
-def build_dependency_manager(config): ...
+def build_dependency_manager(config: Any) -> DependencyManager: ...
 
 class NullDependencyManager:
     dependency_resolvers = ...  # type: Any
