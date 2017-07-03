@@ -54,7 +54,7 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
 # as docker treat them as unix paths so convert C:\Users\foo to /c/Users/foo
 def docker_windows_path_adjust(path):
     # type: (Text) -> (Text)
-    if os.name == 'nt':
+    if path is not None and os.name == 'nt':
         path = path.replace(':', '').replace('\\', '/')
         return path if path[0] == '/' else '/' + path
     return path
