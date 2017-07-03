@@ -174,7 +174,7 @@ class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
-        self.find_default_container = kwargs["find_default_container"]
+        self.find_default_container = kwargs.get("find_default_container", None)
 
     def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
