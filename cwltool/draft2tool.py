@@ -223,10 +223,10 @@ class CommandLineTool(Process):
 
             for _, f in cachebuilder.pathmapper.items():
                 if f.type == "File":
-                    if f.checkum:
+                    st = os.stat(f.resolved)
+                    if f.checksum:
                         keydict[f.resolved] = [st.st_size, int(f.checksum)]
                     else:
-                        st = os.stat(f.resolved)
                         keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
 
             interesting = {"DockerRequirement",
