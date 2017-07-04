@@ -237,9 +237,10 @@ def single_job_executor(t,  # type: Process
             t.requirements.append(req)
 
     if kwargs.get("default_container"):
-        t.requirements.insert(0, {
+        t.hints.insert(0, {
             "class": "DockerRequirement",
-            "dockerPull": kwargs["default_container"]
+            "dockerPull": kwargs["default_container"],
+            "requirement":True
         })
 
     jobiter = t.job(job_order_object,
@@ -618,6 +619,11 @@ def main(argsl=None,  # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
+
+
+        # If On windows platform, A default Docker Container is Used if not explicitely provided by user
+        if os.name == 'nt' and not args.default_container:
+            args.default_container = "ubuntu"
 
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
