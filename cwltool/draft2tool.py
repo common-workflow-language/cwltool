@@ -218,7 +218,12 @@ class CommandLineTool(Process):
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
+            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container") is not False:
+                dockerimg = kwargs.get("default_container")
+
+            if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
+
             keydict = {u"cmdline": cmdline}
 
             for _, f in cachebuilder.pathmapper.items():
