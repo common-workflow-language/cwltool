@@ -57,6 +57,10 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
 def docker_windows_path_adjust(path):
     # type: (Text) -> (Text)
     if path is not None and os.name == 'nt':
+        sp=path.split(':')
+        if len(sp)==2:
+            sp[0]=sp[0].capitalize()  # Capitalizing windows Drive letters
+            path=':'.join(sp)
         path = path.replace(':', '').replace('\\', '/')
         return path if path[0] == '/' else '/' + path
     return path
