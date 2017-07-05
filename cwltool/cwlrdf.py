@@ -1,7 +1,9 @@
+from typing import IO, Any, Dict, Text
+
 from rdflib import Graph
+
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
-from typing import Any, Dict, IO, Text
 from six.moves import urllib
 
 from .process import Process

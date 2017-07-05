@@ -1,6 +1,7 @@
 import abc
 import copy
 import errno
+import functools
 import hashlib
 import json
 import logging
@@ -11,27 +12,27 @@ import tempfile
 import urlparse
 import uuid
 from collections import Iterable
-import functools
+from typing import (Any, AnyStr, Callable, Dict, Generator, List, Text, Tuple,
+                    Union, cast)
+
+from pkg_resources import resource_stream
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDFS
 
 import avro.schema
 import schema_salad.schema
 import schema_salad.validate as validate
-from pkg_resources import resource_stream
-from rdflib import Graph
-from rdflib import URIRef
-from rdflib.namespace import RDFS, OWL
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
-from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
-                    Tuple, Union)
 
 from .builder import Builder
-from .pathmapper import adjustDirObjs, get_listing
-from .errors import WorkflowException, UnsupportedRequirement
-from .pathmapper import PathMapper, normalizeFilesDirs, visit_class
+from .errors import UnsupportedRequirement, WorkflowException
+from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
+                         normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
+
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
@@ -343,6 +344,8 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 def checkFormat(actualFile, inputFormats, ontology):
     # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
     for af in aslist(actualFile):
+        if not af:
+            continue
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):

@@ -1,15 +1,17 @@
-import unittest
-import tempfile
 import os
 import shutil
+import tempfile
+import unittest
 
 import cwltool.expression as expr
 import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-from .util import get_data
 from cwltool.main import main
+
+from .util import get_data
+
 
 class TestListing(unittest.TestCase):
     def test_missing_enable_ext(self):
@@ -122,7 +124,7 @@ class TestInplaceUpdate(unittest.TestCase):
             shutil.rmtree(tmp)
             shutil.rmtree(out)
 
-    def test_updateval_inplace(self):
+    def test_updatedir_inplace(self):
         try:
             tmp = tempfile.mkdtemp()
             with open(os.path.join(tmp, "value"), "w") as f:

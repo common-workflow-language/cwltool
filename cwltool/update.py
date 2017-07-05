@@ -3,11 +3,12 @@ import json
 import re
 import traceback
 import urlparse
+from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import
+                    Tuple, Union)
 
 import schema_salad.validate
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader
-from typing import Any, Callable, Dict, Text, Tuple, Union  # pylint: disable=unused-import
 
 from .utils import aslist
 

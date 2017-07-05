@@ -4,6 +4,11 @@ Common workflow language tool description reference implementation
 
 CWL Conformance test: |Build Status|
 
+Travis: |Unix Build Status|
+
+.. |Unix Build Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=unix%20build
+   :target: https://travis-ci.org/common-workflow-language/cwltool
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
@@ -26,7 +31,7 @@ well)::
 
   pip install cwlref-runner
 
-If installling alongside another CWL implementation then::
+If installing alongside another CWL implementation then::
 
   pip install cwltool
 
@@ -72,7 +77,7 @@ the default cwl-runner use::
 Use with boot2docker
 --------------------
 boot2docker is running docker inside a virtual machine and it only mounts ``Users``
-on it. The default behavoir of CWL is to create temporary directories under e.g.
+on it. The default behavior of CWL is to create temporary directories under e.g.
 ``/Var`` which is not accessible to Docker containers.
 
 To run CWL successfully with boot2docker you need to set the ``--tmpdir-prefix``

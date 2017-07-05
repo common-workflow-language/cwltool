@@ -6,9 +6,10 @@ import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
 import schema_salad.validate
+from cwltool.main import main
 
 from .util import get_data
-from cwltool.main import main
+
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -208,12 +209,16 @@ class TestScanDeps(unittest.TestCase):
 
         self.assertEquals([{
             "basename": "bar.cwl",
+            "nameroot": "bar",
             "class": "File",
+            "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         },
             {
                 "basename": "data.txt",
+                "nameroot": "data",
                 "class": "File",
+                "nameext": ".txt",
                 "location": "file:///example/data.txt"
             },
             {
@@ -222,17 +227,23 @@ class TestScanDeps(unittest.TestCase):
                 "location": "file:///example/data2",
                 "listing": [{
                     "basename": "data3.txt",
+                    "nameroot": "data3",
                     "class": "File",
+                    "nameext": ".txt",
                     "location": "file:///example/data3.txt",
                     "secondaryFiles": [{
                         "class": "File",
                         "basename": "data5.txt",
-                        "location": "file:///example/data5.txt"
+                        "location": "file:///example/data5.txt",
+                        "nameext": ".txt",
+                        "nameroot": "data5"
                     }]
                 }]
             }, {
                 "basename": "data4.txt",
+                "nameroot": "data4",
                 "class": "File",
+                "nameext": ".txt",
                 "location": "file:///example/data4.txt"
             }], sc)
 
@@ -244,7 +255,9 @@ class TestScanDeps(unittest.TestCase):
 
         self.assertEquals([{
             "basename": "bar.cwl",
+            "nameroot": "bar",
             "class": "File",
+            "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         }], sc)
 

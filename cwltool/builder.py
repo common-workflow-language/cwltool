@@ -1,17 +1,19 @@
 import copy
+from typing import Any, Callable, Text, Type, Union
+
+from six import iteritems, string_types
 
 import avro
 import schema_salad.validate as validate
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, Text, Type, Union
-from six import string_types, iteritems
 
 from . import expression
 from .errors import WorkflowException
-from .pathmapper import PathMapper, normalizeFilesDirs, get_listing, visit_class
+from .mutation import MutationManager
+from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
+                         visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
-from .mutation import MutationManager
 
 CONTENT_LIMIT = 64 * 1024
 

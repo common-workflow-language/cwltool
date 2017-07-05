@@ -5,14 +5,13 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
 
 import schema_salad.validate as validate
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
-from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
 
-from . import draft2tool
-from . import expression
+from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename
@@ -67,13 +66,13 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
                 return True
     elif isinstance(src.parameter["type"], list):
         # Source is union type
-        # Check that every source type is compatible with the sink.
+        # Check that at least one source type is compatible with the sink.
         for st in src.parameter["type"]:
             srccopy = copy.deepcopy(src)
             srccopy.parameter["type"] = st
-            if not match_types(st, srccopy, iid, inputobj, linkMerge, valueFrom):
-                return False
-        return True
+            if match_types(sinktype, srccopy, iid, inputobj, linkMerge, valueFrom):
+                return True
+        return False
     elif linkMerge:
         if iid not in inputobj:
             inputobj[iid] = []
@@ -685,7 +684,7 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
-                        param.update(tool_entry)  # type: ignore
+                        param.update(tool_entry)
                         found = True
                         bound.add(frag)
                         break

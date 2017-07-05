@@ -8,18 +8,18 @@ import stat
 import subprocess
 import sys
 import tempfile
+from typing import (IO, Any, Callable, Iterable, List, MutableMapping, Text,
+                    Tuple, Union, cast)
 
 import shellescape
-from typing import (Any, Callable, Union, Iterable, MutableMapping,
-                    IO, Text, Tuple, cast, List)
 
 from . import docker
 from .builder import Builder
 from .docker_uid import docker_vm_uid
 from .errors import WorkflowException
 from .pathmapper import PathMapper
-from .process import (get_feature, empty_subtree, stageFiles,
-                      UnsupportedRequirement)
+from .process import (UnsupportedRequirement, empty_subtree, get_feature,
+                      stageFiles)
 
 _logger = logging.getLogger("cwltool")
 

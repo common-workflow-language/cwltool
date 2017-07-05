@@ -1,6 +1,6 @@
 from __future__ import print_function
-import subprocess
 
+import subprocess
 from typing import Text
 
 

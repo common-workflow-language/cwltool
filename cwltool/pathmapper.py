@@ -4,14 +4,14 @@ import os
 import stat
 import uuid
 from functools import partial
+from typing import Any, Callable, Iterable, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, Set, Text, Tuple, Union, Iterable
 from six.moves import urllib
 
-from .stdfsaccess import abspath, StdFsAccess
+from .stdfsaccess import StdFsAccess, abspath
 
 _logger = logging.getLogger("cwltool")
 
@@ -76,6 +76,9 @@ def normalizeFilesDirs(job):
 
         if "basename" not in d:
             d["basename"] = os.path.basename(urllib.request.url2pathname(path))
+
+        if d["class"] == "File":
+            d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
 
     visit_class(job, ("File", "Directory"), addLocation)
 

@@ -5,8 +5,10 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-from .util import get_data
 from cwltool.main import main
+
+from .util import get_data
+
 
 class TestCheck(unittest.TestCase):
     def test_output_checking(self):
