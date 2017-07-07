@@ -3,6 +3,7 @@ $base: "https://w3id.org/cwl/cwl#"
 $namespaces:
   cwl: "https://w3id.org/cwl/cwl#"
   sld: "https://w3id.org/cwl/salad#"
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#"
 
 $graph:
 
@@ -562,7 +563,9 @@ $graph:
 
     - name: default
       type: Any?
-      jsonldPredicate: "cwl:default"
+      jsonldPredicate:
+        _id: cwl:default
+        noLinkCheck: true
       doc: |
         The default value for this parameter if not provided in the input
         object.

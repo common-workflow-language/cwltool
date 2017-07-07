@@ -2,6 +2,7 @@ $base: "https://w3id.org/cwl/cwl#"
 
 $namespaces:
   cwl: "https://w3id.org/cwl/cwl#"
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#"
 
 $graph:
 
@@ -266,7 +267,9 @@ $graph:
       doc: |
         The default value for this parameter if there is no `source`
         field.
-      jsonldPredicate: "cwl:default"
+      jsonldPredicate:
+        _id: "cwl:default"
+        noLinkCheck: true
     - name: valueFrom
       type:
         - "null"
