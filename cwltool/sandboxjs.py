@@ -118,7 +118,7 @@ def new_js_proc():
 
 def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
 
-    if not hasattr(localdata, "proc") or localdata.proc.poll() is not None:
+    if not hasattr(localdata, "proc") or localdata.proc.poll() is not None or os.name == 'nt':
         localdata.proc = new_js_proc()
 
     nodejs = localdata.proc
@@ -144,7 +144,6 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     stdin_buf = BytesIO(json.dumps(fn) + "\n")
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
-
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
 
@@ -189,10 +188,13 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
         # Threads managing nodejs.stdin, nodejs.stdout and nodejs.stderr respectively
         input_thread = threading.Thread(target=put_input, args=(input_queue,))
+        input_thread.daemon=True
         input_thread.start()
         output_thread = threading.Thread(target=get_output, args=(output_queue,))
+        output_thread.daemon=True
         output_thread.start()
         error_thread = threading.Thread(target=get_error, args=(error_queue,))
+        error_thread.daemon=True
         error_thread.start()
 
         # mark if output/error is ready
@@ -256,7 +258,6 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             except OSError as e:
                 break
     tm.cancel()
-
     stdin_buf.close()
     stdoutdata = stdout_buf.getvalue()
     stderrdata = stderr_buf.getvalue()
@@ -290,6 +291,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             raise JavascriptException(info)
     else:
         try:
+            # On windows currently a new instance of nodejs process is used due to problem with blocking on read operation on windows
+            if os.name=='nt':
+                nodejs.kill()
             return json.loads(stdoutdata)
         except ValueError as e:
             raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
