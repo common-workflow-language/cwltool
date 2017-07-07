@@ -221,10 +221,17 @@ class CommandLineTool(Process):
                 cmdline = ["docker", "run", dockerimg] + cmdline
             keydict = {u"cmdline": cmdline}
 
-            for _, f in cachebuilder.pathmapper.items():
+            for location, f in cachebuilder.pathmapper.items():
                 if f.type == "File":
+                    checksum = next((e['checksum'] for e in cachebuilder.files
+                            if 'location' in e and e['location'] == location
+                            and 'checksum' in e
+                            and e['checksum'] != 'sha1$hash'), None)
                     st = os.stat(f.resolved)
-                    keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
+                    if checksum:
+                        keydict[f.resolved] = [st.st_size, checksum]
+                    else:
+                        keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
