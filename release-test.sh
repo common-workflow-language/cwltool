@@ -57,7 +57,7 @@ rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==20.10.1 wheel
 pip install ${package}*tar.gz
-pip install pytest
+pip install pytest mock
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*

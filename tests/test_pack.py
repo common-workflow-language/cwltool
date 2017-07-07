@@ -7,8 +7,10 @@ import cwltool.pack
 import cwltool.workflow
 from cwltool.load_tool import fetch_document, validate_document
 from cwltool.main import makeRelative
-from cwltool.process import adjustFileObjs, adjustDirObjs
+from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
+
 from .util import get_data
+
 
 class TestPack(unittest.TestCase):
     def test_pack(self):

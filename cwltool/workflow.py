@@ -5,13 +5,13 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
+from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
 
 import schema_salad.validate as validate
-from schema_salad.sourceline import SourceLine
-from typing import Any, Callable, cast, Generator, Iterable, List, Text, Union
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad.sourceline import SourceLine, cmap
 
-from . import draft2tool
-from . import expression
+from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename
@@ -66,13 +66,13 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
                 return True
     elif isinstance(src.parameter["type"], list):
         # Source is union type
-        # Check that every source type is compatible with the sink.
+        # Check that at least one source type is compatible with the sink.
         for st in src.parameter["type"]:
             srccopy = copy.deepcopy(src)
             srccopy.parameter["type"] = st
-            if not match_types(st, srccopy, iid, inputobj, linkMerge, valueFrom):
-                return False
-        return True
+            if match_types(sinktype, srccopy, iid, inputobj, linkMerge, valueFrom):
+                return True
+        return False
     elif linkMerge:
         if iid not in inputobj:
             inputobj[iid] = []
@@ -93,31 +93,74 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
     return False
 
 
-def can_assign_src_to_sink(src, sink):  # type: (Any, Any) -> bool
-    """Check for identical type specifications, ignoring extra keys like inputBinding.
+def check_types(srctype, sinktype, linkMerge, valueFrom):
+    # type: (Union[List[Text],Text], Union[List[Text],Text], Text, Text) -> Text
+    """Check if the source and sink types are "pass", "warning", or "exception".
     """
+
+    if valueFrom:
+        return "pass"
+    elif not linkMerge:
+        if can_assign_src_to_sink(srctype, sinktype, strict=True):
+            return "pass"
+        elif can_assign_src_to_sink(srctype, sinktype, strict=False):
+            return "warning"
+        else:
+            return "exception"
+    else:
+        if not isinstance(sinktype, dict):
+            return "exception"
+        elif linkMerge == "merge_nested":
+            return check_types(srctype, sinktype["items"], None, None)
+        elif linkMerge == "merge_flattened":
+            if not isinstance(srctype, dict):
+                return check_types(srctype, sinktype["items"], None, None)
+            else:
+                return check_types(srctype, sinktype, None, None)
+        else:
+            raise WorkflowException(u"Unrecognized linkMerge enum '%s'" % linkMerge)
+
+
+def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -> bool
+    """Check for identical type specifications, ignoring extra keys like inputBinding.
+
+    src: admissible source types
+    sink: admissible sink types
+
+    In non-strict comparison, at least one source type must match one sink type.
+    In strict comparison, all source types must match at least one sink type.
+    """
+
     if sink == "Any":
         return True
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
-            return can_assign_src_to_sink(src["items"], sink["items"])
+            return can_assign_src_to_sink(src["items"], sink["items"], strict)
         elif src["type"] == "record" and sink["type"] == "record":
-            return _compare_records(src, sink)
+            return _compare_records(src, sink, strict)
+        return False
     elif isinstance(src, list):
-        for t in src:
-            if can_assign_src_to_sink(t, sink):
-                return True
+        if strict:
+            for t in src:
+                if not can_assign_src_to_sink(t, sink):
+                    return False
+            return True
+        else:
+            for t in src:
+                if can_assign_src_to_sink(t, sink):
+                    return True
+            return False
     elif isinstance(sink, list):
         for t in sink:
             if can_assign_src_to_sink(src, t):
                 return True
+        return False
     else:
         return src == sink
-    return False
 
 
-def _compare_records(src, sink):
-    # type: (Dict[Text, Any], Dict[Text, Any]) -> bool
+def _compare_records(src, sink, strict=False):
+    # type: (Dict[Text, Any], Dict[Text, Any], bool) -> bool
     """Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
@@ -135,7 +178,7 @@ def _compare_records(src, sink):
     sinkfields = _rec_fields(sink)
     for key in sinkfields.iterkeys():
         if (not can_assign_src_to_sink(
-                srcfields.get(key, "null"), sinkfields.get(key, "null"))
+                srcfields.get(key, "null"), sinkfields.get(key, "null"), strict)
             and sinkfields.get(key) is not None):
             _logger.info("Record comparison failure for %s and %s\n"
                          "Did not match fields for %s: %s and %s" %
@@ -201,6 +244,9 @@ class WorkflowJobStep(object):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
+
+        _logger.info(u"[%s] start", self.name)
+
         for j in self.step.job(joborder, output_callback, **kwargs):
             yield j
 
@@ -213,6 +259,8 @@ class WorkflowJob(object):
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
+        self.did_callback = False
+
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
         elif "tmp_outdir_prefix" in kwargs:
@@ -226,8 +274,27 @@ class WorkflowJob(object):
         _logger.debug(u"[%s] initialized from %s", self.name,
                       self.tool.get("id", "workflow embedded in %s" % kwargs.get("part_of")))
 
-    def receive_output(self, step, outputparms, jobout, processStatus):
-        # type: (WorkflowJobStep, List[Dict[Text,Text]], Dict[Text,Text], Text) -> None
+    def do_output_callback(self, final_output_callback):
+        # type: (Callable[[Any, Any], Any]) -> None
+
+        supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
+
+        try:
+            wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource",
+                                   incomplete=True)
+        except WorkflowException as e:
+            _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
+            wo = {}
+            self.processStatus = "permanentFail"
+
+        _logger.info(u"[%s] completed %s", self.name, self.processStatus)
+
+        self.did_callback = True
+
+        final_output_callback(wo, self.processStatus)
+
+    def receive_output(self, step, outputparms, final_output_callback, jobout, processStatus):
+        # type: (WorkflowJobStep, List[Dict[Text,Text]], Callable[[Any, Any], Any], Dict[Text,Text], Text) -> None
 
         for i in outputparms:
             if "id" in i:
@@ -251,8 +318,12 @@ class WorkflowJob(object):
         step.completed = True
         self.made_progress = True
 
-    def try_make_job(self, step, **kwargs):
-        # type: (WorkflowJobStep, **Any) -> Generator
+        completed = sum(1 for s in self.steps if s.completed)
+        if completed == len(self.steps):
+            self.do_output_callback(final_output_callback)
+
+    def try_make_job(self, step, final_output_callback, **kwargs):
+        # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
@@ -271,7 +342,7 @@ class WorkflowJob(object):
 
             _logger.debug(u"[%s] starting %s", self.name, step.name)
 
-            callback = functools.partial(self.receive_output, step, outputparms)
+            callback = functools.partial(self.receive_output, step, outputparms, final_output_callback)
 
             valueFrom = {
                 i["id"]: i["valueFrom"] for i in step.tool["inputs"]
@@ -303,6 +374,11 @@ class WorkflowJob(object):
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
                 kwargs["postScatterEval"] = postScatterEval
+
+                tot = 1
+                emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
+                if emptyscatter:
+                    _logger.warn(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, scatter,
@@ -345,7 +421,7 @@ class WorkflowJob(object):
             step.completed = True
 
     def run(self, **kwargs):
-        _logger.debug(u"[%s] workflow starting", self.name)
+        _logger.info(u"[%s] start", self.name)
 
     def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator
@@ -380,7 +456,7 @@ class WorkflowJob(object):
 
                 if not step.submitted:
                     try:
-                        step.iterable = self.try_make_job(step, **kwargs)
+                        step.iterable = self.try_make_job(step, output_callback, **kwargs)
                     except WorkflowException as e:
                         _logger.error(u"[%s] Cannot make job: %s", step.name, e)
                         _logger.debug("", exc_info=True)
@@ -409,19 +485,8 @@ class WorkflowJob(object):
                 else:
                     yield None
 
-        supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
-
-        try:
-            wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource",
-                                   incomplete=True)
-        except WorkflowException as e:
-            _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
-            wo = {}
-            self.processStatus = "permanentFail"
-
-        _logger.info(u"[%s] outdir is %s", self.name, self.outdir)
-
-        output_callback(wo, self.processStatus)
+        if not self.did_callback:
+            self.do_output_callback(output_callback)
 
 
 class Workflow(Process):
@@ -433,10 +498,31 @@ class Workflow(Process):
         kwargs["hints"] = self.hints
 
         makeTool = kwargs.get("makeTool")
-        self.steps = [WorkflowStep(step, n, **kwargs) for n, step in enumerate(self.tool.get("steps", []))]
+        self.steps = []  # type: List[WorkflowStep]
+        validation_errors = []
+        for n, step in enumerate(self.tool.get("steps", [])):
+            try:
+                self.steps.append(WorkflowStep(step, n, **kwargs))
+            except validate.ValidationException as v:
+                validation_errors.append(v)
+
+        if validation_errors:
+            raise validate.ValidationException("\n".join(str(v) for v in validation_errors))
+
         random.shuffle(self.steps)
 
-        # TODO: statically validate data links instead of doing it at runtime.
+        # statically validate data links instead of doing it at runtime.
+        workflow_inputs = self.tool["inputs"]
+        workflow_outputs = self.tool["outputs"]
+
+        step_inputs = []  # type: List[Any]
+        step_outputs = []  # type: List[Any]
+        for step in self.steps:
+            step_inputs.extend(step.tool["inputs"])
+            step_outputs.extend(step.tool["outputs"])
+
+        static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
+
 
     def job(self,
             job_order,  # type: Dict[Text, Text]
@@ -457,6 +543,102 @@ class Workflow(Process):
         op(self.tool)
         for s in self.steps:
             s.visit(op)
+
+
+def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs):
+    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]]) -> None
+    """Check if all source and sink types of a workflow are compatible before run time.
+    """
+
+    # source parameters: workflow_inputs and step_outputs
+    # sink parameters: step_inputs and workflow_outputs
+
+    # make a dictionary of source parameters, indexed by the "id" field
+    src_parms = workflow_inputs + step_outputs
+    src_dict = {}
+    for parm in src_parms:
+        src_dict[parm["id"]] = parm
+
+    step_inputs_val = check_all_types(src_dict, step_inputs, "source")
+    workflow_outputs_val = check_all_types(src_dict, workflow_outputs, "outputSource")
+
+    warnings = step_inputs_val["warning"] + workflow_outputs_val["warning"]
+    exceptions = step_inputs_val["exception"] + workflow_outputs_val["exception"]
+
+    warning_msgs = []
+    exception_msgs = []
+    for warning in warnings:
+        src = warning.src
+        sink = warning.sink
+        linkMerge = warning.linkMerge
+        msg = SourceLine(src, "type").makeError(
+            "Source '%s' of type %s is partially incompatible"
+            % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+            SourceLine(sink, "type").makeError(
+            "  with sink '%s' of type %s"
+            % (shortname(sink["id"]), json.dumps(sink["type"])))
+        if linkMerge:
+            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
+        warning_msgs.append(msg)
+    for exception in exceptions:
+        src = exception.src
+        sink = exception.sink
+        linkMerge = exception.linkMerge
+        msg = SourceLine(src, "type").makeError(
+            "Source '%s' of type %s is incompatible"
+            % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+            SourceLine(sink, "type").makeError(
+            "  with sink '%s' of type %s"
+            % (shortname(sink["id"]), json.dumps(sink["type"])))
+        if linkMerge:
+            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
+        exception_msgs.append(msg)
+
+    for sink in step_inputs:
+        if ('null' != sink["type"] and 'null' not in sink["type"]
+            and "source" not in sink and "default" not in sink and "valueFrom" not in sink):
+            msg = SourceLine(sink).makeError(
+                "Required parameter '%s' does not have source, default, or valueFrom expression"
+                % shortname(sink["id"]))
+            exception_msgs.append(msg)
+
+    all_warning_msg = "\n".join(warning_msgs)
+    all_exception_msg = "\n".join(exception_msgs)
+
+    if warnings:
+        _logger.warn("Workflow checker warning:")
+        _logger.warn(all_warning_msg)
+    if exceptions:
+        raise validate.ValidationException(all_exception_msg)
+
+
+SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
+
+def check_all_types(src_dict, sinks, sourceField):
+    # type: (Dict[Text, Any], List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
+    # sourceField is either "soure" or "outputSource"
+    """Given a list of sinks, check if their types match with the types of their sources.
+    """
+
+    validation = {"warning": [], "exception": []}  # type: Dict[Text, List[SrcSink]]
+    for sink in sinks:
+        if sourceField in sink:
+            valueFrom = sink.get("valueFrom")
+            if isinstance(sink[sourceField], list):
+                srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
+                linkMerge = sink.get("linkMerge", ("merge_nested"
+                                                   if len(sink[sourceField]) > 1 else None))
+            else:
+                parm_id = sink[sourceField]
+                srcs_of_sink = [src_dict[parm_id]]
+                linkMerge = None
+            for src in srcs_of_sink:
+                check_result = check_types(src["type"], sink["type"], linkMerge, valueFrom)
+                if check_result == "warning":
+                    validation["warning"].append(SrcSink(src, sink, linkMerge))
+                elif check_result == "exception":
+                    validation["exception"].append(SrcSink(src, sink, linkMerge))
+    return validation
 
 
 class WorkflowStep(Process):
@@ -484,15 +666,17 @@ class WorkflowStep(Process):
                 u"Tool definition %s failed validation:\n%s" %
                 (toolpath_object["run"], validate.indent(str(v))))
 
+        validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
+        bound = set()
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
-            for step_entry in toolpath_object[stepfield]:
+            for n, step_entry in enumerate(toolpath_object[stepfield]):
                 if isinstance(step_entry, (str, unicode)):
-                    param = {}  # type: Dict[Text, Any]
+                    param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:
-                    param = copy.copy(step_entry)
+                    param = CommentedMap(step_entry.iteritems())
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)
@@ -502,18 +686,38 @@ class WorkflowStep(Process):
                     if frag == shortinputid:
                         param.update(tool_entry)
                         found = True
+                        bound.add(frag)
                         break
                 if not found:
                     if stepfield == "in":
                         param["type"] = "Any"
                     else:
-                        raise WorkflowException(
-                            "[%s] Workflow step output '%s' not found in the outputs of the tool (expected one of '%s')" % (
-                                self.id, shortname(step_entry), "', '".join(
-                                    [shortname(tool_entry["id"]) for tool_entry in
-                                     self.embedded_tool.tool[toolfield]])))
+                        validation_errors.append(
+                            SourceLine(self.tool["out"], n).makeError(
+                                "Workflow step output '%s' does not correspond to" % shortname(step_entry))
+                            + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
+                                "  tool output (expected '%s')" % (
+                                    "', '".join(
+                                        [shortname(tool_entry["id"]) for tool_entry in
+                                         self.embedded_tool.tool[toolfield]]))))
                 param["id"] = inputid
+                param.lc.line = toolpath_object[stepfield].lc.data[n][0]
+                param.lc.col = toolpath_object[stepfield].lc.data[n][1]
+                param.lc.filename = toolpath_object[stepfield].lc.filename
                 toolpath_object[toolfield].append(param)
+
+        missing = []
+        for i, tool_entry in enumerate(self.embedded_tool.tool["inputs"]):
+            if shortname(tool_entry["id"]) not in bound:
+                if "null" not in tool_entry["type"] and "default" not in tool_entry:
+                    missing.append(shortname(tool_entry["id"]))
+
+        if missing:
+            validation_errors.append(SourceLine(self.tool, "in").makeError(
+                "Step is missing required parameter%s '%s'" % ("s" if len(missing) > 1 else "", "', '".join(missing))))
+
+        if validation_errors:
+            raise validate.ValidationException("\n".join(validation_errors))
 
         super(WorkflowStep, self).__init__(toolpath_object, **kwargs)
 
@@ -534,13 +738,14 @@ class WorkflowStep(Process):
 
             method = self.tool.get("scatterMethod")
             if method is None and len(scatter) != 1:
-                raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
+                raise validate.ValidationException("Must specify scatterMethod when scattering over multiple inputs")
 
             inp_map = {i["id"]: i for i in inputparms}
             for s in scatter:
                 if s not in inp_map:
-                    raise WorkflowException(u"Scatter parameter '%s' does not correspond to an input parameter of this "
-                                            u"step, inputs are %s" % (s, inp_map.keys()))
+                    raise validate.ValidationException(
+                        SourceLine(self.tool, "scatter").makeError(u"Scatter parameter '%s' does not correspond to an input parameter of this "
+                                                                   u"step, expecting '%s'" % (shortname(s), "', '".join(shortname(k) for k in inp_map.keys()))))
 
                 inp_map[s]["type"] = {"type": "array", "items": inp_map[s]["type"]}
 
@@ -550,8 +755,8 @@ class WorkflowStep(Process):
                 nesting = 1
 
             for r in xrange(0, nesting):
-                for i in outputparms:
-                    i["type"] = {"type": "array", "items": i["type"]}
+                for op in outputparms:
+                    op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
 

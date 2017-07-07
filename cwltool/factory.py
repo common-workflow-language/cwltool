@@ -1,11 +1,8 @@
 import os
-
-from typing import Any, Text, Union, Tuple
 from typing import Callable as tCallable
+from typing import Any, Text, Tuple, Union
 
-from . import load_tool
-from . import main
-from . import workflow
+from . import load_tool, main, workflow
 from .process import Process
 
 

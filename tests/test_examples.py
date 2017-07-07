@@ -5,8 +5,11 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-from .util import get_data
+import schema_salad.validate
 from cwltool.main import main
+
+from .util import get_data
+
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -206,12 +209,16 @@ class TestScanDeps(unittest.TestCase):
 
         self.assertEquals([{
             "basename": "bar.cwl",
+            "nameroot": "bar",
             "class": "File",
+            "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         },
             {
                 "basename": "data.txt",
+                "nameroot": "data",
                 "class": "File",
+                "nameext": ".txt",
                 "location": "file:///example/data.txt"
             },
             {
@@ -220,17 +227,23 @@ class TestScanDeps(unittest.TestCase):
                 "location": "file:///example/data2",
                 "listing": [{
                     "basename": "data3.txt",
+                    "nameroot": "data3",
                     "class": "File",
+                    "nameext": ".txt",
                     "location": "file:///example/data3.txt",
                     "secondaryFiles": [{
                         "class": "File",
                         "basename": "data5.txt",
-                        "location": "file:///example/data5.txt"
+                        "location": "file:///example/data5.txt",
+                        "nameext": ".txt",
+                        "nameroot": "data5"
                     }]
                 }]
             }, {
                 "basename": "data4.txt",
+                "nameroot": "data4",
                 "class": "File",
+                "nameext": ".txt",
                 "location": "file:///example/data4.txt"
             }], sc)
 
@@ -242,7 +255,9 @@ class TestScanDeps(unittest.TestCase):
 
         self.assertEquals([{
             "basename": "bar.cwl",
+            "nameroot": "bar",
             "class": "File",
+            "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         }], sc)
 
@@ -302,6 +317,24 @@ class TestTypeCompare(unittest.TestCase):
             {'items': ['string'], 'type': 'array'},
             {'items': ['int'], 'type': 'array'}))
 
+    def test_typecomparestrict(self):
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(
+            ['string', 'null'], ['string', 'null'], strict=True))
+
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(
+            ['string'], ['string', 'null'], strict=True))
+
+        self.assertFalse(cwltool.workflow.can_assign_src_to_sink(
+            ['string', 'int'], ['string', 'null'], strict=True))
+
+        self.assertTrue(cwltool.workflow.can_assign_src_to_sink(
+            {'items': ['string'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'}, strict=True))
+
+        self.assertFalse(cwltool.workflow.can_assign_src_to_sink(
+            {'items': ['string', 'int'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'}, strict=True))
+
     def test_recordcompare(self):
         src = {
             'fields': [{
@@ -329,13 +362,128 @@ class TestTypeCompare(unittest.TestCase):
 
         self.assertTrue(cwltool.workflow.can_assign_src_to_sink(src, sink))
 
+        self.assertFalse(cwltool.workflow.can_assign_src_to_sink(src, {'items': 'string', 'type': 'array'}))
+
+    def test_typecheck(self):
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], ['string', 'int', 'null'], linkMerge=None, valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], ['string', 'null'], linkMerge=None, valueFrom=None),
+            "warning")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            ['File', 'int'], ['string', 'null'], linkMerge=None, valueFrom=None),
+            "exception")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['string', 'int'], 'type': 'array'},
+            {'items': ['string', 'int', 'null'], 'type': 'array'},
+            linkMerge=None, valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['string', 'int'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge=None, valueFrom=None),
+            "warning")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['File', 'int'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge=None, valueFrom=None),
+            "exception")
+
+        # check linkMerge when sinktype is not an array
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], ['string', 'int', 'null'],
+            linkMerge="merge_nested", valueFrom=None),
+            "exception")
+
+        # check linkMerge: merge_nested
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'],
+            {'items': ['string', 'int', 'null'], 'type': 'array'},
+            linkMerge="merge_nested", valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'],
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_nested", valueFrom=None),
+            "warning")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            ['File', 'int'],
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_nested", valueFrom=None),
+            "exception")
+
+        # check linkMerge: merge_flattened
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'],
+            {'items': ['string', 'int', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'],
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "warning")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            ['File', 'int'],
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "exception")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['string', 'int'], 'type': 'array'},
+            {'items': ['string', 'int', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['string', 'int'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "warning")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['File', 'int'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "exception")
+
+        # check valueFrom
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['File', 'int'], 'type': 'array'},
+            {'items': ['string', 'null'], 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom="special value"),
+            "pass")
+
+
     def test_lifting(self):
         # check that lifting the types of the process outputs to the workflow step
         # fails if the step 'out' doesn't match.
-        with self.assertRaises(cwltool.workflow.WorkflowException):
+        with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
             echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+
+
+    def test_checker(self):
+        # check that the static checker raises exception when a source type
+        # mismatches its sink type.
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            f = cwltool.factory.Factory()
+            f.make("tests/checker_wf/broken-wf.cwl")
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            f = cwltool.factory.Factory()
+            f.make("tests/checker_wf/broken-wf2.cwl")
+
 
 class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):

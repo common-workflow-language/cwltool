@@ -5,25 +5,32 @@ import logging
 import os
 import re
 import uuid
+from typing import Any, Callable, Dict, Text, Tuple, Union, cast
 
 import requests.sessions
-import schema_salad.schema as schema
-from avro.schema import Names
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
-from schema_salad.ref_resolver import Loader, Fetcher, file_uri
-from schema_salad.sourceline import cmap
-from schema_salad.validate import ValidationException
-from typing import Any, Callable, cast, Dict, Text, Tuple, Union
-from six.moves import urllib
 from six import itervalues, string_types
 
-from . import process
-from . import update
+import schema_salad.schema as schema
+from avro.schema import Names
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad.ref_resolver import Fetcher, Loader, file_uri
+from schema_salad.sourceline import cmap
+from schema_salad.validate import ValidationException
+from six.moves import urllib
+
+from . import process, update
 from .errors import WorkflowException
 from .process import Process, shortname
 
 _logger = logging.getLogger("cwltool")
 
+jobloaderctx = {
+    u"cwl": "https://w3id.org/cwl/cwl#",
+    u"path": {u"@type": u"@id"},
+    u"location": {u"@type": u"@id"},
+    u"format": {u"@type": u"@id"},
+    u"id": u"@id"
+}
 
 def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
@@ -33,7 +40,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
-    document_loader = Loader({"cwl": "https://w3id.org/cwl/cwl#", "id": "@id"},
+    document_loader = Loader(jobloaderctx,
                              fetcher_constructor=fetcher_constructor)
 
     uri = None  # type: Text
@@ -68,39 +75,36 @@ def _convert_stdstreams_to_files(workflowobj):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> None
 
     if isinstance(workflowobj, dict):
-        if ('class' in workflowobj
-            and workflowobj['class'] == 'CommandLineTool'):
-            if 'outputs' in workflowobj:
-                for out in workflowobj['outputs']:
-                    for streamtype in ['stdout', 'stderr']:
-                        if out['type'] == streamtype:
-                            if 'outputBinding' in out:
-                                raise ValidationException(
-                                    "Not allowed to specify outputBinding when"
-                                    " using %s shortcut." % streamtype)
-                            if streamtype in workflowobj:
-                                filename = workflowobj[streamtype]
-                            else:
-                                filename = Text(uuid.uuid4())
-                                workflowobj[streamtype] = filename
-                            out['type'] = 'File'
-                            out['outputBinding'] = {'glob': filename}
-            if 'inputs' in workflowobj:
-                for inp in workflowobj['inputs']:
-                    if inp['type'] == 'stdin':
-                        if 'inputBinding' in inp:
+        if workflowobj.get('class') == 'CommandLineTool':
+            for out in workflowobj.get('outputs', []):
+                for streamtype in ['stdout', 'stderr']:
+                    if out.get('type') == streamtype:
+                        if 'outputBinding' in out:
                             raise ValidationException(
-                                "Not allowed to specify inputBinding when"
-                                " using stdin shortcut.")
-                        if 'stdin' in workflowobj:
-                            raise ValidationException(
-                                "Not allowed to specify stdin path when"
-                                " using stdin type shortcut.")
+                                "Not allowed to specify outputBinding when"
+                                " using %s shortcut." % streamtype)
+                        if streamtype in workflowobj:
+                            filename = workflowobj[streamtype]
                         else:
-                            workflowobj['stdin'] = \
-                                "$(inputs.%s.path)" % \
-                                inp['id'].rpartition('#')[2]
-                            inp['type'] = 'File'
+                            filename = Text(uuid.uuid4())
+                            workflowobj[streamtype] = filename
+                        out['type'] = 'File'
+                        out['outputBinding'] = {'glob': filename}
+            for inp in workflowobj.get('inputs', []):
+                if inp.get('type') == 'stdin':
+                    if 'inputBinding' in inp:
+                        raise ValidationException(
+                            "Not allowed to specify inputBinding when"
+                            " using stdin shortcut.")
+                    if 'stdin' in workflowobj:
+                        raise ValidationException(
+                            "Not allowed to specify stdin path when"
+                            " using stdin type shortcut.")
+                    else:
+                        workflowobj['stdin'] = \
+                            "$(inputs.%s.path)" % \
+                            inp['id'].rpartition('#')[2]
+                        inp['type'] = 'File'
         else:
             for entry in itervalues(workflowobj):
                 _convert_stdstreams_to_files(entry)
@@ -129,7 +133,8 @@ def validate_document(document_loader,  # type: Loader
                       enable_dev=False,  # type: bool
                       strict=True,  # type: bool
                       preprocess_only=False,  # type: bool
-                      fetcher_constructor=None
+                      fetcher_constructor=None,
+                      skip_schemas=None
                       # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
@@ -176,9 +181,10 @@ def validate_document(document_loader,  # type: Loader
         raise avsc_names
 
     processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
+
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
-                             fetcher_constructor=fetcher_constructor)
+                             fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
 
     _add_blank_ids(workflowobj)
 
