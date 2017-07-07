@@ -190,15 +190,19 @@ class JobBase(object):
                     os.makedirs(dn)
                 stdout_path = absout
 
-            build_job_script = self.builder.build_job_script  # type: Callable[[List[str]], Text]
+            commands = [Text(x).encode('utf-8') for x in runtime + self.command_line]
+            job_script_contents = None  # type: Text
+            builder = getattr(self, "builder", None)  # type: Builder
+            if builder is not None:
+                job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
-                [Text(x).encode('utf-8') for x in runtime + self.command_line],
+                commands,
                 stdin_path=stdin_path,
                 stdout_path=stdout_path,
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                build_job_script=build_job_script,
+                job_script_contents=job_script_contents,
             )
 
             if self.successCodes and rcode in self.successCodes:
@@ -401,14 +405,9 @@ def _job_popen(
         env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
         cwd,  # type: Text
         job_dir=None,  # type: Text
-        build_job_script=None,  # type: Callable[[List[str]], Text]
+        job_script_contents=None,  # type: Text
 ):
     # type: (...) -> int
-
-    job_script_contents = None  # type: Text
-    if build_job_script:
-        job_script_contents = build_job_script(commands)
-
     if not job_script_contents and not FORCE_SHELLED_POPEN:
 
         stdin = None  # type: Union[IO[Any], int]

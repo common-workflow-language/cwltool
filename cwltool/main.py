@@ -728,10 +728,10 @@ def main(argsl=None,  # type: List[str]
 
             make_tool_kwds = vars(args)
 
-            build_job_script = None  # type: Callable[[Any, List[str]], Text]
+            job_script_provider = None  # type: Callable[[Any, List[str]], Text]
             if conf_file or use_conda_dependencies:
                 dependencies_configuration = DependenciesConfiguration(args)  # type: DependenciesConfiguration
-                make_tool_kwds["build_job_script"] = dependencies_configuration.build_job_script
+                make_tool_kwds["job_script_provider"] = dependencies_configuration
 
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
 
