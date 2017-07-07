@@ -436,7 +436,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.round_trip_load(stdin)  # type: ignore
+        job_order_object = yaml.round_trip_load(stdin)
         job_order_object, _ = loader.resolve_all(job_order_object, file_uri(os.getcwd()) + "/")
     else:
         job_order_file = None
