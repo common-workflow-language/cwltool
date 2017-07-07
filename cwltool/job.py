@@ -345,7 +345,7 @@ class DockerCommandLineJob(JobBase):
 
         self._setup()
 
-        runtime = [u"docker", u"run", u"-i"]
+        runtime = [u"docker", u"run", u"-i", u"--entrypoint", u""]
 
         runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), self.builder.outdir))
         runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
