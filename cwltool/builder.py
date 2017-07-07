@@ -50,6 +50,8 @@ class Builder(object):
         # Will be default "no_listing" for CWL v1.1
         self.loadListing = "deep_listing"  # type: Union[None, str]
 
+        self.find_default_container = None  # type: Callable[[], Text]
+
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
         if tail_pos is None:
