@@ -32,7 +32,7 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
-from .software_requirements import DependenciesConfiguration
+from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 
