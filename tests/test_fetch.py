@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import unittest
 
@@ -36,7 +35,7 @@ outputs: []
                 else:
                     return False
 
-	    def urljoin(self, base, url):
+        def urljoin(self, base, url):
                 urlsp = urllib.parse.urlsplit(url)
                 if urlsp.scheme:
                     return url

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import copy
 from typing import Any, Callable, Dict, List, Text, Type, Union
