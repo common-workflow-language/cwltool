@@ -480,8 +480,8 @@ def _job_popen(
             json.dump(job_description, f)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "w") as f:
-                f.write(job_script_contents)
+            with open(job_script, "wb") as f:
+                f.write(job_script_contents.encode('utf-8'))
             job_run = os.path.join(job_dir, "run_job.py")
             with open(job_run, "w") as f:
                 f.write(PYTHON_RUN_SCRIPT)
