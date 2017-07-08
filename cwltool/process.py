@@ -598,12 +598,7 @@ class Process(object):
 
         builder.resources = self.evalResources(builder, kwargs)
 
-        build_job_script = kwargs.get("build_job_script", None)  # type: Callable[[Builder, List[str]], Text]
-        curried_build_job_script = None  # type: Callable[[List[str]], Text]
-        if build_job_script:
-            curried_build_job_script = lambda commands: build_job_script(builder, commands)
-        builder.build_job_script = curried_build_job_script
-
+        builder.job_script_provider = kwargs.get("job_script_provider", None)
         return builder
 
     def evalResources(self, builder, kwargs):

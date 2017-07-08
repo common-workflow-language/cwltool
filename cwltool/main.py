@@ -21,6 +21,7 @@ from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
 from . import draft2tool, workflow
+from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .load_tool import fetch_document, make_tool, validate_document, jobloaderctx
@@ -255,6 +256,9 @@ def single_job_executor(t,  # type: Process
     try:
         for r in jobiter:
             if r:
+                builder = kwargs.get("builder", None)  # type: Builder
+                if builder is not None:
+                    r.builder = builder
                 if r.outdir:
                     output_dirs.add(r.outdir)
                 r.run(**kwargs)
@@ -728,10 +732,10 @@ def main(argsl=None,  # type: List[str]
 
             make_tool_kwds = vars(args)
 
-            build_job_script = None  # type: Callable[[Any, List[str]], Text]
+            job_script_provider = None  # type: Callable[[Any, List[str]], Text]
             if conf_file or use_conda_dependencies:
                 dependencies_configuration = DependenciesConfiguration(args)  # type: DependenciesConfiguration
-                make_tool_kwds["build_job_script"] = dependencies_configuration.build_job_script
+                make_tool_kwds["job_script_provider"] = dependencies_configuration
 
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
 
