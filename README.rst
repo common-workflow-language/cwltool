@@ -413,43 +413,67 @@ Extension points
 The following functions can be provided to main(), to load_tool(), or to the
 executor to override or augment the listed behaviors.
 
-executor(tool, job_order_object, **kwargs)
-  (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
+executor
+  ::
+
+    executor(tool, job_order_object, **kwargs)
+      (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
 
   A toplevel workflow execution loop, should synchronously execute a process
   object and return an output object.
 
-makeTool(toolpath_object, **kwargs)
-  (Dict[Text, Any], **Any) -> Process
+makeTool
+  ::
+
+    makeTool(toolpath_object, **kwargs)
+      (Dict[Text, Any], **Any) -> Process
 
   Construct a Process object from a document.
 
-selectResources(request)
-  (Dict[Text, int]) -> Dict[Text, int]
+selectResources
+  ::
+
+    selectResources(request)
+      (Dict[Text, int]) -> Dict[Text, int]
 
   Take a resource request and turn it into a concrete resource assignment.
 
-versionfunc()
-  () -> Text
+versionfunc
+  ::
+
+    ()
+      () -> Text
 
   Return version string.
 
-make_fs_access(basedir)
-  (Text) -> StdFsAccess
+make_fs_access
+  ::
+
+    make_fs_access(basedir)
+      (Text) -> StdFsAccess
 
   Return a file system access object.
 
-fetcher_constructor(cache, session)
-  (Dict[unicode, unicode], requests.sessions.Session) -> Fetcher
+fetcher_constructor
+  ::
+
+    fetcher_constructor(cache, session)
+      (Dict[unicode, unicode], requests.sessions.Session) -> Fetcher
 
   Construct a Fetcher object with the supplied cache and HTTP session.
 
-resolver(document_loader, document)
-  (Loader, Union[Text, dict[Text, Any]]) -> Text
+resolver
+  ::
+
+    resolver(document_loader, document)
+      (Loader, Union[Text, dict[Text, Any]]) -> Text
 
   Resolve a relative document identifier to an absolute one which can be fetched.
 
 logger_handler
-  logging.Handler
+  ::
+
+    logger_handler
+      logging.Handler
 
   Handler object for logging.
