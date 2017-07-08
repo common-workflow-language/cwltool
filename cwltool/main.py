@@ -21,6 +21,7 @@ from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
 from . import draft2tool, workflow
+from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .load_tool import fetch_document, make_tool, validate_document, jobloaderctx
