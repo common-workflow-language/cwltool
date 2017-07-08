@@ -49,13 +49,23 @@ class Builder(object):
         self.pathmapper = None  # type: PathMapper
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
-        self.build_job_script = None  # type: Callable[[List[str]], str]
         self.debug = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
         self.loadListing = "deep_listing"  # type: Union[None, str]
+
+        self.find_default_container = None  # type: Callable[[], Text]
+        self.job_script_provider = None  # type: Any
+
+    def build_job_script(self, commands):
+        # type: (List[str]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[str]], Text]
+        if build_job_script_method:
+            return build_job_script_method(self, commands)
+        else:
+            return None
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]

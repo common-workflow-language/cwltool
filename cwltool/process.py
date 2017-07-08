@@ -611,6 +611,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
         builder.bindings.sort(key=key)
         builder.resources = self.evalResources(builder, kwargs)
 
+        builder.job_script_provider = kwargs.get("job_script_provider", None)
         return builder
 
     def evalResources(self, builder, kwargs):

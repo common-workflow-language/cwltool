@@ -35,6 +35,7 @@ python "run_job.py" "job.json"
 
 PYTHON_RUN_SCRIPT = """
 import json
+import os
 import sys
 import subprocess
 
@@ -43,6 +44,7 @@ with open(sys.argv[1], "r") as f:
     commands = popen_description["commands"]
     cwd = popen_description["cwd"]
     env = popen_description["env"]
+    env["PATH"] = os.environ.get("PATH")
     stdin_path = popen_description["stdin_path"]
     stdout_path = popen_description["stdout_path"]
     stderr_path = popen_description["stderr_path"]
@@ -69,7 +71,7 @@ with open(sys.argv[1], "r") as f:
     if sp.stdin:
         sp.stdin.close()
     rcode = sp.wait()
-    if isinstance(stdin, file):
+    if stdin is not subprocess.PIPE:
         stdin.close()
     if stdout is not sys.stderr:
         stdout.close()
@@ -147,7 +149,6 @@ class JobBase(object):
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
-
     def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move"):
         # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
 
@@ -191,15 +192,19 @@ class JobBase(object):
                     os.makedirs(dn)
                 stdout_path = absout
 
-            build_job_script = self.builder.build_job_script  # type: Callable[[List[str]], str]
+            commands = [Text(x).encode('utf-8') for x in runtime + self.command_line]
+            job_script_contents = None  # type: Text
+            builder = getattr(self, "builder", None)  # type: Builder
+            if builder is not None:
+                job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
-                [Text(x).encode('utf-8') for x in runtime + self.command_line],
+                commands,
                 stdin_path=stdin_path,
                 stdout_path=stdout_path,
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                build_job_script=build_job_script,
+                job_script_contents=job_script_contents,
             )
 
             if self.successCodes and rcode in self.successCodes:
@@ -330,8 +335,12 @@ class DockerCommandLineJob(JobBase):
             env = cast(MutableMapping[Text, Text], os.environ)
             if docker_req and kwargs.get("use_container") is not False:
                 img_id = docker.get_from_requirements(docker_req, True, pull_image)
-            elif kwargs.get("default_container", None) is not None:
-                img_id = kwargs.get("default_container")
+            if img_id is None:
+                find_default_container = self.builder.find_default_container
+                default_container = find_default_container and find_default_container()
+                if default_container:
+                    img_id = default_container
+                    env = cast(MutableMapping[Text, Text], os.environ)
 
             if docker_req and img_id is None and kwargs.get("use_container"):
                 raise Exception("Docker image not available")
@@ -398,14 +407,9 @@ def _job_popen(
         env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
         cwd,  # type: Text
         job_dir=None,  # type: Text
-        build_job_script=None,  # type: Callable[[List[str]], str]
+        job_script_contents=None,  # type: Text
 ):
     # type: (...) -> int
-
-    job_script_contents = None
-    if build_job_script:
-        job_script_contents = build_job_script(commands)
-
     if not job_script_contents and not FORCE_SHELLED_POPEN:
 
         stdin = None  # type: Union[IO[Any], int]
@@ -485,8 +489,8 @@ def _job_popen(
                 ["bash", job_script.encode("utf-8")],
                 shell=False,
                 cwd=job_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=sys.stderr,  # The nested script will output the paths to the correct files if they need
+                stderr=sys.stderr,  # to be captured. Else just write everything to stderr (same as above).
                 stdin=subprocess.PIPE,
             )
             if sp.stdin:
