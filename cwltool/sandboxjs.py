@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import errno
 import json
 import logging
@@ -10,6 +11,7 @@ from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 
 from pkg_resources import resource_stream
 
+import six
 
 class JavascriptException(Exception):
     pass
@@ -79,7 +81,7 @@ def new_js_proc():
             nodeimg = "node:slim"
             global have_node_slim
             if not have_node_slim:
-                dockerimgs = subprocess.check_output(["docker", "images", nodeimg])
+                dockerimgs = subprocess.check_output(["docker", "images", nodeimg]).decode('utf-8')
                 if len(dockerimgs.split("\n")) <= 1:
                     nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
                     _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
@@ -122,7 +124,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     nodejs = localdata.proc
 
     fn = u"\"use strict\";\n%s\n(function()%s)()" %\
-         (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
+         (jslib, js if isinstance(js, six.string_types) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
 
@@ -139,7 +141,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     tm = threading.Timer(timeout, term)
     tm.start()
 
-    stdin_buf = BytesIO(json.dumps(fn) + "\n")
+    stdin_buf = BytesIO((json.dumps(fn) + "\n").encode('utf-8'))
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
 
@@ -161,7 +163,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
                         pipes[1].write(b)
                     else:
                         rselect.remove(pipes[0])
-            if stdout_buf.getvalue().endswith("\n"):
+            if stdout_buf.getvalue().endswith("\n".encode()):
                 rselect = []
         except OSError as e:
             break
@@ -180,7 +182,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             lines = lines[-maxlines:]
         return u"\n".join(u"%02i %s" % (i + ofs + 1, b) for i, b in enumerate(lines))
 
-    def stdfmt(data):  # type: (unicode) -> unicode
+    def stdfmt(data):  # type: (Text) -> Text
         if "\n" in data:
             return "\n" + data.strip()
         return data
@@ -189,9 +191,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
-               (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
+               (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata.decode('utf-8')), stdfmt(stderrdata.decode('utf-8')))
     else:
-        info = stdfmt(stderrdata)
+        info = stdfmt(stderrdata.decode('utf-8'))
 
     if nodejs.poll() not in (None, 0):
         if killed:
@@ -200,7 +202,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             raise JavascriptException(info)
     else:
         try:
-            return json.loads(stdoutdata)
+            return json.loads(stdoutdata.decode('utf-8'))
         except ValueError as e:
             raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
                                       (e, fn_linenum(), stdoutdata, stderrdata))

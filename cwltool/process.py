@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import abc
 import copy
 import errno
@@ -9,23 +11,25 @@ import os
 import shutil
 import stat
 import tempfile
-import urlparse
 import uuid
 from collections import Iterable
-from typing import (Any, AnyStr, Callable, Dict, Generator, List, Text, Tuple,
-                    Union, cast)
-
-from pkg_resources import resource_stream
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
+from functools import cmp_to_key
+from typing import (Any, Callable, Dict, Generator, List, Set, Text,
+                    Tuple, Union, cast)
 
 import avro.schema
 import schema_salad.schema
 import schema_salad.validate as validate
+import six
+from pkg_resources import resource_stream
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
+from six.moves import urllib
 
+from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
@@ -33,9 +37,14 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
+# if six.PY3:
+# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+# else:
+AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 class LogAsDebugFilter(logging.Filter):
-    def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
+    def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
+        name = str(name)
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
@@ -120,7 +129,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[Text, Text]
+    cache = {}  # type: Dict[Text, Union[bytes, Text]]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
@@ -156,7 +165,7 @@ def get_schema(version):
 
 def shortname(inputid):
     # type: (Text) -> Text
-    d = urlparse.urlparse(inputid)
+    d = urllib.parse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
     else:
@@ -215,7 +224,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             else:
                 shutil.copytree(p.resolved, p.target)
         elif p.type == "CreateFile" and not ignoreWritable:
-            with open(p.target, "w") as n:
+            with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
 
 
@@ -387,9 +396,7 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class Process(object):
-    __metaclass__ = abc.ABCMeta
-
+class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
@@ -444,8 +451,8 @@ class Process(object):
             sdtypes = sd["types"]
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
-                self.schemaDefs[i["name"]] = i
-            avro.schema.make_avsc_object(av, self.names)
+                self.schemaDefs[i["name"]] = i  # type: ignore
+            AvroSchemaFromJSONData(av, self.names)  # type: ignore
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -475,16 +482,16 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
+            self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
+            AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
@@ -594,14 +601,21 @@ class Process(object):
                     cm.lc.filename = fn
                     builder.bindings.append(cm)
 
-        builder.bindings.sort(key=lambda a: a["position"])
-
+        # use python2 like sorting of heterogeneous lists
+        # (containing str and int types),
+        # TODO: unify for both runtime
+        if six.PY3:
+            key = cmp_to_key(cmp_like_py2)
+        else:  # PY2
+            key = lambda dict: dict["position"]
+        builder.bindings.sort(key=key)
         builder.resources = self.evalResources(builder, kwargs)
 
+        builder.job_script_provider = kwargs.get("job_script_provider", None)
         return builder
 
     def evalResources(self, builder, kwargs):
-        # type: (Builder, Dict[AnyStr, Any]) -> Dict[Text, Union[int, Text]]
+        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -733,21 +747,21 @@ def mergedirs(listing):
             ents[e["basename"]] = e
         elif e["class"] == "Directory" and e.get("listing"):
             ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-    for e in ents.itervalues():
+    for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(ents.itervalues())
+    r.extend(six.itervalues(ents))
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
+def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
-                df, _ = urlparse.urldefrag(doc["id"])
+                df, _ = urllib.parse.urldefrag(doc["id"])
                 if base != df:
                     r.append({
                         "class": "File",
@@ -774,7 +788,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin)
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in doc.iteritems():
+        for k, v in six.iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):
@@ -817,7 +831,7 @@ def compute_checksums(fs_access, fileobj):
         checksum = hashlib.sha1()
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
-            while contents != "":
+            while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
             f.seek(0, 2)
