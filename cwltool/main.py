@@ -833,7 +833,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.flush()
 
             if status != "success":
-                _logger.warn(u"Final process status is %s", status)
+                _logger.warning(u"Final process status is %s", status)
                 return 1
             else:
                 _logger.info(u"Final process status is %s", status)

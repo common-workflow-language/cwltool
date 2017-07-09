@@ -165,7 +165,7 @@ def validate_document(document_loader,  # type: Loader
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
             workflowobj["cwlVersion"])
     else:
-        _logger.warn("No cwlVersion found, treating this file as draft-2.")
+        _logger.warning("No cwlVersion found, treating this file as draft-2.")
         workflowobj["cwlVersion"] = "draft-2"
 
     if workflowobj["cwlVersion"] == "draft-2":

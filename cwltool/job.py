@@ -240,7 +240,7 @@ class JobBase(object):
             processStatus = "permanentFail"
 
         if processStatus != "success":
-            _logger.warn(u"[job %s] completed %s", self.name, processStatus)
+            _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
 
