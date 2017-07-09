@@ -22,6 +22,7 @@ except ImportError:
 
 from .utils import get_feature
 
+SOFTWARE_REQUIREMENTS_ENABLED = deps is not None
 
 COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template("""#!/bin/bash
 $handle_dependencies
@@ -60,8 +61,7 @@ class DependenciesConfiguration(object):
 
     def build_job_script(self, builder, command):
         # type: (Any, List[str]) -> Text
-        if deps is None:
-            raise Exception("galaxy-lib not found")
+        ensure_galaxy_lib_available()
         tool_dependency_manager = deps.build_dependency_manager(self)  # type: deps.DependencyManager
         dependencies = get_dependencies(builder)
         handle_dependencies = ""  # str
@@ -99,11 +99,8 @@ def get_dependencies(builder):
 
 def get_container_from_software_requirements(args, builder):
     if args.beta_use_biocontainers:
-        try:
-            from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
-        except ImportError:
-            raise Exception("Optional requirement galaxy-lib not found, it is required for this configuration.")
-
+        ensure_galaxy_lib_available()
+        from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
         app_info = AppInfo(
             involucro_auto_init=True,
             enable_beta_mulled_containers=True,
@@ -117,3 +114,9 @@ def get_container_from_software_requirements(args, builder):
             return container_description.identifier
 
     return None
+
+
+def ensure_galaxy_lib_available():
+    # type: () -> None
+    if not SOFTWARE_REQUIREMENTS_ENABLED:
+        raise Exception("Optional Python library galaxy-lib not available, it is required for this configuration.")

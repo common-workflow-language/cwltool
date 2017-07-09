@@ -35,7 +35,7 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
-from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements
+from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements, SOFTWARE_REQUIREMENTS_ENABLED
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 
@@ -155,14 +155,21 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
-    # help="Dependency resolver configuration file describing how to adapt 'SoftwareRequirement' packages to current system."
-    parser.add_argument("--beta-dependency-resolvers-configuration", default=None, help=argparse.SUPPRESS)
-    # help="Defaut root directory used by dependency resolvers configuration."
-    parser.add_argument("--beta-dependencies-directory", default=None, help=argparse.SUPPRESS)
-    # help="Use biocontainers for tools without an explicitly annotated Docker container."
-    parser.add_argument("--beta-use-biocontainers", default=None, help=argparse.SUPPRESS, action="store_true")
-    # help="Short cut to use Conda to resolve 'SoftwareRequirement' packages."
-    parser.add_argument("--beta-conda-dependencies", default=None, help=argparse.SUPPRESS, action="store_true")
+    dependency_resolvers_configuration_help = argparse.SUPPRESS
+    dependencies_directory_help = argparse.SUPPRESS
+    use_biocontainers_help = argparse.SUPPRESS
+    conda_dependencies = argparse.SUPPRESS
+
+    if SOFTWARE_REQUIREMENTS_ENABLED:
+        dependency_resolvers_configuration_help = "Dependency resolver configuration file describing how to adapt 'SoftwareRequirement' packages to current system."
+        dependencies_directory_help = "Defaut root directory used by dependency resolvers configuration."
+        use_biocontainers_help = "Use biocontainers for tools without an explicitly annotated Docker container."
+        conda_dependencies = "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
+
+    parser.add_argument("--beta-dependency-resolvers-configuration", default=None, help=dependency_resolvers_configuration_help)
+    parser.add_argument("--beta-dependencies-directory", default=None, help=dependencies_directory_help)
+    parser.add_argument("--beta-use-biocontainers", default=None, help=use_biocontainers_help, action="store_true")
+    parser.add_argument("--beta-conda-dependencies", default=None, help=conda_dependencies, action="store_true")
 
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
