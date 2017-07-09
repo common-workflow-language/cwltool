@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import unittest
 from tempfile import NamedTemporaryFile
 
@@ -24,7 +25,7 @@ baseCommand: [cat]
 '''
 
     def test_spaces_in_input_files(self):
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(mode='w') as f:
             f.write(self.script)
             f.flush()
             with NamedTemporaryFile(prefix="test with spaces") as spaces:

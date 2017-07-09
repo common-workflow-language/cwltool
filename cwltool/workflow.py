@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import functools
 import json
@@ -5,7 +6,7 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
 
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -16,6 +17,8 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename
 from .utils import aslist
+import six
+from six.moves import range
 
 _logger = logging.getLogger("cwltool")
 
@@ -176,7 +179,7 @@ def _compare_records(src, sink, strict=False):
 
     srcfields = _rec_fields(src)
     sinkfields = _rec_fields(sink)
-    for key in sinkfields.iterkeys():
+    for key in six.iterkeys(sinkfields):
         if (not can_assign_src_to_sink(
                 srcfields.get(key, "null"), sinkfields.get(key, "null"), strict)
             and sinkfields.get(key) is not None):
@@ -311,7 +314,7 @@ class WorkflowJob(object):
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            _logger.warn(u"[%s] completed %s", step.name, processStatus)
+            _logger.warning(u"[%s] completed %s", step.name, processStatus)
         else:
             _logger.info(u"[%s] completed %s", step.name, processStatus)
 
@@ -352,11 +355,11 @@ class WorkflowJob(object):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
-            vfinputs = {shortname(k): v for k, v in inputobj.iteritems()}
+            vfinputs = {shortname(k): v for k, v in six.iteritems(inputobj)}
 
             def postScatterEval(io):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
-                shortio = {shortname(k): v for k, v in io.iteritems()}
+                shortio = {shortname(k): v for k, v in six.iteritems(io)}
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
@@ -378,7 +381,7 @@ class WorkflowJob(object):
                 tot = 1
                 emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
                 if emptyscatter:
-                    _logger.warn(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
+                    _logger.warning(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, scatter,
@@ -606,8 +609,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
-        _logger.warn("Workflow checker warning:")
-        _logger.warn(all_warning_msg)
+        _logger.warning("Workflow checker warning:")
+        _logger.warning(all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
@@ -672,11 +675,11 @@ class WorkflowStep(Process):
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for n, step_entry in enumerate(toolpath_object[stepfield]):
-                if isinstance(step_entry, (str, unicode)):
+                if isinstance(step_entry, six.string_types):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:
-                    param = CommentedMap(step_entry.iteritems())
+                    param = CommentedMap(six.iteritems(step_entry))
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)
@@ -754,7 +757,7 @@ class WorkflowStep(Process):
             else:
                 nesting = 1
 
-            for r in xrange(0, nesting):
+            for r in range(0, nesting):
                 for op in outputparms:
                     op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
@@ -834,7 +837,7 @@ class ReceiveScatterOutput(object):
 def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
-        for index in xrange(len(steps)):
+        for index in range(len(steps)):
             step = steps[index]
             if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
                 break

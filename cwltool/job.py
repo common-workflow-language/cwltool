@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 import functools
+import io
 import json
 import logging
 import os
@@ -8,7 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
-from typing import (IO, Any, Callable, Iterable, List, MutableMapping, Text,
+from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Tuple, Union, cast)
 
 import shellescape
@@ -238,7 +240,7 @@ class JobBase(object):
             processStatus = "permanentFail"
 
         if processStatus != "success":
-            _logger.warn(u"[job %s] completed %s", self.name, processStatus)
+            _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
 
@@ -260,7 +262,7 @@ class CommandLineJob(JobBase):
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
+        # type: (bool, bool, bool, Text, **Any) -> None
 
         self._setup()
 
@@ -317,13 +319,13 @@ class DockerCommandLineJob(JobBase):
                         shutil.copytree(vol.resolved, vol.target)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
-                with open(createtmp, "w") as f:
+                with open(createtmp, "wb") as f:
                     f.write(vol.resolved.encode("utf-8"))
                 runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> Union[Tuple[Text, Dict[None, None]], None]
+        # type: (bool, bool, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -443,7 +445,7 @@ def _job_popen(
 
         rcode = sp.wait()
 
-        if isinstance(stdin, file):
+        if isinstance(stdin, io.IOBase):
             stdin.close()
 
         if stdout is not sys.stderr:
@@ -461,6 +463,7 @@ def _job_popen(
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
+        key = None  # type: Union[Text, bytes]
         for key in env:
             key = key.encode("utf-8")
             env_copy[key] = env[key]
@@ -477,8 +480,8 @@ def _job_popen(
             json.dump(job_description, f)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "w") as f:
-                f.write(job_script_contents)
+            with open(job_script, "wb") as f:
+                f.write(job_script_contents.encode('utf-8'))
             job_run = os.path.join(job_dir, "run_job.py")
             with open(job_run, "w") as f:
                 f.write(PYTHON_RUN_SCRIPT)

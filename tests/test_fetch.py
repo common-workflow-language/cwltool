@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import unittest
 
 from six.moves import urllib
@@ -34,7 +35,7 @@ outputs: []
                 else:
                     return False
 
-	    def urljoin(self, base, url):
+        def urljoin(self, base, url):
                 urlsp = urllib.parse.urlsplit(url)
                 if urlsp.scheme:
                     return url

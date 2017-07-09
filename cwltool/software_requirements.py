@@ -6,7 +6,7 @@ library that can be used to map SoftwareRequirements in all sorts of ways -
 Homebrew, Conda, custom scripts, environment modules. We'd be happy to find
 ways to adapt new packages managers and such as well.
 """
-
+from __future__ import absolute_import
 import argparse
 import os
 import string

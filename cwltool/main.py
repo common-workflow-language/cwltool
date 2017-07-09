@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import absolute_import
 
 import argparse
 import functools
@@ -8,11 +9,12 @@ import logging
 import os
 import sys
 import tempfile
-from typing import (IO, Any, AnyStr, Callable, Dict, Sequence, Text, Tuple,
+from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
 
 import pkg_resources  # part of setuptools
 import requests
+import six
 import string
 
 import ruamel.yaml as yaml
@@ -440,7 +442,7 @@ def generate_parser(toolparser, tool, namemap, records):
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     job_order_object = None
 
@@ -480,9 +482,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in cmd_line.iteritems()
+                    k: v for k, v in six.iteritems(cmd_line)
                     if k.startswith(record_name)}
-                for key, value in record_items.iteritems():
+                for key, value in six.iteritems(record_items):
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -581,7 +583,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
 
 def print_pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Dict[unicode, Any]) -> str
+    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
     packed = pack(document_loader, processobj, uri, metadata)
     if len(packed["$graph"]) > 1:
         return json.dumps(packed, indent=4)
@@ -599,10 +601,11 @@ def versionstring():
 
 def supportedCWLversions(enable_dev):
     # type: (bool) -> List[Text]
+    # ALLUPDATES and UPDATES are dicts
     if enable_dev:
-        versions = ALLUPDATES.keys()
+        versions = list(ALLUPDATES)
     else:
-        versions = UPDATES.keys()
+        versions = list(UPDATES)
     versions.sort()
     return versions
 
@@ -617,7 +620,7 @@ def main(argsl=None,  # type: List[str]
          versionfunc=versionstring,  # type: Callable[[], Text]
          job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+         fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
          resolver=tool_resolver,
          logger_handler=None,
          custom_schema_callback=None  # type: Callable[[], None]
@@ -639,7 +642,7 @@ def main(argsl=None,  # type: List[str]
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
         # dereferencing them in args.
-        for k, v in {'print_deps': False,
+        for k, v in six.iteritems({'print_deps': False,
                      'print_pre': False,
                      'print_rdf': False,
                      'print_dot': False,
@@ -667,7 +670,7 @@ def main(argsl=None,  # type: List[str]
                      'enable_ga4gh_tool_registry': False,
                      'ga4gh_tool_registries': [],
                      'find_default_container': None
-        }.iteritems():
+        }):
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -829,7 +832,7 @@ def main(argsl=None,  # type: List[str]
 
                 visit_class(out, ("File", "Directory"), locToPath)
 
-                if isinstance(out, basestring):
+                if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
                     stdout.write(json.dumps(out, indent=4))
@@ -837,7 +840,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.flush()
 
             if status != "success":
-                _logger.warn(u"Final process status is %s", status)
+                _logger.warning(u"Final process status is %s", status)
                 return 1
             else:
                 _logger.info(u"Final process status is %s", status)
@@ -855,7 +858,7 @@ def main(argsl=None,  # type: List[str]
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
-                "information:\n%s", strip_dup_lineno(unicode(exc)), exc_info=args.debug)
+                "information:\n%s", strip_dup_lineno(six.text_type(exc)), exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(

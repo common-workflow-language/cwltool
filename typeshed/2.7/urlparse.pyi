@@ -1,6 +1,6 @@
 # Stubs for urlparse (Python 2)
 
-from typing import AnyStr, Dict, List, NamedTuple, Tuple, Sequence, Union, overload
+from typing import AnyStr, Dict, List, NamedTuple, Tuple, Sequence, Union, overload, Text
 
 uses_relative = []  # type: List[str]
 uses_netloc = []  # type: List[str]
