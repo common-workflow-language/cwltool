@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from typing import Any, Callable, List, cast
 
 # http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html

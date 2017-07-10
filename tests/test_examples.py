@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import unittest
 
 import cwltool.expression as expr
@@ -420,6 +421,12 @@ class TestTypeCompare(unittest.TestCase):
             linkMerge="merge_nested", valueFrom=None),
             "exception")
 
+        # check linkMerge: merge_nested and sinktype is "Any"
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], "Any",
+            linkMerge="merge_nested", valueFrom=None),
+            "pass")
+
         # check linkMerge: merge_flattened
         self.assertEquals(cwltool.workflow.check_types(
             ['string', 'int'],
@@ -456,6 +463,24 @@ class TestTypeCompare(unittest.TestCase):
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "exception")
+
+        # check linkMerge: merge_flattened and sinktype is "Any"
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], "Any",
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['string', 'int'], 'type': 'array'}, "Any",
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
+        # check linkMerge: merge_flattened when srctype is a list
+        self.assertEquals(cwltool.workflow.check_types(
+            [{'items': 'string', 'type': 'array'}],
+            {'items': 'string', 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
 
         # check valueFrom
         self.assertEquals(cwltool.workflow.check_types(

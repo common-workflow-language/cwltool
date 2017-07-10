@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import absolute_import
 
 import argparse
 import functools
@@ -8,11 +9,13 @@ import logging
 import os
 import sys
 import tempfile
-from typing import (IO, Any, AnyStr, Callable, Dict, Sequence, Text, Tuple,
+from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
 
 import pkg_resources  # part of setuptools
 import requests
+import six
+import string
 
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -20,6 +23,7 @@ from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
 from . import draft2tool, workflow
+from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .load_tool import fetch_document, make_tool, validate_document, jobloaderctx
@@ -31,8 +35,10 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
+from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements, SOFTWARE_REQUIREMENTS_ENABLED
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+
 
 _logger = logging.getLogger("cwltool")
 
@@ -149,6 +155,22 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    dependency_resolvers_configuration_help = argparse.SUPPRESS
+    dependencies_directory_help = argparse.SUPPRESS
+    use_biocontainers_help = argparse.SUPPRESS
+    conda_dependencies = argparse.SUPPRESS
+
+    if SOFTWARE_REQUIREMENTS_ENABLED:
+        dependency_resolvers_configuration_help = "Dependency resolver configuration file describing how to adapt 'SoftwareRequirement' packages to current system."
+        dependencies_directory_help = "Defaut root directory used by dependency resolvers configuration."
+        use_biocontainers_help = "Use biocontainers for tools without an explicitly annotated Docker container."
+        conda_dependencies = "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
+
+    parser.add_argument("--beta-dependency-resolvers-configuration", default=None, help=dependency_resolvers_configuration_help)
+    parser.add_argument("--beta-dependencies-directory", default=None, help=dependencies_directory_help)
+    parser.add_argument("--beta-use-biocontainers", default=None, help=use_biocontainers_help, action="store_true")
+    parser.add_argument("--beta-conda-dependencies", default=None, help=conda_dependencies, action="store_true")
+
     parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
     parser.add_argument("--relative-deps", choices=['primary', 'cwd'],
@@ -236,12 +258,6 @@ def single_job_executor(t,  # type: Process
         for req in jobReqs:
             t.requirements.append(req)
 
-    if kwargs.get("default_container"):
-        t.requirements.insert(0, {
-            "class": "DockerRequirement",
-            "dockerPull": kwargs["default_container"]
-        })
-
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
@@ -249,6 +265,9 @@ def single_job_executor(t,  # type: Process
     try:
         for r in jobiter:
             if r:
+                builder = kwargs.get("builder", None)  # type: Builder
+                if builder is not None:
+                    r.builder = builder
                 if r.outdir:
                     output_dirs.add(r.outdir)
                 r.run(**kwargs)
@@ -423,7 +442,7 @@ def generate_parser(toolparser, tool, namemap, records):
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     job_order_object = None
 
@@ -463,9 +482,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in cmd_line.iteritems()
+                    k: v for k, v in six.iteritems(cmd_line)
                     if k.startswith(record_name)}
-                for key, value in record_items.iteritems():
+                for key, value in six.iteritems(record_items):
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -564,7 +583,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
 
 
 def print_pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[unicode, Any], List[Dict[unicode, Any]]], unicode, Dict[unicode, Any]) -> str
+    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
     packed = pack(document_loader, processobj, uri, metadata)
     if len(packed["$graph"]) > 1:
         return json.dumps(packed, indent=4)
@@ -582,10 +601,11 @@ def versionstring():
 
 def supportedCWLversions(enable_dev):
     # type: (bool) -> List[Text]
+    # ALLUPDATES and UPDATES are dicts
     if enable_dev:
-        versions = ALLUPDATES.keys()
+        versions = list(ALLUPDATES)
     else:
-        versions = UPDATES.keys()
+        versions = list(UPDATES)
     versions.sort()
     return versions
 
@@ -600,7 +620,7 @@ def main(argsl=None,  # type: List[str]
          versionfunc=versionstring,  # type: Callable[[], Text]
          job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=None,  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+         fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
          resolver=tool_resolver,
          logger_handler=None,
          custom_schema_callback=None  # type: Callable[[], None]
@@ -622,7 +642,7 @@ def main(argsl=None,  # type: List[str]
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
         # dereferencing them in args.
-        for k, v in {'print_deps': False,
+        for k, v in six.iteritems({'print_deps': False,
                      'print_pre': False,
                      'print_rdf': False,
                      'print_dot': False,
@@ -648,8 +668,9 @@ def main(argsl=None,  # type: List[str]
                      'relax_path_checks': False,
                      'validate': False,
                      'enable_ga4gh_tool_registry': False,
-                     'ga4gh_tool_registries': []
-        }.iteritems():
+                     'ga4gh_tool_registries': [],
+                     'find_default_container': None
+        }):
             if not hasattr(args, k):
                 setattr(args, k, v)
 
@@ -716,8 +737,20 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
 
+            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
+            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
+
+            make_tool_kwds = vars(args)
+
+            job_script_provider = None  # type: Callable[[Any, List[str]], Text]
+            if conf_file or use_conda_dependencies:
+                dependencies_configuration = DependenciesConfiguration(args)  # type: DependenciesConfiguration
+                make_tool_kwds["job_script_provider"] = dependencies_configuration
+
+            make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
+
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                             makeTool, vars(args))
+                             makeTool, make_tool_kwds)
 
             if args.validate:
                 return 0
@@ -799,7 +832,7 @@ def main(argsl=None,  # type: List[str]
 
                 visit_class(out, ("File", "Directory"), locToPath)
 
-                if isinstance(out, basestring):
+                if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
                     stdout.write(json.dumps(out, indent=4))
@@ -807,7 +840,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.flush()
 
             if status != "success":
-                _logger.warn(u"Final process status is %s", status)
+                _logger.warning(u"Final process status is %s", status)
                 return 1
             else:
                 _logger.info(u"Final process status is %s", status)
@@ -825,7 +858,7 @@ def main(argsl=None,  # type: List[str]
         except WorkflowException as exc:
             _logger.error(
                 u"Workflow error, try again with --debug for more "
-                "information:\n%s", strip_dup_lineno(unicode(exc)), exc_info=args.debug)
+                "information:\n%s", strip_dup_lineno(six.text_type(exc)), exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
@@ -836,6 +869,16 @@ def main(argsl=None,  # type: List[str]
     finally:
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
+
+
+def find_default_container(args, builder):
+    default_container = None
+    if args.default_container:
+        default_container = args.default_container
+    elif args.beta_use_biocontainers:
+        default_container = get_container_from_software_requirements(args, builder)
+
+    return default_container
 
 
 if __name__ == "__main__":
