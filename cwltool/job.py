@@ -10,6 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+from io import open
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Tuple, Union, cast)
 
