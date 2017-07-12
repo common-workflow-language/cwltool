@@ -387,7 +387,7 @@ class DockerCommandLineJob(JobBase):
         if rm_container:
             runtime.append(u"--rm")
 
-        runtime.append(u"--env=TMPDIR=/tmp")
+        runtime.append(u"--env=TMPDIR=%s" % docker_windows_path_adjust(self.builder.tmpdir))
 
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
