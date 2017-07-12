@@ -396,7 +396,7 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
+class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
