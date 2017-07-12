@@ -444,6 +444,7 @@ def generate_parser(toolparser, tool, namemap, records):
     return toolparser
 
 def generate_example_input(inptype):
+    # type: (Union[Text, Dict[Text, Any]]) -> Any
     defaults = { 'null': 'null',
                  'Any': 'null',
                  'boolean': False,
@@ -458,7 +459,7 @@ def generate_example_input(inptype):
                                 'path': 'default/directory/path' } }
     if (not isinstance(inptype, str) and
         not isinstance(inptype, collections.Mapping)
-        and isinstance(inptype, collections.Iterable)):
+        and isinstance(inptype, collections.MutableSet)):
         if len(inptype) == 2 and 'null' in inptype:
             inptype.remove('null')
             return generate_example_input(inptype[0])
@@ -467,7 +468,7 @@ def generate_example_input(inptype):
             raise Exception("multi-types other than optional not yet supported"
                             " for generating example input objects: %s"
                             % inptype)
-    if 'type' in inptype:
+    if isinstance(inptype, collections.Mapping) and 'type' in inptype:
         if inptype['type'] == 'array':
             return [ generate_example_input(inptype['items']) ]
         elif inptype['type'] == 'enum':
@@ -476,9 +477,10 @@ def generate_example_input(inptype):
         elif inptype['type'] == 'record':
             record = {}
             for field in inptype['fields']:
-                record[shortname(field)] = generate_example_input(field)
+                record[shortname(field['name'])] = generate_example_input(
+                    field['type'])
             return record
-    else:
+    elif isinstance(inptype, str):
         return defaults.get(inptype, 'custom_type')
         # TODO: support custom types, complex arrays
 
