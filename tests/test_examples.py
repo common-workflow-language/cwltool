@@ -118,7 +118,7 @@ class TestFactory(unittest.TestCase):
     def test_factory(self):
         f = cwltool.factory.Factory()
         echo = f.make(get_data("tests/echo.cwl"))
-        self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+        self.assertEqual(echo(inp="foo"), {"out": b"foo\n"})
 
     def test_partial_scatter(self):
         f = cwltool.factory.Factory(on_error="continue")
