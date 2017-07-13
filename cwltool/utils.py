@@ -81,3 +81,20 @@ def docker_windows_reverse_path_adjust(path):
         splitpath[0]= splitpath[0]+':'
         return '\\'.join(splitpath)
     return path
+
+# On docker in windows fileuri do not contain : in path
+# To convert this file uri to windows compatible add : after drove letter,
+# so file:///E/var becomes file:///E:/var
+def docker_windows_reverse_fileuri_adjust(fileuri):
+    # type: (Text) -> (Text)
+    if fileuri is not None and os.name == 'nt':
+        if urllib.parse.urlsplit(fileuri).scheme == "file":
+            filesplit= fileuri.split("/")
+            if filesplit[3][-1] != ':':
+                filesplit[3]=filesplit[3]+':'
+                return '/'.join(filesplit)
+            else:
+                return fileuri
+        else:
+            raise ValueError("not a file URI")
+    return fileuri
