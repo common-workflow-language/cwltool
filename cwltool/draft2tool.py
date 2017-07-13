@@ -154,7 +154,7 @@ class CallbackJob(object):
 def check_adjust(builder, f):
     # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
 
-    f["path"] = builder.pathmapper.mapper(f["location"])[1]
+    f["path"] = docker_windows_path_adjust(builder.pathmapper.mapper(f["location"])[1])
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
         f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
@@ -314,7 +314,7 @@ class CommandLineTool(Process):
                           json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
         _check_adjust = partial(check_adjust, builder)
-        
+
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
         if self.tool.get("stdin"):
