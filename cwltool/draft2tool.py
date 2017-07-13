@@ -27,7 +27,7 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, docker_windows_path_adjust, docker_windows_reverse_path_adjust, docker_windows_reverse_fileuri_adjust
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -105,7 +105,7 @@ def revmap_file(builder, outdir, f):
 
     if "location" in f:
         if f["location"].startswith("file://"):
-            path = uri_file_path(f["location"])
+            path = uri_file_path(docker_windows_reverse_fileuri_adjust(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]
@@ -116,7 +116,7 @@ def revmap_file(builder, outdir, f):
         return f
 
     if "path" in f:
-        path = f["path"]
+        path = docker_windows_reverse_path_adjust(f["path"])
         del f["path"]
         revmap_f = builder.pathmapper.reversemap(path)
         if revmap_f:
@@ -314,12 +314,13 @@ class CommandLineTool(Process):
                           json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
         _check_adjust = partial(check_adjust, builder)
-
+        
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", validate.ValidationException):
                 j.stdin = builder.do_eval(self.tool["stdin"])
+                j.stdin = docker_windows_reverse_path_adjust(j.stdin)
                 reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
