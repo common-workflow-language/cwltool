@@ -535,6 +535,7 @@ class Process(object):
             normalizeFilesDirs(builder.job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job,
                                  strict=False, logger=_logger_validation_warnings)
+
         except (validate.ValidationException, WorkflowException) as e:
             raise WorkflowException("Invalid job input record:\n" + Text(e))
 
@@ -558,7 +559,7 @@ class Process(object):
             builder.loadListing = loadListingReq.get("loadListing")
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = builder.fs_access.realpath(
+            builder.outdir = dockerReq.get("dockerOutputDirectory") if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/') else builder.fs_access.realpath(
                 dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
@@ -574,7 +575,6 @@ class Process(object):
                     checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
-
         if self.tool.get("baseCommand"):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):
                 builder.bindings.append({
@@ -614,7 +614,7 @@ class Process(object):
         builder.bindings.sort(key=lambda a: a["position"])
 
         builder.resources = self.evalResources(builder, kwargs)
-
+        
         return builder
 
     def evalResources(self, builder, kwargs):
