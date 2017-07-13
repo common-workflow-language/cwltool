@@ -45,4 +45,6 @@ class StdFsAccess(object):
         return os.path.join(path, *paths)
 
     def realpath(self, path):  # type: (Text) -> Text
+        if os.name == 'nt':
+            return path
         return os.path.realpath(path)
