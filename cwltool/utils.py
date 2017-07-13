@@ -3,6 +3,8 @@ import os
 import shutil
 import stat
 from typing import (Any, Callable, List, Text, Tuple)
+import six
+from six.moves import urllib
 
 
 def aslist(l):  # type: (Any) -> List[Any]
@@ -53,7 +55,7 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
 
 
 # changes windowspath(only) appropriately to be passed to docker run command
-# as docker treat them as unix paths so convert C:\Users\foo to /c/Users/foo
+# as docker treat them as unix paths so convert C:\Users\foo to /C/Users/foo
 def docker_windows_path_adjust(path):
     # type: (Text) -> (Text)
     if path is not None and os.name == 'nt':
@@ -63,4 +65,19 @@ def docker_windows_path_adjust(path):
             path=':'.join(sp)
         path = path.replace(':', '').replace('\\', '/')
         return path if path[0] == '/' else '/' + path
+    return path
+
+
+# changes docker path(only on windows os) appropriately back to Windows path
+# so convert /C/Users/foo to C:\Users\foo
+def docker_windows_reverse_path_adjust(path):
+    # type: (Text) -> (Text)
+    if path is not None and os.name == 'nt':
+        if path[0] == '/':
+            path=path[1:]
+        else:
+            raise ValueError("not a docker path")
+        splitpath=path.split('/')
+        splitpath[0]= splitpath[0]+':'
+        return '\\'.join(splitpath)
     return path
