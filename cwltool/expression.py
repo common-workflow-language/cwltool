@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from typing import Any, AnyStr, Dict, List, Text, Union
+from utils import docker_windows_path_adjust
 
 from six import u
 
@@ -191,8 +192,8 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
     # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool) -> Any
 
     runtime = copy.copy(resources)
-    runtime["tmpdir"] = tmpdir
-    runtime["outdir"] = outdir
+    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
+    runtime["outdir"] = docker_windows_path_adjust(outdir)
 
     rootvars = {
         u"inputs": jobinput,
