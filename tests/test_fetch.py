@@ -35,15 +35,15 @@ outputs: []
                 else:
                     return False
 
-        def urljoin(self, base, url):
-                urlsp = urllib.parse.urlsplit(url)
-                if urlsp.scheme:
-                    return url
-                basesp = urllib.parse.urlsplit(base)
+            def urljoin(self, base, url):
+                    urlsp = urllib.parse.urlsplit(url)
+                    if urlsp.scheme:
+                        return url
+                    basesp = urllib.parse.urlsplit(base)
 
-                if basesp.scheme == "keep":
-                    return base + "/" + url
-                return urllib.parse.urljoin(base, url)
+                    if basesp.scheme == "keep":
+                        return base + "/" + url
+                    return urllib.parse.urljoin(base, url)
 
         def test_resolver(d, a):
             return "baz:bar/" + a
