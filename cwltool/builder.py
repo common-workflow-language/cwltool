@@ -1,7 +1,9 @@
+from __future__ import absolute_import
 import copy
 import os
-from typing import Any, Callable, Text, Type, Union
+from typing import Any, Callable, Dict, List, Text, Type, Union
 
+import six
 from six import iteritems, string_types
 
 import avro
@@ -15,6 +17,11 @@ from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
+
+# if six.PY3:
+# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+# else:
+AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -43,13 +50,23 @@ class Builder(object):
         self.pathmapper = None  # type: PathMapper
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
-        self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
         self.loadListing = "deep_listing"  # type: Union[None, str]
+
+        self.find_default_container = None  # type: Callable[[], Text]
+        self.job_script_provider = None  # type: Any
+
+    def build_job_script(self, commands):
+        # type: (List[str]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[str]], Text]
+        if build_job_script_method:
+            return build_job_script_method(self, commands)
+        else:
+            return None
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
@@ -77,7 +94,7 @@ class Builder(object):
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
                 else:
-                    avsc = avro.schema.make_avsc_object(t, self.names)
+                    avsc = AvroSchemaFromJSONData(t, self.names)
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t

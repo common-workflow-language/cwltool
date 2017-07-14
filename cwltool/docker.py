@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import logging
 import os
 import re
 import subprocess
 import sys
 import tempfile
-from typing import Text
+from typing import Dict, List, Text
 
 import requests
 
@@ -21,7 +22,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
         dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
 
     for ln in subprocess.check_output(
-            ["docker", "images", "--no-trunc", "--all"]).splitlines():
+            ["docker", "images", "--no-trunc", "--all"]).decode('utf-8').splitlines():
         try:
             m = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", ln)
             sp = dockerRequirement["dockerImageId"].split(":")
@@ -46,7 +47,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             pass
 
     if not found and pull_image:
-        cmd = []  # type: List[str]
+        cmd = []  # type: List[Text]
         if "dockerPull" in dockerRequirement:
             cmd = ["docker", "pull", str(dockerRequirement["dockerPull"])]
             _logger.info(Text(cmd))
@@ -55,8 +56,8 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 found = True
         elif "dockerFile" in dockerRequirement:
             dockerfile_dir = str(tempfile.mkdtemp())
-            with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as df:
-                df.write(dockerRequirement["dockerFile"])
+            with open(os.path.join(dockerfile_dir, "Dockerfile"), str("wb")) as df:
+                df.write(dockerRequirement["dockerFile"].encode('utf-8'))
             cmd = ["docker", "build", "--tag=%s" %
                    str(dockerRequirement["dockerImageId"]), dockerfile_dir]
             _logger.info(Text(cmd))
@@ -69,7 +70,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             if not dry_run:
                 if os.path.exists(dockerRequirement["dockerLoad"]):
                     _logger.info(u"Loading docker image from %s", dockerRequirement["dockerLoad"])
-                    with open(dockerRequirement["dockerLoad"], "rb") as f:
+                    with open(dockerRequirement["dockerLoad"], str("rb")) as f:
                         loadproc = subprocess.Popen(cmd, stdin=f, stdout=sys.stderr)
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=sys.stderr)

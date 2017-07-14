@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import unittest
 from tempfile import NamedTemporaryFile
 
@@ -65,7 +66,7 @@ outputs: []
 '''
 
     def test_help(self):
-        with NamedTemporaryFile(delete=False) as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script)
             f.flush()
             f.close()
@@ -75,7 +76,7 @@ outputs: []
                 get_data('tests/echo.cwl')]), 0)
 
     def test_bool(self):
-        with NamedTemporaryFile(delete=False) as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script2)
             f.flush()
             f.close()
@@ -85,7 +86,7 @@ outputs: []
                 self.assertEquals(e.code, 0)
 
     def test_record_help(self):
-        with NamedTemporaryFile(delete=False) as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script3)
             f.flush()
             f.close()
@@ -95,7 +96,7 @@ outputs: []
                 self.assertEquals(e.code, 0)
 
     def test_record(self):
-        with NamedTemporaryFile(delete=False) as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script3)
             f.flush()
             f.close()
