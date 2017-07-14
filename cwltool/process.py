@@ -569,8 +569,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
                 builder.outdir = dockerReq.get("dockerOutputDirectory")
             else:
-                builder.outdir = builder.fs_access.docker_compatible_realpath(
-                dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+                builder.outdir = builder.fs_access.docker_compatible_realpath(dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
             builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:

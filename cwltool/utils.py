@@ -8,7 +8,7 @@ import stat
 import six
 from six.moves import urllib
 from six.moves import zip_longest
-from typing import Any, Dict, List, Tuple, Text, Union
+from typing import Any,Callable, Dict, List, Tuple, Text, Union
 
 
 def aslist(l):  # type: (Any) -> List[Any]
@@ -86,7 +86,7 @@ def docker_windows_reverse_path_adjust(path):
         return '\\'.join(splitpath)
     return path
 
-  
+
 # On docker in windows fileuri do not contain : in path
 # To convert this file uri to windows compatible add : after drove letter,
 # so file:///E/var becomes file:///E:/var
@@ -104,12 +104,13 @@ def docker_windows_reverse_fileuri_adjust(fileuri):
             raise ValueError("not a file URI")
     return fileuri
 
-  
+
 # Check if we are on windows OS
 def onWindows():
+    # type: () -> (bool)
     return os.name == 'nt'
-  
-  
+
+
 # comparision function to be used in sorting
 # python3 doesn't allow sorting of different
 # types like str() and int().
@@ -140,7 +141,7 @@ def cmp_like_py2(dict1, dict2):  # type: (Dict[Text, Any], Dict[Text, Any]) -> i
     # if both lists are equal
     return 0
 
-  
+
 # util function to convert any present byte string
 # to unicode string. input is a dict of nested dicts and lists
 def bytes2str_in_dicts(a):

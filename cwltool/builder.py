@@ -189,7 +189,7 @@ class Builder(object):
 
             # Path adjust for windows file path when passing to docker, docker accepts unix like path only
             (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
-            if onWindows() and docker_req is not None: # docker_req is none only when there is no dockerRequirement mentioned in hints and Requirement
+            if onWindows() and docker_req is not None:  # docker_req is none only when there is no dockerRequirement mentioned in hints and Requirement
                 return docker_windows_path_adjust(value["path"])
             return value["path"]
         else:
