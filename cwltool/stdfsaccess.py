@@ -3,6 +3,8 @@ import os
 import urllib
 from typing import BinaryIO, Text
 
+from .utils import onWindows
+
 from schema_salad.ref_resolver import file_uri, uri_file_path
 
 
@@ -11,7 +13,7 @@ def abspath(src, basedir):  # type: (Text, Text) -> Text
         ab = unicode(uri_file_path(str(src)))
     else:
         if basedir.startswith(u"file://"):
-            ab = src if os.path.isabs(src) else basedir+ '/'+ src
+            ab = src if os.path.isabs(src) else os.path.join(unicode(uri_file_path(str(basedir))),src)
         else:
             ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
@@ -45,6 +47,10 @@ class StdFsAccess(object):
         return os.path.join(path, *paths)
 
     def realpath(self, path):  # type: (Text) -> Text
-        if os.name == 'nt':
+        return os.path.realpath(path)
+
+    # On windows os.path.realpath appends unecessary Drive, here we would avoid that
+    def docker_compatible_realpath(self, path):  # type: (Text) -> Text
+        if onWindows():
             return path
         return os.path.realpath(path)

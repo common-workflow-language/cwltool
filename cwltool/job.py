@@ -13,7 +13,7 @@ from typing import (IO, Any, Callable, Iterable, List, MutableMapping, Text,
 
 import shellescape
 
-from .utils import copytree_with_merge, docker_windows_path_adjust
+from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
 from .docker_uid import docker_vm_uid
@@ -102,7 +102,7 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
                 os.remove(vol.target)
             elif os.path.isdir(vol.target):
                 shutil.rmtree(vol.target)
-            if os.name == 'nt':
+            if onWindows():
                 if vol.type in ("File", "WritableFile"):
                     shutil.copy(vol.resolved,vol.target)
                 elif vol.type in ("Directory", "WritableDirectory"):
@@ -358,7 +358,7 @@ class DockerCommandLineJob(JobBase):
 
         runtime = [u"docker", u"run", u"-i"]
 
-        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), docker_windows_path_adjust(self.builder.outdir)))
+        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
         runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
         self.add_volumes(self.pathmapper, runtime, False)
@@ -376,7 +376,7 @@ class DockerCommandLineJob(JobBase):
         if self.stdout:
             runtime.append("--log-driver=none")
 
-        if os.name=='nt':  # windows os dont have getuid or geteuid functions
+        if onWindows():  # windows os dont have getuid or geteuid functions
             euid = docker_vm_uid()
         else:
             euid = docker_vm_uid() or os.geteuid()
@@ -387,12 +387,12 @@ class DockerCommandLineJob(JobBase):
         if rm_container:
             runtime.append(u"--rm")
 
-        runtime.append(u"--env=TMPDIR=%s" % docker_windows_path_adjust(self.builder.tmpdir))
+        runtime.append(u"--env=TMPDIR=%s" % self.builder.tmpdir)
 
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
         # runtime.append("--env=HOME=/tmp")
-        runtime.append(u"--env=HOME=%s" % docker_windows_path_adjust(self.builder.outdir))
+        runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         for t, v in self.environment.items():
             runtime.append(u"--env=%s=%s" % (t, v))

@@ -33,6 +33,7 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+from .utils import onWindows
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
@@ -615,7 +616,7 @@ def main(argsl=None,  # type: List[str]
             args = arg_parser().parse_args(argsl)
 
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
-        if os.name == 'nt' and not args.default_container:
+        if onWindows() and not args.default_container:
             args.default_container = "ubuntu"
 
         # Making default Container as lowest priority, that should be used if nothing overrides it

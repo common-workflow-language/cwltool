@@ -1,4 +1,5 @@
 # no imports from cwltool allowed
+
 import os
 import shutil
 import stat
@@ -58,7 +59,7 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
 # as docker treat them as unix paths so convert C:\Users\foo to /C/Users/foo
 def docker_windows_path_adjust(path):
     # type: (Text) -> (Text)
-    if path is not None and os.name == 'nt':
+    if path is not None and onWindows():
         sp=path.split(':')
         if len(sp)==2:
             sp[0]=sp[0].capitalize()  # Capitalizing windows Drive letters
@@ -72,7 +73,7 @@ def docker_windows_path_adjust(path):
 # so convert /C/Users/foo to C:\Users\foo
 def docker_windows_reverse_path_adjust(path):
     # type: (Text) -> (Text)
-    if path is not None and os.name == 'nt':
+    if path is not None and onWindows():
         if path[0] == '/':
             path=path[1:]
         else:
@@ -87,7 +88,7 @@ def docker_windows_reverse_path_adjust(path):
 # so file:///E/var becomes file:///E:/var
 def docker_windows_reverse_fileuri_adjust(fileuri):
     # type: (Text) -> (Text)
-    if fileuri is not None and os.name == 'nt':
+    if fileuri is not None and onWindows():
         if urllib.parse.urlsplit(fileuri).scheme == "file":
             filesplit= fileuri.split("/")
             if filesplit[3][-1] != ':':
@@ -98,3 +99,7 @@ def docker_windows_reverse_fileuri_adjust(fileuri):
         else:
             raise ValueError("not a file URI")
     return fileuri
+
+# Check if we are on windows OS
+def onWindows():
+    return os.name == 'nt'

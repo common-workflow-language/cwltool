@@ -31,7 +31,7 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature, copytree_with_merge
+from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -205,7 +205,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symFunc=True):
             os.makedirs(os.path.dirname(p.target), 0o0755)
         if p.type in ("File", "Directory") and (os.path.exists(p.resolved)):
             if symFunc:  # Use symlink func if allowed
-                if os.name == 'nt':
+                if onWindows():
                     if p.type == "File":
                         shutil.copy(p.resolved, p.target)
                     elif p.type == "Directory":
@@ -296,7 +296,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 rp = os.path.realpath(path)
                 if path != rp:
                     if rp in relinked:
-                        if os.name == 'nt':
+                        if onWindows():
                             if os.path.isfile(path):
                                 shutil.copy(os.path.relpath(relinked[rp], path), path)
                             elif os.path.exists(path) and os.path.isdir(path):
@@ -535,7 +535,6 @@ class Process(object):
             normalizeFilesDirs(builder.job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job,
                                  strict=False, logger=_logger_validation_warnings)
-
         except (validate.ValidationException, WorkflowException) as e:
             raise WorkflowException("Invalid job input record:\n" + Text(e))
 
@@ -559,10 +558,14 @@ class Process(object):
             builder.loadListing = loadListingReq.get("loadListing")
 
         if dockerReq and kwargs.get("use_container"):
-            builder.outdir = dockerReq.get("dockerOutputDirectory") if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/') else builder.fs_access.realpath(
+            # Check if docker output directory is absolute
+            if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
+                builder.outdir = dockerReq.get("dockerOutputDirectory")
+            else:
+                builder.outdir = builder.fs_access.docker_compatible_realpath(
                 dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
+            builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
+            builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
@@ -575,6 +578,7 @@ class Process(object):
                     checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
 
         builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
+
         if self.tool.get("baseCommand"):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):
                 builder.bindings.append({

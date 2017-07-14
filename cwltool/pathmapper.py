@@ -11,6 +11,8 @@ from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .utils import onWindows
+
 from .stdfsaccess import StdFsAccess, abspath
 
 _logger = logging.getLogger("cwltool")
@@ -248,6 +250,6 @@ class PathMapper(object):
 
     # On windows os.path.join would use backslash to join path, since we would use these paths in Docker we would convert it to /
     def pathFix(self,path):  # type: (Text) -> (Text)
-        if path is not None and os.name == 'nt':
+        if path is not None and onWindows():
             return path.replace('\\','/')
         return path

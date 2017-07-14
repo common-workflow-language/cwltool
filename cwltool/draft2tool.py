@@ -27,7 +27,8 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust
+from .utils import aslist, docker_windows_path_adjust, onWindows
+
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
@@ -104,7 +105,7 @@ def revmap_file(builder, outdir, f):
 
     if "location" in f:
         if f["location"].startswith("file://"):
-            path = uri_file_path(f["location"]).replace('\\','/')
+            path = pathFix(uri_file_path(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]
@@ -129,6 +130,12 @@ def revmap_file(builder, outdir, f):
                                     u"file pass through." % (path, builder.outdir))
 
     raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
+
+# On windows os.path.join would use backslash to join path, since we would use these paths in Docker we would convert it to /
+def pathFix(path):  # type: (Text) -> (Text)
+    if path is not None and onWindows():
+        return path.replace('\\', '/')
+    return path
 
 
 class CallbackJob(object):
@@ -222,7 +229,6 @@ class CommandLineTool(Process):
 
             if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
-
             keydict = {u"cmdline": cmdline}
 
             for _, f in cachebuilder.pathmapper.items():

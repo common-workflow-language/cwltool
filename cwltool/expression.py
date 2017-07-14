@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from typing import Any, AnyStr, Dict, List, Text, Union
-from utils import docker_windows_path_adjust
+from .utils import docker_windows_path_adjust
 
 from six import u
 

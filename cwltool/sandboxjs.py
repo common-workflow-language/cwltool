@@ -9,7 +9,7 @@ import Queue
 import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
-
+from .utils import onWindows
 from pkg_resources import resource_stream
 
 
@@ -118,7 +118,7 @@ def new_js_proc():
 
 def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
 
-    if not hasattr(localdata, "proc") or localdata.proc.poll() is not None or os.name == 'nt':
+    if not hasattr(localdata, "proc") or localdata.proc.poll() is not None or onWindows():
         localdata.proc = new_js_proc()
 
     nodejs = localdata.proc
@@ -144,6 +144,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     stdin_buf = BytesIO(json.dumps(fn) + "\n")
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
+
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
 
@@ -165,7 +166,6 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         # put constructed command to input queue which then will be passed to nodejs's stdin
         def put_input(input_queue):
             while True:
-                sys.stdout.flush()
                 b = stdin_buf.read(READ_BYTES_SIZE)
                 if b:
                     input_queue.put(b)
@@ -258,6 +258,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
             except OSError as e:
                 break
     tm.cancel()
+
     stdin_buf.close()
     stdoutdata = stdout_buf.getvalue()
     stderrdata = stderr_buf.getvalue()
@@ -292,7 +293,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     else:
         try:
             # On windows currently a new instance of nodejs process is used due to problem with blocking on read operation on windows
-            if os.name=='nt':
+            if onWindows():
                 nodejs.kill()
             return json.loads(stdoutdata)
         except ValueError as e:
