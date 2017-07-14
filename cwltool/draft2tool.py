@@ -28,7 +28,6 @@ from .process import (Process, UnsupportedRequirement,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, docker_windows_path_adjust
-
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE

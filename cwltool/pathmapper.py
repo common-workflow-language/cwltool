@@ -185,7 +185,7 @@ class PathMapper(object):
 
     def visit(self, obj, stagedir, basedir, copy=False, staged=False):
         # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
-        tgt = os.path.join(stagedir, obj["basename"])
+        tgt = self.pathFix(os.path.join(stagedir, obj["basename"]))
         if obj["location"] in self._pathmap:
             return
         if obj["class"] == "Directory":
@@ -245,3 +245,9 @@ class PathMapper(object):
             if v[1] == target:
                 return (k, v[0])
         return None
+
+    # On windows os.path.join would use backslash to join path, since we would use these paths in Docker we would convert it to /
+    def pathFix(self,path):  # type: (Text) -> (Text)
+        if path is not None and os.name == 'nt':
+            return path.replace('\\','/')
+        return path
