@@ -17,3 +17,8 @@ def get_data(filename):
     if not filepath or not os.path.isfile(filepath):
         filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
     return filepath
+
+# Check if we are on windows OS
+def onWindows():
+    # type: () -> (bool)
+    return os.name == 'nt'
