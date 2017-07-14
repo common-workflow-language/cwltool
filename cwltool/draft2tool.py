@@ -391,9 +391,9 @@ class CommandLineTool(Process):
                             "writable": t.get("writable")
                         }
                     else:
-                        if t["entryname"] or t["writable"]:
+                        if t.get("entryname") or t.get("writable"):
                             t = copy.deepcopy(t)
-                            if t["entryname"]:
+                            if t.get("entryname"):
                                 t["entry"]["basename"] = t["entryname"]
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
