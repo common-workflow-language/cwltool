@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import unittest
 
 # we should modify the subprocess imported from cwltool.sandboxjs

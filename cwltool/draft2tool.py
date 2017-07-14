@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import hashlib
 import json
@@ -7,7 +8,7 @@ import re
 import shutil
 import tempfile
 from functools import partial
-from typing import Any, Callable, Dict, Generator, Optional, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, List, Optional, Set, Text, Union, cast
 
 from six import string_types, u
 
@@ -28,6 +29,7 @@ from .process import (Process, UnsupportedRequirement,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
+from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -60,7 +62,7 @@ class ExpressionTool(Process):
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
             except Exception as e:
-                _logger.warn(u"Failed to evaluate expression:\n%s",
+                _logger.warning(u"Failed to evaluate expression:\n%s",
                              e, exc_info=kwargs.get('debug'))
                 self.output_callback({}, "permanentFail")
 
@@ -174,9 +176,19 @@ class CommandLineTool(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
+        self.find_default_container = kwargs.get("find_default_container", None)
 
     def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
+        if not dockerReq and use_container:
+            default_container = self.find_default_container(self)
+            if default_container:
+                self.requirements.insert(0, {
+                    "class": "DockerRequirement",
+                    "dockerPull": default_container
+                })
+                dockerReq = self.requirements[0]
+
         if dockerReq and use_container:
             return DockerCommandLineJob()
         else:
@@ -214,17 +226,24 @@ class CommandLineTool(Process):
             visit_class([cachebuilder.files, cachebuilder.bindings],
                        ("File", "Directory"), _check_adjust)
 
-            cmdline = flatten(map(cachebuilder.generate_arg, cachebuilder.bindings))
+            cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
                 cmdline = ["docker", "run", dockerimg] + cmdline
             keydict = {u"cmdline": cmdline}
 
-            for _, f in cachebuilder.pathmapper.items():
+            for location, f in cachebuilder.pathmapper.items():
                 if f.type == "File":
+                    checksum = next((e['checksum'] for e in cachebuilder.files
+                            if 'location' in e and e['location'] == location
+                            and 'checksum' in e
+                            and e['checksum'] != 'sha1$hash'), None)
                     st = os.stat(f.resolved)
-                    keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
+                    if checksum:
+                        keydict[f.resolved] = [st.st_size, checksum]
+                    else:
+                        keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
@@ -236,7 +255,7 @@ class CommandLineTool(Process):
                         keydict[r["class"]] = r
 
             keydictstr = json.dumps(keydict, separators=(',', ':'), sort_keys=True)
-            cachekey = hashlib.md5(keydictstr).hexdigest()
+            cachekey = hashlib.md5(keydictstr.encode('utf-8')).hexdigest()
 
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
                           keydictstr, cachekey)
@@ -429,7 +448,7 @@ class CommandLineTool(Process):
                 cmd.extend(aslist(arg))
             j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
         else:
-            j.command_line = flatten(map(builder.generate_arg, builder.bindings))
+            j.command_line = flatten(list(map(builder.generate_arg, builder.bindings)))
 
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
@@ -518,7 +537,7 @@ class CommandLineTool(Process):
                                        "class": "File" if fs_access.isfile(g) else "Directory"}
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
-                            _logger.warn(Text(e))
+                            _logger.warning(Text(e))
                         except:
                             _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise
@@ -530,14 +549,14 @@ class CommandLineTool(Process):
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
                         with fs_access.open(files["location"], "rb") as f:
-                            contents = ""
+                            contents = b""
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
                                 files["contents"] = contents
                             if compute_checksum:
                                 checksum = hashlib.sha1()
-                                while contents != "":
+                                while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()

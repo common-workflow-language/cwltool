@@ -139,6 +139,212 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
 
   # result["out"] == "foo"
 
+Leveraging SoftwareRequirements (Beta)
+--------------------------------------
+
+CWL tools may be decoarated with ``SoftwareRequirement`` hints that cwltool
+may in turn use to resolve to packages in various package managers or
+dependency management systems such as `Environment Modules
+<http://modules.sourceforge.net/>`__.
+
+Utilizing ``SoftwareRequirement`` hints using cwltool requires an optional
+dependency, for this reason be sure to use specify the ``deps`` modifier when
+installing cwltool. For instance::
+
+  $ pip install 'cwltool[deps]'
+
+Installing cwltool in this fashion enables several new command line options.
+The most general of these options is ``--beta-dependency-resolvers-configuration``.
+This option allows one to specify a dependency resolvers configuration file.
+This file may be specified as either XML or YAML and very simply describes various
+plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
+
+To discuss some of these plugins and how to configure them, first consider the
+following ``hint`` definition for an example CWL tool.
+
+.. code:: yaml
+
+  SoftwareRequirement:
+    packages:
+    - package: seqtk
+      version:
+      - r93
+
+Now imagine deploying cwltool on a cluster with Software Modules installed
+and that a ``seqtk`` module is avaialble at version ``r93``. This means cluster
+users likely won't have the ``seqtk`` the binary on their ``PATH`` by default but after
+sourcing this module with the command ``modulecmd sh load seqtk/r93`` ``seqtk`` is
+available on the ``PATH``. A simple dependency resolvers configuration file, called
+``dependency-resolvers-conf.yml`` for instance, that would enable cwltool to source
+the correct module environment before executing the above tool would simply be:
+
+.. code:: yaml
+
+  - type: module
+
+The outer list indicates that one plugin is being enabled, the plugin parameters are
+defined as a dictionary for this one list item. There is only one required parameter
+for the plugin above, this is ``type`` and defines the plugin type. This parameter
+is required for all plugins. The available plugins and the parameters
+available for each are documented (incompletely) `here
+<https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__.
+Unfortunately, this documentation is in the context of Galaxy tool ``requirement`` s instead of CWL ``SoftwareRequirement`` s, but the concepts map fairly directly.
+
+cwltool is distributed with an example of such seqtk tool and sample corresponding
+job. It could executed from the cwltool root using a dependency resolvers 
+configuration file such as the above one using the command::
+
+  cwltool --beta-dependency-resolvers-configuration /path/to/dependency-resolvers-conf.yml \
+      tests/seqtk_seq.cwl \
+      tests/seqtk_seq_job.json
+
+This example demonstrates both that cwltool can leverage
+existing software installations and also handle workflows with dependencies
+on different versions of the same software and libraries. However the above
+example does require an existing module setup so it is impossible to test this example
+"out of the box" with cwltool. For a more isolated test that demonstrates all
+the same concepts - the resolver plugin type ``galaxy_packages`` can be used.
+
+"Galaxy packages" are a lighter weight alternative to Environment Modules that are
+really just defined by a way to lay out directories into packages and versions
+to find little scripts that are sourced to modify the environment. They have
+been used for years in Galaxy community to adapt Galaxy tools to cluster 
+environments but require neither knowledge of Galaxy nor any special tools to 
+setup. These should work just fine for CWL tools.
+
+The cwltool source code repository's test directory is setup with a very simple
+directory that defines a set of "Galaxy  packages" (but really just defines one
+package named ``random-lines``). The directory layout is simply::
+
+  tests/test_deps_env/
+    random-lines/
+      1.0/
+        env.sh
+
+If the ``galaxy_packages`` plugin is enabled and pointed at the
+``tests/test_deps_env`` directory in cwltool's root and a ``SoftwareRequirement``
+such as the following is encountered.
+
+.. code:: yaml
+
+  hints:
+    SoftwareRequirement:
+      packages:
+      - package: 'random-lines'
+        version:
+        - '1.0'
+
+Then cwltool will simply find that ``env.sh`` file and source it before executing
+the corresponding tool. That ``env.sh`` script is only responsible for modifying
+the job's ``PATH`` to add the required binaries.
+
+This is a full example that works since resolving "Galaxy packages" has no 
+external requirements. Try it out by executing the following command from cwltool's
+root directory::
+
+  cwltool --beta-dependency-resolvers-configuration tests/test_deps_env_resolvers_conf.yml \
+      tests/random_lines.cwl \
+      tests/random_lines_job.json
+
+The resolvers configuration file in the above example was simply:
+
+.. code:: yaml
+
+  - type: galaxy_packages
+    base_path: ./tests/test_deps_env
+
+It is possible that the ``SoftwareRequirement`` s in a given CWL tool will not
+match the module names for a given cluster. Such requirements can be re-mapped
+to specific deployed packages and/or versions using another file specified using
+the resolver plugin parameter `mapping_files`. We will
+demonstrate this using `galaxy_packages` but the concepts apply equally well
+to Environment Modules or Conda packages (described below) for instance.
+
+So consider the resolvers configuration file
+(`tests/test_deps_env_resolvers_conf_rewrite.yml`):
+
+.. code:: yaml
+
+  - type: galaxy_packages
+    base_path: ./tests/test_deps_env
+    mapping_files: ./tests/test_deps_mapping.yml
+
+And the corresponding mapping configuraiton file (`tests/test_deps_mapping.yml`):
+
+.. code:: yaml
+
+  - from:
+      name: randomLines
+      version: 1.0.0-rc1
+    to:
+      name: random-lines
+      version: '1.0'
+
+This is saying if cwltool encounters a requirement of ``randomLines`` at version
+``1.0.0-rc1`` in a tool, to rewrite to our specific plugin as ``random-lines`` at
+version ``1.0``. cwltool has such a test tool called ``random_lines_mapping.cwl``
+that contains such a source ``SoftwareRequirement``. To try out this example with
+mapping, execute the following command from the cwltool root directory::
+
+  cwltool --beta-dependency-resolvers-configuration tests/test_deps_env_resolvers_conf_rewrite.yml \
+      tests/random_lines_mapping.cwl \
+      tests/random_lines_job.json
+
+The previous examples demonstrated leveraging existing infrastructure to
+provide requirements for CWL tools. If instead a real package manager is used
+cwltool has the oppertunity to install requirements as needed. While initial
+support for Homebrew/Linuxbrew plugins is available, the most developed such
+plugin is for the `Conda <https://conda.io/docs/#>`__ package manager. Conda has the nice properties
+of allowing multiple versions of a package to be installed simultaneously,
+not requiring evalated permissions to install Conda itself or packages using
+Conda, and being cross platform. For these reasons, cwltool may run as a normal
+user, install its own Conda environment and manage multiple versions of Conda packages
+on both Linux and Mac OS X.
+
+The Conda plugin can be endlessly configured, but a sensible set of defaults
+that has proven a powerful stack for dependency management within the Galaxy tool 
+development ecosystem can be enabled by simply passing cwltool the
+``--beta-conda-dependencies`` flag.
+
+With this we can use the seqtk example above without Docker and without
+any externally managed services - cwltool should install everything it needs
+and create an environment for the tool. Try it out with the follwing command::
+
+  cwltool --beta-conda-dependencies tests/seqtk_seq.cwl tests/seqtk_seq_job.json
+
+The CWL specification allows URIs to be attached to ``SoftwareRequirement`` s
+that allow disambiguation of package names. If the mapping files described above
+allow deployers to adapt tools to their infrastructure, this mechanism allows
+tools to adapt their requirements to multiple package managers. To demonstrate
+this within the context of the seqtk, we can simply break the package name we
+use and then specify a specific Conda package as follows:
+
+.. code:: yaml
+
+  hints:
+    SoftwareRequirement:
+      packages:
+      - package: seqtk_seq
+        version:
+        - '1.2'
+        specs:
+        - https://anaconda.org/bioconda/seqtk
+        - https://packages.debian.org/sid/seqtk
+
+The example can be executed using the command::
+
+  cwltool --beta-conda-dependencies tests/seqtk_seq_wrong_name.cwl tests/seqtk_seq_job.json
+
+The plugin framework for managing resolution of these software requirements
+as maintained as part of `galaxy-lib <https://github.com/galaxyproject/galaxy-lib>`__ - a small, portable subset of the Galaxy
+project. More information on configuration and implementation can be found
+at the following links:
+
+- `Dependency Resolvers in Galaxy <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__
+- `Conda for [Galaxy] Tool Dependencies <https://docs.galaxyproject.org/en/latest/admin/conda_faq.html>`__
+- `Mapping Files - Implementation <https://github.com/galaxyproject/galaxy/commit/495802d229967771df5b64a2f79b88a0eaf00edb>`__
+- `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
+- `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
 Cwltool control flow
 --------------------
@@ -207,43 +413,67 @@ Extension points
 The following functions can be provided to main(), to load_tool(), or to the
 executor to override or augment the listed behaviors.
 
-executor(tool, job_order_object, **kwargs)
-  (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
+executor
+  ::
+
+    executor(tool, job_order_object, **kwargs)
+      (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
 
   A toplevel workflow execution loop, should synchronously execute a process
   object and return an output object.
 
-makeTool(toolpath_object, **kwargs)
-  (Dict[Text, Any], **Any) -> Process
+makeTool
+  ::
+
+    makeTool(toolpath_object, **kwargs)
+      (Dict[Text, Any], **Any) -> Process
 
   Construct a Process object from a document.
 
-selectResources(request)
-  (Dict[Text, int]) -> Dict[Text, int]
+selectResources
+  ::
+
+    selectResources(request)
+      (Dict[Text, int]) -> Dict[Text, int]
 
   Take a resource request and turn it into a concrete resource assignment.
 
-versionfunc()
-  () -> Text
+versionfunc
+  ::
+
+    ()
+      () -> Text
 
   Return version string.
 
-make_fs_access(basedir)
-  (Text) -> StdFsAccess
+make_fs_access
+  ::
+
+    make_fs_access(basedir)
+      (Text) -> StdFsAccess
 
   Return a file system access object.
 
-fetcher_constructor(cache, session)
-  (Dict[unicode, unicode], requests.sessions.Session) -> Fetcher
+fetcher_constructor
+  ::
+
+    fetcher_constructor(cache, session)
+      (Dict[unicode, unicode], requests.sessions.Session) -> Fetcher
 
   Construct a Fetcher object with the supplied cache and HTTP session.
 
-resolver(document_loader, document)
-  (Loader, Union[Text, dict[Text, Any]]) -> Text
+resolver
+  ::
+
+    resolver(document_loader, document)
+      (Loader, Union[Text, dict[Text, Any]]) -> Text
 
   Resolve a relative document identifier to an absolute one which can be fetched.
 
 logger_handler
-  logging.Handler
+  ::
+
+    logger_handler
+      logging.Handler
 
   Handler object for logging.
