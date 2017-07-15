@@ -14,7 +14,7 @@ def abspath(src, basedir):  # type: (Text, Text) -> Text
         ab = six.text_type(uri_file_path(str(src)))
     else:
         if basedir.startswith(u"file://"):
-            ab = src if os.path.isabs(src) else os.path.join(unicode(uri_file_path(str(basedir))),src)
+            ab = src if os.path.isabs(src) else basedir+ '/'+ src
         else:
             ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
