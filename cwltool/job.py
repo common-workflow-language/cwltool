@@ -289,9 +289,9 @@ class CommandLineJob(JobBase):
         if "PATH" not in env:
             env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
 
-        stageFiles(self.pathmapper, ignoreWritable=True, symFunc=True)
+        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True)
         if self.generatemapper:
-            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symFunc=True)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
             relink_initialworkdir(self.generatemapper, inplace_update=self.inplace_update)
 
         self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)

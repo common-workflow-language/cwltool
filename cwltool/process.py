@@ -205,7 +205,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc=None, ignoreWritable=False, symFunc=True):
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
     # type: (PathMapper, Callable[..., Any], bool, bool) -> None
     for f, p in pm.items():
         if not p.staged:
@@ -213,7 +213,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symFunc=True):
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
         if p.type in ("File", "Directory") and (os.path.exists(p.resolved)):
-            if symFunc:  # Use symlink func if allowed
+            if symLink:  # Use symlink func if allowed
                 if onWindows():
                     if p.type == "File":
                         shutil.copy(p.resolved, p.target)
@@ -282,7 +282,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, stageFunc=moveIt,symFunc=False)
+    stageFiles(pm, stageFunc=moveIt,symLink=False)
 
     def _check_adjust(f):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
