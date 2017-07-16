@@ -283,11 +283,11 @@ class CommandLineJob(JobBase):
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
                     # On Windows, subprocess env can't handle unicode.
-                    env[key] = str(value)
-        env["HOME"] = str(self.outdir)
-        env["TMPDIR"] = str(self.tmpdir)
+                    env[key] = str(value) if onWindows() else value
+        env["HOME"] = str(self.outdir) if onWindows() else self.outdir
+        env["TMPDIR"] = str(self.tmpdir) if onWindows() else self.tmpdir
         if "PATH" not in env:
-            env["PATH"] = str(os.environ["PATH"])
+            env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
 
         stageFiles(self.pathmapper, ignoreWritable=True, symFunc=True)
         if self.generatemapper:
