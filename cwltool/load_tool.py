@@ -48,6 +48,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, string_types):
         split = urllib.parse.urlsplit(argsworkflow)
+        # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
         if split.scheme and split.scheme in [u'http',u'https',u'file']:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
