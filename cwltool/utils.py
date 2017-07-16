@@ -111,6 +111,13 @@ def onWindows():
     return os.name == 'nt'
 
 
+
+# On windows os.path.join would use backslash to join path, since we would use these paths in Docker we would convert it to /
+def convert_pathsep_to_unix(path):  # type: (Text) -> (Text)
+    if path is not None and onWindows():
+        return path.replace('\\', '/')
+    return path
+
 # comparision function to be used in sorting
 # python3 doesn't allow sorting of different
 # types like str() and int().

@@ -28,7 +28,7 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, onWindows
+from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix
 from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
@@ -107,7 +107,7 @@ def revmap_file(builder, outdir, f):
 
     if "location" in f:
         if f["location"].startswith("file://"):
-            path = pathFix(uri_file_path(f["location"]))
+            path = convert_pathsep_to_unix(uri_file_path(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]
@@ -132,12 +132,6 @@ def revmap_file(builder, outdir, f):
                                     u"file pass through." % (path, builder.outdir))
 
     raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
-
-# On windows os.path.join would use backslash to join path, since we would use these paths in Docker we would convert it to /
-def pathFix(path):  # type: (Text) -> (Text)
-    if path is not None and onWindows():
-        return path.replace('\\', '/')
-    return path
 
 
 class CallbackJob(object):
