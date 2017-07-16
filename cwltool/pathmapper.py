@@ -249,4 +249,3 @@ class PathMapper(object):
             if v[1] == target:
                 return (k, v[0])
         return None
-
