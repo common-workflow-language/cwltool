@@ -39,6 +39,8 @@ from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements, SOFTWARE_REQUIREMENTS_ENABLED
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+from .utils import onWindows
+from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 
 _logger = logging.getLogger("cwltool")
@@ -694,6 +696,10 @@ def main(argsl=None,  # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
+
+        # If On windows platform, A default Docker Container is Used if not explicitely provided by user
+        if onWindows() and not args.default_container:
+            args.default_container = "ubuntu"
 
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when

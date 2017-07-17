@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 import unittest
+import pytest
 from tempfile import NamedTemporaryFile
 
 from cwltool.main import main
+from cwltool.utils import onWindows
 
 
 class ToolArgparse(unittest.TestCase):
@@ -24,11 +26,15 @@ stdout: test.txt
 baseCommand: [cat]
 '''
 
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
     def test_spaces_in_input_files(self):
-        with NamedTemporaryFile(mode='w') as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script)
             f.flush()
-            with NamedTemporaryFile(prefix="test with spaces") as spaces:
+            f.close()
+            with NamedTemporaryFile(prefix="test with spaces", delete=False) as spaces:
+                spaces.close()
                 self.assertEquals(
                     main(["--debug", f.name, '--input', spaces.name]), 1)
                 self.assertEquals(

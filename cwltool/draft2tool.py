@@ -28,7 +28,7 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix
 from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
@@ -107,7 +107,7 @@ def revmap_file(builder, outdir, f):
 
     if "location" in f:
         if f["location"].startswith("file://"):
-            path = uri_file_path(f["location"])
+            path = convert_pathsep_to_unix(uri_file_path(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
             if revmap_f:
                 f["location"] = revmap_f[1]
@@ -156,7 +156,7 @@ class CallbackJob(object):
 def check_adjust(builder, f):
     # type: (Builder, Dict[Text, Any]) -> Dict[Text, Any]
 
-    f["path"] = builder.pathmapper.mapper(f["location"])[1]
+    f["path"] = docker_windows_path_adjust(builder.pathmapper.mapper(f["location"])[1])
     f["dirname"], f["basename"] = os.path.split(f["path"])
     if f["class"] == "File":
         f["nameroot"], f["nameext"] = os.path.splitext(f["basename"])
@@ -230,6 +230,10 @@ class CommandLineTool(Process):
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if docker_req and kwargs.get("use_container") is not False:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
+            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container") is not False:
+                dockerimg = kwargs.get("default_container")
+
+            if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
             keydict = {u"cmdline": cmdline}
 

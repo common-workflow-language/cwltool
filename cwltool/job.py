@@ -16,6 +16,7 @@ from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Tex
 
 import shellescape
 
+from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
 from .docker_uid import docker_vm_uid
@@ -106,8 +107,14 @@ def relink_initialworkdir(pathmapper, inplace_update=False):
             if os.path.islink(vol.target) or os.path.isfile(vol.target):
                 os.remove(vol.target)
             elif os.path.isdir(vol.target):
-                os.rmdir(vol.target)
-            os.symlink(vol.resolved, vol.target)
+                shutil.rmtree(vol.target)
+            if onWindows():
+                if vol.type in ("File", "WritableFile"):
+                    shutil.copy(vol.resolved,vol.target)
+                elif vol.type in ("Directory", "WritableDirectory"):
+                    copytree_with_merge(vol.resolved, vol.target)
+            else:
+                os.symlink(vol.resolved, vol.target)
 
 class JobBase(object):
     def __init__(self):  # type: () -> None
@@ -278,13 +285,16 @@ class CommandLineJob(JobBase):
         if vars_to_preserve is not None:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
-                    env[key] = value
-        env["HOME"] = self.outdir
-        env["TMPDIR"] = self.tmpdir
+                    # On Windows, subprocess env can't handle unicode.
+                    env[key] = str(value) if onWindows() else value
+        env["HOME"] = str(self.outdir) if onWindows() else self.outdir
+        env["TMPDIR"] = str(self.tmpdir) if onWindows() else self.tmpdir
+        if "PATH" not in env:
+            env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
 
-        stageFiles(self.pathmapper, os.symlink, ignoreWritable=True)
+        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True)
         if self.generatemapper:
-            stageFiles(self.generatemapper, os.symlink, ignoreWritable=self.inplace_update)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
             relink_initialworkdir(self.generatemapper, inplace_update=self.inplace_update)
 
         self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
@@ -306,10 +316,10 @@ class DockerCommandLineJob(JobBase):
                 containertgt = vol.target
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--volume=%s:%s:ro" % (vol.resolved, containertgt))
+                    runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
             elif vol.type == "WritableFile":
                 if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (vol.resolved, containertgt))
+                    runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
                 else:
                     shutil.copy(vol.resolved, vol.target)
             elif vol.type == "WritableDirectory":
@@ -317,14 +327,15 @@ class DockerCommandLineJob(JobBase):
                     os.makedirs(vol.target, 0o0755)
                 else:
                     if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (vol.resolved, containertgt))
+                        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
                     else:
                         shutil.copytree(vol.resolved, vol.target)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
                 with open(createtmp, "wb") as f:
                     f.write(vol.resolved.encode("utf-8"))
-                runtime.append(u"--volume=%s:%s:ro" % (createtmp, vol.target))
+                runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
+
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -361,14 +372,14 @@ class DockerCommandLineJob(JobBase):
 
         runtime = [u"docker", u"run", u"-i"]
 
-        runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.outdir), self.builder.outdir))
-        runtime.append(u"--volume=%s:%s:rw" % (os.path.realpath(self.tmpdir), "/tmp"))
+        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
+        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
         self.add_volumes(self.pathmapper, runtime, False)
         if self.generatemapper:
             self.add_volumes(self.generatemapper, runtime, True)
 
-        runtime.append(u"--workdir=%s" % (self.builder.outdir))
+        runtime.append(u"--workdir=%s" % (docker_windows_path_adjust(self.builder.outdir)))
         runtime.append(u"--read-only=true")
 
         if kwargs.get("custom_net", None) is not None:
@@ -379,9 +390,12 @@ class DockerCommandLineJob(JobBase):
         if self.stdout:
             runtime.append("--log-driver=none")
 
-        euid = docker_vm_uid() or os.geteuid()
+        if onWindows():  # windows os dont have getuid or geteuid functions
+            euid = docker_vm_uid()
+        else:
+            euid = docker_vm_uid() or os.geteuid()
 
-        if kwargs.get("no_match_user", None) is False:
+        if kwargs.get("no_match_user", None) is False and euid is not None:
             runtime.append(u"--user=%s" % (euid))
 
         if rm_container:
@@ -436,7 +450,7 @@ def _job_popen(
 
         sp = subprocess.Popen(commands,
                               shell=False,
-                              close_fds=True,
+                              close_fds=not onWindows(),
                               stdin=stdin,
                               stdout=stdout,
                               stderr=stderr,
@@ -478,14 +492,14 @@ def _job_popen(
             stderr_path=stderr_path,
             stdin_path=stdin_path,
         )
-        with open(os.path.join(job_dir, "job.json"), "w") as f:
+        with open(os.path.join(job_dir, "job.json"), "wb") as f:
             json.dump(job_description, f)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:
                 f.write(job_script_contents.encode('utf-8'))
             job_run = os.path.join(job_dir, "run_job.py")
-            with open(job_run, "w") as f:
+            with open(job_run, "wb") as f:
                 f.write(PYTHON_RUN_SCRIPT)
             sp = subprocess.Popen(
                 ["bash", job_script.encode("utf-8")],

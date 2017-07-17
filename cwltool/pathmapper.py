@@ -12,6 +12,8 @@ from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .utils import convert_pathsep_to_unix
+
 from .stdfsaccess import StdFsAccess, abspath
 
 _logger = logging.getLogger("cwltool")
@@ -186,7 +188,8 @@ class PathMapper(object):
 
     def visit(self, obj, stagedir, basedir, copy=False, staged=False):
         # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
-        tgt = os.path.join(stagedir, obj["basename"])
+        tgt = convert_pathsep_to_unix(
+            os.path.join(stagedir, obj["basename"]))
         if obj["location"] in self._pathmap:
             return
         if obj["class"] == "Directory":
