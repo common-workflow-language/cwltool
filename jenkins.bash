@@ -1,4 +1,10 @@
 #!/bin/bash
+if [ "$JENKINS_URL" == ""]
+then
+	echo "Looks like we're not being run by Jenkins, this is dangerous"
+	echo "due to use of git clean -fdx command."
+	exit 1
+fi
 cloneorpull() {
         if test -d "$1" ; then
                 (cd "$1" && git pull)
