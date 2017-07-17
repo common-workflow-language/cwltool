@@ -6,7 +6,6 @@ import os
 import select
 import subprocess
 import threading
-from multiprocessing import Queue
 import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
@@ -14,6 +13,11 @@ from .utils import onWindows
 from pkg_resources import resource_stream
 
 import six
+
+try:
+    import queue #python3
+except ImportError:
+    import Queue as queue
 
 class JavascriptException(Exception):
     pass
@@ -155,9 +159,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         READ_BYTES_SIZE = 512
 
         # creating queue for reading from a thread to queue
-        input_queue = Queue()
-        output_queue = Queue()
-        error_queue = Queue()
+        input_queue = queue.Queue()
+        output_queue = queue.Queue()
+        error_queue = queue.Queue()
 
         # To tell threads that output has ended and threads can safely exit
         no_more_output = threading.Lock()
