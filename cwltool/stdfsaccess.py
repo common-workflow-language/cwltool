@@ -63,5 +63,7 @@ class StdFsAccess(object):
     # On windows os.path.realpath appends unecessary Drive, here we would avoid that
     def docker_compatible_realpath(self, path):  # type: (Text) -> Text
         if onWindows():
-            return path
+            if path.startswith('/'):
+                return path
+            return '/'+path
         return os.path.realpath(path)
