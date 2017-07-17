@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 cloneorpull() {
         if test -d "$1" ; then
                 (cd "$1" && git pull)
@@ -28,7 +28,7 @@ if [[ "$version" = *dev* ]]
 then
 	EXTRA="EXTRA=--enable-dev"
 fi
-./run_test.sh --junit-xml=result.xml RUNNER=cwltool DRAFT="${version}" ${EXTRA}
+./run_test.sh --junit-xml=result.xml RUNNER=cwltool -j4 DRAFT="${version}" ${EXTRA}
 CODE=$?
 popd
 if [ "$GIT_BRANCH" = "origin/master" ]
