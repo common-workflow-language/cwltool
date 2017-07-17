@@ -6,7 +6,7 @@ import os
 import select
 import subprocess
 import threading
-import Queue
+from multiprocessing import Queue
 import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
@@ -155,9 +155,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         READ_BYTES_SIZE = 512
 
         # creating queue for reading from a thread to queue
-        input_queue = Queue.Queue()
-        output_queue = Queue.Queue()
-        error_queue = Queue.Queue()
+        input_queue = Queue()
+        output_queue = Queue()
+        error_queue = Queue()
 
         # To tell threads that output has ended and threads can safely exit
         no_more_output = threading.Lock()
