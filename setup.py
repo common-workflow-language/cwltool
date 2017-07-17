@@ -86,6 +86,10 @@ setup(name='cwltool',
           'Operating System :: POSIX :: Linux',
           'Operating System :: OS Independent',
           # 'Operating System :: Microsoft :: Windows',  # soon!
+          # 'Operating System :: Microsoft :: Windows :: Windows 10',  # soon!
+          # 'Operating System :: Microsoft :: Windows :: Windows 8.1',  # soon!
+          # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
+          # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
