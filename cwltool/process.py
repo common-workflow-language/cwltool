@@ -565,8 +565,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.loadListing = loadListingReq.get("loadListing")
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
+        defaultDocker = None
 
-        if dockerReq is None and kwargs["default_container"]:
+        if dockerReq is None and "default_container" in kwargs:
             defaultDocker = kwargs["default_container"]
 
         if dockerReq or defaultDocker and kwargs.get("use_container"):
