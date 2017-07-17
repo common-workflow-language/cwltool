@@ -24,7 +24,7 @@ pip install "cwltest>=1.0.20160825151655"
 pushd common-workflow-language
 git clean --force -d -x || /bin/true
 # shellcheck disable=SC2154
-if [[ "$version" = *dev ]]
+if [[ "$version" = *dev* ]]
 then
 	EXTRA="EXTRA=--enable-dev"
 fi
