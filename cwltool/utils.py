@@ -24,8 +24,6 @@ def get_feature(self, feature):  # type: (Any, Any) -> Tuple[Any, bool]
             return (t, True)
     for t in reversed(self.hints):
         if t["class"] == feature:
-            if "requirement" in t and t["requirement"] is True:
-                return(t, True)
             return (t, False)
     return (None, None)
 

@@ -701,14 +701,6 @@ def main(argsl=None,  # type: List[str]
         if onWindows() and not args.default_container:
             args.default_container = "ubuntu"
 
-        # Making default Container as lowest priority, that should be used if nothing overrides it
-        if args.default_container:
-            defContainer = CommentedMap()
-            defContainer.insert(1, "class", "DockerRequirement")
-            defContainer.insert(0, "dockerPull", args.default_container)
-            defContainer.insert(2, "requirement", True)
-            args.hints=[defContainer]
-
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
         # dereferencing them in args.
