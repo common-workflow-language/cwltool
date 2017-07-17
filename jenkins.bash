@@ -23,9 +23,12 @@ python setup.py install
 pip install "cwltest>=1.0.20160825151655"
 pushd common-workflow-language
 git clean --force -d -x || /bin/true
-if [ $version = *dev ] then
+# shellcheck disable=SC2154
+if [[ "$version" = *dev ]]
+then
 	EXTRA="EXTRA=--enable-dev"
-./run_test.sh --junit-xml=result.xml RUNNER=cwltool DRAFT=${version} ${EXTRA}
+fi
+./run_test.sh --junit-xml=result.xml RUNNER=cwltool DRAFT="${version}" ${EXTRA}
 CODE=$?
 popd
 if [ "$GIT_BRANCH" = "origin/master" ]
