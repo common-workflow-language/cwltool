@@ -401,7 +401,7 @@ class DockerCommandLineJob(JobBase):
         if rm_container:
             runtime.append(u"--rm")
 
-        runtime.append(u"--env=TMPDIR=%s" % self.builder.tmpdir)
+        runtime.append(u"--env=TMPDIR=/tmp")
 
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
