@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import collections
 import logging
 import os
 import stat
 import uuid
 from functools import partial
-from typing import Any, Callable, Iterable, Set, Text, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
@@ -235,10 +236,10 @@ class PathMapper(object):
             return self._pathmap[src]
 
     def files(self):  # type: () -> List[Text]
-        return self._pathmap.keys()
+        return list(self._pathmap.keys())
 
     def items(self):  # type: () -> List[Tuple[Text, MapperEnt]]
-        return self._pathmap.items()
+        return list(self._pathmap.items())
 
     def reversemap(self, target):  # type: (Text) -> Tuple[Text, Text]
         for k, v in self._pathmap.items():

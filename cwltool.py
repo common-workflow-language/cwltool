@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 """Convienance entry point for cwltool.
 
 This can be used instead of the recommended method of `./setup.py install`

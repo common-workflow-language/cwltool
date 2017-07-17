@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # pylint: disable=unused-import
 """Loads a CWL document."""
 
@@ -5,7 +6,7 @@ import logging
 import os
 import re
 import uuid
-from typing import Any, Callable, Dict, Text, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast
 
 import requests.sessions
 from six import itervalues, string_types
@@ -32,16 +33,15 @@ jobloaderctx = {
     u"id": u"@id"
 }
 
-def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
-                   resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
+def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
+                   resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
                    fetcher_constructor=None
-                   # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                   # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                    ):
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
-    document_loader = Loader(jobloaderctx,
-                             fetcher_constructor=fetcher_constructor)
+    document_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
@@ -135,7 +135,7 @@ def validate_document(document_loader,  # type: Loader
                       preprocess_only=False,  # type: bool
                       fetcher_constructor=None,
                       skip_schemas=None
-                      # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                      # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -164,7 +164,7 @@ def validate_document(document_loader,  # type: Loader
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
             workflowobj["cwlVersion"])
     else:
-        _logger.warn("No cwlVersion found, treating this file as draft-2.")
+        _logger.warning("No cwlVersion found, treating this file as draft-2.")
         workflowobj["cwlVersion"] = "draft-2"
 
     if workflowobj["cwlVersion"] == "draft-2":
@@ -180,8 +180,7 @@ def validate_document(document_loader,  # type: Loader
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
-
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text]
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
@@ -263,11 +262,11 @@ def make_tool(document_loader,  # type: Loader
 
 def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               makeTool,  # type: Callable[..., Process]
-              kwargs=None,  # type: dict
+              kwargs=None,  # type: Dict
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
-              resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
-              fetcher_constructor=None  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+              resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
+              fetcher_constructor=None  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
               ):
     # type: (...) -> Process
 

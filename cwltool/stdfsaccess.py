@@ -1,14 +1,15 @@
+from __future__ import absolute_import
 import glob
 import os
-import urllib
-from typing import BinaryIO, Text
+from typing import BinaryIO, List, Union, Text, IO, overload
 
+import six
+from six.moves import urllib
 from schema_salad.ref_resolver import file_uri, uri_file_path
-
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
-        ab = unicode(uri_file_path(str(src)))
+        ab = six.text_type(uri_file_path(str(src)))
     else:
         ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
@@ -23,7 +24,17 @@ class StdFsAccess(object):
     def glob(self, pattern):  # type: (Text) -> List[Text]
         return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
 
-    def open(self, fn, mode):  # type: (Text, Text) -> BinaryIO
+    # overload is related to mypy type checking and in no way
+    # modifies the behaviour of the function.
+    @overload
+    def open(self, fn, mode='rb'):  # type: (Text, str) -> IO[bytes]
+        pass
+
+    @overload
+    def open(self, fn, mode='r'):  # type: (Text, str) -> IO[str]
+        pass
+
+    def open(self, fn, mode):
         return open(self._abs(fn), mode)
 
     def exists(self, fn):  # type: (Text) -> bool
@@ -36,7 +47,7 @@ class StdFsAccess(object):
         return os.path.isdir(self._abs(fn))
 
     def listdir(self, fn):  # type: (Text) -> List[Text]
-        return [abspath(urllib.quote(str(l)), fn) for l in os.listdir(self._abs(fn))]
+        return [abspath(urllib.parse.quote(str(l)), fn) for l in os.listdir(self._abs(fn))]
 
     def join(self, path, *paths):  # type: (Text, *Text) -> Text
         return os.path.join(path, *paths)
