@@ -60,8 +60,8 @@ class Builder(object):
         self.job_script_provider = None  # type: Any
 
     def build_job_script(self, commands):
-        # type: (List[str]) -> Text
-        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[str]], Text]
+        # type: (List[bytes]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[bytes]], Text]
         if build_job_script_method:
             return build_job_script_method(self, commands)
         else:

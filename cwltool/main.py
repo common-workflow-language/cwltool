@@ -504,7 +504,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     _jobloaderctx = jobloaderctx.copy()
     _jobloaderctx.update(t.metadata.get("$namespaces", {}))
-    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)
+    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]

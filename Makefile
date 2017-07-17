@@ -161,7 +161,7 @@ mypy2: ${PYSOURCES}
 	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
 	MYPYPATH=$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
-		 --warn-redundant-casts --warn-unused-ignores \
+		 --warn-redundant-casts \
 		 cwltool
 
 mypy3: ${PYSOURCES}
@@ -172,7 +172,7 @@ mypy3: ${PYSOURCES}
 	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
 	MYPYPATH=$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
-		 --warn-redundant-casts --warn-unused-ignores \
+		 --warn-redundant-casts \
 		 cwltool
 
 FORCE:

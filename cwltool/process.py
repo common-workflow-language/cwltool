@@ -13,6 +13,7 @@ import stat
 import tempfile
 import uuid
 from collections import Iterable
+from io import open
 from functools import cmp_to_key
 from typing import (Any, Callable, Dict, Generator, List, Set, Text,
                     Tuple, Union, cast)
