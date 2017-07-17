@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from io import open
 from typing import Dict, List, Text
 
 import requests
@@ -56,7 +57,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
                 found = True
         elif "dockerFile" in dockerRequirement:
             dockerfile_dir = str(tempfile.mkdtemp())
-            with open(os.path.join(dockerfile_dir, "Dockerfile"), str("wb")) as df:
+            with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as df:
                 df.write(dockerRequirement["dockerFile"].encode('utf-8'))
             cmd = ["docker", "build", "--tag=%s" %
                    str(dockerRequirement["dockerImageId"]), dockerfile_dir]
@@ -70,7 +71,7 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
             if not dry_run:
                 if os.path.exists(dockerRequirement["dockerLoad"]):
                     _logger.info(u"Loading docker image from %s", dockerRequirement["dockerLoad"])
-                    with open(dockerRequirement["dockerLoad"], str("rb")) as f:
+                    with open(dockerRequirement["dockerLoad"], "rb") as f:
                         loadproc = subprocess.Popen(cmd, stdin=f, stdout=sys.stderr)
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=sys.stderr)

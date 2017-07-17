@@ -10,6 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+from io import open
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Tuple, Union, cast)
 
@@ -23,6 +24,7 @@ from .errors import WorkflowException
 from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, empty_subtree, get_feature,
                       stageFiles)
+from .utils import bytes2str_in_dicts
 
 _logger = logging.getLogger("cwltool")
 
@@ -229,6 +231,7 @@ class JobBase(object):
                 relink_initialworkdir(self.generatemapper, inplace_update=self.inplace_update)
 
             outputs = self.collect_outputs(self.outdir)
+            outputs = bytes2str_in_dicts(outputs)  # type: ignore
 
         except OSError as e:
             if e.errno == 2:
@@ -414,7 +417,7 @@ class DockerCommandLineJob(JobBase):
 
 
 def _job_popen(
-        commands,  # type: List[str]
+        commands,  # type: List[bytes]
         stdin_path,  # type: Text
         stdout_path,  # type: Text
         stderr_path,  # type: Text
@@ -477,9 +480,8 @@ def _job_popen(
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
-        key = None  # type: Union[Text, bytes]
+        key = None  # type: Any
         for key in env:
-            key = key.encode("utf-8")
             env_copy[key] = env[key]
 
         job_description = dict(

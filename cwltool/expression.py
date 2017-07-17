@@ -23,7 +23,7 @@ def jshead(engineConfig, rootvars):
     # TODO: need to make sure the `rootvars dict`
     # contains no bytes type in the first place.
     if six.PY3:
-        rootvars = bytes2str_in_dicts(rootvars)  # type -> ignore
+        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 

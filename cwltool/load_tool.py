@@ -41,8 +41,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
-    document_loader = Loader(jobloaderctx,
-                             fetcher_constructor=fetcher_constructor)
+    document_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
