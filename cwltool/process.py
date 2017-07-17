@@ -557,7 +557,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder.debug = kwargs.get("debug")
         builder.mutation_manager = kwargs.get("mutation_manager")
 
-        dockerReq, is_req = self.get_requirement("DockerRequirement")
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
@@ -565,12 +564,22 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         if loadListingReq:
             builder.loadListing = loadListingReq.get("loadListing")
 
-        if dockerReq and kwargs.get("use_container"):
-            # Check if docker output directory is absolute
-            if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
-                builder.outdir = dockerReq.get("dockerOutputDirectory")
-            else:
-                builder.outdir = builder.fs_access.docker_compatible_realpath(dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+
+        if dockerReq is None and kwargs["default_container"]:
+            defaultDocker = kwargs["default_container"]
+
+        if dockerReq or defaultDocker and kwargs.get("use_container"):
+            if dockerReq:
+                # Check if docker output directory is absolute
+                if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
+                    builder.outdir = dockerReq.get("dockerOutputDirectory")
+                else:
+                    builder.outdir = builder.fs_access.docker_compatible_realpath(
+                        dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+            elif defaultDocker:
+                builder.outdir = builder.fs_access.docker_compatible_realpath(
+                    kwargs.get("docker_outdir") or "/var/spool/cwl")
             builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
