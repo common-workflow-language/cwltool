@@ -37,7 +37,7 @@ fi
 ./run_test.sh --junit-xml=result.xml RUNNER=cwltool -j4 DRAFT="${version}" ${EXTRA}
 CODE=$?
 popd
-if [ "$GIT_BRANCH" = "origin/master" ]
+if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
   ./build-cwl-docker.sh && docker push commonworkflowlanguage/cwltool_module && docker push commonworkflowlanguage/cwltool
 fi
