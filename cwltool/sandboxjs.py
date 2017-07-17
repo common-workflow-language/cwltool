@@ -15,9 +15,9 @@ from pkg_resources import resource_stream
 import six
 
 try:
-    import queue #python3
+    import queue  # type: ignore
 except ImportError:
-    import Queue as queue
+    import Queue as queue  # type: ignore
 
 class JavascriptException(Exception):
     pass
