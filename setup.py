@@ -32,7 +32,8 @@ setup(name='cwltool',
       author_email='common-workflow-language@googlegroups.com',
       url="https://github.com/common-workflow-language/cwltool",
       download_url="https://github.com/common-workflow-language/cwltool",
-      license='Apache 2.0',
+      # platforms='',  # empty as is conveyed by the classifier below
+      # license='',  # empty as is conveyed by the classifier below
       packages=["cwltool", 'cwltool.tests'],
       package_dir={'cwltool.tests': 'tests'},
       package_data={'cwltool': ['schemas/draft-2/*.yml',
@@ -75,8 +76,35 @@ setup(name='cwltool',
       cmdclass={'egg_info': tagger},
       classifiers=[
           'Development Status :: 5 - Production/Stable',
+          'Environment :: Console',
+          'Intended Audience :: Developers',
+          'Intended Audience :: Science/Research',
+          'Intended Audience :: Healthcare Industry',
+          'License :: OSI Approved :: Apache Software License',
+          'Natural Language :: English',
+          'Operating System :: MacOS :: MacOS X',
           'Operating System :: POSIX',
+          'Operating System :: POSIX :: Linux',
           'Operating System :: OS Independent',
-          'Programming Language :: Python :: 2 :: Only',
+          # 'Operating System :: Microsoft :: Windows',  # soon!
+          # 'Operating System :: Microsoft :: Windows :: Windows 10',  # soon!
+          # 'Operating System :: Microsoft :: Windows :: Windows 8.1',  # soon!
+          # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
+          # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
+          'Topic :: Scientific/Engineering',
+          'Topic :: Scientific/Engineering :: Bio-Informatics',
+          'Topic :: Scientific/Engineering :: Astronomy',
+          'Topic :: Scientific/Engineering :: Atmospheric Science',
+          'Topic :: Scientific/Engineering :: Information Analysis',
+          'Topic :: Scientific/Engineering :: Medical Science Apps.',
+          'Topic :: System :: Distributed Computing',
+          'Topic :: Utilities',
       ]
       )
