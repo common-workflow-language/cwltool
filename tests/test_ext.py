@@ -11,8 +11,8 @@ import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
 from cwltool.main import main
-
-from .util import get_data, onWindows
+from cwltool.utils import onWindows
+from .util import get_data
 
 
 @pytest.mark.skipif(onWindows(),

@@ -2,8 +2,9 @@ from __future__ import absolute_import
 import unittest
 import pytest
 from tempfile import NamedTemporaryFile
-from .util import onWindows
+
 from cwltool.main import main
+from cwltool.utils import onWindows
 
 
 class ToolArgparse(unittest.TestCase):

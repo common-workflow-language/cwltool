@@ -4,9 +4,9 @@ import pytest
 from tempfile import NamedTemporaryFile
 
 from cwltool.main import main
+from cwltool.utils import onWindows
 
-from .util import get_data, onWindows
-
+from .util import get_data
 
 class ToolArgparse(unittest.TestCase):
     script = '''
