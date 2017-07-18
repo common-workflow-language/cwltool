@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import glob
 import os
+from io import open
 from typing import BinaryIO, List, Union, Text, IO, overload
 
 from .utils import onWindows
