@@ -699,7 +699,8 @@ def main(argsl=None,  # type: List[str]
 
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
         if onWindows() and not args.default_container:
-            args.default_container = "ubuntu"
+            # This docker image is a minimal alpine image with bash installed(size 6 mb). source: https://github.com/frol/docker-alpine-bash
+            args.default_container = "frolvlad/alpine-bash"
 
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
