@@ -854,7 +854,7 @@ def main(argsl=None,  # type: List[str]
         if isinstance(tool, int):
             return tool
 
-        for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
+        for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir", "provenance"):
             if getattr(args, dirprefix) and getattr(args, dirprefix) != 'tmp':
                 sl = "/" if getattr(args, dirprefix).endswith("/") or dirprefix == "cachedir" else ""
                 setattr(args, dirprefix,
