@@ -32,6 +32,7 @@ from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
+from .provenance import create_ro                         
 from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
                       use_standard_schema)
@@ -256,6 +257,7 @@ def single_job_executor(t,  # type: Process
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
         "tmp_outdir_prefix") else tempfile.mkdtemp()
     output_dirs.add(kwargs["outdir"])
+
     kwargs["mutation_manager"] = MutationManager()
 
     jobReqs = None
@@ -781,9 +783,16 @@ def main(argsl=None,  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
+        if args.provenance:
+            ro = create_ro(tmpPrefix=args.tmpdir_prefix)
+        else:
+            ro = None
+
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
+
+                                                            
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -799,6 +808,8 @@ def main(argsl=None,  # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
+            if args.provenance: # Can't really be combined with args.pack at same time
+                ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
@@ -897,6 +908,9 @@ def main(argsl=None,  # type: List[str]
 
             # This is the workflow output, it needs to be written
             if out is not None:
+
+                if args.provenance and ro:
+                    ro.close(args.provenance)
 
                 def locToPath(p):
                     if p["location"].startswith("file://"):
