@@ -129,7 +129,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Time to wait for a Javascript expression to evaluate before giving an error, default 20s.",
                         type=float,
                         default=20)
-
+    parser.add_argument("--provenance",
+                        help="Generate a Research object to capture and aggregate workflow execution and data products.",
+                        type=Text,
+                        default="provenance")
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
                          help="Print corresponding RDF graph for workflow and exit")
@@ -732,7 +735,8 @@ def main(argsl=None,  # type: List[str]
                      'enable_ga4gh_tool_registry': False,
                      'ga4gh_tool_registries': [],
                      'find_default_container': None,
-                     'make_template': False
+                     'make_template': False,
+                     'provenance': None
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
