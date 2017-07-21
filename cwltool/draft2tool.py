@@ -203,6 +203,14 @@ class CommandLineTool(Process):
         # type: (List[Any], Text, **Any) -> PathMapper
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
+    def updatePathmap(self, outdir, pathmap, fn):
+        pathmap.update(fn["location"], fn["path"], os.path.join(outdir, fn["basename"]),
+                       ("Writable" if fn.get("writable") else "") + fn["class"], False)
+        for sf in fn.get("secondaryFiles", []):
+            self.updatePathmap(outdir, pathmap, sf)
+        for ls in fn.get("listing", []):
+            self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
+
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
@@ -327,45 +335,9 @@ class CommandLineTool(Process):
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **make_path_mapper_kwargs)
         builder.requirements = j.requirements
 
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] path mappings is %s", j.name,
-                          json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
-
         _check_adjust = partial(check_adjust, builder)
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
-
-        if self.tool.get("stdin"):
-            with SourceLine(self.tool, "stdin", validate.ValidationException):
-                j.stdin = builder.do_eval(self.tool["stdin"])
-                reffiles.append({"class": "File", "path": j.stdin})
-
-        if self.tool.get("stderr"):
-            with SourceLine(self.tool, "stderr", validate.ValidationException):
-                j.stderr = builder.do_eval(self.tool["stderr"])
-                if os.path.isabs(j.stderr) or ".." in j.stderr:
-                    raise validate.ValidationException("stderr must be a relative path, got '%s'" % j.stderr)
-
-        if self.tool.get("stdout"):
-            with SourceLine(self.tool, "stdout", validate.ValidationException):
-                j.stdout = builder.do_eval(self.tool["stdout"])
-                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                    raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
-
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
-
-        dockerReq = self.get_requirement("DockerRequirement")[0]
-        if dockerReq and kwargs.get("use_container"):
-            out_prefix = kwargs.get("tmp_outdir_prefix")
-            j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
-            tmpdir_prefix = kwargs.get('tmpdir_prefix')
-            j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
-        else:
-            j.outdir = builder.outdir
-            j.tmpdir = builder.tmpdir
-            j.stagedir = builder.stagedir
 
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
         j.generatefiles = {"class": "Directory", "listing": [], "basename": ""}
@@ -402,6 +374,45 @@ class CommandLineTool(Process):
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
+            for l in ls:
+                self.updatePathmap(builder.outdir, builder.pathmapper, l)
+            visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
+
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] path mappings is %s", j.name,
+                          json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+
+        if self.tool.get("stdin"):
+            with SourceLine(self.tool, "stdin", validate.ValidationException):
+                j.stdin = builder.do_eval(self.tool["stdin"])
+                reffiles.append({"class": "File", "path": j.stdin})
+
+        if self.tool.get("stderr"):
+            with SourceLine(self.tool, "stderr", validate.ValidationException):
+                j.stderr = builder.do_eval(self.tool["stderr"])
+                if os.path.isabs(j.stderr) or ".." in j.stderr:
+                    raise validate.ValidationException("stderr must be a relative path, got '%s'" % j.stderr)
+
+        if self.tool.get("stdout"):
+            with SourceLine(self.tool, "stdout", validate.ValidationException):
+                j.stdout = builder.do_eval(self.tool["stdout"])
+                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
+                    raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
+
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
+
+        dockerReq = self.get_requirement("DockerRequirement")[0]
+        if dockerReq and kwargs.get("use_container"):
+            out_prefix = kwargs.get("tmp_outdir_prefix")
+            j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
+            tmpdir_prefix = kwargs.get('tmpdir_prefix')
+            j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
+        else:
+            j.outdir = builder.outdir
+            j.tmpdir = builder.tmpdir
+            j.stagedir = builder.stagedir
 
         inplaceUpdateReq = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")[0]
 

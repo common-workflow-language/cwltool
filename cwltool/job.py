@@ -147,7 +147,7 @@ class JobBase(object):
 
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
-            if p.type == "File" and not os.path.isfile(p[0]):
+            if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
                 raise WorkflowException(
                     u"Input file %s (at %s) not found or is not a regular "
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
