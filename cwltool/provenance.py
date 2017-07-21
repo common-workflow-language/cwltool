@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import logging
+import hashlib
 
 _logger = logging.getLogger("cwltool")
 
@@ -17,9 +18,12 @@ SNAPSHOT = "snapshot"
 MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 
+hashmethod = hashlib.sha256
+
 class RO():
     def __init__(self, tmpPrefix="tmp"):
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
+        self.tmpPrefix = tmpPrefix
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
 
@@ -40,9 +44,30 @@ class RO():
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
     
-    def add_data_file(self, file):        
-        pass
-        
+    def add_data_file(self, fp):                
+        tmp = tempfile.mkstemp(prefix=self.tmpPrefix)
+        with open(tmp, "wb") as out:
+            checksum = hashmethod()
+            contents = f.read(1024 * 1024)
+            while contents != b"":
+                out.write(contents)
+                checksum.update(contents)                
+                contents = f.read(1024 * 1024)
+
+            tmp.seek(0, 2)
+            filesize = tmp.tell()
+
+        hex = checksum.hexdigest()
+        path = os.path.join(self.folder, DATA, hex[0:2], hex)
+        # os.rename should be safe, as our mkstemp file 
+        # should be in same file system as our 
+        # mkdtemp folder
+        os.rename(tmp, path)
+
+        # Return relative path as URI 
+        # (We can't use os.path.join which would use \ on Windows)
+        return DATA + "/" + hex[0:2] + "/" + hex
+
     def create_job(self, customised_job):
         #TODO handle nested workflow at level 2 provenance
         #TODO customise the file 
