@@ -32,7 +32,7 @@ from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
-from .provenance import create_ro                         
+from .provenance import create_ro
 from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
                       use_standard_schema)
@@ -696,7 +696,6 @@ def main(argsl=None,  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
-    ro = None
     try:
         if args is None:
             if argsl is None:
@@ -706,6 +705,8 @@ def main(argsl=None,  # type: List[str]
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
         if onWindows() and not args.default_container:
             args.default_container = "ubuntu"
+
+
 
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
@@ -739,7 +740,8 @@ def main(argsl=None,  # type: List[str]
                      'ga4gh_tool_registries': [],
                      'find_default_container': None,
                      'make_template': False,
-                     'provenance': None
+                     'provenance': None,
+                     'ro': None
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
@@ -785,13 +787,13 @@ def main(argsl=None,  # type: List[str]
             use_standard_schema("v1.0")
 
         if args.provenance:
-            ro = create_ro(tmpPrefix=args.tmpdir_prefix)
+            args.ro = create_ro(tmpPrefix=args.tmpdir_prefix)
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
 
-                                                            
+
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -808,7 +810,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
             if args.provenance: # Can't really be combined with args.pack at same time
-                ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
+                args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
@@ -908,8 +910,8 @@ def main(argsl=None,  # type: List[str]
             # This is the workflow output, it needs to be written
             if out is not None:
 
-                if args.provenance and ro:
-                    ro.close(args.provenance)
+                if args.provenance and args.ro:
+                    args.ro.close(args.provenance)
 
                 def locToPath(p):
                     if p["location"].startswith("file://"):
@@ -952,8 +954,8 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
-        if ro:
-            ro.close()
+        if args.ro:
+            args.ro.close()
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
 
