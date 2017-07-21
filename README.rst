@@ -1,26 +1,24 @@
 ==================================================================
-Common workflow language tool description reference implementation
+Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL Conformance test: |Build Status|
-
-Travis: |Unix Build Status|
+CWL conformance tests: |Build Status| Travis CI: |Unix Build Status|
 
 .. |Unix Build Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=unix%20build
    :target: https://travis-ci.org/common-workflow-language/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
-intended to be feature complete and provide comprehensive validation of CWL
+intended to feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
-This is written and tested for Python 2.7.
+This is written and tested for Python ``2.7 and 3.x {x = 3, 4, 5, 6}``
 
-The reference implementation consists of two packages.  The "cwltool" package
+The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
-"cwltool" module and console executable by the same name.
+``cwltool`` module and console executable by the same name.
 
-The "cwlref-runner" package is optional and provides an additional entry point
-under the alias "cwl-runner", which is the implementation-agnostic name for the
+The ``cwlref-runner`` package is optional and provides an additional entry point
+under the alias ``cwl-runner``, which is the implementation-agnostic name for the
 default CWL interpreter installed on a host.
 
 Install
@@ -137,13 +135,17 @@ For this example, grab the test.json (and input file) from https://github.com/Ca
 Import as a module
 ------------------
 
-Add::
+Add
+
+.. code:: python
 
   import cwltool
 
 to your script.
 
-The easiest way to use cwltool to run a tool or workflow from Python is to use a Factory::
+The easiest way to use cwltool to run a tool or workflow from Python is to use a Factory
+
+.. code:: python
 
   import cwltool.factory
   fac = cwltool.factory.Factory()
@@ -202,7 +204,7 @@ for the plugin above, this is ``type`` and defines the plugin type. This paramet
 is required for all plugins. The available plugins and the parameters
 available for each are documented (incompletely) `here
 <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__.
-Unfortunately, this documentation is in the context of Galaxy tool ``requirement`` s instead of CWL ``SoftwareRequirement`` s, but the concepts map fairly directly.
+Unfortunately, this documentation is in the context of Galaxy tool ``requirement`` s instead of CWL ``SoftwareRequirement``s, but the concepts map fairly directly.
 
 cwltool is distributed with an example of such seqtk tool and sample corresponding
 job. It could executed from the cwltool root using a dependency resolvers
@@ -360,41 +362,41 @@ at the following links:
 - `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
-Cwltool control flow
+CWL Tool Control Flow
 --------------------
 
 Technical outline of how cwltool works internally, for maintainers.
 
-#. Use CWL `load_tool()` to load document.
+#. Use CWL ``load_tool()`` to load document.
 
    #. Fetches the document from file or URL
    #. Applies preprocessing (syntax/identifier expansion and normalization)
    #. Validates the document based on cwlVersion
    #. If necessary, updates the document to latest spec
-   #. Constructs a Process object using `make_tool()` callback.  This yields a
+   #. Constructs a Process object using ``make_tool()``` callback.  This yields a
       CommandLineTool, Workflow, or ExpressionTool.  For workflows, this
       recursively constructs each workflow step.
    #. To construct custom types for CommandLineTool, Workflow, or
-      ExpressionTool, provide a custom `make_tool()`
+      ExpressionTool, provide a custom ``make_tool()``
 
-#. Iterate on the `job()` method of the Process object to get back runnable jobs.
+#. Iterate on the ``job()`` method of the Process object to get back runnable jobs.
 
-   #. `job()` is a generator method (uses the Python iterator protocol)
-   #. Each time the `job()` method is invoked in an iteration, it returns one
-      of: a runnable item (an object with a `run()` method), `None` (indicating
+   #. ``job()`` is a generator method (uses the Python iterator protocol)
+   #. Each time the ``job()`` method is invoked in an iteration, it returns one
+      of: a runnable item (an object with a ``run()`` method), ``None`` (indicating
       there is currently no work ready to run) or end of iteration (indicating
       the process is complete.)
-   #. Invoke the runnable item by calling `run()`.  This runs the tool and gets output.
+   #. Invoke the runnable item by calling ``run()``.  This runs the tool and gets output.
    #. Output of a process is reported by an output callback.
-   #. `job()` may be iterated over multiple times.  It will yield all the work
+   #. ``job()`` may be iterated over multiple times.  It will yield all the work
       that is currently ready to run and then yield None.
 
-#. "Workflow" objects create a corresponding "WorkflowJob" and "WorkflowJobStep" objects to hold the workflow state for the duration of the job invocation.
+#. ``Workflow`` objects create a corresponding ``WorkflowJob`` and ``WorkflowJobStep`` objects to hold the workflow state for the duration of the job invocation.
 
    #. The WorkflowJob iterates over each WorkflowJobStep and determines if the
       inputs the step are ready.
    #. When a step is ready, it constructs an input object for that step and
-      iterates on the `job()` method of the workflow job step.
+      iterates on the ``job()`` method of the workflow job step.
    #. Each runnable item is yielded back up to top level run loop
    #. When a step job completes and receives an output callback, the
       job outputs are assigned to the output of the workflow step.
@@ -402,10 +404,10 @@ Technical outline of how cwltool works internally, for maintainers.
       workflow output, intermediate directories are deleted, and the output
       callback for the workflow is called.
 
-#. "CommandLineTool" job() objects yield a single runnable object.
+#. ``CommandLineTool`` job() objects yield a single runnable object.
 
-   #. The CommandLineTool `job()` method calls `makeJobRunner()` to create a
-      `CommandLineJob` object
+   #. The CommandLineTool ``job()`` method calls ``makeJobRunner()`` to create a
+      ``CommandLineJob`` object
    #. The job method configures the CommandLineJob object by setting public
       attributes
    #. The job method iterates over file and directories inputs to the
@@ -416,7 +418,7 @@ Technical outline of how cwltool works internally, for maintainers.
    #. Files are staged to targets paths using either Docker volume binds (when
       using containers) or symlinks (if not).  This staging step enables files
       to be logically rearranged or renamed independent of their source layout.
-   #. The run() method of CommandLineJob executes the command line tool or
+   #. The ``run()`` method of CommandLineJob executes the command line tool or
       Docker container, waits for it to complete, collects output, and makes
       the output callback.
 
