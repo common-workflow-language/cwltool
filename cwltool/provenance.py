@@ -40,6 +40,10 @@ class RO():
         f.close()
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
+    
+    def add_data_file(self, file):
+        
+        pass
 
     def close(self, saveTo=None):
         """Close the Research Object after saving to specified folder.        
