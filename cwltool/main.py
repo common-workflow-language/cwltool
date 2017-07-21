@@ -591,7 +591,14 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             p["location"] = p["path"]
             del p["path"]
 
+    def addSizes(p):
+        try:
+            p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
+        except OSError:
+            return  # best effort
+
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
+    visit_class(job_order_object, ("File"), addSizes)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 
