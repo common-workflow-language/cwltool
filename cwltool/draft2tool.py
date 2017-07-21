@@ -181,7 +181,8 @@ class CommandLineTool(Process):
     def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and use_container:
-            default_container = self.find_default_container(self)
+            if self.find_default_container:
+                default_container = self.find_default_container(self)
             if default_container:
                 self.requirements.insert(0, {
                     "class": "DockerRequirement",
@@ -228,9 +229,9 @@ class CommandLineTool(Process):
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-            if docker_req and kwargs.get("use_container") is not False:
+            if docker_req and kwargs.get("use_container"):
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
-            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container") is not False:
+            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container"):
                 dockerimg = kwargs.get("default_container")
 
             if dockerimg:
@@ -268,7 +269,7 @@ class CommandLineTool(Process):
             jobcachepending = jobcache + ".pending"
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
-                if docker_req and kwargs.get("use_container") is not False:
+                if docker_req and kwargs.get("use_container"):
                     cachebuilder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
                 else:
                     cachebuilder.outdir = jobcache
