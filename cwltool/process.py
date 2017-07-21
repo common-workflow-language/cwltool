@@ -386,12 +386,13 @@ def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException):
-            if shortname(inp[u"id"]) in job:
+            fieldname = shortname(inp[u"id"])
+            if job.get(fieldname) is not None:
                 pass
-            elif shortname(inp[u"id"]) not in job and u"default" in inp:
-                job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
-            elif shortname(inp[u"id"]) not in job and aslist(inp[u"type"])[0] == u"null":
-                pass
+            elif job.get(fieldname) is None and u"default" in inp:
+                job[fieldname] = copy.copy(inp[u"default"])
+            elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
+                job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
 
