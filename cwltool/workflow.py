@@ -442,22 +442,22 @@ class WorkflowJob(object):
             del kwargs["outdir"]
 
         ro = kwargs.get("ro")
-
+        customised_job={} #new job object for RO
         for e, i in enumerate(self.tool["inputs"]):
-            customised_job={} #new job object for RO
+
             with SourceLine(self.tool["inputs"], e, WorkflowException):
                 iid = shortname(i["id"])
                 if iid in joborder:
-                    customised_job[iid]= copy.deepcopy(joborder[iid])
+                    customised_job[iid]= copy.deepcopy(joborder[iid]) #add the input element in dictionary for provenance
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
                 elif "default" in i:
-                    customised_job[iid]= copy.deepcopy(i["default"])
+                    customised_job[iid]= copy.deepcopy(i["default"]) #add the defualt elements in the dictionary for provenance
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]), "success")
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a default value." % (i["id"]))
-            if ro:
-                ro.create_job(customised_job)
+        if ro:
+            ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
 
         for s in self.steps:
             for out in s.tool["outputs"]:
