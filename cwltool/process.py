@@ -34,7 +34,7 @@ from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class)
+                         normalizeFilesDirs, visit_class, trim_listing)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
@@ -283,7 +283,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, stageFunc=moveIt,symLink=False)
+    stageFiles(pm, stageFunc=moveIt, symLink=False)
 
     def _check_adjust(f):
         f["location"] = file_uri(pm.mapper(f["location"])[1])

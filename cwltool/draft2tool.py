@@ -109,8 +109,9 @@ def revmap_file(builder, outdir, f):
         if f["location"].startswith("file://"):
             path = convert_pathsep_to_unix(uri_file_path(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
-            if revmap_f:
-                f["location"] = revmap_f[1]
+            if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
+                f["basename"] = os.path.basename(path)
+                f["location"] = revmap_f[0]
             elif path == builder.outdir:
                 f["location"] = outdir
             elif path.startswith(builder.outdir):
@@ -204,8 +205,10 @@ class CommandLineTool(Process):
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
     def updatePathmap(self, outdir, pathmap, fn):
-        pathmap.update(fn["location"], fn["path"], os.path.join(outdir, fn["basename"]),
-                       ("Writable" if fn.get("writable") else "") + fn["class"], False)
+        if "location" in fn:
+            pathmap.update(fn["location"], pathmap.mapper(fn["location"]).resolved,
+                           os.path.join(outdir, fn["basename"]),
+                           ("Writable" if fn.get("writable") else "") + fn["class"], False)
         for sf in fn.get("secondaryFiles", []):
             self.updatePathmap(outdir, pathmap, sf)
         for ls in fn.get("listing", []):

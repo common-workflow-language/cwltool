@@ -89,6 +89,7 @@ def deref_links(outputs):  # type: (Any) -> None
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):
+                outputs["basename"] = os.path.basename(outputs["path"])
                 outputs["path"] = os.readlink(outputs["path"])
         else:
             for v in outputs.values():
