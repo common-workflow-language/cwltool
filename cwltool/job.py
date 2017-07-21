@@ -347,14 +347,14 @@ class DockerCommandLineJob(JobBase):
         env = None  # type: MutableMapping[Text, Text]
         try:
             env = cast(MutableMapping[Text, Text], os.environ)
-            if docker_req and kwargs.get("use_container") is not False:
+            if docker_req and kwargs.get("use_container"):
                 img_id = docker.get_from_requirements(docker_req, True, pull_image)
             if img_id is None:
-                find_default_container = self.builder.find_default_container
-                default_container = find_default_container and find_default_container()
-                if default_container:
-                    img_id = default_container
-                    env = cast(MutableMapping[Text, Text], os.environ)
+                if self.builder.find_default_container:
+                    default_container = self.builder.find_default_container()
+                    if default_container:
+                        img_id = default_container
+                        env = cast(MutableMapping[Text, Text], os.environ)
 
             if docker_req and img_id is None and kwargs.get("use_container"):
                 raise Exception("Docker image not available")

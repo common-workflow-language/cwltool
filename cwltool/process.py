@@ -570,7 +570,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         if dockerReq is None and "default_container" in kwargs:
             defaultDocker = kwargs["default_container"]
 
-        if dockerReq or defaultDocker and kwargs.get("use_container"):
+        if (dockerReq or defaultDocker) and kwargs.get("use_container"):
             if dockerReq:
                 # Check if docker output directory is absolute
                 if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
