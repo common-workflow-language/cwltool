@@ -34,22 +34,33 @@ class RO():
 
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
-        f = open(path, "w")
-        # YAML is always UTF8
-        f.write(packed.encode("UTF-8"))
-        f.close()
+        with open (path, "w") as f:
+            # YAML is always UTF8
+            f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
     
-    def add_data_file(self, file):
-        
+    def add_data_file(self, file):        
         pass
+        
+    def create_job(self, customised_job):
+        #TODO handle nested workflow at level 2 provenance
+        #TODO customise the file 
+        '''
+        This function takes the dictionary input object and generates
+        a json file containing the relative paths and link to the associated
+        cwl document
+        '''
+        path=os.path.join(self.folder, WORKFLOW, "master-job.json")
+        with open (path, "w") as f:
+            json.dump(customised_job, f)
+        _logger.info(u"[provenance] Generated customised job file: %s", path)
 
     def close(self, saveTo=None):
-        """Close the Research Object after saving to specified folder.        
+        """Close the Research Object after saving to specified folder.
         The 'saveTo' folder should not exist - if it does it will be deleted.
 
-        If the argument 'saveTo' is None (the default value), the 
+        If the argument 'saveTo' is None (the default value), the
         research object will be removed without saving.
 
         This function can only be called once, after which this object
@@ -59,8 +70,8 @@ class RO():
             if self.folder:
                 _logger.info(u"[provenance] Deleting %s", self.folder)
                 shutil.rmtree(self.folder, ignore_errors=True)
-        else: 
-            _logger.info(u"[provenance] Finalizing Research Object")            
+        else:
+            _logger.info(u"[provenance] Finalizing Research Object")
             self._finalize() # write manifest etc.
             # TODO: Write as archive (.zip or .tar) based on extension?
             
@@ -74,4 +85,3 @@ class RO():
 
 def create_ro(tmpPrefix):
     return RO(tmpPrefix)
-
