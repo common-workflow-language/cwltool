@@ -59,7 +59,9 @@ class RO():
             _logger.info(u"[provenance] Finalizing Research Object")            
             self._finalize() # write manifest etc.
             # TODO: Write as archive (.zip or .tar) based on extension?
-            shutil.rmtree(saveTo)
+            
+            if os.path.isdir(saveTo):
+                shutil.rmtree(saveTo)
             shutil.move(self.folder, saveTo)
             _logger.info(u"[provenance] Research Object saved to %s", saveTo)
 
