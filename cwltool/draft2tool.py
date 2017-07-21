@@ -183,13 +183,13 @@ class CommandLineTool(Process):
         if not dockerReq and use_container:
             if self.find_default_container:
                 default_container = self.find_default_container(self)
-            if default_container:
-                self.requirements.insert(0, {
-                    "class": "DockerRequirement",
-                    "dockerPull": default_container
-                })
-                dockerReq = self.requirements[0]
-
+                if default_container:
+                    self.requirements.insert(0, {
+                        "class": "DockerRequirement",
+                        "dockerPull": default_container
+                    })
+                    dockerReq = self.requirements[0]
+    
         if dockerReq and use_container:
             return DockerCommandLineJob()
         else:
