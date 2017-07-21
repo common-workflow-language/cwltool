@@ -18,39 +18,44 @@ _logger = logging.getLogger("cwltool")
 def get_image(dockerRequirement, pull_image, dry_run=False):
     # type: (Dict[Text, Text], bool, bool) -> bool
     found = False
-
     if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
         dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
 
-    for ln in subprocess.check_output(
-            ["docker", "images", "--no-trunc", "--all"]).decode('utf-8').splitlines():
-        try:
-            m = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", ln)
-            sp = dockerRequirement["dockerImageId"].split(":")
-            if len(sp) == 1:
-                sp.append("latest")
-            elif len(sp) == 2:
-                #  if sp[1] doesn't  match valid tag names, it is a part of repository
-                if not re.match(r'[\w][\w.-]{0,127}', sp[1]):
-                    sp[0] = sp[0] + ":" + sp[1]
-                    sp[1] = "latest"
-            elif len(sp) == 3:
-                if re.match(r'[\w][\w.-]{0,127}', sp[2]):
-                    sp[0] = sp[0] + ":" + sp[1]
-                    sp[1] = sp[2]
-                    del sp[2]
-
-            # check for repository:tag match or image id match
-            if ((sp[0] == m.group(1) and sp[1] == m.group(2)) or dockerRequirement["dockerImageId"] == m.group(3)):
-                found = True
-                break
-        except ValueError:
-            pass
+#DEBUG: CHECKS IMAGE REGISTRY FOR IDS. SINGULARITY EQ WOULD BE TO CHECK THE FOLDER FOR IMG.
+    #'node:slim'
+    imageString = dockerRequirement["dockerPull"].split(":")    
+    imageHit = "{}-{}.img".format(imageString[0], imageString[1])
+    if imageHit:
+        found = True
+#    for ln in subprocess.check_output(
+#            ["docker", "images", "--no-trunc", "--all"]).decode('utf-8').splitlines():
+#        try:
+#            m = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", ln)
+#            sp = dockerRequirement["dockerImageId"].split(":")
+#            if len(sp) == 1:
+#                sp.append("latest")
+#            elif len(sp) == 2:
+#                #  if sp[1] doesn't  match valid tag names, it is a part of repository
+#                if not re.match(r'[\w][\w.-]{0,127}', sp[1]):
+#                    sp[0] = sp[0] + ":" + sp[1]
+#                    sp[1] = "latest"
+#            elif len(sp) == 3:
+#                if re.match(r'[\w][\w.-]{0,127}', sp[2]):
+#                    sp[0] = sp[0] + ":" + sp[1]
+#                    sp[1] = sp[2]
+#                    del sp[2]
+#
+#            # check for repository:tag match or image id match
+#            if ((sp[0] == m.group(1) and sp[1] == m.group(2)) or dockerRequirement["dockerImageId"] == m.group(3)):
+#                found = True
+#                break
+#        except ValueError:
+#            pass
 
     if not found and pull_image:
         cmd = []  # type: List[Text]
         if "dockerPull" in dockerRequirement:
-            cmd = ["docker", "pull", str(dockerRequirement["dockerPull"])]
+            cmd = ["singularity", "pull", "docker://" + str(dockerRequirement["dockerPull"])]
             _logger.info(Text(cmd))
             if not dry_run:
                 subprocess.check_call(cmd, stdout=sys.stderr)
@@ -103,7 +108,7 @@ def get_from_requirements(r, req, pull_image, dry_run=False):
     if r:
         errmsg = None
         try:
-            subprocess.check_output(["docker", "version"])
+            subprocess.check_output(["singularity", "--version"])
         except subprocess.CalledProcessError as e:
             errmsg = "Cannot communicate with docker daemon: " + Text(e)
         except OSError as e:

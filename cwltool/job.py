@@ -348,6 +348,7 @@ class DockerCommandLineJob(JobBase):
         try:
             env = cast(MutableMapping[Text, Text], os.environ)
             if docker_req and kwargs.get("use_container") is not False:
+		print "Req docker"
                 img_id = docker.get_from_requirements(docker_req, True, pull_image)
             if img_id is None:
                 find_default_container = self.builder.find_default_container
@@ -370,7 +371,7 @@ class DockerCommandLineJob(JobBase):
 
         self._setup()
 
-        runtime = [u"singularity", u"exec", u"-i"]
+        runtime = [u"singularity", u"exec"]
 
         runtime.append(u"--bind=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
         runtime.append(u"--bind=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
@@ -404,16 +405,15 @@ class DockerCommandLineJob(JobBase):
 # No equivalent
 #        if rm_container:
 #            runtime.append(u"--rm")
-
-        runtime.prepend(u"SINGULARITYENV_TMPDIR=/tmp")
+        runtime.insert(0, u"SINGULARITYENV_TMPDIR=/tmp")
 
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
         # runtime.append("--env=HOME=/tmp")
-        runtime.prepend(u"SINGULARITYENV_HOME=%s" % self.builder.outdir)
+        runtime.insert(0, u"SINGULARITYENV_HOME=%s" % self.builder.outdir)
 
         for t, v in self.environment.items():
-            runtime.prepend(u"SINGULARITYENV_%s=%s" % (t, v))
+            runtime.insert(0, u"SINGULARITYENV_%s=%s" % (t, v))
 
         runtime.append(img_id)
 
