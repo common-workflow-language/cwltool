@@ -249,3 +249,6 @@ class PathMapper(object):
             if v[1] == target:
                 return (k, v[0])
         return None
+
+    def update(self, key, resolved, target, type, stage):
+        self._pathmap[key] = MapperEnt(resolved, target, type, stage)
