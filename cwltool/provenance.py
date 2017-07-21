@@ -20,8 +20,8 @@ PROVENANCE = os.path.join(METADATA, "provenance")
 class RO():
     def __init__(self, tmpPrefix="tmp"):
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
-        self.initialize()
-        _logger.info("Temporary research object: %s", self.folder)
+        self._initialize()
+        _logger.info(u"[provenance] Temporary research object: %s", self.folder)
 
     def _initialize(self):
         for f in (METADATA, DATA, WORKFLOW, SNAPSHOT, PROVENANCE):
@@ -29,6 +29,7 @@ class RO():
 
     def _finalize(self):
         # TODO: Write manifest and bagit metadata
+#        _logger.info(u"[provenance] Generated research object manifest: %s", self.folder)
         pass
 
     def packed_workflow(self, packed):
@@ -37,24 +38,32 @@ class RO():
         # YAML is always UTF8
         f.write(packed.encode("UTF-8"))
         f.close()
+        _logger.info(u"[provenance] Added packed workflow: %s", path)
 
-    def close(self, folder=None):
-        """Close the Research Object after saving to specified folder.
 
-        If the argument 'folder' is None (the default value), the 
+    def close(self, saveTo=None):
+        """Close the Research Object after saving to specified folder.        
+        The 'saveTo' folder should not exist - if it does it will be deleted.
+
+        If the argument 'saveTo' is None (the default value), the 
         research object will be removed without saving.
 
         This function can only be called once, after which this object
-        can no longer be used.
+        can no longer be used. Later calls to this function will be no-op.
         """
-        if folder is None:
-            shutil.rmtree(self.folder)
-        else:
-            self._finalize()
-            # TODO: Add to archive (.zip or .tar)
-            shutil.move(self.folder, folder)
+        if saveTo is None:
+            if self.folder:
+                _logger.info(u"[provenance] Deleting %s", self.folder)
+                shutil.rmtree(self.folder, ignore_errors=True)
+        else: 
+            _logger.info(u"[provenance] Finalizing Research Object")            
+            self._finalize() # write manifest etc.
+            # TODO: Write as archive (.zip or .tar) based on extension?
+            shutil.rmtree(saveTo)
+            shutil.move(self.folder, saveTo)
+            _logger.info(u"[provenance] Research Object saved to %s", saveTo)
 
-        # Forget about our tempfolder which no longer exists
+        # Forget about our temporary, which no longer exists
         self.folder = None
 
 def create_ro(tmpPrefix):

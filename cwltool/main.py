@@ -115,6 +115,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          help="Copy output files to the workflow output directory, don't delete intermediate output directories.",
                          dest="move_outputs")
 
+    parser.add_argument("--provenance",
+                        help="Save provenance to specified folder as a Research Object that capture and aggregate workflow execution and data products.",
+                        type=Text)
+
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
                          help="Try to pull Docker images", dest="enable_pull")
@@ -130,10 +134,6 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Time to wait for a Javascript expression to evaluate before giving an error, default 20s.",
                         type=float,
                         default=20)
-    parser.add_argument("--provenance",
-                        help="Generate a Research object to capture and aggregate workflow execution and data products.",
-                        type=Text,
-                        default="provenance")
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
                          help="Print corresponding RDF graph for workflow and exit")
@@ -696,6 +696,7 @@ def main(argsl=None,  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
+    ro = None
     try:
         if args is None:
             if argsl is None:
@@ -785,8 +786,6 @@ def main(argsl=None,  # type: List[str]
 
         if args.provenance:
             ro = create_ro(tmpPrefix=args.tmpdir_prefix)
-        else:
-            ro = None
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
@@ -953,6 +952,8 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
+        if ro:
+            ro.close()
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
 
