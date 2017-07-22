@@ -28,13 +28,24 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix
+from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix, windows_default_container_id, onWindows
 from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
+DEFAULT_CONTAINER_MSG="""We are on Microsoft Windows and not all components of this CWL description have a
+container specified. This means that these steps will be executed in the default container, 
+which is %s.
 
+Note, this could affect portability if this CWL description relies on non-POSIX features
+or commands in this container. For best results add the following to your CWL
+description's hints section:
+
+hints:
+  DockerRequirement:
+    dockerPull: %s
+"""
 
 _logger = logging.getLogger("cwltool")
 
@@ -189,6 +200,8 @@ class CommandLineTool(Process):
                         "dockerPull": default_container
                     })
                     dockerReq = self.requirements[0]
+                    if default_container == windows_default_container_id and use_container and onWindows():
+                        _logger.warning(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))
     
         if dockerReq and use_container:
             return DockerCommandLineJob()
