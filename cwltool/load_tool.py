@@ -165,8 +165,8 @@ def validate_document(document_loader,  # type: Loader
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
             workflowobj["cwlVersion"])
     else:
-        _logger.warning("No cwlVersion found, treating this file as draft-2.")
-        workflowobj["cwlVersion"] = "draft-2"
+        raise ValidationException("No cwlVersion found."
+            "Use the following syntax in your CWL workflow to declare version: cwlVersion: <version>")
 
     if workflowobj["cwlVersion"] == "draft-2":
         workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(
