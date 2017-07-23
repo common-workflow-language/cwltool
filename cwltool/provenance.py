@@ -18,7 +18,11 @@ SNAPSHOT = "snapshot"
 MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 
-hashmethod = hashlib.sha256
+
+## sha1, compatible with the File type's "checksum" field
+## e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
+## See ./cwltool/schemas/v1.0/Process.yml 
+hashmethod = hashlib.sha1
 
 class RO():
     def __init__(self, tmpPrefix="tmp"):
@@ -44,7 +48,7 @@ class RO():
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
     
-    def add_data_file(self, fp):                
+    def add_data_file(self, fp):
         tmp = tempfile.mkstemp(prefix=self.tmpPrefix)
         with open(tmp, "wb") as out:
             checksum = hashmethod()
