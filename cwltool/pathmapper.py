@@ -250,5 +250,5 @@ class PathMapper(object):
                 return (k, v[0])
         return None
 
-    def update(self, key, resolved, target, type, stage):
+    def update(self, key, resolved, target, type, stage):  # type: (Text, Text, Text, Text, bool) -> None
         self._pathmap[key] = MapperEnt(resolved, target, type, stage)

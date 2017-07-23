@@ -190,7 +190,7 @@ class CommandLineTool(Process):
                         "dockerPull": default_container
                     })
                     dockerReq = self.requirements[0]
-    
+
         if dockerReq and use_container:
             return DockerCommandLineJob()
         else:
@@ -206,6 +206,7 @@ class CommandLineTool(Process):
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
 
     def updatePathmap(self, outdir, pathmap, fn):
+        # type: (Text, PathMapper, Dict) -> None
         if "location" in fn:
             pathmap.update(fn["location"], pathmap.mapper(fn["location"]).resolved,
                            os.path.join(outdir, fn["basename"]),
