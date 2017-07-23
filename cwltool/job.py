@@ -89,6 +89,7 @@ def deref_links(outputs):  # type: (Any) -> None
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):
+                outputs["basename"] = os.path.basename(outputs["path"])
                 outputs["path"] = os.readlink(outputs["path"])
         else:
             for v in outputs.values():
@@ -147,7 +148,7 @@ class JobBase(object):
 
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
-            if p.type == "File" and not os.path.isfile(p[0]):
+            if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
                 raise WorkflowException(
                     u"Input file %s (at %s) not found or is not a regular "
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))

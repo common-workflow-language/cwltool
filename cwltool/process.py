@@ -34,7 +34,7 @@ from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class)
+                         normalizeFilesDirs, visit_class, trim_listing)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
@@ -283,7 +283,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, stageFunc=moveIt,symLink=False)
+    stageFiles(pm, stageFunc=moveIt, symLink=False)
 
     def _check_adjust(f):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
@@ -386,12 +386,13 @@ def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException):
-            if shortname(inp[u"id"]) in job:
+            fieldname = shortname(inp[u"id"])
+            if job.get(fieldname) is not None:
                 pass
-            elif shortname(inp[u"id"]) not in job and u"default" in inp:
-                job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
-            elif shortname(inp[u"id"]) not in job and aslist(inp[u"type"])[0] == u"null":
-                pass
+            elif job.get(fieldname) is None and u"default" in inp:
+                job[fieldname] = copy.copy(inp[u"default"])
+            elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
+                job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
 
