@@ -18,9 +18,6 @@ from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
 
-# if six.PY3:
-# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
-# else:
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 CONTENT_LIMIT = 64 * 1024
