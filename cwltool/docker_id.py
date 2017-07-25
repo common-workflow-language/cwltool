@@ -20,7 +20,7 @@ def docker_vm_id():  # type: () -> Tuple[int, int]
     elif docker_machine_running():
         return docker_machine_id()
     else:
-        return None
+        return (None, None)
 
 
 def check_output_and_strip(cmd):  # type: (List[Text]) -> Text
