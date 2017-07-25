@@ -33,3 +33,27 @@ class TestPack(unittest.TestCase):
         del expect_packed["$schemas"]
 
         self.assertEqual(expect_packed, packed)
+
+    def test_pack_single_step(self):
+        """Test to ensure the generated pack output is not missing
+        the `cwlVersion` in case of single step workflow"""
+        # Since diff is longer than 3174 characters
+        self.maxDiff = None
+
+        document_loader, workflowobj, uri = fetch_document(
+            get_data("tests/wf/hello-workflow.cwl"))
+        document_loader, avsc_names, processobj, metadata, uri = validate_document(
+            document_loader, workflowobj, uri)
+        # generate pack output dict
+        packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
+        # open expect packed output
+        with open(get_data("tests/wf/expect_packed_hello_workflow.cwl")) as f:
+            expect_packed = json.load(f)
+            print(json.dumps(expect_packed))
+        adjustFileObjs(packed, partial(makeRelative,
+            os.path.abspath(get_data("tests/wf"))))
+        adjustDirObjs(packed, partial(makeRelative,
+            os.path.abspath(get_data("tests/wf"))))
+
+        print(json.dumps(packed["$graph"][0]))
+        self.assertEqual(expect_packed, packed["$graph"][0])
