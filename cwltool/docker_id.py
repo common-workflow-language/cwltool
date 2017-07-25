@@ -12,7 +12,7 @@ def docker_vm_id():  # type: () -> Tuple[int, int]
     When a host is using boot2docker or docker-machine to run docker with
     boot2docker.iso (As on Mac OS X), the UID that mounts the shared filesystem
     inside the VirtualBox VM is likely different than the user's UID on the host.
-    :return: A tuple containing numeric User ID and Group ID (as a string) of the docker account inside
+    :return: A tuple containing numeric User ID and Group ID of the docker account inside
     the boot2docker VM
     """
     if boot2docker_running():
@@ -98,7 +98,7 @@ def cmd_output_to_int(cmd):  # type: (List[Text]) -> int
 def boot2docker_id():  # type: () -> Tuple[int, int]
     """
     Gets the UID and GID of the docker user inside a running boot2docker vm
-    :return: tuple (UID, GID), or (None, None) if error (e.g. boot2docker not present or stopped)
+    :return: Tuple (UID, GID), or (None, None) if error (e.g. boot2docker not present or stopped)
     """
     uid = cmd_output_to_int(['boot2docker', 'ssh', 'id', '-u'])
     gid = cmd_output_to_int(['boot2docker', 'ssh', 'id', '-g'])
