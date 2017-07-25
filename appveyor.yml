@@ -26,3 +26,6 @@ test_script:
 
   - "%CMD_IN_ENV% python setup.py test"
 
+branches:
+  only:
+    - master
