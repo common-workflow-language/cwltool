@@ -207,7 +207,7 @@ class CommandLineTool(Process):
 
     def updatePathmap(self, outdir, pathmap, fn):
         # type: (Text, PathMapper, Dict) -> None
-        if "location" in fn:
+        if "location" in fn and fn["location"] in pathmap:
             pathmap.update(fn["location"], pathmap.mapper(fn["location"]).resolved,
                            os.path.join(outdir, fn["basename"]),
                            ("Writable" if fn.get("writable") else "") + fn["class"], False)

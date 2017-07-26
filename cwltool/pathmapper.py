@@ -252,3 +252,6 @@ class PathMapper(object):
 
     def update(self, key, resolved, target, type, stage):  # type: (Text, Text, Text, Text, bool) -> None
         self._pathmap[key] = MapperEnt(resolved, target, type, stage)
+
+    def __contains__(self, key):
+        return key in self._pathmap
