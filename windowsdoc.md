@@ -9,7 +9,6 @@ specify other Docker Containers for your tools and workflows using hints,
 or the `--default-container` cwltool option.
 
 ## Supported Windows versions
-
 * Windows 10 with native [Docker for Windows](https://docs.docker.com/docker-for-windows/).
 * Windows 8.1 with [Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_windows/).
 * Windows 7 & 8 with Docker ToolBox may work (Not tested, please let us know!).
@@ -36,12 +35,14 @@ pip install cwltool
 ### Install from source
 
 ```
-   git clone https://github.com/common-workflow-language/cwltool.git  
-   cd cwltool  
-   python setup.py develop
+git clone https://github.com/common-workflow-language/cwltool.git  
+cd cwltool  
+python setup.py develop
 ```
+
 ***Note:*** In order to test if cwltool has been successfully installed on your
 Windows system, run `cwltool` in `cmd`. If you see help instructions, cwltool was successfully installed.  
+
 ```
    CWL document required, no input file was provided
    usage: cwltool [-h] [--basedir BASEDIR] [--outdir OUTDIR] [--no-container]
