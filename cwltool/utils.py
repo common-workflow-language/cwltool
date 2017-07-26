@@ -10,6 +10,7 @@ from six.moves import urllib
 from six.moves import zip_longest
 from typing import Any,Callable, Dict, List, Tuple, Text, Union
 
+windows_default_container_id = "frolvlad/alpine-bash"
 
 def aslist(l):  # type: (Any) -> List[Any]
     if isinstance(l, list):
