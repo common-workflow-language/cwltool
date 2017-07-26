@@ -19,7 +19,7 @@ import shellescape
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
-from .docker_uid import docker_vm_uid
+from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, empty_subtree, get_feature,
@@ -391,13 +391,12 @@ class DockerCommandLineJob(JobBase):
         if self.stdout:
             runtime.append("--log-driver=none")
 
-        if onWindows():  # windows os dont have getuid or geteuid functions
-            euid = docker_vm_uid()
-        else:
-            euid = docker_vm_uid() or os.geteuid()
+        euid, egid = docker_vm_id()
+        if not onWindows():  # MS Windows does not have getuid() or geteuid() functions
+            euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-        if kwargs.get("no_match_user", None) is False and euid is not None:
-            runtime.append(u"--user=%s" % (euid))
+        if kwargs.get("no_match_user", None) is False and (euid, egid) != (None, None):
+            runtime.append(u"--user=%d:%d" % (euid, egid))
 
         if rm_container:
             runtime.append(u"--rm")
