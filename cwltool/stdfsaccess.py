@@ -67,4 +67,4 @@ class StdFsAccess(object):
             if path.startswith('/'):
                 return path
             return '/'+path
-        return os.path.realpath(path)
+        return self.realpath(path)
