@@ -673,7 +673,8 @@ class WorkflowStep(Process):
                     toolpath_object["run"], kwargs.get("makeTool"), kwargs,
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
-                    fetcher_constructor=kwargs.get("fetcher_constructor"))
+                    fetcher_constructor=kwargs.get("fetcher_constructor"),
+                    resolver=kwargs.get("resolver"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
