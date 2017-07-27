@@ -28,13 +28,24 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix
+from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix, windows_default_container_id, onWindows
 from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
+DEFAULT_CONTAINER_MSG="""We are on Microsoft Windows and not all components of this CWL description have a
+container specified. This means that these steps will be executed in the default container, 
+which is %s.
 
+Note, this could affect portability if this CWL description relies on non-POSIX features
+or commands in this container. For best results add the following to your CWL
+description's hints section:
+
+hints:
+  DockerRequirement:
+    dockerPull: %s
+"""
 
 _logger = logging.getLogger("cwltool")
 
@@ -109,8 +120,9 @@ def revmap_file(builder, outdir, f):
         if f["location"].startswith("file://"):
             path = convert_pathsep_to_unix(uri_file_path(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
-            if revmap_f:
-                f["location"] = revmap_f[1]
+            if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
+                f["basename"] = os.path.basename(path)
+                f["location"] = revmap_f[0]
             elif path == builder.outdir:
                 f["location"] = outdir
             elif path.startswith(builder.outdir):
@@ -181,13 +193,16 @@ class CommandLineTool(Process):
     def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and use_container:
-            default_container = self.find_default_container(self)
-            if default_container:
-                self.requirements.insert(0, {
-                    "class": "DockerRequirement",
-                    "dockerPull": default_container
-                })
-                dockerReq = self.requirements[0]
+            if self.find_default_container:
+                default_container = self.find_default_container(self)
+                if default_container:
+                    self.requirements.insert(0, {
+                        "class": "DockerRequirement",
+                        "dockerPull": default_container
+                    })
+                    dockerReq = self.requirements[0]
+                    if default_container == windows_default_container_id and use_container and onWindows():
+                        _logger.warning(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))
 
         if dockerReq and use_container:
             return DockerCommandLineJob()
@@ -202,6 +217,17 @@ class CommandLineTool(Process):
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
         return PathMapper(reffiles, kwargs["basedir"], stagedir)
+
+    def updatePathmap(self, outdir, pathmap, fn):
+        # type: (Text, PathMapper, Dict) -> None
+        if "location" in fn and fn["location"] in pathmap:
+            pathmap.update(fn["location"], pathmap.mapper(fn["location"]).resolved,
+                           os.path.join(outdir, fn["basename"]),
+                           ("Writable" if fn.get("writable") else "") + fn["class"], False)
+        for sf in fn.get("secondaryFiles", []):
+            self.updatePathmap(outdir, pathmap, sf)
+        for ls in fn.get("listing", []):
+            self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
     def job(self,
             job_order,  # type: Dict[Text, Text]
@@ -228,9 +254,9 @@ class CommandLineTool(Process):
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-            if docker_req and kwargs.get("use_container") is not False:
+            if docker_req and kwargs.get("use_container"):
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
-            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container") is not False:
+            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container"):
                 dockerimg = kwargs.get("default_container")
 
             if dockerimg:
@@ -268,7 +294,7 @@ class CommandLineTool(Process):
             jobcachepending = jobcache + ".pending"
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
-                if docker_req and kwargs.get("use_container") is not False:
+                if docker_req and kwargs.get("use_container"):
                     cachebuilder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
                 else:
                     cachebuilder.outdir = jobcache
@@ -327,45 +353,9 @@ class CommandLineTool(Process):
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **make_path_mapper_kwargs)
         builder.requirements = j.requirements
 
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] path mappings is %s", j.name,
-                          json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
-
         _check_adjust = partial(check_adjust, builder)
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
-
-        if self.tool.get("stdin"):
-            with SourceLine(self.tool, "stdin", validate.ValidationException):
-                j.stdin = builder.do_eval(self.tool["stdin"])
-                reffiles.append({"class": "File", "path": j.stdin})
-
-        if self.tool.get("stderr"):
-            with SourceLine(self.tool, "stderr", validate.ValidationException):
-                j.stderr = builder.do_eval(self.tool["stderr"])
-                if os.path.isabs(j.stderr) or ".." in j.stderr:
-                    raise validate.ValidationException("stderr must be a relative path, got '%s'" % j.stderr)
-
-        if self.tool.get("stdout"):
-            with SourceLine(self.tool, "stdout", validate.ValidationException):
-                j.stdout = builder.do_eval(self.tool["stdout"])
-                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                    raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
-
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
-
-        dockerReq = self.get_requirement("DockerRequirement")[0]
-        if dockerReq and kwargs.get("use_container"):
-            out_prefix = kwargs.get("tmp_outdir_prefix")
-            j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
-            tmpdir_prefix = kwargs.get('tmpdir_prefix')
-            j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
-        else:
-            j.outdir = builder.outdir
-            j.tmpdir = builder.tmpdir
-            j.stagedir = builder.stagedir
 
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
         j.generatefiles = {"class": "Directory", "listing": [], "basename": ""}
@@ -402,6 +392,45 @@ class CommandLineTool(Process):
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles[u"listing"] = ls
+            for l in ls:
+                self.updatePathmap(builder.outdir, builder.pathmapper, l)
+            visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
+
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] path mappings is %s", j.name,
+                          json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+
+        if self.tool.get("stdin"):
+            with SourceLine(self.tool, "stdin", validate.ValidationException):
+                j.stdin = builder.do_eval(self.tool["stdin"])
+                reffiles.append({"class": "File", "path": j.stdin})
+
+        if self.tool.get("stderr"):
+            with SourceLine(self.tool, "stderr", validate.ValidationException):
+                j.stderr = builder.do_eval(self.tool["stderr"])
+                if os.path.isabs(j.stderr) or ".." in j.stderr:
+                    raise validate.ValidationException("stderr must be a relative path, got '%s'" % j.stderr)
+
+        if self.tool.get("stdout"):
+            with SourceLine(self.tool, "stdout", validate.ValidationException):
+                j.stdout = builder.do_eval(self.tool["stdout"])
+                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
+                    raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
+
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
+
+        dockerReq = self.get_requirement("DockerRequirement")[0]
+        if dockerReq and kwargs.get("use_container"):
+            out_prefix = kwargs.get("tmp_outdir_prefix")
+            j.outdir = kwargs.get("outdir") or tempfile.mkdtemp(prefix=out_prefix)
+            tmpdir_prefix = kwargs.get('tmpdir_prefix')
+            j.tmpdir = kwargs.get("tmpdir") or tempfile.mkdtemp(prefix=tmpdir_prefix)
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
+        else:
+            j.outdir = builder.outdir
+            j.tmpdir = builder.tmpdir
+            j.stagedir = builder.stagedir
 
         inplaceUpdateReq = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")[0]
 

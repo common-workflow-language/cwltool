@@ -19,7 +19,7 @@ import shellescape
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
-from .docker_uid import docker_vm_uid
+from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, empty_subtree, get_feature,
@@ -89,6 +89,7 @@ def deref_links(outputs):  # type: (Any) -> None
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):
+                outputs["basename"] = os.path.basename(outputs["path"])
                 outputs["path"] = os.readlink(outputs["path"])
         else:
             for v in outputs.values():
@@ -147,7 +148,7 @@ class JobBase(object):
 
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
-            if p.type == "File" and not os.path.isfile(p[0]):
+            if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
                 raise WorkflowException(
                     u"Input file %s (at %s) not found or is not a regular "
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
@@ -347,14 +348,14 @@ class DockerCommandLineJob(JobBase):
         env = None  # type: MutableMapping[Text, Text]
         try:
             env = cast(MutableMapping[Text, Text], os.environ)
-            if docker_req and kwargs.get("use_container") is not False:
+            if docker_req and kwargs.get("use_container"):
                 img_id = docker.get_from_requirements(docker_req, True, pull_image)
             if img_id is None:
-                find_default_container = self.builder.find_default_container
-                default_container = find_default_container and find_default_container()
-                if default_container:
-                    img_id = default_container
-                    env = cast(MutableMapping[Text, Text], os.environ)
+                if self.builder.find_default_container:
+                    default_container = self.builder.find_default_container()
+                    if default_container:
+                        img_id = default_container
+                        env = cast(MutableMapping[Text, Text], os.environ)
 
             if docker_req and img_id is None and kwargs.get("use_container"):
                 raise Exception("Docker image not available")
@@ -390,13 +391,12 @@ class DockerCommandLineJob(JobBase):
         if self.stdout:
             runtime.append("--log-driver=none")
 
-        if onWindows():  # windows os dont have getuid or geteuid functions
-            euid = docker_vm_uid()
-        else:
-            euid = docker_vm_uid() or os.geteuid()
+        euid, egid = docker_vm_id()
+        if not onWindows():  # MS Windows does not have getuid() or geteuid() functions
+            euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-        if kwargs.get("no_match_user", None) is False and euid is not None:
-            runtime.append(u"--user=%s" % (euid))
+        if kwargs.get("no_match_user", None) is False and (euid, egid) != (None, None):
+            runtime.append(u"--user=%d:%d" % (euid, egid))
 
         if rm_container:
             runtime.append(u"--rm")

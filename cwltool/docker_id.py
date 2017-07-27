@@ -2,25 +2,25 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import subprocess
-from typing import List, Text
+from typing import List, Text, Tuple
 
 
-def docker_vm_uid():  # type: () -> int
+def docker_vm_id():  # type: () -> Tuple[int, int]
     """
-    Returns the UID of the default docker user inside the VM
+    Returns the User ID and Group ID of the default docker user inside the VM
 
     When a host is using boot2docker or docker-machine to run docker with
     boot2docker.iso (As on Mac OS X), the UID that mounts the shared filesystem
     inside the VirtualBox VM is likely different than the user's UID on the host.
-    :return: The numeric UID (as a string) of the docker account inside
+    :return: A tuple containing numeric User ID and Group ID of the docker account inside
     the boot2docker VM
     """
     if boot2docker_running():
-        return boot2docker_uid()
+        return boot2docker_id()
     elif docker_machine_running():
-        return docker_machine_uid()
+        return docker_machine_id()
     else:
-        return None
+        return (None, None)
 
 
 def check_output_and_strip(cmd):  # type: (List[Text]) -> Text
@@ -95,23 +95,26 @@ def cmd_output_to_int(cmd):  # type: (List[Text]) -> int
     return None
 
 
-def boot2docker_uid():  # type: () -> int
+def boot2docker_id():  # type: () -> Tuple[int, int]
     """
-    Gets the UID of the docker user inside a running boot2docker vm
-    :return: the UID, or None if error (e.g. boot2docker not present or stopped)
+    Gets the UID and GID of the docker user inside a running boot2docker vm
+    :return: Tuple (UID, GID), or (None, None) if error (e.g. boot2docker not present or stopped)
     """
-    return cmd_output_to_int(['boot2docker', 'ssh', 'id', '-u'])
+    uid = cmd_output_to_int(['boot2docker', 'ssh', 'id', '-u'])
+    gid = cmd_output_to_int(['boot2docker', 'ssh', 'id', '-g'])
+    return (uid, gid)
 
-
-def docker_machine_uid():  # type: () -> int
+def docker_machine_id():  # type: () -> Tuple[int, int]
     """
     Asks docker-machine for active machine and gets the UID of the docker user
     inside the vm
-    :return: the UID, or None if error (e.g. docker-machine not present or stopped)
+    :return: tuple (UID, GID), or (None, None) if error (e.g. docker-machine not present or stopped)
     """
     machine_name = docker_machine_name()
-    return cmd_output_to_int(['docker-machine', 'ssh', machine_name, "id -u"])
+    uid = cmd_output_to_int(['docker-machine', 'ssh', machine_name, "id -u"])
+    gid = cmd_output_to_int(['docker-machine', 'ssh', machine_name, "id -g"])
+    return (uid, gid)
 
 
 if __name__ == '__main__':
-    print(docker_vm_uid())
+    print(docker_vm_id())

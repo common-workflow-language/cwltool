@@ -39,7 +39,7 @@ from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements, SOFTWARE_REQUIREMENTS_ENABLED
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import onWindows
+from .utils import onWindows, windows_default_container_id
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 
@@ -591,7 +591,19 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             p["location"] = p["path"]
             del p["path"]
 
+    def addSizes(p):
+        if 'location' in p:
+            try:
+                p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
+            except OSError:
+                pass
+        elif 'contents' in p:
+                p["size"] = len(p['contents'])
+        else:
+            return  # best effort
+
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
+    visit_class(job_order_object, ("File"), addSizes)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 
@@ -699,7 +711,8 @@ def main(argsl=None,  # type: List[str]
 
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
         if onWindows() and not args.default_container:
-            args.default_container = "ubuntu"
+            # This docker image is a minimal alpine image with bash installed(size 6 mb). source: https://github.com/frol/docker-alpine-bash
+            args.default_container = windows_default_container_id
 
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
