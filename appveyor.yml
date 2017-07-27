@@ -23,7 +23,6 @@ environment:
       PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "64"
 
-
 install:
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "python --version"
