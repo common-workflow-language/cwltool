@@ -21,7 +21,7 @@ You can install cwltool using pip or directly from source code.
 
 Before installing cwltool, please install:
 
-* [Python 2 or 3](https://www.python.org/downloads/windows/)
+* [Python 2](https://www.python.org/downloads/windows/)
 * [Docker](https://docs.docker.com/docker-for-windows/install/)
 * [Node.js](https://nodejs.org/en/download/) (optional, please install if your
   workflows or tools contain [Javascript Expressions](http://www.commonwl.org/v1.0/CommandLineTool.html#InlineJavascriptRequirement))
