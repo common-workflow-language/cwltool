@@ -49,6 +49,7 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.debug = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
+        self.strict_docker_pull = False  # type: bool
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
