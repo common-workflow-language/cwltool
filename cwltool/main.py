@@ -226,7 +226,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--make-template", action="store_true",
                          help="Generate a template input object")
 
-
+    parser.add_argument("--docker-pull", action="store_true",
+                        default=False, help="Docker pull image again even if it is"
+                                            " already present", dest="docker_pull")
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 

@@ -245,4 +245,5 @@ class Builder(object):
                                   self.resources,
                                   context=context, pull_image=pull_image,
                                   timeout=self.timeout,
+                                  strict_docker_pull=self.strict_docker_pull,
                                   debug=self.debug)
