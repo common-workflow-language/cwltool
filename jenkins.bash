@@ -25,13 +25,14 @@ cloneorpull common-workflow-language https://github.com/common-workflow-language
 docker pull node:slim
 
 # Test for Python 2.7 and Python 3
-for PYTHON_VERSION in 2 3
+for PYTHON_VERSION in 2.7 3
 do
-	venv cwltool-venv
+	venv cwltool-venv${PYTHON_VERSION}
 	export PIP_DOWNLOAD_CACHE=/var/lib/jenkins/pypi-cache/
-	pip install -U setuptools wheel pip
-	pip install .
-	pip install "cwltest>=1.0.20160825151655"
+	# use pip2.7 and pip3 in separate loop runs
+	pip${PYTHON_VERSION} install -U setuptools wheel pip
+	pip${PYTHON_VERSION} install .
+	pip${PYTHON_VERSION} install "cwltest>=1.0.20160825151655"
 	pushd common-workflow-language
 	git clean --force -d -x || /bin/true
 	# shellcheck disable=SC2154
