@@ -210,12 +210,13 @@ class PathMapper(object):
                 with SourceLine(obj, "location", validate.ValidationException):
                     # Dereference symbolic links
                     deref = ab
-                    st = os.lstat(deref)
-                    while stat.S_ISLNK(st.st_mode):
-                        rl = os.readlink(deref)
-                        deref = rl if os.path.isabs(rl) else os.path.join(
-                            os.path.dirname(deref), rl)
+                    if urllib.parse.urlsplit(deref).scheme not in ['http','https']:
                         st = os.lstat(deref)
+                        while stat.S_ISLNK(st.st_mode):
+                            rl = os.readlink(deref)
+                            deref = rl if os.path.isabs(rl) else os.path.join(
+                                os.path.dirname(deref), rl)
+                            st = os.lstat(deref)
                     self._pathmap[path] = MapperEnt(deref, tgt, "WritableFile" if copy else "File", staged)
                     self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy, staged=staged)
 
