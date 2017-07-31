@@ -20,12 +20,13 @@ venv() {
         source "$1"/bin/activate
 }
 
+git clean --force -d -x || /bin/true
+cloneorpull common-workflow-language https://github.com/common-workflow-language/common-workflow-language.git
+docker pull node:slim
+
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2 3
 do
-	git clean --force -d -x || /bin/true
-	cloneorpull common-workflow-language https://github.com/common-workflow-language/common-workflow-language.git
-	docker pull node:slim
 	venv cwltool-venv
 	export PIP_DOWNLOAD_CACHE=/var/lib/jenkins/pypi-cache/
 	pip install -U setuptools wheel pip
