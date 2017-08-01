@@ -153,7 +153,7 @@ def next_seg(remain, obj):  # type: (Text, Any) -> Any
         return obj
 
 
-def evaluator(ex, jslib, obj, fullJS=False, timeout=None, strict_docker_pull=False, debug=False):
+def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=False, debug=False):
     # type: (Text, Text, Dict[Text, Any], bool, int, bool, bool) -> JSON
     m = param_re.match(ex)
     if m:
@@ -164,7 +164,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, strict_docker_pull=Fal
         except Exception as w:
             raise WorkflowException("%s%s" % (m.group(1), w))
     elif fullJS:
-        return sandboxjs.execjs(ex, jslib, timeout=timeout, strict_docker_pull=strict_docker_pull, debug=debug)
+        return sandboxjs.execjs(ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull, debug=debug)
     else:
         raise sandboxjs.JavascriptException(
             "Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.",
@@ -172,7 +172,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, strict_docker_pull=Fal
 
 
 def interpolate(scan, rootvars,
-                timeout=None, fullJS=None, jslib="",strict_docker_pull=False,
+                timeout=None, fullJS=None, jslib="",force_docker_pull=False,
                 debug=False):
     # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool) -> JSON
     scan = scan.strip()
@@ -183,7 +183,7 @@ def interpolate(scan, rootvars,
 
         if scan[w[0]] == '$':
             e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, fullJS=fullJS,
-                          timeout=timeout, strict_docker_pull=strict_docker_pull,
+                          timeout=timeout, force_docker_pull=force_docker_pull,
                           debug=debug)
             if w[0] == 0 and w[1] == len(scan):
                 return e
@@ -202,7 +202,7 @@ def interpolate(scan, rootvars,
 
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
-            context=None, pull_image=True, timeout=None, strict_docker_pull=False, debug=False):
+            context=None, pull_image=True, timeout=None, force_docker_pull=False, debug=False):
     # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool) -> Any
 
     runtime = copy.copy(resources)
@@ -229,7 +229,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                                timeout=timeout,
                                fullJS=fullJS,
                                jslib=jslib,
-                               strict_docker_pull=strict_docker_pull,
+                               force_docker_pull=force_docker_pull,
                                debug=debug)
         except Exception as e:
             raise WorkflowException("Expression evaluation error:\n%s" % e)

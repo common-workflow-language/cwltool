@@ -49,7 +49,7 @@ class Builder(object):
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.debug = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
-        self.strict_docker_pull = False  # type: bool
+        self.force_docker_pull = False  # type: bool
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
@@ -246,5 +246,5 @@ class Builder(object):
                                   self.resources,
                                   context=context, pull_image=pull_image,
                                   timeout=self.timeout,
-                                  strict_docker_pull=self.strict_docker_pull,
+                                  force_docker_pull=self.force_docker_pull,
                                   debug=self.debug)
