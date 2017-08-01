@@ -5,6 +5,7 @@ import re
 import traceback
 from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import
                     Tuple, Union)
+from copy import deepcopy
 
 import six
 from six.moves import urllib
@@ -349,6 +350,7 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
+
             def fixup(f):  # type: (Text) -> Text
                 doc, frg = urllib.parse.urldefrag(f)
                 frg = '/'.join(frg.rsplit('.', 1))
@@ -371,6 +373,8 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
             for out in doc["outputs"]:
                 out["source"] = fixup(out["source"])
         for key, value in doc.items():
+            if key == 'run':
+                value = deepcopy(value)
             doc[key] = _draft3toDraft4dev1(value, loader, baseuri)
     elif isinstance(doc, list):
         for i, a in enumerate(doc):
@@ -393,6 +397,8 @@ def _draft4Dev1toDev2(doc, loader, baseuri):
                 out["outputSource"] = out["source"]
                 del out["source"]
         for key, value in doc.items():
+            if key == 'run':
+                value = deepcopy(value)
             doc[key] = _draft4Dev1toDev2(value, loader, baseuri)
     elif isinstance(doc, list):
         for i, a in enumerate(doc):

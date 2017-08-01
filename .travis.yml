@@ -2,17 +2,17 @@ sudo: false
 language: python
 python:
   - 2.7
-    #  - 3.4
+  - 3.3
+  - 3.4
   - 3.5
-    #  - 3.6
+  - 3.6
 os:
   - linux
-
 install:
   - pip install tox-travis
 script: tox
-notifications:
-  email: false
 branches:
   only:
     - master
+notifications:
+  email: false

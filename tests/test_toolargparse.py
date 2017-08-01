@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 import unittest
+import pytest
 from tempfile import NamedTemporaryFile
 
 from cwltool.main import main
+from cwltool.utils import onWindows
 
 from .util import get_data
-
 
 class ToolArgparse(unittest.TestCase):
     script = '''
@@ -65,37 +66,46 @@ expression: $(inputs.foo.two)
 outputs: []
 '''
 
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
     def test_help(self):
-        with NamedTemporaryFile(mode='w') as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script)
             f.flush()
+            f.close()
             self.assertEquals(main(["--debug", f.name, '--input',
                 get_data('tests/echo.cwl')]), 0)
             self.assertEquals(main(["--debug", f.name, '--input',
                 get_data('tests/echo.cwl')]), 0)
 
+
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
     def test_bool(self):
-        with NamedTemporaryFile(mode='w') as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script2)
             f.flush()
+            f.close()
             try:
                 self.assertEquals(main([f.name, '--help']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
 
     def test_record_help(self):
-        with NamedTemporaryFile(mode='w') as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script3)
             f.flush()
+            f.close()
             try:
                 self.assertEquals(main([f.name, '--help']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
 
     def test_record(self):
-        with NamedTemporaryFile(mode='w') as f:
+        with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script3)
             f.flush()
+            f.close()
             try:
                 self.assertEquals(main([f.name, '--foo.one',
                     get_data('tests/echo.cwl'), '--foo.two', 'test']), 0)

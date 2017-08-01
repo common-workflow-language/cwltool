@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import argparse
+import collections
 import functools
 import json
 import logging
@@ -38,6 +39,8 @@ from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements, SOFTWARE_REQUIREMENTS_ENABLED
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+from .utils import onWindows, windows_default_container_id
+from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 
 _logger = logging.getLogger("cwltool")
@@ -220,6 +223,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--relax-path-checks", action="store_true",
                         default=False, help="Relax requirements on path names to permit "
                         "spaces and hash characters.", dest="relax_path_checks")
+    exgroup.add_argument("--make-template", action="store_true",
+                         help="Generate a template input object")
+
 
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
@@ -439,6 +445,58 @@ def generate_parser(toolparser, tool, namemap, records):
 
     return toolparser
 
+def generate_example_input(inptype):
+    # type: (Union[Text, Dict[Text, Any]]) -> Any
+    defaults = { 'null': 'null',
+                 'Any': 'null',
+                 'boolean': False,
+                 'int': 0,
+                 'long': 0,
+                 'float': 0.1,
+                 'double': 0.1,
+                 'string': 'default_string',
+                 'File': { 'class': 'File',
+                           'path': 'default/file/path' },
+                 'Directory': { 'class': 'Directory',
+                                'path': 'default/directory/path' } }
+    if (not isinstance(inptype, str) and
+        not isinstance(inptype, collections.Mapping)
+        and isinstance(inptype, collections.MutableSet)):
+        if len(inptype) == 2 and 'null' in inptype:
+            inptype.remove('null')
+            return generate_example_input(inptype[0])
+            # TODO: indicate that this input is optional
+        else:
+            raise Exception("multi-types other than optional not yet supported"
+                            " for generating example input objects: %s"
+                            % inptype)
+    if isinstance(inptype, collections.Mapping) and 'type' in inptype:
+        if inptype['type'] == 'array':
+            return [ generate_example_input(inptype['items']) ]
+        elif inptype['type'] == 'enum':
+            return 'valid_enum_value'
+            # TODO: list valid values in a comment
+        elif inptype['type'] == 'record':
+            record = {}
+            for field in inptype['fields']:
+                record[shortname(field['name'])] = generate_example_input(
+                    field['type'])
+            return record
+    elif isinstance(inptype, str):
+        return defaults.get(inptype, 'custom_type')
+        # TODO: support custom types, complex arrays
+
+
+def generate_input_template(tool):
+    # type: (Process) -> Dict[Text, Any]
+    template = {}
+    for inp in tool.tool["inputs"]:
+        name = shortname(inp["id"])
+        inptype = inp["type"]
+        template[name] = generate_example_input(inptype)
+    return template
+
+
 
 def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
@@ -448,7 +506,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     _jobloaderctx = jobloaderctx.copy()
     _jobloaderctx.update(t.metadata.get("$namespaces", {}))
-    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)
+    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
@@ -533,7 +591,19 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             p["location"] = p["path"]
             del p["path"]
 
+    def addSizes(p):
+        if 'location' in p:
+            try:
+                p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
+            except OSError:
+                pass
+        elif 'contents' in p:
+                p["size"] = len(p['contents'])
+        else:
+            return  # best effort
+
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
+    visit_class(job_order_object, ("File"), addSizes)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 
@@ -639,6 +709,11 @@ def main(argsl=None,  # type: List[str]
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
 
+        # If On windows platform, A default Docker Container is Used if not explicitely provided by user
+        if onWindows() and not args.default_container:
+            # This docker image is a minimal alpine image with bash installed(size 6 mb). source: https://github.com/frol/docker-alpine-bash
+            args.default_container = windows_default_container_id
+
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
         # dereferencing them in args.
@@ -669,7 +744,8 @@ def main(argsl=None,  # type: List[str]
                      'validate': False,
                      'enable_ga4gh_tool_registry': False,
                      'ga4gh_tool_registries': [],
-                     'find_default_container': None
+                     'find_default_container': None,
+                     'make_template': False
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
@@ -751,6 +827,11 @@ def main(argsl=None,  # type: List[str]
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
                              makeTool, make_tool_kwds)
+            if args.make_template:
+                yaml.safe_dump(generate_input_template(tool), sys.stdout,
+                               default_flow_style=False, indent=4,
+                               block_seq_indent=2)
+                return 0
 
             if args.validate:
                 return 0

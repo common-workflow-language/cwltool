@@ -26,8 +26,8 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pep8 diff_cover autopep8 pylint coverage pep257 flake8 pytest isort mock
-DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pep257 sloccount python-flake8 python-mock
+DEVPKGS=pep8 diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
+DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount python-flake8 python-mock
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -80,15 +80,16 @@ pep8_report.txt: $(PYSOURCES)
 diff_pep8_report: pep8_report.txt
 	diff-quality --violations=pep8 pep8_report.txt
 
-## pep257      : check Python code style
-pep257: $(PYSOURCES)
-	pep257 --ignore=D100,D101,D102,D103 $^ || true
+pep257: pydocstyle
+## pydocstyle      : check Python code style
+pydocstyle: $(PYSOURCES)
+	pydocstyle --ignore=D100,D101,D102,D103 $^ || true
 
-pep257_report.txt: $(PYSOURCES)
-	pep257 setup.py $^ > pep257_report.txt 2>&1 || true
+pydocstyle_report.txt: $(PYSOURCES)
+	pydocstyle setup.py $^ > pydocstyle_report.txt 2>&1 || true
 
-diff_pep257_report: pep257_report.txt
-	diff-quality --violations=pep8 pep257_report.txt
+diff_pydocstyle_report: pydocstyle_report.txt
+	diff-quality --violations=pep8 $^
 
 ## autopep8    : fix most Python code indentation and formatting
 autopep8: $(PYSOURCES)
@@ -160,7 +161,7 @@ mypy2: ${PYSOURCES}
 	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
 	MYPYPATH=$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
-		 --warn-redundant-casts --warn-unused-ignores \
+		 --warn-redundant-casts \
 		 cwltool
 
 mypy3: ${PYSOURCES}
@@ -171,7 +172,7 @@ mypy3: ${PYSOURCES}
 	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
 	MYPYPATH=$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
-		 --warn-redundant-casts --warn-unused-ignores \
+		 --warn-redundant-casts \
 		 cwltool
 
 FORCE:

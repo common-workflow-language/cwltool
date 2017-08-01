@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import copy
+import os
 from typing import Any, Callable, Dict, List, Text, Type, Union
 
 import six
@@ -15,11 +16,8 @@ from .mutation import MutationManager
 from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
 
-# if six.PY3:
-# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
-# else:
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 CONTENT_LIMIT = 64 * 1024
@@ -60,8 +58,8 @@ class Builder(object):
         self.job_script_provider = None  # type: Any
 
     def build_job_script(self, commands):
-        # type: (List[str]) -> Text
-        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[str]], Text]
+        # type: (List[bytes]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[bytes]], Text]
         if build_job_script_method:
             return build_job_script_method(self, commands)
         else:
@@ -185,6 +183,11 @@ class Builder(object):
         if isinstance(value, dict) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
+
+            # Path adjust for windows file path when passing to docker, docker accepts unix like path only
+            (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+            if onWindows() and docker_req is not None:  # docker_req is none only when there is no dockerRequirement mentioned in hints and Requirement
+                return docker_windows_path_adjust(value["path"])
             return value["path"]
         else:
             return Text(value)

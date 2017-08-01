@@ -13,6 +13,7 @@ import stat
 import tempfile
 import uuid
 from collections import Iterable
+from io import open
 from functools import cmp_to_key
 from typing import (Any, Callable, Dict, Generator, List, Set, Text,
                     Tuple, Union, cast)
@@ -33,9 +34,9 @@ from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class)
+                         normalizeFilesDirs, visit_class, trim_listing)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature
+from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
 # if six.PY3:
 # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
@@ -205,15 +206,26 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc, ignoreWritable=False):
-    # type: (PathMapper, Callable[..., Any], bool) -> None
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
+    # type: (PathMapper, Callable[..., Any], bool, bool) -> None
     for f, p in pm.items():
         if not p.staged:
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
-            stageFunc(p.resolved, p.target)
+        if p.type in ("File", "Directory") and (os.path.exists(p.resolved)):
+            if symLink:  # Use symlink func if allowed
+                if onWindows():
+                    if p.type == "File":
+                        shutil.copy(p.resolved, p.target)
+                    elif p.type == "Directory":
+                        if os.path.exists(p.target) and os.path.isdir(p.target):
+                            shutil.rmtree(p.target)
+                        copytree_with_merge(p.resolved, p.target)
+                else:
+                    os.symlink(p.resolved, p.target)
+            elif stageFunc is not None:
+                stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
@@ -243,7 +255,6 @@ def collectFilesAndDirs(obj, out):
 
 def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
-
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -272,7 +283,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, moveIt)
+    stageFiles(pm, stageFunc=moveIt, symLink=False)
 
     def _check_adjust(f):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
@@ -295,8 +306,15 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 rp = os.path.realpath(path)
                 if path != rp:
                     if rp in relinked:
-                        os.unlink(path)
-                        os.symlink(os.path.relpath(relinked[rp], path), path)
+                        if onWindows():
+                            if os.path.isfile(path):
+                                shutil.copy(os.path.relpath(relinked[rp], path), path)
+                            elif os.path.exists(path) and os.path.isdir(path):
+                                shutil.rmtree(path)
+                                copytree_with_merge(os.path.relpath(relinked[rp], path), path)
+                        else:
+                            os.unlink(path)
+                            os.symlink(os.path.relpath(relinked[rp], path), path)
                     else:
                         for od in output_dirs:
                             if rp.startswith(od+"/"):
@@ -368,12 +386,13 @@ def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException):
-            if shortname(inp[u"id"]) in job:
+            fieldname = shortname(inp[u"id"])
+            if job.get(fieldname) is not None:
                 pass
-            elif shortname(inp[u"id"]) not in job and u"default" in inp:
-                job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
-            elif shortname(inp[u"id"]) not in job and aslist(inp[u"type"])[0] == u"null":
-                pass
+            elif job.get(fieldname) is None and u"default" in inp:
+                job[fieldname] = copy.copy(inp[u"default"])
+            elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
+                job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
 
@@ -396,7 +415,7 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
+class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
@@ -539,7 +558,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
         builder.debug = kwargs.get("debug")
         builder.mutation_manager = kwargs.get("mutation_manager")
 
-        dockerReq, is_req = self.get_requirement("DockerRequirement")
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
@@ -547,11 +565,25 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
         if loadListingReq:
             builder.loadListing = loadListingReq.get("loadListing")
 
-        if dockerReq and kwargs.get("use_container"):
-            builder.outdir = builder.fs_access.realpath(
-                dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+        defaultDocker = None
+
+        if dockerReq is None and "default_container" in kwargs:
+            defaultDocker = kwargs["default_container"]
+
+        if (dockerReq or defaultDocker) and kwargs.get("use_container"):
+            if dockerReq:
+                # Check if docker output directory is absolute
+                if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
+                    builder.outdir = dockerReq.get("dockerOutputDirectory")
+                else:
+                    builder.outdir = builder.fs_access.docker_compatible_realpath(
+                        dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+            elif defaultDocker:
+                builder.outdir = builder.fs_access.docker_compatible_realpath(
+                    kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
+            builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
             builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
@@ -610,7 +642,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):  # type: ignore
             key = lambda dict: dict["position"]
         builder.bindings.sort(key=key)
         builder.resources = self.evalResources(builder, kwargs)
-
         builder.job_script_provider = kwargs.get("job_script_provider", None)
         return builder
 

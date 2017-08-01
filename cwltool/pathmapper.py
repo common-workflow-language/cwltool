@@ -12,6 +12,8 @@ from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .utils import convert_pathsep_to_unix
+
 from .stdfsaccess import StdFsAccess, abspath
 
 _logger = logging.getLogger("cwltool")
@@ -35,7 +37,7 @@ def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any]
     """Apply a function to with "class" in cls."""
 
     if isinstance(rec, dict):
-        if rec.get("class") in cls:
+        if "class" in rec and rec.get("class") in cls:
             op(rec)
         for d in rec:
             visit_class(rec[d], cls, op)
@@ -186,7 +188,8 @@ class PathMapper(object):
 
     def visit(self, obj, stagedir, basedir, copy=False, staged=False):
         # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
-        tgt = os.path.join(stagedir, obj["basename"])
+        tgt = convert_pathsep_to_unix(
+            os.path.join(stagedir, obj["basename"]))
         if obj["location"] in self._pathmap:
             return
         if obj["class"] == "Directory":
@@ -246,3 +249,9 @@ class PathMapper(object):
             if v[1] == target:
                 return (k, v[0])
         return None
+
+    def update(self, key, resolved, target, type, stage):  # type: (Text, Text, Text, Text, bool) -> None
+        self._pathmap[key] = MapperEnt(resolved, target, type, stage)
+
+    def __contains__(self, key):
+        return key in self._pathmap

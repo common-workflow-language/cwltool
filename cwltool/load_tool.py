@@ -22,6 +22,7 @@ from six.moves import urllib
 from . import process, update
 from .errors import WorkflowException
 from .process import Process, shortname
+from .update import ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
 
@@ -41,14 +42,14 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
-    document_loader = Loader(jobloaderctx,
-                             fetcher_constructor=fetcher_constructor)
+    document_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, string_types):
         split = urllib.parse.urlsplit(argsworkflow)
-        if split.scheme:
+        # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
+        if split.scheme and split.scheme in [u'http',u'https',u'file']:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
             uri = file_uri(str(os.path.abspath(argsworkflow)))
@@ -161,12 +162,17 @@ def validate_document(document_loader,  # type: Loader
     if "cwlVersion" in workflowobj:
         if not isinstance(workflowobj["cwlVersion"], (str, Text)):
             raise Exception("'cwlVersion' must be a string, got %s" % type(workflowobj["cwlVersion"]))
+        if workflowobj["cwlVersion"] not in list(ALLUPDATES):
+            # print out all the Supported Versions of cwlVersion
+            versions = list(ALLUPDATES) # ALLUPDATES is a dict
+            versions.sort()
+            raise ValidationException("'cwlVersion' not valid. Supported CWL versions are: \n{}".format("\n".join(versions)))
         workflowobj["cwlVersion"] = re.sub(
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
             workflowobj["cwlVersion"])
     else:
-        _logger.warning("No cwlVersion found, treating this file as draft-2.")
-        workflowobj["cwlVersion"] = "draft-2"
+        raise ValidationException("No cwlVersion found."
+            "Use the following syntax in your CWL workflow to declare version: cwlVersion: <version>")
 
     if workflowobj["cwlVersion"] == "draft-2":
         workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(

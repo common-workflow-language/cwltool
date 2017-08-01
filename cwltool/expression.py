@@ -4,6 +4,7 @@ import json
 import logging
 import re
 from typing import Any, AnyStr, Dict, List, Text, Union
+from .utils import docker_windows_path_adjust
 import six
 from six import u
 
@@ -22,7 +23,7 @@ def jshead(engineConfig, rootvars):
     # TODO: need to make sure the `rootvars dict`
     # contains no bytes type in the first place.
     if six.PY3:
-        rootvars = bytes2str_in_dicts(rootvars)  # type -> ignore
+        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
@@ -203,8 +204,8 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
     # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool) -> Any
 
     runtime = copy.copy(resources)
-    runtime["tmpdir"] = tmpdir
-    runtime["outdir"] = outdir
+    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
+    runtime["outdir"] = docker_windows_path_adjust(outdir)
 
     rootvars = {
         u"inputs": jobinput,
