@@ -1,6 +1,7 @@
 version: .{build}-{branch}
 
 environment:
+  SYSTEMROOT: "C:\\WINDOWS"
 
   matrix:
     - PYTHON: "C:\\Python27"
