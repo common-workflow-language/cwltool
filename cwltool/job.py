@@ -207,7 +207,7 @@ class JobBase(object):
                     os.makedirs(dn)
                 stdout_path = absout
 
-            commands = [Text(x).encode('utf-8') for x in runtime + self.command_line]
+            commands = [Text(x) for x in (runtime + self.command_line)]
             job_script_contents = None  # type: Text
             builder = getattr(self, "builder", None)  # type: Builder
             if builder is not None:
