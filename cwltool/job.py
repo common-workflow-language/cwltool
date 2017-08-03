@@ -424,7 +424,7 @@ class DockerCommandLineJob(JobBase):
 
 
 def _job_popen(
-        commands,  # type: List[bytes]
+        commands,  # type: List[str]
         stdin_path,  # type: Text
         stdout_path,  # type: Text
         stderr_path,  # type: Text
