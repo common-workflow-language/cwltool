@@ -227,7 +227,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          help="Generate a template input object")
 
     parser.add_argument("--force-docker-pull", action="store_true",
-                        default=False, help="Strictly pull latest docker image even if"
+                        default=False, help="Pull latest docker image even if"
                                             " it is locally present", dest="force_docker_pull")
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
