@@ -146,7 +146,7 @@ def trim_listing(obj):
 def downloadHttpFile(httpurl):
         r = requests.get(httpurl, stream=True)
         with NamedTemporaryFile(mode='wb', delete=False) as f:
-            for chunk in r.iter_content(chunk_size=1024):
+            for chunk in r.iter_content(chunk_size=16384):
                 if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
         r.close()
