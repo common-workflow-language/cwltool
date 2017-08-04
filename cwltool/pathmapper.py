@@ -5,6 +5,9 @@ import os
 import stat
 import uuid
 from functools import partial
+from tempfile import NamedTemporaryFile
+
+import requests
 from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
@@ -139,6 +142,15 @@ def trim_listing(obj):
     if obj.get("location", "").startswith("file://") and "listing" in obj:
         del obj["listing"]
 
+# Download http Files
+def downloadHttpFile(httpurl):
+        r = requests.get(httpurl, stream=True)
+        with NamedTemporaryFile(mode='wb', delete=False) as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:  # filter out keep-alive new chunks
+                    f.write(chunk)
+        r.close()
+        return f.name
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
@@ -208,15 +220,18 @@ class PathMapper(object):
                 self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile", staged)
             else:
                 with SourceLine(obj, "location", validate.ValidationException):
-                    # Dereference symbolic links
                     deref = ab
-                    if urllib.parse.urlsplit(deref).scheme not in ['http','https']:
+                    if urllib.parse.urlsplit(deref).scheme in ['http','https']:
+                        deref = downloadHttpFile(path)
+                    else:
+                        # Dereference symbolic links
                         st = os.lstat(deref)
                         while stat.S_ISLNK(st.st_mode):
                             rl = os.readlink(deref)
                             deref = rl if os.path.isabs(rl) else os.path.join(
                                 os.path.dirname(deref), rl)
                             st = os.lstat(deref)
+
                     self._pathmap[path] = MapperEnt(deref, tgt, "WritableFile" if copy else "File", staged)
                     self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy, staged=staged)
 
