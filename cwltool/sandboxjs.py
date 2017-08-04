@@ -57,7 +57,8 @@ def new_js_proc(force_docker_pull=False):
     # type: (bool) -> subprocess.Popen
 
     res = resource_stream(__name__, 'cwlNodeEngine.js')
-    nodecode = res.read()
+    nodecode = res.read().decode('utf-8')
+
     required_node_version, docker = (False,)*2
     nodejs = None
     trynodes = ("nodejs", "node")
@@ -238,7 +239,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False):  # ty
                         no_more_error.release()
                         output_thread.join()
                         error_thread.join()
-                if stdout_buf.getvalue().endswith("\n"):
+                if stdout_buf.getvalue().endswith("\n".encode()):
                     rselect = []
                     no_more_output.release()
                     no_more_error.release()
