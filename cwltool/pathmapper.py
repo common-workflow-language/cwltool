@@ -147,19 +147,21 @@ def trim_listing(obj):
 # Download http Files
 def downloadHttpFile(httpurl):
     cache_session = None
-    if "HOME" in os.environ:
+    if "XDG_CACHE_HOME" in os.environ:
+        cache_session = CacheControl(
+            requests.Session(),
+            cache=FileCache(
+                os.path.join(os.environ["XDG_CACHE_HOME"], "cwltool")))
+    elif "HOME" in os.environ:
         cache_session = CacheControl(
             requests.Session(),
             cache=FileCache(
                 os.path.join(os.environ["HOME"], ".cache", "cwltool")))
-    elif "TMP" in os.environ:
-        cache_session = CacheControl(
-            requests.Session(),
-            cache=FileCache(os.path.join(os.environ["TMP"], ".cache", "cwltool")))
     else:
         cache_session = CacheControl(
             requests.Session(),
-            cache=FileCache("/tmp", ".cache", "cwltool"))
+            cache=FileCache(
+                os.path.join(os.path.expanduser('~'), ".cache", "cwltool")))
 
     r = cache_session.get(httpurl, stream=True)
     with NamedTemporaryFile(mode='wb', delete=False) as f:
