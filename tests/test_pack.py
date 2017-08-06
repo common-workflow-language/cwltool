@@ -5,6 +5,7 @@ import unittest
 from functools import partial
 
 import cwltool.pack
+from cwltool.main import print_pack as print_pack
 import cwltool.workflow
 from cwltool.load_tool import fetch_document, validate_document
 from cwltool.main import makeRelative
@@ -46,9 +47,9 @@ class TestPack(unittest.TestCase):
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
         # generate pack output dict
-        packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
+        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 
-        self.assertEqual('v1.0', packed["$graph"][0]["cwlVersion"])
+        self.assertEqual('v1.0', packed["cwlVersion"])
 
         # Testing single step workflow
         document_loader, workflowobj, uri = fetch_document(
@@ -56,6 +57,6 @@ class TestPack(unittest.TestCase):
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
         # generate pack output dict
-        packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
+        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 
-        self.assertEqual('v1.0', packed["$graph"][0]["cwlVersion"])
+        self.assertEqual('v1.0', packed["cwlVersion"])
