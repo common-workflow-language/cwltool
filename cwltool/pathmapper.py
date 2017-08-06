@@ -8,6 +8,8 @@ from functools import partial
 from tempfile import NamedTemporaryFile
 
 import requests
+from cachecontrol import CacheControl
+from cachecontrol.caches import FileCache
 from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
@@ -144,13 +146,28 @@ def trim_listing(obj):
 
 # Download http Files
 def downloadHttpFile(httpurl):
-        r = requests.get(httpurl, stream=True)
-        with NamedTemporaryFile(mode='wb', delete=False) as f:
-            for chunk in r.iter_content(chunk_size=16384):
-                if chunk:  # filter out keep-alive new chunks
-                    f.write(chunk)
-        r.close()
-        return f.name
+    cache_session = None
+    if "HOME" in os.environ:
+        cache_session = CacheControl(
+            requests.Session(),
+            cache=FileCache(
+                os.path.join(os.environ["HOME"], ".cache", "cwltool")))
+    elif "TMP" in os.environ:
+        cache_session = CacheControl(
+            requests.Session(),
+            cache=FileCache(os.path.join(os.environ["TMP"], ".cache", "cwltool")))
+    else:
+        cache_session = CacheControl(
+            requests.Session(),
+            cache=FileCache("/tmp", ".cache", "cwltool"))
+
+    r = cache_session.get(httpurl, stream=True)
+    with NamedTemporaryFile(mode='wb', delete=False) as f:
+        for chunk in r.iter_content(chunk_size=16384):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+    r.close()
+    return f.name
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
