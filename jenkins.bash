@@ -42,8 +42,8 @@ do
 		EXTRA="EXTRA=--enable-dev"
 	fi
 	./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml RUNNER=cwltool -j4 DRAFT=${version}
+	CODE=$(($CODE+$?)) # capture return code of ./run_test.sh
 	deactivate
-	CODE=$?
 	popd
 done
 
