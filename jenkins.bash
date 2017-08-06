@@ -20,9 +20,11 @@ venv() {
         source "$1"/bin/activate
 }
 
-git clean --force -d -x || /bin/true
 cloneorpull common-workflow-language https://github.com/common-workflow-language/common-workflow-language.git
 docker pull node:slim
+# clean both the repos before the loop
+git clean --force -d -x || /bin/true
+git -C common-workflow-language clean --force -d -x || /bin/true
 
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2.7 3
@@ -34,13 +36,12 @@ do
 	pip${PYTHON_VERSION} install .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20160825151655"
 	pushd common-workflow-language
-	git clean --force -d -x || /bin/true
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
 	then
 		EXTRA="EXTRA=--enable-dev"
 	fi
-	./run_test.sh --junit-xml=result.xml RUNNER=cwltool -j4 DRAFT=${version}
+	./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml RUNNER=cwltool -j4 DRAFT=${version}
 	deactivate
 	CODE=$?
 	popd
