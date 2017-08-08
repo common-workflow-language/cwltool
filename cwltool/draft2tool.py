@@ -35,7 +35,7 @@ ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 DEFAULT_CONTAINER_MSG="""We are on Microsoft Windows and not all components of this CWL description have a
-container specified. This means that these steps will be executed in the default container, 
+container specified. This means that these steps will be executed in the default container,
 which is %s.
 
 Note, this could affect portability if this CWL description relies on non-POSIX features
@@ -116,17 +116,26 @@ def revmap_file(builder, outdir, f):
     if not split.scheme:
         outdir = file_uri(str(outdir))
 
+    # builder.outdir is the inner (container/compute node) output directory
+    # outdir is the outer (host/storage system) output directory
+
     if "location" in f:
         if f["location"].startswith("file://"):
             path = convert_pathsep_to_unix(uri_file_path(f["location"]))
             revmap_f = builder.pathmapper.reversemap(path)
+
             if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
                 f["basename"] = os.path.basename(path)
-                f["location"] = revmap_f[0]
+                f["location"] = revmap_f[1]
             elif path == builder.outdir:
                 f["location"] = outdir
             elif path.startswith(builder.outdir):
                 f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
+            elif f["location"].startswith(outdir):
+                revmap_f = builder.pathmapper.reversemap(builder.fs_access.join(builder.outdir, f["location"][len(outdir) + 1:]))
+                if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
+                    f["basename"] = os.path.basename(path)
+                    f["location"] = revmap_f[1]
         return f
 
     if "path" in f:
@@ -350,6 +359,7 @@ class CommandLineTool(Process):
         if "stagedir" in make_path_mapper_kwargs:
             make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
             del make_path_mapper_kwargs["stagedir"]
+
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **make_path_mapper_kwargs)
         builder.requirements = j.requirements
 
@@ -566,7 +576,10 @@ class CommandLineTool(Process):
                         elif gb.startswith("/"):
                             raise WorkflowException("glob patterns must not start with '/'")
                         try:
+                            prefix = fs_access.glob(outdir)
                             r.extend([{"location": g,
+                                       "path": fs_access.join(builder.outdir, g[len(prefix[0])+1:]),
+                                       "basename": os.path.basename(g),
                                        "class": "File" if fs_access.isfile(g) else "Directory"}
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
@@ -576,12 +589,14 @@ class CommandLineTool(Process):
                             raise
 
                 for files in r:
+                    rfile = files.copy()
+                    revmap(rfile)
                     if files["class"] == "Directory":
                         ll = builder.loadListing or (binding and binding.get("loadListing"))
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
-                        with fs_access.open(files["location"], "rb") as f:
+                        with fs_access.open(rfile["location"], "rb") as f:
                             contents = b""
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
@@ -625,27 +640,28 @@ class CommandLineTool(Process):
                     else:
                         r = r[0]
 
-            # Ensure files point to local references outside of the run environment
-            adjustFileObjs(r, cast(  # known bug in mypy
-                # https://github.com/python/mypy/issues/797
-                Callable[[Any], Any], revmap))
-
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException):
                     for primary in aslist(r):
                         if isinstance(primary, dict):
-                            primary["secondaryFiles"] = []
+                            primary.setdefault("secondaryFiles", [])
                             for sf in aslist(schema["secondaryFiles"]):
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     if isinstance(sfpath, string_types):
-                                        sfpath = revmap({"location": sfpath, "class": "File"})
+                                        sfpath = {"path": primary["path"][0:primary["path"].rindex("/")+1]+sfpath, "class": "File"}
                                 else:
-                                    sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
-
+                                    sfpath = {"path": substitute(primary["path"], sf), "class": "File"}
                                 for sfitem in aslist(sfpath):
+                                    if "path" in sfitem and "location" not in sfitem:
+                                        revmap(sfitem)
                                     if fs_access.exists(sfitem["location"]):
                                         primary["secondaryFiles"].append(sfitem)
+
+            # Ensure files point to local references outside of the run environment
+            adjustFileObjs(r, cast(  # known bug in mypy
+                # https://github.com/python/mypy/issues/797
+                Callable[[Any], Any], revmap))
 
             if not r and optional:
                 r = None
