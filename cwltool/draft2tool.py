@@ -199,7 +199,7 @@ class CommandLineTool(Process):
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
         self.find_default_container = kwargs.get("find_default_container", None)
 
-    def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
+    def makeJobRunner(self, use_container=True, **kwargs):  # type: (Optional[bool], **Any) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and use_container:
             if self.find_default_container:
@@ -225,7 +225,8 @@ class CommandLineTool(Process):
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
-        return PathMapper(reffiles, kwargs["basedir"], stagedir)
+        return PathMapper(reffiles, kwargs["basedir"], stagedir,
+                          separateDirs=kwargs.get("separateDirs", True))
 
     def updatePathmap(self, outdir, pathmap, fn):
         # type: (Text, PathMapper, Dict) -> None
@@ -334,9 +335,10 @@ class CommandLineTool(Process):
 
         reffiles = copy.deepcopy(builder.files)
 
-        j = self.makeJobRunner(kwargs.get("use_container"))
+        j = self.makeJobRunner(**kwargs)
         j.builder = builder
         j.joborder = builder.job
+        j.make_pathmapper = self.makePathMapper
         j.stdin = None
         j.stderr = None
         j.stdout = None
