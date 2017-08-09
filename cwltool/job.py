@@ -132,7 +132,7 @@ class JobBase(object):
         self.name = None  # type: Text
         self.command_line = None  # type: List[Text]
         self.pathmapper = None  # type: PathMapper
-        self.make_pathmapper = None  # type: Callable[[List[Any], Text, Any], PathMapper]
+        self.make_pathmapper = None  # type: Callable[[List[Any], Text, KwArg[Any]], PathMapper]
         self.generatemapper = None  # type: PathMapper
         self.collect_outputs = None  # type: Union[Callable[[Any], Any], functools.partial[Any]]
         self.output_callback = None  # type: Callable[[Any, Any], Any]
