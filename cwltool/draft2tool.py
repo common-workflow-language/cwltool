@@ -582,6 +582,8 @@ class CommandLineTool(Process):
                             r.extend([{"location": g,
                                        "path": fs_access.join(builder.outdir, g[len(prefix[0])+1:]),
                                        "basename": os.path.basename(g),
+                                       "nameroot": os.path.splitext(os.path.basename(g))[0],
+                                       "nameext": os.path.splitext(os.path.basename(g))[1],
                                        "class": "File" if fs_access.isfile(g) else "Directory"}
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
