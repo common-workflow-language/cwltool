@@ -146,6 +146,7 @@ def trim_listing(obj):
 
 # Download http Files
 def downloadHttpFile(httpurl):
+    # type: (Text) -> Text
     cache_session = None
     if "XDG_CACHE_HOME" in os.environ:
         cache_session = CacheControl(
