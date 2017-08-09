@@ -143,7 +143,7 @@ class JobBase(object):
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
 
-    def _setup(self, kwargs):  # type: () -> None
+    def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
