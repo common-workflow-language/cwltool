@@ -157,4 +157,9 @@ def pack(document_loader, processobj, uri, metadata):
 
     import_embed(packed, set())
 
+    if len(packed["$graph"]) == 1:
+        # duplicate 'cwlVersion' inside $graph when there is a single item
+        # because we're printing contents inside '$graph' rather than whole dict
+        packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
+
     return packed
