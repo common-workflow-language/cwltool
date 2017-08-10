@@ -839,7 +839,7 @@ def main(argsl=None,  # type: List[str]
                 return 0
 
             if args.print_rdf:
-                printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)
+                stdout.write(printrdf(tool, document_loader.ctx, args.rdf_serializer))
                 return 0
 
             if args.print_dot:
