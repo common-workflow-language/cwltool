@@ -649,7 +649,7 @@ class CommandLineTool(Process):
                     for primary in aslist(r):
                         if isinstance(primary, dict):
                             primary.setdefault("secondaryFiles", [])
-                            prefix = primary["path"][0:primary["path"].rindex("/")+1]
+                            pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
@@ -662,7 +662,7 @@ class CommandLineTool(Process):
                                         if subst:
                                             sfitem = {"path": substitute(primary["path"], sfitem)}
                                         else:
-                                            sfitem = {"path": prefix+sfitem}
+                                            sfitem = {"path": pathprefix+sfitem}
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
                                     if fs_access.isfile(sfitem["location"]):
