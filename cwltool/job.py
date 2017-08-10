@@ -132,6 +132,7 @@ class JobBase(object):
         self.name = None  # type: Text
         self.command_line = None  # type: List[Text]
         self.pathmapper = None  # type: PathMapper
+        self.make_pathmapper = None  # type: Callable[..., PathMapper]
         self.generatemapper = None  # type: PathMapper
         self.collect_outputs = None  # type: Union[Callable[[Any], Any], functools.partial[Any]]
         self.output_callback = None  # type: Callable[[Any, Any], Any]
@@ -142,7 +143,7 @@ class JobBase(object):
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
 
-    def _setup(self):  # type: () -> None
+    def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -154,8 +155,12 @@ class JobBase(object):
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         if self.generatefiles["listing"]:
-            self.generatemapper = PathMapper(cast(List[Any], self.generatefiles["listing"]),
-                                             self.outdir, self.outdir, separateDirs=False)
+            make_path_mapper_kwargs = kwargs
+            if "basedir" in make_path_mapper_kwargs:
+                make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
+                del make_path_mapper_kwargs["basedir"]
+            self.generatemapper = self.make_pathmapper(cast(List[Any], self.generatefiles["listing"]),
+                                                       self.outdir, basedir=self.outdir, separateDirs=False, **make_path_mapper_kwargs)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
@@ -275,7 +280,7 @@ class CommandLineJob(JobBase):
             rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (bool, bool, bool, Text, **Any) -> None
 
-        self._setup()
+        self._setup(kwargs)
 
         env = self.environment
         if not os.path.exists(self.tmpdir):
@@ -369,7 +374,7 @@ class DockerCommandLineJob(JobBase):
                     "Docker is not available for this tool, try --no-container"
                     " to disable Docker: %s" % e)
 
-        self._setup()
+        self._setup(kwargs)
 
         runtime = [u"docker", u"run", u"-i"]
 

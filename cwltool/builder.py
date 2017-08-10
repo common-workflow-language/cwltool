@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import copy
 import os
+import logging
 from typing import Any, Callable, Dict, List, Text, Type, Union
 
 import six
@@ -17,6 +18,8 @@ from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
+
+_logger = logging.getLogger("cwltool")
 
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
@@ -146,18 +149,25 @@ class Builder(object):
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                            secondary_eval = self.do_eval(sf, context=datum)
-                            if isinstance(secondary_eval, string_types):
-                                sfpath = {"location": secondary_eval,
-                                          "class": "File"}
-                            else:
-                                sfpath = secondary_eval
+                            sfpath = self.do_eval(sf, context=datum)
                         else:
-                            sfpath = {"location": substitute(datum["location"], sf), "class": "File"}
-                        if isinstance(sfpath, list):
-                            datum["secondaryFiles"].extend(sfpath)
-                        else:
-                            datum["secondaryFiles"].append(sfpath)
+                            sfpath = substitute(datum["basename"], sf)
+                        for sfname in aslist(sfpath):
+                            found = False
+                            for d in datum["secondaryFiles"]:
+                                if not d.get("basename"):
+                                    d["basename"] = d["location"][d["location"].rindex("/")+1:]
+                                if d["basename"] == sfname:
+                                    found = True
+                            if not found:
+                                if isinstance(sfname, dict):
+                                    datum["secondaryFiles"].append(sfname)
+                                else:
+                                    datum["secondaryFiles"].append({
+                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "basename": sfname,
+                                        "class": "File"})
+
                     normalizeFilesDirs(datum["secondaryFiles"])
 
                 def _capture_files(f):
