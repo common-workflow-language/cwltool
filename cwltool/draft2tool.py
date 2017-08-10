@@ -649,17 +649,27 @@ class CommandLineTool(Process):
                     for primary in aslist(r):
                         if isinstance(primary, dict):
                             primary.setdefault("secondaryFiles", [])
+                            prefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
-                                    if isinstance(sfpath, string_types):
-                                        sfpath = {"path": primary["path"][0:primary["path"].rindex("/")+1]+sfpath, "class": "File"}
+                                    subst = False
                                 else:
-                                    sfpath = {"path": substitute(primary["path"], sf), "class": "File"}
+                                    sfpath = sf
+                                    subst = True
                                 for sfitem in aslist(sfpath):
+                                    if isinstance(sfitem, string_types):
+                                        if subst:
+                                            sfitem = {"path": substitute(primary["path"], sfitem)}
+                                        else:
+                                            sfitem = {"path": prefix+sfitem}
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
-                                    if fs_access.exists(sfitem["location"]):
+                                    if fs_access.isfile(sfitem["location"]):
+                                        sfitem["class"] = "File"
+                                        primary["secondaryFiles"].append(sfitem)
+                                    elif fs_access.isdir(sfitem["location"]):
+                                        sfitem["class"] = "Directory"
                                         primary["secondaryFiles"].append(sfitem)
 
             # Ensure files point to local references outside of the run environment
