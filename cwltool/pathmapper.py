@@ -149,20 +149,16 @@ def downloadHttpFile(httpurl):
     # type: (Text) -> Text
     cache_session = None
     if "XDG_CACHE_HOME" in os.environ:
-        cache_session = CacheControl(
-            requests.Session(),
-            cache=FileCache(
-                os.path.join(os.environ["XDG_CACHE_HOME"], "cwltool")))
+        directory = os.environ["XDG_CACHE_HOME"]
     elif "HOME" in os.environ:
-        cache_session = CacheControl(
-            requests.Session(),
-            cache=FileCache(
-                os.path.join(os.environ["HOME"], ".cache", "cwltool")))
+        directory = os.environ["HOME"]
     else:
-        cache_session = CacheControl(
-            requests.Session(),
-            cache=FileCache(
-                os.path.join(os.path.expanduser('~'), ".cache", "cwltool")))
+        directory = os.path.expanduser('~')
+
+    cache_session = CacheControl(
+        requests.Session(),
+        cache=FileCache(
+            os.path.join(directory, ".cache", "cwltool")))
 
     r = cache_session.get(httpurl, stream=True)
     with NamedTemporaryFile(mode='wb', delete=False) as f:
