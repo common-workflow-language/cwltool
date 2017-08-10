@@ -560,6 +560,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
+        builder.force_docker_pull = kwargs.get("force_docker_pull")
 
         loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
         if loadListingReq:
