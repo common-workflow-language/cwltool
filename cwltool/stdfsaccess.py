@@ -13,6 +13,8 @@ from schema_salad.ref_resolver import file_uri, uri_file_path
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
         ab = six.text_type(uri_file_path(str(src)))
+    elif urllib.parse.urlsplit(src).scheme in ['http','https']:
+        return src
     else:
         if basedir.startswith(u"file://"):
             ab = src if os.path.isabs(src) else basedir+ '/'+ src
