@@ -26,20 +26,34 @@ default CWL interpreter installed on a host.
 Install
 -------
 
-Installing the official package from PyPi (will install "cwltool" package as
-well)::
+It is highly recommended to setup virtual environment before installing `cwltool`:
+
+.. code:: bash
+
+  virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
+  source venv/bin/activate     # Activate environment before installing `cwltool`
+
+1. Installing the official package from PyPi (will install "cwltool" package as
+well)
+
+.. code:: bash
 
   pip install cwlref-runner
 
-If installing alongside another CWL implementation then::
+If installing alongside another CWL implementation then
+
+.. code:: bash
 
   pip install cwltool
 
-To install from source::
+2. To install from source
 
-  git clone https://github.com/common-workflow-language/cwltool.git
-  cd cwltool && python setup.py install
-  cd cwlref-runner && python setup.py install  # co-installing? skip this
+.. code:: bash
+
+  git clone https://github.com/common-workflow-language/cwltool.git # clone cwltool repo
+  cd cwltool         # Switch to source directory
+  pip install .      # Install `cwltool` from source
+  cwltool --version  # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
@@ -191,7 +205,7 @@ available for each are documented (incompletely) `here
 Unfortunately, this documentation is in the context of Galaxy tool ``requirement`` s instead of CWL ``SoftwareRequirement`` s, but the concepts map fairly directly.
 
 cwltool is distributed with an example of such seqtk tool and sample corresponding
-job. It could executed from the cwltool root using a dependency resolvers 
+job. It could executed from the cwltool root using a dependency resolvers
 configuration file such as the above one using the command::
 
   cwltool --beta-dependency-resolvers-configuration /path/to/dependency-resolvers-conf.yml \
@@ -208,8 +222,8 @@ the same concepts - the resolver plugin type ``galaxy_packages`` can be used.
 "Galaxy packages" are a lighter weight alternative to Environment Modules that are
 really just defined by a way to lay out directories into packages and versions
 to find little scripts that are sourced to modify the environment. They have
-been used for years in Galaxy community to adapt Galaxy tools to cluster 
-environments but require neither knowledge of Galaxy nor any special tools to 
+been used for years in Galaxy community to adapt Galaxy tools to cluster
+environments but require neither knowledge of Galaxy nor any special tools to
 setup. These should work just fine for CWL tools.
 
 The cwltool source code repository's test directory is setup with a very simple
@@ -238,7 +252,7 @@ Then cwltool will simply find that ``env.sh`` file and source it before executin
 the corresponding tool. That ``env.sh`` script is only responsible for modifying
 the job's ``PATH`` to add the required binaries.
 
-This is a full example that works since resolving "Galaxy packages" has no 
+This is a full example that works since resolving "Galaxy packages" has no
 external requirements. Try it out by executing the following command from cwltool's
 root directory::
 
@@ -302,7 +316,7 @@ user, install its own Conda environment and manage multiple versions of Conda pa
 on both Linux and Mac OS X.
 
 The Conda plugin can be endlessly configured, but a sensible set of defaults
-that has proven a powerful stack for dependency management within the Galaxy tool 
+that has proven a powerful stack for dependency management within the Galaxy tool
 development ecosystem can be enabled by simply passing cwltool the
 ``--beta-conda-dependencies`` flag.
 
