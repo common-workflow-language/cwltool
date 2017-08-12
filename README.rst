@@ -26,24 +26,33 @@ default CWL interpreter installed on a host.
 Install
 -------
 
-Installing the official package from PyPi (will install "cwltool" package as
-well)::
+It is highly recommended to setup virtual environment before installing `cwltool`:
+
+.. code:: bash
+
+  virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
+  source venv/bin/activate     # Activate environment before installing `cwltool`
+
+1. Installing the official package from PyPi (will install "cwltool" package as
+well)
+
+.. code:: bash
 
   pip install cwlref-runner
 
-If installing alongside another CWL implementation then::
+If installing alongside another CWL implementation then
 
+.. code:: bash
   pip install cwltool
 
-To install from source
+2. To install from source
 
-#. Install virtualenv via pip: ``pip install virtualenv``
-#. Clone the cwltool: ``git clone https://github.com/common-workflow-language/cwltool.git``
-#. Switch to cwltool directory: ``cd cwltool``
-#. Create a virtual environment: ``virtualenv -p python2 venv``, use ``python3`` if you want to use in Python 3 runtime.
-#. To begin using the virtual environment, it needs to be activated: ``source venv/bin/activate``
-#. Install cwltool in the virtual environment: ``pip install .``
-#. Check the version and make sure cwltool is invoked correctly: ``cwltool --version``
+.. code:: bash
+
+  git clone https://github.com/common-workflow-language/cwltool.git # clone cwltool repo
+  cd cwltool         # Switch to source directory
+  pip install .      # Install `cwltool` from source
+  cwltool --version  # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
