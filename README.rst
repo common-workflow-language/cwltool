@@ -43,6 +43,7 @@ well)
 If installing alongside another CWL implementation then
 
 .. code:: bash
+
   pip install cwltool
 
 2. To install from source
