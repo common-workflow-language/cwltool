@@ -175,13 +175,6 @@ def validate_document(document_loader,  # type: Loader
         raise ValidationException("No cwlVersion found."
             "Use the following syntax in your CWL workflow to declare version: cwlVersion: <version>")
 
-    if workflowobj["cwlVersion"] == "draft-2":
-        workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(
-            workflowobj, document_loader, uri, update_steps=False)))
-        if "@graph" in workflowobj:
-            workflowobj["$graph"] = workflowobj["@graph"]
-            del workflowobj["@graph"]
-
     (sch_document_loader, avsc_names) = \
         process.get_schema(workflowobj["cwlVersion"])[:2]
 

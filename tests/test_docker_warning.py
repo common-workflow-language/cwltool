@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import unittest
 from mock import mock
 from cwltool.utils import windows_default_container_id
-from cwltool.draft2tool import DEFAULT_CONTAINER_MSG, CommandLineTool
+from cwltool.tool import DEFAULT_CONTAINER_MSG, CommandLineTool
 
 
 class TestDefaultDockerWarning(unittest.TestCase):
