@@ -207,7 +207,7 @@ class JobBase(object):
                     os.makedirs(dn)
                 stdout_path = absout
 
-            commands = [Text(x).encode('utf-8') for x in runtime + self.command_line]
+            commands = [Text(x) for x in (runtime + self.command_line)]
             job_script_contents = None  # type: Text
             builder = getattr(self, "builder", None)  # type: Builder
             if builder is not None:
@@ -297,6 +297,8 @@ class CommandLineJob(JobBase):
         env["TMPDIR"] = str(self.tmpdir) if onWindows() else self.tmpdir
         if "PATH" not in env:
             env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
+        if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
+            env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
 
         stageFiles(self.pathmapper, ignoreWritable=True, symLink=True)
         if self.generatemapper:
@@ -422,7 +424,7 @@ class DockerCommandLineJob(JobBase):
 
 
 def _job_popen(
-        commands,  # type: List[bytes]
+        commands,  # type: List[Text]
         stdin_path,  # type: Text
         stdout_path,  # type: Text
         stderr_path,  # type: Text
