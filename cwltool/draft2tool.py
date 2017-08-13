@@ -1,4 +1,4 @@
-# Do wildcard import of tool
+# Do wildcard import of cltool
 from .cltool import *
 
 _logger = logging.getLogger("cwltool")
