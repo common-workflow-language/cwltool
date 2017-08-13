@@ -194,8 +194,6 @@ def validate_document(document_loader,  # type: Loader
         raise ValidationException("Workflow must be a dict or list.")
 
     if not metadata:
-        if not isinstance(processobj, dict):
-            raise ValidationException("Draft-2 workflows must be a dict.")
         metadata = cast(CommentedMap, cmap({"$namespaces": processobj.get("$namespaces", {}),
                                             "$schemas": processobj.get("$schemas", []),
                                             "cwlVersion": processobj["cwlVersion"]},
