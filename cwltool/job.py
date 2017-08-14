@@ -388,7 +388,9 @@ class DockerCommandLineJob(JobBase):
             self.add_volumes(self.generatemapper, runtime, True)
 
         runtime.append(u"--workdir=%s" % (docker_windows_path_adjust(self.builder.outdir)))
-        runtime.append(u"--read-only=true")
+
+        if not kwargs.get("no_read_only"):
+            runtime.append(u"--read-only=true")
 
         if kwargs.get("custom_net", None) is not None:
             runtime.append(u"--net={0}".format(kwargs.get("custom_net")))

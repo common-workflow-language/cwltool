@@ -229,6 +229,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--force-docker-pull", action="store_true",
                         default=False, help="Pull latest docker image even if"
                                             " it is locally present", dest="force_docker_pull")
+    parser.add_argument("--no-read-only", action="store_true",
+                        default=False, help="Do not set root directoy in the"
+                                            " container as read-only", dest="no_read_only")
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
