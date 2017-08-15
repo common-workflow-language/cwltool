@@ -342,6 +342,9 @@ class DockerCommandLineJob(JobBase):
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
                 with open(createtmp, "wb") as f:
                     f.write(vol.resolved.encode("utf-8"))
+                if not vol.target.startswith(container_outdir):
+                    runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
+
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
