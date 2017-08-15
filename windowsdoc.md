@@ -37,7 +37,7 @@ pip install cwltool
 ```
 git clone https://github.com/common-workflow-language/cwltool.git  
 cd cwltool  
-python setup.py develop
+pip install .
 ```
 
 ***Note:*** In order to test if cwltool has been successfully installed on your
