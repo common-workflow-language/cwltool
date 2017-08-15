@@ -915,6 +915,9 @@ def main(argsl=None,  # type: List[str]
 
                 visit_class(out, ("File", "Directory"), locToPath)
 
+                # Unsetting the Generation fron final output object
+                visit_class(out,("File",), MutationManager().unset_generation)
+
                 if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
