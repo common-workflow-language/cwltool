@@ -62,7 +62,8 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
-We use `tox<https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_ to run various tests in all supported Python environments.
+We use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_
+to run various tests in all supported Python environments.
 You can run the test suite by simply running the following in the terminal:
 ``pip install tox; tox``
 
@@ -209,7 +210,8 @@ for the plugin above, this is ``type`` and defines the plugin type. This paramet
 is required for all plugins. The available plugins and the parameters
 available for each are documented (incompletely) `here
 <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__.
-Unfortunately, this documentation is in the context of Galaxy tool ``requirement`` s instead of CWL ``SoftwareRequirement``s, but the concepts map fairly directly.
+Unfortunately, this documentation is in the context of Galaxy tool
+``requirement`` s instead of CWL ``SoftwareRequirement`` s, but the concepts map fairly directly.
 
 cwltool is distributed with an example of such seqtk tool and sample corresponding
 job. It could executed from the cwltool root using a dependency resolvers
@@ -368,7 +370,7 @@ at the following links:
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
 CWL Tool Control Flow
---------------------
+---------------------
 
 Technical outline of how cwltool works internally, for maintainers.
 
