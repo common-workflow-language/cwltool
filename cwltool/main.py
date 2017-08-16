@@ -226,7 +226,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--make-template", action="store_true",
                          help="Generate a template input object")
 
-
+    parser.add_argument("--force-docker-pull", action="store_true",
+                        default=False, help="Pull latest docker image even if"
+                                            " it is locally present", dest="force_docker_pull")
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -837,7 +839,7 @@ def main(argsl=None,  # type: List[str]
                 return 0
 
             if args.print_rdf:
-                printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)
+                stdout.write(printrdf(tool, document_loader.ctx, args.rdf_serializer))
                 return 0
 
             if args.print_dot:

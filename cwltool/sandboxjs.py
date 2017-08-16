@@ -53,11 +53,11 @@ def check_js_threshold_version(working_alias):
         return False
 
 
-def new_js_proc():
-    # type: () -> subprocess.Popen
+def new_js_proc(force_docker_pull=False):
+    # type: (bool) -> subprocess.Popen
 
     res = resource_stream(__name__, 'cwlNodeEngine.js')
-    nodecode = res.read()
+    nodecode = res.read().decode('utf-8')
 
     required_node_version, docker = (False,)*2
     nodejs = None
@@ -86,10 +86,11 @@ def new_js_proc():
         try:
             nodeimg = "node:slim"
             global have_node_slim
+
             if not have_node_slim:
                 dockerimgs = subprocess.check_output(["docker", "images", "-q", nodeimg]).decode('utf-8')
                 # if output is an empty string
-                if len(dockerimgs.split("\n")) <= 1:
+                if (len(dockerimgs.split("\n")) <= 1) or force_docker_pull:
                     # pull node:slim docker container
                     nodejsimg = subprocess.check_output(["docker", "pull", nodeimg]).decode('utf-8')
                     _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
@@ -124,10 +125,10 @@ def new_js_proc():
     return nodejs
 
 
-def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
+def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False):  # type: (Union[Mapping, Text], Any, int, bool, bool) -> JSON
 
     if not hasattr(localdata, "proc") or localdata.proc.poll() is not None or onWindows():
-        localdata.proc = new_js_proc()
+        localdata.proc = new_js_proc(force_docker_pull=force_docker_pull)
 
     nodejs = localdata.proc
 
@@ -238,7 +239,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
                         no_more_error.release()
                         output_thread.join()
                         error_thread.join()
-                if stdout_buf.getvalue().endswith("\n"):
+                if stdout_buf.getvalue().endswith("\n".encode()):
                     rselect = []
                     no_more_output.release()
                     no_more_error.release()
