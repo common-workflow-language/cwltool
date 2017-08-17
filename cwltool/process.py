@@ -235,7 +235,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
                 os.makedirs(p.target, 0o0755)
             else:
                 shutil.copytree(p.resolved, p.target)
-        elif p.type == "CreateFile" and not ignoreWritable:
+        elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
 
