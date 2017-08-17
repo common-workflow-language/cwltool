@@ -339,7 +339,7 @@ class WorkflowJob(object):
         # type: (WorkflowJobStep, Callable[[Any, Any], Any], bool, bool, **Any) -> Generator
 
         js_console = kwargs.get("js_console", False)
-        debug = kwargs["debug"] or False
+        debug = kwargs.get("debug", False)
 
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
