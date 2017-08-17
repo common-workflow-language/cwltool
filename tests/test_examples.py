@@ -1,5 +1,12 @@
 from __future__ import absolute_import
 import unittest
+import pytest
+import subprocess
+
+try:
+    from cStringIO import StringIO
+except ModuleNotFoundError:
+    from io import StringIO
 
 import cwltool.expression as expr
 import cwltool.factory
@@ -515,6 +522,35 @@ class TestPrintDot(unittest.TestCase):
         # Require that --enable-ext is provided.
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
+
+class TestJsConsole(unittest.TestCase):
+    def reload_sandboxjs(self):
+         # Reload sandboxjs to remove set globals
+        import cwltool.sandboxjs
+        reload(cwltool.sandboxjs)
+
+    def test_js_console_cmd_line_tool(self):
+        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+            self.reload_sandboxjs()
+            pipe = StringIO()
+            self.assertEquals(main(["--js-console", get_data("tests/wf/" + test_file)], stderr=pipe), 0)
+
+            output = pipe.getvalue()
+            pipe.close()
+
+            self.assertIn("[log] Log message", output)
+            self.assertIn("[err] Error message", output)
+
+    def test_no_js_console(self):
+        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+            self.reload_sandboxjs()
+            pipe = StringIO()
+            self.assertEquals(main([get_data("tests/wf/" + test_file)], stderr=pipe), 1)
+
+            output = pipe.getvalue()
+            pipe.close()
+
+            self.assertIn("ReferenceError: console is not defined", output)
 
 if __name__ == '__main__':
     unittest.main()
