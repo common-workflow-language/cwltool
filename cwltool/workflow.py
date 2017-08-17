@@ -332,8 +332,12 @@ class WorkflowJob(object):
         if completed == len(self.steps):
             self.do_output_callback(final_output_callback)
 
-    def try_make_job(self, step, final_output_callback, debug=False, js_console=False, **kwargs):
+    def try_make_job(self, step, final_output_callback, **kwargs):
         # type: (WorkflowJobStep, Callable[[Any, Any], Any], bool, bool, **Any) -> Generator
+
+        js_console = kwargs["js_console"] or False
+        debug = kwargs["debug"] or False
+
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 

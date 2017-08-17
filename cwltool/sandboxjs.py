@@ -197,10 +197,10 @@ def execjs(js, jslib, timeout=None, debug=False, js_console=False):  # type: (Un
 
     if js_console:
         if len(stderrdata) > 0:
-            print("Javascript console output:")
-            print("----------------------------------------")
-            print('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderrdata, flags=re.MULTILINE)))
-            print("----------------------------------------")
+            _logger.info("Javascript console output:")
+            _logger.info("----------------------------------------")
+            _logger.info('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderrdata.decode('utf-8'), flags=re.MULTILINE)))
+            _logger.info("----------------------------------------")
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
