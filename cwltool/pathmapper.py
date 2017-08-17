@@ -5,12 +5,19 @@ import os
 import stat
 import uuid
 from functools import partial
+from tempfile import NamedTemporaryFile
+
+import requests
+from cachecontrol import CacheControl
+from cachecontrol.caches import FileCache
 from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
+
+from .utils import convert_pathsep_to_unix
 
 from .stdfsaccess import StdFsAccess, abspath
 
@@ -35,7 +42,7 @@ def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any]
     """Apply a function to with "class" in cls."""
 
     if isinstance(rec, dict):
-        if rec.get("class") in cls:
+        if "class" in rec and rec.get("class") in cls:
             op(rec)
         for d in rec:
             visit_class(rec[d], cls, op)
@@ -137,6 +144,29 @@ def trim_listing(obj):
     if obj.get("location", "").startswith("file://") and "listing" in obj:
         del obj["listing"]
 
+# Download http Files
+def downloadHttpFile(httpurl):
+    # type: (Text) -> Text
+    cache_session = None
+    if "XDG_CACHE_HOME" in os.environ:
+        directory = os.environ["XDG_CACHE_HOME"]
+    elif "HOME" in os.environ:
+        directory = os.environ["HOME"]
+    else:
+        directory = os.path.expanduser('~')
+
+    cache_session = CacheControl(
+        requests.Session(),
+        cache=FileCache(
+            os.path.join(directory, ".cache", "cwltool")))
+
+    r = cache_session.get(httpurl, stream=True)
+    with NamedTemporaryFile(mode='wb', delete=False) as f:
+        for chunk in r.iter_content(chunk_size=16384):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+    r.close()
+    return f.name
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
@@ -186,7 +216,8 @@ class PathMapper(object):
 
     def visit(self, obj, stagedir, basedir, copy=False, staged=False):
         # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
-        tgt = os.path.join(stagedir, obj["basename"])
+        tgt = convert_pathsep_to_unix(
+            os.path.join(stagedir, obj["basename"]))
         if obj["location"] in self._pathmap:
             return
         if obj["class"] == "Directory":
@@ -205,14 +236,18 @@ class PathMapper(object):
                 self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile", staged)
             else:
                 with SourceLine(obj, "location", validate.ValidationException):
-                    # Dereference symbolic links
                     deref = ab
-                    st = os.lstat(deref)
-                    while stat.S_ISLNK(st.st_mode):
-                        rl = os.readlink(deref)
-                        deref = rl if os.path.isabs(rl) else os.path.join(
-                            os.path.dirname(deref), rl)
+                    if urllib.parse.urlsplit(deref).scheme in ['http','https']:
+                        deref = downloadHttpFile(path)
+                    else:
+                        # Dereference symbolic links
                         st = os.lstat(deref)
+                        while stat.S_ISLNK(st.st_mode):
+                            rl = os.readlink(deref)
+                            deref = rl if os.path.isabs(rl) else os.path.join(
+                                os.path.dirname(deref), rl)
+                            st = os.lstat(deref)
+
                     self._pathmap[path] = MapperEnt(deref, tgt, "WritableFile" if copy else "File", staged)
                     self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy, staged=staged)
 
@@ -246,3 +281,9 @@ class PathMapper(object):
             if v[1] == target:
                 return (k, v[0])
         return None
+
+    def update(self, key, resolved, target, type, stage):  # type: (Text, Text, Text, Text, bool) -> None
+        self._pathmap[key] = MapperEnt(resolved, target, type, stage)
+
+    def __contains__(self, key):
+        return key in self._pathmap

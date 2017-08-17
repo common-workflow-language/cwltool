@@ -1,7 +1,10 @@
 from __future__ import absolute_import
 import glob
 import os
+from io import open
 from typing import BinaryIO, List, Union, Text, IO, overload
+
+from .utils import onWindows
 
 import six
 from six.moves import urllib
@@ -10,8 +13,13 @@ from schema_salad.ref_resolver import file_uri, uri_file_path
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
         ab = six.text_type(uri_file_path(str(src)))
+    elif urllib.parse.urlsplit(src).scheme in ['http','https']:
+        return src
     else:
-        ab = src if os.path.isabs(src) else os.path.join(basedir, src)
+        if basedir.startswith(u"file://"):
+            ab = src if os.path.isabs(src) else basedir+ '/'+ src
+        else:
+            ab = src if os.path.isabs(src) else os.path.join(basedir, src)
     return ab
 
 class StdFsAccess(object):
@@ -54,3 +62,11 @@ class StdFsAccess(object):
 
     def realpath(self, path):  # type: (Text) -> Text
         return os.path.realpath(path)
+
+    # On windows os.path.realpath appends unecessary Drive, here we would avoid that
+    def docker_compatible_realpath(self, path):  # type: (Text) -> Text
+        if onWindows():
+            if path.startswith('/'):
+                return path
+            return '/'+path
+        return self.realpath(path)

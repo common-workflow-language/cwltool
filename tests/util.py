@@ -6,6 +6,8 @@ from pkg_resources import (Requirement, ResolutionError,  # type: ignore
 
 
 def get_data(filename):
+    filename = os.path.normpath(
+        filename)  # normalizing path depending on OS or else it will cause problem when joining path
     filepath = None
     try:
         filepath = resource_filename(
