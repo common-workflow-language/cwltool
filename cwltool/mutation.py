@@ -67,3 +67,7 @@ class MutationManager(object):
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0,[], ""))
         obj[_generation] = current.generation
+
+    def unset_generation(self, obj):
+        # type: (Dict) -> None
+        obj.pop(_generation, None)
