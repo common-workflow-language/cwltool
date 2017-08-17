@@ -534,8 +534,6 @@ class CommandLineTool(Process):
                 visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
-                if builder.mutation_manager:
-                    adjustFileObjs(ret, builder.mutation_manager.set_generation)
                 visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
 
                 if compute_checksum:
@@ -543,6 +541,8 @@ class CommandLineTool(Process):
 
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret,
                                  strict=False, logger=_logger_validation_warnings)
+            if ret is not None and builder.mutation_manager is not None:
+                adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
