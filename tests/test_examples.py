@@ -527,36 +527,56 @@ class TestPrintDot(unittest.TestCase):
         # Require that --enable-ext is provided.
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
+from multiprocessing import Process, Queue
 
 class TestJsConsole(unittest.TestCase):
+    def get_main_stderr(self, queue, args):
+        pipe = StringIO()
+        queue.put(main(args, stderr=pipe))
+
+        queue.put(pipe.getvalue())
+        pipe.close()
+
     def reload_sandboxjs(self):
          # Reload sandboxjs to remove set globals
         import cwltool.sandboxjs
         reload(cwltool.sandboxjs)
 
+    def run_command(command):
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        exitcode = process.returncode
+
+        return exitcode, stdout, stderr
+
     def test_js_console_cmd_line_tool(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            self.reload_sandboxjs()
-            pipe = StringIO()
-            self.assertEquals(main(["--js-console", get_data("tests/wf/" + test_file)], stderr=pipe), 0)
+            queue = Queue()
+            process = Process(target=self.get_main_stderr, args=(queue, ["--js-console", get_data("tests/wf/" + test_file)]))
+            process.start()
 
-            output = pipe.getvalue()
-            pipe.close()
+            error_code = queue.get()
+            output = queue.get()
 
             self.assertIn("[log] Log message", output)
             self.assertIn("[err] Error message", output)
 
+            self.assertEquals(error_code, 0, output)
+
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
             self.reload_sandboxjs()
-            pipe = StringIO()
-            self.assertEquals(main([get_data("tests/wf/" + test_file)], stderr=pipe), 1)
+            queue = Queue()
+            process = Process(target=self.get_main_stderr, args=(queue, ["--debug", get_data("tests/wf/" + test_file)]))
+            process.start()
 
-            output = pipe.getvalue()
-            pipe.close()
+            error_code = queue.get()
+            output = queue.get()
 
             self.assertNotIn("[log] Log message", output)
             self.assertNotIn("[err] Error message", output)
+            
+            self.assertEquals(error_code, 1, output)
 
 if __name__ == '__main__':
     unittest.main()
