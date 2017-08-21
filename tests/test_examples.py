@@ -570,7 +570,5 @@ class TestJsConsole(unittest.TestCase):
             self.assertNotIn("[log] Log message", output)
             self.assertNotIn("[err] Error message", output)
             
-            self.assertEquals(error_code, 1, output)
-
 if __name__ == '__main__':
     unittest.main()
