@@ -555,7 +555,8 @@ class TestJsConsole(unittest.TestCase):
             output = pipe.getvalue()
             pipe.close()
 
-            self.assertIn("ReferenceError: console is not defined", output)
+            self.assertNotIn("[log] Log message", output)
+            self.assertNotIn("[err] Error message", output)
 
 if __name__ == '__main__':
     unittest.main()
