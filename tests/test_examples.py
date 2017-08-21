@@ -560,7 +560,6 @@ class TestJsConsole(unittest.TestCase):
 
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            self.reload_sandboxjs()
             queue = Queue()
             process = Process(target=self.get_main_stderr, args=(queue, ["--debug", get_data("tests/wf/" + test_file)]))
             process.start()
