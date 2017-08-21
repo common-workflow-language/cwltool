@@ -3,10 +3,15 @@ import unittest
 import pytest
 import subprocess
 
+from io import StringIO
+
 try:
-    from cStringIO import StringIO
-except ModuleNotFoundError:
-    from io import StringIO
+    reload
+except:
+    try:
+        from imp import reload
+    except:
+        from importlib import reload
 
 import cwltool.expression as expr
 import cwltool.factory
