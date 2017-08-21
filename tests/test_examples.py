@@ -537,11 +537,6 @@ class TestJsConsole(unittest.TestCase):
         queue.put(pipe.getvalue())
         pipe.close()
 
-    def reload_sandboxjs(self):
-         # Reload sandboxjs to remove set globals
-        import cwltool.sandboxjs
-        reload(cwltool.sandboxjs)
-
     def run_command(command):
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
