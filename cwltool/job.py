@@ -21,7 +21,7 @@ from . import docker
 from .builder import Builder
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
-from .pathmapper import PathMapper
+from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement, empty_subtree, get_feature,
                       stageFiles)
 from .utils import bytes2str_in_dicts
@@ -113,7 +113,7 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
                 shutil.rmtree(host_outdir_tgt)
             if onWindows():
                 if vol.type in ("File", "WritableFile"):
-                    shutil.copy(vol.resolved,host_outdir_tgt)
+                    shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
             else:
@@ -332,6 +332,7 @@ class DockerCommandLineJob(JobBase):
                     runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
                 else:
                     shutil.copy(vol.resolved, host_outdir_tgt)
+                    ensure_writable(host_outdir_tgt)
             elif vol.type == "WritableDirectory":
                 if vol.resolved.startswith("_:"):
                     os.makedirs(vol.target, 0o0755)
@@ -340,6 +341,7 @@ class DockerCommandLineJob(JobBase):
                         runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
                     else:
                         shutil.copytree(vol.resolved, host_outdir_tgt)
+                        ensure_writable(host_outdir_tgt)
             elif vol.type == "CreateFile":
                 if host_outdir_tgt:
                     with open(host_outdir_tgt, "wb") as f:
