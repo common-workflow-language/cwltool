@@ -247,7 +247,6 @@ class CommandLineTool(Process):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
-
         if kwargs.get("cachedir"):
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
@@ -273,6 +272,8 @@ class CommandLineTool(Process):
                 cmdline = ["docker", "run", dockerimg] + cmdline
             keydict = {u"cmdline": cmdline}
 
+            if "stdout" in self.tool:
+                keydict["stdout"] = self.tool["stdout"]
             for location, f in cachebuilder.pathmapper.items():
                 if f.type == "File":
                     checksum = next((e['checksum'] for e in cachebuilder.files
