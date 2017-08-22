@@ -99,7 +99,7 @@ def deref_links(outputs):  # type: (Any) -> None
             deref_links(v)
 
 def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_update=False):
-    # type: (PathMapper, bool) -> None
+    # type: (PathMapper, Text, Text, bool) -> None
     for src, vol in pathmapper.items():
         if not vol.staged:
             continue
@@ -313,7 +313,7 @@ class CommandLineJob(JobBase):
 class DockerCommandLineJob(JobBase):
 
     def add_volumes(self, pathmapper, runtime):
-        # type: (PathMapper, List[Text], bool) -> None
+        # type: (PathMapper, List[Text]) -> None
 
         host_outdir = self.outdir
         container_outdir = self.builder.outdir
