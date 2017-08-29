@@ -154,7 +154,7 @@ def next_seg(remain, obj):  # type: (Text, Any) -> Any
 
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=False, debug=False, js_console=False):
-    # type: (Text, Text, Dict[Text, Any], bool, int, bool, bool) -> JSON
+    # type: (Text, Text, Dict[Text, Any], bool, int, bool, bool, bool) -> JSON
     m = param_re.match(ex)
     if m:
         if m.end(1)+1 == len(ex) and m.group(1) == "null":
@@ -174,7 +174,7 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=Fals
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib="", force_docker_pull=False,
                 debug=False, js_console=False):
-    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool) -> JSON
+    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool, bool) -> JSON
     scan = scan.strip()
     parts = []
     w = scanner(scan)
@@ -203,7 +203,7 @@ def interpolate(scan, rootvars,
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None, force_docker_pull=False, debug=False, js_console=False):
-    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool) -> Any
+    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool, bool) -> Any
 
     runtime = copy.copy(resources)
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
