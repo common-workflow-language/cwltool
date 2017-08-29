@@ -910,10 +910,16 @@ def main(argsl=None,  # type: List[str]
             if out is not None:
 
                 def locToPath(p):
+                    for field in ("path", "nameext", "nameroot", "dirname"):
+                        if field in p:
+                            del p[field]
                     if p["location"].startswith("file://"):
                         p["path"] = uri_file_path(p["location"])
 
                 visit_class(out, ("File", "Directory"), locToPath)
+
+                # Unsetting the Generation fron final output object
+                visit_class(out,("File",), MutationManager().unset_generation)
 
                 if isinstance(out, six.string_types):
                     stdout.write(out)

@@ -34,7 +34,8 @@ from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class, trim_listing)
+                         normalizeFilesDirs, visit_class, trim_listing,
+                         ensure_writable)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
@@ -230,15 +231,17 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
             os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
+            ensure_writable(p.target)
         elif p.type == "WritableDirectory" and not ignoreWritable:
             if p.resolved.startswith("_:"):
                 os.makedirs(p.target, 0o0755)
             else:
                 shutil.copytree(p.resolved, p.target)
-        elif p.type == "CreateFile" and not ignoreWritable:
+                ensure_writable(p.target)
+        elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
-
+            ensure_writable(p.target)
 
 def collectFilesAndDirs(obj, out):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None

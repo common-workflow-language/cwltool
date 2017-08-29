@@ -119,38 +119,35 @@ def revmap_file(builder, outdir, f):
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
 
-    if "location" in f:
+    if "location" in f and "path" not in f:
         if f["location"].startswith("file://"):
-            path = convert_pathsep_to_unix(uri_file_path(f["location"]))
-            revmap_f = builder.pathmapper.reversemap(path)
-
-            if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
-                f["basename"] = os.path.basename(path)
-                f["location"] = revmap_f[1]
-            elif path == builder.outdir:
-                f["location"] = outdir
-            elif path.startswith(builder.outdir):
-                f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
-            elif f["location"].startswith(outdir):
-                revmap_f = builder.pathmapper.reversemap(builder.fs_access.join(builder.outdir, f["location"][len(outdir) + 1:]))
-                if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
-                    f["basename"] = os.path.basename(path)
-                    f["location"] = revmap_f[1]
-        return f
+            f["path"] = convert_pathsep_to_unix(uri_file_path(f["location"]))
+        else:
+            return f
 
     if "path" in f:
         path = f["path"]
+        uripath = file_uri(path)
         del f["path"]
+
+        if "basename" not in f:
+            f["basename"] = os.path.basename(path)
+
         revmap_f = builder.pathmapper.reversemap(path)
-        if revmap_f:
+
+        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-            return f
-        elif path.startswith(builder.outdir):
+        elif uripath == outdir or uripath.startswith(outdir+os.sep):
+            f["location"] = file_uri(path)
+        elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
-            return f
+        elif not os.path.isabs(path):
+            f["location"] = builder.fs_access.join(outdir, path)
         else:
             raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input "
                                     u"file pass through." % (path, builder.outdir))
+        return f
+
 
     raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
 
@@ -538,8 +535,6 @@ class CommandLineTool(Process):
                 visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
-                if builder.mutation_manager:
-                    adjustFileObjs(ret, builder.mutation_manager.set_generation)
                 visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
 
                 if compute_checksum:
@@ -547,6 +542,8 @@ class CommandLineTool(Process):
 
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret,
                                  strict=False, logger=_logger_validation_warnings)
+            if ret is not None and builder.mutation_manager is not None:
+                adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
