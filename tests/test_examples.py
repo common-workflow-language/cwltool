@@ -2,6 +2,8 @@ from __future__ import absolute_import
 import unittest
 import pytest
 import subprocess
+from os import path
+import sys
 
 from io import StringIO
 
@@ -527,31 +529,23 @@ class TestPrintDot(unittest.TestCase):
         # Require that --enable-ext is provided.
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
-from multiprocessing import Process, Queue
 
 class TestJsConsole(unittest.TestCase):
-    def get_main_stderr(self, queue, args):
-        pipe = StringIO()
-        queue.put(main(args, stderr=pipe))
+    def get_main_stderr(self, new_args):
+        cwltool_base = path.join(path.dirname(path.abspath(__name__)), "cwltool")
+        
+        process = subprocess.Popen([
+            sys.executable,
+            "-m",
+            "cwltool"
+        ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        queue.put(pipe.getvalue())
-        pipe.close()
-
-    def run_command(command):
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
-        exitcode = process.returncode
-
-        return exitcode, stdout, stderr
+        return process.returncode, stderr.decode()
 
     def test_js_console_cmd_line_tool(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            queue = Queue()
-            process = Process(target=self.get_main_stderr, args=(queue, ["--js-console", get_data("tests/wf/" + test_file)]))
-            process.start()
-
-            error_code = queue.get()
-            output = queue.get()
+            error_code, output = self.get_main_stderr(["--js-console", get_data("tests/wf/" + test_file)])
 
             self.assertIn("[log] Log message", output)
             self.assertIn("[err] Error message", output)
@@ -560,12 +554,7 @@ class TestJsConsole(unittest.TestCase):
 
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            queue = Queue()
-            process = Process(target=self.get_main_stderr, args=(queue, ["--debug", get_data("tests/wf/" + test_file)]))
-            process.start()
-
-            error_code = queue.get()
-            output = queue.get()
+            error_code, output = self.get_main_stderr([get_data("tests/wf/" + test_file)])
 
             self.assertNotIn("[log] Log message", output)
             self.assertNotIn("[err] Error message", output)
