@@ -214,10 +214,6 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
         error_thread.daemon=True
         error_thread.start()
 
-        # mark if output/error is ready
-        output_ready=False
-        error_ready=False
-
         while (len(wselect) + len(rselect)) > 0:
             try:
                 if nodejs.stdin in wselect:
@@ -227,29 +223,16 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
                         wselect = []
                 if nodejs.stdout in rselect:
                     if not output_queue.empty():
-                        output_ready = True
                         stdout_buf.write(output_queue.get())
-                    elif output_ready:
-                        rselect = []
-                        no_more_output.release()
-                        no_more_error.release()
-                        output_thread.join()
 
                 if nodejs.stderr in rselect:
                     if not error_queue.empty():
-                        error_ready = True
                         stderr_buf.write(error_queue.get())
-                    elif error_ready:
-                        rselect = []
-                        no_more_output.release()
-                        no_more_error.release()
-                        output_thread.join()
-                        error_thread.join()
+
                 if stdout_buf.getvalue().endswith("\n".encode()):
                     rselect = []
                     no_more_output.release()
                     no_more_error.release()
-                    output_thread.join()
             except OSError as e:
                 break
 
