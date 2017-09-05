@@ -166,7 +166,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
 
     PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
-    def process_finished():
+    def process_finished(): # type: () -> bool
         return stdout_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR) and \
             stderr_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR)
 
@@ -222,7 +222,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
 
         finished = False
 
-        while not finished and tm.isAlive():
+        while not finished and tm.is_alive():
             try:
                 if nodejs.stdin in wselect:
                     if not input_queue.empty():
@@ -245,7 +245,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
                 break
 
     else:
-        while not (process_finished() or not tm.isAlive()):
+        while not process_finished() and tm.is_alive():
             rready, wready, _ = select.select(rselect, wselect, [])
             try:
                 if nodejs.stdin in wready:
