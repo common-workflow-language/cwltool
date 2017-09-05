@@ -164,6 +164,12 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
 
+    PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
+
+    def process_finished():
+        return stdout_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR) and \
+            stderr_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR)
+
     # On windows system standard input/output are not handled properly by select module
     # (modules like  pywin32, msvcrt, gevent don't work either)
     if sys.platform=='win32':
@@ -214,7 +220,9 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
         error_thread.daemon=True
         error_thread.start()
 
-        while (len(wselect) + len(rselect)) > 0:
+        finished = False
+
+        while not finished and tm.isAlive():
             try:
                 if nodejs.stdin in wselect:
                     if not input_queue.empty():
@@ -227,41 +235,35 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
 
                 if nodejs.stderr in rselect:
                     if not error_queue.empty():
-                        stderr_buf.write(error_queue.get())
+                        stderr_buf.write(error_queue.get())                
 
-                if stdout_buf.getvalue().endswith("\n".encode()):
-                    rselect = []
+                if process_finished() and error_queue.empty() and output_queue.empty():
+                    finished = True
                     no_more_output.release()
                     no_more_error.release()
             except OSError as e:
                 break
 
     else:
-        while (len(wselect) + len(rselect)) > 0:
+        while not (process_finished() or not tm.isAlive()):
             rready, wready, _ = select.select(rselect, wselect, [])
             try:
                 if nodejs.stdin in wready:
                     b = stdin_buf.read(select.PIPE_BUF)
                     if b:
                         os.write(nodejs.stdin.fileno(), b)
-                    else:
-                        wselect = []
                 for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
                     if pipes[0] in rready:
                         b = os.read(pipes[0].fileno(), select.PIPE_BUF)
                         if b:
                             pipes[1].write(b)
-                        else:
-                            rselect.remove(pipes[0])
-                if stdout_buf.getvalue().endswith("\n".encode()):
-                    rselect = []
             except OSError as e:
                 break
     tm.cancel()
 
     stdin_buf.close()
-    stdoutdata = stdout_buf.getvalue()
-    stderrdata = stderr_buf.getvalue()
+    stdoutdata = stdout_buf.getvalue()[:-len(PROCESS_FINISHED_STR) - 1]
+    stderrdata = stderr_buf.getvalue()[:-len(PROCESS_FINISHED_STR) - 1]
 
     def fn_linenum():  # type: () -> Text
         lines = fn.splitlines()
