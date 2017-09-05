@@ -12,4 +12,4 @@ steps:
       class: ExpressionTool
       inputs: []
       outputs: []
-      expression: ${console.log("Log message");console.error("Error message");return "true";}
+      expression: ${console.log("Log message");console.error("Error message");return "(exit 0)";}
