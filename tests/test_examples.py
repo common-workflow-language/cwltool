@@ -545,7 +545,8 @@ class TestJsConsole(unittest.TestCase):
 
     def test_js_console_cmd_line_tool(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, output = self.get_main_stderr(["--js-console", get_data("tests/wf/" + test_file)])
+            error_code, output = self.get_main_stderr(["--js-console", "--no-container",
+                get_data("tests/wf/" + test_file)])
 
             self.assertIn("[log] Log message", output)
             self.assertIn("[err] Error message", output)
@@ -554,7 +555,8 @@ class TestJsConsole(unittest.TestCase):
 
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, output = self.get_main_stderr([get_data("tests/wf/" + test_file)])
+            error_code, output = self.get_main_stderr(["--no-container", 
+                get_data("tests/wf/" + test_file)])
 
             self.assertNotIn("[log] Log message", output)
             self.assertNotIn("[err] Error message", output)
