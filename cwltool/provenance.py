@@ -47,43 +47,78 @@ class RO():
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
-    
     def add_data_file(self, fp):
-        tmp = tempfile.mkstemp(prefix=self.tmpPrefix)
-        with open(tmp, "wb") as out:
+        with tempfile.NamedTemporaryFile(
+                prefix=self.tmpPrefix, delete=False) as tmp:
             checksum = hashmethod()
-            contents = f.read(1024 * 1024)
+            contents = fp.read(1024 * 1024)
             while contents != b"":
-                out.write(contents)
-                checksum.update(contents)                
-                contents = f.read(1024 * 1024)
+                tmp.write(contents)
+                checksum.update(contents)
+                contents = fp.read(1024 * 1024)
 
             tmp.seek(0, 2)
             filesize = tmp.tell()
 
         hex = checksum.hexdigest()
-        path = os.path.join(self.folder, DATA, hex[0:2], hex)
-        # os.rename should be safe, as our mkstemp file 
-        # should be in same file system as our 
-        # mkdtemp folder
-        os.rename(tmp, path)
+        folder = os.path.join(self.folder, DATA, hex[0:2])
+        path = os.path.join(folder, hex)
 
-        # Return relative path as URI 
+        # os.rename should be safe, as our mkstemp file
+        # should be in same file system as our
+        # mkdtemp folder
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        os.rename(tmp.name, path)
+
+        # Return relative path as URI
         # (We can't use os.path.join which would use \ on Windows)
         return DATA + "/" + hex[0:2] + "/" + hex
 
-    def create_job(self, customised_job):
+    def create_job(self, job, kwargs):
         #TODO handle nested workflow at level 2 provenance
-        #TODO customise the file 
+        #TODO customise the file
         '''
         This function takes the dictionary input object and generates
         a json file containing the relative paths and link to the associated
         cwl document
         '''
+        self._relativise_files(job, kwargs)
         path=os.path.join(self.folder, WORKFLOW, "master-job.json")
         with open (path, "w") as f:
-            json.dump(customised_job, f)
+            json.dump(job, f)
+
         _logger.info(u"[provenance] Generated customised job file: %s", path)
+
+    def _relativise_files(self, structure, kwargs):
+        '''
+        save any file objects into RO and update the local paths
+        '''
+
+        # Base case - we found a File we need to update
+        _logger.info(u"[provenance] Relativising paths: %s", structure)
+        if isinstance(structure, dict):
+            if structure.get("class") == "File":
+                #standardised fs access object creation
+                fsaccess = kwargs["make_fs_access"]("")
+                # TODO: Replace location/path with new add_data_file() paths
+                with fsaccess.open(structure["location"], "rb") as f:
+                    relative_path=self.add_data_file(f)
+                    structure["location"]= "../"+relative_path
+            for o in structure.values():
+                self._relativise_files(o, kwargs)
+            return
+
+        if isinstance(structure, str) or isinstance(structure, unicode):
+            # Just a string value, no need to iterate further
+            return
+        try:
+            for o in iter(structure):
+                # Recurse and rewrite any nested File objects
+                self._relativise_files(o, kwargs)
+        except TypeError:
+            pass
+
 
     def close(self, saveTo=None):
         """Close the Research Object after saving to specified folder.
@@ -103,7 +138,7 @@ class RO():
             _logger.info(u"[provenance] Finalizing Research Object")
             self._finalize() # write manifest etc.
             # TODO: Write as archive (.zip or .tar) based on extension?
-            
+
             if os.path.isdir(saveTo):
                 shutil.rmtree(saveTo)
             shutil.move(self.folder, saveTo)
