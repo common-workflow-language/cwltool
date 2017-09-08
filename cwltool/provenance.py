@@ -97,12 +97,13 @@ class RO():
 
     def _convert_path(self, path, from_path=os.path, to_path=posixpath):
         if from_path == to_path:
-            return path
+            return path        
         if (from_path.isabs(path)):
             raise ProvenanceException("path must be relative: %s" % path)
             # ..as it might include system paths like "C:\" or /tmp
-        split = from_path.split(path)
-        return to_path.join(*split)
+        split = path.split(from_path.sep)
+        converted = to_path.sep.join(split)
+        return converted
 
     def _posix_path(self, local_path):
         return self._convert_path(local_path, os.path, posixpath)
@@ -124,7 +125,7 @@ class RO():
                 checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
 
         # Add checksums to corresponding manifest files
-        for (method,hash) in checksums:
+        for (method,hash) in checksums.items():
             # Quite naive for now - assume file is not already listed in manifest                
             manifest = os.path.join(self.folder, 
                 "manifest-" + method.lower() + ".txt")
@@ -154,7 +155,7 @@ class RO():
         '''
 
         # Base case - we found a File we need to update
-        _logger.info(u"[provenance] Relativising paths: %s", structure)
+        _logger.debug(u"[provenance] Relativising: %s", structure)
         if isinstance(structure, dict):
             if structure.get("class") == "File":
                 #standardised fs access object creation
