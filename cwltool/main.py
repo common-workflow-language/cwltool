@@ -158,6 +158,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
+
     dependency_resolvers_configuration_help = argparse.SUPPRESS
     dependencies_directory_help = argparse.SUPPRESS
     use_biocontainers_help = argparse.SUPPRESS
@@ -730,6 +732,7 @@ def main(argsl=None,  # type: List[str]
                      'cachedir': None,
                      'quiet': False,
                      'debug': False,
+                     'js_console': False,
                      'version': False,
                      'enable_dev': False,
                      'enable_ext': False,

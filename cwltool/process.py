@@ -535,6 +535,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         tmpdir: tmpdir on host for this job
         stagedir: stagedir on host for this job
         select_resources: callback to select compute resources
+        debug: enable debugging output
+        js_console: enable javascript console output
         """
 
         builder = Builder()
@@ -559,6 +561,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
         builder.debug = kwargs.get("debug")
+        builder.js_console = kwargs.get("js_console")
         builder.mutation_manager = kwargs.get("mutation_manager")
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
