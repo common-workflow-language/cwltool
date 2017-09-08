@@ -969,7 +969,7 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
-        if args.ro:
+        if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
             args.ro.close()
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)

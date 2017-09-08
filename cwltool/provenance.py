@@ -92,6 +92,7 @@ class RO():
                 hashmethod)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
+        _logger.info(u"[provenance] Added data file %s", path)
         return rel_path
 
     def _convert_path(self, path, from_path=os.path, to_path=posixpath):
@@ -113,7 +114,7 @@ class RO():
         if (posixpath.isabs(rel_path)):
             raise ProvenanceException("rel_path must be relative: %s" % rel_path)
         local_path = os.path.join(self.folder, self._local_path(rel_path))
-        if not os.path.exist(local_path):
+        if not os.path.exists(local_path):
             raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
         
         if not "sha1" in checksums:
@@ -128,7 +129,9 @@ class RO():
             manifest = os.path.join(self.folder, 
                 "manifest-" + method.lower() + ".txt")
             with open(manifest, "a") as checksumFile:
-                checksumFile.write("%s %s\n" % (hash, rel_path))
+                line = "%s %s\n" % (hash, rel_path)
+                _logger.info(u"[provenance] Added to %s: %s", manifest, line)
+                checksumFile.write(line)
 
     def create_job(self, job, kwargs):
         #TODO handle nested workflow at level 2 provenance
@@ -176,18 +179,21 @@ class RO():
 
 
     def close(self, saveTo=None):
-        """Close the Research Object after saving to specified folder.
-        The 'saveTo' folder should not exist - if it does it will be deleted.
+        """Close the Research Object, optionally saving to specified folder.
 
-        If the argument 'saveTo' is None (the default value), the
-        research object will be removed without saving.
+        Closing will remove any temporary files used by this research object.
+        After calling this method, this ResearchObject instance can no longer 
+        be used, except for no-op calls to .close().
 
-        This function can only be called once, after which this object
-        can no longer be used. Later calls to this function will be no-op.
+        The 'saveTo' folder should not exist - if it does, it will be deleted.
+
+        It is safe to call this function multiple times without the
+        'saveTo' argument, e.g. within a try..finally block to 
+        ensure the temporary files of this RO are removed.
         """
         if saveTo is None:
             if self.folder:
-                _logger.info(u"[provenance] Deleting %s", self.folder)
+                _logger.info(u"[provenance] Deleting temporary %s", self.folder)
                 shutil.rmtree(self.folder, ignore_errors=True)
         else:
             _logger.info(u"[provenance] Finalizing Research Object")
@@ -195,11 +201,13 @@ class RO():
             # TODO: Write as archive (.zip or .tar) based on extension?
 
             if os.path.isdir(saveTo):
-                shutil.rmtree(saveTo)
+                _logger.info(u"[provenance] Deleting existing %s", saveTo)
+                shutil.rmtree(saveTo)         
+
             shutil.move(self.folder, saveTo)
             _logger.info(u"[provenance] Research Object saved to %s", saveTo)
-
-        # Forget about our temporary, which no longer exists
+        # Forget our temporary folder, which should no longer exists
+        # This makes later close() a no-op
         self.folder = None
 
 def create_ro(tmpPrefix):
