@@ -21,11 +21,12 @@ process.stdin.on("data", function(chunk) {
         }
         })) + "\n");
     }
-    finally{
-        /*strings to indicate the process has finished*/
-        console.log("r1cepzbhUTxtykz5XTC4");
-        console.error("r1cepzbhUTxtykz5XTC4");
+    catch(e){
+        console.error(e)
     }
+    /*strings to indicate the process has finished*/
+    console.log("r1cepzbhUTxtykz5XTC4");
+    console.error("r1cepzbhUTxtykz5XTC4");
   }
 });
 process.stdin.on("end", process.exit);
