@@ -2,6 +2,8 @@ from __future__ import absolute_import
 import io
 import json
 import os
+import os.path
+import posixpath
 import shutil
 import tempfile
 import logging
@@ -18,6 +20,8 @@ SNAPSHOT = "snapshot"
 MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 
+class ProvenanceException(BaseException):
+    pass
 
 ## sha1, compatible with the File type's "checksum" field
 ## e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
@@ -47,33 +51,84 @@ class RO():
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
-    def add_data_file(self, fp):
+    def _checksum_copy(self, fp, copy_to_fp=None, 
+                       hashmethod=hashmethod, buffersize=1024*1024):
+        checksum = hashmethod()
+        contents = fp.read(buffersize)
+        while contents != b"":            
+            if copy_to_fp is not None:
+                copy_to_fp.write(contents)
+            checksum.update(contents)
+            contents = fp.read(buffersize)
+        if copy_to_fp is not None:
+            copy_to_fp.flush()
+        return checksum.hexdigest().lower()
+    
+
+    def add_data_file(self, from_fp):
         with tempfile.NamedTemporaryFile(
-                prefix=self.tmpPrefix, delete=False) as tmp:
-            checksum = hashmethod()
-            contents = fp.read(1024 * 1024)
-            while contents != b"":
-                tmp.write(contents)
-                checksum.update(contents)
-                contents = fp.read(1024 * 1024)
+                 prefix=self.tmpPrefix, delete=False) as tmp:
+            checksum = self._checksum_copy(from_fp, tmp)   
 
-            tmp.seek(0, 2)
-            filesize = tmp.tell()
+        # Calculate hash-based file path
+        folder = os.path.join(self.folder, DATA, checksum[0:2])
+        path = os.path.join(folder, checksum)
 
-        hex = checksum.hexdigest()
-        folder = os.path.join(self.folder, DATA, hex[0:2])
-        path = os.path.join(folder, hex)
-
-        # os.rename should be safe, as our mkstemp file
-        # should be in same file system as our
-        # mkdtemp folder
+        # os.rename assumded safe, as our temp file should
+        # be in same file system as our temp folder
         if not os.path.isdir(folder):
             os.makedirs(folder)
         os.rename(tmp.name, path)
 
-        # Return relative path as URI
-        # (We can't use os.path.join which would use \ on Windows)
-        return DATA + "/" + hex[0:2] + "/" + hex
+        # Relative posix path 
+        # (to avoid \ on Windows)
+        rel_path = self._posix_path(os.path.relpath(path, self.folder))
+
+        # Register in bagit checksum
+        if hashmethod == hashlib.sha1:
+            self._add_to_bagit(rel_path, sha1=checksum)
+        else:
+            _logger.warning(u"[provenance] Unknown hash method %s for bagit manifest", 
+                hashmethod)
+            # Inefficient, bagit support need to checksum again
+            self._add_to_bagit(rel_path)
+        return rel_path
+
+    def _convert_path(self, path, from_path=os.path, to_path=posixpath):
+        if from_path == to_path:
+            return path
+        if (from_path.isabs(path)):
+            raise ProvenanceException("path must be relative: %s" % path)
+            # ..as it might include system paths like "C:\" or /tmp
+        split = from_path.split(path)
+        return to_path.join(*split)
+
+    def _posix_path(self, local_path):
+        return self._convert_path(local_path, os.path, posixpath)
+
+    def _local_path(self, posix_path):
+        return self._convert_path(posix_path, posixpath, os.path)
+
+    def _add_to_bagit(self, rel_path, **checksums):
+        if (posixpath.isabs(rel_path)):
+            raise ProvenanceException("rel_path must be relative: %s" % rel_path)
+        local_path = os.path.join(self.folder, self._local_path(rel_path))
+        if not os.path.exist(local_path):
+            raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
+        
+        if not "sha1" in checksums:
+            # ensure we always have sha1
+            checksums = dict(checksums)
+            with open(local_path) as fp:
+                checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
+
+        # Add checksums to corresponding manifest files
+        for (method,hash) in checksums:
+            # Quite naive for now - assume file is not already listed in manifest                
+            manifest = os.path.join(self.folder, 
+                "manifest-" + method.lower() + ".txt")
+            with open(manifest, "a") as checksumFile:
+                checksumFile.write("%s %s\n" % (hash, rel_path))
 
     def create_job(self, job, kwargs):
         #TODO handle nested workflow at level 2 provenance
