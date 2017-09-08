@@ -231,11 +231,14 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
                         "exist" % (src, inp["id"]))
                 elif not incomplete:
                     return None
-        elif "default" in inp:
-            inputobj[iid] = inp["default"]
-        elif "valueFrom" in inp:
+
+        if inputobj.get(iid) is None and "default" in inp:
+            inputobj[iid] = copy.copy(inp["default"])
+
+        if iid not in inputobj and ("valueFrom" in inp or incomplete):
             inputobj[iid] = None
-        else:
+
+        if iid not in inputobj:
             raise WorkflowException(u"Value for %s not specified" % (inp["id"]))
     return inputobj
 
@@ -677,7 +680,8 @@ class WorkflowStep(Process):
                     toolpath_object["run"], kwargs.get("makeTool"), kwargs,
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
-                    fetcher_constructor=kwargs.get("fetcher_constructor"))
+                    fetcher_constructor=kwargs.get("fetcher_constructor"),
+                    resolver=kwargs.get("resolver"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %

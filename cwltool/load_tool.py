@@ -22,6 +22,7 @@ from six.moves import urllib
 from . import process, update
 from .errors import WorkflowException
 from .process import Process, shortname
+from .update import ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
 
@@ -161,12 +162,18 @@ def validate_document(document_loader,  # type: Loader
     if "cwlVersion" in workflowobj:
         if not isinstance(workflowobj["cwlVersion"], (str, Text)):
             raise Exception("'cwlVersion' must be a string, got %s" % type(workflowobj["cwlVersion"]))
+        # strip out version
         workflowobj["cwlVersion"] = re.sub(
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
             workflowobj["cwlVersion"])
+        if workflowobj["cwlVersion"] not in list(ALLUPDATES):
+            # print out all the Supported Versions of cwlVersion
+            versions = list(ALLUPDATES) # ALLUPDATES is a dict
+            versions.sort()
+            raise ValidationException("'cwlVersion' not valid. Supported CWL versions are: \n{}".format("\n".join(versions)))
     else:
-        _logger.warning("No cwlVersion found, treating this file as draft-2.")
-        workflowobj["cwlVersion"] = "draft-2"
+        raise ValidationException("No cwlVersion found."
+            "Use the following syntax in your CWL workflow to declare version: cwlVersion: <version>")
 
     if workflowobj["cwlVersion"] == "draft-2":
         workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(

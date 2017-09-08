@@ -42,7 +42,7 @@ def check_js_threshold_version(working_alias):
     """
     # parse nodejs version into int Tuple: 'v4.2.6\n' -> [4, 2, 6]
     current_version_str = subprocess.check_output(
-        [working_alias, "-v"]).decode('ascii')
+        [working_alias, "-v"]).decode('utf-8')
 
     current_version = [int(v) for v in current_version_str.strip().strip('v').split('.')]
     minimum_node_version = [int(v) for v in minimum_node_version_str.split('.')]
@@ -53,18 +53,17 @@ def check_js_threshold_version(working_alias):
         return False
 
 
-def new_js_proc():
-    # type: () -> subprocess.Popen
+def new_js_proc(force_docker_pull=False):
+    # type: (bool) -> subprocess.Popen
 
     res = resource_stream(__name__, 'cwlNodeEngine.js')
     nodecode = res.read()
-
     required_node_version, docker = (False,)*2
     nodejs = None
     trynodes = ("nodejs", "node")
     for n in trynodes:
         try:
-            if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]) != "t":
+            if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]).decode('utf-8') != "t":
                 continue
             else:
                 nodejs = subprocess.Popen([n, "--eval", nodecode],
@@ -86,10 +85,13 @@ def new_js_proc():
         try:
             nodeimg = "node:slim"
             global have_node_slim
+
             if not have_node_slim:
-                dockerimgs = subprocess.check_output(["docker", "images", nodeimg]).decode('utf-8')
-                if len(dockerimgs.split("\n")) <= 1:
-                    nodejsimg = subprocess.check_output(["docker", "pull", nodeimg])
+                dockerimgs = subprocess.check_output(["docker", "images", "-q", nodeimg]).decode('utf-8')
+                # if output is an empty string
+                if (len(dockerimgs.split("\n")) <= 1) or force_docker_pull:
+                    # pull node:slim docker container
+                    nodejsimg = subprocess.check_output(["docker", "pull", nodeimg]).decode('utf-8')
                     _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
                 have_node_slim = True
             nodejs = subprocess.Popen(["docker", "run",
@@ -122,10 +124,10 @@ def new_js_proc():
     return nodejs
 
 
-def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
+def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False):  # type: (Union[Mapping, Text], Any, int, bool, bool) -> JSON
 
     if not hasattr(localdata, "proc") or localdata.proc.poll() is not None or onWindows():
-        localdata.proc = new_js_proc()
+        localdata.proc = new_js_proc(force_docker_pull=force_docker_pull)
 
     nodejs = localdata.proc
 
@@ -134,7 +136,8 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     killed = []
 
-    def term():
+    """ Kill the node process if it exceeds timeout limit"""
+    def terminate():
         try:
             killed.append(True)
             nodejs.kill()
@@ -144,7 +147,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     if timeout is None:
         timeout = 20
 
-    tm = threading.Timer(timeout, term)
+    tm = threading.Timer(timeout, terminate)
     tm.start()
 
     stdin_buf = BytesIO((json.dumps(fn) + "\n").encode('utf-8'))
@@ -154,7 +157,8 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
 
-    # On windows system standard input/output are not handled properly by select  module(modules like  pywin32, msvcrt, gevent don't work either)
+    # On windows system standard input/output are not handled properly by select module
+    # (modules like  pywin32, msvcrt, gevent don't work either)
     if sys.platform=='win32':
         READ_BYTES_SIZE = 512
 
