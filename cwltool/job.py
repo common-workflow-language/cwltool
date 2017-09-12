@@ -360,32 +360,39 @@ class DockerCommandLineJob(JobBase):
 
         img_id = None
         env = None  # type: MutableMapping[Text, Text]
-        try:
-            env = cast(MutableMapping[Text, Text], os.environ)
-            if docker_req and kwargs.get("use_container"):
-                img_id = docker.get_from_requirements(docker_req, True, pull_image)
-            if img_id is None:
-                if self.builder.find_default_container:
-                    default_container = self.builder.find_default_container()
-                    if default_container:
-                        img_id = default_container
-                        env = cast(MutableMapping[Text, Text], os.environ)
+        user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
+        if docker_req and user_space_docker_cmd:
+            img_id = str(docker_req["dockerPull"])
+        else:
+            try:
+                env = cast(MutableMapping[Text, Text], os.environ)
+                if docker_req and kwargs.get("use_container"):
+                    img_id = docker.get_from_requirements(docker_req, True, pull_image)
+                if img_id is None:
+                    if self.builder.find_default_container:
+                        default_container = self.builder.find_default_container()
+                        if default_container:
+                            img_id = default_container
+                            env = cast(MutableMapping[Text, Text], os.environ)
 
-            if docker_req and img_id is None and kwargs.get("use_container"):
-                raise Exception("Docker image not available")
-        except Exception as e:
-            _logger.debug("Docker error", exc_info=True)
-            if docker_is_req:
-                raise UnsupportedRequirement(
-                    "Docker is required to run this tool: %s" % e)
-            else:
-                raise WorkflowException(
-                    "Docker is not available for this tool, try --no-container"
-                    " to disable Docker: %s" % e)
+                if docker_req and img_id is None and kwargs.get("use_container"):
+                    raise Exception("Docker image not available")
+            except Exception as e:
+                _logger.debug("Docker error", exc_info=True)
+                if docker_is_req:
+                    raise UnsupportedRequirement(
+                        "Docker is required to run this tool: %s" % e)
+                else:
+                    raise WorkflowException(
+                        "Docker is not available for this tool, try --no-container"
+                        " to disable Docker: %s" % e)
 
         self._setup(kwargs)
 
-        runtime = [u"docker", u"run", u"-i"]
+        if user_space_docker_cmd:
+            runtime = [user_space_docker_cmd, u"run"]
+        else:
+            runtime = [u"docker", u"run", u"-i"]
 
         runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
         runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
@@ -394,23 +401,28 @@ class DockerCommandLineJob(JobBase):
         if self.generatemapper:
             self.add_volumes(self.generatemapper, runtime)
 
+        if user_space_docker_cmd:
+            runtime = [x.replace(":ro", "") for x in runtime]
+            runtime = [x.replace(":rw", "") for x in runtime]
+
         runtime.append(u"--workdir=%s" % (docker_windows_path_adjust(self.builder.outdir)))
-        runtime.append(u"--read-only=true")
+        if not user_space_docker_cmd:
+            runtime.append(u"--read-only=true")
 
-        if kwargs.get("custom_net", None) is not None:
-            runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
-        elif kwargs.get("disable_net", None):
-            runtime.append(u"--net=none")
+            if kwargs.get("custom_net", None) is not None:
+                runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
+            elif kwargs.get("disable_net", None):
+                runtime.append(u"--net=none")
 
-        if self.stdout:
-            runtime.append("--log-driver=none")
+            if self.stdout:
+                runtime.append("--log-driver=none")
 
-        euid, egid = docker_vm_id()
-        if not onWindows():  # MS Windows does not have getuid() or geteuid() functions
-            euid, egid = euid or os.geteuid(), egid or os.getgid()
+            euid, egid = docker_vm_id()
+            if not onWindows():  # MS Windows does not have getuid() or geteuid() functions
+                euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-        if kwargs.get("no_match_user", None) is False and (euid, egid) != (None, None):
-            runtime.append(u"--user=%d:%d" % (euid, egid))
+            if kwargs.get("no_match_user", None) is False and (euid, egid) != (None, None):
+                runtime.append(u"--user=%d:%d" % (euid, egid))
 
         if rm_container:
             runtime.append(u"--rm")
