@@ -367,12 +367,12 @@ class DockerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = docker.get_from_requirements(docker_req, True, pull_image)
+                    img_id = str(docker.get_from_requirements(docker_req, True, pull_image))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
                         if default_container:
-                            img_id = default_container
+                            img_id = str(default_container)
                             env = cast(MutableMapping[Text, Text], os.environ)
 
                 if docker_req and img_id is None and kwargs.get("use_container"):
