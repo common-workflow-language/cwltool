@@ -51,6 +51,7 @@ class Builder(object):
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.debug = False  # type: bool
+        self.js_console = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
         self.force_docker_pull = False  # type: bool
 
@@ -256,5 +257,6 @@ class Builder(object):
                                   self.resources,
                                   context=context, pull_image=pull_image,
                                   timeout=self.timeout,
-                                  force_docker_pull=self.force_docker_pull,
-                                  debug=self.debug)
+                                  debug=self.debug,
+                                  js_console=self.js_console,
+                                  force_docker_pull=self.force_docker_pull)
