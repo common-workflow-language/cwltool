@@ -281,6 +281,8 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
             if os.path.isdir(src):
                 if os.path.isdir(dst):
                     shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
                 shutil.copy2(src, dst)
