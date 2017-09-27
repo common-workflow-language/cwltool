@@ -449,7 +449,7 @@ class WorkflowJob(object):
             del kwargs["outdir"]
 
         for e, i in enumerate(self.tool["inputs"]):
-            with SourceLine(self.tool["inputs"], e, WorkflowException):
+            with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
                 if iid in joborder:
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
