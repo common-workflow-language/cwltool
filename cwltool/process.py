@@ -279,9 +279,13 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
             if os.path.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
-                shutil.copy(src, dst)
+                shutil.copy2(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
