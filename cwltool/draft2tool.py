@@ -35,7 +35,7 @@ ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 DEFAULT_CONTAINER_MSG="""We are on Microsoft Windows and not all components of this CWL description have a
-container specified. This means that these steps will be executed in the default container, 
+container specified. This means that these steps will be executed in the default container,
 which is %s.
 
 Note, this could affect portability if this CWL description relies on non-POSIX features
@@ -116,32 +116,38 @@ def revmap_file(builder, outdir, f):
     if not split.scheme:
         outdir = file_uri(str(outdir))
 
-    if "location" in f:
+    # builder.outdir is the inner (container/compute node) output directory
+    # outdir is the outer (host/storage system) output directory
+
+    if "location" in f and "path" not in f:
         if f["location"].startswith("file://"):
-            path = convert_pathsep_to_unix(uri_file_path(f["location"]))
-            revmap_f = builder.pathmapper.reversemap(path)
-            if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
-                f["basename"] = os.path.basename(path)
-                f["location"] = revmap_f[0]
-            elif path == builder.outdir:
-                f["location"] = outdir
-            elif path.startswith(builder.outdir):
-                f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
-        return f
+            f["path"] = convert_pathsep_to_unix(uri_file_path(f["location"]))
+        else:
+            return f
 
     if "path" in f:
         path = f["path"]
+        uripath = file_uri(path)
         del f["path"]
+
+        if "basename" not in f:
+            f["basename"] = os.path.basename(path)
+
         revmap_f = builder.pathmapper.reversemap(path)
-        if revmap_f:
+
+        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-            return f
-        elif path.startswith(builder.outdir):
+        elif uripath == outdir or uripath.startswith(outdir+os.sep):
+            f["location"] = file_uri(path)
+        elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
-            return f
+        elif not os.path.isabs(path):
+            f["location"] = builder.fs_access.join(outdir, path)
         else:
             raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input "
                                     u"file pass through." % (path, builder.outdir))
+        return f
+
 
     raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
 
@@ -190,7 +196,7 @@ class CommandLineTool(Process):
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
         self.find_default_container = kwargs.get("find_default_container", None)
 
-    def makeJobRunner(self, use_container=True):  # type: (Optional[bool]) -> JobBase
+    def makeJobRunner(self, use_container=True, **kwargs):  # type: (Optional[bool], **Any) -> JobBase
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and use_container:
             if self.find_default_container:
@@ -216,7 +222,8 @@ class CommandLineTool(Process):
 
     def makePathMapper(self, reffiles, stagedir, **kwargs):
         # type: (List[Any], Text, **Any) -> PathMapper
-        return PathMapper(reffiles, kwargs["basedir"], stagedir)
+        return PathMapper(reffiles, kwargs["basedir"], stagedir,
+                          separateDirs=kwargs.get("separateDirs", True))
 
     def updatePathmap(self, outdir, pathmap, fn):
         # type: (Text, PathMapper, Dict) -> None
@@ -325,9 +332,10 @@ class CommandLineTool(Process):
 
         reffiles = copy.deepcopy(builder.files)
 
-        j = self.makeJobRunner(kwargs.get("use_container"))
+        j = self.makeJobRunner(**kwargs)
         j.builder = builder
         j.joborder = builder.job
+        j.make_pathmapper = self.makePathMapper
         j.stdin = None
         j.stderr = None
         j.stdout = None
@@ -350,6 +358,7 @@ class CommandLineTool(Process):
         if "stagedir" in make_path_mapper_kwargs:
             make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
             del make_path_mapper_kwargs["stagedir"]
+
         builder.pathmapper = self.makePathMapper(reffiles, builder.stagedir, **make_path_mapper_kwargs)
         builder.requirements = j.requirements
 
@@ -525,8 +534,6 @@ class CommandLineTool(Process):
                 visit_class(ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap))
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
-                if builder.mutation_manager:
-                    adjustFileObjs(ret, builder.mutation_manager.set_generation)
                 visit_class(ret, ("File", "Directory"), partial(check_valid_locations, fs_access))
 
                 if compute_checksum:
@@ -534,6 +541,8 @@ class CommandLineTool(Process):
 
             validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret,
                                  strict=False, logger=_logger_validation_warnings)
+            if ret is not None and builder.mutation_manager is not None:
+                adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
@@ -566,7 +575,12 @@ class CommandLineTool(Process):
                         elif gb.startswith("/"):
                             raise WorkflowException("glob patterns must not start with '/'")
                         try:
+                            prefix = fs_access.glob(outdir)
                             r.extend([{"location": g,
+                                       "path": fs_access.join(builder.outdir, g[len(prefix[0])+1:]),
+                                       "basename": os.path.basename(g),
+                                       "nameroot": os.path.splitext(os.path.basename(g))[0],
+                                       "nameext": os.path.splitext(os.path.basename(g))[1],
                                        "class": "File" if fs_access.isfile(g) else "Directory"}
                                       for g in fs_access.glob(fs_access.join(outdir, gb))])
                         except (OSError, IOError) as e:
@@ -576,12 +590,14 @@ class CommandLineTool(Process):
                             raise
 
                 for files in r:
+                    rfile = files.copy()
+                    revmap(rfile)
                     if files["class"] == "Directory":
                         ll = builder.loadListing or (binding and binding.get("loadListing"))
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
-                        with fs_access.open(files["location"], "rb") as f:
+                        with fs_access.open(rfile["location"], "rb") as f:
                             contents = b""
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
@@ -625,27 +641,38 @@ class CommandLineTool(Process):
                     else:
                         r = r[0]
 
-            # Ensure files point to local references outside of the run environment
-            adjustFileObjs(r, cast(  # known bug in mypy
-                # https://github.com/python/mypy/issues/797
-                Callable[[Any], Any], revmap))
-
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException):
                     for primary in aslist(r):
                         if isinstance(primary, dict):
-                            primary["secondaryFiles"] = []
+                            primary.setdefault("secondaryFiles", [])
+                            pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
-                                    if isinstance(sfpath, string_types):
-                                        sfpath = revmap({"location": sfpath, "class": "File"})
+                                    subst = False
                                 else:
-                                    sfpath = {"location": substitute(primary["location"], sf), "class": "File"}
-
+                                    sfpath = sf
+                                    subst = True
                                 for sfitem in aslist(sfpath):
-                                    if fs_access.exists(sfitem["location"]):
+                                    if isinstance(sfitem, string_types):
+                                        if subst:
+                                            sfitem = {"path": substitute(primary["path"], sfitem)}
+                                        else:
+                                            sfitem = {"path": pathprefix+sfitem}
+                                    if "path" in sfitem and "location" not in sfitem:
+                                        revmap(sfitem)
+                                    if fs_access.isfile(sfitem["location"]):
+                                        sfitem["class"] = "File"
                                         primary["secondaryFiles"].append(sfitem)
+                                    elif fs_access.isdir(sfitem["location"]):
+                                        sfitem["class"] = "Directory"
+                                        primary["secondaryFiles"].append(sfitem)
+
+            # Ensure files point to local references outside of the run environment
+            adjustFileObjs(r, cast(  # known bug in mypy
+                # https://github.com/python/mypy/issues/797
+                Callable[[Any], Any], revmap))
 
             if not r and optional:
                 r = None

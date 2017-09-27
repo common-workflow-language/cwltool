@@ -3,6 +3,7 @@ import errno
 import json
 import logging
 import os
+import re
 import select
 import subprocess
 import threading
@@ -53,11 +54,16 @@ def check_js_threshold_version(working_alias):
         return False
 
 
-def new_js_proc():
-    # type: () -> subprocess.Popen
+def new_js_proc(force_docker_pull=False, js_console=False):
+    # type: (bool, bool) -> subprocess.Popen
+    
+    cwl_node_engine_js = 'cwlNodeEngine.js'
+    if js_console:
+        cwl_node_engine_js = 'cwlNodeEngineJSConsole.js'
+        _logger.warn("Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
 
-    res = resource_stream(__name__, 'cwlNodeEngine.js')
-    nodecode = res.read()
+    res = resource_stream(__name__, cwl_node_engine_js)
+    nodecode = res.read().decode('utf-8')
 
     required_node_version, docker = (False,)*2
     nodejs = None
@@ -86,10 +92,11 @@ def new_js_proc():
         try:
             nodeimg = "node:slim"
             global have_node_slim
+
             if not have_node_slim:
                 dockerimgs = subprocess.check_output(["docker", "images", "-q", nodeimg]).decode('utf-8')
                 # if output is an empty string
-                if len(dockerimgs.split("\n")) <= 1:
+                if (len(dockerimgs.split("\n")) <= 1) or force_docker_pull:
                     # pull node:slim docker container
                     nodejsimg = subprocess.check_output(["docker", "pull", nodeimg]).decode('utf-8')
                     _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
@@ -124,10 +131,10 @@ def new_js_proc():
     return nodejs
 
 
-def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text], Any, int, bool) -> JSON
+def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_console=False):  # type: (Union[Mapping, Text], Any, int, bool, bool, bool) -> JSON
 
     if not hasattr(localdata, "proc") or localdata.proc.poll() is not None or onWindows():
-        localdata.proc = new_js_proc()
+        localdata.proc = new_js_proc(force_docker_pull=force_docker_pull, js_console=js_console)
 
     nodejs = localdata.proc
 
@@ -156,6 +163,12 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
+
+    PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
+
+    def process_finished(): # type: () -> bool
+        return stdout_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR) and \
+            stderr_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR)
 
     # On windows system standard input/output are not handled properly by select module
     # (modules like  pywin32, msvcrt, gevent don't work either)
@@ -207,11 +220,9 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         error_thread.daemon=True
         error_thread.start()
 
-        # mark if output/error is ready
-        output_ready=False
-        error_ready=False
+        finished = False
 
-        while (len(wselect) + len(rselect)) > 0:
+        while not finished and tm.is_alive():
             try:
                 if nodejs.stdin in wselect:
                     if not input_queue.empty():
@@ -220,58 +231,39 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
                         wselect = []
                 if nodejs.stdout in rselect:
                     if not output_queue.empty():
-                        output_ready = True
                         stdout_buf.write(output_queue.get())
-                    elif output_ready:
-                        rselect = []
-                        no_more_output.release()
-                        no_more_error.release()
-                        output_thread.join()
 
                 if nodejs.stderr in rselect:
                     if not error_queue.empty():
-                        error_ready = True
-                        stderr_buf.write(error_queue.get())
-                    elif error_ready:
-                        rselect = []
-                        no_more_output.release()
-                        no_more_error.release()
-                        output_thread.join()
-                        error_thread.join()
-                if stdout_buf.getvalue().endswith("\n"):
-                    rselect = []
+                        stderr_buf.write(error_queue.get())                
+
+                if process_finished() and error_queue.empty() and output_queue.empty():
+                    finished = True
                     no_more_output.release()
                     no_more_error.release()
-                    output_thread.join()
             except OSError as e:
                 break
 
     else:
-        while (len(wselect) + len(rselect)) > 0:
+        while not process_finished() and tm.is_alive():
             rready, wready, _ = select.select(rselect, wselect, [])
             try:
                 if nodejs.stdin in wready:
                     b = stdin_buf.read(select.PIPE_BUF)
                     if b:
                         os.write(nodejs.stdin.fileno(), b)
-                    else:
-                        wselect = []
                 for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
                     if pipes[0] in rready:
                         b = os.read(pipes[0].fileno(), select.PIPE_BUF)
                         if b:
                             pipes[1].write(b)
-                        else:
-                            rselect.remove(pipes[0])
-                if stdout_buf.getvalue().endswith("\n".encode()):
-                    rselect = []
             except OSError as e:
                 break
     tm.cancel()
 
     stdin_buf.close()
-    stdoutdata = stdout_buf.getvalue()
-    stderrdata = stderr_buf.getvalue()
+    stdoutdata = stdout_buf.getvalue()[:-len(PROCESS_FINISHED_STR) - 1]
+    stderrdata = stderr_buf.getvalue()[:-len(PROCESS_FINISHED_STR) - 1]
 
     def fn_linenum():  # type: () -> Text
         lines = fn.splitlines()
@@ -288,6 +280,13 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         return data
 
     nodejs.poll()
+
+    if js_console:
+        if len(stderrdata) > 0:
+            _logger.info("Javascript console output:")
+            _logger.info("----------------------------------------")
+            _logger.info('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderrdata.decode('utf-8'), flags=re.MULTILINE)))
+            _logger.info("----------------------------------------")
 
     if debug:
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
