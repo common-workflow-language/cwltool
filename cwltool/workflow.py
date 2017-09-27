@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import functools
 import json
@@ -5,7 +6,7 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
 
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -16,6 +17,8 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename
 from .utils import aslist
+import six
+from six.moves import range
 
 _logger = logging.getLogger("cwltool")
 
@@ -94,7 +97,7 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
 
 
 def check_types(srctype, sinktype, linkMerge, valueFrom):
-    # type: (Union[List[Text],Text], Union[List[Text],Text], Text, Text) -> Text
+    # type: (Any, Any, Text, Text) -> Text
     """Check if the source and sink types are "pass", "warning", or "exception".
     """
 
@@ -107,18 +110,25 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
             return "warning"
         else:
             return "exception"
+    elif linkMerge == "merge_nested":
+        return check_types({"items": srctype, "type": "array"}, sinktype, None, None)
+    elif linkMerge == "merge_flattened":
+        return check_types(merge_flatten_type(srctype), sinktype, None, None)
     else:
-        if not isinstance(sinktype, dict):
-            return "exception"
-        elif linkMerge == "merge_nested":
-            return check_types(srctype, sinktype["items"], None, None)
-        elif linkMerge == "merge_flattened":
-            if not isinstance(srctype, dict):
-                return check_types(srctype, sinktype["items"], None, None)
-            else:
-                return check_types(srctype, sinktype, None, None)
-        else:
-            raise WorkflowException(u"Unrecognized linkMerge enum '%s'" % linkMerge)
+        raise WorkflowException(u"Unrecognized linkMerge enu_m '%s'" % linkMerge)
+
+
+def merge_flatten_type(src):
+    # type: (Any) -> Any
+    """Return the merge flattened type of the source type
+    """
+
+    if isinstance(src, list):
+        return [merge_flatten_type(t) for t in src]
+    elif isinstance(src, dict) and src.get("type") == "array":
+        return src
+    else:
+        return {"items": src, "type": "array"}
 
 
 def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -> bool
@@ -176,7 +186,7 @@ def _compare_records(src, sink, strict=False):
 
     srcfields = _rec_fields(src)
     sinkfields = _rec_fields(sink)
-    for key in sinkfields.iterkeys():
+    for key in six.iterkeys(sinkfields):
         if (not can_assign_src_to_sink(
                 srcfields.get(key, "null"), sinkfields.get(key, "null"), strict)
             and sinkfields.get(key) is not None):
@@ -221,11 +231,14 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
                         "exist" % (src, inp["id"]))
                 elif not incomplete:
                     return None
-        elif "default" in inp:
-            inputobj[iid] = inp["default"]
-        elif "valueFrom" in inp:
+
+        if inputobj.get(iid) is None and "default" in inp:
+            inputobj[iid] = copy.copy(inp["default"])
+
+        if iid not in inputobj and ("valueFrom" in inp or incomplete):
             inputobj[iid] = None
-        else:
+
+        if iid not in inputobj:
             raise WorkflowException(u"Value for %s not specified" % (inp["id"]))
     return inputobj
 
@@ -311,7 +324,7 @@ class WorkflowJob(object):
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            _logger.warn(u"[%s] completed %s", step.name, processStatus)
+            _logger.warning(u"[%s] completed %s", step.name, processStatus)
         else:
             _logger.info(u"[%s] completed %s", step.name, processStatus)
 
@@ -324,6 +337,10 @@ class WorkflowJob(object):
 
     def try_make_job(self, step, final_output_callback, **kwargs):
         # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
+
+        js_console = kwargs.get("js_console", False)
+        debug = kwargs.get("debug", False)
+
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
@@ -352,17 +369,17 @@ class WorkflowJob(object):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
-            vfinputs = {shortname(k): v for k, v in inputobj.iteritems()}
+            vfinputs = {shortname(k): v for k, v in six.iteritems(inputobj)}
 
             def postScatterEval(io):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
-                shortio = {shortname(k): v for k, v in io.iteritems()}
+                shortio = {shortname(k): v for k, v in six.iteritems(io)}
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
-                            None, None, {}, context=v)
+                            None, None, {}, context=v, debug=debug, js_console=js_console)
                     else:
                         return v
 
@@ -378,7 +395,7 @@ class WorkflowJob(object):
                 tot = 1
                 emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
                 if emptyscatter:
-                    _logger.warn(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
+                    _logger.warning(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(step, inputobj, scatter,
@@ -432,7 +449,7 @@ class WorkflowJob(object):
             del kwargs["outdir"]
 
         for e, i in enumerate(self.tool["inputs"]):
-            with SourceLine(self.tool["inputs"], e, WorkflowException):
+            with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
                 if iid in joborder:
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
@@ -578,7 +595,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
             "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
-            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
+            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src
@@ -591,7 +608,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
             "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
         if linkMerge:
-            msg += "\n" + SourceLine(sink).makeError("  sink has linkMerge method %s" % linkMerge)
+            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
 
     for sink in step_inputs:
@@ -606,8 +623,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
-        _logger.warn("Workflow checker warning:")
-        _logger.warn(all_warning_msg)
+        _logger.warning("Workflow checker warning:")
+        _logger.warning(all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
@@ -660,7 +677,8 @@ class WorkflowStep(Process):
                     toolpath_object["run"], kwargs.get("makeTool"), kwargs,
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
-                    fetcher_constructor=kwargs.get("fetcher_constructor"))
+                    fetcher_constructor=kwargs.get("fetcher_constructor"),
+                    resolver=kwargs.get("resolver"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
@@ -672,11 +690,11 @@ class WorkflowStep(Process):
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for n, step_entry in enumerate(toolpath_object[stepfield]):
-                if isinstance(step_entry, (str, unicode)):
+                if isinstance(step_entry, six.string_types):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:
-                    param = CommentedMap(step_entry.iteritems())
+                    param = CommentedMap(six.iteritems(step_entry))
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)
@@ -754,7 +772,7 @@ class WorkflowStep(Process):
             else:
                 nesting = 1
 
-            for r in xrange(0, nesting):
+            for r in range(0, nesting):
                 for op in outputparms:
                     op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
@@ -834,7 +852,7 @@ class ReceiveScatterOutput(object):
 def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
-        for index in xrange(len(steps)):
+        for index in range(len(steps)):
             step = steps[index]
             if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
                 break

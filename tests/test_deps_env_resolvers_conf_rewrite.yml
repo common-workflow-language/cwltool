@@ -1,0 +1,3 @@
+- type: galaxy_packages
+  base_path: ./tests/test_deps_env
+  mapping_files: ./tests/test_deps_mapping.yml

@@ -1,7 +1,9 @@
+from __future__ import absolute_import
 import os
 import shutil
 import tempfile
 import unittest
+import pytest
 
 import cwltool.expression as expr
 import cwltool.factory
@@ -9,10 +11,12 @@ import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
 from cwltool.main import main
-
+from cwltool.utils import onWindows
 from .util import get_data
 
 
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
 class TestListing(unittest.TestCase):
     def test_missing_enable_ext(self):
         # Require that --enable-ext is provided.
@@ -39,6 +43,8 @@ class TestListing(unittest.TestCase):
     #     # Default behavior in 1.1 will be no expansion
     #     self.assertEquals(main([get_data('tests/wf/listing_v1_1.cwl'), get_data('tests/listing-job.yml')]), 1)
 
+@pytest.mark.skipif(onWindows(),
+                    reason="InplaceUpdate uses symlinks,does not run on windows without admin privileges")
 class TestInplaceUpdate(unittest.TestCase):
 
     def test_updateval(self):

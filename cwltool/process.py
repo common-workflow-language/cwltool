@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import abc
 import copy
 import errno
@@ -9,33 +11,42 @@ import os
 import shutil
 import stat
 import tempfile
-import urlparse
 import uuid
 from collections import Iterable
-from typing import (Any, AnyStr, Callable, Dict, Generator, List, Text, Tuple,
-                    Union, cast)
-
-from pkg_resources import resource_stream
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
+from io import open
+from functools import cmp_to_key
+from typing import (Any, Callable, Dict, Generator, List, Set, Text,
+                    Tuple, Union, cast)
 
 import avro.schema
 import schema_salad.schema
 import schema_salad.validate as validate
+import six
+from pkg_resources import resource_stream
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
+from six.moves import urllib
 
+from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class)
+                         normalizeFilesDirs, visit_class, trim_listing,
+                         ensure_writable)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature
+from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
+# if six.PY3:
+# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
+# else:
+AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 class LogAsDebugFilter(logging.Filter):
-    def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
+    def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
+        name = str(name)
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
@@ -120,7 +131,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[Text, Text]
+    cache = {}  # type: Dict[Text, Union[bytes, Text]]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
@@ -156,7 +167,7 @@ def get_schema(version):
 
 def shortname(inputid):
     # type: (Text) -> Text
-    d = urlparse.urlparse(inputid)
+    d = urllib.parse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
     else:
@@ -196,28 +207,41 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc, ignoreWritable=False):
-    # type: (PathMapper, Callable[..., Any], bool) -> None
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
+    # type: (PathMapper, Callable[..., Any], bool, bool) -> None
     for f, p in pm.items():
         if not p.staged:
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
-            stageFunc(p.resolved, p.target)
+        if p.type in ("File", "Directory") and (os.path.exists(p.resolved)):
+            if symLink:  # Use symlink func if allowed
+                if onWindows():
+                    if p.type == "File":
+                        shutil.copy(p.resolved, p.target)
+                    elif p.type == "Directory":
+                        if os.path.exists(p.target) and os.path.isdir(p.target):
+                            shutil.rmtree(p.target)
+                        copytree_with_merge(p.resolved, p.target)
+                else:
+                    os.symlink(p.resolved, p.target)
+            elif stageFunc is not None:
+                stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
+            ensure_writable(p.target)
         elif p.type == "WritableDirectory" and not ignoreWritable:
             if p.resolved.startswith("_:"):
                 os.makedirs(p.target, 0o0755)
             else:
                 shutil.copytree(p.resolved, p.target)
-        elif p.type == "CreateFile" and not ignoreWritable:
-            with open(p.target, "w") as n:
+                ensure_writable(p.target)
+        elif p.type == "CreateFile":
+            with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
-
+            ensure_writable(p.target)
 
 def collectFilesAndDirs(obj, out):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
@@ -234,7 +258,6 @@ def collectFilesAndDirs(obj, out):
 
 def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
-
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -256,14 +279,18 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
             if os.path.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
-                shutil.copy(src, dst)
+                shutil.copy2(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
     pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, moveIt)
+    stageFiles(pm, stageFunc=moveIt, symLink=False)
 
     def _check_adjust(f):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
@@ -286,8 +313,15 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
                 rp = os.path.realpath(path)
                 if path != rp:
                     if rp in relinked:
-                        os.unlink(path)
-                        os.symlink(os.path.relpath(relinked[rp], path), path)
+                        if onWindows():
+                            if os.path.isfile(path):
+                                shutil.copy(os.path.relpath(relinked[rp], path), path)
+                            elif os.path.exists(path) and os.path.isdir(path):
+                                shutil.rmtree(path)
+                                copytree_with_merge(os.path.relpath(relinked[rp], path), path)
+                        else:
+                            os.unlink(path)
+                            os.symlink(os.path.relpath(relinked[rp], path), path)
                     else:
                         for od in output_dirs:
                             if rp.startswith(od+"/"):
@@ -358,13 +392,14 @@ def checkFormat(actualFile, inputFormats, ontology):
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
-        with SourceLine(inputs, e, WorkflowException):
-            if shortname(inp[u"id"]) in job:
+        with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
+            fieldname = shortname(inp[u"id"])
+            if job.get(fieldname) is not None:
                 pass
-            elif shortname(inp[u"id"]) not in job and u"default" in inp:
-                job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
-            elif shortname(inp[u"id"]) not in job and aslist(inp[u"type"])[0] == u"null":
-                pass
+            elif job.get(fieldname) is None and u"default" in inp:
+                job[fieldname] = copy.copy(inp[u"default"])
+            elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
+                job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
 
@@ -387,9 +422,7 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-class Process(object):
-    __metaclass__ = abc.ABCMeta
-
+class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
@@ -444,8 +477,8 @@ class Process(object):
             sdtypes = sd["types"]
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
-                self.schemaDefs[i["name"]] = i
-            avro.schema.make_avsc_object(av, self.names)
+                self.schemaDefs[i["name"]] = i  # type: ignore
+            AvroSchemaFromJSONData(av, self.names)  # type: ignore
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -475,16 +508,16 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
+            self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
+            AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
             raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
@@ -506,6 +539,8 @@ class Process(object):
         tmpdir: tmpdir on host for this job
         stagedir: stagedir on host for this job
         select_resources: callback to select compute resources
+        debug: enable debugging output
+        js_console: enable javascript console output
         """
 
         builder = Builder()
@@ -530,21 +565,36 @@ class Process(object):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
         builder.debug = kwargs.get("debug")
+        builder.js_console = kwargs.get("js_console")
         builder.mutation_manager = kwargs.get("mutation_manager")
 
-        dockerReq, is_req = self.get_requirement("DockerRequirement")
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
+        builder.force_docker_pull = kwargs.get("force_docker_pull")
 
         loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
         if loadListingReq:
             builder.loadListing = loadListingReq.get("loadListing")
 
-        if dockerReq and kwargs.get("use_container"):
-            builder.outdir = builder.fs_access.realpath(
-                dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("docker_tmpdir") or "/tmp")
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+        defaultDocker = None
+
+        if dockerReq is None and "default_container" in kwargs:
+            defaultDocker = kwargs["default_container"]
+
+        if (dockerReq or defaultDocker) and kwargs.get("use_container"):
+            if dockerReq:
+                # Check if docker output directory is absolute
+                if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
+                    builder.outdir = dockerReq.get("dockerOutputDirectory")
+                else:
+                    builder.outdir = builder.fs_access.docker_compatible_realpath(
+                        dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+            elif defaultDocker:
+                builder.outdir = builder.fs_access.docker_compatible_realpath(
+                    kwargs.get("docker_outdir") or "/var/spool/cwl")
+            builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
+            builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = kwargs.get("outdir")
             builder.tmpdir = kwargs.get("tmpdir")
@@ -601,14 +651,20 @@ class Process(object):
                     cm.lc.filename = fn
                     builder.bindings.append(cm)
 
-        builder.bindings.sort(key=lambda a: a["position"])
-
+        # use python2 like sorting of heterogeneous lists
+        # (containing str and int types),
+        # TODO: unify for both runtime
+        if six.PY3:
+            key = cmp_to_key(cmp_like_py2)
+        else:  # PY2
+            key = lambda dict: dict["position"]
+        builder.bindings.sort(key=key)
         builder.resources = self.evalResources(builder, kwargs)
-
+        builder.job_script_provider = kwargs.get("job_script_provider", None)
         return builder
 
     def evalResources(self, builder, kwargs):
-        # type: (Builder, Dict[AnyStr, Any]) -> Dict[Text, Union[int, Text]]
+        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -740,21 +796,21 @@ def mergedirs(listing):
             ents[e["basename"]] = e
         elif e["class"] == "Directory" and e.get("listing"):
             ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-    for e in ents.itervalues():
+    for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(ents.itervalues())
+    r.extend(six.itervalues(ents))
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
+def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
-                df, _ = urlparse.urldefrag(doc["id"])
+                df, _ = urllib.parse.urldefrag(doc["id"])
                 if base != df:
                     r.append({
                         "class": "File",
@@ -781,7 +837,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin)
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in doc.iteritems():
+        for k, v in six.iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):
@@ -824,7 +880,7 @@ def compute_checksums(fs_access, fileobj):
         checksum = hashlib.sha1()
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
-            while contents != "":
+            while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
             f.seek(0, 2)

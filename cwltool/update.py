@@ -1,17 +1,19 @@
+from __future__ import absolute_import
 import copy
 import json
 import re
 import traceback
-import urlparse
 from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import
                     Tuple, Union)
+from copy import deepcopy
 
+import six
+from six.moves import urllib
 import schema_salad.validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader
 
 from .utils import aslist
-
 
 def findId(doc, frg):  # type: (Any, Any) -> Dict
     if isinstance(doc, dict):
@@ -49,7 +51,7 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
     try:
         if isinstance(doc, dict):
             if "import" in doc:
-                imp = urlparse.urljoin(baseuri, doc["import"])
+                imp = urllib.parse.urljoin(baseuri, doc["import"])
                 impLoaded = loader.fetch(imp)
                 r = None  # type: Dict[Text, Any]
                 if isinstance(impLoaded, list):
@@ -59,14 +61,14 @@ def _draft2toDraft3dev1(doc, loader, baseuri, update_steps=True):
                 else:
                     raise Exception("Unexpected code path.")
                 r["id"] = imp
-                _, frag = urlparse.urldefrag(imp)
+                _, frag = urllib.parse.urldefrag(imp)
                 if frag:
                     frag = "#" + frag
                     r = findId(r, frag)
                 return _draft2toDraft3dev1(r, loader, imp)
 
             if "include" in doc:
-                return loader.fetch_text(urlparse.urljoin(baseuri, doc["include"]))
+                return loader.fetch_text(urllib.parse.urljoin(baseuri, doc["include"]))
 
             for typename in ("type", "items"):
                 if typename in doc:
@@ -146,7 +148,7 @@ def _updateDev2Script(ent):  # type: (Any) -> Any
 def _draftDraft3dev1toDev2(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Any
     doc = _updateDev2Script(doc)
-    if isinstance(doc, basestring):
+    if isinstance(doc, six.string_types):
         return doc
 
     # Convert expressions
@@ -204,7 +206,7 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                 if doc["@import"][0] == "#":
                     return doc["@import"]
                 else:
-                    imp = urlparse.urljoin(baseuri, doc["@import"])
+                    imp = urllib.parse.urljoin(baseuri, doc["@import"])
                     impLoaded = loader.fetch(imp)
                     r = {}  # type: Dict[Text, Any]
                     if isinstance(impLoaded, list):
@@ -214,14 +216,14 @@ def _draftDraft3dev2toDev3(doc, loader, baseuri):
                     else:
                         raise Exception("Unexpected code path.")
                     r["id"] = imp
-                    frag = urlparse.urldefrag(imp)[1]
+                    frag = urllib.parse.urldefrag(imp)[1]
                     if frag:
                         frag = "#" + frag
                         r = findId(r, frag)
                     return _draftDraft3dev2toDev3(r, loader, imp)
 
             if "@include" in doc:
-                return loader.fetch_text(urlparse.urljoin(baseuri, doc["@include"]))
+                return loader.fetch_text(urllib.parse.urljoin(baseuri, doc["@include"]))
 
             for a in doc:
                 doc[a] = _draftDraft3dev2toDev3(doc[a], loader, baseuri)
@@ -252,7 +254,7 @@ def traverseImport(doc, loader, baseuri, func):
         if doc["$import"][0] == "#":
             return doc["$import"]
         else:
-            imp = urlparse.urljoin(baseuri, doc["$import"])
+            imp = urllib.parse.urljoin(baseuri, doc["$import"])
             impLoaded = loader.fetch(imp)
             r = {}  # type: Dict[Text, Any]
             if isinstance(impLoaded, list):
@@ -262,7 +264,7 @@ def traverseImport(doc, loader, baseuri, func):
             else:
                 raise Exception("Unexpected code path.")
             r["id"] = imp
-            _, frag = urlparse.urldefrag(imp)
+            _, frag = urllib.parse.urldefrag(imp)
             if frag:
                 frag = "#" + frag
                 r = findId(r, frag)
@@ -348,8 +350,9 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Any
     if isinstance(doc, dict):
         if "class" in doc and doc["class"] == "Workflow":
+
             def fixup(f):  # type: (Text) -> Text
-                doc, frg = urlparse.urldefrag(f)
+                doc, frg = urllib.parse.urldefrag(f)
                 frg = '/'.join(frg.rsplit('.', 1))
                 return doc + "#" + frg
 
@@ -370,6 +373,8 @@ def _draft3toDraft4dev1(doc, loader, baseuri):
             for out in doc["outputs"]:
                 out["source"] = fixup(out["source"])
         for key, value in doc.items():
+            if key == 'run':
+                value = deepcopy(value)
             doc[key] = _draft3toDraft4dev1(value, loader, baseuri)
     elif isinstance(doc, list):
         for i, a in enumerate(doc):
@@ -392,6 +397,8 @@ def _draft4Dev1toDev2(doc, loader, baseuri):
                 out["outputSource"] = out["source"]
                 del out["source"]
         for key, value in doc.items():
+            if key == 'run':
+                value = deepcopy(value)
             doc[key] = _draft4Dev1toDev2(value, loader, baseuri)
     elif isinstance(doc, list):
         for i, a in enumerate(doc):
@@ -537,7 +544,7 @@ def checkversion(doc, metadata, enable_dev):
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(
-                        UPDATES.keys())))
+                        list(UPDATES.keys()))))
         else:
             raise schema_salad.validate.ValidationException(
                 u"Unrecognized version %s" % version)

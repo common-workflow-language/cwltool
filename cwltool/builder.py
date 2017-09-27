@@ -1,6 +1,10 @@
+from __future__ import absolute_import
 import copy
-from typing import Any, Callable, Text, Type, Union
+import os
+import logging
+from typing import Any, Callable, Dict, List, Text, Type, Union
 
+import six
 from six import iteritems, string_types
 
 import avro
@@ -13,7 +17,11 @@ from .mutation import MutationManager
 from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
+
+_logger = logging.getLogger("cwltool")
+
+AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -42,13 +50,25 @@ class Builder(object):
         self.pathmapper = None  # type: PathMapper
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
-        self.build_job_script = None  # type: Callable[[List[str]], Text]
         self.debug = False  # type: bool
+        self.js_console = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
+        self.force_docker_pull = False  # type: bool
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
         self.loadListing = "deep_listing"  # type: Union[None, str]
+
+        self.find_default_container = None  # type: Callable[[], Text]
+        self.job_script_provider = None  # type: Any
+
+    def build_job_script(self, commands):
+        # type: (List[Text]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
+        if build_job_script_method:
+            return build_job_script_method(self, commands)
+        else:
+            return None
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
         # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
@@ -76,7 +96,7 @@ class Builder(object):
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
                 else:
-                    avsc = avro.schema.make_avsc_object(t, self.names)
+                    avsc = AvroSchemaFromJSONData(t, self.names)
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
@@ -130,18 +150,25 @@ class Builder(object):
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                            secondary_eval = self.do_eval(sf, context=datum)
-                            if isinstance(secondary_eval, string_types):
-                                sfpath = {"location": secondary_eval,
-                                          "class": "File"}
-                            else:
-                                sfpath = secondary_eval
+                            sfpath = self.do_eval(sf, context=datum)
                         else:
-                            sfpath = {"location": substitute(datum["location"], sf), "class": "File"}
-                        if isinstance(sfpath, list):
-                            datum["secondaryFiles"].extend(sfpath)
-                        else:
-                            datum["secondaryFiles"].append(sfpath)
+                            sfpath = substitute(datum["basename"], sf)
+                        for sfname in aslist(sfpath):
+                            found = False
+                            for d in datum["secondaryFiles"]:
+                                if not d.get("basename"):
+                                    d["basename"] = d["location"][d["location"].rindex("/")+1:]
+                                if d["basename"] == sfname:
+                                    found = True
+                            if not found:
+                                if isinstance(sfname, dict):
+                                    datum["secondaryFiles"].append(sfname)
+                                else:
+                                    datum["secondaryFiles"].append({
+                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "basename": sfname,
+                                        "class": "File"})
+
                     normalizeFilesDirs(datum["secondaryFiles"])
 
                 def _capture_files(f):
@@ -168,6 +195,11 @@ class Builder(object):
         if isinstance(value, dict) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
+
+            # Path adjust for windows file path when passing to docker, docker accepts unix like path only
+            (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+            if onWindows() and docker_req is not None:  # docker_req is none only when there is no dockerRequirement mentioned in hints and Requirement
+                return docker_windows_path_adjust(value["path"])
             return value["path"]
         else:
             return Text(value)
@@ -175,7 +207,7 @@ class Builder(object):
     def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
-            with SourceLine(binding, "valueFrom", WorkflowException):
+            with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
@@ -225,4 +257,6 @@ class Builder(object):
                                   self.resources,
                                   context=context, pull_image=pull_image,
                                   timeout=self.timeout,
-                                  debug=self.debug)
+                                  debug=self.debug,
+                                  js_console=self.js_console,
+                                  force_docker_pull=self.force_docker_pull)

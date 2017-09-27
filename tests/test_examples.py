@@ -1,4 +1,19 @@
+from __future__ import absolute_import
 import unittest
+import pytest
+import subprocess
+from os import path
+import sys
+
+from io import StringIO
+
+try:
+    reload
+except:
+    try:
+        from imp import reload
+    except:
+        from importlib import reload
 
 import cwltool.expression as expr
 import cwltool.factory
@@ -138,7 +153,7 @@ class TestFactory(unittest.TestCase):
             fail()
         except cwltool.factory.WorkflowStatus as e:
             self.assertEquals('sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e', e.out["out1"]["checksum"])
-            self.assertNotIn("out2", e.out)
+            self.assertIsNone(e.out["out2"])
         else:
             self.fail("Should have raised WorkflowStatus")
 
@@ -420,6 +435,12 @@ class TestTypeCompare(unittest.TestCase):
             linkMerge="merge_nested", valueFrom=None),
             "exception")
 
+        # check linkMerge: merge_nested and sinktype is "Any"
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], "Any",
+            linkMerge="merge_nested", valueFrom=None),
+            "pass")
+
         # check linkMerge: merge_flattened
         self.assertEquals(cwltool.workflow.check_types(
             ['string', 'int'],
@@ -457,6 +478,24 @@ class TestTypeCompare(unittest.TestCase):
             linkMerge="merge_flattened", valueFrom=None),
             "exception")
 
+        # check linkMerge: merge_flattened and sinktype is "Any"
+        self.assertEquals(cwltool.workflow.check_types(
+            ['string', 'int'], "Any",
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
+        self.assertEquals(cwltool.workflow.check_types(
+            {'items': ['string', 'int'], 'type': 'array'}, "Any",
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
+        # check linkMerge: merge_flattened when srctype is a list
+        self.assertEquals(cwltool.workflow.check_types(
+            [{'items': 'string', 'type': 'array'}],
+            {'items': 'string', 'type': 'array'},
+            linkMerge="merge_flattened", valueFrom=None),
+            "pass")
+
         # check valueFrom
         self.assertEquals(cwltool.workflow.check_types(
             {'items': ['File', 'int'], 'type': 'array'},
@@ -491,5 +530,36 @@ class TestPrintDot(unittest.TestCase):
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
 
+class TestJsConsole(unittest.TestCase):
+    def get_main_stderr(self, new_args):
+        cwltool_base = path.join(path.dirname(path.abspath(__name__)), "cwltool")
+        
+        process = subprocess.Popen([
+            sys.executable,
+            "-m",
+            "cwltool"
+        ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        stdout, stderr = process.communicate()
+        return process.returncode, stderr.decode()
+
+    def test_js_console_cmd_line_tool(self):
+        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+            error_code, output = self.get_main_stderr(["--js-console", "--no-container",
+                get_data("tests/wf/" + test_file)])
+
+            self.assertIn("[log] Log message", output)
+            self.assertIn("[err] Error message", output)
+
+            self.assertEquals(error_code, 0, output)
+
+    def test_no_js_console(self):
+        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+            error_code, output = self.get_main_stderr(["--no-container", 
+                get_data("tests/wf/" + test_file)])
+
+            self.assertNotIn("[log] Log message", output)
+            self.assertNotIn("[err] Error message", output)
+            
 if __name__ == '__main__':
     unittest.main()

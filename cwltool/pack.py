@@ -1,10 +1,12 @@
+from __future__ import absolute_import
 import copy
-from typing import Any, Callable, Dict, Text, Union, cast
+from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
 from schema_salad.ref_resolver import Loader
 from six.moves import urllib
 
 from .process import shortname, uniquename
+import six
 
 
 def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
@@ -25,7 +27,7 @@ def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], (str, unicode)):
+        if "run" in d and isinstance(d["run"], six.string_types):
             if d["run"] not in runs:
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
@@ -39,7 +41,7 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
             find_ids(s, ids)
     elif isinstance(d, dict):
         for i in ("id", "name"):
-            if i in d and isinstance(d[i], (str, unicode)):
+            if i in d and isinstance(d[i], six.string_types):
                 ids.add(d[i])
         for s in d.values():
             find_ids(s, ids)
@@ -49,7 +51,7 @@ def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s, v in enumerate(d):
-            if isinstance(v, (str, unicode)):
+            if isinstance(v, six.string_types):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -58,7 +60,7 @@ def replace_refs(d, rewrite, stem, newstem):
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
         for s, v in d.items():
-            if isinstance(v, (str, unicode)):
+            if isinstance(v, six.string_types):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -154,5 +156,10 @@ def pack(document_loader, processobj, uri, metadata):
         replace_refs(packed, rewrite, r + "/" if "#" in r else r + "#", v + "/")
 
     import_embed(packed, set())
+
+    if len(packed["$graph"]) == 1:
+        # duplicate 'cwlVersion' inside $graph when there is a single item
+        # because we're printing contents inside '$graph' rather than whole dict
+        packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
 
     return packed

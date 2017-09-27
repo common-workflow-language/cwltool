@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # pylint: disable=unused-import
 """Loads a CWL document."""
 
@@ -5,7 +6,9 @@ import logging
 import os
 import re
 import uuid
-from typing import Any, Callable, Dict, Text, Tuple, Union, cast
+import hashlib
+import json
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast
 
 import requests.sessions
 from six import itervalues, string_types
@@ -21,6 +24,7 @@ from six.moves import urllib
 from . import process, update
 from .errors import WorkflowException
 from .process import Process, shortname
+from .update import ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
 
@@ -32,22 +36,22 @@ jobloaderctx = {
     u"id": u"@id"
 }
 
-def fetch_document(argsworkflow,  # type: Union[Text, dict[Text, Any]]
-                   resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
+def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
+                   resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
                    fetcher_constructor=None
-                   # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                   # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                    ):
     # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
-    document_loader = Loader(jobloaderctx,
-                             fetcher_constructor=fetcher_constructor)
+    document_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, string_types):
         split = urllib.parse.urlsplit(argsworkflow)
-        if split.scheme:
+        # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
+        if split.scheme and split.scheme in [u'http',u'https',u'file']:
             uri = argsworkflow
         elif os.path.exists(os.path.abspath(argsworkflow)):
             uri = file_uri(str(os.path.abspath(argsworkflow)))
@@ -86,7 +90,8 @@ def _convert_stdstreams_to_files(workflowobj):
                         if streamtype in workflowobj:
                             filename = workflowobj[streamtype]
                         else:
-                            filename = Text(uuid.uuid4())
+                            filename = Text(hashlib.sha1(json.dumps(workflowobj,
+                                        sort_keys=True).encode('utf-8')).hexdigest())
                             workflowobj[streamtype] = filename
                         out['type'] = 'File'
                         out['outputBinding'] = {'glob': filename}
@@ -135,7 +140,7 @@ def validate_document(document_loader,  # type: Loader
                       preprocess_only=False,  # type: bool
                       fetcher_constructor=None,
                       skip_schemas=None
-                      # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+                      # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -160,12 +165,18 @@ def validate_document(document_loader,  # type: Loader
     if "cwlVersion" in workflowobj:
         if not isinstance(workflowobj["cwlVersion"], (str, Text)):
             raise Exception("'cwlVersion' must be a string, got %s" % type(workflowobj["cwlVersion"]))
+        # strip out version
         workflowobj["cwlVersion"] = re.sub(
             r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
             workflowobj["cwlVersion"])
+        if workflowobj["cwlVersion"] not in list(ALLUPDATES):
+            # print out all the Supported Versions of cwlVersion
+            versions = list(ALLUPDATES) # ALLUPDATES is a dict
+            versions.sort()
+            raise ValidationException("'cwlVersion' not valid. Supported CWL versions are: \n{}".format("\n".join(versions)))
     else:
-        _logger.warn("No cwlVersion found, treating this file as draft-2.")
-        workflowobj["cwlVersion"] = "draft-2"
+        raise ValidationException("No cwlVersion found."
+            "Use the following syntax in your CWL workflow to declare version: cwlVersion: <version>")
 
     if workflowobj["cwlVersion"] == "draft-2":
         workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(
@@ -180,8 +191,7 @@ def validate_document(document_loader,  # type: Loader
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[CommentedMap, CommentedSeq, unicode]
-
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text]
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
@@ -263,11 +273,11 @@ def make_tool(document_loader,  # type: Loader
 
 def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               makeTool,  # type: Callable[..., Process]
-              kwargs=None,  # type: dict
+              kwargs=None,  # type: Dict
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
-              resolver=None,  # type: Callable[[Loader, Union[Text, dict[Text, Any]]], Text]
-              fetcher_constructor=None  # type: Callable[[Dict[unicode, unicode], requests.sessions.Session], Fetcher]
+              resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
+              fetcher_constructor=None  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
               ):
     # type: (...) -> Process
 

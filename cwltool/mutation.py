@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 from collections import namedtuple
-from typing import Any, Callable, Generator, Iterable, List, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
 
 from .errors import WorkflowException
 
@@ -66,3 +67,7 @@ class MutationManager(object):
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0,[], ""))
         obj[_generation] = current.generation
+
+    def unset_generation(self, obj):
+        # type: (Dict) -> None
+        obj.pop(_generation, None)

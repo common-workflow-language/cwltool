@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from typing import IO, Any, Dict, Text
 
 from rdflib import Graph
@@ -19,9 +20,9 @@ def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     return g
 
 
-def printrdf(wf, ctx, sr, stdout):
-    # type: (Process, ContextType, Text, IO[Any]) -> None
-    stdout.write(gather(wf, ctx).serialize(format=sr))
+def printrdf(wf, ctx, sr):
+    # type: (Process, ContextType, Text) -> Text
+    return gather(wf, ctx).serialize(format=sr).decode('utf-8')
 
 
 def lastpart(uri):  # type: (Any) -> Text
