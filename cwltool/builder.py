@@ -207,7 +207,7 @@ class Builder(object):
     def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
-            with SourceLine(binding, "valueFrom", WorkflowException):
+            with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
