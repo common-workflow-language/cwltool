@@ -392,7 +392,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
-        with SourceLine(inputs, e, WorkflowException):
+        with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
             fieldname = shortname(inp[u"id"])
             if job.get(fieldname) is not None:
                 pass
