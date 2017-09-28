@@ -519,19 +519,14 @@ class CommandLineTool(Process):
                     _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
             else:
                 for i, port in enumerate(ports):
-                    with SourceLine(ports, i, WorkflowException, debug):
-                        fragment = shortname(port["id"])
-                        try:
-                            ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
-                                                                compute_checksum=compute_checksum)
-                        except Exception as e:
-                            _logger.debug(
-                                u"Error collecting output for parameter '%s'"
-                                % shortname(port["id"]), exc_info=True)
-                            raise WorkflowException(
+                    def makeWorkflowException(msg):
+                        return WorkflowException(
                                 u"Error collecting output for parameter '%s':\n%s"
-                                % (shortname(port["id"]), indent(u(str(e)))))
-
+                                % (shortname(port["id"]), msg))
+                    with SourceLine(ports, i, makeWorkflowException, debug):
+                        fragment = shortname(port["id"])
+                        ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
+                                                            compute_checksum=compute_checksum)
             if ret:
                 revmap = partial(revmap_file, builder, outdir)
                 adjustDirObjs(ret, trim_listing)
