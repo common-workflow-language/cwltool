@@ -1,0 +1,1 @@
+{"cwl:tool": "packed.cwl#main", "input": {"class": "File", "location": "../data/ea/eaffc7e681dac138211269ebd0e3c7c8027a307964e86fe71e13acee1087ca69", "basename": "hello.txt", "nameroot": "hello", "nameext": ".txt"}, "reverse_sort": true}
