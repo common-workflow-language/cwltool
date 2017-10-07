@@ -279,9 +279,13 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
             if os.path.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
-                shutil.copy(src, dst)
+                shutil.copy2(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -388,7 +392,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
-        with SourceLine(inputs, e, WorkflowException):
+        with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
             fieldname = shortname(inp[u"id"])
             if job.get(fieldname) is not None:
                 pass

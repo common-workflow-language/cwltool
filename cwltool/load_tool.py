@@ -6,6 +6,8 @@ import logging
 import os
 import re
 import uuid
+import hashlib
+import json
 from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast
 
 import requests.sessions
@@ -88,7 +90,8 @@ def _convert_stdstreams_to_files(workflowobj):
                         if streamtype in workflowobj:
                             filename = workflowobj[streamtype]
                         else:
-                            filename = Text(uuid.uuid4())
+                            filename = Text(hashlib.sha1(json.dumps(workflowobj,
+                                        sort_keys=True).encode('utf-8')).hexdigest())
                             workflowobj[streamtype] = filename
                         out['type'] = 'File'
                         out['outputBinding'] = {'glob': filename}
