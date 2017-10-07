@@ -362,7 +362,13 @@ class DockerCommandLineJob(JobBase):
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
         if docker_req and user_space_docker_cmd:
-            img_id = str(docker_req["dockerPull"])
+            # For user-space docker implementations, a local image name or ID takes precedence over a network pull
+            if 'dockerImageId' in docker_req:
+                img_id = str(docker_req["dockerImageId"])
+            elif 'dockerPull' in docker_req:
+                img_id = str(docker_req["dockerPull"])
+            else:
+                raise Exception("Docker image must be specified as 'dockerImageId' or 'dockerPull' when using user space implementation of Docker")
         else:
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
