@@ -168,6 +168,25 @@ def downloadHttpFile(httpurl):
     r.close()
     return f.name
 
+def ensure_writable(path):
+    # type: (Text) -> None
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode|stat.S_IWUSR)
+            for name in dirs:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode|stat.S_IWUSR)
+    else:
+        st = os.stat(path)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(path, mode|stat.S_IWUSR)
+
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
     (absolute local path, absolute container path)
@@ -235,7 +254,7 @@ class PathMapper(object):
             if "contents" in obj and obj["location"].startswith("_:"):
                 self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile", staged)
             else:
-                with SourceLine(obj, "location", validate.ValidationException):
+                with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
                     deref = ab
                     if urllib.parse.urlsplit(deref).scheme in ['http','https']:
                         deref = downloadHttpFile(path)

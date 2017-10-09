@@ -162,6 +162,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
+
     dependency_resolvers_configuration_help = argparse.SUPPRESS
     dependencies_directory_help = argparse.SUPPRESS
     use_biocontainers_help = argparse.SUPPRESS
@@ -233,6 +235,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--force-docker-pull", action="store_true",
                         default=False, help="Pull latest docker image even if"
                                             " it is locally present", dest="force_docker_pull")
+    parser.add_argument("--no-read-only", action="store_true",
+                        default=False, help="Do not set root directoy in the"
+                                            " container as read-only", dest="no_read_only")
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -737,6 +742,7 @@ def main(argsl=None,  # type: List[str]
                      'cachedir': None,
                      'quiet': False,
                      'debug': False,
+                     'js_console': False,
                      'version': False,
                      'enable_dev': False,
                      'enable_ext': False,
@@ -855,7 +861,7 @@ def main(argsl=None,  # type: List[str]
                 return 0
 
             if args.print_rdf:
-                printrdf(tool, document_loader.ctx, args.rdf_serializer, stdout)
+                stdout.write(printrdf(tool, document_loader.ctx, args.rdf_serializer))
                 return 0
 
             if args.print_dot:
@@ -929,10 +935,16 @@ def main(argsl=None,  # type: List[str]
                     args.ro.close(args.provenance)
 
                 def locToPath(p):
+                    for field in ("path", "nameext", "nameroot", "dirname"):
+                        if field in p:
+                            del p[field]
                     if p["location"].startswith("file://"):
                         p["path"] = uri_file_path(p["location"])
 
                 visit_class(out, ("File", "Directory"), locToPath)
+
+                # Unsetting the Generation fron final output object
+                visit_class(out,("File",), MutationManager().unset_generation)
 
                 if isinstance(out, six.string_types):
                     stdout.write(out)

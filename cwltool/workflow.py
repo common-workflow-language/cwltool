@@ -337,6 +337,10 @@ class WorkflowJob(object):
 
     def try_make_job(self, step, final_output_callback, **kwargs):
         # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
+
+        js_console = kwargs.get("js_console", False)
+        debug = kwargs.get("debug", False)
+
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
@@ -375,7 +379,7 @@ class WorkflowJob(object):
                     if k in valueFrom:
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
-                            None, None, {}, context=v)
+                            None, None, {}, context=v, debug=debug, js_console=js_console)
                     else:
                         return v
 
@@ -447,8 +451,7 @@ class WorkflowJob(object):
         ro = kwargs.get("ro")
         customised_job={} #new job object for RO
         for e, i in enumerate(self.tool["inputs"]):
-
-            with SourceLine(self.tool["inputs"], e, WorkflowException):
+            with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
                 if iid in joborder:
                     customised_job[iid]= copy.deepcopy(joborder[iid]) #add the input element in dictionary for provenance

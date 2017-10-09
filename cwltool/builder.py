@@ -51,6 +51,7 @@ class Builder(object):
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.debug = False  # type: bool
+        self.js_console = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
         self.force_docker_pull = False  # type: bool
 
@@ -62,8 +63,8 @@ class Builder(object):
         self.job_script_provider = None  # type: Any
 
     def build_job_script(self, commands):
-        # type: (List[bytes]) -> Text
-        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[bytes]], Text]
+        # type: (List[Text]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
         if build_job_script_method:
             return build_job_script_method(self, commands)
         else:
@@ -206,7 +207,7 @@ class Builder(object):
     def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
-            with SourceLine(binding, "valueFrom", WorkflowException):
+            with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
@@ -256,5 +257,6 @@ class Builder(object):
                                   self.resources,
                                   context=context, pull_image=pull_image,
                                   timeout=self.timeout,
-                                  force_docker_pull=self.force_docker_pull,
-                                  debug=self.debug)
+                                  debug=self.debug,
+                                  js_console=self.js_console,
+                                  force_docker_pull=self.force_docker_pull)
