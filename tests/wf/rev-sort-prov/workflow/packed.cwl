@@ -1,5 +1,8 @@
 {
-    "cwlVersion": "v1.0",  
+    "cwlVersion": "v1.0", 
+    "$schemas": [
+        "file:///Users/farahkhan/Desktop/cwltool/tests/wf/empty.ttl"
+    ], 
     "$graph": [
         {
             "class": "Workflow", 
@@ -16,7 +19,7 @@
                     "doc": "The input file to be processed.", 
                     "default": {
                         "class": "File", 
-                        "location": "file:///C:/Users/stain/src/cwltool/tests/wf/hello.txt"
+                        "location": "file:///Users/farahkhan/Desktop/cwltool/tests/wf/hello.txt"
                     }, 
                     "id": "#main/input"
                 }, 
