@@ -16,7 +16,7 @@
                     "doc": "The input file to be processed.", 
                     "default": {
                         "class": "File", 
-                        "location": "file:../data/ea/eaffc7e681dac138211269ebd0e3c7c8027a307964e86fe71e13acee1087ca69/hello.txt"
+                        "location": "file:///C:/Users/stain/src/cwltool/tests/wf/hello.txt"
                     }, 
                     "id": "#main/input"
                 }, 

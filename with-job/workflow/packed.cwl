@@ -1,8 +1,5 @@
 {
-    "cwlVersion": "v1.0", 
-    "$schemas": [
-        "file:///C:/Users/stain/src/cwltool/tests/wf/empty.ttl"
-    ], 
+    "cwlVersion": "v1.0",  
     "$graph": [
         {
             "class": "Workflow", 
