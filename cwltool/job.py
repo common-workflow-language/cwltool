@@ -321,15 +321,20 @@ class DockerCommandLineJob(JobBase):
             if not vol.staged:
                 continue
             if vol.target.startswith(container_outdir+"/"):
-                host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir)+1:])
+                host_outdir_tgt = os.path.join(
+                    host_outdir, vol.target[len(container_outdir)+1:])
             else:
                 host_outdir_tgt = None
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
+                    runtime.append(u"--volume=%s:%s:ro" % (
+                        docker_windows_path_adjust(vol.resolved),
+                        docker_windows_path_adjust(vol.target)))
             elif vol.type == "WritableFile":
                 if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
+                    runtime.append(u"--volume=%s:%s:rw" % (
+                        docker_windows_path_adjust(vol.resolved),
+                        docker_windows_path_adjust(vol.target)))
                 else:
                     shutil.copy(vol.resolved, host_outdir_tgt)
                     ensure_writable(host_outdir_tgt)
@@ -338,7 +343,9 @@ class DockerCommandLineJob(JobBase):
                     os.makedirs(vol.target, 0o0755)
                 else:
                     if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
+                        runtime.append(u"--volume=%s:%s:rw" % (
+                            docker_windows_path_adjust(vol.resolved),
+                            docker_windows_path_adjust(vol.target)))
                     else:
                         shutil.copytree(vol.resolved, host_outdir_tgt)
                         ensure_writable(host_outdir_tgt)
@@ -350,7 +357,9 @@ class DockerCommandLineJob(JobBase):
                     fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
                     with os.fdopen(fd, "wb") as f:
                         f.write(vol.resolved.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
+                    runtime.append(u"--volume=%s:%s:rw" % (
+                        docker_windows_path_adjust(createtmp),
+                        docker_windows_path_adjust(vol.target)))
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -362,18 +371,22 @@ class DockerCommandLineJob(JobBase):
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
         if docker_req and user_space_docker_cmd:
-            # For user-space docker implementations, a local image name or ID takes precedence over a network pull
+            # For user-space docker implementations, a local image name or ID
+            # takes precedence over a network pull
             if 'dockerImageId' in docker_req:
                 img_id = str(docker_req["dockerImageId"])
             elif 'dockerPull' in docker_req:
                 img_id = str(docker_req["dockerPull"])
             else:
-                raise Exception("Docker image must be specified as 'dockerImageId' or 'dockerPull' when using user space implementation of Docker")
+                raise Exception("Docker image must be specified as "
+                        "'dockerImageId' or 'dockerPull' when using user "
+                        "space implementations of Docker")
         else:
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = str(docker.get_from_requirements(docker_req, True, pull_image))
+                    img_id = str(docker.get_from_requirements(
+                        docker_req, True, pull_image))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
@@ -390,8 +403,10 @@ class DockerCommandLineJob(JobBase):
                         "Docker is required to run this tool: %s" % e)
                 else:
                     raise WorkflowException(
-                        "Docker is not available for this tool, try --no-container"
-                        " to disable Docker: %s" % e)
+                        "Docker is not available for this tool, try "
+                        "--no-container to disable Docker, or install "
+                        "a user space Docker replacement like uDocker with "
+                        "--user-space-docker-cmd.: %s" % e)
 
         self._setup(kwargs)
 
@@ -400,8 +415,11 @@ class DockerCommandLineJob(JobBase):
         else:
             runtime = [u"docker", u"run", u"-i"]
 
-        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
-        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
+        runtime.append(u"--volume=%s:%s:rw" % (
+            docker_windows_path_adjust(os.path.realpath(self.outdir)),
+            self.builder.outdir))
+        runtime.append(u"--volume=%s:%s:rw" % (
+            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
         self.add_volumes(self.pathmapper, runtime)
         if self.generatemapper:
@@ -411,11 +429,12 @@ class DockerCommandLineJob(JobBase):
             runtime = [x.replace(":ro", "") for x in runtime]
             runtime = [x.replace(":rw", "") for x in runtime]
 
-        runtime.append(u"--workdir=%s" % (docker_windows_path_adjust(self.builder.outdir)))
+        runtime.append(u"--workdir=%s" % (
+            docker_windows_path_adjust(self.builder.outdir)))
         if not user_space_docker_cmd:
 
             if not kwargs.get("no_read_only"):
-               runtime.append(u"--read-only=true")
+                runtime.append(u"--read-only=true")
 
             if kwargs.get("custom_net", None) is not None:
                 runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
@@ -426,10 +445,12 @@ class DockerCommandLineJob(JobBase):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            if not onWindows():  # MS Windows does not have getuid() or geteuid() functions
+            if not onWindows():
+                # MS Windows does not have getuid() or geteuid() functions
                 euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-            if kwargs.get("no_match_user", None) is False and (euid, egid) != (None, None):
+            if kwargs.get("no_match_user", None) is False \
+                    and (euid, egid) != (None, None):
                 runtime.append(u"--user=%d:%d" % (euid, egid))
 
         if rm_container:
@@ -447,7 +468,8 @@ class DockerCommandLineJob(JobBase):
 
         runtime.append(img_id)
 
-        self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute(
+            runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
 
 
 def _job_popen(

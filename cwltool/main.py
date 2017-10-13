@@ -160,7 +160,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
     parser.add_argument("--user-space-docker-cmd",
-                        help="Specify a user space docker command that will be used to call 'pull' and 'run'")
+                        help="(Linux/OS X only) Specify a user space docker "
+                        "command (like udocker or dx-docker) that will be "
+                        "used to call 'pull' and 'run'")
 
     dependency_resolvers_configuration_help = argparse.SUPPRESS
     dependencies_directory_help = argparse.SUPPRESS
