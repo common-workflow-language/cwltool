@@ -292,7 +292,7 @@ class WorkflowJob(object):
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
-        try:
+        try: #
             wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource",
                                    incomplete=True)
         except WorkflowException as e:
@@ -509,7 +509,9 @@ class WorkflowJob(object):
                     yield None
 
         if not self.did_callback:
-            self.do_output_callback(output_callback)
+            self.do_output_callback(output_callback) #could have called earlier on line 336;
+            #depends which one comes first. All steps are completed or all outputs have beend produced.
+
 
 
 class Workflow(Process):

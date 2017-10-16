@@ -8,12 +8,14 @@ import shutil
 import tempfile
 import logging
 import hashlib
+from shutil import copyfile
 
 _logger = logging.getLogger("cwltool")
 
 # RO folders
 METADATA = "metadata"
 DATA = "data"
+OUTPUT= "output"
 WORKFLOW = "workflow"
 SNAPSHOT = "snapshot"
 # sub-folders
@@ -25,7 +27,7 @@ class ProvenanceException(BaseException):
 
 ## sha1, compatible with the File type's "checksum" field
 ## e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
-## See ./cwltool/schemas/v1.0/Process.yml 
+## See ./cwltool/schemas/v1.0/Process.yml
 hashmethod = hashlib.sha1
 
 class RO():
@@ -51,11 +53,11 @@ class RO():
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
 
-    def _checksum_copy(self, fp, copy_to_fp=None, 
+    def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
         checksum = hashmethod()
         contents = fp.read(buffersize)
-        while contents != b"":            
+        while contents != b"":
             if copy_to_fp is not None:
                 copy_to_fp.write(contents)
             checksum.update(contents)
@@ -63,24 +65,24 @@ class RO():
         if copy_to_fp is not None:
             copy_to_fp.flush()
         return checksum.hexdigest().lower()
-    
+
 
     def add_data_file(self, from_fp):
         with tempfile.NamedTemporaryFile(
                  prefix=self.tmpPrefix, delete=False) as tmp:
-            checksum = self._checksum_copy(from_fp, tmp)   
+            checksum = self._checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
         folder = os.path.join(self.folder, DATA, checksum[0:2])
         path = os.path.join(folder, checksum)
 
-        # os.rename assumded safe, as our temp file should
+        # os.rename assumed safe, as our temp file should
         # be in same file system as our temp folder
         if not os.path.isdir(folder):
             os.makedirs(folder)
         os.rename(tmp.name, path)
 
-        # Relative posix path 
+        # Relative posix path
         # (to avoid \ on Windows)
         rel_path = self._posix_path(os.path.relpath(path, self.folder))
 
@@ -88,7 +90,7 @@ class RO():
         if hashmethod == hashlib.sha1:
             self._add_to_bagit(rel_path, sha1=checksum)
         else:
-            _logger.warning(u"[provenance] Unknown hash method %s for bagit manifest", 
+            _logger.warning(u"[provenance] Unknown hash method %s for bagit manifest",
                 hashmethod)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
@@ -97,7 +99,7 @@ class RO():
 
     def _convert_path(self, path, from_path=os.path, to_path=posixpath):
         if from_path == to_path:
-            return path        
+            return path
         if (from_path.isabs(path)):
             raise ProvenanceException("path must be relative: %s" % path)
             # ..as it might include system paths like "C:\" or /tmp
@@ -117,7 +119,7 @@ class RO():
         local_path = os.path.join(self.folder, self._local_path(rel_path))
         if not os.path.exists(local_path):
             raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
-        
+
         if not "sha1" in checksums:
             # ensure we always have sha1
             checksums = dict(checksums)
@@ -126,8 +128,8 @@ class RO():
 
         # Add checksums to corresponding manifest files
         for (method,hash) in checksums.items():
-            # Quite naive for now - assume file is not already listed in manifest                
-            manifest = os.path.join(self.folder, 
+            # Quite naive for now - assume file is not already listed in manifest
+            manifest = os.path.join(self.folder,
                 "manifest-" + method.lower() + ".txt")
             with open(manifest, "a") as checksumFile:
                 line = "%s %s\n" % (hash, rel_path)
@@ -177,19 +179,33 @@ class RO():
                 self._relativise_files(o, kwargs)
         except TypeError:
             pass
+#**************************************
+    #copy output files to the RO
+    def add_output(self, workflow_output=None, saveTo=None):
+        if isinstance(workflow_output, dict):
+            #Iterate over the output object, collect and relative the output file paths
+            for item in workflow_output:
+                if workflow_output[item]["class"] == "File":
+                    outputfile_path= os.path.join(self.folder, OUTPUT, workflow_output[item]["checksum"][5:7])
+                    path = os.path.join(outputfile_path, workflow_output[item]["checksum"])
+                    if not os.path.isdir(path):
+                        os.makedirs(path)
+                    _logger.info("Moving output files to RO")
+                    shutil.move(workflow_output[item]["location"][7:], path)
 
+#**************************************
 
     def close(self, saveTo=None):
         """Close the Research Object, optionally saving to specified folder.
 
         Closing will remove any temporary files used by this research object.
-        After calling this method, this ResearchObject instance can no longer 
+        After calling this method, this ResearchObject instance can no longer
         be used, except for no-op calls to .close().
 
         The 'saveTo' folder should not exist - if it does, it will be deleted.
 
         It is safe to call this function multiple times without the
-        'saveTo' argument, e.g. within a try..finally block to 
+        'saveTo' argument, e.g. within a try..finally block to
         ensure the temporary files of this RO are removed.
         """
         if saveTo is None:
@@ -203,7 +219,7 @@ class RO():
 
             if os.path.isdir(saveTo):
                 _logger.info(u"[provenance] Deleting existing %s", saveTo)
-                shutil.rmtree(saveTo)         
+                shutil.rmtree(saveTo)
 
             shutil.move(self.folder, saveTo)
             _logger.info(u"[provenance] Research Object saved to %s", saveTo)

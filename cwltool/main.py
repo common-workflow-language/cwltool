@@ -806,7 +806,7 @@ def main(argsl=None,  # type: List[str]
             res.close()
         else:
             use_standard_schema("v1.0")
-
+        #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
             args.ro = create_ro(tmpPrefix=args.tmpdir_prefix)
 
@@ -928,10 +928,11 @@ def main(argsl=None,  # type: List[str]
                                      make_fs_access=make_fs_access,
                                      **vars(args))
 
-            # This is the workflow output, it needs to be written
+            # prov: This is the workflow output, it needs to be written
             if out is not None:
-
+                #prov: closing the RO after writing everything and removing any temporary files
                 if args.provenance and args.ro:
+                    args.ro.add_output(out, args.provenance)
                     args.ro.close(args.provenance)
 
                 def locToPath(p):
@@ -943,7 +944,7 @@ def main(argsl=None,  # type: List[str]
 
                 visit_class(out, ("File", "Directory"), locToPath)
 
-                # Unsetting the Generation fron final output object
+                # Unsetting the Generation from final output object
                 visit_class(out,("File",), MutationManager().unset_generation)
 
                 if isinstance(out, six.string_types):
