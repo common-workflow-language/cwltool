@@ -500,3 +500,18 @@ logger_handler
       logging.Handler
 
   Handler object for logging.
+
+Running user-space implementations of Docker
+--------------------------------------------
+
+Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
+
+Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
+
+For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+
+```
+cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
+```
