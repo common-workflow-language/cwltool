@@ -1,0 +1,47 @@
+{
+  "wasDerivedFrom": {
+    "_:id2": {
+      "prov:usedEntity": "govftp:oeamlist.zip", 
+      "prov:generatedEntity": "now:employment-article-v1.html"
+    }
+  }, 
+  "used": {
+    "_:id3": {
+      "prov:entity": "govftp:oesm11st.zip", 
+      "prov:activity": "is:writeArticle"
+    }
+  }, 
+  "wasAttributedTo": {
+    "_:id1": {
+      "prov:entity": "now:employment-article-v1.html", 
+      "prov:agent": "nowpeople:Bob"
+    }
+  }, 
+  "agent": {
+    "nowpeople:Bob": {}
+  }, 
+  "entity": {
+    "now:employment-article-v1.html": {}, 
+    "govftp:oesmlist.zip": {
+      "prov:type": "void:Dataset", 
+      "prov:label": "employment-stats-2011"
+    }
+  }, 
+  "prefix": {
+    "void": "http://vocab.deri.ie/void#", 
+    "govftp": "ftp://ftp.bls.gov/pub/special.requests/oes/", 
+    "bk": "http://www.provbook.org/ns/#", 
+    "nowpeople": "http://www.provbook.org/nownews/people/", 
+    "now": "http://www.provbook.org/nownews/", 
+    "is": "http://www.provbook.org/nownews/is/#"
+  }, 
+  "activity": {
+    "is:writeArticle": {}
+  }, 
+  "wasGeneratedBy": {
+    "_:id4": {
+      "prov:entity": "now:employment-article-v1.html", 
+      "prov:activity": "is:writeArticle"
+    }
+  }
+}

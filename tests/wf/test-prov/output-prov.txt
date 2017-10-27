@@ -1,0 +1,9 @@
+document
+  prefix nowpeople <http://www.provbook.org/nownews/people/>
+  prefix now <http://www.provbook.org/nownews/>
+  prefix bk <http://www.provbook.org/ns/#>
+  
+  entity(now:employment-article-v1.html)
+  agent(nowpeople:Bob)
+  wasAttributedTo(now:employment-article-v1.html, nowpeople:Bob)
+endDocument
