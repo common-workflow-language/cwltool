@@ -8,8 +8,12 @@ import functools
 import json
 import logging
 import os
+import time
+from time import gmtime, strftime
 import sys
 import tempfile
+import prov.model as prov
+import datetime
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
 
@@ -43,13 +47,20 @@ from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
-
 _logger = logging.getLogger("cwltool")
+
+#Adding default namespaces
+document = prov.ProvDocument()
+document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
+document.add_namespace('prov', 'http://www.w3.org/ns/prov')
+document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
+document.add_namespace('run', 'urn:uuid:')
+document.add_namespace('engine', 'urn:uuid:')
+document.add_namespace('data', 'urn:hash:sha256')
 
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
-
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
@@ -243,7 +254,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     return parser
 
-
+#for retrospective details. This is where we should make all the changes and capture provenance.
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
                         **kwargs  # type: Any
@@ -266,7 +277,7 @@ def single_job_executor(t,  # type: Process
     output_dirs.add(kwargs["outdir"])
 
     kwargs["mutation_manager"] = MutationManager()
-
+#capture requirements in PROV document.
     jobReqs = None
     if "cwl:requirements" in job_order_object:
         jobReqs = job_order_object["cwl:requirements"]
@@ -279,16 +290,17 @@ def single_job_executor(t,  # type: Process
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
-
     try:
-        for r in jobiter:
+        for r in jobiter: #its each step of the workflow
             if r:
+
+                a1 = document.activity('run:2e1287e0-6dfb-11e7-8acf-0242ac110002', datetime.datetime.now(), None, {prov.PROV_TYPE: "edit"})
                 builder = kwargs.get("builder", None)  # type: Builder
                 if builder is not None:
                     r.builder = builder
                 if r.outdir:
                     output_dirs.add(r.outdir)
-                r.run(**kwargs)
+                r.run(**kwargs) #this is where you run each step. so start and end time for the step
             else:
                 _logger.error("Workflow cannot make any more progress.")
                 break
@@ -672,7 +684,7 @@ def print_pack(document_loader, processobj, uri, metadata):
     else:
         return json.dumps(packed["$graph"][0], indent=4)
 
-
+#version of CWLtool used to execute the workflow.
 def versionstring():
     # type: () -> Text
     pkg = pkg_resources.require("cwltool")
@@ -809,7 +821,7 @@ def main(argsl=None,  # type: List[str]
         #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
             args.ro = create_ro(tmpPrefix=args.tmpdir_prefix)
-
+            #HERE IT IS FETCHING the job object, workflow description and NOT RUNNING ANYTHING yet
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
@@ -819,7 +831,7 @@ def main(argsl=None,  # type: List[str]
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
                 return 0
-
+                #validation happens here after loading at 813
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
@@ -914,9 +926,11 @@ def main(argsl=None,  # type: List[str]
                                                       fetcher_constructor=fetcher_constructor)
         except SystemExit as e:
             return e.code
-
+        _logger.info(u"Start Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
         if isinstance(job_order_object, int):
             return job_order_object
+# 925 runs the workflow so generate start time here or back at line 813. and same is the
+#case with RUN uuid.
 
         try:
             setattr(args, 'basedir', job_order_object[1])
@@ -934,6 +948,7 @@ def main(argsl=None,  # type: List[str]
                 if args.provenance and args.ro:
                     args.ro.add_output(out, args.provenance)
                     args.ro.close(args.provenance)
+                    document.serialize('TESTprov.json', indent=2)
 
                 def locToPath(p):
                     for field in ("path", "nameext", "nameroot", "dirname"):
@@ -982,6 +997,7 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
+        _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
         if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
             args.ro.close()
         _logger.removeHandler(stderr_handler)
