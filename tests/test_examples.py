@@ -7,6 +7,8 @@ import sys
 
 from io import StringIO
 
+from cwltool.utils import onWindows
+
 try:
     reload
 except:
@@ -563,6 +565,9 @@ class TestJsConsole(TestCmdLine):
             self.assertNotIn("[err] Error message", output)
 
 
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
 class TestCache(TestCmdLine):
     def test_wf_without_container(self):
         test_file = "hello-workflow.cwl"
