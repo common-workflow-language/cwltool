@@ -556,7 +556,7 @@ class TestJsConsole(TestCmdLine):
 
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, output = self.get_main_stderr(["--no-container", 
+            error_code, output = self.get_main_stderr(["--no-container",
                 get_data("tests/wf/" + test_file)])
 
             self.assertNotIn("[log] Log message", output)
@@ -568,6 +568,7 @@ class TestCache(TestCmdLine):
         test_file = "hello-workflow.cwl"
         error_code, output = self.get_main_stderr(["--cachedir", "cache",
                                                        get_data("tests/wf/" + test_file), "--usermessage", "hello"])
+        self.assertIn("completed success", output)
         self.assertEquals(error_code, 0)
 
 
