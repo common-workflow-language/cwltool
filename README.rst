@@ -164,7 +164,7 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
 
-CWL tools may be decoarated with ``SoftwareRequirement`` hints that cwltool
+CWL tools may be decorated with ``SoftwareRequirement`` hints that cwltool
 may in turn use to resolve to packages in various package managers or
 dependency management systems such as `Environment Modules
 <http://modules.sourceforge.net/>`__.
@@ -193,8 +193,8 @@ following ``hint`` definition for an example CWL tool.
       - r93
 
 Now imagine deploying cwltool on a cluster with Software Modules installed
-and that a ``seqtk`` module is avaialble at version ``r93``. This means cluster
-users likely won't have the ``seqtk`` the binary on their ``PATH`` by default but after
+and that a ``seqtk`` module is available at version ``r93``. This means cluster
+users likely won't have the binary ``seqtk`` on their ``PATH`` by default, but after
 sourcing this module with the command ``modulecmd sh load seqtk/r93`` ``seqtk`` is
 available on the ``PATH``. A simple dependency resolvers configuration file, called
 ``dependency-resolvers-conf.yml`` for instance, that would enable cwltool to source
