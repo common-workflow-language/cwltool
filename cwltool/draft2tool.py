@@ -264,6 +264,8 @@ class CommandLineTool(Process):
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
             elif kwargs.get("default_container", None) is not None and kwargs.get("use_container"):
                 dockerimg = kwargs.get("default_container")
+            else:
+                dockerimg = None
 
             if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
