@@ -925,11 +925,19 @@ def main(argsl=None,  # type: List[str]
             # this block starts executing the workflow so generate start time
             # and workflow RUN uuid.
             WorkflowRunID="run:"+str(uuid.uuid4())
+            roIdentifier=str(uuid.uuid4())
+            roIdentifierWorkflow="app://"+roIdentifier+"/workflow/packed.cwl#"
+            document.add_namespace("wf", roIdentifierWorkflow)
+            roIdentifierInput="app://"+roIdentifier+"/workflow/master-job.json#"
+            document.add_namespace("input", roIdentifierInput)
             #Get cwltool version
             cwlversionProv=versionfunc().split()[-1]
             #define workflow run level activity
             activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
-            
+            engineUUID="engine: "+str(uuid.uuid4())
+            document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", prov.PROV_TYPE: "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
+            document.wasAssociatedWith(WorkflowRunID, engineUUID, "wf: main")
+
 
             if job_order_object is None:
                     job_order_object = load_job_order(args, tool, stdin,
