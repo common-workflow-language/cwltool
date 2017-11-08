@@ -850,6 +850,7 @@ def main(argsl=None,  # type: List[str]
                 packedWorkflow=args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
                 #extract path to include in PROV document
                 packedWorkflowPath=str(packedWorkflow.split("/")[-2])+"/"+str(packedWorkflow.split("/")[-1])+"#main"
+                wf_Steps=args.ro.retrieve_info(print_pack(document_loader, processobj, uri, metadata))
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
@@ -924,20 +925,24 @@ def main(argsl=None,  # type: List[str]
         try:
             # this block starts executing the workflow so generate start time
             # and workflow RUN uuid.
-            WorkflowRunID="run:"+str(uuid.uuid4())
-            roIdentifier=str(uuid.uuid4())
-            roIdentifierWorkflow="app://"+roIdentifier+"/workflow/packed.cwl#"
-            document.add_namespace("wf", roIdentifierWorkflow)
-            roIdentifierInput="app://"+roIdentifier+"/workflow/master-job.json#"
-            document.add_namespace("input", roIdentifierInput)
-            #Get cwltool version
-            cwlversionProv=versionfunc().split()[-1]
-            #define workflow run level activity
-            activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
-            engineUUID="engine: "+str(uuid.uuid4())
-            document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", prov.PROV_TYPE: "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
-            document.wasAssociatedWith(WorkflowRunID, engineUUID, "wf: main")
-
+            if args.provenance and args.ro:
+                #args.ro.PROVfileGeneration(args.provenance)
+                WorkflowRunUUID=str(uuid.uuid4())
+                WorkflowRunID = "run:"+WorkflowRunUUID
+                roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
+                document.add_namespace("wf", roIdentifierWorkflow)
+                roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/master-job.json#"
+                document.add_namespace("input", roIdentifierInput)
+                #Get cwltool version
+                cwlversionProv="cwltool "+ str(versionfunc().split()[-1])
+                #define workflow run level activity
+                activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
+                #adding the SoftwareAgent to PROV document
+                engineUUID="engine: "+str(uuid.uuid4())
+                document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", prov.PROV_TYPE: "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
+                #association between SoftwareAgent and WorkflowRun
+                document.wasAssociatedWith(WorkflowRunID, engineUUID, "wf:main")
+                #TODO add here the steps for prospective prov using wf_Steps
 
             if job_order_object is None:
                     job_order_object = load_job_order(args, tool, stdin,

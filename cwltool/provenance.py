@@ -9,6 +9,10 @@ import tempfile
 import logging
 import hashlib
 from shutil import copyfile
+import io
+import ruamel.yaml as yaml
+import warnings
+warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 
 _logger = logging.getLogger("cwltool")
 
@@ -45,7 +49,9 @@ class RO():
         # TODO: Write manifest and bagit metadata
 #        _logger.info(u"[provenance] Generated research object manifest: %s", self.folder)
         pass
-
+    def PROVfileGeneration(self):
+        #TODO: this is going to generate all the namespaces and initial structure of the PROV document
+        pass
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
         with open (path, "w") as f:
@@ -54,6 +60,23 @@ class RO():
 
         _logger.info(u"[provenance] Added packed workflow: %s", path)
         return path
+    def retrieve_info(self, packed):
+        steps_wfRun= []
+        with open(packed, 'r') as stream:
+            try:
+                arguments=yaml.load(stream)
+                #if $graph is in yaml document
+                if "$graph" in arguments:
+                    for step in arguments["$graph"][0]["steps"]:
+                        steps_wfRun.append(step["id"])
+                else: #otherwise use this block
+                    for step in arguments:
+                        if step=="steps":
+                            for each in arguments[step]:
+                                steps_wfRun.append(each['id'])
+                return steps_wfRun
+            except yaml.YAMLError as exc:
+                print(exc)
     def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
         checksum = hashmethod()
