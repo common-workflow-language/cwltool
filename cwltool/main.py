@@ -16,7 +16,7 @@ import prov.model as prov
 import datetime
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
-
+import uuid
 import pkg_resources  # part of setuptools
 import requests
 import six
@@ -55,9 +55,11 @@ document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
 document.add_namespace('prov', 'http://www.w3.org/ns/prov')
 document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
 document.add_namespace('run', 'urn:uuid:')
-document.add_namespace('engine', 'urn:uuid:')
+document.add_namespace('engine', 'urn:uuid4:')
 document.add_namespace('data', 'urn:hash:sha256')
-
+packedWorkflowPath=""
+WorkflowRunID=""
+activity_workflowRun={}
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
@@ -292,9 +294,11 @@ def single_job_executor(t,  # type: Process
                     **kwargs)
     try:
         for r in jobiter: #its each step of the workflow
-            if r:
+            if r: #for every step, a uuid as ProcessRunID is generated for provenance record
+                ProcessRunID="run:"+str(uuid.uuid4())
+                a1 = document.activity(ProcessRunID, datetime.datetime.now(), None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
 
-                a1 = document.activity('run:2e1287e0-6dfb-11e7-8acf-0242ac110002', datetime.datetime.now(), None, {prov.PROV_TYPE: "edit"})
+                #document.wasAssociatedWith(ProcessRunID, WorkflowRunID)
                 builder = kwargs.get("builder", None)  # type: Builder
                 if builder is not None:
                     r.builder = builder
@@ -843,8 +847,9 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
             if args.provenance: # Can't really be combined with args.pack at same time
-                args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
-
+                packedWorkflow=args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
+                #extract path to include in PROV document
+                packedWorkflowPath=str(packedWorkflow.split("/")[-2])+"/"+str(packedWorkflow.split("/")[-1])+"#main"
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
@@ -917,6 +922,15 @@ def main(argsl=None,  # type: List[str]
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         try:
+            # this block starts executing the workflow so generate start time
+            # and workflow RUN uuid.
+            WorkflowRunID="run:"+str(uuid.uuid4())
+            #Get cwltool version
+            cwlversionProv=versionfunc().split()[-1]
+            #define workflow run level activity
+            activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
+            
+
             if job_order_object is None:
                     job_order_object = load_job_order(args, tool, stdin,
                                                       print_input_deps=args.print_input_deps,
@@ -926,11 +940,11 @@ def main(argsl=None,  # type: List[str]
                                                       fetcher_constructor=fetcher_constructor)
         except SystemExit as e:
             return e.code
-        _logger.info(u"Start Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
+
+
         if isinstance(job_order_object, int):
             return job_order_object
-# 925 runs the workflow so generate start time here or back at line 813. and same is the
-#case with RUN uuid.
+
 
         try:
             setattr(args, 'basedir', job_order_object[1])

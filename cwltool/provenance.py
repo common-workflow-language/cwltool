@@ -51,8 +51,9 @@ class RO():
         with open (path, "w") as f:
             # YAML is always UTF8
             f.write(packed.encode("UTF-8"))
-        _logger.info(u"[provenance] Added packed workflow: %s", path)
 
+        _logger.info(u"[provenance] Added packed workflow: %s", path)
+        return path
     def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
         checksum = hashmethod()
