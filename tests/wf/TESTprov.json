@@ -1,25 +1,32 @@
 {
   "prefix": {
+    "engine": "urn:uuid4:", 
+    "run": "urn:uuid:", 
     "wfprov": "http://purl.org/wf4ever/wfprov#", 
     "wfdesc": "http://purl.org/wf4ever/wfdesc#", 
-    "prov_1": "http://www.w3.org/ns/prov", 
-    "run": "urn:uuid:", 
-    "data": "urn:hash:sha256"
+    "data": "urn:hash:sha256", 
+    "prov_1": "http://www.w3.org/ns/prov"
   }, 
   "activity": {
-    "run:2e1287e0-6dfb-11e7-8acf-0242ac110002": [
-      {
-        "prov:startTime": "2017-11-06T19:51:44.244390", 
-        "prov:type": "edit"
-      }, 
-      {
-        "prov:startTime": "2017-11-06T19:51:44.254447", 
-        "prov:type": "edit"
-      }, 
-      {
-        "prov:startTime": "2017-11-06T19:51:46.095003", 
-        "prov:type": "edit"
-      }
-    ]
+    "run:786d83f1-36ec-4ae9-a6c0-fa3ea6339d8d": {
+      "prov:startTime": "2017-11-08T12:54:53.097762", 
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }, 
+    "run:b784ff93-38cd-4247-9e2d-5b1bacc579c0": {
+      "prov:startTime": "2017-11-08T12:54:53.105573", 
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }, 
+    "run:c2291c20-c304-403b-b789-c91ff8c9ac5e": {
+      "prov:startTime": "2017-11-08T12:54:53.085600", 
+      "prov:type": "wfprov:WorkflowRun", 
+      "prov:label": "workflow/packed.cwl#main"
+    }, 
+    "run:173faa4d-e197-451f-8403-cce435484681": {
+      "prov:startTime": "2017-11-08T12:54:54.550863", 
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }
   }
 }
