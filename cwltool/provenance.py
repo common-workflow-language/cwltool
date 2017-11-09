@@ -52,17 +52,9 @@ class RO():
     def PROVfileGeneration(self):
         #TODO: this is going to generate all the namespaces and initial structure of the PROV document
         pass
-    def packed_workflow(self, packed):
-        path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
-        with open (path, "w") as f:
-            # YAML is always UTF8
-            f.write(packed.encode("UTF-8"))
-
-        _logger.info(u"[provenance] Added packed workflow: %s", path)
-        return path
-    def retrieve_info(self, packed):
+    def retrieve_info(self, packedFile):
         steps_wfRun= []
-        with open(packed, 'r') as stream:
+        with open(packedFile, 'r') as stream:
             try:
                 arguments=yaml.load(stream)
                 #if $graph is in yaml document
@@ -74,9 +66,20 @@ class RO():
                         if step=="steps":
                             for each in arguments[step]:
                                 steps_wfRun.append(each['id'])
+                _logger.info(u"[provenance] WorkflowSteps Generated: %s", steps_wfRun)
                 return steps_wfRun
             except yaml.YAMLError as exc:
-                print(exc)
+                _logger.warning(exc)
+
+    def packed_workflow(self, packed):
+        path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
+        with open (path, "w") as f:
+            # YAML is always UTF8
+            f.write(packed.encode("UTF-8"))
+        _logger.info(u"[provenance] Added packed workflow: %s", path)
+        workflowSteps=self.retrieve_info(path)
+        return (path, workflowSteps)
+
     def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
         checksum = hashmethod()
