@@ -467,7 +467,6 @@ class WorkflowJob(object):
 
         if ro: #create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
             relativised_input_object=ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
-            _logger.info(u"[provenance] Relativised input object for provenance inside WorkflowJob: %s", relativised_input_object)
 
 
         for s in self.steps:
@@ -512,9 +511,6 @@ class WorkflowJob(object):
                     break
                 else:
                     yield None
-        #if ro: #create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
-        #    ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
-            #relativised_input_object.update({k: v for k, v in relativised_input_objecttemp.items() if v})
 
         if not self.did_callback:
             self.do_output_callback(output_callback) #could have called earlier on line 336;

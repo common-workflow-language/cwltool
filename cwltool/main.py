@@ -10,6 +10,7 @@ import logging
 import os
 import copy
 import time
+import ipdb
 from time import gmtime, strftime
 import sys
 import tempfile
@@ -29,7 +30,8 @@ import schema_salad.validate as validate
 from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
-from . import draft2tool, workflow
+from . import draft2tool
+from . import workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
@@ -64,6 +66,7 @@ document.add_namespace('data', 'urn:hash:sha256')
 
 packedWorkflowPath=""
 WorkflowRunID=""
+engineUUID=""
 activity_workflowRun={}
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
@@ -260,7 +263,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
-
+ipdb.set_trace()
 #for retrospective details. This is where we should make all the changes and capture provenance.
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
@@ -273,7 +276,6 @@ def single_job_executor(t,  # type: Process
     ro = kwargs.get("ro")
     customised_job=copy.deepcopy(job_order_object)
     relativised_input_object=ro.create_job(customised_job, kwargs)
-    _logger.info("Inputs for the process: ", relativised_input_object)
     for key, value in relativised_input_object.items():
         strvalue=str(value)
         if "data" in strvalue:
@@ -307,7 +309,7 @@ def single_job_executor(t,  # type: Process
     if jobReqs:
         for req in jobReqs:
             t.requirements.append(req)
-
+    print ("steps  are ", vars(t))
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
@@ -317,7 +319,7 @@ def single_job_executor(t,  # type: Process
                 ProcessRunID="run:"+str(uuid.uuid4())
                 a1 = document.activity(ProcessRunID, datetime.datetime.now(), None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
 
-                #document.wasAssociatedWith(ProcessRunID, WorkflowRunID)
+                #document.wasAssociatedWith(ProcessRunID, engineUUID, )
                 builder = kwargs.get("builder", None)  # type: Builder
                 if builder is not None:
                     r.builder = builder
@@ -708,8 +710,6 @@ def get_gitCommit():
     #TODO returns the latest git commit ID to use in the wf namspace. For now we have a UUID as WorkflowRunID
     repo = Repo("/Users/farahkhan/Desktop/cwltool")
     branch = repo.active_branch
-    #branch = branch.name
-    _logger.info(u"Git commit ID is :  %s", branch)
 
 def generate_provDoc(wf_Steps):
     WorkflowRunUUID=str(uuid.uuid4())
@@ -739,7 +739,6 @@ def generate_provDoc(wf_Steps):
     jsonprospect=json.dumps(stepArray)
     document.entity(mainWorkflow, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":jsonprospect,  "prov:label":"Prospective provenance"})
     #document.alternateOf(mainWorkflow, packedWorkflowpath_without_main) #will be done when git commit ID is extracted
-    #relative_job_dict=inputObjectProv()
     #print ("relative_job_dict is ", relative_job_dict)
 
 
