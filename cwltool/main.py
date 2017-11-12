@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from __future__ import absolute_import
-
+import subprocess
 import argparse
 import collections
 import functools
 import json
 import logging
 import os
+import copy
 import time
 from time import gmtime, strftime
 import sys
@@ -21,7 +22,8 @@ import pkg_resources  # part of setuptools
 import requests
 import six
 import string
-
+from git import *
+#import .provenance
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
@@ -58,6 +60,7 @@ document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
 document.add_namespace('run', 'urn:uuid:')
 document.add_namespace('engine', 'urn:uuid4:')
 document.add_namespace('data', 'urn:hash:sha256')
+
 
 packedWorkflowPath=""
 WorkflowRunID=""
@@ -266,7 +269,21 @@ def single_job_executor(t,  # type: Process
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     final_output = []
     final_status = []
-
+    #Here we are creating entities with relativised paths in the PROV document for all the inputs.
+    ro = kwargs.get("ro")
+    customised_job=copy.deepcopy(job_order_object)
+    relativised_input_object=ro.create_job(customised_job, kwargs)
+    _logger.info("Inputs for the process: ", relativised_input_object)
+    for key, value in relativised_input_object.items():
+        strvalue=str(value)
+        if "data" in strvalue:
+            shahash="data:"+value.split("/")[-1]
+            rel_path=value[3:]
+            document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
+            #document.specializationOf(rel_path, shahash) THIS NEEDS FIXING as it required both params as entities.
+        else:
+            ArtefactValue="data:"+strvalue
+            document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
     def output_callback(out, processStatus):
         final_status.append(processStatus)
         final_output.append(out)
@@ -315,19 +332,17 @@ def single_job_executor(t,  # type: Process
     except Exception as e:
         _logger.exception("Got workflow error")
         raise WorkflowException(Text(e))
-
     if final_output and final_output[0] and finaloutdir:
         final_output[0] = relocateOutputs(final_output[0], finaloutdir,
                                           output_dirs, kwargs.get("move_outputs"),
                                           kwargs["make_fs_access"](""))
-
     if kwargs.get("rm_tmpdir"):
         cleanIntermediate(output_dirs)
-
     if final_output and final_status:
         return (final_output[0], final_status[0])
     else:
         return (None, "permanentFail")
+
 
 
 class FSAction(argparse.Action):
@@ -689,6 +704,12 @@ def print_pack(document_loader, processobj, uri, metadata):
         return json.dumps(packed, indent=4)
     else:
         return json.dumps(packed["$graph"][0], indent=4)
+def get_gitCommit():
+    #TODO returns the latest git commit ID to use in the wf namspace. For now we have a UUID as WorkflowRunID
+    repo = Repo("/Users/farahkhan/Desktop/cwltool")
+    branch = repo.active_branch
+    #branch = branch.name
+    _logger.info(u"Git commit ID is :  %s", branch)
 
 def generate_provDoc(wf_Steps):
     WorkflowRunUUID=str(uuid.uuid4())
@@ -708,7 +729,6 @@ def generate_provDoc(wf_Steps):
     mainWorkflow= "wf:main"
     document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
     #add here the steps for prospective prov using wf_Steps
-    _logger.info(u"Steps in this workflow are:  %s", str(wf_Steps))
     subProcess="wfdesc:hasSubProcess"
     JsonProspective_type=json.dumps(['wfdesc:Workflow','prov:Plan'])
     stepArray=[]
@@ -717,8 +737,11 @@ def generate_provDoc(wf_Steps):
         document.entity(steptemp, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
         stepArray.append(steptemp)
     jsonprospect=json.dumps(stepArray)
-    document.entity(mainWorkflow, {"prov:type":JsonProspective_type, "wfdesc:hasSubProcess=":jsonprospect,  "prov:label":"Prospective provenance"})
-    document.alternateOf(mainWorkflow, packedWorkflowpath_without_main)
+    document.entity(mainWorkflow, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":jsonprospect,  "prov:label":"Prospective provenance"})
+    #document.alternateOf(mainWorkflow, packedWorkflowpath_without_main) #will be done when git commit ID is extracted
+    #relative_job_dict=inputObjectProv()
+    #print ("relative_job_dict is ", relative_job_dict)
+
 
 #version of CWLtool used to execute the workflow.
 def versionstring():
@@ -768,6 +791,7 @@ def main(argsl=None,  # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
+
 
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
         if onWindows() and not args.default_container:
@@ -883,7 +907,6 @@ def main(argsl=None,  # type: List[str]
                 #extract path to include in PROV document
                 packedWorkflowpath_without_main=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]
                 packedWorkflowPath=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]+"#main"
-                _logger.info(u"Packed Workflow exits: %s", packedWorkflowPath)
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
@@ -1041,6 +1064,7 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
+        get_gitCommit()
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
         if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
             args.ro.close()

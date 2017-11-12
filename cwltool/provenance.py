@@ -13,7 +13,7 @@ import io
 import ruamel.yaml as yaml
 import warnings
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
-
+relativised_input_object={}
 _logger = logging.getLogger("cwltool")
 
 # RO folders
@@ -51,8 +51,9 @@ class RO():
         pass
     def PROVfileGeneration(self):
         #TODO: this is going to generate all the namespaces and initial structure of the PROV document
+        #the code is in main.py which needs to be copied here  after completion
         pass
-    def retrieve_info(self, packedFile):
+    def retrieve_Steps(self, packedFile):
         steps_wfRun= []
         with open(packedFile, 'r') as stream:
             try:
@@ -77,7 +78,7 @@ class RO():
             # YAML is always UTF8
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
-        workflowSteps=self.retrieve_info(path)
+        workflowSteps=self.retrieve_Steps(path)
         return (path, workflowSteps)
 
     def _checksum_copy(self, fp, copy_to_fp=None,
@@ -102,7 +103,6 @@ class RO():
         # Calculate hash-based file path
         folder = os.path.join(self.folder, DATA, checksum[0:2])
         path = os.path.join(folder, checksum)
-
         # os.rename assumed safe, as our temp file should
         # be in same file system as our temp folder
         if not os.path.isdir(folder):
@@ -122,6 +122,7 @@ class RO():
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
         _logger.info(u"[provenance] Added data file %s", path)
+        _logger.info(u"[provenance] Relative path for data file %s", rel_path)
         return rel_path
 
     def _convert_path(self, path, from_path=os.path, to_path=posixpath):
@@ -173,16 +174,29 @@ class RO():
         '''
         self._relativise_files(job, kwargs)
         path=os.path.join(self.folder, WORKFLOW, "master-job.json")
-        with open (path, "w") as f:
-            json.dump(job, f)
-
         _logger.info(u"[provenance] Generated customised job file: %s", path)
+        with open (path, "w") as f:
+            json.dump(job, f, indent=4)
+        #Generate dictionary with keys as workflow level input IDs and values as
+        #1) for files the relativised location containing hash
+        #2) for other attributes, the actual value.
+        with open(path, 'r') as f:
+            MasterInput_file = json.load(f)
+        relativised_input_objecttemp={}
+        for key, value in MasterInput_file.iteritems():
+            if isinstance(value, dict):
+                if value.get("class") == "File":
+                    relativised_input_objecttemp[key]=value["location"]
+            else:
+                relativised_input_objecttemp[key]=value
+        relativised_input_object.update({k: v for k, v in relativised_input_objecttemp.items() if v})
+        return relativised_input_object
 
     def _relativise_files(self, structure, kwargs):
         '''
         save any file objects into RO and update the local paths
         '''
-
+        provenance_input_params={}
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
         if isinstance(structure, dict):
@@ -193,6 +207,7 @@ class RO():
                 with fsaccess.open(structure["location"], "rb") as f:
                     relative_path=self.add_data_file(f)
                     structure["location"]= "../"+relative_path
+
             for o in structure.values():
                 self._relativise_files(o, kwargs)
             return
@@ -217,7 +232,7 @@ class RO():
                     path = os.path.join(outputfile_path, workflow_output[item]["checksum"])
                     if not os.path.isdir(path):
                         os.makedirs(path)
-                    _logger.info("Moving output files to RO")
+                    _logger.info(u"[provenance] Moving output files to RO")
                     shutil.move(workflow_output[item]["location"][7:], path)
 
 #**************************************
@@ -256,3 +271,7 @@ class RO():
 
 def create_ro(tmpPrefix):
     return RO(tmpPrefix)
+
+#def inputObjectProv():
+#    print ("inside inputObjectProv function in Provenance file: ", relativised_input_object)
+#    return relativised_input_object

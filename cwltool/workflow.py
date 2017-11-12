@@ -19,7 +19,7 @@ from .process import Process, shortname, uniquename
 from .utils import aslist
 import six
 from six.moves import range
-
+relativised_input_object={}
 _logger = logging.getLogger("cwltool")
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
@@ -253,11 +253,11 @@ class WorkflowJobStep(object):
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
 
+
     def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
-
         _logger.info(u"[%s] start", self.name)
 
         for j in self.step.job(joborder, output_callback, **kwargs):
@@ -440,6 +440,8 @@ class WorkflowJob(object):
     def run(self, **kwargs):
         _logger.info(u"[%s] start", self.name)
 
+
+
     def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator
         self.state = {}
@@ -462,8 +464,11 @@ class WorkflowJob(object):
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a default value." % (i["id"]))
-        if ro:
-            ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
+
+        if ro: #create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
+            relativised_input_object=ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
+            _logger.info(u"[provenance] Relativised input object for provenance inside WorkflowJob: %s", relativised_input_object)
+
 
         for s in self.steps:
             for out in s.tool["outputs"]:
@@ -507,6 +512,9 @@ class WorkflowJob(object):
                     break
                 else:
                     yield None
+        #if ro: #create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
+        #    ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
+            #relativised_input_object.update({k: v for k, v in relativised_input_objecttemp.items() if v})
 
         if not self.did_callback:
             self.do_output_callback(output_callback) #could have called earlier on line 336;
