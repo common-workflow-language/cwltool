@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import tempfile
+import threading
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
 
@@ -17,7 +18,6 @@ import pkg_resources  # part of setuptools
 import requests
 import six
 import string
-import threading
 
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
