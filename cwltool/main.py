@@ -17,6 +17,7 @@ import pkg_resources  # part of setuptools
 import requests
 import six
 import string
+import threading
 
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -275,27 +276,52 @@ def single_job_executor(t,  # type: Process
         for req in jobReqs:
             t.requirements.append(req)
 
-    jobiter = t.job(job_order_object,
-                    output_callback,
-                    **kwargs)
+    fetch_iter_lock = threading.Lock()
+    threads = set()
+    exception = None
 
-    try:
-        for r in jobiter:
-            if r:
-                builder = kwargs.get("builder", None)  # type: Builder
-                if builder is not None:
-                    r.builder = builder
-                if r.outdir:
-                    output_dirs.add(r.outdir)
-                r.run(**kwargs)
+    def run_job(job):
+        def runner():
+            try:
+                job.run(**kwargs)
+            except WorkflowException as e:
+                exception = e
+            except Exception as e:
+                exception = WorkflowException(Text(e))
+
+            threads.remove(thread)
+
+            if fetch_iter_lock.locked():
+                fetch_iter_lock.release()
+
+        thread = threading.Thread(target=runner)
+        thread.daemon = True
+        threads.add(thread)
+        thread.start()
+
+
+
+    jobiter = t.job(job_order_object, output_callback, **kwargs)
+
+    for r in jobiter:
+        if r:
+            builder = kwargs.get("builder", None)  # type: Builder
+            if builder is not None:
+                r.builder = builder
+            if r.outdir:
+                output_dirs.add(r.outdir)
+            run_job(r)
+        else:
+            if exception is not None:
+                raise exception
+            if len(threads):
+                # wait until one job completes to try fetching jobiter again
+                fetch_iter_lock.acquire()
+                fetch_iter_lock.acquire()
+                fetch_iter_lock.release()
             else:
                 _logger.error("Workflow cannot make any more progress.")
                 break
-    except WorkflowException:
-        raise
-    except Exception as e:
-        _logger.exception("Got workflow error")
-        raise WorkflowException(Text(e))
 
     if final_output and final_output[0] and finaloutdir:
         final_output[0] = relocateOutputs(final_output[0], finaloutdir,
