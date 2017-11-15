@@ -278,16 +278,16 @@ def job_executor(t,  # type: Process
 
     fetch_iter_lock = threading.Lock()
     threads = set()
-    exception = None
+    exceptions = []
 
     def run_job(job):
         def runner():
             try:
                 job.run(**kwargs)
             except WorkflowException as e:
-                exception = e
+                exceptions.append(e)
             except Exception as e:
-                exception = WorkflowException(Text(e))
+                exceptions.append(WorkflowException(Text(e)))
 
             threads.remove(thread)
 
@@ -303,8 +303,8 @@ def job_executor(t,  # type: Process
         fetch_iter_lock.acquire()
         fetch_iter_lock.acquire()
         fetch_iter_lock.release()
-        if exception is not None:
-            raise exception
+        if exceptions:
+            raise exceptions[0]
 
     jobiter = t.job(job_order_object, output_callback, **kwargs)
 
