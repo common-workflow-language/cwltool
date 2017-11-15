@@ -299,7 +299,12 @@ def single_job_executor(t,  # type: Process
         threads.add(thread)
         thread.start()
 
-
+    def wait_for_next_completion():
+        fetch_iter_lock.acquire()
+        fetch_iter_lock.acquire()
+        fetch_iter_lock.release()
+        if exception is not None:
+            raise exception
 
     jobiter = t.job(job_order_object, output_callback, **kwargs)
 
@@ -312,16 +317,14 @@ def single_job_executor(t,  # type: Process
                 output_dirs.add(r.outdir)
             run_job(r)
         else:
-            if exception is not None:
-                raise exception
             if len(threads):
-                # wait until one job completes to try fetching jobiter again
-                fetch_iter_lock.acquire()
-                fetch_iter_lock.acquire()
-                fetch_iter_lock.release()
+                wait_for_next_completion()
             else:
                 _logger.error("Workflow cannot make any more progress.")
                 break
+
+    while len(threads) > 0:
+        wait_for_next_completion()
 
     if final_output and final_output[0] and finaloutdir:
         final_output[0] = relocateOutputs(final_output[0], finaloutdir,
