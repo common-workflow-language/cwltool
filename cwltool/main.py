@@ -245,10 +245,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     return parser
 
 
-def single_job_executor(t,  # type: Process
-                        job_order_object,  # type: Dict[Text, Any]
-                        **kwargs  # type: Any
-                        ):
+def job_executor(t,  # type: Process
+                 job_order_object,  # type: Dict[Text, Any]
+                 **kwargs  # type: Any
+                 ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     final_output = []
     final_status = []
@@ -721,7 +721,7 @@ def supportedCWLversions(enable_dev):
 
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
-         executor=single_job_executor,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
+         executor=job_executor,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
          makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
          selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,  # type: IO[Any]
