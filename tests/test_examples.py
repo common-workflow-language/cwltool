@@ -7,6 +7,8 @@ import sys
 
 from io import StringIO
 
+from cwltool.utils import onWindows
+
 try:
     reload
 except:
@@ -530,18 +532,19 @@ class TestPrintDot(unittest.TestCase):
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
 
-class TestJsConsole(unittest.TestCase):
+class TestCmdLine(unittest.TestCase):
     def get_main_stderr(self, new_args):
-        cwltool_base = path.join(path.dirname(path.abspath(__name__)), "cwltool")
-        
         process = subprocess.Popen([
-            sys.executable,
-            "-m",
-            "cwltool"
-        ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                       sys.executable,
+                                       "-m",
+                                       "cwltool"
+                                   ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         stdout, stderr = process.communicate()
         return process.returncode, stderr.decode()
+
+
+class TestJsConsole(TestCmdLine):
 
     def test_js_console_cmd_line_tool(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
@@ -555,11 +558,24 @@ class TestJsConsole(unittest.TestCase):
 
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, output = self.get_main_stderr(["--no-container", 
+            error_code, output = self.get_main_stderr(["--no-container",
                 get_data("tests/wf/" + test_file)])
 
             self.assertNotIn("[log] Log message", output)
             self.assertNotIn("[err] Error message", output)
-            
+
+
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
+class TestCache(TestCmdLine):
+    def test_wf_without_container(self):
+        test_file = "hello-workflow.cwl"
+        error_code, output = self.get_main_stderr(["--cachedir", "cache",
+                                                       get_data("tests/wf/" + test_file), "--usermessage", "hello"])
+        self.assertIn("completed success", output)
+        self.assertEquals(error_code, 0)
+
+
 if __name__ == '__main__':
     unittest.main()

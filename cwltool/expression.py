@@ -214,7 +214,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         u"self": context,
         u"runtime": runtime}
 
-    if isinstance(ex, (str, Text)):
+    if isinstance(ex, (str, Text)) and ("$(" in ex or "${" in ex):
         fullJS = False
         jslib = u""
         for r in reversed(requirements):
