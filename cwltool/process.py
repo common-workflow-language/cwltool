@@ -422,6 +422,13 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
+def get_overrides(metadata, toolid):
+    req = []
+    for ov in metadata.get("cwl:overrides", []):
+        if ov["overrideTarget"] == toolid:
+            req.extend(ov["override"])
+    return req
+
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
@@ -456,7 +463,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:
             self.names = names
         self.tool = toolpath_object
-        self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
+        self.requirements = (kwargs.get("requirements", []) +
+                             self.tool.get("requirements", []) +
+                             get_overrides(self.metadata, self.tool["id"]))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:

@@ -30,10 +30,25 @@ _logger = logging.getLogger("cwltool")
 
 jobloaderctx = {
     u"cwl": "https://w3id.org/cwl/cwl#",
+    u"cwltool": "http://commonwl.org/cwltool#",
     u"path": {u"@type": u"@id"},
     u"location": {u"@type": u"@id"},
     u"format": {u"@type": u"@id"},
     u"id": u"@id"
+}
+
+overrides_ctx = {
+    u"overrideTarget": {u"@type": u"@id"},
+    u"cwltool": "http://commonwl.org/cwltool#",
+    u"overrides": {
+        "@id": "cwltool:overrides",
+        "mapSubject": "overrideTarget",
+        "mapPredicate": "override"
+    },
+    u"override": {
+        "@id": "cwltool:override",
+        "mapSubject": "class"
+    }
 }
 
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
@@ -139,8 +154,9 @@ def validate_document(document_loader,  # type: Loader
                       strict=True,  # type: bool
                       preprocess_only=False,  # type: bool
                       fetcher_constructor=None,
-                      skip_schemas=None
+                      skip_schemas=None,
                       # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+                      overrides=None
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -155,9 +171,17 @@ def validate_document(document_loader,  # type: Loader
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = document_loader.resolve_all(workflowobj, uri)
+        job_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
+        jobobj, _ = job_loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
+
+        if "http://commonwl.org/cwltool#overrides" in jobobj:
+            if overrides is None:
+                overrides = []
+            overrides.extend(resolve_overrides(jobobj, uri))
+            del jobobj["http://commonwl.org/cwltool#overrides"]
+
         workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
 
     fileuri = urllib.parse.urldefrag(uri)[0]
@@ -225,6 +249,9 @@ def validate_document(document_loader,  # type: Loader
     if jobobj:
         metadata[u"cwl:defaults"] = jobobj
 
+    if overrides:
+        metadata[u"cwl:overrides"] = overrides
+
     return document_loader, avsc_names, processobj, metadata, uri
 
 
@@ -277,7 +304,8 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
               resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
-              fetcher_constructor=None  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+              fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+              overrides=None
               ):
     # type: (...) -> Process
 
@@ -285,6 +313,16 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                                                        fetcher_constructor=fetcher_constructor)
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,
-        strict=strict, fetcher_constructor=fetcher_constructor)
+        strict=strict, fetcher_constructor=fetcher_constructor,
+        overrides=overrides)
     return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})
+
+def resolve_overrides(ov, baseurl):
+    ovloader = Loader(overrides_ctx)
+    ret, _ = ovloader.resolve_all(ov, baseurl)
+    return ret["overrides"]
+
+def load_overrides(ov, baseurl):
+    ovloader = Loader(overrides_ctx)
+    return resolve_overrides(ovloader.fetch(ov), baseurl)

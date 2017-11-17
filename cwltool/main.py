@@ -27,7 +27,8 @@ from . import draft2tool, workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .load_tool import fetch_document, make_tool, validate_document, jobloaderctx
+from .load_tool import (fetch_document, make_tool, validate_document,
+                        jobloaderctx, resolve_overrides, load_overrides)
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
@@ -36,7 +37,9 @@ from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
-from .software_requirements import DependenciesConfiguration, get_container_from_software_requirements, SOFTWARE_REQUIREMENTS_ENABLED
+from .software_requirements import (DependenciesConfiguration,
+                                    get_container_from_software_requirements,
+                                    SOFTWARE_REQUIREMENTS_ENABLED)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
@@ -238,6 +241,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--no-read-only", action="store_true",
                         default=False, help="Do not set root directoy in the"
                                             " container as read-only", dest="no_read_only")
+
+    parser.add_argument("--overrides", type=str,
+                        default=[], help="Read process requirement overrides from file.")
+
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
@@ -802,6 +809,10 @@ def main(argsl=None,  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
+        if args.overrides:
+            args.overrides = load_overrides(file_uri(os.path.abspath(args.overrides)),
+                                            file_uri(os.path.abspath(args.workflow)))
+
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
@@ -815,7 +826,8 @@ def main(argsl=None,  # type: List[str]
                                     enable_dev=args.enable_dev, strict=args.strict,
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
-                                    skip_schemas=args.skip_schemas)
+                                    skip_schemas=args.skip_schemas,
+                                    overrides=args.overrides)
 
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
