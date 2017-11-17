@@ -422,8 +422,8 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-def get_overrides(metadata, toolid):
-    req = []
+def get_overrides(metadata, toolid):  # type: (Dict[Text, Any], Text) -> List[Dict[Text, Any]]
+    req = []  # type: List[Dict[Text, Any]]
     for ov in metadata.get("cwl:overrides", []):
         if ov["overrideTarget"] == toolid:
             req.extend(ov["override"])

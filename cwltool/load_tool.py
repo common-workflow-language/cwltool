@@ -8,7 +8,7 @@ import re
 import uuid
 import hashlib
 import json
-from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast, Iterable
 
 import requests.sessions
 from six import itervalues, string_types
@@ -49,7 +49,7 @@ overrides_ctx = {
         "@id": "cwltool:override",
         "mapSubject": "class"
     }
-}
+}  # type: Dict[Text, Union[Text, Dict, Iterable[unicode]]]
 
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
@@ -318,11 +318,11 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})
 
-def resolve_overrides(ov, baseurl):
+def resolve_overrides(ov, baseurl):  # type: (CommentedMap, Text) -> Dict[Text, Any]
     ovloader = Loader(overrides_ctx)
     ret, _ = ovloader.resolve_all(ov, baseurl)
     return ret["overrides"]
 
-def load_overrides(ov, baseurl):
+def load_overrides(ov, baseurl):  # type: (Text, Text) -> Dict[Text, Any]
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), baseurl)
