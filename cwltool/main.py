@@ -11,7 +11,7 @@ import os
 import sys
 import tempfile
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
-                    Union, cast)
+                    Union, cast, Mapping, MutableMapping, Iterable)
 
 import pkg_resources  # part of setuptools
 import requests
@@ -516,8 +516,12 @@ def generate_input_template(tool):
 
 
 
-def load_job_order(args, stdin, fetcher_constructor, overrides):
-    # type: (argparse.Namespace, Process, IO[Any], Fetcher) -> Dict[Text, Any]
+def load_job_order(args,   # type: argparse.Namespace
+                   stdin,  # type: IO[Any]
+                   fetcher_constructor,  # Fetcher
+                   overrides  # type: List[Dict[Text, Any]]
+):
+    # type: (...) -> Tuple[Dict[Text, Any], Text, Loader]
 
     job_order_object = None
 
@@ -545,12 +549,20 @@ def load_job_order(args, stdin, fetcher_constructor, overrides):
     if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
 
-    return (job_order_object, input_basedir)
+    return (job_order_object, input_basedir, loader)
 
 
-def init_job_order(job_order_object, args, t, print_input_deps=False, relative_deps=False,
-                   stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, bool, bool, IO[Any], Callable[[Text], StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
+                   args,  # type: argparse.Namespace
+                   t,     # type: Process
+                   print_input_deps=False,  # type: bool
+                   relative_deps=False,     # type: bool
+                   stdout=sys.stdout,       # type: IO[Any]
+                   make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
+                   loader=None,             # type: Loader
+                   input_basedir=""         # type: Text
+):
+    # (...) -> Tuple[Dict[Text, Any], Text]
 
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
@@ -560,7 +572,7 @@ def init_job_order(job_order_object, args, t, print_input_deps=False, relative_d
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
-                return 0
+                exit(0)
             cmd_line = vars(toolparser.parse_args(args.job_order))
             for record_name in records:
                 record = {}
@@ -574,7 +586,7 @@ def init_job_order(job_order_object, args, t, print_input_deps=False, relative_d
 
             if cmd_line["job_order"]:
                 try:
-                    job_order_object = loader.resolve_ref(cmd_line["job_order"])
+                    job_order_object = cast(MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
                 except Exception as e:
                     _logger.error(Text(e), exc_info=args.debug)
                     return 1
@@ -602,12 +614,12 @@ def init_job_order(job_order_object, args, t, print_input_deps=False, relative_d
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
-        return 1
+        exit(1)
 
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
-                  basedir=file_uri(input_basedir + "/"))
-        return 0
+                  basedir=file_uri(str(input_basedir) + "/"))
+        exit(0)
 
     def pathToLoc(p):
         if "location" not in p and "path" in p:
@@ -625,7 +637,7 @@ def init_job_order(job_order_object, args, t, print_input_deps=False, relative_d
         else:
             return  # best effort
 
-    ns = {}
+    ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
     def expand_formats(p):
@@ -657,7 +669,7 @@ def makeRelative(base, ob):
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Dict[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
+    # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
     deps = {"class": "File",
             "location": uri}  # type: Dict[Text, Any]
 
@@ -719,7 +731,7 @@ def main(argsl=None,  # type: List[str]
          stdout=sys.stdout,  # type: IO[Any]
          stderr=sys.stderr,  # type: IO[Any]
          versionfunc=versionstring,  # type: Callable[[], Text]
-         job_order_object=None,  # type: Union[Tuple[Dict[Text, Any], Text], int]
+         job_order_object=None,  # type: MutableMapping[Text, Any]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
          fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
          resolver=tool_resolver,
@@ -822,10 +834,10 @@ def main(argsl=None,  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
-        overrides = []
+        overrides = []  # type: List[Dict[Text, Any]]
 
         try:
-            job_order_object, input_basedir = load_job_order(args, stdin, fetcher_constructor, overrides)
+            job_order_object, input_basedir, jobloader = load_job_order(args, stdin, fetcher_constructor, overrides)
         except Exception as e:
             _logger.error(Text(e), exc_info=args.debug)
 
@@ -928,7 +940,9 @@ def main(argsl=None,  # type: List[str]
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
-                                              make_fs_access=make_fs_access)
+                                              make_fs_access=make_fs_access,
+                                              loader=jobloader,
+                                              input_basedir=input_basedir)
         except SystemExit as e:
             return e.code
 

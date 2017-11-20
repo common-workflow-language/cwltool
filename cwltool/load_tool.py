@@ -38,7 +38,7 @@ jobloaderctx = {
     u"id": u"@id"
 }
 
-_cwldl, _1, _2, _3 = get_schema("v1.0")  # type: Dict[Text, Union[Text, Dict, Iterable[unicode]]]
+_cwldl = get_schema("v1.0")[0]
 overrides_ctx = copy.copy(_cwldl.ctx)
 overrides_ctx.update({
     u"overrideTarget": {u"@type": u"@id"},
@@ -319,11 +319,13 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})
 
-def resolve_overrides(ov, baseurl):  # type: (CommentedMap, Text) -> Dict[Text, Any]
+def resolve_overrides(ov, baseurl):  # type: (CommentedMap, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
     ret, _ = ovloader.resolve_all(ov, baseurl)
+    if not isinstance(ret, CommentedMap):
+        raise Exception("Expected CommentedMap, got %s" % type(ret))
     return ret["overrides"]
 
-def load_overrides(ov):  # type: (Text) -> Dict[Text, Any]
+def load_overrides(ov):  # type: (Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), ov)
