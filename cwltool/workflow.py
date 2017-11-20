@@ -681,7 +681,7 @@ class WorkflowStep(Process):
                     strict=kwargs.get("strict"),
                     fetcher_constructor=kwargs.get("fetcher_constructor"),
                     resolver=kwargs.get("resolver"),
-                    overrides=kwargs.get("overrides"))
+                    overrides=kwargs.get("metadata", {}).get("overrides"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %

@@ -42,3 +42,10 @@ class TestOverride(unittest.TestCase):
         self.assertEquals(main([get_data('tests/override/echo-job-ov2.yml')],
                                stdout=sio), 0)
         self.assertEquals({"out": "zing hello4"}, json.loads(sio.getvalue()))
+
+        sio = StringIO()
+        self.assertEquals(main(["--overrides", get_data('tests/override/ov2.yml'),
+                                get_data('tests/override/echo-wf.cwl'),
+                                get_data('tests/override/echo-job.yml')],
+                               stdout=sio), 0)
+        self.assertEquals({"out": "zing hello5"}, json.loads(sio.getvalue()))

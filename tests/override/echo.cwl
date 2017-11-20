@@ -2,6 +2,7 @@ cwlVersion: v1.0
 class: CommandLineTool
 requirements:
   ShellCommandRequirement: {}
+hints:
   EnvVarRequirement:
     envDef:
       MESSAGE: hello1
