@@ -106,6 +106,21 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
+Running user-space implementations of Docker
+--------------------------------------------
+
+Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
+
+Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
+
+For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
+
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
 
@@ -376,9 +391,6 @@ Sometimes a workflow needs additional requirements to run in a particular
 environment or with a particular dataset.  To avoid the need to modify the
 underlying workflow, cwltool supports requirement "overrides".
 
-Overrides can be specified either on the command line, or as part of the job
-input document.
-
 The format of the "overrides" object is a mapping of item identifier (workflow,
 workflow step, or command line tool) followed by a list of ProcessRequirements
 that should be applied.
@@ -391,11 +403,13 @@ that should be applied.
         envDef:
           MESSAGE: override_value
 
+
+Overrides can be specified either on the command line, or as part of the job
+input document.
+
 .. code:: bash
 
   cwltool --overrides overrides.yml my-tool.cwl my-job.yml
-
-Alternately, the overrides section can be included in the job input document:
 
 .. code:: yaml
 
@@ -543,18 +557,3 @@ logger_handler
       logging.Handler
 
   Handler object for logging.
-
-Running user-space implementations of Docker
---------------------------------------------
-
-Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
-
-Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
-
-For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
-
-Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
-
-```
-cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
-```
