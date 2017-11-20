@@ -384,6 +384,7 @@ workflow step, or command line tool) followed by a list of ProcessRequirements
 that should be applied.
 
 .. code:: yaml
+
   cwltool:overrides:
     echo.cwl:
       - class: EnvVarRequirement
@@ -397,6 +398,7 @@ that should be applied.
 Alternately, the overrides section can be included in the job input document:
 
 .. code:: yaml
+
   input_parameter1: value1
   input_parameter2: value2
   cwltool:overrides:
