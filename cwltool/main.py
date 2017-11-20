@@ -517,7 +517,7 @@ def generate_input_template(tool):
 
 
 def load_job_order(args, stdin, fetcher_constructor, overrides):
-    # type: (argparse.Namespace, Process, IO[Any], Fetcher]) -> Dict[Text, Any]
+    # type: (argparse.Namespace, Process, IO[Any], Fetcher) -> Dict[Text, Any]
 
     job_order_object = None
 
@@ -550,7 +550,7 @@ def load_job_order(args, stdin, fetcher_constructor, overrides):
 
 def init_job_order(job_order_object, args, t, print_input_deps=False, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+    # type: (argparse.Namespace, Process, bool, bool, IO[Any], Callable[[Text], StdFsAccess]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]

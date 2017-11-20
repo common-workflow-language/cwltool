@@ -38,7 +38,7 @@ jobloaderctx = {
     u"id": u"@id"
 }
 
-_cwldl, _, _, _ = get_schema("v1.0")  # type: Dict[Text, Union[Text, Dict, Iterable[unicode]]]
+_cwldl, _1, _2, _3 = get_schema("v1.0")  # type: Dict[Text, Union[Text, Dict, Iterable[unicode]]]
 overrides_ctx = copy.copy(_cwldl.ctx)
 overrides_ctx.update({
     u"overrideTarget": {u"@type": u"@id"},
