@@ -625,8 +625,16 @@ def init_job_order(job_order_object, args, t, print_input_deps=False, relative_d
         else:
             return  # best effort
 
+    ns = {}
+    ns.update(t.metadata.get("$namespaces", {}))
+    ld = Loader(ns)
+    def expand_formats(p):
+        if "format" in p:
+            p["format"] = ld.expand_url(p["format"], "")
+
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
-    visit_class(job_order_object, ("File"), addSizes)
+    visit_class(job_order_object, ("File",), addSizes)
+    visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 

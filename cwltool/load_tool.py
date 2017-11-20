@@ -324,6 +324,6 @@ def resolve_overrides(ov, baseurl):  # type: (CommentedMap, Text) -> Dict[Text, 
     ret, _ = ovloader.resolve_all(ov, baseurl)
     return ret["overrides"]
 
-def load_overrides(ov):  # type: (Text, Text) -> Dict[Text, Any]
+def load_overrides(ov):  # type: (Text) -> Dict[Text, Any]
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), ov)
