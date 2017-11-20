@@ -409,7 +409,7 @@ Alternately, the overrides section can be included in the job input document:
 
 .. code:: bash
 
-  cwltool --overrides ov.yml my-tool.cwl my-job-with-overrides.yml
+  cwltool my-tool.cwl my-job-with-overrides.yml
 
 
 CWL Tool Control Flow
