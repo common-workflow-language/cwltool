@@ -31,7 +31,7 @@ It is highly recommended to setup virtual environment before installing `cwltool
   virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
   source venv/bin/activate     # Activate environment before installing `cwltool`
 
-1. Installing the official package from PyPi (will install "cwltool" package as
+Installing the official package from PyPi (will install "cwltool" package as
 well)
 
 .. code:: bash
@@ -44,7 +44,7 @@ If installing alongside another CWL implementation then
 
   pip install cwltool
 
-2. To install from source
+Or you can install from source:
 
 .. code:: bash
 
