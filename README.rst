@@ -369,6 +369,47 @@ at the following links:
 - `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
+Overriding workflow requirements at load time
+---------------------------------------------
+
+Sometimes a workflow needs additional requirements to run in a particular
+environment or with a particular dataset.  To avoid the need to modify the
+underlying workflow, cwltool supports requirement "overrides".
+
+Overrides can be specified either on the command line, or as part of the job
+input document.
+
+The format of the "overrides" object is a mapping of item identifier (workflow,
+workflow step, or command line tool) followed by a list of ProcessRequirements
+that should be applied.
+
+.. code:: yaml
+  cwltool:overrides:
+    echo.cwl:
+      - class: EnvVarRequirement
+        envDef:
+          MESSAGE: override_value
+
+.. code:: bash
+
+  cwltool --overrides overrides.yml my-tool.cwl my-job.yml
+
+Alternately, the overrides section can be included in the job input document:
+
+.. code:: yaml
+  input_parameter1: value1
+  input_parameter2: value2
+  cwltool:overrides:
+    echo.cwl:
+      - class: EnvVarRequirement
+        envDef:
+          MESSAGE: override_value
+
+.. code:: bash
+
+  cwltool --overrides ov.yml my-tool.cwl my-job-with-overrides.yml
+
+
 CWL Tool Control Flow
 ---------------------
 

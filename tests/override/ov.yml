@@ -1,4 +1,4 @@
-overrides:
+cwltool:overrides:
   echo.cwl:
     - class: EnvVarRequirement
       envDef:
