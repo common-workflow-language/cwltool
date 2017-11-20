@@ -8,6 +8,7 @@ import re
 import uuid
 import hashlib
 import json
+import copy
 from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast, Iterable
 
 import requests.sessions
@@ -23,7 +24,7 @@ from six.moves import urllib
 
 from . import process, update
 from .errors import WorkflowException
-from .process import Process, shortname
+from .process import Process, shortname, get_schema
 from .update import ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
@@ -37,7 +38,9 @@ jobloaderctx = {
     u"id": u"@id"
 }
 
-overrides_ctx = {
+_cwldl, _, _, _ = get_schema("v1.0")  # type: Dict[Text, Union[Text, Dict, Iterable[unicode]]]
+overrides_ctx = copy.copy(_cwldl.ctx)
+overrides_ctx.update({
     u"overrideTarget": {u"@type": u"@id"},
     u"cwltool": "http://commonwl.org/cwltool#",
     u"overrides": {
@@ -49,7 +52,7 @@ overrides_ctx = {
         "@id": "cwltool:override",
         "mapSubject": "class"
     }
-}  # type: Dict[Text, Union[Text, Dict, Iterable[unicode]]]
+})
 
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
@@ -156,7 +159,7 @@ def validate_document(document_loader,  # type: Loader
                       fetcher_constructor=None,
                       skip_schemas=None,
                       # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
-                      overrides=None
+                      overrides=None  # type: List[Dict]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -177,8 +180,6 @@ def validate_document(document_loader,  # type: Loader
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
         if "http://commonwl.org/cwltool#overrides" in jobobj:
-            if overrides is None:
-                overrides = []
             overrides.extend(resolve_overrides(jobobj, uri))
             del jobobj["http://commonwl.org/cwltool#overrides"]
 
@@ -323,6 +324,6 @@ def resolve_overrides(ov, baseurl):  # type: (CommentedMap, Text) -> Dict[Text, 
     ret, _ = ovloader.resolve_all(ov, baseurl)
     return ret["overrides"]
 
-def load_overrides(ov, baseurl):  # type: (Text, Text) -> Dict[Text, Any]
+def load_overrides(ov):  # type: (Text, Text) -> Dict[Text, Any]
     ovloader = Loader(overrides_ctx)
-    return resolve_overrides(ovloader.fetch(ov), baseurl)
+    return resolve_overrides(ovloader.fetch(ov), ov)

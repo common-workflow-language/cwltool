@@ -243,7 +243,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                                             " container as read-only", dest="no_read_only")
 
     parser.add_argument("--overrides", type=str,
-                        default=[], help="Read process requirement overrides from file.")
+                        default=None, help="Read process requirement overrides from file.")
 
     parser.add_argument("workflow", type=Text, nargs="?", default=None)
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
@@ -516,14 +516,12 @@ def generate_input_template(tool):
 
 
 
-def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
-                   stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+def load_job_order(args, stdin, fetcher_constructor, overrides):
+    # type: (argparse.Namespace, Process, IO[Any], Fetcher]) -> Dict[Text, Any]
 
     job_order_object = None
 
     _jobloaderctx = jobloaderctx.copy()
-    _jobloaderctx.update(t.metadata.get("$namespaces", {}))
     loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
@@ -538,14 +536,23 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         input_basedir = args.basedir if args.basedir else os.getcwd()
     elif job_order_file:
         input_basedir = args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
-        try:
-            job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
-        except Exception as e:
-            _logger.error(Text(e), exc_info=args.debug)
-            return 1
-        toolparser = None
-    else:
+        job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
+
+    if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
+        overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file)))
+        del job_order_object["http://commonwl.org/cwltool#overrides"]
+
+    if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
+
+    return (job_order_object, input_basedir)
+
+
+def init_job_order(job_order_object, args, t, print_input_deps=False, relative_deps=False,
+                   stdout=sys.stdout, make_fs_access=None):
+    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
+
+    if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
         toolparser = generate_parser(
@@ -567,8 +574,6 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
             if cmd_line["job_order"]:
                 try:
-                    input_basedir = args.basedir if args.basedir else os.path.abspath(
-                        os.path.dirname(cmd_line["job_order"]))
                     job_order_object = loader.resolve_ref(cmd_line["job_order"])
                 except Exception as e:
                     _logger.error(Text(e), exc_info=args.debug)
@@ -630,7 +635,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     if "id" in job_order_object:
         del job_order_object["id"]
 
-    return (job_order_object, input_basedir)
+    return job_order_object
 
 
 def makeRelative(base, ob):
@@ -809,9 +814,15 @@ def main(argsl=None,  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
+        overrides = []
+
+        try:
+            job_order_object, input_basedir = load_job_order(args, stdin, fetcher_constructor, overrides)
+        except Exception as e:
+            _logger.error(Text(e), exc_info=args.debug)
+
         if args.overrides:
-            args.overrides = load_overrides(file_uri(os.path.abspath(args.overrides)),
-                                            file_uri(os.path.abspath(args.workflow)))
+            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides))))
 
         try:
             document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
@@ -827,7 +838,7 @@ def main(argsl=None,  # type: List[str]
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=args.overrides)
+                                    overrides=overrides)
 
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
@@ -905,13 +916,11 @@ def main(argsl=None,  # type: List[str]
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         try:
-            if job_order_object is None:
-                    job_order_object = load_job_order(args, tool, stdin,
-                                                      print_input_deps=args.print_input_deps,
-                                                      relative_deps=args.relative_deps,
-                                                      stdout=stdout,
-                                                      make_fs_access=make_fs_access,
-                                                      fetcher_constructor=fetcher_constructor)
+            job_order_object = init_job_order(job_order_object, args, tool,
+                                              print_input_deps=args.print_input_deps,
+                                              relative_deps=args.relative_deps,
+                                              stdout=stdout,
+                                              make_fs_access=make_fs_access)
         except SystemExit as e:
             return e.code
 
@@ -919,10 +928,10 @@ def main(argsl=None,  # type: List[str]
             return job_order_object
 
         try:
-            setattr(args, 'basedir', job_order_object[1])
+            setattr(args, 'basedir', input_basedir)
             del args.workflow
             del args.job_order
-            (out, status) = executor(tool, job_order_object[0],
+            (out, status) = executor(tool, job_order_object,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
