@@ -62,9 +62,16 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
-We use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_
-to run various tests in all supported Python environments.
-You can run the test suite by simply running the following in the terminal:
+To run the basis tests after installing `cwltool` execute the following:
+
+.. code:: bash
+  
+  pip install pytest
+  py.test --ignore cwltool/schemas/ --pyarg cwltool
+
+To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
+first downloading the complete code repository (see the ``git clone`` instructions above) and then run
+the following in the terminal:
 ``pip install tox; tox``
 
 List of all environment can be seen using:
