@@ -113,6 +113,21 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
+Running user-space implementations of Docker
+--------------------------------------------
+
+Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
+
+Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
+
+For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
+
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
 
@@ -376,6 +391,50 @@ at the following links:
 - `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
+Overriding workflow requirements at load time
+---------------------------------------------
+
+Sometimes a workflow needs additional requirements to run in a particular
+environment or with a particular dataset.  To avoid the need to modify the
+underlying workflow, cwltool supports requirement "overrides".
+
+The format of the "overrides" object is a mapping of item identifier (workflow,
+workflow step, or command line tool) followed by a list of ProcessRequirements
+that should be applied.
+
+.. code:: yaml
+
+  cwltool:overrides:
+    echo.cwl:
+      - class: EnvVarRequirement
+        envDef:
+          MESSAGE: override_value
+
+
+Overrides can be specified either on the command line, or as part of the job
+input document.  Workflow steps are identified using the name of the workflow
+file followed by the step name as a document fragment identifier "#id".
+Override identifiers are relative to the toplevel workflow document.
+
+.. code:: bash
+
+  cwltool --overrides overrides.yml my-tool.cwl my-job.yml
+
+.. code:: yaml
+
+  input_parameter1: value1
+  input_parameter2: value2
+  cwltool:overrides:
+    workflow.cwl#step1:
+      - class: EnvVarRequirement
+        envDef:
+          MESSAGE: override_value
+
+.. code:: bash
+
+  cwltool my-tool.cwl my-job-with-overrides.yml
+
+
 CWL Tool Control Flow
 ---------------------
 
@@ -507,18 +566,3 @@ logger_handler
       logging.Handler
 
   Handler object for logging.
-
-Running user-space implementations of Docker
---------------------------------------------
-
-Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
-
-Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
-
-For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
-
-Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
-
-```
-cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
-```
