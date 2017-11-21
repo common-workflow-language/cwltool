@@ -6,7 +6,6 @@ import unittest
 import pytest
 
 import cwltool.expression as expr
-import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow

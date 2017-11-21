@@ -15,7 +15,7 @@ from schema_salad.sourceline import SourceLine, cmap
 from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
-from .process import Process, shortname, uniquename
+from .process import Process, shortname, uniquename, get_overrides
 from .utils import aslist
 import six
 from six.moves import range
@@ -521,6 +521,8 @@ class Workflow(Process):
             try:
                 self.steps.append(WorkflowStep(step, n, **kwargs))
             except validate.ValidationException as v:
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.exception("Validation failed at")
                 validation_errors.append(v)
 
         if validation_errors:
@@ -666,7 +668,9 @@ class WorkflowStep(Process):
         else:
             self.id = "#step" + Text(pos)
 
-        kwargs["requirements"] = kwargs.get("requirements", []) + toolpath_object.get("requirements", [])
+        kwargs["requirements"] = (kwargs.get("requirements", []) +
+                                  toolpath_object.get("requirements", []) +
+                                  get_overrides(kwargs.get("overrides", []), self.id))
         kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
 
         try:
@@ -678,7 +682,8 @@ class WorkflowStep(Process):
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
                     fetcher_constructor=kwargs.get("fetcher_constructor"),
-                    resolver=kwargs.get("resolver"))
+                    resolver=kwargs.get("resolver"),
+                    overrides=kwargs.get("overrides"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %

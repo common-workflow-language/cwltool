@@ -1,0 +1,5 @@
+cwltool:overrides:
+  "echo-wf.cwl#step1":
+    - class: EnvVarRequirement
+      envDef:
+        MESSAGE: hello5

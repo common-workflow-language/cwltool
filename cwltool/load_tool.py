@@ -8,7 +8,8 @@ import re
 import uuid
 import hashlib
 import json
-from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast
+import copy
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast, Iterable
 
 import requests.sessions
 from six import itervalues, string_types
@@ -23,18 +24,64 @@ from six.moves import urllib
 
 from . import process, update
 from .errors import WorkflowException
-from .process import Process, shortname
+from .process import Process, shortname, get_schema
 from .update import ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
 
 jobloaderctx = {
     u"cwl": "https://w3id.org/cwl/cwl#",
+    u"cwltool": "http://commonwl.org/cwltool#",
     u"path": {u"@type": u"@id"},
     u"location": {u"@type": u"@id"},
     u"format": {u"@type": u"@id"},
     u"id": u"@id"
 }
+
+
+overrides_ctx = {
+    u"overrideTarget": {u"@type": u"@id"},
+    u"cwltool": "http://commonwl.org/cwltool#",
+    u"overrides": {
+        "@id": "cwltool:overrides",
+        "mapSubject": "overrideTarget",
+        "mapPredicate": "override"
+    },
+    u"override": {
+        "@id": "cwltool:override",
+        "mapSubject": "class"
+    }
+}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
+
+def resolve_tool_uri(argsworkflow,  # type: Text
+                     resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
+                     fetcher_constructor=None,
+                     # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+                     document_loader=None  # type: Loader
+):
+    # type: (...) -> Tuple[Text, Text]
+
+    uri = None  # type: Text
+    split = urllib.parse.urlsplit(argsworkflow)
+    # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
+    if split.scheme and split.scheme in [u'http',u'https',u'file']:
+        uri = argsworkflow
+    elif os.path.exists(os.path.abspath(argsworkflow)):
+        uri = file_uri(str(os.path.abspath(argsworkflow)))
+    elif resolver:
+        if document_loader is None:
+            document_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
+        uri = resolver(document_loader, argsworkflow)
+
+    if uri is None:
+        raise ValidationException("Not found: '%s'" % argsworkflow)
+
+    if argsworkflow != uri:
+        _logger.info("Resolved '%s' to '%s'", argsworkflow, uri)
+
+    fileuri = urllib.parse.urldefrag(uri)[0]
+    return uri, fileuri
+
 
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
@@ -49,22 +96,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, string_types):
-        split = urllib.parse.urlsplit(argsworkflow)
-        # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
-        if split.scheme and split.scheme in [u'http',u'https',u'file']:
-            uri = argsworkflow
-        elif os.path.exists(os.path.abspath(argsworkflow)):
-            uri = file_uri(str(os.path.abspath(argsworkflow)))
-        elif resolver:
-            uri = resolver(document_loader, argsworkflow)
-
-        if uri is None:
-            raise ValidationException("Not found: '%s'" % argsworkflow)
-
-        if argsworkflow != uri:
-            _logger.info("Resolved '%s' to '%s'", argsworkflow, uri)
-
-        fileuri = urllib.parse.urldefrag(uri)[0]
+        uri, fileuri = resolve_tool_uri(argsworkflow, resolver=resolver, document_loader=document_loader)
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
         uri = "#" + Text(id(argsworkflow))
@@ -139,8 +171,9 @@ def validate_document(document_loader,  # type: Loader
                       strict=True,  # type: bool
                       preprocess_only=False,  # type: bool
                       fetcher_constructor=None,
-                      skip_schemas=None
+                      skip_schemas=None,
                       # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+                      overrides=None  # type: List[Dict]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -155,9 +188,15 @@ def validate_document(document_loader,  # type: Loader
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = document_loader.resolve_all(workflowobj, uri)
+        job_loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
+        jobobj, _ = job_loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
+
+        if "http://commonwl.org/cwltool#overrides" in jobobj:
+            overrides.extend(resolve_overrides(jobobj, uri, uri))
+            del jobobj["http://commonwl.org/cwltool#overrides"]
+
         workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
 
     fileuri = urllib.parse.urldefrag(uri)[0]
@@ -225,6 +264,9 @@ def validate_document(document_loader,  # type: Loader
     if jobobj:
         metadata[u"cwl:defaults"] = jobobj
 
+    if overrides:
+        metadata[u"cwltool:overrides"] = overrides
+
     return document_loader, avsc_names, processobj, metadata, uri
 
 
@@ -277,7 +319,8 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
               resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
-              fetcher_constructor=None  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+              fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+              overrides=None
               ):
     # type: (...) -> Process
 
@@ -285,6 +328,20 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                                                        fetcher_constructor=fetcher_constructor)
     document_loader, avsc_names, processobj, metadata, uri = validate_document(
         document_loader, workflowobj, uri, enable_dev=enable_dev,
-        strict=strict, fetcher_constructor=fetcher_constructor)
+        strict=strict, fetcher_constructor=fetcher_constructor,
+        overrides=overrides)
     return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})
+
+def resolve_overrides(ov, ov_uri, baseurl):  # type: (CommentedMap, Text, Text) -> List[Dict[Text, Any]]
+    ovloader = Loader(overrides_ctx)
+    ret, _ = ovloader.resolve_all(ov, baseurl)
+    if not isinstance(ret, CommentedMap):
+        raise Exception("Expected CommentedMap, got %s" % type(ret))
+    cwl_docloader = get_schema("v1.0")[0]
+    cwl_docloader.resolve_all(ret, ov_uri)
+    return ret["overrides"]
+
+def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
+    ovloader = Loader(overrides_ctx)
+    return resolve_overrides(ovloader.fetch(ov), ov, base_url)
