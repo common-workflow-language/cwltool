@@ -544,7 +544,7 @@ def load_job_order(args,   # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
-       overrides.extend(resolve_overrides(job_order_object, tool_file_uri))
+       overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
        del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if not job_order_object:
@@ -835,7 +835,9 @@ def main(argsl=None,  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
-        uri, tool_file_uri = resolve_tool_uri(args.workflow, resolver)
+        uri, tool_file_uri = resolve_tool_uri(args.workflow,
+                                              resolver=resolver,
+                                              fetcher_constructor=fetcher_constructor)
 
         overrides = []  # type: List[Dict[Text, Any]]
 
