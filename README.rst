@@ -66,7 +66,7 @@ To run the basis tests after installing `cwltool` execute the following:
 
 .. code:: bash
   
-  pip install pytest
+  pip install pytest mock
   py.test --ignore cwltool/schemas/ --pyarg cwltool
 
 To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
