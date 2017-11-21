@@ -64,7 +64,12 @@ def replace_refs(d, rewrite, stem, newstem):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
-                    d[s] = newstem + v[len(stem):]
+                    id_ = v[len(stem):]
+                    # prevent appending newstems if tool is already packed
+                    if id_.startswith(newstem.strip("#")):
+                        d[s] = "#" + id_
+                    else:
+                        d[s] = newstem + id_
             replace_refs(v, rewrite, stem, newstem)
 
 def import_embed(d, seen):

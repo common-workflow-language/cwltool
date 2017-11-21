@@ -60,3 +60,25 @@ class TestPack(unittest.TestCase):
         packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 
         self.assertEqual('v1.0', packed["cwlVersion"])
+
+    def test_pack_idempotence_tool(self):
+        """Test to ensure that pack produces exactly the same document for
+           an already packed document"""
+
+        # Testing single tool
+        self._pack_idempotently("tests/wf/hello_single_tool.cwl")
+
+    def _pack_idempotently(self, document):
+        self.maxDiff = None
+        document_loader, workflowobj, uri = fetch_document(
+            get_data(document))
+        document_loader, avsc_names, processobj, metadata, uri = validate_document(
+            document_loader, workflowobj, uri)
+        # generate pack output dict
+        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+
+        document_loader, workflowobj, uri2 = fetch_document(packed)
+        document_loader, avsc_names, processobj, metadata, uri2 = validate_document(
+            document_loader, workflowobj, uri)
+        double_packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+        self.assertEqual(packed, double_packed)
