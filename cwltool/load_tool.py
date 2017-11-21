@@ -51,9 +51,9 @@ overrides_ctx = {
         "@id": "cwltool:override",
         "mapSubject": "class"
     }
-}
+}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
 
-def resolve_tool_uri(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
+def resolve_tool_uri(argsworkflow,  # type: Text
                      resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
                      fetcher_constructor=None,
                      # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
