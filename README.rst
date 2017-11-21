@@ -405,7 +405,9 @@ that should be applied.
 
 
 Overrides can be specified either on the command line, or as part of the job
-input document.
+input document.  Workflow steps are identified using the name of the workflow
+file followed by the step name as a document fragment identifier "#id".
+Override identifiers are relative to the toplevel workflow document.
 
 .. code:: bash
 
@@ -416,7 +418,7 @@ input document.
   input_parameter1: value1
   input_parameter2: value2
   cwltool:overrides:
-    echo.cwl:
+    workflow.cwl#step1:
       - class: EnvVarRequirement
         envDef:
           MESSAGE: override_value

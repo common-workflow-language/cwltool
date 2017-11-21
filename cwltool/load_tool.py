@@ -54,6 +54,31 @@ overrides_ctx.update({
     }
 })
 
+def resolve_tool_uri(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
+                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
+):
+    # type: (...) -> Tuple[Text, Text]
+
+    uri = None  # type: Text
+    split = urllib.parse.urlsplit(argsworkflow)
+    # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
+    if split.scheme and split.scheme in [u'http',u'https',u'file']:
+        uri = argsworkflow
+    elif os.path.exists(os.path.abspath(argsworkflow)):
+        uri = file_uri(str(os.path.abspath(argsworkflow)))
+    elif resolver:
+        uri = resolver(document_loader, argsworkflow)
+
+    if uri is None:
+        raise ValidationException("Not found: '%s'" % argsworkflow)
+
+    if argsworkflow != uri:
+        _logger.info("Resolved '%s' to '%s'", argsworkflow, uri)
+
+    fileuri = urllib.parse.urldefrag(uri)[0]
+    return (uri, fileuri)
+
+
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
                    fetcher_constructor=None
@@ -67,22 +92,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     uri = None  # type: Text
     workflowobj = None  # type: CommentedMap
     if isinstance(argsworkflow, string_types):
-        split = urllib.parse.urlsplit(argsworkflow)
-        # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
-        if split.scheme and split.scheme in [u'http',u'https',u'file']:
-            uri = argsworkflow
-        elif os.path.exists(os.path.abspath(argsworkflow)):
-            uri = file_uri(str(os.path.abspath(argsworkflow)))
-        elif resolver:
-            uri = resolver(document_loader, argsworkflow)
-
-        if uri is None:
-            raise ValidationException("Not found: '%s'" % argsworkflow)
-
-        if argsworkflow != uri:
-            _logger.info("Resolved '%s' to '%s'", argsworkflow, uri)
-
-        fileuri = urllib.parse.urldefrag(uri)[0]
+        uri, fileuri = resolve_tool_uri(argsworkflow, resolver)
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, dict):
         uri = "#" + Text(id(argsworkflow))
@@ -321,11 +331,13 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
 
 def resolve_overrides(ov, baseurl):  # type: (CommentedMap, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
+    del ov["id"]
+    del ov["name"]
     ret, _ = ovloader.resolve_all(ov, baseurl)
     if not isinstance(ret, CommentedMap):
         raise Exception("Expected CommentedMap, got %s" % type(ret))
     return ret["overrides"]
 
-def load_overrides(ov):  # type: (Text) -> List[Dict[Text, Any]]
+def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
-    return resolve_overrides(ovloader.fetch(ov), ov)
+    return resolve_overrides(ovloader.fetch(ov), base_url)

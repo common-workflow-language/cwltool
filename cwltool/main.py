@@ -27,7 +27,7 @@ from . import draft2tool, workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .load_tool import (fetch_document, make_tool, validate_document,
+from .load_tool import (resolve_tool_uri, fetch_document, make_tool, validate_document,
                         jobloaderctx, resolve_overrides, load_overrides)
 from .mutation import MutationManager
 from .pack import pack
@@ -519,7 +519,8 @@ def generate_input_template(tool):
 def load_job_order(args,   # type: argparse.Namespace
                    stdin,  # type: IO[Any]
                    fetcher_constructor,  # Fetcher
-                   overrides  # type: List[Dict[Text, Any]]
+                   overrides,  # type: List[Dict[Text, Any]]
+                   tool_file_uri  # type: Text
 ):
     # type: (...) -> Tuple[Dict[Text, Any], Text, Loader]
 
@@ -543,8 +544,8 @@ def load_job_order(args,   # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
-        overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file)))
-        del job_order_object["http://commonwl.org/cwltool#overrides"]
+       overrides.extend(resolve_overrides(job_order_object, tool_file_uri))
+       del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
@@ -834,18 +835,24 @@ def main(argsl=None,  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
+        uri, tool_file_uri = resolve_tool_uri(args.workflow, resolver)
+
         overrides = []  # type: List[Dict[Text, Any]]
 
         try:
-            job_order_object, input_basedir, jobloader = load_job_order(args, stdin, fetcher_constructor, overrides)
+            job_order_object, input_basedir, jobloader = load_job_order(args,
+                                                                        stdin,
+                                                                        fetcher_constructor,
+                                                                        overrides,
+                                                                        tool_file_uri)
         except Exception as e:
             _logger.error(Text(e), exc_info=args.debug)
 
         if args.overrides:
-            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides))))
+            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
         try:
-            document_loader, workflowobj, uri = fetch_document(args.workflow, resolver=resolver,
+            document_loader, workflowobj, uri = fetch_document(uri, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
 
             if args.print_deps:
