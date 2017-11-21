@@ -333,7 +333,7 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
     return make_tool(document_loader, avsc_names, metadata, uri,
                      makeTool, kwargs if kwargs else {})
 
-def resolve_overrides(ov, ov_uri, baseurl):  # type: (CommentedMap, Text) -> List[Dict[Text, Any]]
+def resolve_overrides(ov, ov_uri, baseurl):  # type: (CommentedMap, Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
     ret, _ = ovloader.resolve_all(ov, baseurl)
     if not isinstance(ret, CommentedMap):
