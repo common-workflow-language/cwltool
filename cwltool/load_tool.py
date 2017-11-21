@@ -251,7 +251,7 @@ def validate_document(document_loader,  # type: Loader
         metadata[u"cwl:defaults"] = jobobj
 
     if overrides:
-        metadata[u"cwl:overrides"] = overrides
+        metadata[u"cwltool:overrides"] = overrides
 
     return document_loader, avsc_names, processobj, metadata, uri
 

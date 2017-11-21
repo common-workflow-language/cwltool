@@ -521,6 +521,8 @@ class Workflow(Process):
             try:
                 self.steps.append(WorkflowStep(step, n, **kwargs))
             except validate.ValidationException as v:
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.exception("Validation failed at")
                 validation_errors.append(v)
 
         if validation_errors:
@@ -668,7 +670,7 @@ class WorkflowStep(Process):
 
         kwargs["requirements"] = (kwargs.get("requirements", []) +
                                   toolpath_object.get("requirements", []) +
-                                  get_overrides(kwargs["metadata"], self.id))
+                                  get_overrides(kwargs["overrides"], self.id))
         kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
 
         try:
@@ -681,7 +683,7 @@ class WorkflowStep(Process):
                     strict=kwargs.get("strict"),
                     fetcher_constructor=kwargs.get("fetcher_constructor"),
                     resolver=kwargs.get("resolver"),
-                    overrides=kwargs.get("metadata", {}).get("overrides"))
+                    overrides=kwargs.get("overrides"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %

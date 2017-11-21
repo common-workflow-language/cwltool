@@ -868,6 +868,8 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
 
+            overrides.extend(metadata.get("cwltool:overrides", []))
+
             conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
             use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
 
@@ -879,6 +881,7 @@ def main(argsl=None,  # type: List[str]
                 make_tool_kwds["job_script_provider"] = dependencies_configuration
 
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
+            make_tool_kwds["overrides"] = overrides
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
                              makeTool, make_tool_kwds)

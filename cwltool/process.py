@@ -422,9 +422,8 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-def get_overrides(metadata, toolid):  # type: (Dict[Text, Any], Text) -> List[Dict[Text, Any]]
+def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> List[Dict[Text, Any]]
     req = []  # type: List[Dict[Text, Any]]
-    overrides = metadata.get("cwl:overrides", [])
     if not isinstance(overrides, list):
         raise validate.ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
     for ov in overrides:
@@ -468,7 +467,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         self.tool = toolpath_object
         self.requirements = (kwargs.get("requirements", []) +
                              self.tool.get("requirements", []) +
-                             get_overrides(self.metadata, self.tool["id"]))
+                             get_overrides(kwargs.get("overrides", []), self.tool["id"]))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
