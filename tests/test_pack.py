@@ -80,5 +80,5 @@ class TestPack(unittest.TestCase):
         document_loader, workflowobj, uri2 = fetch_document(packed)
         document_loader, avsc_names, processobj, metadata, uri2 = validate_document(
             document_loader, workflowobj, uri)
-        double_packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+        double_packed = json.loads(print_pack(document_loader, processobj, uri2, metadata))
         self.assertEqual(packed, double_packed)
