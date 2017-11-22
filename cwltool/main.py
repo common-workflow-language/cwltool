@@ -901,6 +901,7 @@ def main(argsl=None,  # type: List[str]
                 return 0
 
             if args.validate:
+                _logger.info("Tool definition is valid")
                 return 0
 
             if args.print_rdf:
