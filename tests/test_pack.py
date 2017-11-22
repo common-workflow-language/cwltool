@@ -68,6 +68,13 @@ class TestPack(unittest.TestCase):
         # Testing single tool
         self._pack_idempotently("tests/wf/hello_single_tool.cwl")
 
+    def test_pack_idempotence_workflow(self):
+        """Test to ensure that pack produces exactly the same document for
+           an already packed document"""
+
+        # Testing workflow
+        self._pack_idempotently("tests/wf/count-lines1-wf.cwl")
+
     def _pack_idempotently(self, document):
         self.maxDiff = None
         document_loader, workflowobj, uri = fetch_document(

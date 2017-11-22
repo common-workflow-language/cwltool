@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import copy
+import re
 from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
 from schema_salad.ref_resolver import Loader
@@ -111,12 +112,16 @@ def pack(document_loader, processobj, uri, metadata):
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(r, mainuri):
-        # type: (Text, Text) -> None
+    def rewrite_id(r, mainuri, document_packed=False):
+        # type: (Text, Text, bool) -> None
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
-            pass
+            if document_packed:
+                # rewrite tool and mainuri ids in a packed document
+                tool_id = re.search("#[^/]*$", r)
+                if tool_id:
+                    rewrite[r] = tool_id.group()
         else:
             path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
@@ -127,9 +132,10 @@ def pack(document_loader, processobj, uri, metadata):
 
     sortedids = sorted(ids)
 
+    is_document_packed = all(id.startswith(uri) for id in sortedids)
     for r in sortedids:
         if r in document_loader.idx:
-            rewrite_id(r, uri)
+            rewrite_id(r, uri, is_document_packed)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
               }  # type: Dict[Text, Any]
@@ -138,7 +144,7 @@ def pack(document_loader, processobj, uri, metadata):
     for r in sorted(runs):
         dcr, metadata = document_loader.resolve_ref(r)
         if not isinstance(dcr, dict):
-            continue
+            dcr = dcr[0]
         for doc in (dcr, metadata):
             if "$schemas" in doc:
                 for s in doc["$schemas"]:
@@ -146,7 +152,7 @@ def pack(document_loader, processobj, uri, metadata):
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
-        v = rewrite[r]
+        v = rewrite.get(r, r + "#main")
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
             if n in dc:
