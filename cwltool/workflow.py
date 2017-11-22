@@ -625,8 +625,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
-        _logger.warning("Workflow checker warning:")
-        _logger.warning(all_warning_msg)
+        _logger.warning("Workflow checker warning:\n%s" % all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
