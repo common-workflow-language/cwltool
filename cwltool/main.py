@@ -10,7 +10,7 @@ import logging
 import os
 import copy
 import time
-import ipdb
+#import ipdb
 from time import gmtime, strftime
 import sys
 import tempfile
@@ -62,15 +62,17 @@ document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
 document.add_namespace('run', 'urn:uuid:')
 document.add_namespace('engine', 'urn:uuid4:')
 document.add_namespace('data', 'urn:hash:sha256')
-
-
+step_dict={}
 packedWorkflowPath=""
 WorkflowRunID=""
+cwlversionProv=""
 engineUUID=""
 activity_workflowRun={}
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
+engineUUID="engine:"+str(uuid.uuid4())
+document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
@@ -263,7 +265,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("job_order", nargs=argparse.REMAINDER)
 
     return parser
-ipdb.set_trace()
+#ipdb.set_trace()
 #for retrospective details. This is where we should make all the changes and capture provenance.
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
@@ -309,22 +311,24 @@ def single_job_executor(t,  # type: Process
     if jobReqs:
         for req in jobReqs:
             t.requirements.append(req)
-    print ("steps  are ", vars(t))
     jobiter = t.job(job_order_object,
                     output_callback,
                     **kwargs)
     try:
         for r in jobiter: #its each step of the workflow
             if r: #for every step, a uuid as ProcessRunID is generated for provenance record
-                ProcessRunID="run:"+str(uuid.uuid4())
-                a1 = document.activity(ProcessRunID, datetime.datetime.now(), None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
 
-                #document.wasAssociatedWith(ProcessRunID, engineUUID, )
                 builder = kwargs.get("builder", None)  # type: Builder
                 if builder is not None:
                     r.builder = builder
                 if r.outdir:
                     output_dirs.add(r.outdir)
+                #here we are recording provenance of each subprocess of the workflow
+                ProcessRunID="run:"+str(uuid.uuid4())
+                a1 = document.activity(ProcessRunID, datetime.datetime.now(), None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
+                if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
+                    stepname= step_dict[str(getattr(r, "name"))]
+                    document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
                 r.run(**kwargs) #this is where you run each step. so start and end time for the step
             else:
                 _logger.error("Workflow cannot make any more progress.")
@@ -622,7 +626,6 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     if not job_order_object and len(t.tool["inputs"]) > 0:
         if toolparser:
-            print(u"\nOptions for {} ".format(args.workflow))
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
@@ -723,8 +726,9 @@ def generate_provDoc(wf_Steps):
     #define workflow run level activity
     activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
     #adding the SoftwareAgent to PROV document
-    engineUUID="engine: "+str(uuid.uuid4())
-    document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
+    #engineUUID="engine:"+str(uuid.uuid4())
+    #document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
+
     #association between SoftwareAgent and WorkflowRun
     mainWorkflow= "wf:main"
     document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
@@ -732,8 +736,11 @@ def generate_provDoc(wf_Steps):
     subProcess="wfdesc:hasSubProcess"
     JsonProspective_type=json.dumps(['wfdesc:Workflow','prov:Plan'])
     stepArray=[]
+    #step_dict={}
     for step in wf_Steps:
         steptemp=mainWorkflow+str(step[5:]).strip()
+        temp=str(step[6:]).strip()
+        step_dict[temp]=steptemp
         document.entity(steptemp, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
         stepArray.append(steptemp)
     jsonprospect=json.dumps(stepArray)
@@ -760,7 +767,7 @@ def supportedCWLversions(enable_dev):
         versions = list(UPDATES)
     versions.sort()
     return versions
-
+#ipdb.set_trace()
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
          executor=single_job_executor,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
@@ -778,7 +785,6 @@ def main(argsl=None,  # type: List[str]
          custom_schema_callback=None  # type: Callable[[], None]
          ):
     # type: (...) -> int
-
     _logger.removeHandler(defaultStreamHandler)
     if logger_handler:
         stderr_handler = logger_handler
@@ -790,15 +796,11 @@ def main(argsl=None,  # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
-
-
+        #ipdb.set_trace()
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
         if onWindows() and not args.default_container:
             # This docker image is a minimal alpine image with bash installed(size 6 mb). source: https://github.com/frol/docker-alpine-bash
             args.default_container = windows_default_container_id
-
-
-
         # If caller provided custom arguments, it may be not every expected
         # option is set, so fill in no-op defaults to avoid crashing when
         # dereferencing them in args.
@@ -996,7 +998,6 @@ def main(argsl=None,  # type: List[str]
 
         if isinstance(job_order_object, int):
             return job_order_object
-
 
         try:
             setattr(args, 'basedir', job_order_object[1])

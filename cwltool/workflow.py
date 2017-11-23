@@ -7,7 +7,7 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
-
+import ipdb
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
@@ -356,15 +356,14 @@ class WorkflowJob(object):
 
             if step.submitted:
                 return
-
-            _logger.debug(u"[%s] starting %s", self.name, step.name)
+            #ipdb.set_trace()
+            _logger.info(u"[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(self.receive_output, step, outputparms, final_output_callback)
 
             valueFrom = {
                 i["id"]: i["valueFrom"] for i in step.tool["inputs"]
                 if "valueFrom" in i}
-
             if len(valueFrom) > 0 and not bool(self.workflow.get_requirement("StepInputExpressionRequirement")[0]):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
@@ -423,7 +422,7 @@ class WorkflowJob(object):
                 inputobj = postScatterEval(inputobj)
 
                 if _logger.isEnabledFor(logging.DEBUG):
-                    _logger.debug(u"[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
+                    _logger.info(u"[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, callback, **kwargs)
 
             step.submitted = True
@@ -449,9 +448,10 @@ class WorkflowJob(object):
 
         if "outdir" in kwargs:
             del kwargs["outdir"]
-
+        #ipdb.set_trace()
         ro = kwargs.get("ro")
         customised_job={} #new job object for RO
+
         for e, i in enumerate(self.tool["inputs"]):
             with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
@@ -470,6 +470,7 @@ class WorkflowJob(object):
 
 
         for s in self.steps:
+
             for out in s.tool["outputs"]:
                 self.state[out["id"]] = None
 
