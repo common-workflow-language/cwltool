@@ -113,20 +113,31 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-Running user-space implementations of Docker
---------------------------------------------
+Using user-space replacements for Docker
+----------------------------------------
 
-Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
+Some shared computing environments don't support Docker software containers for technical or policy reasons.
+As a work around, the CWL reference runner supports using a alternative ``docker`` implementations on Linux
+with the ``--user-space-docker-cmd`` option.
 
-Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
+is ``dx-docker`` https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images
 
-For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-indigo-datacloud-repositories
+
+dx-docker installation: start with the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
 
 Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
 
 .. code:: bash
 
-  cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
+  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+  
+or 
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
 
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
