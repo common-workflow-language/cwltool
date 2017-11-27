@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
 from schema_salad.ref_resolver import Loader
 from six.moves import urllib
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
 from .process import shortname, uniquename
 import six
@@ -143,8 +144,11 @@ def pack(document_loader, processobj, uri, metadata):
     schemas = set()  # type: Set[Text]
     for r in sorted(runs):
         dcr, metadata = document_loader.resolve_ref(r)
-        if not isinstance(dcr, dict):
+        if isinstance(dcr, CommentedSeq):
             dcr = dcr[0]
+            dcr = cast(CommentedMap, dcr)
+        if not isinstance(dcr, dict):
+            continue
         for doc in (dcr, metadata):
             if "$schemas" in doc:
                 for s in doc["$schemas"]:
