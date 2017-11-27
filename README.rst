@@ -31,7 +31,7 @@ It is highly recommended to setup virtual environment before installing `cwltool
   virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
   source venv/bin/activate     # Activate environment before installing `cwltool`
 
-1. Installing the official package from PyPi (will install "cwltool" package as
+Installing the official package from PyPi (will install "cwltool" package as
 well)
 
 .. code:: bash
@@ -44,7 +44,7 @@ If installing alongside another CWL implementation then
 
   pip install cwltool
 
-2. To install from source
+Or you can install from source:
 
 .. code:: bash
 
@@ -62,9 +62,16 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
-We use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_
-to run various tests in all supported Python environments.
-You can run the test suite by simply running the following in the terminal:
+To run the basis tests after installing `cwltool` execute the following:
+
+.. code:: bash
+  
+  pip install pytest mock
+  py.test --ignore cwltool/schemas/ --pyarg cwltool
+
+To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
+first downloading the complete code repository (see the ``git clone`` instructions above) and then run
+the following in the terminal:
 ``pip install tox; tox``
 
 List of all environment can be seen using:
