@@ -281,10 +281,13 @@ def make_tool(document_loader,  # type: Loader
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
 
+    processobj = None
     if isinstance(resolveduri, list):
-        if len(resolveduri) == 1:
-            processobj = resolveduri[0]
-        else:
+        for obj in resolveduri:
+            if obj['id'].endswith('#main'):
+                processobj = obj
+                break
+        if not processobj:
             raise WorkflowException(
                 u"Tool file contains graph of multiple objects, must specify "
                 "one of #%s" % ", #".join(

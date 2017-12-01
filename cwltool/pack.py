@@ -1,9 +1,11 @@
 from __future__ import absolute_import
 import copy
+import re
 from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
 from schema_salad.ref_resolver import Loader
 from six.moves import urllib
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
 from .process import shortname, uniquename
 import six
@@ -64,7 +66,12 @@ def replace_refs(d, rewrite, stem, newstem):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
-                    d[s] = newstem + v[len(stem):]
+                    id_ = v[len(stem):]
+                    # prevent appending newstems if tool is already packed
+                    if id_.startswith(newstem.strip("#")):
+                        d[s] = "#" + id_
+                    else:
+                        d[s] = newstem + id_
             replace_refs(v, rewrite, stem, newstem)
 
 def import_embed(d, seen):
@@ -106,12 +113,16 @@ def pack(document_loader, processobj, uri, metadata):
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(r, mainuri):
-        # type: (Text, Text) -> None
+    def rewrite_id(r, mainuri, document_packed=False):
+        # type: (Text, Text, bool) -> None
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
-            pass
+            if document_packed:
+                # rewrite tool and mainuri ids in a packed document
+                tool_id = re.search("#[^/]*$", r)
+                if tool_id:
+                    rewrite[r] = tool_id.group()
         else:
             path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
@@ -122,9 +133,10 @@ def pack(document_loader, processobj, uri, metadata):
 
     sortedids = sorted(ids)
 
+    is_document_packed = all(id.startswith(uri) for id in sortedids)
     for r in sortedids:
         if r in document_loader.idx:
-            rewrite_id(r, uri)
+            rewrite_id(r, uri, is_document_packed)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
               }  # type: Dict[Text, Any]
@@ -132,6 +144,9 @@ def pack(document_loader, processobj, uri, metadata):
     schemas = set()  # type: Set[Text]
     for r in sorted(runs):
         dcr, metadata = document_loader.resolve_ref(r)
+        if isinstance(dcr, CommentedSeq):
+            dcr = dcr[0]
+            dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, dict):
             continue
         for doc in (dcr, metadata):
@@ -141,7 +156,7 @@ def pack(document_loader, processobj, uri, metadata):
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
-        v = rewrite[r]
+        v = rewrite.get(r, r + "#main")
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
             if n in dc:
