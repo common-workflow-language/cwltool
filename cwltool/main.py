@@ -790,7 +790,8 @@ def main(argsl=None,  # type: List[str]
                      'enable_ga4gh_tool_registry': False,
                      'ga4gh_tool_registries': [],
                      'find_default_container': None,
-                     'make_template': False
+                                   'make_template': False,
+                                   'overrides': None
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
@@ -869,10 +870,6 @@ def main(argsl=None,  # type: List[str]
                                     skip_schemas=args.skip_schemas,
                                     overrides=overrides)
 
-            if args.pack:
-                stdout.write(print_pack(document_loader, processobj, uri, metadata))
-                return 0
-
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
@@ -901,6 +898,10 @@ def main(argsl=None,  # type: List[str]
                 return 0
 
             if args.validate:
+                return 0
+
+            if args.pack:
+                stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
 
             if args.print_rdf:

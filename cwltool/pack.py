@@ -3,7 +3,7 @@ import copy
 import re
 from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
-from schema_salad.ref_resolver import Loader
+from schema_salad.ref_resolver import Loader, SubLoader
 from six.moves import urllib
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
@@ -91,12 +91,16 @@ def import_embed(d, seen):
                     seen.add(this)
                     break
 
-        for v in d.values():
-            import_embed(v, seen)
+        for k in sorted(d.keys()):
+            import_embed(d[k], seen)
 
 
 def pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
+
+    document_loader = SubLoader(document_loader)
+    document_loader.idx = {}
+
     def loadref(b, u):
         # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
