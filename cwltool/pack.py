@@ -127,7 +127,7 @@ def pack(document_loader, processobj, uri, metadata):
     mainpath, _ = urllib.parse.urldefrag(uri)
 
     def rewrite_id(r, mainuri):
-        # type: (Text, Text, bool) -> None
+        # type: (Text, Text) -> None
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
