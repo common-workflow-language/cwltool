@@ -3,7 +3,7 @@ import copy
 import re
 from typing import Any, Callable, Dict, List, Set, Text, Union, cast
 
-from schema_salad.ref_resolver import Loader
+from schema_salad.ref_resolver import Loader, SubLoader
 from six.moves import urllib
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
@@ -91,12 +91,25 @@ def import_embed(d, seen):
                     seen.add(this)
                     break
 
-        for v in d.values():
-            import_embed(v, seen)
+        for k in sorted(d.keys()):
+            import_embed(d[k], seen)
 
 
 def pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
+
+    document_loader = SubLoader(document_loader)
+    document_loader.idx = {}
+    if isinstance(processobj, dict):
+        document_loader.idx[processobj["id"]] = CommentedMap(six.iteritems(processobj))
+    elif isinstance(processobj, list):
+        path, frag = urllib.parse.urldefrag(uri)
+        for po in processobj:
+            if not frag:
+                if po["id"].endswith("#main"):
+                    uri = po["id"]
+            document_loader.idx[po["id"]] = CommentedMap(six.iteritems(po))
+
     def loadref(b, u):
         # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
@@ -113,16 +126,13 @@ def pack(document_loader, processobj, uri, metadata):
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(r, mainuri, document_packed=False):
-        # type: (Text, Text, bool) -> None
+    def rewrite_id(r, mainuri):
+        # type: (Text, Text) -> None
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
-            if document_packed:
-                # rewrite tool and mainuri ids in a packed document
-                tool_id = re.search("#[^/]*$", r)
-                if tool_id:
-                    rewrite[r] = tool_id.group()
+            path, frag = urllib.parse.urldefrag(r)
+            rewrite[r] = "#"+frag
         else:
             path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
@@ -133,10 +143,9 @@ def pack(document_loader, processobj, uri, metadata):
 
     sortedids = sorted(ids)
 
-    is_document_packed = all(id.startswith(uri) for id in sortedids)
     for r in sortedids:
         if r in document_loader.idx:
-            rewrite_id(r, uri, is_document_packed)
+            rewrite_id(r, uri)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
               }  # type: Dict[Text, Any]
@@ -156,7 +165,7 @@ def pack(document_loader, processobj, uri, metadata):
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
-        v = rewrite.get(r, r + "#main")
+        v = rewrite[r]
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
             if n in dc:
