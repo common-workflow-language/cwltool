@@ -101,14 +101,14 @@ def pack(document_loader, processobj, uri, metadata):
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
     if isinstance(processobj, dict):
-        document_loader.idx[processobj["id"]] = processobj
+        document_loader.idx[processobj["id"]] = CommentedMap(six.iteritems(processobj))
     elif isinstance(processobj, list):
         path, frag = urllib.parse.urldefrag(uri)
         for po in processobj:
             if not frag:
                 if po["id"].endswith("#main"):
                     uri = po["id"]
-            document_loader.idx[po["id"]] = po
+            document_loader.idx[po["id"]] = CommentedMap(six.iteritems(po.iteritems))
 
     def loadref(b, u):
         # type: (Text, Text) -> Union[Dict, List, Text]
