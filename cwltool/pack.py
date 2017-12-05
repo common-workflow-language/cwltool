@@ -108,7 +108,7 @@ def pack(document_loader, processobj, uri, metadata):
             if not frag:
                 if po["id"].endswith("#main"):
                     uri = po["id"]
-            document_loader.idx[po["id"]] = CommentedMap(six.iteritems(po.iteritems))
+            document_loader.idx[po["id"]] = CommentedMap(six.iteritems(po))
 
     def loadref(b, u):
         # type: (Text, Text) -> Union[Dict, List, Text]
