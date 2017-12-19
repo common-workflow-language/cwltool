@@ -116,3 +116,15 @@ class TestPack(unittest.TestCase):
                                stdout=normal_output), 0)
         self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
 
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                               "which is not supported on AppVeyor")
+    def test_preserving_namespaces(self):
+        test_wf = "tests/wf/formattest.cwl"
+        document_loader, workflowobj, uri = fetch_document(
+            get_data(test_wf))
+        document_loader, avsc_names, processobj, metadata, uri = validate_document(
+            document_loader, workflowobj, uri)
+        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+        assert "$namespaces" in packed
+

@@ -149,6 +149,7 @@ def pack(document_loader, processobj, uri, metadata):
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
               }  # type: Dict[Text, Any]
+    namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]
     for r in sorted(runs):
@@ -185,5 +186,7 @@ def pack(document_loader, processobj, uri, metadata):
         # duplicate 'cwlVersion' inside $graph when there is a single item
         # because we're printing contents inside '$graph' rather than whole dict
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
+    if namespaces:
+        packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
 
     return packed
