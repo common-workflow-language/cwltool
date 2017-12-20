@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 import tempfile
-from functools import partial
+from functools import partial, cmp_to_key
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Text, Union, cast
 
 from six import string_types, u
@@ -592,7 +592,7 @@ class CommandLineTool(Process):
                                             else "Directory"}
                                       for g in sorted(fs_access.glob(
                                           fs_access.join(outdir, gb)),
-                                          cmp=locale.strcoll)])
+                                          key=cmp_to_key(locale.strcoll))])
                         except (OSError, IOError) as e:
                             _logger.warning(Text(e))
                         except:
