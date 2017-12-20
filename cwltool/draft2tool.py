@@ -592,7 +592,9 @@ class CommandLineTool(Process):
                                             else "Directory"}
                                       for g in sorted(fs_access.glob(
                                           fs_access.join(outdir, gb)),
-                                          key=cmp_to_key(locale.strcoll))])
+                                          key=cmp_to_key(cast(
+                                              Callable[[unicode, unicode],
+                                                  int], locale.strcoll)))])
                         except (OSError, IOError) as e:
                             _logger.warning(Text(e))
                         except:
