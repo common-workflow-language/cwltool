@@ -9,7 +9,8 @@ import re
 import shutil
 import tempfile
 from functools import partial, cmp_to_key
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, Text, Union, cast
+from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Text,
+    Union, cast)
 
 from six import string_types, u
 
@@ -589,11 +590,11 @@ class CommandLineTool(Process):
                                        "nameext": os.path.splitext(
                                            os.path.basename(g))[1],
                                        "class": "File" if fs_access.isfile(g)
-                                            else "Directory"}
+                                       else "Directory"}
                                       for g in sorted(fs_access.glob(
                                           fs_access.join(outdir, gb)),
                                           key=cmp_to_key(cast(
-                                              Callable[[unicode, unicode],
+                                              Callable[[Text, Text],
                                                   int], locale.strcoll)))])
                         except (OSError, IOError) as e:
                             _logger.warning(Text(e))
