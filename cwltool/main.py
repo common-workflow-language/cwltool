@@ -27,8 +27,9 @@ from . import draft2tool, workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .load_tool import (resolve_tool_uri, fetch_document, make_tool, validate_document,
-                        jobloaderctx, resolve_overrides, load_overrides)
+from .load_tool import (FetcherConstructorType, resolve_tool_uri,
+        fetch_document, make_tool, validate_document, jobloaderctx,
+        resolve_overrides, load_overrides)
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
@@ -735,7 +736,7 @@ def main(argsl=None,  # type: List[str]
          versionfunc=versionstring,  # type: Callable[[], Text]
          job_order_object=None,  # type: MutableMapping[Text, Any]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+         fetcher_constructor=None,  # type: FetcherConstructorType
          resolver=tool_resolver,
          logger_handler=None,
          custom_schema_callback=None  # type: Callable[[], None]

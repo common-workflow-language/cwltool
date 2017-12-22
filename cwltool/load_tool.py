@@ -9,7 +9,8 @@ import uuid
 import hashlib
 import json
 import copy
-from typing import Any, Callable, Dict, List, Text, Tuple, Union, cast, Iterable
+from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
+        Text, Tuple, Union, cast)
 
 import requests.sessions
 from six import itervalues, string_types
@@ -18,7 +19,7 @@ from six.moves import urllib
 import schema_salad.schema as schema
 from avro.schema import Names
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Fetcher, Loader, file_uri
+from schema_salad.ref_resolver import ContextType, Fetcher, Loader, file_uri
 from schema_salad.sourceline import cmap
 from schema_salad.validate import ValidationException
 
@@ -28,7 +29,6 @@ from .process import Process, shortname, get_schema
 from .update import ALLUPDATES
 
 _logger = logging.getLogger("cwltool")
-
 jobloaderctx = {
     u"cwl": "https://w3id.org/cwl/cwl#",
     u"cwltool": "http://commonwl.org/cwltool#",
@@ -36,7 +36,7 @@ jobloaderctx = {
     u"location": {u"@type": u"@id"},
     u"format": {u"@type": u"@id"},
     u"id": u"@id"
-}
+}  # type: ContextType
 
 
 overrides_ctx = {
@@ -51,12 +51,16 @@ overrides_ctx = {
         "@id": "cwltool:override",
         "mapSubject": "class"
     }
-}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
+}  # type: ContextType
 
 
-loaders = {}
+FetcherConstructorType = Callable[[Dict[Text, Union[Text, bool]],
+    requests.sessions.Session], Fetcher]
+
+loaders = {}  # type: Dict[FetcherConstructorType, Loader]
 
 def default_loader(fetcher_constructor):
+    # type: (Optional[FetcherConstructorType]) -> Loader
     if fetcher_constructor in loaders:
         return loaders[fetcher_constructor]
     else:
@@ -66,7 +70,7 @@ def default_loader(fetcher_constructor):
 
 def resolve_tool_uri(argsworkflow,  # type: Text
                      resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
-                     fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+                     fetcher_constructor=None,  # type: FetcherConstructorType
                      document_loader=None  # type: Loader
                      ):  # type: (...) -> Tuple[Text, Text]
 
@@ -94,7 +98,7 @@ def resolve_tool_uri(argsworkflow,  # type: Text
 
 def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                    resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
-                   fetcher_constructor=None  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+                   fetcher_constructor=None  # type: FetcherConstructorType
                   ):  # type: (...) -> Tuple[Loader, CommentedMap, Text]
     """Retrieve a CWL document."""
 
@@ -178,7 +182,7 @@ def validate_document(document_loader,  # type: Loader
                       enable_dev=False,  # type: bool
                       strict=True,  # type: bool
                       preprocess_only=False,  # type: bool
-                      fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+                      fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,  # type: bool
                       overrides=None,  # type: List[Dict]
                       metadata=None,  # type: Optional[Dict]
@@ -333,7 +337,7 @@ def load_tool(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
               enable_dev=False,  # type: bool
               strict=True,  # type: bool
               resolver=None,  # type: Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
-              fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+              fetcher_constructor=None,  # type: FetcherConstructorType
               overrides=None
               ):
     # type: (...) -> Process
