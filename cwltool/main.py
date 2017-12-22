@@ -544,8 +544,8 @@ def load_job_order(args,   # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
-       overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
-       del job_order_object["http://commonwl.org/cwltool#overrides"]
+        overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
+        del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
@@ -641,6 +641,7 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
+
     def expand_formats(p):
         if "format" in p:
             p["format"] = ld.expand_url(p["format"], "")
