@@ -12,6 +12,8 @@ from six import StringIO
 
 import cwltool.pack
 import cwltool.workflow
+from cwltool.resolver import tool_resolver
+from cwltool import load_tool
 from cwltool.load_tool import fetch_document, validate_document
 from cwltool.main import makeRelative, main, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
@@ -23,6 +25,7 @@ class TestPack(unittest.TestCase):
     maxDiff = None
 
     def test_pack(self):
+        load_tool.loaders = {}
 
         document_loader, workflowobj, uri = fetch_document(
             get_data("tests/wf/revsort.cwl"))
@@ -97,10 +100,11 @@ class TestPack(unittest.TestCase):
                         reason="Instance of cwltool is used, on Windows it invokes a default docker container"
                                "which is not supported on AppVeyor")
     def test_packed_workflow_execution(self):
+        load_tool.loaders = {}
         test_wf = "tests/wf/count-lines1-wf.cwl"
         test_wf_job = "tests/wf/wc-job.json"
         document_loader, workflowobj, uri = fetch_document(
-            get_data(test_wf))
+            get_data(test_wf), resolver=tool_resolver)
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
         packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
