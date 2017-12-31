@@ -1,5 +1,6 @@
 cwltool:overrides:
-  "echo-wf.cwl":
-    - class: EnvVarRequirement
-      envDef:
-        MESSAGE: hello6
+  echo-wf.cwl:
+    requirements:
+      EnvVarRequirement:
+        envDef:
+          MESSAGE: hello6

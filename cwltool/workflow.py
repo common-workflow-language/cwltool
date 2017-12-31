@@ -673,7 +673,7 @@ class WorkflowStep(Process):
 
         kwargs["requirements"] = (kwargs.get("requirements", []) +
                                   toolpath_object.get("requirements", []) +
-                                  get_overrides(kwargs.get("overrides", []), self.id))
+                                  get_overrides(kwargs.get("overrides", []), self.id).get("requirements", []))
         kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
 
         try:
