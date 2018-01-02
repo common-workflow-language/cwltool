@@ -15,7 +15,7 @@ from schema_salad.sourceline import SourceLine, cmap
 from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
-from .process import Process, shortname, uniquename
+from .process import Process, shortname, uniquename, get_overrides
 from .utils import aslist
 import six
 from six.moves import range
@@ -70,11 +70,15 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
     elif isinstance(src.parameter["type"], list):
         # Source is union type
         # Check that at least one source type is compatible with the sink.
-        for st in src.parameter["type"]:
-            srccopy = copy.deepcopy(src)
-            srccopy.parameter["type"] = st
-            if match_types(sinktype, srccopy, iid, inputobj, linkMerge, valueFrom):
+        original_types = src.parameter["type"]
+        for source_type in original_types:
+            src.parameter["type"] = source_type
+            match = match_types(
+                sinktype, src, iid, inputobj, linkMerge, valueFrom)
+            if match:
+                src.parameter["type"] = original_types
                 return True
+        src.parameter["type"] = original_types
         return False
     elif linkMerge:
         if iid not in inputobj:
@@ -521,6 +525,8 @@ class Workflow(Process):
             try:
                 self.steps.append(WorkflowStep(step, n, **kwargs))
             except validate.ValidationException as v:
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.exception("Validation failed at")
                 validation_errors.append(v)
 
         if validation_errors:
@@ -623,8 +629,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
-        _logger.warning("Workflow checker warning:")
-        _logger.warning(all_warning_msg)
+        _logger.warning("Workflow checker warning:\n%s" % all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
@@ -666,7 +671,9 @@ class WorkflowStep(Process):
         else:
             self.id = "#step" + Text(pos)
 
-        kwargs["requirements"] = kwargs.get("requirements", []) + toolpath_object.get("requirements", [])
+        kwargs["requirements"] = (kwargs.get("requirements", []) +
+                                  toolpath_object.get("requirements", []) +
+                                  get_overrides(kwargs.get("overrides", []), self.id))
         kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
 
         try:
@@ -678,7 +685,8 @@ class WorkflowStep(Process):
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
                     fetcher_constructor=kwargs.get("fetcher_constructor"),
-                    resolver=kwargs.get("resolver"))
+                    resolver=kwargs.get("resolver"),
+                    overrides=kwargs.get("overrides"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %

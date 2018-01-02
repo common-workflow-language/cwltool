@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union, MutableMapping
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
@@ -60,7 +60,7 @@ def adjustDirObjs(rec, op):
     visit_class(rec, ("Directory",), op)
 
 def normalizeFilesDirs(job):
-    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]]) -> None
+    # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]]) -> None
     def addLocation(d):
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):

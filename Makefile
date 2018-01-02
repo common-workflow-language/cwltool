@@ -89,7 +89,7 @@ pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > pydocstyle_report.txt 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --violations=pep8 $^
+	diff-quality --violations=pycodestyle $^
 
 ## autopep8    : fix most Python code indentation and formatting
 autopep8: $(PYSOURCES)
@@ -160,7 +160,7 @@ mypy2: ${PYSOURCES}
 	rm -Rf typeshed/2and3/schema_salad
 	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
-	MYPYPATH=$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
+	MYPYPATH=$$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
 
@@ -171,7 +171,7 @@ mypy3: ${PYSOURCES}
 	rm -Rf typeshed/2and3/schema_salad
 	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
-	MYPYPATH=$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
+	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
 

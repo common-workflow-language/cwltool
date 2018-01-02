@@ -1,14 +1,16 @@
 from __future__ import absolute_import
 import copy
 import hashlib
+import locale
 import json
 import logging
 import os
 import re
 import shutil
 import tempfile
-from functools import partial
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, Text, Union, cast
+from functools import partial, cmp_to_key
+from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Text,
+    Union, cast)
 
 from six import string_types, u
 
@@ -208,7 +210,7 @@ class CommandLineTool(Process):
                     })
                     dockerReq = self.requirements[0]
                     if default_container == windows_default_container_id and use_container and onWindows():
-                        _logger.warning(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))
+                        _logger.warning(DEFAULT_CONTAINER_MSG % (windows_default_container_id, windows_default_container_id))
 
         if dockerReq and use_container:
             return DockerCommandLineJob()
@@ -523,8 +525,8 @@ class CommandLineTool(Process):
                 for i, port in enumerate(ports):
                     def makeWorkflowException(msg):
                         return WorkflowException(
-                                u"Error collecting output for parameter '%s':\n%s"
-                                % (shortname(port["id"]), msg))
+                            u"Error collecting output for parameter '%s':\n%s"
+                            % (shortname(port["id"]), msg))
                     with SourceLine(ports, i, makeWorkflowException, debug):
                         fragment = shortname(port["id"])
                         ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
@@ -575,16 +577,25 @@ class CommandLineTool(Process):
                         elif gb == ".":
                             gb = outdir
                         elif gb.startswith("/"):
-                            raise WorkflowException("glob patterns must not start with '/'")
+                            raise WorkflowException(
+                                "glob patterns must not start with '/'")
                         try:
                             prefix = fs_access.glob(outdir)
                             r.extend([{"location": g,
-                                       "path": fs_access.join(builder.outdir, g[len(prefix[0])+1:]),
+                                       "path": fs_access.join(builder.outdir,
+                                           g[len(prefix[0])+1:]),
                                        "basename": os.path.basename(g),
-                                       "nameroot": os.path.splitext(os.path.basename(g))[0],
-                                       "nameext": os.path.splitext(os.path.basename(g))[1],
-                                       "class": "File" if fs_access.isfile(g) else "Directory"}
-                                      for g in fs_access.glob(fs_access.join(outdir, gb))])
+                                       "nameroot": os.path.splitext(
+                                           os.path.basename(g))[0],
+                                       "nameext": os.path.splitext(
+                                           os.path.basename(g))[1],
+                                       "class": "File" if fs_access.isfile(g)
+                                       else "Directory"}
+                                      for g in sorted(fs_access.glob(
+                                          fs_access.join(outdir, gb)),
+                                          key=cmp_to_key(cast(
+                                              Callable[[Text, Text],
+                                                  int], locale.strcoll)))])
                         except (OSError, IOError) as e:
                             _logger.warning(Text(e))
                         except:
