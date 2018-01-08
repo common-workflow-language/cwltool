@@ -422,8 +422,8 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["items"], name_prefix)
     return field_type
 
-def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> List[Dict[Text, Any]]
-    req = {}  # type: List[Dict[Text, Any]]
+def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
+    req = {}  # type: Dict[Text, Any]
     if not isinstance(overrides, list):
         raise validate.ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
     for ov in overrides:
