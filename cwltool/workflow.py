@@ -710,7 +710,14 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
+                        #if the case that the step has a default for a parameter,
+                        #we do not want the default of the tool to override it
+                        step_default = None
+                        if "default" in param and "default" in tool_entry:
+                            step_default = param["default"]
                         param.update(tool_entry)
+                        if step_default is not None:
+                            param["default"] = step_default
                         found = True
                         bound.add(frag)
                         break
