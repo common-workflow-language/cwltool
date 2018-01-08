@@ -45,10 +45,9 @@ overrides_ctx = {
     u"overrides": {
         "@id": "cwltool:overrides",
         "mapSubject": "overrideTarget",
-        "mapPredicate": "override"
     },
-    u"override": {
-        "@id": "cwltool:override",
+    "requirements": {
+        "@id": "https://w3id.org/cwl/cwl#requirements",
         "mapSubject": "class"
     }
 }  # type: ContextType
