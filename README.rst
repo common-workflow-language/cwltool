@@ -224,7 +224,7 @@ the correct module environment before executing the above tool would simply be:
 
 .. code:: yaml
 
-  - type: module
+  - type: modules
 
 The outer list indicates that one plugin is being enabled, the plugin parameters are
 defined as a dictionary for this one list item. There is only one required parameter
