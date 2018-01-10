@@ -550,7 +550,7 @@ def _job_popen(
             stdin_path=stdin_path,
         )
         with open(os.path.join(job_dir, "job.json"), "wb") as f:
-            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False)
+            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False) # type: ignore
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:
