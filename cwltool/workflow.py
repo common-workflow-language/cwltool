@@ -210,13 +210,13 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
         if frag_only:
             iid = shortname(iid)
         if sourceField in inp:
-            if (isinstance(inp[sourceField], list) and not
-            supportsMultipleInput):
+            connections = aslist(inp[sourceField])
+            if (len(connections) > 1 and
+                not supportsMultipleInput):
                 raise WorkflowException(
                     "Workflow contains multiple inbound links to a single "
                     "parameter but MultipleInputFeatureRequirement is not "
                     "declared.")
-            connections = aslist(inp[sourceField])
             for src in connections:
                 if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
                     if not match_types(
