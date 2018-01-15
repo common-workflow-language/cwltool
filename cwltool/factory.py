@@ -3,7 +3,8 @@ import os
 from typing import Callable as tCallable
 from typing import Any, Dict, Text, Tuple, Union
 
-from . import load_tool, main, workflow
+from . import load_tool, workflow
+from .executors import SingleJobExecutor
 from .process import Process
 
 
@@ -35,7 +36,7 @@ class Factory(object):
     def __init__(self,
                  makeTool=workflow.defaultMakeTool,  # type: tCallable[[Any], Process]
                  # should be tCallable[[Dict[Text, Any], Any], Process] ?
-                 executor=main.job_executor,  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
+                 executor=SingleJobExecutor(),  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
                  **execkwargs  # type: Any
                  ):
         # type: (...) -> None

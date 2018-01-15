@@ -28,6 +28,7 @@ from . import draft2tool, workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
+from .executors import SingleJobExecutor, MultithreadedJobExecutor
 from .load_tool import (FetcherConstructorType, resolve_tool_uri,
         fetch_document, make_tool, validate_document, jobloaderctx,
         resolve_overrides, load_overrides)
@@ -64,7 +65,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
-
+    parser.add_argument("--executor", type=Text, choices={"single", "parallel"}, default="single",
+                        help="Workflow executor type: sequential/multithreaded. Default: sequential")
     parser.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
                         metavar="ENVVAR",
@@ -252,100 +254,6 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     return parser
 
-
-def job_executor(t,  # type: Process
-                 job_order_object,  # type: Dict[Text, Any]
-                 **kwargs  # type: Any
-                 ):
-    # type: (...) -> Tuple[Dict[Text, Any], Text]
-    final_output = []
-    final_status = []
-
-    def output_callback(out, processStatus):
-        final_status.append(processStatus)
-        final_output.append(out)
-
-    if "basedir" not in kwargs:
-        raise WorkflowException("Must provide 'basedir' in kwargs")
-
-    output_dirs = set()
-    finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
-    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
-        "tmp_outdir_prefix") else tempfile.mkdtemp()
-    output_dirs.add(kwargs["outdir"])
-    kwargs["mutation_manager"] = MutationManager()
-
-    jobReqs = None
-    if "cwl:requirements" in job_order_object:
-        jobReqs = job_order_object["cwl:requirements"]
-    elif ("cwl:defaults" in t.metadata and "cwl:requirements" in t.metadata["cwl:defaults"]):
-        jobReqs = t.metadata["cwl:defaults"]["cwl:requirements"]
-    if jobReqs:
-        for req in jobReqs:
-            t.requirements.append(req)
-
-    fetch_iter_lock = threading.Lock()
-    threads = set()
-    exceptions = []
-
-    def run_job(job):
-        def runner():
-            try:
-                job.run(**kwargs)
-            except WorkflowException as e:
-                exceptions.append(e)
-            except Exception as e:
-                exceptions.append(WorkflowException(Text(e)))
-
-            threads.remove(thread)
-
-            if fetch_iter_lock.locked():
-                fetch_iter_lock.release()
-
-        thread = threading.Thread(target=runner)
-        thread.daemon = True
-        threads.add(thread)
-        thread.start()
-
-    def wait_for_next_completion():
-        fetch_iter_lock.acquire()
-        fetch_iter_lock.acquire()
-        fetch_iter_lock.release()
-        if exceptions:
-            raise exceptions[0]
-
-    jobiter = t.job(job_order_object, output_callback, **kwargs)
-
-    for r in jobiter:
-        if r:
-            builder = kwargs.get("builder", None)  # type: Builder
-            if builder is not None:
-                r.builder = builder
-            if r.outdir:
-                output_dirs.add(r.outdir)
-            run_job(r)
-        else:
-            if len(threads):
-                wait_for_next_completion()
-            else:
-                _logger.error("Workflow cannot make any more progress.")
-                break
-
-    while len(threads) > 0:
-        wait_for_next_completion()
-
-    if final_output and final_output[0] and finaloutdir:
-        final_output[0] = relocateOutputs(final_output[0], finaloutdir,
-                                          output_dirs, kwargs.get("move_outputs"),
-                                          kwargs["make_fs_access"](""))
-
-    if kwargs.get("rm_tmpdir"):
-        cleanIntermediate(output_dirs)
-
-    if final_output and final_status:
-        return (final_output[0], final_status[0])
-    else:
-        return (None, "permanentFail")
 
 
 class FSAction(argparse.Action):
@@ -756,7 +664,7 @@ def supportedCWLversions(enable_dev):
 
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
-         executor=job_executor,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
+         executor=None,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
          makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
          selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,  # type: IO[Any]
@@ -991,6 +899,17 @@ def main(argsl=None,  # type: List[str]
         except SystemExit as e:
             return e.code
 
+        if not executor:
+            if args.executor == "single":
+                 executor = SingleJobExecutor()
+            elif args.executor == "parallel":
+                executor = MultithreadedJobExecutor()
+            else:
+                _logger.error("Unknow type of executor: {0}".format(args.executor))
+                arg_parser().print_help()
+                return 1
+
+
         if isinstance(job_order_object, int):
             return job_order_object
 
@@ -999,6 +918,7 @@ def main(argsl=None,  # type: List[str]
             del args.workflow
             del args.job_order
             (out, status) = executor(tool, job_order_object,
+                                     logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
