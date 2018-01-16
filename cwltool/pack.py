@@ -114,10 +114,12 @@ def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
         # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
 
+    ids = set()  # type: Set[Text]
+    find_ids(processobj, ids)
+
     runs = {uri}
     find_run(processobj, loadref, runs)
 
-    ids = set()  # type: Set[Text]
     for f in runs:
         find_ids(document_loader.resolve_ref(f)[0], ids)
 
@@ -134,8 +136,10 @@ def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
-            path, frag = urllib.parse.urldefrag(r)
-            rewrite[r] = "#"+frag
+            if r[len(mainuri):].startswith("#main/"):
+                rewrite[r] = "#" + uniquename(r[len(mainuri)+1:], names)
+            else:
+                rewrite[r] = "#" + uniquename("main/"+r[len(mainuri)+1:], names)
         else:
             path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
@@ -147,8 +151,7 @@ def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
     sortedids = sorted(ids)
 
     for r in sortedids:
-        if r in document_loader.idx:
-            rewrite_id(r, uri)
+        rewrite_id(r, uri)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
               }  # type: Dict[Text, Any]
