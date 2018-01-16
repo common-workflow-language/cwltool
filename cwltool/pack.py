@@ -95,8 +95,8 @@ def import_embed(d, seen):
             import_embed(d[k], seen)
 
 
-def pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
+def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
+    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text], Dict[Text, Text]) -> Dict[Text, Any]
 
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
@@ -122,7 +122,10 @@ def pack(document_loader, processobj, uri, metadata):
         find_ids(document_loader.resolve_ref(f)[0], ids)
 
     names = set()  # type: Set[Text]
-    rewrite = {}  # type: Dict[Text, Text]
+    if rewrite_out is None:
+        rewrite = {}  # type: Dict[Text, Text]
+    else:
+        rewrite = rewrite_out
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
