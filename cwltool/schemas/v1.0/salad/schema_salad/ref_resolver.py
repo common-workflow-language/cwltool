@@ -155,7 +155,7 @@ class DefaultFetcher(Fetcher):
                 else:
                     raise RuntimeError('Error reading %s: %s' % (url, e))
         else:
-            raise ValueError('Unsupported scheme in url: %s' % url)
+            raise ValueError('Unsupported scheme in url: %s for scheme %s' % (url, scheme))
 
     def check_exists(self, url):  # type: (Text) -> bool
         if url in self.cache:
@@ -173,8 +173,11 @@ class DefaultFetcher(Fetcher):
             return True
         elif scheme == 'file':
             return os.path.exists(urllib.request.url2pathname(str(path)))
+        # Google storage links are protected by user accounts and thus are not subject to external validation
+        elif scheme == 'gs':
+            return True
         else:
-            raise ValueError('Unsupported scheme in url: %s' % url)
+            raise ValueError('Error while checking link exists: Unsupported scheme %s in url: %s' % (scheme, url))
 
     def urljoin(self, base_url, url):  # type: (Text, Text) -> Text
 
