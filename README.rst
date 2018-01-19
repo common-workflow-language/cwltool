@@ -131,9 +131,11 @@ Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
-=====
-Usage
-=====
+You may also want to have the following installed: 
+node.js
+Docker, udocker, or Singularity (optional)
+
+Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work. 
 
 Run on the command line
 -----------------------
