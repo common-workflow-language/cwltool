@@ -63,6 +63,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
+    parser.add_argument("--container-manager", choices={"docker", "singularity"}, default="docker",
+                        help="Container manager, default: docker")
 
     parser.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",

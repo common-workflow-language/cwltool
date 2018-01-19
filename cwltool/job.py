@@ -313,7 +313,7 @@ class CommandLineJob(JobBase):
 
 class DockerCommandLineJob(JobBase):
 
-    def add_volumes(self, pathmapper, runtime):
+    def add_volumes_docker(self, pathmapper, runtime):
         # type: (PathMapper, List[Text]) -> None
 
         host_outdir = self.outdir
@@ -362,6 +362,44 @@ class DockerCommandLineJob(JobBase):
                         docker_windows_path_adjust(createtmp),
                         docker_windows_path_adjust(vol.target)))
 
+    def add_volumes_singularity(self, pathmapper, runtime, stage_output):
+        # type: (PathMapper, List[Text], bool) -> None
+
+        host_outdir = self.outdir
+        container_outdir = self.builder.outdir
+        for src, vol in pathmapper.items():
+            if not vol.staged:
+                continue
+            if stage_output:
+                containertgt = container_outdir + vol.target[len(host_outdir):]
+            else:
+                containertgt = vol.target
+            if vol.type in ("File", "Directory"):
+                if not vol.resolved.startswith("_:"):
+                    runtime.append(u"--bind")
+                    runtime.append("%s:%s:ro" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
+            elif vol.type == "WritableFile":
+                if self.inplace_update:
+                    runtime.append(u"--bind")
+                    runtime.append("%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
+                else:
+                    shutil.copy(vol.resolved, vol.target)
+            elif vol.type == "WritableDirectory":
+                if vol.resolved.startswith("_:"):
+                    os.makedirs(vol.target, 0o0755)
+                else:
+                    if self.inplace_update:
+                        runtime.append(u"--bind")
+                        runtime.append("%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
+                    else:
+                        shutil.copytree(vol.resolved, vol.target)
+            elif vol.type == "CreateFile":
+                createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
+                with open(createtmp, "wb") as f:
+                    f.write(vol.resolved.encode("utf-8"))
+                runtime.append(u"--bind")
+                runtime.append("%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
+
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (bool, bool, bool, Text, **Any) -> None
@@ -371,6 +409,7 @@ class DockerCommandLineJob(JobBase):
         img_id = None
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
+        container_manager = kwargs.get("container_manager")
         if docker_req and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
             # takes precedence over a network pull
@@ -411,61 +450,88 @@ class DockerCommandLineJob(JobBase):
 
         self._setup(kwargs)
 
-        if user_space_docker_cmd:
-            runtime = [user_space_docker_cmd, u"run"]
-        else:
-            runtime = [u"docker", u"run", u"-i"]
+        if container_manager == "docker":
+            if user_space_docker_cmd:
+                runtime = [user_space_docker_cmd, u"run"]
+            else:
+                runtime = [u"docker", u"run", u"-i"]
 
-        runtime.append(u"--volume=%s:%s:rw" % (
-            docker_windows_path_adjust(os.path.realpath(self.outdir)),
-            self.builder.outdir))
-        runtime.append(u"--volume=%s:%s:rw" % (
-            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
+            runtime.append(u"--volume=%s:%s:rw" % (
+                docker_windows_path_adjust(os.path.realpath(self.outdir)),
+                self.builder.outdir))
+            runtime.append(u"--volume=%s:%s:rw" % (
+                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-        self.add_volumes(self.pathmapper, runtime)
-        if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime)
+            self.add_volumes_docker(self.pathmapper, runtime)
+            if self.generatemapper:
+                self.add_volumes_docker(self.generatemapper, runtime)
 
-        if user_space_docker_cmd:
-            runtime = [x.replace(":ro", "") for x in runtime]
-            runtime = [x.replace(":rw", "") for x in runtime]
+            if user_space_docker_cmd:
+                runtime = [x.replace(":ro", "") for x in runtime]
+                runtime = [x.replace(":rw", "") for x in runtime]
 
-        runtime.append(u"--workdir=%s" % (
-            docker_windows_path_adjust(self.builder.outdir)))
-        if not user_space_docker_cmd:
+            runtime.append(u"--workdir=%s" % (
+                docker_windows_path_adjust(self.builder.outdir)))
+            if not user_space_docker_cmd:
 
-            if not kwargs.get("no_read_only"):
-                runtime.append(u"--read-only=true")
+                if not kwargs.get("no_read_only"):
+                    runtime.append(u"--read-only=true")
+
+                if kwargs.get("custom_net", None) is not None:
+                    runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
+                elif kwargs.get("disable_net", None):
+                    runtime.append(u"--net=none")
+
+                if self.stdout:
+                    runtime.append("--log-driver=none")
+
+                euid, egid = docker_vm_id()
+                if not onWindows():
+                    # MS Windows does not have getuid() or geteuid() functions
+                    euid, egid = euid or os.geteuid(), egid or os.getgid()
+
+                if kwargs.get("no_match_user", None) is False \
+                        and (euid, egid) != (None, None):
+                    runtime.append(u"--user=%d:%d" % (euid, egid))
+
+            if rm_container:
+                runtime.append(u"--rm")
+
+            runtime.append(u"--env=TMPDIR=/tmp")
+
+            # spec currently says "HOME must be set to the designated output
+            # directory." but spec might change to designated temp directory.
+            # runtime.append("--env=HOME=/tmp")
+            runtime.append(u"--env=HOME=%s" % self.builder.outdir)
+
+            for t, v in self.environment.items():
+                runtime.append(u"--env=%s=%s" % (t, v))
+        elif container_manager == "singularity":
+            runtime = [u"singularity", u"exec"]
+
+            runtime.append(u"--bind")
+            runtime.append(
+                u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
+            runtime.append(u"--bind")
+            runtime.append(u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
+
+            self.add_volumes_singularity(self.pathmapper, runtime, False)
+            if self.generatemapper:
+                self.add_volumes_singularity(self.generatemapper, runtime, True)
+
+            runtime.append(u"--pwd")
+            runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
+            #        runtime.append(u"--read-only=true")  # true by default for Singularity images
 
             if kwargs.get("custom_net", None) is not None:
-                runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
-            elif kwargs.get("disable_net", None):
-                runtime.append(u"--net=none")
+                raise UnsupportedRequirement(
+                    "Singularity implementation does not support networking")
 
-            if self.stdout:
-                runtime.append("--log-driver=none")
+            env["SINGULARITYENV_TMPDIR"] = "/tmp"
+            env["SINGULARITYENV_HOME"] = self.builder.outdir
 
-            euid, egid = docker_vm_id()
-            if not onWindows():
-                # MS Windows does not have getuid() or geteuid() functions
-                euid, egid = euid or os.geteuid(), egid or os.getgid()
-
-            if kwargs.get("no_match_user", None) is False \
-                    and (euid, egid) != (None, None):
-                runtime.append(u"--user=%d:%d" % (euid, egid))
-
-        if rm_container:
-            runtime.append(u"--rm")
-
-        runtime.append(u"--env=TMPDIR=/tmp")
-
-        # spec currently says "HOME must be set to the designated output
-        # directory." but spec might change to designated temp directory.
-        # runtime.append("--env=HOME=/tmp")
-        runtime.append(u"--env=HOME=%s" % self.builder.outdir)
-
-        for t, v in self.environment.items():
-            runtime.append(u"--env=%s=%s" % (t, v))
+            for t, v in self.environment.items():
+                env["SINGULARITYENV_" + t] = v
 
         runtime.append(img_id)
 
