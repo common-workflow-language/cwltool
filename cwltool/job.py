@@ -506,6 +506,8 @@ class DockerCommandLineJob(JobBase):
 
             for t, v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))
+            runtime.append(img_id)
+
         elif container_manager == "singularity":
             runtime = [u"singularity", u"--quiet", u"exec"]
 
@@ -533,7 +535,7 @@ class DockerCommandLineJob(JobBase):
             for t, v in self.environment.items():
                 env["SINGULARITYENV_" + t] = v
 
-        runtime.append("docker://" + img_id)
+            runtime.append("docker://" + img_id)
 
         self._execute(
             runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
