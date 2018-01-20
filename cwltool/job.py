@@ -507,7 +507,7 @@ class DockerCommandLineJob(JobBase):
             for t, v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))
         elif container_manager == "singularity":
-            runtime = [u"singularity", u"exec"]
+            runtime = [u"singularity", u"--quiet", u"exec"]
 
             runtime.append(u"--bind")
             runtime.append(
@@ -533,7 +533,7 @@ class DockerCommandLineJob(JobBase):
             for t, v in self.environment.items():
                 env["SINGULARITYENV_" + t] = v
 
-        runtime.append(img_id)
+        runtime.append("docker://" + img_id)
 
         self._execute(
             runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
@@ -616,7 +616,7 @@ def _job_popen(
             stdin_path=stdin_path,
         )
         with open(os.path.join(job_dir, "job.json"), "wb") as f:
-            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False) # type: ignore
+            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False)  # type: ignore
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:

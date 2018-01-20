@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$JENKINS_URL" == ""]
+if [[ -z "${JENKINS_URL}" ]]
 then
 	echo "Looks like we're not being run by Jenkins, this is dangerous"
 	echo "due to use of git clean -fdx command."
