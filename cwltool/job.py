@@ -17,6 +17,7 @@ from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Tex
 
 import shellescape
 
+from cwltool import singularity
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
@@ -425,8 +426,12 @@ class DockerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = str(docker.get_from_requirements(
-                        docker_req, True, pull_image))
+                    if container_manager == "docker":
+                        img_id = str(docker.get_from_requirements(
+                            docker_req, True, pull_image))
+                    elif container_manager == "singularity":
+                        img_id = str(singularity.get_from_requirements(
+                            docker_req, True, pull_image))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
@@ -437,16 +442,17 @@ class DockerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
             except Exception as e:
-                _logger.debug("Docker error", exc_info=True)
+                container = container_manager.capitalize()
+                _logger.debug("%s error" % container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "Docker is required to run this tool: %s" % e)
+                        "%s is required to run this tool: %s" % (container, e))
                 else:
                     raise WorkflowException(
-                        "Docker is not available for this tool, try "
-                        "--no-container to disable Docker, or install "
+                        "{0} is not available for this tool, try "
+                        "--no-container to disable {0}, or install "
                         "a user space Docker replacement like uDocker with "
-                        "--user-space-docker-cmd.: %s" % e)
+                        "--user-space-docker-cmd.: {1}".format(container, e))
 
         self._setup(kwargs)
 
@@ -506,7 +512,6 @@ class DockerCommandLineJob(JobBase):
 
             for t, v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))
-            runtime.append(img_id)
 
         elif container_manager == "singularity":
             runtime = [u"singularity", u"--quiet", u"exec"]
@@ -535,7 +540,7 @@ class DockerCommandLineJob(JobBase):
             for t, v in self.environment.items():
                 env["SINGULARITYENV_" + t] = v
 
-            runtime.append("docker://" + img_id)
+        runtime.append(img_id)
 
         self._execute(
             runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
