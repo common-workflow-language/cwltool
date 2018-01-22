@@ -65,8 +65,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
-    parser.add_argument("--executor", type=Text, choices={"single", "parallel"}, default="single",
-                        help="Workflow executor type: sequential/multithreaded. Default: sequential")
+    parser.add_argument("--parallel", action="store_true", default=False,
+                        help="Run jobs in parallel")
     parser.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
                         metavar="ENVVAR",
@@ -900,15 +900,10 @@ def main(argsl=None,  # type: List[str]
             return e.code
 
         if not executor:
-            if args.executor == "single":
-                 executor = SingleJobExecutor()
-            elif args.executor == "parallel":
+            if args.parallel:
                 executor = MultithreadedJobExecutor()
             else:
-                _logger.error("Unknow type of executor: {0}".format(args.executor))
-                arg_parser().print_help()
-                return 1
-
+                executor = SingleJobExecutor()
 
         if isinstance(job_order_object, int):
             return job_order_object
