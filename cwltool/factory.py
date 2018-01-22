@@ -36,11 +36,13 @@ class Factory(object):
     def __init__(self,
                  makeTool=workflow.defaultMakeTool,  # type: tCallable[[Any], Process]
                  # should be tCallable[[Dict[Text, Any], Any], Process] ?
-                 executor=SingleJobExecutor(),  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
+                 executor=None,  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
                  **execkwargs  # type: Any
                  ):
         # type: (...) -> None
         self.makeTool = makeTool
+        if executor is None:
+            executor = SingleJobExecutor()
         self.executor = executor
         self.execkwargs = execkwargs
 
