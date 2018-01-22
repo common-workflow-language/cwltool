@@ -117,7 +117,6 @@ class SingleJobExecutor(JobExecutor):
 class MultithreadedJobExecutor(JobExecutor):
     def __init__(self):
         super(MultithreadedJobExecutor, self).__init__()
-        self.fetch_iter_lock = threading.Lock()
         self.threads = set()
         self.exceptions = []
 
@@ -132,18 +131,12 @@ class MultithreadedJobExecutor(JobExecutor):
 
             self.threads.remove(thread)
 
-            if self.fetch_iter_lock.locked():
-                self.fetch_iter_lock.release()
-
         thread = threading.Thread(target=runner)
         thread.daemon = True
         self.threads.add(thread)
         thread.start()
 
     def wait_for_next_completion(self):
-        self.fetch_iter_lock.acquire()
-        self.fetch_iter_lock.acquire()
-        self.fetch_iter_lock.release()
         if self.exceptions:
             raise self.exceptions[0]
 
