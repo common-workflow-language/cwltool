@@ -210,13 +210,13 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
         if frag_only:
             iid = shortname(iid)
         if sourceField in inp:
-            if (isinstance(inp[sourceField], list) and not
-            supportsMultipleInput):
+            connections = aslist(inp[sourceField])
+            if (len(connections) > 1 and
+                not supportsMultipleInput):
                 raise WorkflowException(
                     "Workflow contains multiple inbound links to a single "
                     "parameter but MultipleInputFeatureRequirement is not "
                     "declared.")
-            connections = aslist(inp[sourceField])
             for src in connections:
                 if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
                     if not match_types(
@@ -673,7 +673,7 @@ class WorkflowStep(Process):
 
         kwargs["requirements"] = (kwargs.get("requirements", []) +
                                   toolpath_object.get("requirements", []) +
-                                  get_overrides(kwargs.get("overrides", []), self.id))
+                                  get_overrides(kwargs.get("overrides", []), self.id).get("requirements", []))
         kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
 
         try:
@@ -710,7 +710,14 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
+                        #if the case that the step has a default for a parameter,
+                        #we do not want the default of the tool to override it
+                        step_default = None
+                        if "default" in param and "default" in tool_entry:
+                            step_default = param["default"]
                         param.update(tool_entry)
+                        if step_default is not None:
+                            param["default"] = step_default
                         found = True
                         bound.add(frag)
                         break
