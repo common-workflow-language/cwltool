@@ -1,0 +1,86 @@
+{
+  "wasAssociatedWith": {
+    "_:id1": {
+      "prov:plan": "wf:main", 
+      "prov:agent": "engine:20b7ba90-a92e-437f-8d77-13df6d61aa99", 
+      "prov:activity": "run:6975860a-5851-4166-bc55-a76314c958bb"
+    }, 
+    "_:id3": {
+      "prov:plan": "wf:main/step0", 
+      "prov:agent": "engine:20b7ba90-a92e-437f-8d77-13df6d61aa99", 
+      "prov:activity": "run:7cd2da8b-a941-4a83-806a-560d8047e399"
+    }
+  }, 
+  "used": {
+    "_:id5": {
+      "prov:time": "2018-01-22T12:04:26.735080", 
+      "prov:entity": "data:hello world", 
+      "prov:activity": "run:7cd2da8b-a941-4a83-806a-560d8047e399"
+    }
+  }, 
+  "wasStartedBy": {
+    "_:id4": {
+      "prov:time": "2018-01-22T12:04:26.735021", 
+      "prov:starter": "run:6975860a-5851-4166-bc55-a76314c958bb", 
+      "prov:activity": "run:7cd2da8b-a941-4a83-806a-560d8047e399"
+    }, 
+    "_:id2": {
+      "prov:time": "2018-01-22T12:04:26.732423", 
+      "prov:starter": "run:6975860a-5851-4166-bc55-a76314c958bb", 
+      "prov:activity": "run:ebf09ac8-e5c0-43cf-b825-f8fdcc18d6b6"
+    }
+  }, 
+  "agent": {
+    "engine:20b7ba90-a92e-437f-8d77-13df6d61aa99": {
+      "prov:type": [
+        "wfprov:WorkflowEngine", 
+        "prov:SoftwareAgent"
+      ], 
+      "prov:label": ""
+    }
+  }, 
+  "entity": {
+    "data:hello world": {
+      "prov:type": "wfprov:Artifact"
+    }, 
+    "wf:main": {
+      "prov:type": [
+        "prov:Plan", 
+        "wfdesc:Process"
+      ], 
+      "wfdesc:hasSubProcess=": "[\"wf:main/step0\"]", 
+      "prov:label": "Prospective provenance"
+    }, 
+    "wf:main/step0": {
+      "prov:type": [
+        "prov:Plan", 
+        "wfdesc:Process"
+      ]
+    }
+  }, 
+  "prefix": {
+    "engine": "urn:uuid4:", 
+    "wf": "app://6975860a-5851-4166-bc55-a76314c958bb/workflow/packed.cwl#", 
+    "run": "urn:uuid:", 
+    "wfprov": "http://purl.org/wf4ever/wfprov#", 
+    "input": "app://6975860a-5851-4166-bc55-a76314c958bb/workflow/master-job.json#", 
+    "wfdesc": "http://purl.org/wf4ever/wfdesc#", 
+    "data": "urn:hash:sha256", 
+    "prov_1": "http://www.w3.org/ns/prov"
+  }, 
+  "activity": {
+    "run:6975860a-5851-4166-bc55-a76314c958bb": {
+      "prov:startTime": "2018-01-22T12:04:26.724793", 
+      "prov:type": "wfprov:WorkflowRun", 
+      "prov:label": ""
+    }, 
+    "run:7cd2da8b-a941-4a83-806a-560d8047e399": {
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }, 
+    "run:ebf09ac8-e5c0-43cf-b825-f8fdcc18d6b6": {
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }
+  }
+}

@@ -172,6 +172,7 @@ class RO():
         a json file containing the relative paths and link to the associated
         cwl document
         '''
+
         self._relativise_files(job, kwargs)
         path=os.path.join(self.folder, WORKFLOW, "master-job.json")
         _logger.info(u"[provenance] Generated customised job file: %s", path)
@@ -273,5 +274,5 @@ def create_ro(tmpPrefix):
     return RO(tmpPrefix)
 
 #def inputObjectProv():
-#    print ("inside inputObjectProv function in Provenance file: ", relativised_input_object)
+#    "inside inputObjectProv function in Provenance file: ", relativised_input_object)
 #    return relativised_input_object

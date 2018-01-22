@@ -23,7 +23,7 @@ import pkg_resources  # part of setuptools
 import requests
 import six
 import string
-from git import *
+#from git import *
 #import .provenance
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -281,12 +281,14 @@ def single_job_executor(t,  # type: Process
     #Here we are creating entities with relativised paths in the PROV document for all the inputs.
     ro = kwargs.get("ro")
     customised_job=copy.deepcopy(job_order_object)
-    relativised_input_object=ro.create_job(customised_job, kwargs)
+    relativised_input_object =ro.create_job(customised_job, kwargs)
+    reference_locations={}
     for key, value in relativised_input_object.items():
         strvalue=str(value)
         if "data" in strvalue:
             shahash="data:"+value.split("/")[-1]
             rel_path=value[3:]
+            reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
             document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
             #document.specializationOf(rel_path, shahash) THIS NEEDS FIXING as it required both params as entities.
         else:
@@ -321,7 +323,6 @@ def single_job_executor(t,  # type: Process
     try:
         for r in jobiter: #its each step of the workflow
             if r: #for every step, a uuid as ProcessRunID is generated for provenance record
-
                 builder = kwargs.get("builder", None)  # type: Builder
                 if builder is not None:
                     r.builder = builder
@@ -329,11 +330,25 @@ def single_job_executor(t,  # type: Process
                     output_dirs.add(r.outdir)
                 #here we are recording provenance of each subprocess of the workflow
                 ProcessRunID="run:"+str(uuid.uuid4())
+                stepname=""
                 a1 = document.activity(ProcessRunID, None, None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
                 if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
                     stepname= step_dict[str(getattr(r, "name"))]
                     document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
                 document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+                if hasattr(r, "joborder"):
+                    referene_checksums=ro._prov_used(r)
+                    for key, value in getattr(r, "joborder").items():
+                        provRole=stepname+str(key)
+                        if 'location' in str(value):
+                            location=str(value['location'])
+                            if location in reference_locations: #workflow level inputs referenced as sha in prov document
+                                document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), {"prov:role":provRole} )
+                            else:
+                                document.used(ProcessRunID, "data:"+str(value['location']), datetime.datetime.now(),{"prov:role":provRole })
+                        else:
+                            document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),{"prov:role":provRole })
+
                 r.run(**kwargs) #this is where you run each step. so start and end time for the step
             else:
                 _logger.error("Workflow cannot make any more progress.")
@@ -716,8 +731,9 @@ def print_pack(document_loader, processobj, uri, metadata):
         return json.dumps(packed["$graph"][0], indent=4)
 def get_gitCommit():
     #TODO returns the latest git commit ID to use in the wf namspace. For now we have a UUID as WorkflowRunID
-    repo = Repo("/Users/farahkhan/Desktop/cwltool")
-    branch = repo.active_branch
+    #repo = Repo("/Users/farahkhan/Desktop/cwltool")
+    #branch = repo.active_branch
+    pass
 
 def generate_provDoc(wf_Steps):
     roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
@@ -744,9 +760,6 @@ def generate_provDoc(wf_Steps):
         stepArray.append(steptemp)
     jsonprospect=json.dumps(stepArray)
     document.entity(mainWorkflow, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":jsonprospect,  "prov:label":"Prospective provenance"})
-    #document.alternateOf(mainWorkflow, packedWorkflowpath_without_main) #will be done when git commit ID is extracted
-
-
 
 #version of CWLtool used to execute the workflow.
 def versionstring():
@@ -1014,7 +1027,7 @@ def main(argsl=None,  # type: List[str]
                 if args.provenance and args.ro:
                     args.ro.add_output(out, args.provenance)
                     args.ro.close(args.provenance)
-                    document.serialize('TESTprov.json', indent=2)
+                    document.serialize('provenanceProfile.json', indent=2)
 
                 def locToPath(p):
                     for field in ("path", "nameext", "nameroot", "dirname"):
@@ -1063,7 +1076,7 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
-        get_gitCommit()
+        #get_gitCommit()
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
         if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
             args.ro.close()

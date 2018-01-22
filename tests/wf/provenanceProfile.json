@@ -1,0 +1,119 @@
+{
+  "wasAssociatedWith": {
+    "_:id6": {
+      "prov:plan": "wf:main/sorted", 
+      "prov:agent": "engine:003304c3-e358-4407-a1ec-bdd51d481d73", 
+      "prov:activity": "run:89b795ba-0a3f-429c-aab2-ba884bb2e32f"
+    }, 
+    "_:id1": {
+      "prov:plan": "wf:main", 
+      "prov:agent": "engine:003304c3-e358-4407-a1ec-bdd51d481d73", 
+      "prov:activity": "run:facf7a09-d82a-45ac-a079-cea563a9e260"
+    }, 
+    "_:id3": {
+      "prov:plan": "wf:main/rev", 
+      "prov:agent": "engine:003304c3-e358-4407-a1ec-bdd51d481d73", 
+      "prov:activity": "run:b2ef1daf-4117-4b95-8d4d-2e55ac8574a8"
+    }
+  }, 
+  "used": {
+    "_:id5": {
+      "prov:time": "2018-01-22T15:20:35.790613", 
+      "prov:entity": "data:93549453a2a5205ca683d8092e650ed44a4c2226", 
+      "prov:activity": "run:b2ef1daf-4117-4b95-8d4d-2e55ac8574a8"
+    }, 
+    "_:id9": {
+      "prov:time": "2018-01-22T15:20:37.454469", 
+      "prov:entity": "data:True", 
+      "prov:activity": "run:89b795ba-0a3f-429c-aab2-ba884bb2e32f"
+    }, 
+    "_:id8": {
+      "prov:time": "2018-01-22T15:20:37.454329", 
+      "prov:entity": "data:file:///var/folders/tl/1j6jy66x3nvfbxt8ycs_q21m0000gn/T/tmpTZZ0Fg/output.txt", 
+      "prov:activity": "run:89b795ba-0a3f-429c-aab2-ba884bb2e32f"
+    }
+  }, 
+  "wasStartedBy": {
+    "_:id4": {
+      "prov:time": "2018-01-22T15:20:35.790469", 
+      "prov:starter": "run:facf7a09-d82a-45ac-a079-cea563a9e260", 
+      "prov:activity": "run:b2ef1daf-4117-4b95-8d4d-2e55ac8574a8"
+    }, 
+    "_:id7": {
+      "prov:time": "2018-01-22T15:20:37.454172", 
+      "prov:starter": "run:facf7a09-d82a-45ac-a079-cea563a9e260", 
+      "prov:activity": "run:89b795ba-0a3f-429c-aab2-ba884bb2e32f"
+    }, 
+    "_:id2": {
+      "prov:time": "2018-01-22T15:20:35.781355", 
+      "prov:starter": "run:facf7a09-d82a-45ac-a079-cea563a9e260", 
+      "prov:activity": "run:94cb3c06-ccca-46f7-a386-551b5af3834b"
+    }
+  }, 
+  "agent": {
+    "engine:003304c3-e358-4407-a1ec-bdd51d481d73": {
+      "prov:type": [
+        "wfprov:WorkflowEngine", 
+        "prov:SoftwareAgent"
+      ], 
+      "prov:label": ""
+    }
+  }, 
+  "entity": {
+    "wf:main/rev": {
+      "prov:type": [
+        "prov:Plan", 
+        "wfdesc:Process"
+      ]
+    }, 
+    "wf:main/sorted": {
+      "prov:type": [
+        "prov:Plan", 
+        "wfdesc:Process"
+      ]
+    }, 
+    "wf:main": {
+      "prov:type": [
+        "prov:Plan", 
+        "wfdesc:Process"
+      ], 
+      "wfdesc:hasSubProcess=": "[\"wf:main/rev\", \"wf:main/sorted\"]", 
+      "prov:label": "Prospective provenance"
+    }, 
+    "data:93549453a2a5205ca683d8092e650ed44a4c2226": {
+      "prov:type": "wfprov:Artifact"
+    }, 
+    "data:True": {
+      "prov:type": "wfprov:Artifact"
+    }
+  }, 
+  "prefix": {
+    "engine": "urn:uuid4:", 
+    "wf": "app://facf7a09-d82a-45ac-a079-cea563a9e260/workflow/packed.cwl#", 
+    "run": "urn:uuid:", 
+    "wfprov": "http://purl.org/wf4ever/wfprov#", 
+    "input": "app://facf7a09-d82a-45ac-a079-cea563a9e260/workflow/master-job.json#", 
+    "wfdesc": "http://purl.org/wf4ever/wfdesc#", 
+    "data": "urn:hash:sha256", 
+    "prov_1": "http://www.w3.org/ns/prov"
+  }, 
+  "activity": {
+    "run:facf7a09-d82a-45ac-a079-cea563a9e260": {
+      "prov:startTime": "2018-01-22T15:20:35.766105", 
+      "prov:type": "wfprov:WorkflowRun", 
+      "prov:label": ""
+    }, 
+    "run:89b795ba-0a3f-429c-aab2-ba884bb2e32f": {
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }, 
+    "run:b2ef1daf-4117-4b95-8d4d-2e55ac8574a8": {
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }, 
+    "run:94cb3c06-ccca-46f7-a386-551b5af3834b": {
+      "prov:type": "wfprov:ProcessRun", 
+      "prov:label": "Run of Process"
+    }
+  }
+}
