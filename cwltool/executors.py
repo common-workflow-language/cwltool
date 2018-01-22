@@ -5,11 +5,12 @@ import threading
 import os
 from abc import ABCMeta, abstractmethod
 
-from typing import Dict, Text, Any
+from typing import Dict, Text, Any, Tuple, Set, List
 
 from cwltool.builder import Builder
 from cwltool.errors import WorkflowException
 from cwltool.mutation import MutationManager
+from cwltool.job import JobBase
 from cwltool.process import relocateOutputs, cleanIntermediate, Process
 
 
@@ -24,9 +25,10 @@ class JobExecutor(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self.final_output = []
-        self.final_status = []
-        self.output_dirs = set()
+        # type: (...) -> None
+        self.final_output = []  # type: List
+        self.final_status = []  # type: List
+        self.output_dirs = set()  # type: Set
 
     def __call__(self, *args, **kwargs):
         return self.execute(*args, **kwargs)
@@ -38,17 +40,18 @@ class JobExecutor(object):
     @abstractmethod
     def run_jobs(self,
                  t,  # type: Process
-                 job_order_object,  # type: Dict[Text, Any],
+                 job_order_object,  # type: Dict[Text, Any]
                  logger,
                  **kwargs  # type: Any
                  ):
         pass
 
     def execute(self, t,  # type: Process
-                job_order_object,  # type: Dict[Text, Any],
+                job_order_object,  # type: Dict[Text, Any]
                 logger=_logger,
                 **kwargs  # type: Any
                 ):
+        # type: (...) -> Tuple[Dict[Text, Any], Text]
 
         if "basedir" not in kwargs:
             raise WorkflowException("Must provide 'basedir' in kwargs")
@@ -87,7 +90,7 @@ class JobExecutor(object):
 class SingleJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
-                 job_order_object,  # type: Dict[Text, Any],
+                 job_order_object,  # type: Dict[Text, Any]
                  logger,
                  **kwargs  # type: Any
                  ):
@@ -120,7 +123,11 @@ class MultithreadedJobExecutor(JobExecutor):
         self.threads = set()
         self.exceptions = []
 
-    def run_job(self, job, **kwargs):
+    def run_job(self,
+                job, # type:  JobBase
+                **kwargs  # type:  Any
+                ):
+        # type: (...) -> None
         def runner():
             try:
                 job.run(**kwargs)
@@ -136,13 +143,13 @@ class MultithreadedJobExecutor(JobExecutor):
         self.threads.add(thread)
         thread.start()
 
-    def wait_for_next_completion(self):
+    def wait_for_next_completion(self):  # type: () -> None
         if self.exceptions:
             raise self.exceptions[0]
 
     def run_jobs(self,
                  t,  # type: Process
-                 job_order_object,  # type: Dict[Text, Any],
+                 job_order_object,  # type: Dict[Text, Any]
                  logger,
                  **kwargs  # type: Any
                  ):
