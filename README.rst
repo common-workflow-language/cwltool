@@ -65,7 +65,7 @@ Running tests locally
 To run the basis tests after installing `cwltool` execute the following:
 
 .. code:: bash
-  
+
   pip install pytest mock
   py.test --ignore cwltool/schemas/ --pyarg cwltool
 
@@ -113,20 +113,31 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-Running user-space implementations of Docker
---------------------------------------------
+Using user-space replacements for Docker
+----------------------------------------
 
-Some compute environments disallow user-space installation of Docker due to incompatiblities in libraries or to meet security requirements. The CWL reference supports using a user space implementation with the `--user-space-docker-cmd` option.
+Some shared computing environments don't support Docker software containers for technical or policy reasons.
+As a work around, the CWL reference runner supports using a alternative ``docker`` implementations on Linux
+with the ``--user-space-docker-cmd`` option.
 
-Example using `dx-docker` (https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images):
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
+is ``dx-docker`` https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images
 
-For use on Linux, install the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-indigo-datacloud-repositories
+
+dx-docker installation: start with the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
 
 Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
 
 .. code:: bash
 
-  cwltool --user-space-docker-cmd=dx-docker --outdir=/tmp/tmpidytmp v1.0/test-cwl-out2.cwl v1.0/empty.json
+  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+  
+or 
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
 
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
@@ -224,7 +235,7 @@ the correct module environment before executing the above tool would simply be:
 
 .. code:: yaml
 
-  - type: module
+  - type: modules
 
 The outer list indicates that one plugin is being enabled, the plugin parameters are
 defined as a dictionary for this one list item. There is only one required parameter
@@ -399,17 +410,16 @@ environment or with a particular dataset.  To avoid the need to modify the
 underlying workflow, cwltool supports requirement "overrides".
 
 The format of the "overrides" object is a mapping of item identifier (workflow,
-workflow step, or command line tool) followed by a list of ProcessRequirements
-that should be applied.
+workflow step, or command line tool) to the process requirements that should be applied.
 
 .. code:: yaml
 
   cwltool:overrides:
     echo.cwl:
-      - class: EnvVarRequirement
-        envDef:
-          MESSAGE: override_value
-
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
 
 Overrides can be specified either on the command line, or as part of the job
 input document.  Workflow steps are identified using the name of the workflow
@@ -426,9 +436,10 @@ Override identifiers are relative to the toplevel workflow document.
   input_parameter2: value2
   cwltool:overrides:
     workflow.cwl#step1:
-      - class: EnvVarRequirement
-        envDef:
-          MESSAGE: override_value
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
 
 .. code:: bash
 

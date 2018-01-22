@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import codecs
 import functools
 import io
 import json
@@ -553,14 +554,14 @@ def _job_popen(
             stdin_path=stdin_path,
         )
         with open(os.path.join(job_dir, "job.json"), "wb") as f:
-            json.dump(job_description, f)
+            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False) # type: ignore
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:
                 f.write(job_script_contents.encode('utf-8'))
             job_run = os.path.join(job_dir, "run_job.py")
             with open(job_run, "wb") as f:
-                f.write(PYTHON_RUN_SCRIPT)
+                f.write(PYTHON_RUN_SCRIPT.encode('utf-8'))
             sp = subprocess.Popen(
                 ["bash", job_script.encode("utf-8")],
                 shell=False,
