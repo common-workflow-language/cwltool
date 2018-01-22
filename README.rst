@@ -65,7 +65,7 @@ Running tests locally
 To run the basis tests after installing `cwltool` execute the following:
 
 .. code:: bash
-  
+
   pip install pytest mock
   py.test --ignore cwltool/schemas/ --pyarg cwltool
 
@@ -235,7 +235,7 @@ the correct module environment before executing the above tool would simply be:
 
 .. code:: yaml
 
-  - type: module
+  - type: modules
 
 The outer list indicates that one plugin is being enabled, the plugin parameters are
 defined as a dictionary for this one list item. There is only one required parameter
@@ -410,17 +410,16 @@ environment or with a particular dataset.  To avoid the need to modify the
 underlying workflow, cwltool supports requirement "overrides".
 
 The format of the "overrides" object is a mapping of item identifier (workflow,
-workflow step, or command line tool) followed by a list of ProcessRequirements
-that should be applied.
+workflow step, or command line tool) to the process requirements that should be applied.
 
 .. code:: yaml
 
   cwltool:overrides:
     echo.cwl:
-      - class: EnvVarRequirement
-        envDef:
-          MESSAGE: override_value
-
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
 
 Overrides can be specified either on the command line, or as part of the job
 input document.  Workflow steps are identified using the name of the workflow
@@ -437,9 +436,10 @@ Override identifiers are relative to the toplevel workflow document.
   input_parameter2: value2
   cwltool:overrides:
     workflow.cwl#step1:
-      - class: EnvVarRequirement
-        envDef:
-          MESSAGE: override_value
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
 
 .. code:: bash
 

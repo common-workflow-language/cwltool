@@ -1,7 +1,8 @@
 m1: zing
 cwltool:overrides:
   echo.cwl:
-    - class: EnvVarRequirement
-      envDef:
-        MESSAGE: hello4
+    requirements:
+      EnvVarRequirement:
+        envDef:
+          MESSAGE: hello4
 cwl:tool: echo.cwl

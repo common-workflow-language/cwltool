@@ -27,8 +27,9 @@ from . import draft2tool, workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .load_tool import (resolve_tool_uri, fetch_document, make_tool, validate_document,
-                        jobloaderctx, resolve_overrides, load_overrides)
+from .load_tool import (FetcherConstructorType, resolve_tool_uri,
+        fetch_document, make_tool, validate_document, jobloaderctx,
+        resolve_overrides, load_overrides)
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
@@ -544,8 +545,8 @@ def load_job_order(args,   # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
-       overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
-       del job_order_object["http://commonwl.org/cwltool#overrides"]
+        overrides.extend(resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
+        del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
@@ -641,6 +642,7 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
+
     def expand_formats(p):
         if "format" in p:
             p["format"] = ld.expand_url(p["format"], "")
@@ -734,7 +736,7 @@ def main(argsl=None,  # type: List[str]
          versionfunc=versionstring,  # type: Callable[[], Text]
          job_order_object=None,  # type: MutableMapping[Text, Any]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=None,  # type: Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]
+         fetcher_constructor=None,  # type: FetcherConstructorType
          resolver=tool_resolver,
          logger_handler=None,
          custom_schema_callback=None  # type: Callable[[], None]

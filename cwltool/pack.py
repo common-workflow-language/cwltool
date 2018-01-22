@@ -95,8 +95,8 @@ def import_embed(d, seen):
             import_embed(d[k], seen)
 
 
-def pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text]) -> Dict[Text, Any]
+def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
+    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text], Dict[Text, Text]) -> Dict[Text, Any]
 
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
@@ -114,15 +114,20 @@ def pack(document_loader, processobj, uri, metadata):
         # type: (Text, Text) -> Union[Dict, List, Text]
         return document_loader.resolve_ref(u, base_url=b)[0]
 
+    ids = set()  # type: Set[Text]
+    find_ids(processobj, ids)
+
     runs = {uri}
     find_run(processobj, loadref, runs)
 
-    ids = set()  # type: Set[Text]
     for f in runs:
         find_ids(document_loader.resolve_ref(f)[0], ids)
 
     names = set()  # type: Set[Text]
-    rewrite = {}  # type: Dict[Text, Text]
+    if rewrite_out is None:
+        rewrite = {}  # type: Dict[Text, Text]
+    else:
+        rewrite = rewrite_out
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
@@ -131,8 +136,10 @@ def pack(document_loader, processobj, uri, metadata):
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
-            path, frag = urllib.parse.urldefrag(r)
-            rewrite[r] = "#"+frag
+            if r[len(mainuri):].startswith("#main/"):
+                rewrite[r] = "#" + uniquename(r[len(mainuri)+1:], names)
+            else:
+                rewrite[r] = "#" + uniquename("main/"+r[len(mainuri)+1:], names)
         else:
             path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
@@ -144,11 +151,11 @@ def pack(document_loader, processobj, uri, metadata):
     sortedids = sorted(ids)
 
     for r in sortedids:
-        if r in document_loader.idx:
-            rewrite_id(r, uri)
+        rewrite_id(r, uri)
 
     packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
               }  # type: Dict[Text, Any]
+    namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]
     for r in sorted(runs):
@@ -185,5 +192,7 @@ def pack(document_loader, processobj, uri, metadata):
         # duplicate 'cwlVersion' inside $graph when there is a single item
         # because we're printing contents inside '$graph' rather than whole dict
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
+    if namespaces:
+        packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
 
     return packed
