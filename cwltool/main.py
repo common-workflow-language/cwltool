@@ -240,7 +240,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         default=False, help="Pull latest docker image even if"
                                             " it is locally present", dest="force_docker_pull")
     parser.add_argument("--no-read-only", action="store_true",
-                        default=False, help="Do not set root directoy in the"
+                        default=False, help="Do not set root directory in the"
                                             " container as read-only", dest="no_read_only")
 
     parser.add_argument("--overrides", type=str,
