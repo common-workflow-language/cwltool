@@ -375,6 +375,11 @@ class DockerCommandLineJob(JobBase):
                 containertgt = container_outdir + vol.target[len(host_outdir):]
             else:
                 containertgt = vol.target
+            if vol.target.startswith(container_outdir+"/"):
+                host_outdir_tgt = os.path.join(
+                    host_outdir, vol.target[len(container_outdir)+1:])
+            else:
+                host_outdir_tgt = None
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
                     runtime.append(u"--bind")
@@ -384,7 +389,8 @@ class DockerCommandLineJob(JobBase):
                     runtime.append(u"--bind")
                     runtime.append("%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
                 else:
-                    shutil.copy(vol.resolved, vol.target)
+                    shutil.copy(vol.resolved, host_outdir_tgt)
+                    ensure_writable(host_outdir_tgt)
             elif vol.type == "WritableDirectory":
                 if vol.resolved.startswith("_:"):
                     os.makedirs(vol.target, 0o0755)
@@ -465,9 +471,9 @@ class DockerCommandLineJob(JobBase):
             runtime.append(u"--bind")
             runtime.append(u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-            self.add_volumes_singularity(self.pathmapper, runtime, False)
+            self.add_volumes_singularity(self.pathmapper, runtime, stage_output=False)
             if self.generatemapper:
-                self.add_volumes_singularity(self.generatemapper, runtime, True)
+                self.add_volumes_singularity(self.generatemapper, runtime, stage_output=True)
 
             runtime.append(u"--pwd")
             runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
