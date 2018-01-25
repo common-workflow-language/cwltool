@@ -410,7 +410,7 @@ class DockerCommandLineJob(JobBase):
         img_id = None
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
-        container_manager = kwargs.get("container_manager")
+        use_singularity = kwargs.get("singularity")
         if docker_req and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
             # takes precedence over a network pull
@@ -426,11 +426,11 @@ class DockerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    if container_manager == "docker":
-                        img_id = str(docker.get_from_requirements(
-                            docker_req, True, pull_image))
-                    elif container_manager == "singularity":
+                    if use_singularity:
                         img_id = str(singularity.get_from_requirements(
+                            docker_req, True, pull_image))
+                    else:
+                        img_id = str(docker.get_from_requirements(
                             docker_req, True, pull_image))
                 if img_id is None:
                     if self.builder.find_default_container:
@@ -442,7 +442,7 @@ class DockerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
             except Exception as e:
-                container = container_manager.capitalize()
+                container = "Singularity" if use_singularity else "Docker"
                 _logger.debug("%s error" % container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
@@ -456,7 +456,33 @@ class DockerCommandLineJob(JobBase):
 
         self._setup(kwargs)
 
-        if container_manager == "docker":
+        if use_singularity:
+            runtime = [u"singularity", u"--quiet", u"exec"]
+
+            runtime.append(u"--bind")
+            runtime.append(
+                u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
+            runtime.append(u"--bind")
+            runtime.append(u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
+
+            self.add_volumes_singularity(self.pathmapper, runtime, False)
+            if self.generatemapper:
+                self.add_volumes_singularity(self.generatemapper, runtime, True)
+
+            runtime.append(u"--pwd")
+            runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
+            #        runtime.append(u"--read-only=true")  # true by default for Singularity images
+
+            if kwargs.get("custom_net", None) is not None:
+                raise UnsupportedRequirement(
+                    "Singularity implementation does not support networking")
+
+            env["SINGULARITYENV_TMPDIR"] = "/tmp"
+            env["SINGULARITYENV_HOME"] = self.builder.outdir
+
+            for t, v in self.environment.items():
+                env["SINGULARITYENV_" + t] = v
+        else:
             if user_space_docker_cmd:
                 runtime = [user_space_docker_cmd, u"run"]
             else:
@@ -512,33 +538,6 @@ class DockerCommandLineJob(JobBase):
 
             for t, v in self.environment.items():
                 runtime.append(u"--env=%s=%s" % (t, v))
-
-        elif container_manager == "singularity":
-            runtime = [u"singularity", u"--quiet", u"exec"]
-
-            runtime.append(u"--bind")
-            runtime.append(
-                u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
-            runtime.append(u"--bind")
-            runtime.append(u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
-
-            self.add_volumes_singularity(self.pathmapper, runtime, False)
-            if self.generatemapper:
-                self.add_volumes_singularity(self.generatemapper, runtime, True)
-
-            runtime.append(u"--pwd")
-            runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
-            #        runtime.append(u"--read-only=true")  # true by default for Singularity images
-
-            if kwargs.get("custom_net", None) is not None:
-                raise UnsupportedRequirement(
-                    "Singularity implementation does not support networking")
-
-            env["SINGULARITYENV_TMPDIR"] = "/tmp"
-            env["SINGULARITYENV_HOME"] = self.builder.outdir
-
-            for t, v in self.environment.items():
-                env["SINGULARITYENV_" + t] = v
 
         runtime.append(img_id)
 
