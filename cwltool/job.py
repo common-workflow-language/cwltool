@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+
 import codecs
 import functools
 import io
@@ -11,22 +12,20 @@ import stat
 import subprocess
 import sys
 import tempfile
+from abc import ABCMeta, abstractmethod
 from io import open
-from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
-                    Tuple, Union, cast)
 
 import shellescape
+from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
+                    Union, cast)
 
-from cwltool import singularity
-from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
-from . import docker
 from .builder import Builder
-from .docker_id import docker_vm_id
 from .errors import WorkflowException
-from .pathmapper import PathMapper, ensure_writable
-from .process import (UnsupportedRequirement, empty_subtree, get_feature,
+from .pathmapper import PathMapper
+from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .utils import bytes2str_in_dicts
+from .utils import copytree_with_merge, onWindows
 
 _logger = logging.getLogger("cwltool")
 
@@ -312,100 +311,18 @@ class CommandLineJob(JobBase):
         self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
 
 
-class DockerCommandLineJob(JobBase):
+class ContainerCommandLineJob(JobBase):
+    __metaclass__ = ABCMeta
 
-    def add_volumes_docker(self, pathmapper, runtime):
-        # type: (PathMapper, List[Text]) -> None
+    @abstractmethod
+    def get_from_requirements(self, r, req, pull_image, dry_run=False):
+        # type: (Dict[Text, Text], bool, bool, bool) -> Text
+        pass
 
-        host_outdir = self.outdir
-        container_outdir = self.builder.outdir
-        for src, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            if vol.target.startswith(container_outdir+"/"):
-                host_outdir_tgt = os.path.join(
-                    host_outdir, vol.target[len(container_outdir)+1:])
-            else:
-                host_outdir_tgt = None
-            if vol.type in ("File", "Directory"):
-                if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--volume=%s:%s:ro" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
-            elif vol.type == "WritableFile":
-                if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
-                else:
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                    ensure_writable(host_outdir_tgt)
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
-                    os.makedirs(vol.target, 0o0755)
-                else:
-                    if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (
-                            docker_windows_path_adjust(vol.resolved),
-                            docker_windows_path_adjust(vol.target)))
-                    else:
-                        shutil.copytree(vol.resolved, host_outdir_tgt)
-                        ensure_writable(host_outdir_tgt)
-            elif vol.type == "CreateFile":
-                if host_outdir_tgt:
-                    with open(host_outdir_tgt, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                else:
-                    fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
-                    with os.fdopen(fd, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(createtmp),
-                        docker_windows_path_adjust(vol.target)))
-
-    def add_volumes_singularity(self, pathmapper, runtime, stage_output):
-        # type: (PathMapper, List[Text], bool) -> None
-
-        host_outdir = self.outdir
-        container_outdir = self.builder.outdir
-        for src, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            if stage_output:
-                containertgt = container_outdir + vol.target[len(host_outdir):]
-            else:
-                containertgt = vol.target
-            if vol.target.startswith(container_outdir+"/"):
-                host_outdir_tgt = os.path.join(
-                    host_outdir, vol.target[len(container_outdir)+1:])
-            else:
-                host_outdir_tgt = None
-            if vol.type in ("File", "Directory"):
-                if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--bind")
-                    runtime.append("%s:%s:ro" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
-            elif vol.type == "WritableFile":
-                if self.inplace_update:
-                    runtime.append(u"--bind")
-                    runtime.append("%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
-                else:
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                    ensure_writable(host_outdir_tgt)
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
-                    os.makedirs(vol.target, 0o0755)
-                else:
-                    if self.inplace_update:
-                        runtime.append(u"--bind")
-                        runtime.append("%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
-                    else:
-                        shutil.copytree(vol.resolved, vol.target)
-            elif vol.type == "CreateFile":
-                createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
-                with open(createtmp, "wb") as f:
-                    f.write(vol.resolved.encode("utf-8"))
-                runtime.append(u"--bind")
-                runtime.append("%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
+    @abstractmethod
+    def create_runtime(self, env, rm_container=True, **kwargs):
+        # type: (MutableMapping[Text, Text], bool, **Any) -> List
+        pass
 
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
@@ -416,7 +333,6 @@ class DockerCommandLineJob(JobBase):
         img_id = None
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
-        use_singularity = kwargs.get("singularity")
         if docker_req and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
             # takes precedence over a network pull
@@ -432,12 +348,7 @@ class DockerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    if use_singularity:
-                        img_id = str(singularity.get_from_requirements(
-                            docker_req, True, pull_image))
-                    else:
-                        img_id = str(docker.get_from_requirements(
-                            docker_req, True, pull_image))
+                    img_id = str(self.get_from_requirements(docker_req, True, pull_image))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
@@ -448,7 +359,7 @@ class DockerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
             except Exception as e:
-                container = "Singularity" if use_singularity else "Docker"
+                container = "Singularity" if kwargs.get("singularity") else "Docker"
                 _logger.debug("%s error" % container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
@@ -461,94 +372,10 @@ class DockerCommandLineJob(JobBase):
                         "--user-space-docker-cmd.: {1}".format(container, e))
 
         self._setup(kwargs)
-
-        if use_singularity:
-            runtime = [u"singularity", u"--quiet", u"exec"]
-
-            runtime.append(u"--bind")
-            runtime.append(
-                u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
-            runtime.append(u"--bind")
-            runtime.append(u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
-
-            self.add_volumes_singularity(self.pathmapper, runtime, stage_output=False)
-            if self.generatemapper:
-                self.add_volumes_singularity(self.generatemapper, runtime, stage_output=True)
-
-            runtime.append(u"--pwd")
-            runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
-            #        runtime.append(u"--read-only=true")  # true by default for Singularity images
-
-            if kwargs.get("custom_net", None) is not None:
-                raise UnsupportedRequirement(
-                    "Singularity implementation does not support networking")
-
-            env["SINGULARITYENV_TMPDIR"] = "/tmp"
-            env["SINGULARITYENV_HOME"] = self.builder.outdir
-
-            for t, v in self.environment.items():
-                env["SINGULARITYENV_" + t] = v
-        else:
-            if user_space_docker_cmd:
-                runtime = [user_space_docker_cmd, u"run"]
-            else:
-                runtime = [u"docker", u"run", u"-i"]
-
-            runtime.append(u"--volume=%s:%s:rw" % (
-                docker_windows_path_adjust(os.path.realpath(self.outdir)),
-                self.builder.outdir))
-            runtime.append(u"--volume=%s:%s:rw" % (
-                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
-
-            self.add_volumes_docker(self.pathmapper, runtime)
-            if self.generatemapper:
-                self.add_volumes_docker(self.generatemapper, runtime)
-
-            if user_space_docker_cmd:
-                runtime = [x.replace(":ro", "") for x in runtime]
-                runtime = [x.replace(":rw", "") for x in runtime]
-
-            runtime.append(u"--workdir=%s" % (
-                docker_windows_path_adjust(self.builder.outdir)))
-            if not user_space_docker_cmd:
-
-                if not kwargs.get("no_read_only"):
-                    runtime.append(u"--read-only=true")
-
-                if kwargs.get("custom_net", None) is not None:
-                    runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
-                elif kwargs.get("disable_net", None):
-                    runtime.append(u"--net=none")
-
-                if self.stdout:
-                    runtime.append("--log-driver=none")
-
-                euid, egid = docker_vm_id()
-                if not onWindows():
-                    # MS Windows does not have getuid() or geteuid() functions
-                    euid, egid = euid or os.geteuid(), egid or os.getgid()
-
-                if kwargs.get("no_match_user", None) is False \
-                        and (euid, egid) != (None, None):
-                    runtime.append(u"--user=%d:%d" % (euid, egid))
-
-            if rm_container:
-                runtime.append(u"--rm")
-
-            runtime.append(u"--env=TMPDIR=/tmp")
-
-            # spec currently says "HOME must be set to the designated output
-            # directory." but spec might change to designated temp directory.
-            # runtime.append("--env=HOME=/tmp")
-            runtime.append(u"--env=HOME=%s" % self.builder.outdir)
-
-            for t, v in self.environment.items():
-                runtime.append(u"--env=%s=%s" % (t, v))
-
+        runtime = self.create_runtime(env, rm_container, **kwargs)
         runtime.append(img_id)
 
-        self._execute(
-            runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
 
 
 def _job_popen(
