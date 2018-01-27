@@ -56,7 +56,7 @@ def check_js_threshold_version(working_alias):
 
 def new_js_proc(force_docker_pull=False, js_console=False):
     # type: (bool, bool) -> subprocess.Popen
-    
+
     cwl_node_engine_js = 'cwlNodeEngine.js'
     if js_console:
         cwl_node_engine_js = 'cwlNodeEngineJSConsole.js'
@@ -73,7 +73,7 @@ def new_js_proc(force_docker_pull=False, js_console=False):
             if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]).decode('utf-8') != "t":
                 continue
             else:
-                nodejs = subprocess.Popen([n, "--eval", nodecode],
+                nodejs = subprocess.Popen([n, "--use_strict", "--eval", nodecode],
                                           stdin=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
@@ -104,7 +104,8 @@ def new_js_proc(force_docker_pull=False, js_console=False):
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
                                        "--sig-proxy=true", "--interactive",
-                                       "--rm", nodeimg, "node", "--eval", nodecode],
+                                       "--rm", nodeimg, "node", "--use_strict",
+                                       "--eval", nodecode],
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             docker = True
         except OSError as e:
@@ -166,7 +167,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
 
     PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
-    def process_finished(): # type: () -> bool
+    def process_finished():  # type: () -> bool
         return stdout_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR) and \
             stderr_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR)
 
@@ -235,7 +236,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
 
                 if nodejs.stderr in rselect:
                     if not error_queue.empty():
-                        stderr_buf.write(error_queue.get())                
+                        stderr_buf.write(error_queue.get())
 
                 if process_finished() and error_queue.empty() and output_queue.empty():
                     finished = True
