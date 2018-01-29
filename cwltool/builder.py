@@ -230,7 +230,7 @@ class Builder(object):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
-        elif value is False or value is None:
+        elif value is False or value is None or (value is True and not prefix):
             return []
         else:
             l = [value]
