@@ -1,5 +1,21 @@
 from __future__ import absolute_import
 import unittest
+import pytest
+import subprocess
+from os import path
+import sys
+
+from io import StringIO
+
+from cwltool.utils import onWindows
+
+try:
+    reload
+except:
+    try:
+        from imp import reload
+    except:
+        from importlib import reload
 
 import cwltool.expression as expr
 import cwltool.factory
@@ -514,6 +530,51 @@ class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):
         # Require that --enable-ext is provided.
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
+
+
+class TestCmdLine(unittest.TestCase):
+    def get_main_stderr(self, new_args):
+        process = subprocess.Popen([
+                                       sys.executable,
+                                       "-m",
+                                       "cwltool"
+                                   ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        stdout, stderr = process.communicate()
+        return process.returncode, stderr.decode()
+
+
+class TestJsConsole(TestCmdLine):
+
+    def test_js_console_cmd_line_tool(self):
+        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+            error_code, output = self.get_main_stderr(["--js-console", "--no-container",
+                get_data("tests/wf/" + test_file)])
+
+            self.assertIn("[log] Log message", output)
+            self.assertIn("[err] Error message", output)
+
+            self.assertEquals(error_code, 0, output)
+
+    def test_no_js_console(self):
+        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+            error_code, output = self.get_main_stderr(["--no-container",
+                get_data("tests/wf/" + test_file)])
+
+            self.assertNotIn("[log] Log message", output)
+            self.assertNotIn("[err] Error message", output)
+
+
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
+class TestCache(TestCmdLine):
+    def test_wf_without_container(self):
+        test_file = "hello-workflow.cwl"
+        error_code, output = self.get_main_stderr(["--cachedir", "cache",
+                                                       get_data("tests/wf/" + test_file), "--usermessage", "hello"])
+        self.assertIn("completed success", output)
+        self.assertEquals(error_code, 0)
 
 
 if __name__ == '__main__':

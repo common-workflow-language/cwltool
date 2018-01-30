@@ -34,7 +34,8 @@ from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class, trim_listing)
+                         normalizeFilesDirs, visit_class, trim_listing,
+                         ensure_writable)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
@@ -230,15 +231,17 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
             os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
+            ensure_writable(p.target)
         elif p.type == "WritableDirectory" and not ignoreWritable:
             if p.resolved.startswith("_:"):
                 os.makedirs(p.target, 0o0755)
             else:
                 shutil.copytree(p.resolved, p.target)
-        elif p.type == "CreateFile" and not ignoreWritable:
+                ensure_writable(p.target)
+        elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
                 n.write(p.resolved.encode("utf-8"))
-
+            ensure_writable(p.target)
 
 def collectFilesAndDirs(obj, out):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
@@ -276,9 +279,13 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
             if os.path.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
-                shutil.copy(src, dst)
+                shutil.copy2(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -385,7 +392,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
-        with SourceLine(inputs, e, WorkflowException):
+        with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
             fieldname = shortname(inp[u"id"])
             if job.get(fieldname) is not None:
                 pass
@@ -414,6 +421,15 @@ def avroize_type(field_type, name_prefix=""):
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
     return field_type
+
+def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
+    req = {}  # type: Dict[Text, Any]
+    if not isinstance(overrides, list):
+        raise validate.ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
+    for ov in overrides:
+        if ov["overrideTarget"] == toolid:
+            req.update(ov)
+    return req
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
@@ -449,7 +465,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:
             self.names = names
         self.tool = toolpath_object
-        self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
+        self.requirements = (kwargs.get("requirements", []) +
+                             self.tool.get("requirements", []) +
+                             get_overrides(kwargs.get("overrides", []), self.tool["id"]).get("requirements", []))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
@@ -532,6 +550,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         tmpdir: tmpdir on host for this job
         stagedir: stagedir on host for this job
         select_resources: callback to select compute resources
+        debug: enable debugging output
+        js_console: enable javascript console output
         """
 
         builder = Builder()
@@ -556,6 +576,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
         builder.debug = kwargs.get("debug")
+        builder.js_console = kwargs.get("js_console")
         builder.mutation_manager = kwargs.get("mutation_manager")
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess

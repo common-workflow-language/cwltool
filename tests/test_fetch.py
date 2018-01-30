@@ -27,7 +27,7 @@ inputs: []
 outputs: []
 """
                 else:
-                    raise RuntimeError("Not foo.cwl")
+                    raise RuntimeError("Not foo.cwl, was %s" % url)
 
             def check_exists(self, url):  # type: (unicode) -> bool
                 if url == "baz:bar/foo.cwl":
@@ -46,7 +46,11 @@ outputs: []
                     return urllib.parse.urljoin(base, url)
 
         def test_resolver(d, a):
-            return "baz:bar/" + a
+            if a.startswith("baz:bar/"):
+                return a
+            else:
+                return "baz:bar/" + a
+
 
         load_tool("foo.cwl", defaultMakeTool, resolver=test_resolver, fetcher_constructor=TestFetcher)
 
