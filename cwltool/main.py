@@ -9,23 +9,19 @@ import json
 import logging
 import os
 import sys
-import tempfile
-import threading
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast, Mapping, MutableMapping, Iterable)
 
 import pkg_resources  # part of setuptools
-import requests
 import six
-import string
+import warnings
 
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
-from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
 from . import draft2tool, workflow
-from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import SingleJobExecutor, MultithreadedJobExecutor
@@ -34,10 +30,9 @@ from .load_tool import (FetcherConstructorType, resolve_tool_uri,
         resolve_overrides, load_overrides)
 from .mutation import MutationManager
 from .pack import pack
-from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
-                         trim_listing, visit_class)
-from .process import (Process, cleanIntermediate, normalizeFilesDirs,
-                      relocateOutputs, scandeps, shortname, use_custom_schema,
+from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
+from .process import (Process, normalizeFilesDirs,
+                      scandeps, shortname, use_custom_schema,
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import (DependenciesConfiguration,
@@ -46,7 +41,6 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
-from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 
 _logger = logging.getLogger("cwltool")
@@ -66,7 +60,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
     parser.add_argument("--parallel", action="store_true", default=False,
-                        help="Run jobs in parallel")
+                        help="[experimental] Run jobs in parallel. "
+                             "Does not currently keep track of ResourceRequirements like the number of cores"
+                             "or memory and can overload this system")
     parser.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
                         metavar="ENVVAR",
@@ -254,6 +250,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     return parser
 
+
+def single_job_executor(t,  # type: Process
+                        job_order_object,  # type: Dict[Text, Any]
+                        **kwargs  # type: Any
+                        ):
+    # type: (...) -> Tuple[Dict[Text, Any], Text]
+    warnings.warn("Use of single_job_executor function is deprecated. "
+                  "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
+    executor = SingleJobExecutor()
+    return executor(t, job_order_object, **kwargs)
 
 
 class FSAction(argparse.Action):
