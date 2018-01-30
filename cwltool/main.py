@@ -23,7 +23,7 @@ import schema_salad.validate as validate
 from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
-from . import cltool, workflow
+from . import command_line_tool, workflow
 from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
@@ -822,7 +822,7 @@ def main(argsl=None,  # type: List[str]
                 arg_parser().print_help()
                 return 1
         if args.relax_path_checks:
-            cltool.ACCEPTLIST_RE = cltool.ACCEPTLIST_EN_RELAXED_RE
+            command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
 
         if args.ga4gh_tool_registries:
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries

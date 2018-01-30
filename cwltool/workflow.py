@@ -12,7 +12,7 @@ import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
 
-from . import cltool, expression
+from . import command_line_tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
@@ -33,9 +33,9 @@ def defaultMakeTool(toolpath_object,  # type: Dict[Text, Any]
         raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
-            return cltool.CommandLineTool(toolpath_object, **kwargs)
+            return command_line_tool.CommandLineTool(toolpath_object, **kwargs)
         elif toolpath_object["class"] == "ExpressionTool":
-            return cltool.ExpressionTool(toolpath_object, **kwargs)
+            return command_line_tool.ExpressionTool(toolpath_object, **kwargs)
         elif toolpath_object["class"] == "Workflow":
             return Workflow(toolpath_object, **kwargs)
 
