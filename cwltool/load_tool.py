@@ -124,6 +124,8 @@ def _convert_stdstreams_to_files(workflowobj):
     if isinstance(workflowobj, dict):
         if workflowobj.get('class') == 'CommandLineTool':
             for out in workflowobj.get('outputs', []):
+                if type(out) is not CommentedMap:
+                    raise ValidationException("Output '%s' is not valid" % out)
                 for streamtype in ['stdout', 'stderr']:
                     if out.get('type') == streamtype:
                         if 'outputBinding' in out:
