@@ -240,7 +240,7 @@ class Builder(object):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                args.append(prefix + self.tostr(j))
+                args.append((prefix or "") + self.tostr(j))
 
         return [a for a in args if a is not None]
 
