@@ -230,7 +230,7 @@ class Builder(object):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
-        elif value is False or value is None:
+        elif value is False or value is None or (value is True and not prefix):
             return []
         else:
             l = [value]
@@ -251,7 +251,8 @@ class Builder(object):
                 return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
             if isinstance(ex, list):
                 return [self.do_eval(v, context, pull_image, recursive) for v in ex]
-
+        if context is None and type(ex) is str and "self" in ex:
+            return None
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
