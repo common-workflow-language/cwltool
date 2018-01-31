@@ -120,7 +120,6 @@ UPDATES = {
 }  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 
 DEVUPDATES = {
-    "v1.0.dev4": v1_0dev4to1_0,
     "v1.0": v1_0to1_1_0dev1,
     "v1.1.0-dev1": None
 }  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
