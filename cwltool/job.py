@@ -324,7 +324,6 @@ class ContainerCommandLineJob(JobBase):
         # type: (MutableMapping[Text, Text], bool, **Any) -> List
         pass
 
-
     def run(self, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (bool, bool, bool, Text, **Any) -> None
