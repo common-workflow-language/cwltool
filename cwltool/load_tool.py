@@ -126,8 +126,7 @@ def _convert_stdstreams_to_files(workflowobj):
             for out in workflowobj.get('outputs', []):
                 if type(out) is not CommentedMap:
                     with SourceLine(workflowobj, "outputs", ValidationException, _logger.isEnabledFor(logging.DEBUG)):
-                        raise ValidationException("Output '%s' is not a valid CWL type, "
-                                                  "check the outputs section of your tool" % out)
+                        raise ValidationException("Output '%s' is not a valid OutputParameter." % out)
                 for streamtype in ['stdout', 'stderr']:
                     if out.get('type') == streamtype:
                         if 'outputBinding' in out:
