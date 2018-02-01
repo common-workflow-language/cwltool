@@ -14,7 +14,7 @@ cloneorpull() {
 }
 venv() {
         if ! test -d "$1" ; then
-                virtualenv -p python${PYTHON_VERSION} "$1"
+                virtualenv -p python"${PYTHON_VERSION}" "$1"
         fi
 	# shellcheck source=/dev/null
         source "$1"/bin/activate
@@ -29,23 +29,37 @@ git -C common-workflow-language clean --force -d -x || /bin/true
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2.7 3
 do
+for CONTAINER in docker singularity
+do
 	venv cwltool-venv${PYTHON_VERSION}
 	export PIP_DOWNLOAD_CACHE=/var/lib/jenkins/pypi-cache/
 	# use pip2.7 and pip3 in separate loop runs
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
+	pip${PYTHON_VERSION} uninstall -y cwltool
 	pip${PYTHON_VERSION} install .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180130081614"
 	pushd common-workflow-language
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
 	then
-		EXTRA="EXTRA=--enable-dev"
+		EXTRA=" --enable-dev"
 	fi
+	if [[ "$CONTAINER" = "singularity" ]]
+	then
+		EXTRA+=" --singularity"
+	fi
+	if [ -n "$EXTRA" ]
+	then
+		EXTRA="EXTRA=${EXTRA}"
+	fi
+	# shellcheck disable=SC2086
 	./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml RUNNER=cwltool \
-		-j4 DRAFT=${version} --classname=py${PYTHON_VERSION}
-	CODE=$(($CODE+$?)) # capture return code of ./run_test.sh
+		-j4 DRAFT="${version}" ${EXTRA} \
+		--classname=py${PYTHON_VERSION}_${CONTAINER}
+	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
 	deactivate
 	popd
+done
 done
 
 # build new docker container
