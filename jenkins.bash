@@ -27,7 +27,7 @@ git clean --force -d -x || /bin/true
 git -C common-workflow-language clean --force -d -x || /bin/true
 
 # Test for Python 2.7 and Python 3
-for PYTHON_VERSION in 2.7 3
+for PYTHON_VERSION in 2 3
 do
 for CONTAINER in docker singularity
 do
