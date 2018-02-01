@@ -113,7 +113,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     ensure_writable(host_outdir_tgt)
             elif vol.type == "WritableDirectory":
                 if vol.resolved.startswith("_:"):
-                    os.makedirs(vol.target, 0o0755)
+                    os.makedirs(host_outdir_tgt, 0o0755)
                 else:
                     if self.inplace_update:
                         runtime.append(u"--bind")
