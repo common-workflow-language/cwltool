@@ -43,6 +43,8 @@ do
 	if [[ "$version" = *dev* ]]
 	then
 		EXTRA=" --enable-dev"
+	else
+		EXTRA=""
 	fi
 	if [[ "$CONTAINER" = "singularity" ]]
 	then
