@@ -608,8 +608,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+            if self.tool[u"class"] != 'Workflow':
+                builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+                builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         if self.formatgraph:
             for i in self.tool["inputs"]:
