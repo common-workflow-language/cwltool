@@ -514,6 +514,19 @@ class TestTypeCompare(unittest.TestCase):
             echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
+    def test_malformed_outputs(self):
+        # check that tool validation fails if one of the outputs is not a valid CWL type
+        f = cwltool.factory.Factory()
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            echo = f.make(get_data("tests/wf/malformed_outputs.cwl"))
+            echo()
+
+    def test_separate_without_prefix(self):
+        # check that setting 'separate = false' on an inputBinding without prefix does not fail the workflow
+        f = cwltool.factory.Factory()
+        echo = f.make(get_data("tests/wf/separate_without_prefix.cwl"))
+        self.assertEqual(echo(), {"output": "string\n"})
+
 
     def test_checker(self):
         # check that the static checker raises exception when a source type
