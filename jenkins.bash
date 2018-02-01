@@ -54,8 +54,8 @@ do
 	fi
 	# shellcheck disable=SC2086
 	./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml RUNNER=cwltool \
-		-j4 DRAFT="${version}" ${EXTRA} \
-		--classname=py${PYTHON_VERSION}_${CONTAINER}
+		-j4 DRAFT="${version}" "${EXTRA}" \
+		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
 	deactivate
 	popd
