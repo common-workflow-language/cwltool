@@ -7,6 +7,7 @@ import sys
 
 from io import StringIO
 
+from cwltool.errors import WorkflowException
 from cwltool.utils import onWindows
 
 try:
@@ -522,10 +523,11 @@ class TestTypeCompare(unittest.TestCase):
             echo()
 
     def test_separate_without_prefix(self):
-        # check that setting 'separate = false' on an inputBinding without prefix does not fail the workflow
-        f = cwltool.factory.Factory()
-        echo = f.make(get_data("tests/wf/separate_without_prefix.cwl"))
-        self.assertEqual(echo(), {"output": "string\n"})
+        # check that setting 'separate = false' on an inputBinding without prefix fails the workflow
+        with self.assertRaises(WorkflowException):
+            f = cwltool.factory.Factory()
+            echo = f.make(get_data("tests/wf/separate_without_prefix.cwl"))
+            echo()
 
 
     def test_checker(self):

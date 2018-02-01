@@ -212,6 +212,9 @@ class Builder(object):
 
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
+        if prefix is None and not sep:
+            with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
+                raise WorkflowException("'separate' option can not be specified without prefix")
 
         l = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
@@ -240,7 +243,7 @@ class Builder(object):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                args.append((prefix or "") + self.tostr(j))
+                args.append(prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 
