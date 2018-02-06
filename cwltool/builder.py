@@ -116,7 +116,7 @@ class Builder(object):
 
             if schema["type"] == "record":
                 for f in schema["fields"]:
-                    if f["name"] in datum:
+                    if f["name"] in datum and datum[f["name"]]:
                         bindings.extend(self.bind_input(f, datum[f["name"]], lead_pos=lead_pos, tail_pos=f["name"]))
                     else:
                         datum[f["name"]] = f.get("default")
