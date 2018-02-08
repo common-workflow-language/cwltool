@@ -482,7 +482,7 @@ class DockerCommandLineJob(JobBase):
                 cidfile_dir = "/tmp/"
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f")+".cid"
             if cidfile_prefix != "":
-                cidfile_name = cidfile_prefix + "-" + cidfile_name
+                cidfile_name = str(cidfile_prefix + "-" + cidfile_name)
             cidfile_path = cidfile_dir + cidfile_name
             runtime.append(u"--cidfile=%s" % cidfile_path)
 
