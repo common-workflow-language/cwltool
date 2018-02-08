@@ -367,7 +367,7 @@ class DockerCommandLineJob(JobBase):
             record_container_id=False, cidfile_dir="/tmp/",
             cidfile_prefix="",
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> None
+        # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
