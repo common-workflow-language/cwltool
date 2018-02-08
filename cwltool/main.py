@@ -84,6 +84,20 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, help="Do not delete Docker container used by jobs after they exit",
                          dest="rm_container")
 
+    parser.add_argument("--record-container-id", action="store_true", default=False,
+                        help="If enabled, a file with suffix \".cid\" will be created storing the container ID under CIDFILE_DIR",
+                        dest="record_container_id")
+
+    parser.add_argument("--cidfile-dir", type=Text,
+                        help="Directory for storing cidfiles. Default at /tmp/",
+                        default="/tmp/",
+                        dest="cidfile_dir")
+
+    parser.add_argument("--cidfile-prefix", type=Text,
+                        help="Give a prefix to cidfile. Final file name will be followed by a timestamp. Default empty.",
+                        default="",
+                        dest="cidfile_prefix")
+
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
                         default="tmp")
@@ -161,6 +175,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
+    parser.add_argument("--logtstp", action="store_true", help="Print timestamps with logging")
 
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
     parser.add_argument("--user-space-docker-cmd",
@@ -774,6 +789,7 @@ def main(argsl=None,  # type: List[str]
                      'cachedir': None,
                      'quiet': False,
                      'debug': False,
+                     'logtstp': False,
                      'js_console': False,
                      'version': False,
                      'enable_dev': False,
@@ -802,6 +818,10 @@ def main(argsl=None,  # type: List[str]
             _logger.setLevel(logging.WARN)
         if args.debug:
             _logger.setLevel(logging.DEBUG)
+        if args.logtstp:
+            formatter = logging.Formatter("[%(asctime)s] %(message)s",
+                                          "%Y-%m-%d %H:%M:%S")
+            stderr_handler.setFormatter(formatter)
 
         if args.version:
             print(versionfunc())
