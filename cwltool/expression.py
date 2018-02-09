@@ -120,55 +120,76 @@ def scanner(scan):  # type: (Text) -> List[int]
         return None
 
 
-def next_seg(remain, obj):  # type: (Text, Any) -> Any
-    if remain:
-        m = segment_re.match(remain)
+def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, Any) -> Any
+    if remaining_string:
+        m = segment_re.match(remaining_string)
+        next_segment_str = m.group(0)
+
         key = None  # type: Union[Text, int]
-        if m.group(0)[0] == '.':
-            key = m.group(0)[1:]
-        elif m.group(0)[1] in ("'", '"'):
-            key = m.group(0)[2:-2].replace("\\'", "'").replace('\\"', '"')
+        if next_segment_str[0] == '.':
+            key = next_segment_str[1:]
+        elif next_segment_str[1] in ("'", '"'):
+            key = next_segment_str[2:-2].replace("\\'", "'").replace('\\"', '"')
 
         if key:
-            if isinstance(obj, list) and key == "length" and not remain[m.end(0):]:
-                return len(obj)
-            if not isinstance(obj, dict):
-                raise WorkflowException(" is a %s, cannot index on string '%s'" % (type(obj).__name__, key))
-            if key not in obj:
-                raise WorkflowException(" does not contain key '%s'" % key)
+            if isinstance(current_value, list) and key == "length" and not remaining_string[m.end(0):]:
+                return len(current_value)
+            if not isinstance(current_value, dict):
+                raise WorkflowException("%s is a %s, cannot index on string '%s'" % (parsed_string, type(current_value).__name__, key))
+            if key not in current_value:
+                raise WorkflowException("%s does not contain key '%s'" % (parsed_string, key))
         else:
             try:
-                key = int(m.group(0)[1:-1])
+                key = int(next_segment_str[1:-1])
             except ValueError as v:
                 raise WorkflowException(u(str(v)))
-            if not isinstance(obj, list):
-                raise WorkflowException(" is a %s, cannot index on int '%s'" % (type(obj).__name__, key))
-            if key >= len(obj):
-                raise WorkflowException(" list index %i out of range" % key)
+            if not isinstance(current_value, list):
+                raise WorkflowException("%s is a %s, cannot index on int '%s'" % (parsed_string, type(current_value).__name__, key))
+            if key >= len(current_value):
+                raise WorkflowException("%s list index %i out of range" % (parsed_string, key))
+
         try:
-            return next_seg(remain[m.end(0):], obj[key])
-        except WorkflowException as w:
-            raise WorkflowException("%s%s" % (m.group(0), w))
+            return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
+        except KeyError:
+            raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
     else:
-        return obj
+        return current_value
 
 
 def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=False, debug=False, js_console=False):
     # type: (Text, Text, Dict[Text, Any], bool, int, bool, bool, bool) -> JSON
     m = param_re.match(ex)
+
+    expression_parse_exception = None
+    expression_parse_succeeded = False
+
     if m:
-        if m.end(1)+1 == len(ex) and m.group(1) == "null":
+        first_symbol = m.group(1)
+        first_symbol_end = m.end(1)
+
+        if first_symbol_end + 1 == len(ex) and first_symbol == "null":
             return None
         try:
-            return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
-        except Exception as w:
-            raise WorkflowException("%s%s" % (m.group(1), w))
-    elif fullJS:
+            if obj.get(first_symbol) is None:
+                raise WorkflowException("%s is not defined" % first_symbol)
+
+            return next_seg(first_symbol, ex[first_symbol_end:-1], obj[first_symbol])
+        except WorkflowException as w:
+            expression_parse_exception = w
+        else:
+            expression_parse_succeeded = True
+
+    if fullJS and not expression_parse_succeeded:
         return sandboxjs.execjs(ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull, debug=debug, js_console=js_console)
     else:
-        raise sandboxjs.JavascriptException(
-            "Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.",
-            ex)
+        if expression_parse_exception is not None:
+            raise sandboxjs.JavascriptException(
+                "Syntax error in parameter reference '%s': %s. This could be due to using Javascript code without specifying InlineJavascriptRequirement." % \
+                    (ex[1:-1], expression_parse_exception))
+        else:
+            raise sandboxjs.JavascriptException(
+                "Syntax error in parameter reference '%s'. This could be due to using Javascript code without specifying InlineJavascriptRequirement." % \
+                    ex)
 
 
 def interpolate(scan, rootvars,
