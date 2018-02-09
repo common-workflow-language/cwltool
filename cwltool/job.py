@@ -364,7 +364,7 @@ class DockerCommandLineJob(JobBase):
                         docker_windows_path_adjust(vol.target)))
 
     def run(self, pull_image=True, rm_container=True,
-            record_container_id=False, cidfile_dir="/tmp/",
+            record_container_id=False, cidfile_dir="",
             cidfile_prefix="",
             rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
@@ -469,21 +469,22 @@ class DockerCommandLineJob(JobBase):
         
         # add parameters to docker to write a container ID file
         if record_container_id:
-            if cidfile_dir:
+            if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
                     _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                                  cidfile_dir + " is not a directory or directory doesn't exist, please check it first")
-                    exit(-1)
+                                  cidfile_dir + " is not a directory or "
+                                  "directory doesn't exist, please check it first")
+                    exit(2)
                 if not os.path.exists(cidfile_dir):
                     _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
                                   "directory doesn't exist, please create it first")
-                    exit(-1)
+                    exit(2)
             else:
-                cidfile_dir = "/tmp/"
+                cidfile_dir = os.getcwd()
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f")+".cid"
             if cidfile_prefix != "":
                 cidfile_name = str(cidfile_prefix + "-" + cidfile_name)
-            cidfile_path = cidfile_dir + cidfile_name
+            cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append(u"--cidfile=%s" % cidfile_path)
 
         for t, v in self.environment.items():

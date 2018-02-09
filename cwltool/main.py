@@ -84,17 +84,27 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, help="Do not delete Docker container used by jobs after they exit",
                          dest="rm_container")
 
-    parser.add_argument("--record-container-id", action="store_true", default=False,
-                        help="If enabled, a file with suffix \".cid\" will be created storing the container ID under CIDFILE_DIR",
-                        dest="record_container_id")
+    group = parser.add_argument_group("options for docker container ID file", 
+                                      "These options determine whether docker"
+                                      "write container ID to a file (cidfile) "
+                                      "when a container is created, where it "
+                                      "should be placed and how it should be named.")
+    group.add_argument("--record-container-id", action="store_true",
+                       default=False,
+                       help="If enabled, store the container ID file under the "
+                            "directory specified by --cidfile-dir",
+                       dest="record_container_id")
 
-    parser.add_argument("--cidfile-dir", type=Text,
-                        help="Directory for storing cidfiles. Default at /tmp/",
-                        default="/tmp/",
+    group.add_argument("--cidfile-dir", type=Text,
+                        help="Directory for storing the container ID file. "
+                             "Default at current directory",
+                        default="",
                         dest="cidfile_dir")
 
-    parser.add_argument("--cidfile-prefix", type=Text,
-                        help="Give a prefix to cidfile. Final file name will be followed by a timestamp. Default empty.",
+    group.add_argument("--cidfile-prefix", type=Text,
+                        help="Specify a prefix to the container ID file. "
+                             "Final file name will be followed by a timestamp. "
+                             "Default \"\"",
                         default="",
                         dest="cidfile_prefix")
 
@@ -175,7 +185,8 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
-    parser.add_argument("--logtstp", action="store_true", help="Print timestamps with logging")
+    parser.add_argument("--timestamps", action="store_true", 
+                        help="Add timestamps to the errors, warnings, and notifications.")
 
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
     parser.add_argument("--user-space-docker-cmd",
@@ -789,7 +800,7 @@ def main(argsl=None,  # type: List[str]
                      'cachedir': None,
                      'quiet': False,
                      'debug': False,
-                     'logtstp': False,
+                     'timestamps': False,
                      'js_console': False,
                      'version': False,
                      'enable_dev': False,
@@ -818,7 +829,7 @@ def main(argsl=None,  # type: List[str]
             _logger.setLevel(logging.WARN)
         if args.debug:
             _logger.setLevel(logging.DEBUG)
-        if args.logtstp:
+        if args.timestamps:
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
             stderr_handler.setFormatter(formatter)
