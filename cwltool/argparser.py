@@ -217,6 +217,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     return parser
 
 
+def get_default_args():
+    # type: () -> Dict[str, Any]
+    """
+    Get default values of cwltool's command line options
+    """
+    ap = arg_parser()
+    args = ap.parse_args()
+    return vars(args)
+
+
 class FSAction(argparse.Action):
     objclass = None  # type: Text
 
