@@ -37,7 +37,7 @@ do
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
 	pip${PYTHON_VERSION} uninstall -y cwltool
 	pip${PYTHON_VERSION} install .
-	pip${PYTHON_VERSION} install "cwltest>=1.0.20180130081614"
+	pip${PYTHON_VERSION} install -U "cwltest>=1.0.20180130081614"
 	pushd common-workflow-language
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
