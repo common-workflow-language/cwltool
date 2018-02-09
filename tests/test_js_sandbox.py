@@ -1,10 +1,15 @@
 from __future__ import absolute_import
+
 import unittest
 
+from mock import Mock
+
+import cwltool
+import cwltool.factory
 # we should modify the subprocess imported from cwltool.sandboxjs
 from cwltool.sandboxjs import (check_js_threshold_version,
-                               minimum_node_version_str, subprocess)
-from mock import Mock, patch
+                               subprocess)
+from tests.util import get_data
 
 
 class Javascript_Sanity_Checks(unittest.TestCase):
@@ -33,3 +38,11 @@ class Javascript_Sanity_Checks(unittest.TestCase):
 
     def test_is_javascript_installed(self):
             pass
+
+
+class TestValueFrom(unittest.TestCase):
+
+    def test_value_from_two_concatenated_expressions(self):
+        f = cwltool.factory.Factory()
+        echo = f.make(get_data("tests/wf/vf-concat.cwl"))
+        self.assertEqual(echo(), {u"out": u"a sting\\n"})
