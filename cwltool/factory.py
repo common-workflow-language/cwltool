@@ -4,6 +4,7 @@ from typing import Callable as tCallable
 from typing import Any, Dict, Text, Tuple, Union
 
 from . import load_tool, main, workflow
+from .argparser import get_default_args
 from .process import Process
 
 
@@ -41,7 +42,13 @@ class Factory(object):
         # type: (...) -> None
         self.makeTool = makeTool
         self.executor = executor
-        self.execkwargs = execkwargs
+
+        kwargs = get_default_args()
+        kwargs.pop("job_order")
+        kwargs.pop("workflow")
+        kwargs.pop("outdir")
+        kwargs.update(execkwargs)
+        self.execkwargs = kwargs
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
