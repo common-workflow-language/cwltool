@@ -84,27 +84,23 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, help="Do not delete Docker container used by jobs after they exit",
                          dest="rm_container")
 
-    group = parser.add_argument_group("options for docker container ID file", 
-                                      "These options determine whether docker"
-                                      "write container ID to a file (cidfile) "
-                                      "when a container is created, where it "
-                                      "should be placed and how it should be named.")
-    group.add_argument("--record-container-id", action="store_true",
+    cidgroup = parser.add_argument_group("Options for recording the Docker container identifier into a file")
+    cidgroup.add_argument("--record-container-id", action="store_true",
                        default=False,
-                       help="If enabled, store the container ID file under the "
-                            "directory specified by --cidfile-dir",
+                       help="If enabled, store the container ID file. "
+                       "See --cidfile-dir to specify the directory.",
                        dest="record_container_id")
 
-    group.add_argument("--cidfile-dir", type=Text,
+    cidgroup.add_argument("--cidfile-dir", type=Text,
                         help="Directory for storing the container ID file. "
-                             "Default at current directory",
+                             "The default is current directory",
                         default="",
                         dest="cidfile_dir")
 
-    group.add_argument("--cidfile-prefix", type=Text,
-                        help="Specify a prefix to the container ID file. "
+    cidgroup.add_argument("--cidfile-prefix", type=Text,
+                        help="Specify a prefix to the container ID filename. "
                              "Final file name will be followed by a timestamp. "
-                             "Default \"\"",
+                             "The default is no prefix.",
                         default="",
                         dest="cidfile_prefix")
 
