@@ -45,4 +45,4 @@ class TestValueFrom(unittest.TestCase):
     def test_value_from_two_concatenated_expressions(self):
         f = cwltool.factory.Factory()
         echo = f.make(get_data("tests/wf/vf-concat.cwl"))
-        self.assertEqual(echo(), {u"out": u"a sting\\n"})
+        self.assertEqual(echo(), {u"out": u"a sting\n"})
