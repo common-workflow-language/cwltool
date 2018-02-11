@@ -27,6 +27,7 @@ from cwltool.main import main
 
 from .util import get_data
 
+sys.argv = ['']
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
