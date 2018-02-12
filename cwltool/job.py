@@ -1,5 +1,7 @@
 from __future__ import absolute_import
+
 import codecs
+import datetime
 import functools
 import io
 import json
@@ -11,26 +13,28 @@ import stat
 import subprocess
 import sys
 import tempfile
-import datetime
 from io import open
+from threading import Lock
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
-                    Tuple, Union, cast)
+                    Union, cast)
 
 import shellescape
 
-from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .pathmapper import PathMapper, ensure_writable
-from .process import (UnsupportedRequirement, empty_subtree, get_feature,
+from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .utils import bytes2str_in_dicts
+from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
+
+job_output_lock = Lock()
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
@@ -267,7 +271,8 @@ class JobBase(object):
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
-        self.output_callback(outputs, processStatus)
+        with job_output_lock:
+            self.output_callback(outputs, processStatus)
 
         if self.stagedir and os.path.exists(self.stagedir):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
