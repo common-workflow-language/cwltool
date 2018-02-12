@@ -337,10 +337,7 @@ def single_job_executor(t,  # type: Process
                     document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
                 document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
                 if hasattr(r, "joborder"):
-                    #referene_checksums=ro._prov_used(r)
                     for key, value in getattr(r, "joborder").items():
-                        #if 'checksum' in str(value):
-                            #print ("checksum#############", str(value["checksum"]))
                         provRole=stepname+str(key)
                         if 'location' in str(value):
                             location=str(value['location'])
@@ -348,7 +345,7 @@ def single_job_executor(t,  # type: Process
                                 document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), {"prov:role":provRole} )
                             else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
                                 document.used(ProcessRunID, "data:"+str(value['checksum'][6:]), datetime.datetime.now(),{"prov:role":provRole })
-                        else:
+                        else: #add the actual data value in the prov document
                             document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),{"prov:role":provRole })
 
                 r.run(**kwargs) #this is where you run each step. so start and end time for the step
@@ -1027,6 +1024,9 @@ def main(argsl=None,  # type: List[str]
             if out is not None:
                 #prov: closing the RO after writing everything and removing any temporary files
                 if args.provenance and args.ro:
+                    for key, value in out.items(): #add outputs as entities using checksum
+                        output_checksum="data:"+str(value["checksum"][5:])
+                        document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
                     args.ro.add_output(out, args.provenance)
                     args.ro.close(args.provenance)
                     document.serialize('provenanceProfile.json', indent=2)
