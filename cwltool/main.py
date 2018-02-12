@@ -337,15 +337,17 @@ def single_job_executor(t,  # type: Process
                     document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
                 document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
                 if hasattr(r, "joborder"):
-                    referene_checksums=ro._prov_used(r)
+                    #referene_checksums=ro._prov_used(r)
                     for key, value in getattr(r, "joborder").items():
+                        #if 'checksum' in str(value):
+                            #print ("checksum#############", str(value["checksum"]))
                         provRole=stepname+str(key)
                         if 'location' in str(value):
                             location=str(value['location'])
                             if location in reference_locations: #workflow level inputs referenced as sha in prov document
                                 document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), {"prov:role":provRole} )
-                            else:
-                                document.used(ProcessRunID, "data:"+str(value['location']), datetime.datetime.now(),{"prov:role":provRole })
+                            else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
+                                document.used(ProcessRunID, "data:"+str(value['checksum'][6:]), datetime.datetime.now(),{"prov:role":provRole })
                         else:
                             document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),{"prov:role":provRole })
 
