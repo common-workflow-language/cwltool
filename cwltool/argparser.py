@@ -49,6 +49,27 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, help="Do not delete Docker container used by jobs after they exit",
                          dest="rm_container")
 
+    cidgroup = parser.add_argument_group("Options for recording the Docker "
+        "container identifier into a file")
+    cidgroup.add_argument("--record-container-id", action="store_true",
+                          default=False,
+                          help="If enabled, store the Docker container ID into a file. "
+                          "See --cidfile-dir to specify the directory.",
+                          dest="record_container_id")
+
+    cidgroup.add_argument("--cidfile-dir", type=Text,
+                        help="Directory for storing the Docker container ID file. "
+                             "The default is the current directory",
+                        default="",
+                        dest="cidfile_dir")
+
+    cidgroup.add_argument("--cidfile-prefix", type=Text,
+                        help="Specify a prefix to the container ID filename. "
+                             "Final file name will be followed by a timestamp. "
+                             "The default is no prefix.",
+                        default="",
+                        dest="cidfile_prefix")
+
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
                         default="tmp")
@@ -127,6 +148,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    parser.add_argument("--timestamps", action="store_true", help="Add "
+                        "timestamps to the errors, warnings, and "
+                        "notifications.")
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
     parser.add_argument("--user-space-docker-cmd",
                         help="(Linux/OS X only) Specify a user space docker "

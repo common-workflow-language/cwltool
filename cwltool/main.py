@@ -424,6 +424,7 @@ def main(argsl=None,  # type: List[str]
                      'cachedir': None,
                      'quiet': False,
                      'debug': False,
+                     'timestamps': False,
                      'js_console': False,
                      'version': False,
                      'enable_dev': False,
@@ -452,6 +453,10 @@ def main(argsl=None,  # type: List[str]
             _logger.setLevel(logging.WARN)
         if args.debug:
             _logger.setLevel(logging.DEBUG)
+        if args.timestamps:
+            formatter = logging.Formatter("[%(asctime)s] %(message)s",
+                                          "%Y-%m-%d %H:%M:%S")
+            stderr_handler.setFormatter(formatter)
 
         if args.version:
             print(versionfunc())
