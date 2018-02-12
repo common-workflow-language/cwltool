@@ -9,30 +9,30 @@ import json
 import logging
 import os
 import sys
-import tempfile
-
-import pkg_resources  # part of setuptools
-import ruamel.yaml as yaml
-import six
+import warnings
 from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
                     Union, cast, Mapping, MutableMapping, Iterable)
 
+import pkg_resources  # part of setuptools
+import ruamel.yaml as yaml
 import schema_salad.validate as validate
+import six
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
+
 from . import draft2tool, workflow
 from .argparser import arg_parser, generate_parser
-from .builder import Builder
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
+from .executors import SingleJobExecutor, MultithreadedJobExecutor
 from .load_tool import (FetcherConstructorType, resolve_tool_uri,
                         fetch_document, make_tool, validate_document, jobloaderctx,
                         resolve_overrides, load_overrides)
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
-from .process import (Process, cleanIntermediate, normalizeFilesDirs,
-                      relocateOutputs, scandeps, shortname, use_custom_schema,
+from .process import (Process, normalizeFilesDirs,
+                      scandeps, shortname, use_custom_schema,
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import (DependenciesConfiguration,
@@ -53,66 +53,10 @@ def single_job_executor(t,  # type: Process
                         **kwargs  # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
-    final_output = []
-    final_status = []
-
-    def output_callback(out, processStatus):
-        final_status.append(processStatus)
-        final_output.append(out)
-
-    if "basedir" not in kwargs:
-        raise WorkflowException("Must provide 'basedir' in kwargs")
-
-    output_dirs = set()
-    finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
-    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
-        "tmp_outdir_prefix") else tempfile.mkdtemp()
-    output_dirs.add(kwargs["outdir"])
-    kwargs["mutation_manager"] = MutationManager()
-
-    jobReqs = None
-    if "cwl:requirements" in job_order_object:
-        jobReqs = job_order_object["cwl:requirements"]
-    elif ("cwl:defaults" in t.metadata and "cwl:requirements" in t.metadata["cwl:defaults"]):
-        jobReqs = t.metadata["cwl:defaults"]["cwl:requirements"]
-    if jobReqs:
-        for req in jobReqs:
-            t.requirements.append(req)
-
-    jobiter = t.job(job_order_object,
-                    output_callback,
-                    **kwargs)
-
-    try:
-        for r in jobiter:
-            if r:
-                builder = kwargs.get("builder", None)  # type: Builder
-                if builder is not None:
-                    r.builder = builder
-                if r.outdir:
-                    output_dirs.add(r.outdir)
-                r.run(**kwargs)
-            else:
-                _logger.error("Workflow cannot make any more progress.")
-                break
-    except WorkflowException:
-        raise
-    except Exception as e:
-        _logger.exception("Got workflow error")
-        raise WorkflowException(Text(e))
-
-    if final_output and final_output[0] and finaloutdir:
-        final_output[0] = relocateOutputs(final_output[0], finaloutdir,
-                                          output_dirs, kwargs.get("move_outputs"),
-                                          kwargs["make_fs_access"](""))
-
-    if kwargs.get("rm_tmpdir"):
-        cleanIntermediate(output_dirs)
-
-    if final_output and final_status:
-        return (final_output[0], final_status[0])
-    else:
-        return (None, "permanentFail")
+    warnings.warn("Use of single_job_executor function is deprecated. "
+                  "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
+    executor = SingleJobExecutor()
+    return executor(t, job_order_object, **kwargs)
 
 
 def generate_example_input(inptype):
@@ -377,7 +321,7 @@ def supportedCWLversions(enable_dev):
 
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
-         executor=single_job_executor,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
+         executor=None,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
          makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
          selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,  # type: IO[Any]
@@ -617,6 +561,12 @@ def main(argsl=None,  # type: List[str]
         except SystemExit as e:
             return e.code
 
+        if not executor:
+            if args.parallel:
+                executor = MultithreadedJobExecutor()
+            else:
+                executor = SingleJobExecutor()
+
         if isinstance(job_order_object, int):
             return job_order_object
 
@@ -625,6 +575,7 @@ def main(argsl=None,  # type: List[str]
             del args.workflow
             del args.job_order
             (out, status) = executor(tool, job_order_object,
+                                     logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
