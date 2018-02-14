@@ -144,7 +144,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, dest="strict")
 
     parser.add_argument("--skip-schemas", action="store_true",
-            help="Skip loading of schemas", default=True, dest="skip_schemas")
+            help="Skip loading of schemas", default=False, dest="skip_schemas")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
