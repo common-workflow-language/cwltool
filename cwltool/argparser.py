@@ -28,7 +28,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
-
+    parser.add_argument("--parallel", action="store_true", default=False,
+                        help="[experimental] Run jobs in parallel. "
+                             "Does not currently keep track of ResourceRequirements like the number of cores"
+                             "or memory and can overload this system")
     parser.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
                         metavar="ENVVAR",
@@ -48,6 +51,27 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--leave-container", action="store_false",
                          default=True, help="Do not delete Docker container used by jobs after they exit",
                          dest="rm_container")
+
+    cidgroup = parser.add_argument_group("Options for recording the Docker "
+        "container identifier into a file")
+    cidgroup.add_argument("--record-container-id", action="store_true",
+                          default=False,
+                          help="If enabled, store the Docker container ID into a file. "
+                          "See --cidfile-dir to specify the directory.",
+                          dest="record_container_id")
+
+    cidgroup.add_argument("--cidfile-dir", type=Text,
+                        help="Directory for storing the Docker container ID file. "
+                             "The default is the current directory",
+                        default="",
+                        dest="cidfile_dir")
+
+    cidgroup.add_argument("--cidfile-prefix", type=Text,
+                        help="Specify a prefix to the container ID filename. "
+                             "Final file name will be followed by a timestamp. "
+                             "The default is no prefix.",
+                        default="",
+                        dest="cidfile_prefix")
 
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
@@ -120,13 +144,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, dest="strict")
 
     parser.add_argument("--skip-schemas", action="store_true",
-            help="Skip loading of schemas", default=True, dest="skip_schemas")
+            help="Skip loading of schemas", default=False, dest="skip_schemas")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    parser.add_argument("--timestamps", action="store_true", help="Add "
+                        "timestamps to the errors, warnings, and "
+                        "notifications.")
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
     parser.add_argument("--user-space-docker-cmd",
                         help="(Linux/OS X only) Specify a user space docker "
