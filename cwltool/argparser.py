@@ -7,17 +7,13 @@ import os
 
 from typing import (Any, AnyStr, Dict, List, Sequence, Text, Union, cast)
 
+from . import loghandler
 from schema_salad.ref_resolver import file_uri
 from .process import (Process, shortname)
 from .resolver import ga4gh_tool_registries
 from .software_requirements import (SOFTWARE_REQUIREMENTS_ENABLED)
 
 _logger = logging.getLogger("cwltool")
-
-defaultStreamHandler = logging.StreamHandler()
-_logger.addHandler(defaultStreamHandler)
-_logger.setLevel(logging.INFO)
-
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')

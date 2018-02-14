@@ -7,19 +7,14 @@ from abc import ABCMeta, abstractmethod
 
 from typing import Dict, Text, Any, Tuple, Set, List
 
-from cwltool.builder import Builder
-from cwltool.errors import WorkflowException
-from cwltool.mutation import MutationManager
-from cwltool.job import JobBase
-from cwltool.process import relocateOutputs, cleanIntermediate, Process
-
+from .builder import Builder
+from .errors import WorkflowException
+from .mutation import MutationManager
+from .job import JobBase
+from .process import relocateOutputs, cleanIntermediate, Process
+from . import loghandler
 
 _logger = logging.getLogger("cwltool")
-
-defaultStreamHandler = logging.StreamHandler()
-_logger.addHandler(defaultStreamHandler)
-_logger.setLevel(logging.INFO)
-
 
 class JobExecutor(object):
     __metaclass__ = ABCMeta

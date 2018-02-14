@@ -28,6 +28,7 @@ from .executors import SingleJobExecutor, MultithreadedJobExecutor
 from .load_tool import (FetcherConstructorType, resolve_tool_uri,
                         fetch_document, make_tool, validate_document, jobloaderctx,
                         resolve_overrides, load_overrides)
+from .loghandler import defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
@@ -42,11 +43,6 @@ from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
 
 _logger = logging.getLogger("cwltool")
-
-defaultStreamHandler = logging.StreamHandler()
-_logger.addHandler(defaultStreamHandler)
-_logger.setLevel(logging.INFO)
-
 
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
