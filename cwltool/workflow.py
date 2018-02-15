@@ -30,7 +30,7 @@ def defaultMakeTool(toolpath_object,  # type: Dict[Text, Any]
                    ):
     # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
-        raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
+        raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
             return draft2tool.CommandLineTool(toolpath_object, **kwargs)
