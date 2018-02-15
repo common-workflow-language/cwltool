@@ -279,16 +279,12 @@ def validate_document(document_loader,  # type: Loader
     if jobobj:
         new_metadata[u"cwl:defaults"] = jobobj
 
-<<<<<<< HEAD
-    validate_js_expressions(processobj, avsc_names.names[workflowobj["class"]])
-
-    return document_loader, avsc_names, processobj, metadata, uri
-=======
     if overrides:
         new_metadata[u"cwltool:overrides"] = overrides
 
+    validate_js_expressions(processobj, avsc_names.names[workflowobj["class"]])
+
     return document_loader, avsc_names, processobj, new_metadata, uri
->>>>>>> master
 
 
 def make_tool(document_loader,  # type: Loader
