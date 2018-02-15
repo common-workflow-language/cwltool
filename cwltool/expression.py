@@ -185,7 +185,7 @@ def interpolate(scan, rootvars,
             e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, fullJS=fullJS,
                           timeout=timeout, force_docker_pull=force_docker_pull,
                           debug=debug, js_console=js_console)
-            if w[0] == 0 and w[1] == len(scan):
+            if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
             leaf = json.dumps(e, sort_keys=True)
             if leaf[0] == '"':
@@ -214,7 +214,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         u"self": context,
         u"runtime": runtime}
 
-    if isinstance(ex, (str, Text)):
+    if isinstance(ex, (str, Text)) and ("$(" in ex or "${" in ex):
         fullJS = False
         jslib = u""
         for r in reversed(requirements):

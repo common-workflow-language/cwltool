@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 #
 # Simplest example command line program wrapper for the Unix tool "rev".
 #

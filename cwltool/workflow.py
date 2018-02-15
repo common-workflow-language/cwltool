@@ -15,7 +15,7 @@ from schema_salad.sourceline import SourceLine, cmap
 from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
-from .process import Process, shortname, uniquename
+from .process import Process, shortname, uniquename, get_overrides
 from .utils import aslist
 import six
 from six.moves import range
@@ -30,7 +30,7 @@ def defaultMakeTool(toolpath_object,  # type: Dict[Text, Any]
                    ):
     # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
-        raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
+        raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
             return draft2tool.CommandLineTool(toolpath_object, **kwargs)
@@ -70,11 +70,15 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
     elif isinstance(src.parameter["type"], list):
         # Source is union type
         # Check that at least one source type is compatible with the sink.
-        for st in src.parameter["type"]:
-            srccopy = copy.deepcopy(src)
-            srccopy.parameter["type"] = st
-            if match_types(sinktype, srccopy, iid, inputobj, linkMerge, valueFrom):
+        original_types = src.parameter["type"]
+        for source_type in original_types:
+            src.parameter["type"] = source_type
+            match = match_types(
+                sinktype, src, iid, inputobj, linkMerge, valueFrom)
+            if match:
+                src.parameter["type"] = original_types
                 return True
+        src.parameter["type"] = original_types
         return False
     elif linkMerge:
         if iid not in inputobj:
@@ -206,13 +210,13 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
         if frag_only:
             iid = shortname(iid)
         if sourceField in inp:
-            if (isinstance(inp[sourceField], list) and not
-            supportsMultipleInput):
+            connections = aslist(inp[sourceField])
+            if (len(connections) > 1 and
+                not supportsMultipleInput):
                 raise WorkflowException(
                     "Workflow contains multiple inbound links to a single "
                     "parameter but MultipleInputFeatureRequirement is not "
                     "declared.")
-            connections = aslist(inp[sourceField])
             for src in connections:
                 if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
                     if not match_types(
@@ -449,7 +453,7 @@ class WorkflowJob(object):
             del kwargs["outdir"]
 
         for e, i in enumerate(self.tool["inputs"]):
-            with SourceLine(self.tool["inputs"], e, WorkflowException):
+            with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
                 if iid in joborder:
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
@@ -521,6 +525,8 @@ class Workflow(Process):
             try:
                 self.steps.append(WorkflowStep(step, n, **kwargs))
             except validate.ValidationException as v:
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.exception("Validation failed at")
                 validation_errors.append(v)
 
         if validation_errors:
@@ -623,8 +629,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
     all_exception_msg = "\n".join(exception_msgs)
 
     if warnings:
-        _logger.warning("Workflow checker warning:")
-        _logger.warning(all_warning_msg)
+        _logger.warning("Workflow checker warning:\n%s" % all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
@@ -666,7 +671,9 @@ class WorkflowStep(Process):
         else:
             self.id = "#step" + Text(pos)
 
-        kwargs["requirements"] = kwargs.get("requirements", []) + toolpath_object.get("requirements", [])
+        kwargs["requirements"] = (kwargs.get("requirements", []) +
+                                  toolpath_object.get("requirements", []) +
+                                  get_overrides(kwargs.get("overrides", []), self.id).get("requirements", []))
         kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
 
         try:
@@ -678,7 +685,8 @@ class WorkflowStep(Process):
                     enable_dev=kwargs.get("enable_dev"),
                     strict=kwargs.get("strict"),
                     fetcher_constructor=kwargs.get("fetcher_constructor"),
-                    resolver=kwargs.get("resolver"))
+                    resolver=kwargs.get("resolver"),
+                    overrides=kwargs.get("overrides"))
         except validate.ValidationException as v:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
@@ -702,7 +710,14 @@ class WorkflowStep(Process):
                 for tool_entry in self.embedded_tool.tool[toolfield]:
                     frag = shortname(tool_entry["id"])
                     if frag == shortinputid:
+                        #if the case that the step has a default for a parameter,
+                        #we do not want the default of the tool to override it
+                        step_default = None
+                        if "default" in param and "default" in tool_entry:
+                            step_default = param["default"]
                         param.update(tool_entry)
+                        if step_default is not None:
+                            param["default"] = step_default
                         found = True
                         bound.add(frag)
                         break

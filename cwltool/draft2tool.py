@@ -1,14 +1,16 @@
 from __future__ import absolute_import
 import copy
 import hashlib
+import locale
 import json
 import logging
 import os
 import re
 import shutil
 import tempfile
-from functools import partial
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, Text, Union, cast
+from functools import partial, cmp_to_key
+from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Text,
+    Union, cast)
 
 from six import string_types, u
 
@@ -149,7 +151,8 @@ def revmap_file(builder, outdir, f):
         return f
 
 
-    raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
+    raise WorkflowException(u"Output File object is missing both 'location' "
+            "and 'path' fields: %s" % f)
 
 
 class CallbackJob(object):
@@ -208,7 +211,7 @@ class CommandLineTool(Process):
                     })
                     dockerReq = self.requirements[0]
                     if default_container == windows_default_container_id and use_container and onWindows():
-                        _logger.warning(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))
+                        _logger.warning(DEFAULT_CONTAINER_MSG % (windows_default_container_id, windows_default_container_id))
 
         if dockerReq and use_container:
             return DockerCommandLineJob()
@@ -244,7 +247,6 @@ class CommandLineTool(Process):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
-
         if kwargs.get("cachedir"):
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
@@ -265,11 +267,15 @@ class CommandLineTool(Process):
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
             elif kwargs.get("default_container", None) is not None and kwargs.get("use_container"):
                 dockerimg = kwargs.get("default_container")
+            else:
+                dockerimg = None
 
             if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
             keydict = {u"cmdline": cmdline}
 
+            if "stdout" in self.tool:
+                keydict["stdout"] = self.tool["stdout"]
             for location, f in cachebuilder.pathmapper.items():
                 if f.type == "File":
                     checksum = next((e['checksum'] for e in cachebuilder.files
@@ -346,7 +352,9 @@ class CommandLineTool(Process):
         j.hints = self.hints
         j.name = jobname
 
-        if _logger.isEnabledFor(logging.DEBUG):
+        debug = _logger.isEnabledFor(logging.DEBUG)
+
+        if debug:
             _logger.debug(u"[job %s] initializing from %s%s",
                           j.name,
                           self.tool.get("id", ""),
@@ -405,28 +413,28 @@ class CommandLineTool(Process):
                 self.updatePathmap(builder.outdir, builder.pathmapper, l)
             visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
-        if _logger.isEnabledFor(logging.DEBUG):
+        if debug:
             _logger.debug(u"[job %s] path mappings is %s", j.name,
                           json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
 
         if self.tool.get("stdin"):
-            with SourceLine(self.tool, "stdin", validate.ValidationException):
+            with SourceLine(self.tool, "stdin", validate.ValidationException, debug):
                 j.stdin = builder.do_eval(self.tool["stdin"])
                 reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
-            with SourceLine(self.tool, "stderr", validate.ValidationException):
+            with SourceLine(self.tool, "stderr", validate.ValidationException, debug):
                 j.stderr = builder.do_eval(self.tool["stderr"])
                 if os.path.isabs(j.stderr) or ".." in j.stderr:
                     raise validate.ValidationException("stderr must be a relative path, got '%s'" % j.stderr)
 
         if self.tool.get("stdout"):
-            with SourceLine(self.tool, "stdout", validate.ValidationException):
+            with SourceLine(self.tool, "stdout", validate.ValidationException, debug):
                 j.stdout = builder.do_eval(self.tool["stdout"])
                 if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
                     raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
 
-        if _logger.isEnabledFor(logging.DEBUG):
+        if debug:
             _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
 
         dockerReq = self.get_requirement("DockerRequirement")[0]
@@ -505,29 +513,25 @@ class CommandLineTool(Process):
     def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, jobname="", readers=None):
         # type: (Set[Dict[Text, Any]], Builder, Text, bool, Text, Dict[Text, Any]) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
         ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
+        debug = _logger.isEnabledFor(logging.DEBUG)
         try:
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
             if fs_access.exists(custom_output):
                 with fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
-                if _logger.isEnabledFor(logging.DEBUG):
+                if debug:
                     _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
             else:
                 for i, port in enumerate(ports):
-                    with SourceLine(ports, i, WorkflowException):
+                    def makeWorkflowException(msg):
+                        return WorkflowException(
+                            u"Error collecting output for parameter '%s':\n%s"
+                            % (shortname(port["id"]), msg))
+                    with SourceLine(ports, i, makeWorkflowException, debug):
                         fragment = shortname(port["id"])
-                        try:
-                            ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
-                                                                compute_checksum=compute_checksum)
-                        except Exception as e:
-                            _logger.debug(
-                                u"Error collecting output for parameter '%s'"
-                                % shortname(port["id"]), exc_info=True)
-                            raise WorkflowException(
-                                u"Error collecting output for parameter '%s':\n%s"
-                                % (shortname(port["id"]), indent(u(str(e)))))
-
+                        ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
+                                                            compute_checksum=compute_checksum)
             if ret:
                 revmap = partial(revmap_file, builder, outdir)
                 adjustDirObjs(ret, trim_listing)
@@ -554,6 +558,7 @@ class CommandLineTool(Process):
     def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
         # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]
         r = []  # type: List[Any]
+        debug = _logger.isEnabledFor(logging.DEBUG)
         if "outputBinding" in schema:
             binding = schema["outputBinding"]
             globpatterns = []  # type: List[Text]
@@ -561,7 +566,7 @@ class CommandLineTool(Process):
             revmap = partial(revmap_file, builder, outdir)
 
             if "glob" in binding:
-                with SourceLine(binding, "glob", WorkflowException):
+                with SourceLine(binding, "glob", WorkflowException, debug):
                     for gb in aslist(binding["glob"]):
                         gb = builder.do_eval(gb)
                         if gb:
@@ -573,16 +578,25 @@ class CommandLineTool(Process):
                         elif gb == ".":
                             gb = outdir
                         elif gb.startswith("/"):
-                            raise WorkflowException("glob patterns must not start with '/'")
+                            raise WorkflowException(
+                                "glob patterns must not start with '/'")
                         try:
                             prefix = fs_access.glob(outdir)
                             r.extend([{"location": g,
-                                       "path": fs_access.join(builder.outdir, g[len(prefix[0])+1:]),
+                                       "path": fs_access.join(builder.outdir,
+                                           g[len(prefix[0])+1:]),
                                        "basename": os.path.basename(g),
-                                       "nameroot": os.path.splitext(os.path.basename(g))[0],
-                                       "nameext": os.path.splitext(os.path.basename(g))[1],
-                                       "class": "File" if fs_access.isfile(g) else "Directory"}
-                                      for g in fs_access.glob(fs_access.join(outdir, gb))])
+                                       "nameroot": os.path.splitext(
+                                           os.path.basename(g))[0],
+                                       "nameext": os.path.splitext(
+                                           os.path.basename(g))[1],
+                                       "class": "File" if fs_access.isfile(g)
+                                       else "Directory"}
+                                      for g in sorted(fs_access.glob(
+                                          fs_access.join(outdir, gb)),
+                                          key=cmp_to_key(cast(
+                                              Callable[[Text, Text],
+                                                  int], locale.strcoll)))])
                         except (OSError, IOError) as e:
                             _logger.warning(Text(e))
                         except:
@@ -626,12 +640,12 @@ class CommandLineTool(Process):
                 single = True
 
             if "outputEval" in binding:
-                with SourceLine(binding, "outputEval", WorkflowException):
+                with SourceLine(binding, "outputEval", WorkflowException, debug):
                     r = builder.do_eval(binding["outputEval"], context=r)
 
             if single:
                 if not r and not optional:
-                    with SourceLine(binding, "glob", WorkflowException):
+                    with SourceLine(binding, "glob", WorkflowException, debug):
                         raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
                     pass
@@ -642,7 +656,7 @@ class CommandLineTool(Process):
                         r = r[0]
 
             if "secondaryFiles" in schema:
-                with SourceLine(schema, "secondaryFiles", WorkflowException):
+                with SourceLine(schema, "secondaryFiles", WorkflowException, debug):
                     for primary in aslist(r):
                         if isinstance(primary, dict):
                             primary.setdefault("secondaryFiles", [])

@@ -1,0 +1,6 @@
+cwltool:overrides:
+  echo-wf.cwl:
+    requirements:
+      EnvVarRequirement:
+        envDef:
+          MESSAGE: hello6

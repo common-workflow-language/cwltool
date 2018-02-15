@@ -207,7 +207,7 @@ class Builder(object):
     def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
-            with SourceLine(binding, "valueFrom", WorkflowException):
+            with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
@@ -230,7 +230,7 @@ class Builder(object):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
-        elif value is False or value is None:
+        elif value is False or value is None or (value is True and not prefix):
             return []
         else:
             l = [value]
@@ -251,7 +251,8 @@ class Builder(object):
                 return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
             if isinstance(ex, list):
                 return [self.do_eval(v, context, pull_image, recursive) for v in ex]
-
+        if context is None and type(ex) is str and "self" in ex:
+            return None
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
