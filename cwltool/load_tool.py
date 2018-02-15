@@ -21,6 +21,7 @@ from six.moves import urllib
 
 from . import process, update
 from .errors import WorkflowException
+from .validate_js import validate_js_expressions
 from .process import Process, shortname
 from .update import ALLUPDATES
 
@@ -221,6 +222,8 @@ def validate_document(document_loader,  # type: Loader
 
     if jobobj:
         metadata[u"cwl:defaults"] = jobobj
+
+    validate_js_expressions(processobj, avsc_names.names[workflowobj["class"]])
 
     return document_loader, avsc_names, processobj, metadata, uri
 
