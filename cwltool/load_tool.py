@@ -282,7 +282,8 @@ def validate_document(document_loader,  # type: Loader
     if overrides:
         new_metadata[u"cwltool:overrides"] = overrides
 
-    validate_js_expressions(processobj, avsc_names.names[workflowobj["class"]])
+    if workflowobj.get("class") is not None:
+        validate_js_expressions(processobj, avsc_names.names[workflowobj["class"]])
 
     return document_loader, avsc_names, processobj, new_metadata, uri
 

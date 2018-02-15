@@ -142,7 +142,7 @@ def validate_js_expressions(tool, schema):
     else:
         return []
 
-    default_globals = ["self", "inputs", "runtime", "console"]
+    default_globals = ["self", "inputs", "runtime"]
 
     expression_lib_errors, expression_lib_globals = jshint_js("\n".join(expression_lib), default_globals)
     print_js_hint_messages(expression_lib_errors, expression_lib_source_line)

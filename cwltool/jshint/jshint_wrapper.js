@@ -12,7 +12,8 @@ function validateJS(input) {
     input.code,
     {
       strict: "implied",
-      esversion: 5
+      esversion: 5,
+      node: true
     },
     jshint_globals_obj
   )
