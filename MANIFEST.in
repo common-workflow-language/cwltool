@@ -20,5 +20,7 @@ include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
 include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/extensions.yml
+include cwltool/jshint/jshint_wrapper.js
+include cwltool/jshint/jshint.js
 global-exclude *~
 global-exclude *.pyc

@@ -76,10 +76,10 @@ def jshint_js(js_text, globals = None):
     # type: (str, List[str]) -> Tuple[List[str], List[str]]
     if globals is None:
         globals = []
-    linter_folder = resource_filename(__name__, "linting")
+    linter_folder = resource_filename(__name__, "jshint")
 
     returncode, stdout, stderr = exec_js_process(
-        path.join(linter_folder, "lint.js"),
+        path.join(linter_folder, "jshint_wrapper.js"),
         json.dumps({
             "code": js_text,
             "globals": globals
