@@ -331,7 +331,8 @@ def single_job_executor(t,  # type: Process
                 if "workflow" not in str(r.name):
                     ProcessRunID="run:"+str(uuid.uuid4())
                     #each subprocess is defined as an activity()
-                    ProcessProvActivity = document.activity(ProcessRunID, None, None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
+                    provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
+                    ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: "wfprov:ProcessRun", "prov:label": provLabel})
                     if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
                         document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
                     document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
@@ -738,7 +739,7 @@ def generate_provDoc(wf_Steps):
     #Get cwltool version
     cwlversionProv="cwltool "+ str(versionstring().split()[-1])
     #define workflow run level activity
-    activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
+    activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": "Run of workflow/packed.cwl#main"})
     #association between SoftwareAgent and WorkflowRun
     mainWorkflow = "wf:main"
     document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
