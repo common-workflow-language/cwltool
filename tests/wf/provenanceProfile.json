@@ -2,54 +2,54 @@
   "wasAssociatedWith": {
     "_:id6": {
       "prov:plan": "wf:main/sorted", 
-      "prov:agent": "engine:d2330a2f-95ae-4fd5-8037-af40c2459e03", 
-      "prov:activity": "run:880d2801-866b-4434-ada0-5580b742a351"
+      "prov:agent": "engine:e2c20608-9840-4b7f-bb93-f06dc003913f", 
+      "prov:activity": "run:40c82dd6-e56b-4309-a635-144c073fb6f6"
     }, 
     "_:id1": {
       "prov:plan": "wf:main", 
-      "prov:agent": "engine:d2330a2f-95ae-4fd5-8037-af40c2459e03", 
-      "prov:activity": "run:a66dd9aa-a23d-409c-ac96-e8418b66df8f"
+      "prov:agent": "engine:e2c20608-9840-4b7f-bb93-f06dc003913f", 
+      "prov:activity": "run:39cc116f-2c06-46bf-8396-d0a894a66dda"
     }, 
     "_:id2": {
       "prov:plan": "wf:main/rev", 
-      "prov:agent": "engine:d2330a2f-95ae-4fd5-8037-af40c2459e03", 
-      "prov:activity": "run:b5a1ebfb-86fb-4a18-a032-856b10773049"
+      "prov:agent": "engine:e2c20608-9840-4b7f-bb93-f06dc003913f", 
+      "prov:activity": "run:e3a02305-7e62-4006-962a-3852c53b5d52"
     }
   }, 
   "used": {
     "_:id4": {
-      "prov:role": "wf:main/rev/input", 
-      "prov:time": "2018-02-17T20:38:59.601340", 
+      "prov:role": "rev/input", 
+      "prov:time": "2018-02-17T22:14:56.002330", 
       "prov:entity": "data:a8ba95183ed3c041307fd5cbf621322554d0c720", 
-      "prov:activity": "run:b5a1ebfb-86fb-4a18-a032-856b10773049"
+      "prov:activity": "run:e3a02305-7e62-4006-962a-3852c53b5d52"
     }, 
     "_:id9": {
-      "prov:role": "wf:main/sorted/reverse", 
-      "prov:time": "2018-02-17T20:39:01.644733", 
+      "prov:role": "sorted/reverse", 
+      "prov:time": "2018-02-17T22:14:58.281867", 
       "prov:entity": "data:True", 
-      "prov:activity": "run:880d2801-866b-4434-ada0-5580b742a351"
+      "prov:activity": "run:40c82dd6-e56b-4309-a635-144c073fb6f6"
     }, 
     "_:id8": {
-      "prov:role": "wf:main/sorted/input", 
-      "prov:time": "2018-02-17T20:39:01.644657", 
+      "prov:role": "sorted/input", 
+      "prov:time": "2018-02-17T22:14:58.281633", 
       "prov:entity": "data:a23b171e17dd5f89a86200220905cd72a1b9c40", 
-      "prov:activity": "run:880d2801-866b-4434-ada0-5580b742a351"
+      "prov:activity": "run:40c82dd6-e56b-4309-a635-144c073fb6f6"
     }
   }, 
   "wasStartedBy": {
     "_:id7": {
-      "prov:time": "2018-02-17T20:39:01.644572", 
-      "prov:starter": "run:a66dd9aa-a23d-409c-ac96-e8418b66df8f", 
-      "prov:activity": "run:880d2801-866b-4434-ada0-5580b742a351"
+      "prov:time": "2018-02-17T22:14:57.968350", 
+      "prov:starter": "run:39cc116f-2c06-46bf-8396-d0a894a66dda", 
+      "prov:activity": "run:40c82dd6-e56b-4309-a635-144c073fb6f6"
     }, 
     "_:id3": {
-      "prov:time": "2018-02-17T20:38:59.601250", 
-      "prov:starter": "run:a66dd9aa-a23d-409c-ac96-e8418b66df8f", 
-      "prov:activity": "run:b5a1ebfb-86fb-4a18-a032-856b10773049"
+      "prov:time": "2018-02-17T22:14:54.978647", 
+      "prov:starter": "run:39cc116f-2c06-46bf-8396-d0a894a66dda", 
+      "prov:activity": "run:e3a02305-7e62-4006-962a-3852c53b5d52"
     }
   }, 
   "agent": {
-    "engine:d2330a2f-95ae-4fd5-8037-af40c2459e03": {
+    "engine:e2c20608-9840-4b7f-bb93-f06dc003913f": {
       "prov:type": [
         "wfprov:WorkflowEngine", 
         "prov:SoftwareAgent"
@@ -98,25 +98,25 @@
   }, 
   "prefix": {
     "engine": "urn:uuid4:", 
-    "wf": "app://a66dd9aa-a23d-409c-ac96-e8418b66df8f/workflow/packed.cwl#", 
+    "wf": "app://39cc116f-2c06-46bf-8396-d0a894a66dda/workflow/packed.cwl#", 
     "run": "urn:uuid:", 
     "wfprov": "http://purl.org/wf4ever/wfprov#", 
-    "input": "app://a66dd9aa-a23d-409c-ac96-e8418b66df8f/workflow/master-job.json#", 
+    "input": "app://39cc116f-2c06-46bf-8396-d0a894a66dda/workflow/master-job.json#", 
     "wfdesc": "http://purl.org/wf4ever/wfdesc#", 
     "data": "urn:hash:sha1", 
     "prov_1": "http://www.w3.org/ns/prov"
   }, 
   "activity": {
-    "run:880d2801-866b-4434-ada0-5580b742a351": {
+    "run:e3a02305-7e62-4006-962a-3852c53b5d52": {
       "prov:type": "wfprov:ProcessRun", 
       "prov:label": "Run of Process"
     }, 
-    "run:a66dd9aa-a23d-409c-ac96-e8418b66df8f": {
-      "prov:startTime": "2018-02-17T20:38:59.574497", 
+    "run:39cc116f-2c06-46bf-8396-d0a894a66dda": {
+      "prov:startTime": "2018-02-17T22:14:54.954118", 
       "prov:type": "wfprov:WorkflowRun", 
       "prov:label": ""
     }, 
-    "run:b5a1ebfb-86fb-4a18-a032-856b10773049": {
+    "run:40c82dd6-e56b-4309-a635-144c073fb6f6": {
       "prov:type": "wfprov:ProcessRun", 
       "prov:label": "Run of Process"
     }
@@ -124,21 +124,21 @@
   "wasGeneratedBy": {
     "_:id5": {
       "prov:role": "wf:main/rev/output", 
-      "prov:time": "2018-02-17T20:39:01.641209", 
+      "prov:time": "2018-02-17T22:14:57.964946", 
       "prov:entity": "data:da23b171e17dd5f89a86200220905cd72a1b9c40", 
-      "prov:activity": "run:b5a1ebfb-86fb-4a18-a032-856b10773049"
+      "prov:activity": "run:e3a02305-7e62-4006-962a-3852c53b5d52"
     }, 
     "_:id11": {
       "prov:role": "wf:main/output", 
-      "prov:time": "2018-02-17T20:39:03.120564", 
+      "prov:time": "2018-02-17T22:14:59.535167", 
       "prov:entity": "data:da23b171e17dd5f89a86200220905cd72a1b9c40", 
-      "prov:activity": "run:a66dd9aa-a23d-409c-ac96-e8418b66df8f"
+      "prov:activity": "run:39cc116f-2c06-46bf-8396-d0a894a66dda"
     }, 
     "_:id10": {
       "prov:role": "wf:main/sorted/output", 
-      "prov:time": "2018-02-17T20:39:03.119169", 
+      "prov:time": "2018-02-17T22:14:59.534047", 
       "prov:entity": "data:da23b171e17dd5f89a86200220905cd72a1b9c40", 
-      "prov:activity": "run:880d2801-866b-4434-ada0-5580b742a351"
+      "prov:activity": "run:40c82dd6-e56b-4309-a635-144c073fb6f6"
     }
   }
 }

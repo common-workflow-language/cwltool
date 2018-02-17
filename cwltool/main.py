@@ -334,23 +334,11 @@ def single_job_executor(t,  # type: Process
                     stepname=""
                     #each subprocess is defined as an activity()
                     ProcessProvActivity = document.activity(ProcessRunID, None, None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
-                    #print ("ProcessProvActivity identifier is: !!!!!!!!!!", str(ProcessProvActivity._identifier))
                     if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
                         stepname= step_dict[str(getattr(r, "name"))]
                         document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
                     document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
-                    if hasattr(r, "joborder"):
-                        for key, value in getattr(r, "joborder").items():
-                            provRole=stepname+"/"+str(key)
-                            if 'location' in str(value):
-                                location=str(value['location'])
-                                if location in reference_locations: #workflow level inputs referenced as hash in prov document
-                                    document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
-                                else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
-                                    document.used(ProcessRunID, "data:"+str(value['checksum'][6:]), datetime.datetime.now(),None, {"prov:role":provRole })
-                            else: #add the actual data value in the prov document
-                                document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
-                    r.run(document, ProcessProvActivity, **kwargs) #this is where you run each step. so start and end time for the step
+                    r.run(document, ProcessProvActivity, reference_locations, **kwargs) #this is where you run each step. so start and end time for the step
 
                     for eachOutput in final_output: #capture workflow level outputs in the prov doc
                         for key, value in eachOutput.items():
