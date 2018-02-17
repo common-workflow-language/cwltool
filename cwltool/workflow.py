@@ -12,6 +12,7 @@ import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
 
+from .provenance import *
 from . import draft2tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
@@ -309,6 +310,8 @@ class WorkflowJob(object):
     def receive_output(self, step, outputparms, final_output_callback, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Callable[[Any, Any], Any], Dict[Text,Text], Text) -> None
 
+        #_logger.info(u"[%s] produced output ************************** %s", step.name, json.dumps(jobout, indent=4))
+
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -316,9 +319,8 @@ class WorkflowJob(object):
                 else:
                     _logger.error(u"[%s] Output is missing expected field %s", step.name, i["id"])
                     processStatus = "permanentFail"
-
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[%s] produced output %s", step.name, json.dumps(jobout, indent=4))
+            _logger.debug(u"[%s] produced output  %s", step.name, json.dumps(jobout, indent=4))
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -356,10 +358,10 @@ class WorkflowJob(object):
 
             if step.submitted:
                 return
-            #ipdb.set_trace()
             _logger.info(u"[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(self.receive_output, step, outputparms, final_output_callback)
+
 
             valueFrom = {
                 i["id"]: i["valueFrom"] for i in step.tool["inputs"]
@@ -436,7 +438,7 @@ class WorkflowJob(object):
             self.processStatus = "permanentFail"
             step.completed = True
 
-    def run(self, **kwargs):
+    def run(self, document=None, ProcessProvActivity=None, **kwargs):
         _logger.info(u"[%s] start", self.name)
 
 
@@ -793,7 +795,6 @@ class WorkflowStep(Process):
 
     def receive_output(self, output_callback, jobout, processStatus):
         # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
-        # _logger.debug("WorkflowStep output from run is %s", jobout)
         output = {}
         for i in self.tool["outputs"]:
             field = shortname(i["id"])

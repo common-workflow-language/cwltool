@@ -10,12 +10,15 @@ import stat
 import subprocess
 import sys
 import tempfile
+import ipdb
+import prov.model as prov
 from io import open
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Tuple, Union, cast)
 
 import shellescape
-
+import time
+import datetime
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
@@ -166,11 +169,13 @@ class JobBase(object):
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
-    def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move"):
+    def _execute(self, runtime, env, kwargs, document=None, ProcessProvActivity=None, rm_tmpdir=True, move_outputs="move"):
         # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
-
+        #will use this for generating used()
+        #if hasattr(self, "joborder"):
+            #print ("job order is: ))))))))))))))))))))", self.name, str(self.joborder))
         shouldquote = None  # type: Callable[[Any], Any]
         if scr:
             shouldquote = lambda x: False
@@ -185,7 +190,6 @@ class JobBase(object):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-
         outputs = {}  # type: Dict[Text,Text]
 
         try:
@@ -210,6 +214,7 @@ class JobBase(object):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
+
             job_script_contents = None  # type: Text
             builder = getattr(self, "builder", None)  # type: Builder
             if builder is not None:
@@ -223,7 +228,6 @@ class JobBase(object):
                 cwd=self.outdir,
                 job_script_contents=job_script_contents,
             )
-
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
             elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
@@ -240,6 +244,16 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
+            ro = kwargs.get("ro")
+            if ro:
+                for key, value in outputs.items():
+                    if "checksum" in str(value):
+                        StepOutput_checksum="data:"+str(value["checksum"][5:])
+                        document.entity(StepOutput_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
+                        stepProv="wf:main"+"/"+str(self.name)+"/"+str(key)
+                        ProcessRunID=str(ProcessProvActivity._identifier)
+                        document.wasGeneratedBy(StepOutput_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
+                        #print ("execute method creates output #############", self.name, key, str(value))
 
         except OSError as e:
             if e.errno == 2:
@@ -278,8 +292,8 @@ class JobBase(object):
 
 class CommandLineJob(JobBase):
 
-    def run(self, pull_image=True, rm_container=True,
-            rm_tmpdir=True, move_outputs="move", **kwargs):
+    def run(self, document=None, ProcessProvActivity=None, pull_image=True, rm_container=True,
+            rm_tmpdir=True, move_outputs="move",  **kwargs):
         # type: (bool, bool, bool, Text, **Any) -> None
 
         self._setup(kwargs)
@@ -307,7 +321,7 @@ class CommandLineJob(JobBase):
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute([], env, kwargs, document, ProcessProvActivity, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
 
 
 class DockerCommandLineJob(JobBase):
@@ -327,6 +341,7 @@ class DockerCommandLineJob(JobBase):
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
                     runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
+
             elif vol.type == "WritableFile":
                 if self.inplace_update:
                     runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
@@ -352,8 +367,9 @@ class DockerCommandLineJob(JobBase):
                         f.write(vol.resolved.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
 
-    def run(self, pull_image=True, rm_container=True,
+    def run(self, document=None, ProcessProvActivity=None, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
+        #ipdb.set_trace()
         # type: (bool, bool, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
@@ -429,7 +445,7 @@ class DockerCommandLineJob(JobBase):
 
         runtime.append(img_id)
 
-        self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute(runtime, env, kwargs, document, ProcessProvActivity, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs) #included kwargs to see if the workflow has been executed using the provenance flag.
 
 
 def _job_popen(
@@ -508,8 +524,10 @@ def _job_popen(
             stderr_path=stderr_path,
             stdin_path=stdin_path,
         )
+
         with open(os.path.join(job_dir, "job.json"), "wb") as f:
             json.dump(job_description, f)
+
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:

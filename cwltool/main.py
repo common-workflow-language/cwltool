@@ -10,7 +10,7 @@ import logging
 import os
 import copy
 import time
-#import ipdb
+import ipdb
 from time import gmtime, strftime
 import sys
 import tempfile
@@ -58,10 +58,9 @@ document = prov.ProvDocument()
 document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
 document.add_namespace('prov', 'http://www.w3.org/ns/prov')
 document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
-#document.add_namespace("pa")
 document.add_namespace('run', 'urn:uuid:')
 document.add_namespace('engine', 'urn:uuid4:')
-document.add_namespace('data', 'urn:hash:sha256')
+document.add_namespace('data', 'urn:hash:sha1')
 step_dict={}
 packedWorkflowPath=""
 cwlversionProv=""
@@ -75,7 +74,7 @@ engineUUID="engine:"+str(uuid.uuid4())
 document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
 #defining workflow level run ID
 WorkflowRunUUID=str(uuid.uuid4())
-WorkflowRunID = "run:"+WorkflowRunUUID
+WorkflowRunID="run:"+WorkflowRunUUID
 
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
@@ -290,17 +289,17 @@ def single_job_executor(t,  # type: Process
             rel_path=value[3:]
             reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
             document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
-            #document.specializationOf(rel_path, shahash) THIS NEEDS FIXING as it required both params as entities.
+            #document.specializationOf(rel_path, shahash) NOTE:THIS NEEDS FIXING as it required both params as entities.
         else:
             ArtefactValue="data:"+strvalue
             document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
+    ProvActivity_dict={}
     def output_callback(out, processStatus):
         final_status.append(processStatus)
         final_output.append(out)
 
     if "basedir" not in kwargs:
         raise WorkflowException("Must provide 'basedir' in kwargs")
-
     output_dirs = set()
     finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
     kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
@@ -329,26 +328,36 @@ def single_job_executor(t,  # type: Process
                 if r.outdir:
                     output_dirs.add(r.outdir)
                 #here we are recording provenance of each subprocess of the workflow
-                ProcessRunID="run:"+str(uuid.uuid4())
-                stepname=""
-                a1 = document.activity(ProcessRunID, None, None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
-                if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
-                    stepname= step_dict[str(getattr(r, "name"))]
-                    document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
-                document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
-                if hasattr(r, "joborder"):
-                    for key, value in getattr(r, "joborder").items():
-                        provRole=stepname+str(key)
-                        if 'location' in str(value):
-                            location=str(value['location'])
-                            if location in reference_locations: #workflow level inputs referenced as sha in prov document
-                                document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), {"prov:role":provRole} )
-                            else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
-                                document.used(ProcessRunID, "data:"+str(value['checksum'][6:]), datetime.datetime.now(),{"prov:role":provRole })
-                        else: #add the actual data value in the prov document
-                            document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),{"prov:role":provRole })
 
-                r.run(**kwargs) #this is where you run each step. so start and end time for the step
+                if "workflow" not in str(r.name):
+                    ProcessRunID="run:"+str(uuid.uuid4())
+                    stepname=""
+                    #each subprocess is defined as an activity()
+                    ProcessProvActivity = document.activity(ProcessRunID, None, None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
+                    #print ("ProcessProvActivity identifier is: !!!!!!!!!!", str(ProcessProvActivity._identifier))
+                    if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
+                        stepname= step_dict[str(getattr(r, "name"))]
+                        document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
+                    document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+                    if hasattr(r, "joborder"):
+                        for key, value in getattr(r, "joborder").items():
+                            provRole=stepname+"/"+str(key)
+                            if 'location' in str(value):
+                                location=str(value['location'])
+                                if location in reference_locations: #workflow level inputs referenced as hash in prov document
+                                    document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
+                                else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
+                                    document.used(ProcessRunID, "data:"+str(value['checksum'][6:]), datetime.datetime.now(),None, {"prov:role":provRole })
+                            else: #add the actual data value in the prov document
+                                document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
+                    r.run(document, ProcessProvActivity, **kwargs) #this is where you run each step. so start and end time for the step
+
+                    for eachOutput in final_output: #capture workflow level outputs in the prov doc
+                        for key, value in eachOutput.items():
+                            outputProvRole="wf:main"+"/"+str(key)
+                            output_checksum="data:"+str(value["checksum"][5:])
+                            document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
+                            document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
             else:
                 _logger.error("Workflow cannot make any more progress.")
                 break
@@ -739,12 +748,13 @@ def generate_provDoc(wf_Steps):
     document.add_namespace("wf", roIdentifierWorkflow)
     roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/master-job.json#"
     document.add_namespace("input", roIdentifierInput)
+
     #Get cwltool version
     cwlversionProv="cwltool "+ str(versionstring().split()[-1])
     #define workflow run level activity
     activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": packedWorkflowPath})
     #association between SoftwareAgent and WorkflowRun
-    mainWorkflow= "wf:main"
+    mainWorkflow = "wf:main"
     document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
     #add here the steps for prospective prov using wf_Steps
     subProcess="wfdesc:hasSubProcess"
@@ -1024,9 +1034,6 @@ def main(argsl=None,  # type: List[str]
             if out is not None:
                 #prov: closing the RO after writing everything and removing any temporary files
                 if args.provenance and args.ro:
-                    for key, value in out.items(): #add outputs as entities using checksum
-                        output_checksum="data:"+str(value["checksum"][5:])
-                        document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
                     args.ro.add_output(out, args.provenance)
                     args.ro.close(args.provenance)
                     document.serialize('provenanceProfile.json', indent=2)

@@ -53,6 +53,7 @@ class RO():
         #TODO: this is going to generate all the namespaces and initial structure of the PROV document
         #the code is in main.py which needs to be copied here  after completion
         pass
+
     def retrieve_Steps(self, packedFile):
         steps_wfRun= []
         with open(packedFile, 'r') as stream:
