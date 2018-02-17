@@ -253,15 +253,16 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
+            #creating entities for the outputs produced by each step (in the provenance document) and associating them with 
+            #the ProcessRunID
             ro = kwargs.get("ro")
             if ro:
                 for key, value in outputs.items():
-                    if "checksum" in str(value):
-                        StepOutput_checksum="data:"+str(value["checksum"][5:])
-                        document.entity(StepOutput_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
-                        stepProv="wf:main"+"/"+str(self.name)+"/"+str(key)
-                        ProcessRunID=str(ProcessProvActivity._identifier)
-                        document.wasGeneratedBy(StepOutput_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
+                    StepOutput_checksum="data:"+str(value["checksum"][5:])
+                    document.entity(StepOutput_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
+                    stepProv="wf:main"+"/"+str(self.name)+"/"+str(key)
+                    ProcessRunID=str(ProcessProvActivity._identifier)
+                    document.wasGeneratedBy(StepOutput_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
 
         except OSError as e:
             if e.errno == 2:

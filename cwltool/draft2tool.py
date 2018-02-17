@@ -84,7 +84,7 @@ class ExpressionTool(Process):
             ):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(job_order, **kwargs)
-
+        
         j = ExpressionTool.ExpressionJob()
         j.builder = builder
         j.script = self.tool["expression"]

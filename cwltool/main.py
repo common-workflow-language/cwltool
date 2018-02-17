@@ -328,19 +328,17 @@ def single_job_executor(t,  # type: Process
                 if r.outdir:
                     output_dirs.add(r.outdir)
                 #here we are recording provenance of each subprocess of the workflow
-
                 if "workflow" not in str(r.name):
                     ProcessRunID="run:"+str(uuid.uuid4())
-                    stepname=""
                     #each subprocess is defined as an activity()
                     ProcessProvActivity = document.activity(ProcessRunID, None, None, {"prov:label": "Run of Process", prov.PROV_TYPE: "wfprov:ProcessRun"})
                     if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
-                        stepname= step_dict[str(getattr(r, "name"))]
-                        document.wasAssociatedWith(ProcessRunID, engineUUID, stepname)
+                        document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
                     document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
-                    r.run(document, ProcessProvActivity, reference_locations, **kwargs) #this is where you run each step. so start and end time for the step
-
-                    for eachOutput in final_output: #capture workflow level outputs in the prov doc
+                    #this is where you run each step. so start and end time for the step
+                    r.run(document, ProcessProvActivity, reference_locations, **kwargs)
+                    #capture workflow level outputs in the prov doc
+                    for eachOutput in final_output:
                         for key, value in eachOutput.items():
                             outputProvRole="wf:main"+"/"+str(key)
                             output_checksum="data:"+str(value["checksum"][5:])
