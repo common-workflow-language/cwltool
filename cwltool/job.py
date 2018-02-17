@@ -169,7 +169,7 @@ class JobBase(object):
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
-    def _execute(self, runtime, env, kwargs, document=None, ProcessProvActivity=None,reference_locations=None, rm_tmpdir=True, move_outputs="move"):
+    def _execute(self, runtime, env, kwargs, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, rm_tmpdir=True, move_outputs="move"):
         # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
@@ -253,7 +253,7 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
-            #creating entities for the outputs produced by each step (in the provenance document) and associating them with 
+            #creating entities for the outputs produced by each step (in the provenance document) and associating them with
             #the ProcessRunID
             ro = kwargs.get("ro")
             if ro:
@@ -284,6 +284,7 @@ class JobBase(object):
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
+            document.wasEndedBy(str(ProcessProvActivity._identifier), None, WorkflowRunID, datetime.datetime.now())
 
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
@@ -301,7 +302,7 @@ class JobBase(object):
 
 class CommandLineJob(JobBase):
 
-    def run(self, document=None, ProcessProvActivity=None,reference_locations=None, pull_image=True, rm_container=True,
+    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move",  **kwargs):
         # type: (bool, bool, bool, Text, **Any) -> None
 
@@ -330,7 +331,7 @@ class CommandLineJob(JobBase):
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute([], env, kwargs, document, ProcessProvActivity,reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute([], env, kwargs, document, WorkflowRunID, ProcessProvActivity,reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
 
 
 class DockerCommandLineJob(JobBase):
@@ -376,7 +377,7 @@ class DockerCommandLineJob(JobBase):
                         f.write(vol.resolved.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
 
-    def run(self, document=None, ProcessProvActivity=None, reference_locations=None, pull_image=True, rm_container=True,
+    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None, reference_locations=None, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move", **kwargs):
         #ipdb.set_trace()
         # type: (bool, bool, bool, Text, **Any) -> None
@@ -454,7 +455,7 @@ class DockerCommandLineJob(JobBase):
 
         runtime.append(img_id)
 
-        self._execute(runtime, env, kwargs, document, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs) #included kwargs to see if the workflow has been executed using the provenance flag.
+        self._execute(runtime, env, kwargs, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs) #included kwargs to see if the workflow has been executed using the provenance flag.
 
 
 def _job_popen(

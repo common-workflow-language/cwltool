@@ -61,7 +61,6 @@ document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
 document.add_namespace('run', 'urn:uuid:')
 document.add_namespace('engine', 'urn:uuid4:')
 document.add_namespace('data', 'urn:hash:sha1')
-step_dict={}
 packedWorkflowPath=""
 cwlversionProv=""
 engineUUID=""
@@ -328,7 +327,15 @@ def single_job_executor(t,  # type: Process
                 if r.outdir:
                     output_dirs.add(r.outdir)
                 #here we are recording provenance of each subprocess of the workflow
-                if "workflow" not in str(r.name):
+                if ".cwl" in getattr(r, "name"): #for prospective provenance
+                    steps=[]
+                    for s in r.steps:
+                        stepname="wf:main/"+str(s.name)[5:]
+                        steps.append(stepname)
+                        document.entity(stepname, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
+                    #create prospective provenance recording for the workflow
+                    document.entity("wf:main", {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":str(steps),  "prov:label":"Prospective provenance"})
+                if ".cwl" not in getattr(r, "name"):
                     ProcessRunID="run:"+str(uuid.uuid4())
                     #each subprocess is defined as an activity()
                     provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
@@ -337,7 +344,7 @@ def single_job_executor(t,  # type: Process
                         document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
                     document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
                     #this is where you run each step. so start and end time for the step
-                    r.run(document, ProcessProvActivity, reference_locations, **kwargs)
+                    r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
                     #capture workflow level outputs in the prov doc
                     for eachOutput in final_output:
                         for key, value in eachOutput.items():
@@ -730,12 +737,11 @@ def get_gitCommit():
     #branch = repo.active_branch
     pass
 
-def generate_provDoc(wf_Steps):
+def generate_provDoc():
     roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
     document.add_namespace("wf", roIdentifierWorkflow)
     roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/master-job.json#"
     document.add_namespace("input", roIdentifierInput)
-
     #Get cwltool version
     cwlversionProv="cwltool "+ str(versionstring().split()[-1])
     #define workflow run level activity
@@ -743,19 +749,6 @@ def generate_provDoc(wf_Steps):
     #association between SoftwareAgent and WorkflowRun
     mainWorkflow = "wf:main"
     document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
-    #add here the steps for prospective prov using wf_Steps
-    subProcess="wfdesc:hasSubProcess"
-    JsonProspective_type=json.dumps(['wfdesc:Workflow','prov:Plan'])
-    stepArray=[]
-    #step_dict={}
-    for step in wf_Steps:
-        steptemp=mainWorkflow+str(step[5:]).strip()
-        temp=str(step[6:]).strip()
-        step_dict[temp]=steptemp
-        document.entity(steptemp, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
-        stepArray.append(steptemp)
-    jsonprospect=json.dumps(stepArray)
-    document.entity(mainWorkflow, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":jsonprospect,  "prov:label":"Prospective provenance"})
 
 #version of CWLtool used to execute the workflow.
 def versionstring():
@@ -912,7 +905,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
             if args.provenance: # Can't really be combined with args.pack at same time
-                packedWorkflow, wf_Steps =args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
+                packedWorkflow=args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
                 #extract path to include in PROV document
                 packedWorkflowpath_without_main=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]
                 packedWorkflowPath=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]+"#main"
@@ -991,7 +984,7 @@ def main(argsl=None,  # type: List[str]
             # this block starts executing the workflow so generate start time
             # and workflow RUN uuid.
             if args.provenance and args.ro:
-                generate_provDoc(wf_Steps)
+                generate_provDoc()
 
             if job_order_object is None:
                     job_order_object = load_job_order(args, tool, stdin,
@@ -1023,7 +1016,7 @@ def main(argsl=None,  # type: List[str]
                 if args.provenance and args.ro:
                     args.ro.add_output(out, args.provenance)
                     args.ro.close(args.provenance)
-                    document.serialize('provenanceProfile.json', indent=2)
+
 
                 def locToPath(p):
                     for field in ("path", "nameext", "nameroot", "dirname"):
@@ -1074,7 +1067,10 @@ def main(argsl=None,  # type: List[str]
     finally:
         #get_gitCommit()
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
+
         if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
+            document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
+            document.serialize('provenanceProfile.json', indent=2)
             args.ro.close()
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)

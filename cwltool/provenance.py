@@ -80,7 +80,7 @@ class RO():
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
         workflowSteps=self.retrieve_Steps(path)
-        return (path, workflowSteps)
+        return (path)
 
     def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
