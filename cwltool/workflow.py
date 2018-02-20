@@ -344,6 +344,7 @@ class WorkflowJob(object):
 
         js_console = kwargs.get("js_console", False)
         debug = kwargs.get("debug", False)
+        timeout = kwargs.get("eval_timeout")
 
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
@@ -383,7 +384,7 @@ class WorkflowJob(object):
                     if k in valueFrom:
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
-                            None, None, {}, context=v, debug=debug, js_console=js_console)
+                            None, None, {}, context=v, debug=debug, js_console=js_console, timeout=timeout)
                     else:
                         return v
 
