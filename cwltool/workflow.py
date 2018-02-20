@@ -450,25 +450,17 @@ class WorkflowJob(object):
 
         if "outdir" in kwargs:
             del kwargs["outdir"]
-        #ipdb.set_trace()
-        ro = kwargs.get("ro")
-        customised_job={} #new job object for RO
 
         for e, i in enumerate(self.tool["inputs"]):
             with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
                 if iid in joborder:
-                    customised_job[iid]= copy.deepcopy(joborder[iid]) #add the input element in dictionary for provenance
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
                 elif "default" in i:
-                    customised_job[iid]= copy.deepcopy(i["default"]) #add the defualt elements in the dictionary for provenance
                     self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]), "success")
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a default value." % (i["id"]))
-
-        if ro: #create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
-            relativised_input_object=ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
 
 
         for s in self.steps:
