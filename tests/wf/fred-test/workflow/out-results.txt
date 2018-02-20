@@ -1,0 +1,10 @@
+{
+    "output": {
+        "checksum": "sha1$84e090a01386b3368bbc61a60034d7538fedff57", 
+        "basename": "output.txt", 
+        "location": "file:///Users/farahkhan/Desktop/cwltool/tests/wf/fred-test/workflow/output.txt", 
+        "path": "/Users/farahkhan/Desktop/cwltool/tests/wf/fred-test/workflow/output.txt", 
+        "class": "File", 
+        "size": 24
+    }
+}

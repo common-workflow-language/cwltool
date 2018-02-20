@@ -33,6 +33,7 @@
     "bk": "http://www.provbook.org/ns/#", 
     "nowpeople": "http://www.provbook.org/nownews/people/", 
     "now": "http://www.provbook.org/nownews/", 
+    "wfprov": "http://wf4ever.github.io/ro/#wfprov", 
     "is": "http://www.provbook.org/nownews/is/#"
   }, 
   "activity": {

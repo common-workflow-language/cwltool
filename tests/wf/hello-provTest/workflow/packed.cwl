@@ -5,14 +5,14 @@
     "inputs": [
         {
             "type": "string", 
-            "id": "#main/main/usermessage"
+            "id": "#main/usermessage"
         }
     ], 
     "outputs": [
         {
-            "outputSource": "#main/main/step0/response", 
+            "outputSource": "#main/step0/response", 
             "type": "File", 
-            "id": "#main/main/response"
+            "id": "#main/response"
         }
     ], 
     "steps": [
@@ -27,7 +27,7 @@
                         "inputBinding": {
                             "position": 1
                         }, 
-                        "id": "#main/main/step0/10673757-9f47-4d28-a8ec-84ff19d02951/message"
+                        "id": "#main/step0/9478b38e-60ae-4a32-9866-2ba1153bb1d5/message"
                     }
                 ], 
                 "baseCommand": "echo", 
@@ -39,24 +39,24 @@
                 "outputs": [
                     {
                         "type": "File", 
-                        "id": "#main/main/step0/10673757-9f47-4d28-a8ec-84ff19d02951/response", 
+                        "id": "#main/step0/9478b38e-60ae-4a32-9866-2ba1153bb1d5/response", 
                         "outputBinding": {
                             "glob": "response.txt"
                         }
                     }
                 ], 
-                "id": "#main/main/step0/10673757-9f47-4d28-a8ec-84ff19d02951"
+                "id": "#main/step0/9478b38e-60ae-4a32-9866-2ba1153bb1d5"
             }, 
             "in": [
                 {
-                    "source": "#main/main/usermessage", 
-                    "id": "#main/main/step0/message"
+                    "source": "#main/usermessage", 
+                    "id": "#main/step0/message"
                 }
             ], 
             "out": [
-                "#main/main/step0/response"
+                "#main/step0/response"
             ], 
-            "id": "#main/main/step0"
+            "id": "#main/step0"
         }
     ], 
     "id": "#main", 
