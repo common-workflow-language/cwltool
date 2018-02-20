@@ -56,7 +56,7 @@ install: FORCE
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
 dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
-	./setup.py sdist
+	./setup.py sdist bdist-wheel
 
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
