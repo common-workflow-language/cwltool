@@ -231,7 +231,7 @@ class RO():
             for item in workflow_output:
                 if workflow_output[item]["class"] == "File":
                     outputfile_path= os.path.join(self.folder, OUTPUT, workflow_output[item]["checksum"][5:7])
-                    path = os.path.join(outputfile_path, workflow_output[item]["checksum"])
+                    path = os.path.join(outputfile_path, workflow_output[item]["checksum"][5:])
                     if not os.path.isdir(path):
                         os.makedirs(path)
                     _logger.info(u"[provenance] Moving output files to RO")
