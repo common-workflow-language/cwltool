@@ -1,0 +1,1 @@
+This is whale file for testing revsort.cwl workflow
