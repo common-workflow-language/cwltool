@@ -15,20 +15,25 @@ from time import gmtime, strftime
 import sys
 import tempfile
 import prov.model as prov
+import prov.graph as graph
 import datetime
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
+from networkx.drawing.nx_agraph import graphviz_layout
+from networkx.drawing.nx_agraph import write_dot
+from networkx.drawing.nx_pydot import write_dot
 import uuid
+import graphviz
+import networkx as nx
 import pkg_resources  # part of setuptools
 import requests
 import six
 import string
-#from git import *
-#import .provenance
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
+from schema_salad.sourceline import SourceLine
 
 from . import draft2tool
 from . import workflow
@@ -50,19 +55,12 @@ from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
+from subprocess import check_call
 
 _logger = logging.getLogger("cwltool")
 
 #Adding default namespaces
 document = prov.ProvDocument()
-document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
-document.add_namespace('prov', 'http://www.w3.org/ns/prov')
-document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
-document.add_namespace('run', 'urn:uuid:')
-document.add_namespace('engine', 'urn:uuid4:')
-document.add_namespace('data', 'urn:hash:sha1')
-packedWorkflowPath=""
-cwlversionProv=""
 engineUUID=""
 activity_workflowRun={}
 defaultStreamHandler = logging.StreamHandler()
@@ -70,7 +68,6 @@ _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 #adding the SoftwareAgent to PROV document
 engineUUID="engine:"+str(uuid.uuid4())
-document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
 #defining workflow level run ID
 WorkflowRunUUID=str(uuid.uuid4())
 WorkflowRunID="run:"+WorkflowRunUUID
@@ -277,21 +274,12 @@ def single_job_executor(t,  # type: Process
     final_output = []
     final_status = []
     #Here we are creating entities with relativised paths in the PROV document for all the inputs.
-    ro = kwargs.get("ro")
-    customised_job=copy.deepcopy(job_order_object)
-    relativised_input_object =ro.create_job(customised_job, kwargs)
+
+    #ro = kwargs.get("ro")
+    #customised_job=copy.deepcopy(job_order_object)
+    #relativised_input_object =ro.create_job(customised_job, kwargs)
     reference_locations={}
-    for key, value in relativised_input_object.items():
-        strvalue=str(value)
-        if "data" in strvalue:
-            shahash="data:"+value.split("/")[-1]
-            rel_path=value[3:]
-            reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
-            document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
-            #document.specializationOf(rel_path, shahash) NOTE:THIS NEEDS FIXING as it required both params as entities.
-        else:
-            ArtefactValue="data:"+strvalue
-            document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
+
     ProvActivity_dict={}
     def output_callback(out, processStatus):
         final_status.append(processStatus)
@@ -335,6 +323,32 @@ def single_job_executor(t,  # type: Process
                         document.entity(stepname, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
                     #create prospective provenance recording for the workflow
                     document.entity("wf:main", {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":str(steps),  "prov:label":"Prospective provenance"})
+                    customised_job={} #new job object for RO
+                    for e, i in enumerate(r.tool["inputs"]):
+                        with SourceLine(r.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
+                            iid = shortname(i["id"])
+                            if iid in job_order_object:
+                                customised_job[iid]= copy.deepcopy(job_order_object[iid]) #add the input element in dictionary for provenance
+                            elif "default" in i:
+                                customised_job[iid]= copy.deepcopy(i["default"]) #add the defualt elements in the dictionary for provenance
+                            else:
+                                raise WorkflowException(
+                                    u"Input '%s' not in input object and does not have a default value." % (i["id"]))
+                    ##create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
+                    ro = kwargs.get("ro")
+                    if ro:
+                        relativised_input_object=ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
+                        for key, value in relativised_input_object.items():
+                            strvalue=str(value)
+                            if "data" in strvalue:
+                                shahash="data:"+value.split("/")[-1]
+                                rel_path=value[3:]
+                                reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
+                                document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
+                                #document.specializationOf(rel_path, shahash) NOTE:THIS NEEDS FIXING as it required both params as entities.
+                            else:
+                                ArtefactValue="data:"+strvalue
+                                document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
                 if ".cwl" not in getattr(r, "name"):
                     ProcessRunID="run:"+str(uuid.uuid4())
                     #each subprocess is defined as an activity()
@@ -738,12 +752,21 @@ def get_gitCommit():
     pass
 
 def generate_provDoc():
+    document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
+    document.add_namespace('prov', 'http://www.w3.org/ns/prov')
+    document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
+    document.add_namespace('run', 'urn:uuid:')
+    document.add_namespace('engine', 'urn:uuid4:')
+    document.add_namespace('data', 'urn:hash:sha1')
+    #packedWorkflowPath=""
+    cwlversionProv="cwltool "+ str(versionstring().split()[-1])
     roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
     document.add_namespace("wf", roIdentifierWorkflow)
     roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/master-job.json#"
     document.add_namespace("input", roIdentifierInput)
     #Get cwltool version
     cwlversionProv="cwltool "+ str(versionstring().split()[-1])
+    document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
     #define workflow run level activity
     activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": "Run of workflow/packed.cwl#main"})
     #association between SoftwareAgent and WorkflowRun
@@ -1065,12 +1088,18 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
-        #get_gitCommit()
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
 
         if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
-            document.serialize('provenanceProfile.json', indent=2)
+            document.serialize('provenanceProfile-withJobfile.json', indent=2)
+            #add the graph to the output
+            provgraph=graph.prov_to_graph(document)
+            pos = nx.nx_agraph.graphviz_layout(provgraph)
+            nx.draw(provgraph, pos=pos)
+            #have to transfer this to RO.
+            write_dot(provgraph, 'ProvenanceDotGraph.dot')
+            check_call(['dot','-Tpng','file.dot','-o','ProvenanceVisualGraph.png'])
             args.ro.close()
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)

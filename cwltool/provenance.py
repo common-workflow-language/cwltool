@@ -54,32 +54,12 @@ class RO():
         #the code is in main.py which needs to be copied here  after completion
         pass
 
-    def retrieve_Steps(self, packedFile):
-        steps_wfRun= []
-        with open(packedFile, 'r') as stream:
-            try:
-                arguments=yaml.load(stream)
-                #if $graph is in yaml document
-                if "$graph" in arguments:
-                    for step in arguments["$graph"][0]["steps"]:
-                        steps_wfRun.append(step["id"])
-                else: #otherwise use this block
-                    for step in arguments:
-                        if step=="steps":
-                            for each in arguments[step]:
-                                steps_wfRun.append(each['id'])
-                _logger.info(u"[provenance] WorkflowSteps Generated: %s", steps_wfRun)
-                return steps_wfRun
-            except yaml.YAMLError as exc:
-                _logger.warning(exc)
-
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
         with open (path, "w") as f:
             # YAML is always UTF8
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
-        workflowSteps=self.retrieve_Steps(path)
         return (path)
 
     def _checksum_copy(self, fp, copy_to_fp=None,

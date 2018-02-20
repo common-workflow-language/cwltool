@@ -196,7 +196,7 @@ class JobBase(object):
                     if location in reference_locations: #workflow level inputs referenced as hash in prov document
                         document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
                     else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
-                        document.used(ProcessRunID, "data:"+str(value['checksum'][6:]), datetime.datetime.now(),None, {"prov:role":provRole })
+                        document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
                 else: #add the actual data value in the prov document
                     document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
         outputs = {}  # type: Dict[Text,Text]
