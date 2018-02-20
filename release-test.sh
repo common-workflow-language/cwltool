@@ -11,7 +11,7 @@ pipver=7.0.2 # minimum required version of pip
 
 rm -Rf testenv? || /bin/true
 
-export HEAD=`git rev-parse HEAD`
+export HEAD=${TRAVIS_PULL_REQUEST_SHA:-$(git rev-parse HEAD)}
 
 if [ "${RELEASE_SKIP}" != "head" ]
 then
