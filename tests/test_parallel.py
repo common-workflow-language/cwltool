@@ -7,7 +7,7 @@ import cwltool
 import cwltool.factory
 from cwltool.executors import MultithreadedJobExecutor
 from cwltool.utils import onWindows
-from tests.util import get_data
+from .util import get_data
 
 
 class TestParallel(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestParallel(unittest.TestCase):
         echo = f.make(get_data(test_file))
         self.assertEqual(echo(file1= {
                 "class": "File",
-                "location": "tests/wf/whale.txt"
+                "location": get_data("tests/wf/whale.txt")
             }),
             {"count_output": 16})
 
