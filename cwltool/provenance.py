@@ -10,8 +10,16 @@ import logging
 import hashlib
 from shutil import copyfile
 import io
+from networkx.drawing.nx_agraph import graphviz_layout
+from networkx.drawing.nx_agraph import write_dot
+from networkx.drawing.nx_pydot import write_dot
+import prov.graph as graph
+import uuid
+import graphviz
+import networkx as nx
 import ruamel.yaml as yaml
 import warnings
+from subprocess import check_call
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 relativised_input_object={}
 _logger = logging.getLogger("cwltool")
@@ -207,7 +215,7 @@ class RO():
     #copy output files to the RO
     def add_output(self, workflow_output=None, saveTo=None):
         if isinstance(workflow_output, dict):
-            #Iterate over the output object, collect and relative the output file paths
+            #Iterate over the output object, collect and relativise the output file paths
             for item in workflow_output:
                 if workflow_output[item]["class"] == "File":
                     outputfile_path= os.path.join(self.folder, OUTPUT, workflow_output[item]["checksum"][5:7])
@@ -215,7 +223,22 @@ class RO():
                     if not os.path.isdir(path):
                         os.makedirs(path)
                     _logger.info(u"[provenance] Moving output files to RO")
-                    shutil.move(workflow_output[item]["location"][7:], path)
+                    shutil.copy(workflow_output[item]["location"][7:], path)
+
+#**************************************
+    def add_provProfile(self, document):
+        '''
+        Transfer the provenance related files to RO
+        '''
+        original_path=os.path.join(self.folder, PROVENANCE)
+        provPath=original_path+"/ProvenanceProfile.json"
+        provDot=original_path+'/ProvenanceDotGraph.dot'
+        document.serialize(provPath, indent=2)
+        provgraph=graph.prov_to_graph(document)
+        pos = nx.nx_agraph.graphviz_layout(provgraph)
+        nx.draw(provgraph, pos=pos)
+        write_dot(provgraph, provDot)
+        check_call(['dot','-Tpng',provDot,'-o',original_path+'/ProvenanceVisualGraph.png'])
 
 #**************************************
 

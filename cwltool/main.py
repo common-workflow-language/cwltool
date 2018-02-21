@@ -15,16 +15,9 @@ from time import gmtime, strftime
 import sys
 import tempfile
 import prov.model as prov
-import prov.graph as graph
 import datetime
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
-from networkx.drawing.nx_agraph import graphviz_layout
-from networkx.drawing.nx_agraph import write_dot
-from networkx.drawing.nx_pydot import write_dot
-import uuid
-import graphviz
-import networkx as nx
 import pkg_resources  # part of setuptools
 import requests
 import six
@@ -55,7 +48,6 @@ from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
-from subprocess import check_call
 
 _logger = logging.getLogger("cwltool")
 
@@ -1038,7 +1030,8 @@ def main(argsl=None,  # type: List[str]
                 #prov: closing the RO after writing everything and removing any temporary files
                 if args.provenance and args.ro:
                     args.ro.add_output(out, args.provenance)
-                    args.ro.close(args.provenance)
+                    print("arg.provenance!!!!!!!!", str(args.provenance))
+                    #args.ro.close(args.provenance)
 
 
                 def locToPath(p):
@@ -1090,17 +1083,12 @@ def main(argsl=None,  # type: List[str]
     finally:
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
 
-        if hasattr(args, "ro") and args.ro and args.rm_tmpdir:
+        if hasattr(args, "ro") and args.provenance and args.rm_tmpdir:
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
-            document.serialize('provenanceProfile-withJobfile.json', indent=2)
-            #add the graph to the output
-            provgraph=graph.prov_to_graph(document)
-            pos = nx.nx_agraph.graphviz_layout(provgraph)
-            nx.draw(provgraph, pos=pos)
-            #have to transfer this to RO.
-            write_dot(provgraph, 'ProvenanceDotGraph.dot')
-            check_call(['dot','-Tpng','file.dot','-o','ProvenanceVisualGraph.png'])
-            args.ro.close()
+            #adding prov profile and graphs to RO
+            args.ro.add_provProfile(document)
+            args.ro.close(args.provenance)
+            #args.ro.close()
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
 
