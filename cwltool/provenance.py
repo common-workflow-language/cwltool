@@ -62,6 +62,25 @@ class RO():
         #the code is in main.py which needs to be copied here  after completion
         pass
 
+    def snapshot_generation(self, ProvDependencies):
+        '''
+        Copies all the cwl files involved in this workflow run to snapshot
+        directory
+        '''
+        for key, value in ProvDependencies.items():
+            if key == "secondaryFiles":
+                for files in value:
+                    for subKey, subValue in files.items():
+                        if subKey == "location":
+                            filename= subValue.split("/")[-1]
+                            path = os.path.join(self.folder, SNAPSHOT, filename)
+                            shutil.copy(subValue, path)
+            else:
+                if key == "location":
+                    filename= value.split("/")[-1]
+                    path = os.path.join(self.folder, SNAPSHOT, filename)
+                    shutil.copy(value, path)
+
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
         with open (path, "w") as f:

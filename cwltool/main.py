@@ -15,6 +15,7 @@ from time import gmtime, strftime
 import sys
 import tempfile
 import prov.model as prov
+import uuid
 import datetime
 from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
                     Union, cast)
@@ -728,7 +729,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         visit_class(deps, ("File", "Directory"), functools.partial(makeRelative, base))
 
     stdout.write(json.dumps(deps, indent=4))
-
+    return deps
 
 def print_pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
@@ -1085,6 +1086,9 @@ def main(argsl=None,  # type: List[str]
 
         if hasattr(args, "ro") and args.provenance and args.rm_tmpdir:
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
+            #adding all related cwl files to RO
+            ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
+            args.ro.snapshot_generation(ProvDependencies)
             #adding prov profile and graphs to RO
             args.ro.add_provProfile(document)
             args.ro.close(args.provenance)
