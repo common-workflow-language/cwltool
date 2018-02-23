@@ -266,11 +266,7 @@ def single_job_executor(t,  # type: Process
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     final_output = []
     final_status = []
-    #Here we are creating entities with relativised paths in the PROV document for all the inputs.
 
-    #ro = kwargs.get("ro")
-    #customised_job=copy.deepcopy(job_order_object)
-    #relativised_input_object =ro.create_job(customised_job, kwargs)
     reference_locations={}
 
     ProvActivity_dict={}
@@ -578,7 +574,7 @@ def generate_input_template(tool):
 
 
 
-def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
+def load_job_order(args, t, stdin, print_input_deps=False, provArgs= None, relative_deps=False,
                    stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
     # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
 
@@ -659,7 +655,8 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         _logger.error("")
         _logger.error("Input object required, use --help for details")
         return 1
-
+    if provArgs:
+        inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "", basedir=file_uri(input_basedir + "/"))
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=file_uri(input_basedir + "/"))
@@ -690,8 +687,11 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
         del job_order_object["cwl:tool"]
     if "id" in job_order_object:
         del job_order_object["id"]
-
-    return (job_order_object, input_basedir)
+    #print ("input base directory:!!!!!!!", input_basedir)
+    if provArgs:
+        return (job_order_object, input_basedir, loader, inputforProv)
+    else:
+        return (job_order_object, input_basedir, loader)
 
 
 def makeRelative(base, ob):
@@ -708,10 +708,9 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     # type: (Dict[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
     deps = {"class": "File",
             "location": uri}  # type: Dict[Text, Any]
-
+    print ("file object is:!!!!", str(obj))
     def loadref(b, u):
         return document_loader.fetch(document_loader.fetcher.urljoin(b, u))
-
     sf = scandeps(
         basedir if basedir else uri, obj, {"$import", "run"},
         {"$include", "$schemas", "location"}, loadref)
@@ -725,11 +724,11 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             base = os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
-
+        absdeps=copy.deepcopy(deps)
         visit_class(deps, ("File", "Directory"), functools.partial(makeRelative, base))
 
-    stdout.write(json.dumps(deps, indent=4))
-    return deps
+    stdout.write(json.dumps(absdeps, indent=4))
+    return (deps, absdeps)
 
 def print_pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
@@ -738,11 +737,6 @@ def print_pack(document_loader, processobj, uri, metadata):
         return json.dumps(packed, indent=4)
     else:
         return json.dumps(packed["$graph"][0], indent=4)
-def get_gitCommit():
-    #TODO returns the latest git commit ID to use in the wf namspace. For now we have a UUID as WorkflowRunID
-    #repo = Repo("/Users/farahkhan/Desktop/cwltool")
-    #branch = repo.active_branch
-    pass
 
 def generate_provDoc():
     document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
@@ -751,7 +745,6 @@ def generate_provDoc():
     document.add_namespace('run', 'urn:uuid:')
     document.add_namespace('engine', 'urn:uuid4:')
     document.add_namespace('data', 'urn:hash:sha1')
-    #packedWorkflowPath=""
     cwlversionProv="cwltool "+ str(versionstring().split()[-1])
     roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
     document.add_namespace("wf", roIdentifierWorkflow)
@@ -808,6 +801,7 @@ def main(argsl=None,  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
+    #input_basedir=''
     try:
         if args is None:
             if argsl is None:
@@ -999,6 +993,8 @@ def main(argsl=None,  # type: List[str]
         try:
             # this block starts executing the workflow so generate start time
             # and workflow RUN uuid.
+
+            #loader=''
             if args.provenance and args.ro:
                 generate_provDoc()
 
@@ -1006,9 +1002,11 @@ def main(argsl=None,  # type: List[str]
                     job_order_object = load_job_order(args, tool, stdin,
                                                       print_input_deps=args.print_input_deps,
                                                       relative_deps=args.relative_deps,
+                                                      provArgs=args.ro,
                                                       stdout=stdout,
                                                       make_fs_access=make_fs_access,
                                                       fetcher_constructor=fetcher_constructor)
+
         except SystemExit as e:
             return e.code
 
@@ -1031,7 +1029,6 @@ def main(argsl=None,  # type: List[str]
                 #prov: closing the RO after writing everything and removing any temporary files
                 if args.provenance and args.ro:
                     args.ro.add_output(out, args.provenance)
-                    print("arg.provenance!!!!!!!!", str(args.provenance))
                     #args.ro.close(args.provenance)
 
 
@@ -1088,7 +1085,9 @@ def main(argsl=None,  # type: List[str]
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
-            args.ro.snapshot_generation(ProvDependencies)
+            args.ro.snapshot_generation(ProvDependencies[0])
+            args.ro.snapshot_generation(job_order_object[3][1])
+
             #adding prov profile and graphs to RO
             args.ro.add_provProfile(document)
             args.ro.close(args.provenance)

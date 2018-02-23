@@ -62,21 +62,26 @@ class RO():
         #the code is in main.py which needs to be copied here  after completion
         pass
 
-    def snapshot_generation(self, ProvDependencies):
+    def snapshot_generation(self, ProvDep):
         '''
         Copies all the cwl files involved in this workflow run to snapshot
         directory
         '''
-        for key, value in ProvDependencies.items():
+        for key, value in ProvDep.items():
             if key == "secondaryFiles":
                 for files in value:
                     for subKey, subValue in files.items():
                         if subKey == "location":
+                            filepath=''
+                            if "file://" in subValue:
+                                filepath=subValue[7:]
+                            else:
+                                filepath=subValue
                             filename= subValue.split("/")[-1]
                             path = os.path.join(self.folder, SNAPSHOT, filename)
-                            shutil.copy(subValue, path)
+                            shutil.copy(filepath, path)
             else:
-                if key == "location":
+                if key == "location" and value.split("/")[-1]:
                     filename= value.split("/")[-1]
                     path = os.path.join(self.folder, SNAPSHOT, filename)
                     shutil.copy(value, path)
