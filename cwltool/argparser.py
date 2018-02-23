@@ -15,6 +15,9 @@ from .software_requirements import (SOFTWARE_REQUIREMENTS_ENABLED)
 
 _logger = logging.getLogger("cwltool")
 
+DEFAULT_TMP_PREFIX = "tmp"
+
+
 def arg_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
     parser.add_argument("--basedir", type=Text)
@@ -71,12 +74,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
-                        default="tmp")
+                        default=DEFAULT_TMP_PREFIX)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--tmp-outdir-prefix", type=Text,
                          help="Path prefix for intermediate output directories",
-                         default="tmp")
+                         default=DEFAULT_TMP_PREFIX)
 
     exgroup.add_argument("--cachedir", type=Text, default="",
                          help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
