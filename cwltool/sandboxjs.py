@@ -292,7 +292,8 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
         info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
                (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata.decode('utf-8')), stdfmt(stderrdata.decode('utf-8')))
     else:
-        info = stdfmt(stderrdata.decode('utf-8'))
+        info = stdfmt(u"Javascript expression was: %s\nstdout was: %s\nstderr was: %s" %\
+               (js, stdfmt(stdoutdata.decode('utf-8')), stdfmt(stderrdata.decode('utf-8')))
 
     if nodejs.poll() not in (None, 0):
         if killed:
