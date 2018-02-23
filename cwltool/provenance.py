@@ -67,24 +67,23 @@ class RO():
         Copies all the cwl files involved in this workflow run to snapshot
         directory
         '''
+
         for key, value in ProvDep.items():
             if key == "secondaryFiles":
                 for files in value:
-                    for subKey, subValue in files.items():
-                        if subKey == "location":
-                            filepath=''
-                            if "file://" in subValue:
-                                filepath=subValue[7:]
-                            else:
-                                filepath=subValue
-                            filename= subValue.split("/")[-1]
-                            path = os.path.join(self.folder, SNAPSHOT, filename)
-                            shutil.copy(filepath, path)
+                    if isinstance(files, dict):
+                        print("inside recursive bit!!!!!")
+                        self.snapshot_generation(files)
             else:
                 if key == "location" and value.split("/")[-1]:
                     filename= value.split("/")[-1]
                     path = os.path.join(self.folder, SNAPSHOT, filename)
-                    shutil.copy(value, path)
+                    filepath=''
+                    if "file://" in value:
+                        filepath=value[7:]
+                    else:
+                        filepath=value
+                    shutil.copy(filepath, path)
 
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
