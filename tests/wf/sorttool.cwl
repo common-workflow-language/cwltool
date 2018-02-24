@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 # Example command line program wrapper for the Unix tool "sort"
 # demonstrating command line flags.
 class: CommandLineTool

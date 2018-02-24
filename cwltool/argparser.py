@@ -7,6 +7,7 @@ import os
 
 from typing import (Any, AnyStr, Dict, List, Sequence, Text, Union, cast)
 
+from . import loghandler
 from schema_salad.ref_resolver import file_uri
 from .process import (Process, shortname)
 from .resolver import ga4gh_tool_registries
@@ -14,9 +15,7 @@ from .software_requirements import (SOFTWARE_REQUIREMENTS_ENABLED)
 
 _logger = logging.getLogger("cwltool")
 
-defaultStreamHandler = logging.StreamHandler()
-_logger.addHandler(defaultStreamHandler)
-_logger.setLevel(logging.INFO)
+DEFAULT_TMP_PREFIX = "tmp"
 
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
@@ -28,7 +27,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--no-container", action="store_false", default=True,
                         help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
                         dest="use_container")
-
+    parser.add_argument("--parallel", action="store_true", default=False,
+                        help="[experimental] Run jobs in parallel. "
+                             "Does not currently keep track of ResourceRequirements like the number of cores"
+                             "or memory and can overload this system")
     parser.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
                         metavar="ENVVAR",
@@ -49,14 +51,35 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, help="Do not delete Docker container used by jobs after they exit",
                          dest="rm_container")
 
+    cidgroup = parser.add_argument_group("Options for recording the Docker "
+        "container identifier into a file")
+    cidgroup.add_argument("--record-container-id", action="store_true",
+                          default=False,
+                          help="If enabled, store the Docker container ID into a file. "
+                          "See --cidfile-dir to specify the directory.",
+                          dest="record_container_id")
+
+    cidgroup.add_argument("--cidfile-dir", type=Text,
+                        help="Directory for storing the Docker container ID file. "
+                             "The default is the current directory",
+                        default="",
+                        dest="cidfile_dir")
+
+    cidgroup.add_argument("--cidfile-prefix", type=Text,
+                        help="Specify a prefix to the container ID filename. "
+                             "Final file name will be followed by a timestamp. "
+                             "The default is no prefix.",
+                        default="",
+                        dest="cidfile_prefix")
+
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
-                        default="tmp")
+                        default=DEFAULT_TMP_PREFIX)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--tmp-outdir-prefix", type=Text,
                          help="Path prefix for intermediate output directories",
-                         default="tmp")
+                         default=DEFAULT_TMP_PREFIX)
 
     exgroup.add_argument("--cachedir", type=Text, default="",
                          help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
@@ -120,13 +143,16 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          default=True, dest="strict")
 
     parser.add_argument("--skip-schemas", action="store_true",
-            help="Skip loading of schemas", default=True, dest="skip_schemas")
+            help="Skip loading of schemas", default=False, dest="skip_schemas")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    parser.add_argument("--timestamps", action="store_true", help="Add "
+                        "timestamps to the errors, warnings, and "
+                        "notifications.")
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
     parser.add_argument("--user-space-docker-cmd",
                         help="(Linux/OS X only) Specify a user space docker "
@@ -166,7 +192,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--default-container",
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")
     parser.add_argument("--no-match-user", action="store_true",
-                        help="Disable passing the current uid to 'docker run --user`")
+                        help="Disable passing the current uid to `docker run --user`")
     parser.add_argument("--disable-net", action="store_true",
                         help="Use docker's default networking for containers;"
                              " the default is to enable networking.")

@@ -1,5 +1,7 @@
 from __future__ import absolute_import
+
 import codecs
+import datetime
 import functools
 import io
 import json
@@ -12,24 +14,27 @@ import subprocess
 import sys
 import tempfile
 from io import open
+from threading import Lock
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
-                    Tuple, Union, cast)
+                    Union, cast)
 
 import shellescape
 
-from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
 from .builder import Builder
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .pathmapper import PathMapper, ensure_writable
-from .process import (UnsupportedRequirement, empty_subtree, get_feature,
+from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .utils import bytes2str_in_dicts
+from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
+
+job_output_lock = Lock()
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
@@ -266,7 +271,8 @@ class JobBase(object):
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
-        self.output_callback(outputs, processStatus)
+        with job_output_lock:
+            self.output_callback(outputs, processStatus)
 
         if self.stagedir and os.path.exists(self.stagedir):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
@@ -363,8 +369,10 @@ class DockerCommandLineJob(JobBase):
                         docker_windows_path_adjust(vol.target)))
 
     def run(self, pull_image=True, rm_container=True,
+            record_container_id=False, cidfile_dir="",
+            cidfile_prefix="",
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> None
+        # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -463,6 +471,26 @@ class DockerCommandLineJob(JobBase):
         # directory." but spec might change to designated temp directory.
         # runtime.append("--env=HOME=/tmp")
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
+        
+        # add parameters to docker to write a container ID file
+        if record_container_id:
+            if cidfile_dir != "":
+                if not os.path.isdir(cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                                  cidfile_dir + " is not a directory or "
+                                  "directory doesn't exist, please check it first")
+                    exit(2)
+                if not os.path.exists(cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                                  "directory doesn't exist, please create it first")
+                    exit(2)
+            else:
+                cidfile_dir = os.getcwd()
+            cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f")+".cid"
+            if cidfile_prefix != "":
+                cidfile_name = str(cidfile_prefix + "-" + cidfile_name)
+            cidfile_path = os.path.join(cidfile_dir, cidfile_name)
+            runtime.append(u"--cidfile=%s" % cidfile_path)
 
         for t, v in self.environment.items():
             runtime.append(u"--env=%s=%s" % (t, v))

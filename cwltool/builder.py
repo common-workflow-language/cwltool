@@ -220,12 +220,12 @@ class Builder(object):
 
         l = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
-            if binding.get("itemSeparator"):
+            if binding.get("itemSeparator") and value:
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
-            elif prefix:
+            elif prefix and value:
                 return [prefix]
             else:
                 return []
