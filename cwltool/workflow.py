@@ -145,7 +145,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
     In strict comparison, all source types must match at least one sink type.
     """
 
-    if sink == "Any":
+    if src == "Any" or sink == "Any":
         return True
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
