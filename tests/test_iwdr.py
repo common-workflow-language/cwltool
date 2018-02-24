@@ -2,7 +2,7 @@ import unittest
 
 import cwltool
 import cwltool.factory
-from tests.util import get_data
+from .util import get_data
 
 
 class TestInitialWorkDir(unittest.TestCase):
