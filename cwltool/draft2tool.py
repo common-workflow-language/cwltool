@@ -383,7 +383,7 @@ class CommandLineTool(Process):
             else:
                 for t in initialWorkdir["listing"]:
                     if "entry" in t:
-                        et = {u"entry": builder.do_eval(t["entry"])}
+                        et = {u"entry": builder.do_eval(t["entry"], strip_whitespace=False)}
                         if "entryname" in t:
                             et["entryname"] = builder.do_eval(t["entryname"])
                         else:
