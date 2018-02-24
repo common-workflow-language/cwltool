@@ -153,7 +153,8 @@ def revmap_file(builder, outdir, f):
         return f
 
 
-    raise WorkflowException(u"Output File object is missing both `location` and `path` fields: %s" % f)
+    raise WorkflowException(u"Output File object is missing both 'location' "
+            "and 'path' fields: %s" % f)
 
 
 class CallbackJob(object):

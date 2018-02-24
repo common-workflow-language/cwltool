@@ -129,8 +129,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 runtime.append(
                     "%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
 
-    def create_runtime(self, env, rm_container=True, **kwargs):
-        # type: (MutableMapping[Text, Text], bool, **Any) -> List
+    def create_runtime(self, env, rm_container=True, record_container_id=False, cidfile_dir="",
+                       cidfile_prefix="", **kwargs):
+        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
 
         runtime = [u"singularity", u"--quiet", u"exec"]
         runtime.append(u"--bind")

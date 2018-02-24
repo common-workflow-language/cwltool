@@ -14,6 +14,7 @@ import sys
 import tempfile
 from abc import ABCMeta, abstractmethod
 from io import open
+from threading import Lock
 
 import shellescape
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
@@ -30,6 +31,8 @@ from .utils import copytree_with_merge, onWindows
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
+
+job_output_lock = Lock()
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
@@ -266,7 +269,8 @@ class JobBase(object):
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
-        self.output_callback(outputs, processStatus)
+        with job_output_lock:
+            self.output_callback(outputs, processStatus)
 
         if self.stagedir and os.path.exists(self.stagedir):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
@@ -320,13 +324,16 @@ class ContainerCommandLineJob(JobBase):
         pass
 
     @abstractmethod
-    def create_runtime(self, env, rm_container=True, **kwargs):
-        # type: (MutableMapping[Text, Text], bool, **Any) -> List
+    def create_runtime(self, env, rm_container, record_container_id, cidfile_dir,
+                       cidfile_prefix, **kwargs):
+        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
         pass
 
     def run(self, pull_image=True, rm_container=True,
+            record_container_id=False, cidfile_dir="",
+            cidfile_prefix="",
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> None
+        # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -372,7 +379,7 @@ class ContainerCommandLineJob(JobBase):
                         "--user-space-docker-cmd.: {1}".format(container, e))
 
         self._setup(kwargs)
-        runtime = self.create_runtime(env, rm_container, **kwargs)
+        runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
 
         self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
