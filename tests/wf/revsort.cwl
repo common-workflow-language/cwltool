@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 #
 # This is a two-step workflow which uses "revtool" and "sorttool" defined above.
 #
