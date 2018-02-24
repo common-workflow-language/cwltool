@@ -1082,7 +1082,7 @@ def main(argsl=None,  # type: List[str]
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
-            args.ro.snapshot_generation(ProvDependencies[0])
+            args.ro.snapshot_generation(ProvDependencies[1])
             args.ro.snapshot_generation(job_order_object[3][1])
 
             #adding prov profile and graphs to RO

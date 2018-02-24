@@ -10,6 +10,7 @@ import logging
 import hashlib
 from shutil import copyfile
 import io
+from pathlib import Path
 from networkx.drawing.nx_agraph import graphviz_layout
 from networkx.drawing.nx_agraph import write_dot
 from networkx.drawing.nx_pydot import write_dot
@@ -69,20 +70,25 @@ class RO():
         '''
 
         for key, value in ProvDep.items():
-            if key == "secondaryFiles":
+            if key == "location" and value.split("/")[-1]:
+                filename= value.split("/")[-1]
+                path = os.path.join(self.folder, SNAPSHOT, filename)
+                filepath=''
+                if "file://" in value:
+                    filepath=value[7:]
+                else:
+                    filepath=value
+                file_to_cp = Path(filepath)
+                if file_to_cp.exists():
+                    shutil.copy(filepath, path)
+            elif key == "secondaryFiles" or key == "listing":
                 for files in value:
                     if isinstance(files, dict):
                         self.snapshot_generation(files)
             else:
-                if key == "location" and value.split("/")[-1]:
-                    filename= value.split("/")[-1]
-                    path = os.path.join(self.folder, SNAPSHOT, filename)
-                    filepath=''
-                    if "file://" in value:
-                        filepath=value[7:]
-                    else:
-                        filepath=value
-                    shutil.copy(filepath, path)
+                print("neither sf nor location", key, value)
+
+
 
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
