@@ -29,7 +29,9 @@ git -C common-workflow-language clean --force -d -x || /bin/true
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2 3
 do
-for CONTAINER in docker singularity
+for CONTAINER in docker
+# for CONTAINER in docker singularity
+# singularity having issues on ci.commonwl.org; tests pass with https://gist.github.com/mr-c/0ec90d717617d074017c0cb38b72d1a4
 do
 	venv cwltool-venv${PYTHON_VERSION}
 	export PIP_DOWNLOAD_CACHE=/var/lib/jenkins/pypi-cache/
