@@ -34,7 +34,7 @@ do
 	# use pip2.7 and pip3 in separate loop runs
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
 	pip${PYTHON_VERSION} install .
-	pip${PYTHON_VERSION} install "cwltest>=1.0.20180130081614"
+	pip${PYTHON_VERSION} install -U "cwltest>=1.0.20180130081614"
 	pushd common-workflow-language
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]

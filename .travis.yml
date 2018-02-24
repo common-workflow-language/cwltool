@@ -1,5 +1,6 @@
 sudo: false
 language: python
+cache: pip
 python:
   - 2.7
   - 3.3
@@ -10,6 +11,10 @@ os:
   - linux
 install:
   - pip install tox-travis
+jobs:
+  include:
+    - stage: release-test
+      script: RELEASE_SKIP=head ./release-test.sh
 script: tox
 branches:
   only:
