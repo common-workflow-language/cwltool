@@ -72,7 +72,6 @@ class RO():
             if key == "secondaryFiles":
                 for files in value:
                     if isinstance(files, dict):
-                        print("inside recursive bit!!!!!")
                         self.snapshot_generation(files)
             else:
                 if key == "location" and value.split("/")[-1]:

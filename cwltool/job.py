@@ -171,7 +171,7 @@ class JobBase(object):
 
     def _execute(self, runtime, env, kwargs, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, rm_tmpdir=True, move_outputs="move"):
         # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
-
+        ro = kwargs.get("ro")
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
         if scr:
@@ -189,16 +189,17 @@ class JobBase(object):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if hasattr(self, "joborder"):
             for key, value in getattr(self, "joborder").items():
-                provRole=self.name+"/"+str(key)
-                ProcessRunID=str(ProcessProvActivity._identifier)
-                if 'location' in str(value):
-                    location=str(value['location'])
-                    if location in reference_locations: #workflow level inputs referenced as hash in prov document
-                        document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
-                    else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
-                        document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
-                else: #add the actual data value in the prov document
-                    document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
+                if ro:
+                    provRole=self.name+"/"+str(key)
+                    ProcessRunID=str(ProcessProvActivity._identifier)
+                    if 'location' in str(value):
+                        location=str(value['location'])
+                        if location in reference_locations: #workflow level inputs referenced as hash in prov document
+                            document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
+                        else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
+                            document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
+                    else: #add the actual data value in the prov document
+                        document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
         outputs = {}  # type: Dict[Text,Text]
 
         try:
@@ -255,7 +256,6 @@ class JobBase(object):
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
             #creating entities for the outputs produced by each step (in the provenance document) and associating them with
             #the ProcessRunID
-            ro = kwargs.get("ro")
             if ro:
                 for key, value in outputs.items():
                     StepOutput_checksum="data:"+str(value["checksum"][5:])
@@ -282,9 +282,12 @@ class JobBase(object):
 
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
+            if ro:
+                document.wasEndedBy(str(ProcessProvActivity._identifier), None, WorkflowRunID, datetime.datetime.now())
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
-            document.wasEndedBy(str(ProcessProvActivity._identifier), None, WorkflowRunID, datetime.datetime.now())
+            if ro:
+                document.wasEndedBy(str(ProcessProvActivity._identifier), None, WorkflowRunID, datetime.datetime.now())
 
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
