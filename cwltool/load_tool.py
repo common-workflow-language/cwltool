@@ -20,7 +20,7 @@ import schema_salad.schema as schema
 from avro.schema import Names
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import ContextType, Fetcher, Loader, file_uri
-from schema_salad.sourceline import cmap
+from schema_salad.sourceline import cmap, SourceLine
 from schema_salad.validate import ValidationException
 
 from . import process, update
@@ -124,6 +124,9 @@ def _convert_stdstreams_to_files(workflowobj):
     if isinstance(workflowobj, dict):
         if workflowobj.get('class') == 'CommandLineTool':
             for out in workflowobj.get('outputs', []):
+                if type(out) is not CommentedMap:
+                    with SourceLine(workflowobj, "outputs", ValidationException, _logger.isEnabledFor(logging.DEBUG)):
+                        raise ValidationException("Output '%s' is not a valid OutputParameter." % out)
                 for streamtype in ['stdout', 'stderr']:
                     if out.get('type') == streamtype:
                         if 'outputBinding' in out:
