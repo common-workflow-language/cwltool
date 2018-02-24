@@ -78,6 +78,7 @@ class Builder(object):
             lead_pos = []
         bindings = []  # type: List[Dict[Text,Text]]
         binding = None  # type: Dict[Text,Any]
+        value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
 
@@ -87,29 +88,33 @@ class Builder(object):
                 binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
 
             binding["datum"] = datum
+            if "valueFrom" in binding:
+                value_from_expression = True
 
         # Handle union types
         if isinstance(schema["type"], list):
-            for t in schema["type"]:
-                if isinstance(t, (str, Text)) and self.names.has_name(t, ""):
-                    avsc = self.names.get_name(t, "")
-                elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
-                    avsc = self.names.get_name(t["name"], "")
-                else:
-                    avsc = AvroSchemaFromJSONData(t, self.names)
-                if validate.validate(avsc, datum):
-                    schema = copy.deepcopy(schema)
-                    schema["type"] = t
-                    return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
-            raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
+            if not value_from_expression:
+                for t in schema["type"]:
+                    if isinstance(t, (str, Text)) and self.names.has_name(t, ""):
+                        avsc = self.names.get_name(t, "")
+                    elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
+                        avsc = self.names.get_name(t["name"], "")
+                    else:
+                        avsc = AvroSchemaFromJSONData(t, self.names)
+                    if validate.validate(avsc, datum):
+                        schema = copy.deepcopy(schema)
+                        schema["type"] = t
+                        return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], dict):
-            st = copy.deepcopy(schema["type"])
-            if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
-                st["inputBinding"] = {}
-            for k in ("secondaryFiles", "format", "streamable"):
-                if k in schema:
-                    st[k] = schema[k]
-            bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
+            if not value_from_expression:
+                st = copy.deepcopy(schema["type"])
+                if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
+                    st["inputBinding"] = {}
+                for k in ("secondaryFiles", "format", "streamable"):
+                    if k in schema:
+                        st[k] = schema[k]
+                bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
         else:
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[schema["type"]]
@@ -218,12 +223,12 @@ class Builder(object):
 
         l = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
-            if binding.get("itemSeparator"):
+            if binding.get("itemSeparator") and value:
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
-            elif prefix:
+            elif prefix and value:
                 return [prefix]
             else:
                 return []

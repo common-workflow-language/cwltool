@@ -401,7 +401,7 @@ def fillInDefaults(inputs, job):
             elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
                 job[fieldname] = None
             else:
-                raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
+                raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -506,7 +506,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(u"Missing 'type' in "
+                            "parameter '%s'" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -522,7 +523,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
@@ -530,7 +532,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.outputs_record_schema, indent=4)))
 
@@ -608,8 +611,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+            if self.tool[u"class"] != 'Workflow':
+                builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+                builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         if self.formatgraph:
             for i in self.tool["inputs"]:

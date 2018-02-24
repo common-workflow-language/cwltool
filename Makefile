@@ -56,7 +56,7 @@ install: FORCE
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
 dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
-	./setup.py sdist
+	./setup.py sdist bdist_wheel
 
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
@@ -175,4 +175,18 @@ mypy3: ${PYSOURCES}
 		 --warn-redundant-casts \
 		 cwltool
 
+release: FORCE
+	./release-test.sh
+	. testenv2/bin/activate && \
+		testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
+		pip install twine && \
+		twine upload testenv2/src/${MODULE}/dist/* && \
+		git tag ${VERSION} && git push --tags
+
 FORCE:
+
+# Use this to print the value of a Makefile variable
+# Example `make print-VERSION`
+# From https://www.cmcrossroads.com/article/printing-value-makefile-variable
+print-%  : ; @echo $* = $($*)
+

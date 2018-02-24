@@ -30,7 +30,7 @@ def defaultMakeTool(toolpath_object,  # type: Dict[Text, Any]
                    ):
     # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
-        raise WorkflowException(u"Not a dict: `%s`" % toolpath_object)
+        raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
             return draft2tool.CommandLineTool(toolpath_object, **kwargs)
@@ -145,7 +145,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
     In strict comparison, all source types must match at least one sink type.
     """
 
-    if sink == "Any":
+    if src == "Any" or sink == "Any":
         return True
     if isinstance(src, dict) and isinstance(sink, dict):
         if src["type"] == "array" and sink["type"] == "array":
@@ -344,6 +344,7 @@ class WorkflowJob(object):
 
         js_console = kwargs.get("js_console", False)
         debug = kwargs.get("debug", False)
+        timeout = kwargs.get("eval_timeout")
 
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
@@ -383,7 +384,7 @@ class WorkflowJob(object):
                     if k in valueFrom:
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
-                            None, None, {}, context=v, debug=debug, js_console=js_console)
+                            None, None, {}, context=v, debug=debug, js_console=js_console, timeout=timeout)
                     else:
                         return v
 
