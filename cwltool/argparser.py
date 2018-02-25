@@ -252,7 +252,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
             "CommandLineTool, or ExpressionTool. If the `inputs_object` has a "
             "`cwl:tool` field indicating the path or URL to the cwl_document, "
             " then the `workflow` argument is optional.")
-    parser.add_argument("job_order",
+    parser.add_argument("job_order", nargs=argparse.REMAINDER,
             metavar='inputs_object', help="path or URL to a YAML or JSON "
             "formatted description of the required input values for the given "
             "`cwl_document`.")
