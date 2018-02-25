@@ -218,9 +218,10 @@ def validate_document(document_loader,  # type: Loader
         if metadata and 'cwlVersion' in metadata:
             workflowobj['cwlVersion'] = metadata['cwlVersion']
         else:
-            raise ValidationException("No cwlVersion found."
-                "Use the following syntax in your CWL document to declare "
-                "the version: cwlVersion: <version>")
+            raise ValidationException(
+                  "No cwlVersion found. "
+                  "Use the following syntax in your CWL document to declare the version: cwlVersion: <version>.\n"
+                  "Note: if this is a CWL draft-2 (pre v1.0) document then it will need to be upgraded first.")
 
     if not isinstance(workflowobj["cwlVersion"], (str, Text)):
         raise Exception("'cwlVersion' must be a string, got %s" % type(workflowobj["cwlVersion"]))
@@ -230,16 +231,14 @@ def validate_document(document_loader,  # type: Loader
         workflowobj["cwlVersion"])
     if workflowobj["cwlVersion"] not in list(ALLUPDATES):
         # print out all the Supported Versions of cwlVersion
-        versions = list(ALLUPDATES)  # ALLUPDATES is a dict
+        versions = []
+        for version in list(ALLUPDATES):
+            if "dev" in version:
+                version += " (with --enable-dev flag only)"
+            versions.append(version)
         versions.sort()
-        raise ValidationException("'cwlVersion' not valid. Supported CWL versions are: \n{}".format("\n".join(versions)))
-
-    if workflowobj["cwlVersion"] == "draft-2":
-        workflowobj = cast(CommentedMap, cmap(update._draft2toDraft3dev1(
-            workflowobj, document_loader, uri, update_steps=False)))
-        if "@graph" in workflowobj:
-            workflowobj["$graph"] = workflowobj["@graph"]
-            del workflowobj["@graph"]
+        raise ValidationException("The CWL reference runner no longer supports pre CWL v1.0 documents. "
+                                  "Supported versions are: \n{}".format("\n".join(versions)))
 
     (sch_document_loader, avsc_names) = \
         process.get_schema(workflowobj["cwlVersion"])[:2]
@@ -260,8 +259,6 @@ def validate_document(document_loader,  # type: Loader
         raise ValidationException("Workflow must be a dict or list.")
 
     if not new_metadata:
-        if not isinstance(processobj, dict):
-            raise ValidationException("Draft-2 workflows must be a dict.")
         new_metadata = cast(CommentedMap, cmap(
             {"$namespaces": processobj.get("$namespaces", {}),
              "$schemas": processobj.get("$schemas", []),
