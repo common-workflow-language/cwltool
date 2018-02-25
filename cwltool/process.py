@@ -256,8 +256,8 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access, compute_checksum):
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -299,8 +299,8 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         return f
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
-
-    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+    if compute_checksum:
+        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,

@@ -21,7 +21,7 @@ import six
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
-from . import draft2tool, workflow
+from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, DEFAULT_TMP_PREFIX
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
@@ -419,7 +419,7 @@ def main(argsl=None,  # type: List[str]
                 arg_parser().print_help()
                 return 1
         if args.relax_path_checks:
-            draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
+            command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
 
         if args.ga4gh_tool_registries:
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries

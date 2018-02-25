@@ -217,6 +217,9 @@ class Builder(object):
 
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
+        if prefix is None and not sep:
+            with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
+                raise WorkflowException("'separate' option can not be specified without prefix")
 
         l = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
@@ -249,8 +252,8 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True, recursive=False):
-        # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False, strip_whitespace=True):
+        # type: (Union[Dict[Text, Text], Text], Any, bool, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
                 return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
@@ -265,4 +268,5 @@ class Builder(object):
                                   timeout=self.timeout,
                                   debug=self.debug,
                                   js_console=self.js_console,
-                                  force_docker_pull=self.force_docker_pull)
+                                  force_docker_pull=self.force_docker_pull,
+                                  strip_whitespace=strip_whitespace)
