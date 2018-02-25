@@ -45,6 +45,7 @@ from .utils import onWindows, windows_default_container_id
 
 _logger = logging.getLogger("cwltool")
 
+
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
                         **kwargs  # type: Any
