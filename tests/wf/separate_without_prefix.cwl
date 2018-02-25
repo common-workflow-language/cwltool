@@ -1,16 +1,22 @@
-#!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
+baseCommand: echo
+
 inputs:
-  - id: inp
+  src:
     type: string
-    inputBinding: {}
+    default:
+      string
+    inputBinding:
+      position: 1
+      separate: false
+
+stdout: output.txt
+
 outputs:
-  - id: out
+  output:
     type: string
     outputBinding:
-      glob: out.txt
+      glob: output.txt
       loadContents: true
       outputEval: $(self[0].contents)
-baseCommand: echo
-stdout: out.txt

@@ -173,9 +173,10 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=Fals
 
 def interpolate(scan, rootvars,
                 timeout=None, fullJS=None, jslib="", force_docker_pull=False,
-                debug=False, js_console=False):
-    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool, bool) -> JSON
-    scan = scan.strip()
+                debug=False, js_console=False, strip_whitespace=True):
+    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool, bool, bool) -> JSON
+    if strip_whitespace:
+        scan = scan.strip()
     parts = []
     w = scanner(scan)
     while w:
@@ -185,7 +186,7 @@ def interpolate(scan, rootvars,
             e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, fullJS=fullJS,
                           timeout=timeout, force_docker_pull=force_docker_pull,
                           debug=debug, js_console=js_console)
-            if w[0] == 0 and w[1] == len(scan):
+            if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
             leaf = json.dumps(e, sort_keys=True)
             if leaf[0] == '"':
@@ -202,8 +203,9 @@ def interpolate(scan, rootvars,
 
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
-            context=None, pull_image=True, timeout=None, force_docker_pull=False, debug=False, js_console=False):
-    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool, bool) -> Any
+            context=None, pull_image=True, timeout=None, force_docker_pull=False,
+            debug=False, js_console=False, strip_whitespace=True):
+    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool, bool, bool) -> Any
 
     runtime = copy.copy(resources)
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
@@ -231,7 +233,8 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                                jslib=jslib,
                                force_docker_pull=force_docker_pull,
                                debug=debug,
-                               js_console=js_console)
+                               js_console=js_console,
+                               strip_whitespace=strip_whitespace)
 
         except Exception as e:
             raise WorkflowException("Expression evaluation error:\n%s" % e)

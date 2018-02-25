@@ -256,8 +256,8 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access, compute_checksum):
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -299,8 +299,8 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         return f
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
-
-    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+    if compute_checksum:
+        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,
@@ -401,7 +401,7 @@ def fillInDefaults(inputs, job):
             elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
                 job[fieldname] = None
             else:
-                raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
+                raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -506,7 +506,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(u"Missing 'type' in "
+                            "parameter '%s'" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -522,7 +523,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
@@ -530,7 +532,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.outputs_record_schema, indent=4)))
 
