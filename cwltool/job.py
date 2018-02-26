@@ -12,26 +12,22 @@ import stat
 import subprocess
 import sys
 import tempfile
-<<<<<<< HEAD
 import ipdb
 import prov.model as prov
-=======
 from abc import ABCMeta, abstractmethod
->>>>>>> origin/master
 from io import open
 from threading import Lock
 
 import shellescape
-<<<<<<< HEAD
+
 import time
 import datetime
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from . import docker
-=======
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Union, cast)
 
->>>>>>> origin/master
+
 from .builder import Builder
 from .errors import WorkflowException
 from .pathmapper import PathMapper
@@ -359,63 +355,19 @@ class ContainerCommandLineJob(JobBase):
         # type: (Dict[Text, Text], bool, bool, bool) -> Text
         pass
 
-<<<<<<< HEAD
-        host_outdir = self.outdir
-        container_outdir = self.builder.outdir
-        for src, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            if vol.target.startswith(container_outdir+"/"):
-                host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir)+1:])
-            else:
-                host_outdir_tgt = None
-            if vol.type in ("File", "Directory"):
-                if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--volume=%s:%s:ro" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
 
-            elif vol.type == "WritableFile":
-                if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
-                else:
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                    ensure_writable(host_outdir_tgt)
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
-                    os.makedirs(vol.target, 0o0755)
-                else:
-                    if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(vol.target)))
-                    else:
-                        shutil.copytree(vol.resolved, host_outdir_tgt)
-                        ensure_writable(host_outdir_tgt)
-            elif vol.type == "CreateFile":
-                if host_outdir_tgt:
-                    with open(host_outdir_tgt, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                else:
-                    fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
-                    with os.fdopen(fd, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:rw" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
-
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None, reference_locations=None, pull_image=True, rm_container=True,
-            rm_tmpdir=True, move_outputs="move", **kwargs):
-        #ipdb.set_trace()
         # type: (bool, bool, bool, Text, **Any) -> None
-=======
     @abstractmethod
     def create_runtime(self, env, rm_container, record_container_id, cidfile_dir,
                        cidfile_prefix, **kwargs):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
         pass
 
-    def run(self, pull_image=True, rm_container=True,
+    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,
+            reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
-            cidfile_prefix="",
-            rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
->>>>>>> origin/master
-
+            cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
+            
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         img_id = None
@@ -544,12 +496,7 @@ def _job_popen(
         )
 
         with open(os.path.join(job_dir, "job.json"), "wb") as f:
-<<<<<<< HEAD
-            json.dump(job_description, f)
-
-=======
             json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False)  # type: ignore
->>>>>>> origin/master
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:

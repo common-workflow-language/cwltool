@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 from __future__ import absolute_import
-<<<<<<< HEAD
 import subprocess
-=======
 from __future__ import print_function
 
->>>>>>> origin/master
 import argparse
 import collections
 import functools
@@ -17,7 +14,6 @@ import time
 import ipdb
 from time import gmtime, strftime
 import sys
-<<<<<<< HEAD
 import tempfile
 import prov.model as prov
 import uuid
@@ -28,13 +24,11 @@ import pkg_resources  # part of setuptools
 import requests
 import six
 import string
-=======
 import warnings
 from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
                     Union, cast, Mapping, MutableMapping, Iterable)
 
 import pkg_resources  # part of setuptools
->>>>>>> origin/master
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
 import six
@@ -43,14 +37,12 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 from schema_salad.sourceline import SourceLine
 
-<<<<<<< HEAD
 from . import draft2tool
 from . import workflow
 from .builder import Builder
-=======
+
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, DEFAULT_TMP_PREFIX
->>>>>>> origin/master
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import SingleJobExecutor, MultithreadedJobExecutor
@@ -60,17 +52,14 @@ from .load_tool import (FetcherConstructorType, resolve_tool_uri,
 from .loghandler import defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
-<<<<<<< HEAD
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
 from .provenance import create_ro
 from .process import (Process, cleanIntermediate, normalizeFilesDirs,
                       relocateOutputs, scandeps, shortname, use_custom_schema,
-=======
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
 from .process import (Process, normalizeFilesDirs,
                       scandeps, shortname, use_custom_schema,
->>>>>>> origin/master
                       use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import (DependenciesConfiguration,
@@ -78,7 +67,6 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
-<<<<<<< HEAD
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
@@ -95,213 +83,20 @@ engineUUID="engine:"+str(uuid.uuid4())
 #defining workflow level run ID
 WorkflowRunUUID=str(uuid.uuid4())
 WorkflowRunID="run:"+WorkflowRunUUID
-
-
-def arg_parser():  # type: () -> argparse.ArgumentParser
-    parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
-    parser.add_argument("--basedir", type=Text)
-    parser.add_argument("--outdir", type=Text, default=os.path.abspath('.'),
-                        help="Output directory, default current directory")
-
-    parser.add_argument("--no-container", action="store_false", default=True,
-                        help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
-                        dest="use_container")
-
-    parser.add_argument("--preserve-environment", type=Text, action="append",
-                        help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
-                        metavar="ENVVAR",
-                        default=["PATH"],
-                        dest="preserve_environment")
-
-    parser.add_argument("--preserve-entire-environment", action="store_true",
-                        help="Preserve entire parent environment when running CommandLineTools.",
-                        default=False,
-                        dest="preserve_entire_environment")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--rm-container", action="store_true", default=True,
-                         help="Delete Docker container used by jobs after they exit (default)",
-                         dest="rm_container")
-
-    exgroup.add_argument("--leave-container", action="store_false",
-                         default=True, help="Do not delete Docker container used by jobs after they exit",
-                         dest="rm_container")
-
-    parser.add_argument("--tmpdir-prefix", type=Text,
-                        help="Path prefix for temporary directories",
-                        default="tmp")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--tmp-outdir-prefix", type=Text,
-                         help="Path prefix for intermediate output directories",
-                         default="tmp")
-
-    exgroup.add_argument("--cachedir", type=Text, default="",
-                         help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
-                         help="Delete intermediate temporary directories (default)",
-                         dest="rm_tmpdir")
-
-    exgroup.add_argument("--leave-tmpdir", action="store_false",
-                         default=True, help="Do not delete intermediate temporary directories",
-                         dest="rm_tmpdir")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--move-outputs", action="store_const", const="move", default="move",
-                         help="Move output files to the workflow output directory and delete intermediate output directories (default).",
-                         dest="move_outputs")
-
-    exgroup.add_argument("--leave-outputs", action="store_const", const="leave", default="move",
-                         help="Leave output files in intermediate output directories.",
-                         dest="move_outputs")
-
-    exgroup.add_argument("--copy-outputs", action="store_const", const="copy", default="move",
-                         help="Copy output files to the workflow output directory, don't delete intermediate output directories.",
-                         dest="move_outputs")
-
-    parser.add_argument("--provenance",
-                        help="Save provenance to specified folder as a Research Object that capture and aggregate workflow execution and data products.",
-                        type=Text)
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--enable-pull", default=True, action="store_true",
-                         help="Try to pull Docker images", dest="enable_pull")
-
-    exgroup.add_argument("--disable-pull", default=True, action="store_false",
-                         help="Do not try to pull Docker images", dest="enable_pull")
-
-    parser.add_argument("--rdf-serializer",
-                        help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",
-                        default="turtle")
-
-    parser.add_argument("--eval-timeout",
-                        help="Time to wait for a Javascript expression to evaluate before giving an error, default 20s.",
-                        type=float,
-                        default=20)
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--print-rdf", action="store_true",
-                         help="Print corresponding RDF graph for workflow and exit")
-    exgroup.add_argument("--print-dot", action="store_true",
-                         help="Print workflow visualization in graphviz format and exit")
-    exgroup.add_argument("--print-pre", action="store_true", help="Print CWL document after preprocessing.")
-    exgroup.add_argument("--print-deps", action="store_true", help="Print CWL document dependencies.")
-    exgroup.add_argument("--print-input-deps", action="store_true", help="Print input object document dependencies.")
-    exgroup.add_argument("--pack", action="store_true", help="Combine components into single document and print.")
-    exgroup.add_argument("--version", action="store_true", help="Print version and exit")
-    exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
-    exgroup.add_argument("--print-supported-versions", action="store_true", help="Print supported CWL specs.")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--strict", action="store_true",
-                         help="Strict validation (unrecognized or out of place fields are error)",
-                         default=True, dest="strict")
-    exgroup.add_argument("--non-strict", action="store_false", help="Lenient validation (ignore unrecognized fields)",
-                         default=True, dest="strict")
-
-    parser.add_argument("--skip-schemas", action="store_true",
-            help="Skip loading of schemas", default=True, dest="skip_schemas")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--verbose", action="store_true", help="Default logging")
-    exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
-    exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
-
-    parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
-
-    dependency_resolvers_configuration_help = argparse.SUPPRESS
-    dependencies_directory_help = argparse.SUPPRESS
-    use_biocontainers_help = argparse.SUPPRESS
-    conda_dependencies = argparse.SUPPRESS
-
-    if SOFTWARE_REQUIREMENTS_ENABLED:
-        dependency_resolvers_configuration_help = "Dependency resolver configuration file describing how to adapt 'SoftwareRequirement' packages to current system."
-        dependencies_directory_help = "Defaut root directory used by dependency resolvers configuration."
-        use_biocontainers_help = "Use biocontainers for tools without an explicitly annotated Docker container."
-        conda_dependencies = "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
-
-    parser.add_argument("--beta-dependency-resolvers-configuration", default=None, help=dependency_resolvers_configuration_help)
-    parser.add_argument("--beta-dependencies-directory", default=None, help=dependencies_directory_help)
-    parser.add_argument("--beta-use-biocontainers", default=None, help=use_biocontainers_help, action="store_true")
-    parser.add_argument("--beta-conda-dependencies", default=None, help=conda_dependencies, action="store_true")
-
-    parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
-
-    parser.add_argument("--relative-deps", choices=['primary', 'cwd'],
-                        default="primary", help="When using --print-deps, print paths "
-                                                "relative to primary file or current working directory.")
-
-    parser.add_argument("--enable-dev", action="store_true",
-                        help="Enable loading and running development versions "
-                             "of CWL spec.", default=False)
-
-    parser.add_argument("--enable-ext", action="store_true",
-                        help="Enable loading and running cwltool extensions "
-                             "to CWL spec.", default=False)
-
-    parser.add_argument("--default-container",
-                        help="Specify a default docker container that will be used if the workflow fails to specify one.")
-    parser.add_argument("--no-match-user", action="store_true",
-                        help="Disable passing the current uid to 'docker run --user`")
-    parser.add_argument("--disable-net", action="store_true",
-                        help="Use docker's default networking for containers;"
-                             " the default is to enable networking.")
-    parser.add_argument("--custom-net", type=Text,
-                        help="Will be passed to `docker run` as the '--net' "
-                             "parameter. Implies '--enable-net'.")
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--enable-ga4gh-tool-registry", action="store_true", help="Enable resolution using GA4GH tool registry API",
-                        dest="enable_ga4gh_tool_registry", default=True)
-    exgroup.add_argument("--disable-ga4gh-tool-registry", action="store_false", help="Disable resolution using GA4GH tool registry API",
-                        dest="enable_ga4gh_tool_registry", default=True)
-
-    parser.add_argument("--add-ga4gh-tool-registry", action="append", help="Add a GA4GH tool registry endpoint to use for resolution, default %s" % ga4gh_tool_registries,
-                        dest="ga4gh_tool_registries", default=[])
-
-    parser.add_argument("--on-error",
-                        help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
-                             "Default is 'stop'.", default="stop", choices=("stop", "continue"))
-
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--compute-checksum", action="store_true", default=True,
-                         help="Compute checksum of contents while collecting outputs",
-                         dest="compute_checksum")
-    exgroup.add_argument("--no-compute-checksum", action="store_false",
-                         help="Do not compute checksum of contents while collecting outputs",
-                         dest="compute_checksum")
-
-    parser.add_argument("--relax-path-checks", action="store_true",
-                        default=False, help="Relax requirements on path names to permit "
-                        "spaces and hash characters.", dest="relax_path_checks")
-    exgroup.add_argument("--make-template", action="store_true",
-                         help="Generate a template input object")
-
-    parser.add_argument("--force-docker-pull", action="store_true",
-                        default=False, help="Pull latest docker image even if"
-                                            " it is locally present", dest="force_docker_pull")
-    parser.add_argument("--no-read-only", action="store_true",
-                        default=False, help="Do not set root directoy in the"
-                                            " container as read-only", dest="no_read_only")
-    parser.add_argument("workflow", type=Text, nargs="?", default=None)
-    parser.add_argument("job_order", nargs=argparse.REMAINDER)
-
-    return parser
-#ipdb.set_trace()
 #for retrospective details. This is where we should make all the changes and capture provenance.
-=======
+
 
 _logger = logging.getLogger("cwltool")
 
-
->>>>>>> origin/master
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
                         **kwargs # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
-<<<<<<< HEAD
+    warnings.warn("Use of single_job_executor function is deprecated. "
+                  "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
+    executor = SingleJobExecutor()
+    return executor(t, job_order_object, **kwargs)
     final_output = []
     final_status = []
 
@@ -416,41 +211,6 @@ def single_job_executor(t,  # type: Process
     else:
         return (None, "permanentFail")
 
-
-
-class FSAction(argparse.Action):
-    objclass = None  # type: Text
-
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[Text], Text, Any, **Any) -> None
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(FSAction, self).__init__(option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
-        setattr(namespace,
-                self.dest,  # type: ignore
-                {"class": self.objclass,
-                 "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
-
-
-class FSAppendAction(argparse.Action):
-    objclass = None  # type: Text
-
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[Text], Text, Any, **Any) -> None
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
-=======
-    warnings.warn("Use of single_job_executor function is deprecated. "
-                  "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
-    executor = SingleJobExecutor()
-    return executor(t, job_order_object, **kwargs)
->>>>>>> origin/master
-
-
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
     defaults = { 'null': 'null',
@@ -502,13 +262,6 @@ def generate_input_template(tool):
         template[name] = generate_example_input(inptype)
     return template
 
-
-<<<<<<< HEAD
-
-def load_job_order(args, t, stdin, print_input_deps=False, provArgs= None, relative_deps=False,
-                   stdout=sys.stdout, make_fs_access=None, fetcher_constructor=None):
-    # type: (argparse.Namespace, Process, IO[Any], bool, bool, IO[Any], Callable[[Text], StdFsAccess], Callable[[Dict[Text, Text], requests.sessions.Session], Fetcher]) -> Union[int, Tuple[Dict[Text, Any], Text]]
-=======
 def load_job_order(args,   # type: argparse.Namespace
                    stdin,  # type: IO[Any]
                    fetcher_constructor,  # Fetcher
@@ -516,7 +269,6 @@ def load_job_order(args,   # type: argparse.Namespace
                    tool_file_uri  # type: Text
 ):
     # type: (...) -> Tuple[Dict[Text, Any], Text, Loader]
->>>>>>> origin/master
 
     job_order_object = None
 
@@ -550,7 +302,8 @@ def load_job_order(args,   # type: argparse.Namespace
 def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
                    args,  # type: argparse.Namespace
                    t,     # type: Process
-                   print_input_deps=False,  # type: bool
+                   print_input_deps=False,
+                   provArgs= None,  # type: bool
                    relative_deps=False,     # type: bool
                    stdout=sys.stdout,       # type: IO[Any]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
@@ -608,14 +361,10 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
-<<<<<<< HEAD
         return 1
+        exit(1)
     if provArgs:
         inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "", basedir=file_uri(input_basedir + "/"))
-=======
-        exit(1)
-
->>>>>>> origin/master
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=file_uri(str(input_basedir) + "/"))
@@ -655,15 +404,11 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
         del job_order_object["cwl:tool"]
     if "id" in job_order_object:
         del job_order_object["id"]
-<<<<<<< HEAD
     if provArgs:
-        return (job_order_object, input_basedir, loader, inputforProv)
+        return (job_order_object, inputforProv)
     else:
-        return (job_order_object, input_basedir, loader)
-=======
+        return job_order_object
 
-    return job_order_object
->>>>>>> origin/master
 
 
 def makeRelative(base, ob):
@@ -816,14 +561,11 @@ def main(argsl=None,  # type: List[str]
                      'enable_ga4gh_tool_registry': False,
                      'ga4gh_tool_registries': [],
                      'find_default_container': None,
-<<<<<<< HEAD
                      'make_template': False,
                      'provenance': None,
                      'ro': None
-=======
-                                   'make_template': False,
-                                   'overrides': None
->>>>>>> origin/master
+                     'make_template': False,
+                     'overrides': None
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
@@ -871,11 +613,9 @@ def main(argsl=None,  # type: List[str]
             res.close()
         else:
             use_standard_schema("v1.0")
-<<<<<<< HEAD
         #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
             args.ro = create_ro(tmpPrefix=args.tmpdir_prefix)
-=======
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
@@ -883,7 +623,6 @@ def main(argsl=None,  # type: List[str]
 
         overrides = []  # type: List[Dict[Text, Any]]
 
->>>>>>> origin/master
         try:
             job_order_object, input_basedir, jobloader = load_job_order(args,
                                                                         stdin,
@@ -910,9 +649,8 @@ def main(argsl=None,  # type: List[str]
                                     enable_dev=args.enable_dev, strict=args.strict,
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
-<<<<<<< HEAD
-                                    skip_schemas=args.skip_schemas)
-
+                                    skip_schemas=args.skip_schemas,
+                                    overrides=overrides)
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
@@ -921,11 +659,7 @@ def main(argsl=None,  # type: List[str]
                 #extract path to include in PROV document
                 packedWorkflowpath_without_main=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]
                 packedWorkflowPath=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]+"#main"
-=======
-                                    skip_schemas=args.skip_schemas,
-                                    overrides=overrides)
 
->>>>>>> origin/master
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
                 return 0
@@ -987,11 +721,6 @@ def main(argsl=None,  # type: List[str]
 
         if isinstance(tool, int):
             return tool
-
-<<<<<<< HEAD
-        for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir", "provenance"):
-            if getattr(args, dirprefix) and getattr(args, dirprefix) != 'tmp':
-=======
         # If on MacOS platform, TMPDIR must be set to be under one of the shared volumes in Docker for Mac
         # More info: https://dockstore.org/docs/faq
         if sys.platform == "darwin":
@@ -1002,7 +731,6 @@ def main(argsl=None,  # type: List[str]
 
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
             if getattr(args, dirprefix) and getattr(args, dirprefix) != DEFAULT_TMP_PREFIX:
->>>>>>> origin/master
                 sl = "/" if getattr(args, dirprefix).endswith("/") or dirprefix == "cachedir" else ""
                 setattr(args, dirprefix,
                         os.path.abspath(getattr(args, dirprefix)) + sl)
@@ -1019,29 +747,15 @@ def main(argsl=None,  # type: List[str]
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         try:
-<<<<<<< HEAD
-
             if args.provenance and args.ro:
                 generate_provDoc()
 
-            if job_order_object is None:
-                    job_order_object = load_job_order(args, tool, stdin,
-                                                      print_input_deps=args.print_input_deps,
-                                                      relative_deps=args.relative_deps,
-                                                      provArgs=args.ro,
-                                                      stdout=stdout,
-                                                      make_fs_access=make_fs_access,
-                                                      fetcher_constructor=fetcher_constructor)
-
-        except SystemExit as e:
-            return e.code
-
-=======
             job_order_object = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
                                               make_fs_access=make_fs_access,
+                                              provArgs=args.ro,
                                               loader=jobloader,
                                               input_basedir=input_basedir)
         except SystemExit as e:
@@ -1052,7 +766,6 @@ def main(argsl=None,  # type: List[str]
                 executor = MultithreadedJobExecutor()
             else:
                 executor = SingleJobExecutor()
->>>>>>> origin/master
 
         if isinstance(job_order_object, int):
             return job_order_object
