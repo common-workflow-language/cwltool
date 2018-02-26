@@ -283,7 +283,7 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
     if provArgs:
         return (job_order_object, inputforProv)
     else:
-        return job_order_object
+        return (job_order_object, None)
 
 
 
