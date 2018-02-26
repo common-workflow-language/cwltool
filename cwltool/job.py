@@ -23,7 +23,6 @@ import shellescape
 import time
 import datetime
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
-from . import docker
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Union, cast)
 
@@ -367,7 +366,7 @@ class ContainerCommandLineJob(JobBase):
             reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
-            
+
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         img_id = None

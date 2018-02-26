@@ -120,6 +120,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         type=float,
                         default=20)
 
+    parser.add_argument("--provenance",
+                        help="Save provenance to specified folder as a Research Object that capture and aggregate workflow execution and data products.",
+                        type=Text)
+
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
                          help="Print corresponding RDF graph for workflow and exit")

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from __future__ import absolute_import
-import subprocess
 from __future__ import print_function
 
 import argparse
@@ -9,25 +8,21 @@ import functools
 import json
 import logging
 import os
+import sys
+import warnings
+from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
+                    Union, cast, Mapping, MutableMapping, Iterable)
 import copy
 import time
 import ipdb
 from time import gmtime, strftime
-import sys
 import tempfile
 import prov.model as prov
 import uuid
 import datetime
-from typing import (IO, Any, AnyStr, Callable, Dict, List, Sequence, Text, Tuple,
-                    Union, cast)
-import pkg_resources  # part of setuptools
-import requests
-import six
-import string
-import warnings
-from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
-                    Union, cast, Mapping, MutableMapping, Iterable)
 
+import requests
+import string
 import pkg_resources  # part of setuptools
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -37,8 +32,6 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 from schema_salad.sourceline import SourceLine
 
-from . import draft2tool
-from . import workflow
 from .builder import Builder
 
 from . import command_line_tool, workflow
@@ -55,8 +48,6 @@ from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
 from .provenance import create_ro
-from .process import (Process, cleanIntermediate, normalizeFilesDirs,
-                      relocateOutputs, scandeps, shortname, use_custom_schema,
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
 from .process import (Process, normalizeFilesDirs,
                       scandeps, shortname, use_custom_schema,
@@ -85,131 +76,16 @@ WorkflowRunUUID=str(uuid.uuid4())
 WorkflowRunID="run:"+WorkflowRunUUID
 #for retrospective details. This is where we should make all the changes and capture provenance.
 
-
-_logger = logging.getLogger("cwltool")
-
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
+                        provDoc=document,
                         **kwargs # type: Any
                         ):
-    # type: (...) -> Tuple[Dict[Text, Any], Text]
+    # type: (...) -> Tuple[Dict[Text, Any], Text
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
-    return executor(t, job_order_object, **kwargs)
-    final_output = []
-    final_status = []
-
-    reference_locations={}
-
-    ProvActivity_dict={}
-    def output_callback(out, processStatus):
-        final_status.append(processStatus)
-        final_output.append(out)
-
-    if "basedir" not in kwargs:
-        raise WorkflowException("Must provide 'basedir' in kwargs")
-    output_dirs = set()
-    finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
-    kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
-        "tmp_outdir_prefix") else tempfile.mkdtemp()
-    output_dirs.add(kwargs["outdir"])
-
-    kwargs["mutation_manager"] = MutationManager()
-#capture requirements in PROV document.
-    jobReqs = None
-    if "cwl:requirements" in job_order_object:
-        jobReqs = job_order_object["cwl:requirements"]
-    elif ("cwl:defaults" in t.metadata and "cwl:requirements" in t.metadata["cwl:defaults"]):
-        jobReqs = t.metadata["cwl:defaults"]["cwl:requirements"]
-    if jobReqs:
-        for req in jobReqs:
-            t.requirements.append(req)
-    jobiter = t.job(job_order_object,
-                    output_callback,
-                    **kwargs)
-    try:
-        for r in jobiter: #its each step of the workflow
-            ro = kwargs.get("ro")
-            if r: #for every step, a uuid as ProcessRunID is generated for provenance record
-                builder = kwargs.get("builder", None)  # type: Builder
-                if builder is not None:
-                    r.builder = builder
-                if r.outdir:
-                    output_dirs.add(r.outdir)
-                if ro:
-                    #here we are recording provenance of each subprocess of the workflow
-                    if ".cwl" in getattr(r, "name"): #for prospective provenance
-                        steps=[]
-                        for s in r.steps:
-                            stepname="wf:main/"+str(s.name)[5:]
-                            steps.append(stepname)
-                            document.entity(stepname, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
-                        #create prospective provenance recording for the workflow
-                        document.entity("wf:main", {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":str(steps),  "prov:label":"Prospective provenance"})
-                        customised_job={} #new job object for RO
-                        for e, i in enumerate(r.tool["inputs"]):
-                            with SourceLine(r.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
-                                iid = shortname(i["id"])
-                                if iid in job_order_object:
-                                    customised_job[iid]= copy.deepcopy(job_order_object[iid]) #add the input element in dictionary for provenance
-                                elif "default" in i:
-                                    customised_job[iid]= copy.deepcopy(i["default"]) #add the defualt elements in the dictionary for provenance
-                                else:
-                                    raise WorkflowException(
-                                        u"Input '%s' not in input object and does not have a default value." % (i["id"]))
-                        ##create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
-                        relativised_input_object=ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
-                        for key, value in relativised_input_object.items():
-                            strvalue=str(value)
-                            if "data" in strvalue:
-                                shahash="data:"+value.split("/")[-1]
-                                rel_path=value[3:]
-                                reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
-                                document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
-                                #document.specializationOf(rel_path, shahash) NOTE:THIS NEEDS FIXING as it required both params as entities.
-                            else:
-                                ArtefactValue="data:"+strvalue
-                                document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
-                if ".cwl" not in getattr(r, "name"):
-                    if ro:
-                        ProcessRunID="run:"+str(uuid.uuid4())
-                        #each subprocess is defined as an activity()
-                        provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
-                        ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: "wfprov:ProcessRun", "prov:label": provLabel})
-                        if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
-                            document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
-                        document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
-                        #this is where you run each step. so start and end time for the step
-                        r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
-                    else:
-                        r.run(**kwargs)
-                    #capture workflow level outputs in the prov doc
-                    if ro:
-                        for eachOutput in final_output:
-                            for key, value in eachOutput.items():
-                                outputProvRole="wf:main"+"/"+str(key)
-                                output_checksum="data:"+str(value["checksum"][5:])
-                                document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
-                                document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
-            else:
-                _logger.error("Workflow cannot make any more progress.")
-                break
-    except WorkflowException:
-        raise
-    except Exception as e:
-        _logger.exception("Got workflow error")
-        raise WorkflowException(Text(e))
-    if final_output and final_output[0] and finaloutdir:
-        final_output[0] = relocateOutputs(final_output[0], finaloutdir,
-                                          output_dirs, kwargs.get("move_outputs"),
-                                          kwargs["make_fs_access"](""))
-    if kwargs.get("rm_tmpdir"):
-        cleanIntermediate(output_dirs)
-    if final_output and final_status:
-        return (final_output[0], final_status[0])
-    else:
-        return (None, "permanentFail")
+    return executor(t, job_order_object, document, **kwargs)
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -364,7 +240,8 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
         return 1
         exit(1)
     if provArgs:
-        inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "", basedir=file_uri(input_basedir + "/"))
+        inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "",
+                              basedir=file_uri(input_basedir + "/"))
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=file_uri(str(input_basedir) + "/"))
@@ -563,7 +440,7 @@ def main(argsl=None,  # type: List[str]
                      'find_default_container': None,
                      'make_template': False,
                      'provenance': None,
-                     'ro': None
+                     'ro': None,
                      'make_template': False,
                      'overrides': None
         }):
@@ -644,6 +521,7 @@ def main(argsl=None,  # type: List[str]
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
                 return 0
+
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
@@ -774,10 +652,14 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', input_basedir)
             del args.workflow
             del args.job_order
-            (out, status) = executor(tool, job_order_object,
+            #ipdb.set_trace()
+            (out, status) = executor(tool, job_order_object[0],
                                      logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
+                                     provDoc=document,
+                                     engUUID=engineUUID,
+                                     WorkflowID=WorkflowRunID,
                                      make_fs_access=make_fs_access,
                                      **vars(args))
 
@@ -843,7 +725,8 @@ def main(argsl=None,  # type: List[str]
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
             args.ro.snapshot_generation(ProvDependencies[1])
-            args.ro.snapshot_generation(job_order_object[3][1])
+            print ("the new job order object is: !!!", job_order_object[0])
+            args.ro.snapshot_generation(job_order_object[0])
 
             #adding prov profile and graphs to RO
             args.ro.add_provProfile(document)

@@ -11,13 +11,9 @@ import ipdb
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
-
-<<<<<<< HEAD
 from .provenance import *
 from . import draft2tool, expression
-=======
 from . import command_line_tool, expression
->>>>>>> origin/master
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
