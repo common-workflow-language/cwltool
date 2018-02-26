@@ -57,6 +57,12 @@ setup(name='cwltool',
           'typing >= 3.5.3',
           'six >= 1.8.0',
           'prov == 1.5.1'
+          'pathlib == 1.0.1'
+          'graphviz == 0.8.2'
+          'uuid == 1.30'
+          'pygraphviz == 1.3.1'
+          'Matplotlib == 2.1.2'
+          'pydot == 1.2.4'
       ],
       extras_require={
           'deps': ["galaxy-lib >= 17.09.3"]

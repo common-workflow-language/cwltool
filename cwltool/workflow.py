@@ -7,7 +7,6 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
-import ipdb
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap

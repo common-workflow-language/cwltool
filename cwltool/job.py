@@ -12,7 +12,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import ipdb
 import prov.model as prov
 from abc import ABCMeta, abstractmethod
 from io import open

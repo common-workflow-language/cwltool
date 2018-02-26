@@ -14,7 +14,6 @@ from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
                     Union, cast, Mapping, MutableMapping, Iterable)
 import copy
 import time
-import ipdb
 from time import gmtime, strftime
 import tempfile
 import prov.model as prov
@@ -370,7 +369,6 @@ def supportedCWLversions(enable_dev):
         versions = list(UPDATES)
     versions.sort()
     return versions
-#ipdb.set_trace()
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
          executor=None,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
@@ -400,7 +398,6 @@ def main(argsl=None,  # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
-        #ipdb.set_trace()
         # If On windows platform, A default Docker Container is Used if not explicitely provided by user
         if onWindows() and not args.default_container:
             # This docker image is a minimal alpine image with bash installed(size 6 mb). source: https://github.com/frol/docker-alpine-bash
@@ -652,7 +649,6 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', input_basedir)
             del args.workflow
             del args.job_order
-            #ipdb.set_trace()
             (out, status) = executor(tool, job_order_object[0],
                                      logger=_logger,
                                      makeTool=makeTool,
@@ -725,7 +721,6 @@ def main(argsl=None,  # type: List[str]
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
             args.ro.snapshot_generation(ProvDependencies[1])
-            print ("the new job order object is: !!!", job_order_object[0])
             args.ro.snapshot_generation(job_order_object[0])
 
             #adding prov profile and graphs to RO
