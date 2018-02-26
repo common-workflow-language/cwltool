@@ -1,22 +1,20 @@
 digraph  {
-"entity(wf";
-"entity(data";
-"entity(data";
-"entity(wf";
+"activity(run";
 "entity(data";
 "entity(wf";
-"activity(run";
-"activity(run";
-"activity(run";
 "entity(data";
 "agent(engine";
-"entity(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, [prov:type=\"wfprov:Artifact\", prov:type=\"wfprov:SubProcessArtifact\"])" -> "activity(run:14912272-a02b-4a21-8439-2f8174b5d77f, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])"  [relation="wasGeneratedBy(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, run:14912272-a02b-4a21-8439-2f8174b5d77f, 2018-02-26T12:46:40.026444, [prov:role=\"wf:main/sorted/output\"])", key=0];
-"entity(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, [prov:type=\"wfprov:Artifact\", prov:type=\"wfprov:SubProcessArtifact\"])" -> "activity(run:91f3d453-fe63-4037-8c61-0b8410118062, 2018-02-26T12:46:35.728443, -, [prov:type=\"wfprov:WorkflowRun\", prov:label=\"Run of workflow/packed.cwl#main\"])"  [relation="wasGeneratedBy(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, run:91f3d453-fe63-4037-8c61-0b8410118062, 2018-02-26T12:46:40.027724, [prov:role=\"wf:main/output\"])", key=0];
-"entity(data:739ac049095cfad3f9256512bd08eddbfffacf7f, [prov:type=\"wfprov:SubProcessArtifact\"])" -> "activity(run:2200f624-6a64-472c-a8c5-739eea454b4b, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/rev\"])"  [relation="wasGeneratedBy(data:739ac049095cfad3f9256512bd08eddbfffacf7f, run:2200f624-6a64-472c-a8c5-739eea454b4b, 2018-02-26T12:46:38.234481, [prov:role=\"wf:main/rev/output\"])", key=0];
-"activity(run:91f3d453-fe63-4037-8c61-0b8410118062, 2018-02-26T12:46:35.728443, -, [prov:type=\"wfprov:WorkflowRun\", prov:label=\"Run of workflow/packed.cwl#main\"])" -> "agent(engine:37161fab-59e4-4e38-a376-21c0436111ce, [prov:type=\"wfprov:WorkflowEngine\", prov:type=\"prov:SoftwareAgent\", prov:label=\"cwltool 1.0.20180220121300\"])"  [relation="wasAssociatedWith(run:91f3d453-fe63-4037-8c61-0b8410118062, engine:37161fab-59e4-4e38-a376-21c0436111ce, wf:main)", key=0];
-"activity(run:14912272-a02b-4a21-8439-2f8174b5d77f, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])" -> "entity(data:True, [prov:type=\"wfprov:Artifact\"])"  [relation="used(run:14912272-a02b-4a21-8439-2f8174b5d77f, data:True, 2018-02-26T12:46:38.594981, [prov:role=\"sorted/reverse\"])", key=0];
-"activity(run:14912272-a02b-4a21-8439-2f8174b5d77f, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])" -> "entity(data:739ac049095cfad3f9256512bd08eddbfffacf7f, [prov:type=\"wfprov:SubProcessArtifact\"])"  [relation="used(run:14912272-a02b-4a21-8439-2f8174b5d77f, data:739ac049095cfad3f9256512bd08eddbfffacf7f, 2018-02-26T12:46:38.594599, [prov:role=\"sorted/input\"])", key=0];
-"activity(run:14912272-a02b-4a21-8439-2f8174b5d77f, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])" -> "agent(engine:37161fab-59e4-4e38-a376-21c0436111ce, [prov:type=\"wfprov:WorkflowEngine\", prov:type=\"prov:SoftwareAgent\", prov:label=\"cwltool 1.0.20180220121300\"])"  [relation="wasAssociatedWith(run:14912272-a02b-4a21-8439-2f8174b5d77f, engine:37161fab-59e4-4e38-a376-21c0436111ce, wf:main/sorted)", key=0];
-"activity(run:2200f624-6a64-472c-a8c5-739eea454b4b, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/rev\"])" -> "entity(data:2e3c5b1f762a78df2aba8e8dee9c2dc96ad328a0, [prov:type=\"wfprov:Artifact\"])"  [relation="used(run:2200f624-6a64-472c-a8c5-739eea454b4b, data:2e3c5b1f762a78df2aba8e8dee9c2dc96ad328a0, 2018-02-26T12:46:37.080324, [prov:role=\"rev/input\"])", key=0];
-"activity(run:2200f624-6a64-472c-a8c5-739eea454b4b, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/rev\"])" -> "agent(engine:37161fab-59e4-4e38-a376-21c0436111ce, [prov:type=\"wfprov:WorkflowEngine\", prov:type=\"prov:SoftwareAgent\", prov:label=\"cwltool 1.0.20180220121300\"])"  [relation="wasAssociatedWith(run:2200f624-6a64-472c-a8c5-739eea454b4b, engine:37161fab-59e4-4e38-a376-21c0436111ce, wf:main/rev)", key=0];
+"entity(data";
+"entity(wf";
+"entity(wf";
+"activity(run";
+"entity(data";
+"activity(run";
+"activity(run:6e320b76-0c56-44dd-a4dd-1badcd3e1ce9, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])" -> "entity(data:True, [prov:type=\"wfprov:Artifact\"])"  [relation="used(run:6e320b76-0c56-44dd-a4dd-1badcd3e1ce9, data:True, 2018-02-26T22:00:28.004609, [prov:role=\"sorted/reverse\"])", key=0];
+"activity(run:6e320b76-0c56-44dd-a4dd-1badcd3e1ce9, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])" -> "entity(data:739ac049095cfad3f9256512bd08eddbfffacf7f, [prov:type=\"wfprov:SubProcessArtifact\"])"  [relation="used(run:6e320b76-0c56-44dd-a4dd-1badcd3e1ce9, data:739ac049095cfad3f9256512bd08eddbfffacf7f, 2018-02-26T22:00:28.004312, [prov:role=\"sorted/input\"])", key=0];
+"entity(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, [prov:type=\"wfprov:Artifact\", prov:type=\"wfprov:SubProcessArtifact\"])" -> "activity(run:6e320b76-0c56-44dd-a4dd-1badcd3e1ce9, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/sorted\"])"  [relation="wasGeneratedBy(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, run:6e320b76-0c56-44dd-a4dd-1badcd3e1ce9, 2018-02-26T22:00:29.202076, [prov:role=\"wf:main/sorted/output\"])", key=0];
+"entity(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, [prov:type=\"wfprov:Artifact\", prov:type=\"wfprov:SubProcessArtifact\"])" -> "activity(run:2d7e4e15-3377-4803-b9ff-81bafeeebffc, 2018-02-26T22:00:25.535399, -, [prov:type=\"wfprov:WorkflowRun\", prov:label=\"Run of workflow/packed.cwl#main\"])"  [relation="wasGeneratedBy(data:57072443aa2d62f2ca17cb2f69b9f5184f57ba59, run:2d7e4e15-3377-4803-b9ff-81bafeeebffc, 2018-02-26T22:00:29.203755, [prov:role=\"wf:main/output\"])", key=0];
+"entity(data:739ac049095cfad3f9256512bd08eddbfffacf7f, [prov:type=\"wfprov:SubProcessArtifact\"])" -> "activity(run:9b0b7286-d671-4400-9ec7-68c8c21815d6, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/rev\"])"  [relation="wasGeneratedBy(data:739ac049095cfad3f9256512bd08eddbfffacf7f, run:9b0b7286-d671-4400-9ec7-68c8c21815d6, 2018-02-26T22:00:27.660674, [prov:role=\"wf:main/rev/output\"])", key=0];
+"activity(run:9b0b7286-d671-4400-9ec7-68c8c21815d6, -, -, [prov:type=\"wfprov:ProcessRun\", prov:label=\"Run of workflow/packed.cwl#main/rev\"])" -> "entity(data:2e3c5b1f762a78df2aba8e8dee9c2dc96ad328a0, [prov:type=\"wfprov:Artifact\"])"  [relation="used(run:9b0b7286-d671-4400-9ec7-68c8c21815d6, data:2e3c5b1f762a78df2aba8e8dee9c2dc96ad328a0, 2018-02-26T22:00:26.490292, [prov:role=\"rev/input\"])", key=0];
+"activity(run:2d7e4e15-3377-4803-b9ff-81bafeeebffc, 2018-02-26T22:00:25.535399, -, [prov:type=\"wfprov:WorkflowRun\", prov:label=\"Run of workflow/packed.cwl#main\"])" -> "agent(engine:9c65ea26-2220-485d-a078-3d6871b9960e, [prov:type=\"wfprov:WorkflowEngine\", prov:type=\"prov:SoftwareAgent\", prov:label=\"cwltool 1.0.20180226072605\"])"  [relation="wasAssociatedWith(run:2d7e4e15-3377-4803-b9ff-81bafeeebffc, engine:9c65ea26-2220-485d-a078-3d6871b9960e, wf:main)", key=0];
 }

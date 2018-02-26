@@ -1,1 +1,11 @@
-{"input": {"class": "File", "location": "../data/93/93549453a2a5205ca683d8092e650ed44a4c2226", "size": 24, "basename": "whale.txt", "nameroot": "whale", "nameext": ".txt"}, "reverse_sort": true}
+{
+    "input": {
+        "class": "File", 
+        "location": "../data/2e/2e3c5b1f762a78df2aba8e8dee9c2dc96ad328a0", 
+        "size": 35, 
+        "basename": "hello.txt", 
+        "nameroot": "hello", 
+        "nameext": ".txt"
+    }, 
+    "reverse_sort": true
+}

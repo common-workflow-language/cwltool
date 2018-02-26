@@ -1,7 +1,7 @@
 {
     "cwlVersion": "v1.0", 
     "$schemas": [
-        "file:///Users/farahkhan/Desktop/cwltool/tests/wf/empty.ttl"
+        "file:///Users/farahkhan/Documents/TestProv/cwltool/tests/wf/empty.ttl"
     ], 
     "$graph": [
         {
@@ -19,7 +19,7 @@
                     "doc": "The input file to be processed.", 
                     "default": {
                         "class": "File", 
-                        "location": "file:///Users/farahkhan/Desktop/cwltool/tests/wf/hello.txt"
+                        "location": "file:///Users/farahkhan/Documents/TestProv/cwltool/tests/wf/hello.txt"
                     }, 
                     "id": "#main/input"
                 }, 
