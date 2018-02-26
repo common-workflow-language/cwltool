@@ -86,7 +86,7 @@ class RO():
                     if isinstance(files, dict):
                         self.snapshot_generation(files)
             else:
-                print("neither sf nor location", key, value)
+                pass
 
 
 
