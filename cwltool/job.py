@@ -353,8 +353,6 @@ class ContainerCommandLineJob(JobBase):
         # type: (Dict[Text, Text], bool, bool, bool) -> Text
         pass
 
-
-        # type: (bool, bool, bool, Text, **Any) -> None
     @abstractmethod
     def create_runtime(self, env, rm_container, record_container_id, cidfile_dir,
                        cidfile_prefix, **kwargs):
