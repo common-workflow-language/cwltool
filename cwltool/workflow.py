@@ -11,7 +11,7 @@ import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
 from .provenance import *
-from . import draft2tool, expression
+from . import command_line_tool, expression
 from . import command_line_tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
