@@ -747,7 +747,6 @@ $graph:
     - name: package
       type: string
       doc: "The common name of the software to be configured."
-      jsonldPredicate: "@id"
     - name: version
       type: string[]?
       doc: "The (optional) version of the software to configured."
@@ -811,6 +810,8 @@ $graph:
         the original file or directory.  Default false (files and directories
         read-only by default).
 
+        A directory marked as `writable: true` implies that all files and
+        subdirectories are recursively writable as well.
 
 - name: InitialWorkDirRequirement
   type: record
@@ -840,6 +841,13 @@ $graph:
 
         May be an expression.  If so, the expression return value must validate
         as `{type: array, items: [File, Directory]}`.
+
+        Files or Directories which are listed in the input parameters and
+        appear in the `InitialWorkDirRequirement` listing must have their
+        `path` set to their staged location in the designated output directory.
+        If the same File or Directory appears more than once in the
+        `InitialWorkDirRequirement` listing, the implementation must choose
+        exactly one value for `path`; how this value is chosen is undefined.
 
 
 - name: EnvVarRequirement

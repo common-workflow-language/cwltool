@@ -78,33 +78,33 @@
   doc: Test command execution in Docker with stdout redirection
 
 - job: v1.0/empty.json
-  tool: v1.0/egrep-stderr.cwl
+  tool: v1.0/stderr.cwl
   doc: Test command line with stderr redirection
   output:
     output_file:
       class: File
-      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
-      size: 84
+      checksum: sha1$f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+      size: 4
       location: error.txt
 
 - job: v1.0/empty.json
-  tool: v1.0/egrep-stderr-shortcut.cwl
+  tool: v1.0/stderr-shortcut.cwl
   doc: Test command line with stderr redirection, brief syntax
   output:
     output_file:
       class: File
-      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
-      size: 84
+      checksum: sha1$f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+      size: 4
       location: Any
 
 - output:
     output_file:
       class: File
-      size: 84
-      checksum: sha1$cec7b8746a78c42060c96505887449bca0142976
+      size: 4
+      checksum: sha1$f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
       location: std.err
   job: v1.0/empty.json
-  tool: v1.0/egrep-stderr-mediumcut.cwl
+  tool: v1.0/stderr-mediumcut.cwl
   doc: Test command line with stderr redirection, named brief syntax
 
 - job: v1.0/cat-job.json
@@ -126,7 +126,7 @@
 - job: v1.0/null-expression1-job.json
   tool: v1.0/null-expression1-tool.cwl
   output:
-    output: 2
+    output: 1
   doc: Test explicitly passing null to Any type inputs with default values.
 
 - job: v1.0/null-expression2-job.json
@@ -155,10 +155,10 @@
 - job: v1.0/wc-job.json
   output:
     output:
+      checksum: sha1$3596ea087bfdaf52380eae441077572ed289d657
       class: File
-      checksum: sha1$631bfbac524e2d04cdcc5ec33ade827fc10b06ae
       location: output
-      size: 15
+      size: 3
   tool: v1.0/wc-tool.cwl
   doc: Test command execution in with stdin and stdout redirection
 
@@ -300,7 +300,22 @@
 - job: v1.0/empty.json
   output: {count_output: 16}
   tool: v1.0/count-lines9-wf.cwl
-  doc: Test default value on input parameter
+  doc: Test default value on step input parameter
+
+- job: v1.0/empty.json
+  output: {count_output: 16}
+  tool: v1.0/count-lines11-wf.cwl
+  doc: Test use default value on step input parameter with empty source
+
+- job: v1.0/file1-null.json
+  output: {count_output: 16}
+  tool: v1.0/count-lines11-wf.cwl
+  doc: Test use default value on step input parameter with null source
+
+- job: v1.0/cat-job.json
+  output: {count_output: 1}
+  tool: v1.0/count-lines11-wf.cwl
+  doc: Test default value on step input parameter overridden by provided source
 
 - job: v1.0/revsort-job.json
   output:
@@ -310,7 +325,7 @@
       location: output.txt
       size: 1111
   tool: v1.0/revsort.cwl
-  doc: Test sample workflows from the specification
+  doc: Test simple workflow
 
 - job: v1.0/cat-job.json
   output:
@@ -481,7 +496,9 @@
     "t6": "zab1",
     "t7": "zab1",
     "t8": "zab1",
-    "t9": 2
+    "t9": 2,
+    "t27": null,
+    "t28": 3
     }
   tool: v1.0/params.cwl
   doc: |
@@ -556,7 +573,9 @@
     "t6": "zab1",
     "t7": "zab1",
     "t8": "zab1",
-    "t9": 2
+    "t9": 2,
+    "t27": null,
+    "t28": 3
     }
   tool: v1.0/params2.cwl
   doc: |
@@ -971,3 +990,122 @@
     }
   tool: v1.0/docker-output-dir.cwl
   doc: Test dockerOutputDirectory
+
+- job: v1.0/empty.json
+  output:
+    out:
+      class: File
+      checksum: sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519
+      location: out
+      size: 15
+  tool: v1.0/imported-hint.cwl
+  doc: Test hints with $import
+
+- output: {}
+  job: v1.0/default_path_job.yml
+  tool: v1.0/default_path.cwl
+  doc: Test warning instead of error when default path is not found
+
+- output:
+    args: [-A,'2',-B,baz,-C,'10','9','8','7','6','5','4','3','2','1']
+  job: v1.0/empty.json
+  tool: v1.0/inline-js.cwl
+  doc: Test InlineJavascriptRequirement with multiple expressions in the same tool
+
+- job: v1.0/recursive-input-directory.yml
+  output:
+    output_dir: {
+        "basename": "work_dir",
+        "class": "Directory",
+        "listing": [
+            {
+                "basename": "a",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "class": "File",
+                "location": "work_dir/a",
+                "size": 0
+            },
+            {
+                "basename": "b",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "class": "File",
+                "location": "work_dir/b",
+                "size": 0
+            },
+            {
+                "basename": "c",
+                "class": "Directory",
+                "listing": [
+                    {
+                        "basename": "d",
+                        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                        "class": "File",
+                        "location": "work_dir/c/d",
+                        "size": 0
+                    }
+                ],
+                "location": "work_dir/c",
+            },
+            {
+                "basename": "e",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "class": "File",
+                "location": "work_dir/e",
+                "size": 0
+            },
+        ],
+        "location": "work_dir",
+      }
+    test_result: {
+        "basename": "output.txt",
+        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+        "class": "File",
+        "location": "output.txt",
+        "size": 0
+      }
+  tool: v1.0/recursive-input-directory.cwl
+  doc: Test if a writable input directory is recursivly copied and writable
+
+- output:
+    out: "t\n"
+  job: v1.0/empty.json
+  tool: v1.0/null-defined.cwl
+  doc: Test that missing parameters are null (not undefined) in expression
+
+- output:
+    out: "f\n"
+  job: v1.0/cat-job.json
+  tool: v1.0/null-defined.cwl
+  doc: Test that provided parameter is not null in expression
+
+- job: v1.0/revsort-job.json
+  output:
+    output:
+      class: File
+      checksum: sha1$b9214658cc453331b62c2282b772a5c063dbd284
+      location: output.txt
+      size: 1111
+  tool: v1.0/revsort-packed.cwl#main
+  doc: Test compound workflow document
+
+- job: v1.0/basename-fields-job.yml
+  output:
+    extFile:
+      checksum: sha1$301a72c82a835e1737caf30f94d0eec210c4d9f1
+      class: File
+      size: 5
+      location: Any
+      path: Any
+    rootFile:
+      checksum: sha1$b4a583c391e234cf210e1d576f68f674c8ad7ecd
+      class: File
+      size: 10
+      location: Any
+      path: Any
+  tool: v1.0/basename-fields-test.cwl
+  doc: Test that nameroot and nameext are generated from basename at execution time by the runner
+
+- job: v1.0/wc-job.json
+  output: {}
+  tool: v1.0/initialwork-path.cwl
+  doc: Test that file path in $(inputs) for initialworkdir is in $(outdir).

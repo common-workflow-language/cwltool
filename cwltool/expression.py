@@ -1,29 +1,42 @@
+from __future__ import absolute_import
 import copy
 import json
 import logging
 import re
-
-from typing import Any, AnyStr, Union, Text, Dict, List
+from typing import Any, AnyStr, Dict, List, Text, Union
+from .utils import docker_windows_path_adjust
+import six
 from six import u
 
 from . import sandboxjs
 from .errors import WorkflowException
+from .utils import bytes2str_in_dicts
 
 _logger = logging.getLogger("cwltool")
 
 
 def jshead(engineConfig, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
+
+    # make sure all the byte strings are converted
+    # to str in `rootvars` dict.
+    # TODO: need to make sure the `rootvars dict`
+    # contains no bytes type in the first place.
+    if six.PY3:
+        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
+
     return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 
+# decode all raw strings to unicode
 seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
-segment_re = re.compile(segments, flags=re.UNICODE)
-param_re = re.compile(r"\((%s)%s*\)$" % (seg_symbol, segments), flags=re.UNICODE)
+segment_re = re.compile(u(segments), flags=re.UNICODE)
+param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
+param_re = re.compile(u(param_str), flags=re.UNICODE)
 
 JSON = Union[Dict[Any, Any], List[Any], Text, int, float, bool, None]
 
@@ -110,7 +123,7 @@ def scanner(scan):  # type: (Text) -> List[int]
 def next_seg(remain, obj):  # type: (Text, Any) -> Any
     if remain:
         m = segment_re.match(remain)
-        key = None  # type: Union[str, int]
+        key = None  # type: Union[Text, int]
         if m.group(0)[0] == '.':
             key = m.group(0)[1:]
         elif m.group(0)[1] in ("'", '"'):
@@ -140,16 +153,18 @@ def next_seg(remain, obj):  # type: (Text, Any) -> Any
         return obj
 
 
-def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
-    # type: (Text, Text, Dict[Text, Any], bool, int, bool) -> JSON
+def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=False, debug=False, js_console=False):
+    # type: (Text, Text, Dict[Text, Any], bool, int, bool, bool, bool) -> JSON
     m = param_re.match(ex)
     if m:
+        if m.end(1)+1 == len(ex) and m.group(1) == "null":
+            return None
         try:
             return next_seg(m.group(0)[m.end(1) - m.start(0):-1], obj[m.group(1)])
         except Exception as w:
             raise WorkflowException("%s%s" % (m.group(1), w))
     elif fullJS:
-        return sandboxjs.execjs(ex, jslib, timeout=timeout, debug=debug)
+        return sandboxjs.execjs(ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull, debug=debug, js_console=js_console)
     else:
         raise sandboxjs.JavascriptException(
             "Syntax error in parameter reference '%s' or used Javascript code without specifying InlineJavascriptRequirement.",
@@ -157,9 +172,11 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, debug=False):
 
 
 def interpolate(scan, rootvars,
-                timeout=None, fullJS=None, jslib="", debug=False):
-    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool) -> JSON
-    scan = scan.strip()
+                timeout=None, fullJS=None, jslib="", force_docker_pull=False,
+                debug=False, js_console=False, strip_whitespace=True):
+    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool, bool, bool) -> JSON
+    if strip_whitespace:
+        scan = scan.strip()
     parts = []
     w = scanner(scan)
     while w:
@@ -167,8 +184,9 @@ def interpolate(scan, rootvars,
 
         if scan[w[0]] == '$':
             e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, fullJS=fullJS,
-                          timeout=timeout, debug=debug)
-            if w[0] == 0 and w[1] == len(scan):
+                          timeout=timeout, force_docker_pull=force_docker_pull,
+                          debug=debug, js_console=js_console)
+            if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
             leaf = json.dumps(e, sort_keys=True)
             if leaf[0] == '"':
@@ -185,19 +203,20 @@ def interpolate(scan, rootvars,
 
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
-            context=None, pull_image=True, timeout=None, debug=False):
-    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool) -> Any
+            context=None, pull_image=True, timeout=None, force_docker_pull=False,
+            debug=False, js_console=False, strip_whitespace=True):
+    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool, bool, bool) -> Any
 
     runtime = copy.copy(resources)
-    runtime["tmpdir"] = tmpdir
-    runtime["outdir"] = outdir
+    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
+    runtime["outdir"] = docker_windows_path_adjust(outdir)
 
     rootvars = {
         u"inputs": jobinput,
         u"self": context,
         u"runtime": runtime}
 
-    if isinstance(ex, (str, Text)):
+    if isinstance(ex, (str, Text)) and ("$(" in ex or "${" in ex):
         fullJS = False
         jslib = u""
         for r in reversed(requirements):
@@ -212,7 +231,11 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
                                timeout=timeout,
                                fullJS=fullJS,
                                jslib=jslib,
-                               debug=debug)
+                               force_docker_pull=force_docker_pull,
+                               debug=debug,
+                               js_console=js_console,
+                               strip_whitespace=strip_whitespace)
+
         except Exception as e:
             raise WorkflowException("Expression evaluation error:\n%s" % e)
     else:

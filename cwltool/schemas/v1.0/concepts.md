@@ -6,7 +6,7 @@
 
 **YAML**: http://yaml.org
 
-**Avro**: https://avro.apache.org/docs/current/spec.html
+**Avro**: https://avro.apache.org/docs/1.8.1/spec.html
 
 **Uniform Resource Identifier (URI) Generic Syntax**: https://tools.ietf.org/html/rfc3986)
 
@@ -322,7 +322,7 @@ Expressions are denoted by the syntax `$(...)` or `${...}`.  A code
 fragment wrapped in the `$(...)` syntax must be evaluated as a
 [ECMAScript expression](http://www.ecma-international.org/ecma-262/5.1/#sec-11).  A
 code fragment wrapped in the `${...}` syntax must be evaluated as a
-[EMACScript function body](http://www.ecma-international.org/ecma-262/5.1/#sec-13)
+[ECMAScript function body](http://www.ecma-international.org/ecma-262/5.1/#sec-13)
 for an anonymous, zero-argument function.  Expressions must return a valid JSON
 data type: one of null, string, number, boolean, array, object. Other return
 values must result in a `permanentFailure`. Implementations must permit any

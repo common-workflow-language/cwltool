@@ -8,12 +8,6 @@ from setuptools import setup
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, 'README.rst')
 
-# if python3 runtime and `setup.py install` is called
-if sys.version_info.major == 3 and sys.argv[1] == 'install':
-    print("Aborting installation. CWL Tool doesn't support Python 3 currently.")
-    print("Install using Python 2 pip.")
-    exit(1)
-
 try:
     import gittaggers
 
@@ -32,7 +26,8 @@ setup(name='cwltool',
       author_email='common-workflow-language@googlegroups.com',
       url="https://github.com/common-workflow-language/cwltool",
       download_url="https://github.com/common-workflow-language/cwltool",
-      license='Apache 2.0',
+      # platforms='',  # empty as is conveyed by the classifier below
+      # license='',  # empty as is conveyed by the classifier below
       packages=["cwltool", 'cwltool.tests'],
       package_dir={'cwltool.tests': 'tests'},
       package_data={'cwltool': ['schemas/draft-2/*.yml',
@@ -49,18 +44,22 @@ setup(name='cwltool',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
                                 'cwlNodeEngine.js',
+                                'cwlNodeEngineJSConsole.js',
                                 'extensions.yml']},
       include_package_data=True,
       install_requires=[
           'setuptools',
-          'requests >= 1.0',
-          'ruamel.yaml >= 0.12.4',
+          'requests >= 2.4.3',
+          'ruamel.yaml >= 0.12.4, < 0.15',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 2.4.20170308171942, < 3',
-          'typing >= 3.5.2, < 3.6',
+          'schema-salad >= 2.6.20170927145003, < 3',
+          'typing >= 3.5.3',
           'six >= 1.8.0',
       ],
+      extras_require={
+          'deps': ["galaxy-lib >= 17.09.3"]
+      },
       setup_requires=[] + pytest_runner,
       test_suite='tests',
       tests_require=['pytest', 'mock >= 2.0.0',],
@@ -71,8 +70,35 @@ setup(name='cwltool',
       cmdclass={'egg_info': tagger},
       classifiers=[
           'Development Status :: 5 - Production/Stable',
+          'Environment :: Console',
+          'Intended Audience :: Developers',
+          'Intended Audience :: Science/Research',
+          'Intended Audience :: Healthcare Industry',
+          'License :: OSI Approved :: Apache Software License',
+          'Natural Language :: English',
+          'Operating System :: MacOS :: MacOS X',
           'Operating System :: POSIX',
+          'Operating System :: POSIX :: Linux',
           'Operating System :: OS Independent',
-          'Programming Language :: Python :: 2 :: Only',
+          'Operating System :: Microsoft :: Windows',
+          'Operating System :: Microsoft :: Windows :: Windows 10',
+          'Operating System :: Microsoft :: Windows :: Windows 8.1',
+          # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
+          # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
+          'Topic :: Scientific/Engineering',
+          'Topic :: Scientific/Engineering :: Bio-Informatics',
+          'Topic :: Scientific/Engineering :: Astronomy',
+          'Topic :: Scientific/Engineering :: Atmospheric Science',
+          'Topic :: Scientific/Engineering :: Information Analysis',
+          'Topic :: Scientific/Engineering :: Medical Science Apps.',
+          'Topic :: System :: Distributed Computing',
+          'Topic :: Utilities',
       ]
       )

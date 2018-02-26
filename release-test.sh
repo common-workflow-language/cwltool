@@ -11,24 +11,28 @@ pipver=7.0.2 # minimum required version of pip
 
 rm -Rf testenv? || /bin/true
 
-export HEAD=`git rev-parse HEAD`
-virtualenv testenv1
+export HEAD=${TRAVIS_PULL_REQUEST_SHA:-$(git rev-parse HEAD)}
+
+if [ "${RELEASE_SKIP}" != "head" ]
+then
+	virtualenv testenv1
+	# First we test the head
+	source testenv1/bin/activate
+	rm testenv1/lib/python-wheels/setuptools* \
+		&& pip install --force-reinstall -U pip==${pipver} \
+	        && pip install setuptools==20.10.1 wheel
+	make install-dep
+	make test
+	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
+	mkdir testenv1/not-${module}
+	# if there is a subdir named '${module}' py.test will execute tests
+	# there instead of the installed module's tests
+	pushd testenv1/not-${module}; ../bin/${run_tests}; popd
+fi
+
 virtualenv testenv2
 virtualenv testenv3
 virtualenv testenv4
-
-# First we test the head
-source testenv1/bin/activate
-rm testenv1/lib/python-wheels/setuptools* \
-	&& pip install --force-reinstall -U pip==${pipver} \
-        && pip install setuptools==20.10.1 wheel
-make install-dep
-make test
-pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
-mkdir testenv1/not-${module}
-# if there is a subdir named '${module}' py.test will execute tests
-# there instead of the installed module's tests
-pushd testenv1/not-${module}; ../bin/${run_tests}; popd
 
 
 # Secondly we test via pip
@@ -57,7 +61,7 @@ rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==20.10.1 wheel
 pip install ${package}*tar.gz
-pip install pytest
+pip install pytest mock
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*

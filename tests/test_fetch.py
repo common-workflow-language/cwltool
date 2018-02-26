@@ -1,9 +1,11 @@
+from __future__ import absolute_import
 import unittest
+
+from six.moves import urllib
 
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
-
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.workflow import defaultMakeTool
@@ -25,7 +27,7 @@ inputs: []
 outputs: []
 """
                 else:
-                    raise RuntimeError("Not foo.cwl")
+                    raise RuntimeError("Not foo.cwl, was %s" % url)
 
             def check_exists(self, url):  # type: (unicode) -> bool
                 if url == "baz:bar/foo.cwl":
@@ -33,8 +35,22 @@ outputs: []
                 else:
                     return False
 
+            def urljoin(self, base, url):
+                    urlsp = urllib.parse.urlsplit(url)
+                    if urlsp.scheme:
+                        return url
+                    basesp = urllib.parse.urlsplit(base)
+
+                    if basesp.scheme == "keep":
+                        return base + "/" + url
+                    return urllib.parse.urljoin(base, url)
+
         def test_resolver(d, a):
-            return "baz:bar/" + a
+            if a.startswith("baz:bar/"):
+                return a
+            else:
+                return "baz:bar/" + a
+
 
         load_tool("foo.cwl", defaultMakeTool, resolver=test_resolver, fetcher_constructor=TestFetcher)
 

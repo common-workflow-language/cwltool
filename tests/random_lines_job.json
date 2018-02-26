@@ -1,0 +1,8 @@
+{
+  "input1": {
+    "class": "File",
+    "location": "2.fastq"
+  },
+  "seed": 5,
+  "num_lines": 2
+}
