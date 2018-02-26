@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-This is whale file for testing revsort.cwl workflow
-=======
 Call me Ishmael. Some years ago--never mind how long precisely--having
 little or no money in my purse, and nothing particular to interest me on
 shore, I thought I would sail about a little and see the watery part of
@@ -17,4 +14,3 @@ philosophical flourish Cato throws himself upon his sword; I quietly
 take to the ship. There is nothing surprising in this. If they but knew
 it, almost all men in their degree, some time or other, cherish very
 nearly the same feelings towards the ocean with me.
->>>>>>> origin/master
