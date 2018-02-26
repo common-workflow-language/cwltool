@@ -42,7 +42,9 @@ class JobExecutor(object):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 provDoc,
+                 document,
+                 engineUUID,
+                 WorkflowRunID,
                  logger,
                  **kwargs  # type: Any
                  ):
@@ -153,7 +155,8 @@ class SingleJobExecutor(JobExecutor):
                                 else:
                                     ArtefactValue="data:"+strvalue
                                     document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
-                    if ".cwl" not in getattr(r, "name"):
+                    #if ".cwl" not in getattr(r, "name"):
+                    else:
                         if ro:
                             ProcessRunID="run:"+str(uuid.uuid4())
                             #each subprocess is defined as an activity()
@@ -217,6 +220,9 @@ class MultithreadedJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
+                 document,
+                 engineUUID,
+                 WorkflowRunID,
                  logger,
                  **kwargs  # type: Any
                  ):
