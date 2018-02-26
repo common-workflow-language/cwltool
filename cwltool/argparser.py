@@ -19,27 +19,25 @@ DEFAULT_TMP_PREFIX = "tmp"
 
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
-    parser = argparse.ArgumentParser(description='Reference executor for Common Workflow Language')
+    parser = argparse.ArgumentParser(
+        description='Reference executor for Common Workflow Language standards.')
     parser.add_argument("--basedir", type=Text)
     parser.add_argument("--outdir", type=Text, default=os.path.abspath('.'),
                         help="Output directory, default current directory")
 
-    parser.add_argument("--no-container", action="store_false", default=True,
-                        help="Do not execute jobs in a Docker container, even when specified by the CommandLineTool",
-                        dest="use_container")
     parser.add_argument("--parallel", action="store_true", default=False,
                         help="[experimental] Run jobs in parallel. "
                              "Does not currently keep track of ResourceRequirements like the number of cores"
                              "or memory and can overload this system")
-    parser.add_argument("--preserve-environment", type=Text, action="append",
-                        help="Preserve specific environment variable when running CommandLineTools.  May be provided multiple times.",
-                        metavar="ENVVAR",
-                        default=["PATH"],
+    envgroup = parser.add_mutually_exclusive_group()
+    envgroup.add_argument("--preserve-environment", type=Text, action="append",
+                        help="Preserve specific environment variable when "
+                        "running CommandLineTools.  May be provided multiple "
+                        "times.", metavar="ENVVAR", default=["PATH"],
                         dest="preserve_environment")
-
-    parser.add_argument("--preserve-entire-environment", action="store_true",
-                        help="Preserve entire parent environment when running CommandLineTools.",
-                        default=False,
+    envgroup.add_argument("--preserve-entire-environment", action="store_true",
+                        help="Preserve all environment variable when running "
+                        "CommandLineTools.", default=False,
                         dest="preserve_entire_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -154,10 +152,22 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         "timestamps to the errors, warnings, and "
                         "notifications.")
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
-    parser.add_argument("--user-space-docker-cmd",
+    dockergroup = parser.add_mutually_exclusive_group()
+    dockergroup.add_argument("--user-space-docker-cmd", metavar="CMD",
                         help="(Linux/OS X only) Specify a user space docker "
                         "command (like udocker or dx-docker) that will be "
                         "used to call 'pull' and 'run'")
+    dockergroup.add_argument("--singularity", action="store_true",
+                             default=False, help="[experimental] Use "
+                             "Singularity runtime for running containers. "
+                             "Requires Singularity v2.3.2+ and Linux with kernel "
+                             "version v3.18+ or with overlayfs support "
+                             "backported.")
+    dockergroup.add_argument("--no-container", action="store_false",
+                             default=True, help="Do not execute jobs in a "
+                             "Docker container, even when `DockerRequirement` "
+                             "is specified under `hints`.",
+                             dest="use_container")
 
     dependency_resolvers_configuration_help = argparse.SUPPRESS
     dependencies_directory_help = argparse.SUPPRESS
@@ -237,8 +247,15 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--overrides", type=str,
                         default=None, help="Read process requirement overrides from file.")
 
-    parser.add_argument("workflow", type=Text, nargs="?", default=None)
-    parser.add_argument("job_order", nargs=argparse.REMAINDER)
+    parser.add_argument("workflow", type=Text, nargs="?", default=None,
+            metavar='cwl_document', help="path or URL to a CWL Workflow, "
+            "CommandLineTool, or ExpressionTool. If the `inputs_object` has a "
+            "`cwl:tool` field indicating the path or URL to the cwl_document, "
+            " then the `workflow` argument is optional.")
+    parser.add_argument("job_order", nargs=argparse.REMAINDER,
+            metavar='inputs_object', help="path or URL to a YAML or JSON "
+            "formatted description of the required input values for the given "
+            "`cwl_document`.")
 
     return parser
 
