@@ -7,6 +7,9 @@ import sys
 
 from io import StringIO
 
+from cwltool.errors import WorkflowException
+from cwltool.utils import onWindows
+
 try:
     reload
 except:
@@ -25,6 +28,7 @@ from cwltool.main import main
 
 from .util import get_data
 
+sys.argv = ['']
 
 class TestParamMatching(unittest.TestCase):
     def test_params(self):
@@ -133,6 +137,16 @@ class TestFactory(unittest.TestCase):
         f = cwltool.factory.Factory()
         echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+
+    def test_default_args(self):
+        f = cwltool.factory.Factory()
+        assert f.execkwargs["use_container"] is True
+        assert f.execkwargs["on_error"] == "stop"
+
+    def test_redefined_args(self):
+        f = cwltool.factory.Factory(use_container=False, on_error="continue")
+        assert f.execkwargs["use_container"] is False
+        assert f.execkwargs["on_error"] == "continue"
 
     def test_partial_scatter(self):
         f = cwltool.factory.Factory(on_error="continue")
@@ -512,6 +526,20 @@ class TestTypeCompare(unittest.TestCase):
             echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
+    def test_malformed_outputs(self):
+        # check that tool validation fails if one of the outputs is not a valid CWL type
+        f = cwltool.factory.Factory()
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            echo = f.make(get_data("tests/wf/malformed_outputs.cwl"))
+            echo()
+
+    def test_separate_without_prefix(self):
+        # check that setting 'separate = false' on an inputBinding without prefix fails the workflow
+        with self.assertRaises(WorkflowException):
+            f = cwltool.factory.Factory()
+            echo = f.make(get_data("tests/wf/separate_without_prefix.cwl"))
+            echo()
+
 
     def test_checker(self):
         # check that the static checker raises exception when a source type
@@ -530,36 +558,75 @@ class TestPrintDot(unittest.TestCase):
         self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
 
-class TestJsConsole(unittest.TestCase):
-    def get_main_stderr(self, new_args):
-        cwltool_base = path.join(path.dirname(path.abspath(__name__)), "cwltool")
-        
+class TestCmdLine(unittest.TestCase):
+    def get_main_output(self, new_args):
         process = subprocess.Popen([
-            sys.executable,
-            "-m",
-            "cwltool"
-        ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                       sys.executable,
+                                       "-m",
+                                       "cwltool"
+                                   ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         stdout, stderr = process.communicate()
-        return process.returncode, stderr.decode()
+        return process.returncode, stdout.decode(), stderr.decode()
+
+
+class TestJsConsole(TestCmdLine):
 
     def test_js_console_cmd_line_tool(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, output = self.get_main_stderr(["--js-console", "--no-container",
-                get_data("tests/wf/" + test_file)])
+            error_code, stdout, stderr = self.get_main_output(["--js-console", "--no-container",
+                                                               get_data("tests/wf/" + test_file)])
 
-            self.assertIn("[log] Log message", output)
-            self.assertIn("[err] Error message", output)
+            self.assertIn("[log] Log message", stderr)
+            self.assertIn("[err] Error message", stderr)
 
-            self.assertEquals(error_code, 0, output)
+            self.assertEquals(error_code, 0, stderr)
 
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, output = self.get_main_stderr(["--no-container", 
-                get_data("tests/wf/" + test_file)])
+            error_code, stdout, stderr = self.get_main_output(["--no-container",
+                                                               get_data("tests/wf/" + test_file)])
 
-            self.assertNotIn("[log] Log message", output)
-            self.assertNotIn("[err] Error message", output)
-            
+            self.assertNotIn("[log] Log message", stderr)
+            self.assertNotIn("[err] Error message", stderr)
+
+
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
+class TestCache(TestCmdLine):
+    def test_wf_without_container(self):
+        test_file = "hello-workflow.cwl"
+        error_code, stdout, stderr = self.get_main_output(["--cachedir", "cache",
+                                                   get_data("tests/wf/" + test_file), "--usermessage", "hello"])
+        self.assertIn("completed success", stderr)
+        self.assertEquals(error_code, 0)
+
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
+class TestChecksum(TestCmdLine):
+
+    def test_compute_checksum(self):
+        f = cwltool.factory.Factory(compute_checksum=True, use_container=False)
+        echo = f.make(get_data("tests/wf/cat-tool.cwl"))
+        output = echo(file1={
+                "class": "File",
+                "location": get_data("tests/wf/whale.txt")
+            },
+            reverse=False
+        )
+        self.assertEquals(output['output']["checksum"], "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376")
+
+    def test_no_compute_checksum(self):
+        test_file = "tests/wf/wc-tool.cwl"
+        job_file = "tests/wf/wc-job.json"
+        error_code, stdout, stderr = self.get_main_output(["--no-compute-checksum",
+                                                   get_data(test_file), get_data(job_file)])
+        self.assertIn("completed success", stderr)
+        self.assertEquals(error_code, 0)
+        self.assertNotIn("checksum", stdout)
+
+
 if __name__ == '__main__':
     unittest.main()

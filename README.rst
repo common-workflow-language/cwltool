@@ -31,7 +31,7 @@ It is highly recommended to setup virtual environment before installing `cwltool
   virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
   source venv/bin/activate     # Activate environment before installing `cwltool`
 
-1. Installing the official package from PyPi (will install "cwltool" package as
+Installing the official package from PyPi (will install "cwltool" package as
 well)
 
 .. code:: bash
@@ -44,7 +44,7 @@ If installing alongside another CWL implementation then
 
   pip install cwltool
 
-2. To install from source
+Or you can install from source:
 
 .. code:: bash
 
@@ -62,9 +62,16 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
-We use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_
-to run various tests in all supported Python environments.
-You can run the test suite by simply running the following in the terminal:
+To run the basis tests after installing `cwltool` execute the following:
+
+.. code:: bash
+
+  pip install pytest mock
+  py.test --ignore cwltool/schemas/ --pyarg cwltool
+
+To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
+first downloading the complete code repository (see the ``git clone`` instructions above) and then run
+the following in the terminal:
 ``pip install tox; tox``
 
 List of all environment can be seen using:
@@ -105,6 +112,42 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+Using user-space replacements for Docker
+----------------------------------------
+
+Some shared computing environments don't support Docker software containers for technical or policy reasons.
+As a work around, the CWL reference runner supports using a alternative ``docker`` implementations on Linux
+with the ``--user-space-docker-cmd`` option.
+
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
+is ``dx-docker`` https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images
+
+udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-indigo-datacloud-repositories
+
+dx-docker installation: start with the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+  
+or 
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+
+``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ as a Docker container runtime, an experimental feature.
+Singularity will run software containers specified in ``DockerRequirement`` and therefore works with Docker images only,
+native Singularity images are not supported.
+To use Singularity as the Docker container runtime, provide ``--singularity`` command line option to ``cwltool``.
+
+
+.. code:: bash
+
+  cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/cat-job.json
 
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
@@ -164,7 +207,7 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
 
-CWL tools may be decoarated with ``SoftwareRequirement`` hints that cwltool
+CWL tools may be decorated with ``SoftwareRequirement`` hints that cwltool
 may in turn use to resolve to packages in various package managers or
 dependency management systems such as `Environment Modules
 <http://modules.sourceforge.net/>`__.
@@ -193,8 +236,8 @@ following ``hint`` definition for an example CWL tool.
       - r93
 
 Now imagine deploying cwltool on a cluster with Software Modules installed
-and that a ``seqtk`` module is avaialble at version ``r93``. This means cluster
-users likely won't have the ``seqtk`` the binary on their ``PATH`` by default but after
+and that a ``seqtk`` module is available at version ``r93``. This means cluster
+users likely won't have the binary ``seqtk`` on their ``PATH`` by default, but after
 sourcing this module with the command ``modulecmd sh load seqtk/r93`` ``seqtk`` is
 available on the ``PATH``. A simple dependency resolvers configuration file, called
 ``dependency-resolvers-conf.yml`` for instance, that would enable cwltool to source
@@ -202,7 +245,7 @@ the correct module environment before executing the above tool would simply be:
 
 .. code:: yaml
 
-  - type: module
+  - type: modules
 
 The outer list indicates that one plugin is being enabled, the plugin parameters are
 defined as a dictionary for this one list item. There is only one required parameter
@@ -368,6 +411,50 @@ at the following links:
 - `Mapping Files - Implementation <https://github.com/galaxyproject/galaxy/commit/495802d229967771df5b64a2f79b88a0eaf00edb>`__
 - `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
+
+Overriding workflow requirements at load time
+---------------------------------------------
+
+Sometimes a workflow needs additional requirements to run in a particular
+environment or with a particular dataset.  To avoid the need to modify the
+underlying workflow, cwltool supports requirement "overrides".
+
+The format of the "overrides" object is a mapping of item identifier (workflow,
+workflow step, or command line tool) to the process requirements that should be applied.
+
+.. code:: yaml
+
+  cwltool:overrides:
+    echo.cwl:
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
+
+Overrides can be specified either on the command line, or as part of the job
+input document.  Workflow steps are identified using the name of the workflow
+file followed by the step name as a document fragment identifier "#id".
+Override identifiers are relative to the toplevel workflow document.
+
+.. code:: bash
+
+  cwltool --overrides overrides.yml my-tool.cwl my-job.yml
+
+.. code:: yaml
+
+  input_parameter1: value1
+  input_parameter2: value2
+  cwltool:overrides:
+    workflow.cwl#step1:
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
+
+.. code:: bash
+
+  cwltool my-tool.cwl my-job-with-overrides.yml
+
 
 CWL Tool Control Flow
 ---------------------
