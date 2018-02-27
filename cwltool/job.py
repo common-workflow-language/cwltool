@@ -313,9 +313,8 @@ class JobBase(object):
 
 class CommandLineJob(JobBase):
 
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, pull_image=True, rm_container=True,
-            rm_tmpdir=True, move_outputs="move",  **kwargs):
-        # type: (prov.model.ProvDocument, Text, prov.model.ProvEntity, Dict[Text, Any]bool, bool, bool, Text, **Any) -> None
+    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None, reference_locations=None, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs="move", **kwargs):
+        # type: (prov.model.ProvDocument, Text, prov.model.ProvEntity, Dict[Text, Any], bool, bool, bool, Text, **Any) -> None
 
         self._setup(kwargs)
 
