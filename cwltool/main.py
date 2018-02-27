@@ -78,10 +78,9 @@ WorkflowRunID="run:"+WorkflowRunUUID
 
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        provDoc=document,
+                        provDoc=document, # type: prov.model.ProvDocument
                         **kwargs # type: Any
                         ):
-    # type: (...) -> Tuple[Dict[Text, Any], Text
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
@@ -178,8 +177,8 @@ def load_job_order(args,   # type: argparse.Namespace
 def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
                    args,  # type: argparse.Namespace
                    t,     # type: Process
-                   print_input_deps=False,
-                   provArgs= None,  # type: bool
+                   print_input_deps=False, # type: bool
+                   provArgs= None,  # type: Text
                    relative_deps=False,     # type: bool
                    stdout=sys.stdout,       # type: IO[Any]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
