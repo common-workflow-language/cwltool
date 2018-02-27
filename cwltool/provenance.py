@@ -47,12 +47,14 @@ hashmethod = hashlib.sha1
 
 class RO():
     def __init__(self, tmpPrefix="tmp"):
+        # type: (...) -> None
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
         self.tmpPrefix = tmpPrefix
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
 
     def _initialize(self):
+        # type: (...) -> None
         for f in (METADATA, DATA, WORKFLOW, SNAPSHOT, PROVENANCE):
             os.makedirs(os.path.join(self.folder, f))
 

@@ -184,7 +184,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
                    stdout=sys.stdout,       # type: IO[Any]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    loader=None,             # type: Loader
-                   input_basedir=""         # type: str
+                   input_basedir=""         # type: Text
 ):
     # (...) -> Tuple[Dict[Text, Any], Text]
 
@@ -333,6 +333,7 @@ def print_pack(document_loader, processobj, uri, metadata):
         return json.dumps(packed["$graph"][0], indent=4)
 
 def generate_provDoc():
+    # type: () -> None
     document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
     document.add_namespace('prov', 'http://www.w3.org/ns/prov')
     document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
