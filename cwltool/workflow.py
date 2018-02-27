@@ -18,7 +18,6 @@ from .process import Process, shortname, uniquename, get_overrides
 from .utils import aslist
 import six
 from six.moves import range
-relativised_input_object={}
 _logger = logging.getLogger("cwltool")
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])

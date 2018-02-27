@@ -105,8 +105,7 @@ class SingleJobExecutor(JobExecutor):
                  logger,
                  **kwargs  # type: Any
                  ):
-        reference_locations={}
-        ProvActivity_dict={}
+        reference_locations={} # type: Dict[Text, Any]
         ProcessProvActivity=''
         jobiter = t.job(job_order_object,
                         self.output_callback,

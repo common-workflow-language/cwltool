@@ -65,7 +65,7 @@ _logger = logging.getLogger("cwltool")
 #Adding default namespaces
 document = prov.ProvDocument()
 engineUUID=""
-activity_workflowRun={}
+activity_workflowRun={} # type: Dict[Text, Any]
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
@@ -298,7 +298,7 @@ def makeRelative(base, ob):
 
 
 def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
+    # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Text) -> Tuple[Dict[Text, Any], Dict[Text, Any]]
     deps = {"class": "File",
             "location": uri}  # type: Dict[Text, Any]
     def loadref(b, u):

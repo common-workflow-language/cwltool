@@ -20,9 +20,11 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
+from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
+                    Union, cast, Mapping, MutableMapping, Iterable)
 from subprocess import check_call
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
-relativised_input_object={}  #type: Dict[Text, Any]
+relativised_input_object={}  # type: Dict[str, Any]
 _logger = logging.getLogger("cwltool")
 
 # RO folders
