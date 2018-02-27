@@ -76,11 +76,12 @@ WorkflowRunUUID=str(uuid.uuid4())
 WorkflowRunID="run:"+WorkflowRunUUID
 #for retrospective details. This is where we should make all the changes and capture provenance.
 
-def single_job_executor(t,  # type: Process
+def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        provDoc=document, # type: prov.model.ProvDocument
+                        provDoc=document,  # type: prov.model.ProvDocument
                         **kwargs # type: Any
                         ):
+    # type: (...) -> Tuple[Dict[Text, Any], Text]
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
@@ -174,11 +175,11 @@ def load_job_order(args,   # type: argparse.Namespace
     return (job_order_object, input_basedir, loader)
 
 
-def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
-                   args,  # type: argparse.Namespace
-                   t,     # type: Process
-                   print_input_deps=False, # type: bool
-                   provArgs= None,  # type: Text
+def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
+                   args,                    # type: argparse.Namespace
+                   t,                       # type: Process
+                   print_input_deps=False,  # type: bool
+                   provArgs=None,           # type: Text
                    relative_deps=False,     # type: bool
                    stdout=sys.stdout,       # type: IO[Any]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
@@ -301,6 +302,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
     # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Text) -> Tuple[Dict[Text, Any], Dict[Text, Any]]
     deps = {"class": "File",
             "location": uri}  # type: Dict[Text, Any]
+
     def loadref(b, u):
         return document_loader.fetch(document_loader.fetcher.urljoin(b, u))
     sf = scandeps(
@@ -529,7 +531,7 @@ def main(argsl=None,  # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
-            if args.provenance: # Can't really be combined with args.pack at same time
+            if args.provenance:  # Can't really be combined with args.pack at same time
                 packedWorkflow=args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
                 #extract path to include in PROV document
                 packedWorkflowpath_without_main=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]
