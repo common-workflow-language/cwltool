@@ -20,8 +20,7 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
-                    Union, cast, Mapping, MutableMapping, Iterable)
+from typing import Any, Dict
 from subprocess import check_call
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 relativised_input_object={}  # type: Dict[str, Any]
@@ -40,9 +39,10 @@ PROVENANCE = os.path.join(METADATA, "provenance")
 class ProvenanceException(BaseException):
     pass
 
-## sha1, compatible with the File type's "checksum" field
-## e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
-## See ./cwltool/schemas/v1.0/Process.yml
+
+# sha1, compatible with the File type's "checksum" field
+# e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
+# See ./cwltool/schemas/v1.0/Process.yml
 hashmethod = hashlib.sha1
 
 class RO():
@@ -58,8 +58,9 @@ class RO():
 
     def _finalize(self):
         # TODO: Write manifest and bagit metadata
-#        _logger.info(u"[provenance] Generated research object manifest: %s", self.folder)
+        # _logger.info(u"[provenance] Generated research object manifest: %s", self.folder)
         pass
+
     def PROVfileGeneration(self):
         #TODO: this is going to generate all the namespaces and initial structure of the PROV document
         #the code is in main.py which needs to be copied here  after completion
@@ -94,7 +95,7 @@ class RO():
 
     def packed_workflow(self, packed):
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
-        with open (path, "w") as f:
+        with open(path, "w") as f:
             # YAML is always UTF8
             f.write(packed.encode("UTF-8"))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
@@ -116,7 +117,7 @@ class RO():
 
     def add_data_file(self, from_fp):
         with tempfile.NamedTemporaryFile(
-                 prefix=self.tmpPrefix, delete=False) as tmp:
+                prefix=self.tmpPrefix, delete=False) as tmp:
             checksum = self._checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
@@ -167,7 +168,7 @@ class RO():
         if not os.path.exists(local_path):
             raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
 
-        if not "sha1" in checksums:
+        if "sha1" not in checksums:
             # ensure we always have sha1
             checksums = dict(checksums)
             with open(local_path) as fp:
@@ -195,7 +196,7 @@ class RO():
         self._relativise_files(job, kwargs)
         path=os.path.join(self.folder, WORKFLOW, "master-job.json")
         _logger.info(u"[provenance] Generated customised job file: %s", path)
-        with open (path, "w") as f:
+        with open(path, "w") as f:
             json.dump(job, f, indent=4)
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
@@ -241,7 +242,7 @@ class RO():
                 self._relativise_files(o, kwargs)
         except TypeError:
             pass
-#**************************************
+
     #copy output files to the RO
     def add_output(self, workflow_output=None, saveTo=None):
         if isinstance(workflow_output, dict):
@@ -255,7 +256,6 @@ class RO():
                     _logger.info(u"[provenance] Moving output files to RO")
                     shutil.copy(workflow_output[item]["location"][7:], path)
 
-#**************************************
     def add_provProfile(self, document):
         '''
         Transfer the provenance related files to RO
@@ -291,7 +291,7 @@ class RO():
                 shutil.rmtree(self.folder, ignore_errors=True)
         else:
             _logger.info(u"[provenance] Finalizing Research Object")
-            self._finalize() # write manifest etc.
+            self._finalize()  # write manifest etc.
             # TODO: Write as archive (.zip or .tar) based on extension?
 
             if os.path.isdir(saveTo):
