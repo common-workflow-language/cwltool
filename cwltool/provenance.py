@@ -304,7 +304,8 @@ class RO():
         # This makes later close() a no-op
         self.folder = None
 
-def create_ro(tmpPrefix):
+def create_ro(tmpPrefix  # type: str
+             ):
     return RO(tmpPrefix)
 
 #def inputObjectProv():
