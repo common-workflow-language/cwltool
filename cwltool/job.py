@@ -177,7 +177,7 @@ class JobBase(object):
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self, runtime, env, kwargs, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, rm_tmpdir=True, move_outputs="move"):
-        # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
+        # type: (List[Text], MutableMapping[Text, Text], Any, prov.model.ProvDocument, Text, prov.model.ProvEntity, Dict[Text, Any], bool, Text) -> None
         ro = kwargs.get("ro")
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
@@ -315,7 +315,7 @@ class CommandLineJob(JobBase):
 
     def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, pull_image=True, rm_container=True,
             rm_tmpdir=True, move_outputs="move",  **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> None
+        # type: (prov.model.ProvDocument, Text, prov.model.ProvEntity, Dict[Text, Any]bool, bool, bool, Text, **Any) -> None
 
         self._setup(kwargs)
 
