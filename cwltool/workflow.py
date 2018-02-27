@@ -12,7 +12,6 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
 from .provenance import *
 from . import command_line_tool, expression
-from . import command_line_tool, expression
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
@@ -312,8 +311,6 @@ class WorkflowJob(object):
 
     def receive_output(self, step, outputparms, final_output_callback, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Callable[[Any, Any], Any], Dict[Text,Text], Text) -> None
-
-        #_logger.info(u"[%s] produced output ************************** %s", step.name, json.dumps(jobout, indent=4))
 
         for i in outputparms:
             if "id" in i:

@@ -10,7 +10,7 @@ import logging
 import hashlib
 from shutil import copyfile
 import io
-from pathlib import Path
+from pathlib2 import Path
 from networkx.drawing.nx_agraph import graphviz_layout
 from networkx.drawing.nx_agraph import write_dot
 from networkx.drawing.nx_pydot import write_dot

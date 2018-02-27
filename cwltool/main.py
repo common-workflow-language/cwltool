@@ -17,6 +17,7 @@ import time
 from time import gmtime, strftime
 import tempfile
 import prov.model as prov
+#import ipdb
 import uuid
 import datetime
 
@@ -624,7 +625,7 @@ def main(argsl=None,  # type: List[str]
         try:
             if args.provenance and args.ro:
                 generate_provDoc()
-
+            #ipdb.set_trace()
             job_order_object = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,

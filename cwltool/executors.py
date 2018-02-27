@@ -107,6 +107,7 @@ class SingleJobExecutor(JobExecutor):
                  ):
         reference_locations={}
         ProvActivity_dict={}
+        ProcessProvActivity=''
         jobiter = t.job(job_order_object,
                         self.output_callback,
                         **kwargs)
@@ -127,7 +128,6 @@ class SingleJobExecutor(JobExecutor):
                             for s in r.steps:
                                 stepname="wf:main/"+str(s.name)[5:]
                                 steps.append(stepname)
-                                print("step name is: ", stepname)
                                 document.entity(stepname, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
                             #create prospective provenance recording for the workflow
                             document.entity("wf:main", {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":str(steps),  "prov:label":"Prospective provenance"})
@@ -155,9 +155,7 @@ class SingleJobExecutor(JobExecutor):
                                 else:
                                     ArtefactValue="data:"+strvalue
                                     document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
-                    #if ".cwl" not in getattr(r, "name"):
-                    else:
-                        if ro:
+                        else:
                             ProcessRunID="run:"+str(uuid.uuid4())
                             #each subprocess is defined as an activity()
                             provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
@@ -166,9 +164,10 @@ class SingleJobExecutor(JobExecutor):
                                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
                             document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
                             #this is where you run each step. so start and end time for the step
-                            r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
-                        else:
-                            r.run(**kwargs)
+                    if ro:
+                        r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
+                    else:
+                        r.run(**kwargs)
                         #capture workflow level outputs in the prov doc
                     if ro:
                         for eachOutput in self.final_output:
