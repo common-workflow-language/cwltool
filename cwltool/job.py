@@ -208,7 +208,7 @@ class JobBase(object):
             for key, value in getattr(self, "joborder").items():
                 if ro:
                     provRole=self.name+"/"+str(key)
-                    ProcessRunID=str(ProcessProvActivity._identifier)
+                    ProcessRunID=str(ProcessProvActivity.identifier)
                     if 'location' in str(value):
                         location=str(value['location'])
                         if location in reference_locations:  # workflow level inputs referenced as hash in prov document
@@ -278,7 +278,7 @@ class JobBase(object):
                     StepOutput_checksum="data:"+str(value["checksum"][5:])
                     document.entity(StepOutput_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
                     stepProv="wf:main"+"/"+str(self.name)+"/"+str(key)
-                    ProcessRunID=str(ProcessProvActivity._identifier)
+                    ProcessRunID=str(ProcessProvActivity.identifier)
                     document.wasGeneratedBy(StepOutput_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
 
         except OSError as e:
@@ -300,11 +300,11 @@ class JobBase(object):
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
             if ro:
-                document.wasEndedBy(str(ProcessProvActivity._identifier), None, WorkflowRunID, datetime.datetime.now())
+                document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
             if ro:
-                document.wasEndedBy(str(ProcessProvActivity._identifier), None, WorkflowRunID, datetime.datetime.now())
+                document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
 
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))

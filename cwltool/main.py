@@ -627,6 +627,7 @@ def main(argsl=None,  # type: List[str]
         try:
             if args.provenance and args.ro:
                 generate_provDoc()
+            
             job_order_object = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
