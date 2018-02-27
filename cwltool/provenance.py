@@ -22,7 +22,7 @@ import ruamel.yaml as yaml
 import warnings
 from subprocess import check_call
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
-relativised_input_object={}
+relativised_input_object={}  #type: Dict[Text, Any]
 _logger = logging.getLogger("cwltool")
 
 # RO folders
