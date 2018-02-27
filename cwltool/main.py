@@ -17,7 +17,7 @@ import time
 from time import gmtime, strftime
 import tempfile
 import prov.model as prov
-#import ipdb
+from prov.model import ProvDocument
 import uuid
 import datetime
 
@@ -63,9 +63,9 @@ from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 _logger = logging.getLogger("cwltool")
 
 #Adding default namespaces
-document = prov.ProvDocument()
+document = ProvDocument()
 engineUUID=""
-activity_workflowRun={} # type: Dict[Text, Any]
+activity_workflowRun={}  # type: Dict[Text, Any]
 defaultStreamHandler = logging.StreamHandler()
 _logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
@@ -78,8 +78,8 @@ WorkflowRunID="run:"+WorkflowRunUUID
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        provDoc=document,  # type: prov.model.ProvDocument
-                        **kwargs # type: Any
+                        provDoc=document,  # type: ProvDocument
+                        **kwargs           # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     warnings.warn("Use of single_job_executor function is deprecated. "
@@ -184,7 +184,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
                    stdout=sys.stdout,       # type: IO[Any]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    loader=None,             # type: Loader
-                   input_basedir=""         # type: Text
+                   input_basedir=""         # type: str
 ):
     # (...) -> Tuple[Dict[Text, Any], Text]
 
@@ -626,7 +626,6 @@ def main(argsl=None,  # type: List[str]
         try:
             if args.provenance and args.ro:
                 generate_provDoc()
-            #ipdb.set_trace()
             job_order_object = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,

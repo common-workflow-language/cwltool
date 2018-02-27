@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import prov.model as prov
+from prov.model import ProvEntity, ProvDocument
 from abc import ABCMeta, abstractmethod
 from io import open
 from threading import Lock
@@ -176,8 +177,17 @@ class JobBase(object):
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
-    def _execute(self, runtime, env, kwargs, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, rm_tmpdir=True, move_outputs="move"):
-        # type: (List[Text], MutableMapping[Text, Text], Any, prov.model.ProvDocument, Text, prov.model.ProvEntity, Dict[Text, Any], bool, Text) -> None
+    def _execute(self,
+                 runtime,                   # type: List[Text]
+                 env,                       # type: MutableMapping[Text, Text]
+                 kwargs,                    # type: Any
+                 document=None,             # type: ProvDocument
+                 WorkflowRunID=None,        # type: Text
+                 ProcessProvActivity=None,  # type: ProvEntity
+                 reference_locations=None,  # type: Dict[Text, Any]
+                 rm_tmpdir=True,            # type: bool
+                 move_outputs="move"        # type: Text
+                 ):  # type (...) ->  None
         ro = kwargs.get("ro")
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
@@ -201,11 +211,11 @@ class JobBase(object):
                     ProcessRunID=str(ProcessProvActivity._identifier)
                     if 'location' in str(value):
                         location=str(value['location'])
-                        if location in reference_locations: #workflow level inputs referenced as hash in prov document
+                        if location in reference_locations:  # workflow level inputs referenced as hash in prov document
                             document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
-                        else: #add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
+                        else:  # add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
                             document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
-                    else: #add the actual data value in the prov document
+                    else:  # add the actual data value in the prov document
                         document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
         outputs = {}  # type: Dict[Text,Text]
 
@@ -313,8 +323,17 @@ class JobBase(object):
 
 class CommandLineJob(JobBase):
 
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None, reference_locations=None, pull_image=True, rm_container=True, rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (prov.model.ProvDocument, Text, prov.model.ProvEntity, Dict[Text, Any], bool, bool, bool, Text, **Any) -> None
+    def run(self,
+            document=None,             # type: ProvDocument
+            WorkflowRunID=None,        # type: Text
+            ProcessProvActivity=None,  # type: ProvEntity
+            reference_locations=None,  # type: Dict[Text, Any]
+            pull_image=True,           # type: bool
+            rm_container=True,         # type: bool
+            rm_tmpdir=True,            # type: bool
+            move_outputs="move",       # type: Text
+            **kwargs                   # type: Any
+            ):  # type: (...) -> None
 
         self._setup(kwargs)
 
@@ -410,7 +429,7 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
 
-        self._execute(runtime, env, kwargs, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs) #included kwargs to see if the workflow has been executed using the provenance flag.
+        self._execute(runtime, env, kwargs, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)  # included kwargs to see if the workflow has been executed using the provenance flag.
 
 
 def _job_popen(
