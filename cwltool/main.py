@@ -17,11 +17,12 @@ import pkg_resources  # part of setuptools
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
 import six
+
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 
-from . import draft2tool, workflow
-from .argparser import arg_parser, generate_parser
+from . import command_line_tool, workflow
+from .argparser import arg_parser, generate_parser, DEFAULT_TMP_PREFIX
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import SingleJobExecutor, MultithreadedJobExecutor
@@ -43,6 +44,7 @@ from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id
 
 _logger = logging.getLogger("cwltool")
+
 
 def single_job_executor(t,  # type: Process
                         job_order_object,  # type: Dict[Text, Any]
@@ -417,7 +419,7 @@ def main(argsl=None,  # type: List[str]
                 arg_parser().print_help()
                 return 1
         if args.relax_path_checks:
-            draft2tool.ACCEPTLIST_RE = draft2tool.ACCEPTLIST_EN_RELAXED_RE
+            command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
 
         if args.ga4gh_tool_registries:
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries
@@ -541,8 +543,16 @@ def main(argsl=None,  # type: List[str]
         if isinstance(tool, int):
             return tool
 
+        # If on MacOS platform, TMPDIR must be set to be under one of the shared volumes in Docker for Mac
+        # More info: https://dockstore.org/docs/faq
+        if sys.platform == "darwin":
+            tmp_prefix = "tmp_outdir_prefix"
+            default_mac_path = "/private/tmp/docker_tmp"
+            if getattr(args, tmp_prefix) and getattr(args, tmp_prefix) == DEFAULT_TMP_PREFIX:
+                setattr(args, tmp_prefix, default_mac_path)
+
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
-            if getattr(args, dirprefix) and getattr(args, dirprefix) != 'tmp':
+            if getattr(args, dirprefix) and getattr(args, dirprefix) != DEFAULT_TMP_PREFIX:
                 sl = "/" if getattr(args, dirprefix).endswith("/") or dirprefix == "cachedir" else ""
                 setattr(args, dirprefix,
                         os.path.abspath(getattr(args, dirprefix)) + sl)

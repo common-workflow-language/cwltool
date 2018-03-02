@@ -9,7 +9,7 @@ import cwltool.factory
 # we should modify the subprocess imported from cwltool.sandboxjs
 from cwltool.sandboxjs import (check_js_threshold_version,
                                subprocess)
-from tests.util import get_data
+from .util import get_data
 
 
 class Javascript_Sanity_Checks(unittest.TestCase):
