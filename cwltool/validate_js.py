@@ -13,7 +13,7 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.validate import ValidationException, validate_ex
 
 from . import process
-from .draft2tool import CommandLineTool
+from .command_line_tool import CommandLineTool
 from .expression import scanner as scan_expression
 from .process import Process
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
