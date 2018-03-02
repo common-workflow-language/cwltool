@@ -29,7 +29,7 @@ PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=pep8 diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=1.0.$(shell date +%Y%m%d%H%M%S --date=`git log --first-parent \
+VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
@@ -190,4 +190,3 @@ FORCE:
 # Example `make print-VERSION`
 # From https://www.cmcrossroads.com/article/printing-value-makefile-variable
 print-%  : ; @echo $* = $($*)
-
