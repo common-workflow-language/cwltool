@@ -26,7 +26,7 @@ inputs:
 outputs: []
 """
 
-class ToolArgparse(unittest.TestCase):
+class TestGetExpressions(unittest.TestCase):
     def test_get_expressions(self):
         test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
         schema = process.get_schema("v1.0")[1].names["CommandLineTool"]
@@ -35,6 +35,8 @@ class ToolArgparse(unittest.TestCase):
 
         self.assertEqual(len(exprs), 1)
 
+
+class TestValidateJsExpressions(unittest.TestCase):
     @mock.patch("cwltool.validate_js.print_js_hint_messages")
     def test_validate_js_expressions(self, print_js_hint_messages):
         test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
@@ -45,20 +47,24 @@ class ToolArgparse(unittest.TestCase):
         assert print_js_hint_messages.call_args is not None
         assert len(print_js_hint_messages.call_args[0]) > 0
 
-    def test_jshint_js(self):
-        result1 = jshint_js("""
+class TestJSHintJS(unittest.TestCase):
+    def test_basic_usage(self):
+        result = jshint_js("""
         function funcName(){
         }
         """, [])
 
-        self.assertEquals(result1[0], [])
-        self.assertEquals(result1[1], ["funcName"])
+        self.assertEquals(result.errors, [])
+        self.assertEquals(result.globals, ["funcName"])
 
-        assert len(jshint_js("<INVALID JS>")[0]) > 1
+    def test_reports_invalid_js(self):
+        assert len(jshint_js("<INVALID JS>").errors) > 1
 
-        # test es6 syntax
-        self.assertEquals(len(jshint_js(code_fragment_to_js("((() => 4)())"), [])[0]), 1)
+    def test_warn_on_es6(self):
+        self.assertEquals(len(jshint_js(code_fragment_to_js("((() => 4)())"), []).errors), 1)
 
-        self.assertEquals(len(jshint_js(code_fragment_to_js("undefined_name()"))[0]), 1)
+    def test_error_on_undefined_name(self):
+        self.assertEquals(len(jshint_js(code_fragment_to_js("undefined_name()")).errors), 1)
 
-        self.assertEquals(len(jshint_js(code_fragment_to_js("defined_name()"), ["defined_name"])[0]), 0)
+    def test_set_defined_name(self):
+        self.assertEquals(len(jshint_js(code_fragment_to_js("defined_name()"), ["defined_name"]).errors), 0)

@@ -29,7 +29,6 @@ _logger = logging.getLogger("cwltool")
 JSON = Union[Dict[Text, Any], List[Any], Text, int, float, bool, None]
 
 localdata = threading.local()
-localdata.procs = {}
 
 have_node_slim = False
 # minimum acceptable version of nodejs engine
@@ -111,9 +110,9 @@ def new_js_proc(js_file_name, force_docker_pull=False):
     # docker failed and nodejs not on system
     if nodejs is None:
         raise JavascriptException(
-            u"cwltool requires Node.js engine to evaluate Javascript "
-            "expressions, but couldn't find it.  Tried %s, docker run "
-            "node:slim" % u", ".join(trynodes))
+            u"cwltool requires Node.js engine to evaluate and validate "
+            u"Javascript expressions, but couldn't find it.  Tried %s, "
+            u"docker run node:slim" % u", ".join(trynodes))
 
     # docker failed, but nodejs is installed on system but the version is below the required version
     if docker is False and required_node_version is False:
@@ -125,10 +124,12 @@ def new_js_proc(js_file_name, force_docker_pull=False):
 
 def exec_js_process(js_file_location, input, timeout=None, force_docker_pull=False, debug=False):
     # type: (Text, Text, int, bool, bool) -> Tuple[int, Text, Text]
+    if not hasattr(localdata, "procs"):
+        localdata.procs = {}
+
     if localdata.procs.get(js_file_location) is None \
             or localdata.procs[js_file_location].poll() is not None \
             or onWindows():
-        _logger.info("Creating new javascript process for %s" % js_file_location)
         localdata.procs[js_file_location] = new_js_proc(js_file_location, force_docker_pull=force_docker_pull)
 
     nodejs = localdata.procs[js_file_location]
