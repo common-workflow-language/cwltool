@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+# no imports from cwltool allowed
+
 import os
 import shutil
 import stat
@@ -10,8 +12,6 @@ from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
 
 from six.moves import urllib, zip_longest
-
-# no imports from cwltool allowed
 
 windows_default_container_id = "frolvlad/alpine-bash"
 

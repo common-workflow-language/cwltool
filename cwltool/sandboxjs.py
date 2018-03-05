@@ -10,8 +10,7 @@ import threading
 import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
-from .utils import onWindows
-from pkg_resources import resource_filename
+from .utils import onWindows, get_data
 
 import six
 
@@ -293,7 +292,7 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
     fn = code_fragment_to_js(js, jslib)
 
     returncode, stdout, stderr = exec_js_process(
-        resource_filename(__name__, js_engine), json.dumps(fn), timeout, force_docker_pull, debug)
+        get_data("cwltool/" + js_engine), json.dumps(fn), timeout, force_docker_pull, debug)
 
     if js_console:
         if len(stderr) > 0:

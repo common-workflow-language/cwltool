@@ -4,10 +4,10 @@ import json
 import logging
 from collections import namedtuple
 from os import path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Text, Tuple, Union
 
 import avro.schema
-from pkg_resources import resource_filename
+import schema_salad
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine
 from schema_salad.validate import ValidationException, validate_ex
@@ -18,15 +18,16 @@ from .expression import scanner as scan_expression
 from .process import Process
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
                         exec_js_process, execjs)
+from .utils import get_data
 
 _logger = logging.getLogger("cwltool")
 
 def is_expression(tool, schema):
     # type: (Union[CommentedMap, Any], avro.schema.Schema) -> bool
-    return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, str)
+    return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, (str, Text))
 
 def get_expressions(tool, schema, source_line=None):
-    # type: (Union[CommentedMap, Any], avro.schema.Schema, SourceLine) -> List[Tuple[str, SourceLine]]
+    # type: (Union[CommentedMap, Any], avro.schema.Schema, SourceLine) -> List[Tuple[Text, SourceLine]]
     if is_expression(tool, schema):
         return [(tool, source_line)]
     elif isinstance(schema, avro.schema.UnionSchema):
@@ -44,8 +45,9 @@ def get_expressions(tool, schema, source_line=None):
             return []
 
         return list(itertools.chain(*
-            map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool))
+            map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool)) # type: ignore # https://github.com/python/mypy/issues/4679
         ))
+
     elif isinstance(schema, avro.schema.RecordSchema):
         if not isinstance(tool, Dict):
             return []
@@ -65,7 +67,7 @@ def get_expressions(tool, schema, source_line=None):
         return []
 
 def should_include_jshint_message(error_code):
-    # type: (str) -> bool
+    # type: (Text) -> bool
     include_warnings = [
         "W117", # <VARIABLE> not defined
         "W104", "W119"  # using ES6 features
@@ -76,7 +78,7 @@ def should_include_jshint_message(error_code):
 JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
 
 def jshint_js(js_text, globals=None, options=None):
-    # type: (str, List[str], Dict) -> Tuple[List[str], List[str]]
+    # type: (Text, List[Text], Dict) -> Tuple[List[Text], List[Text]]
     if globals is None:
         globals = []
     if options is None:
@@ -89,7 +91,7 @@ def jshint_js(js_text, globals=None, options=None):
             "esversion": 5
         }
 
-    linter_folder = resource_filename(__name__, "jshint")
+    linter_folder = get_data("cwltool/jshint")
 
     returncode, stdout, stderr = exec_js_process(
         path.join(linter_folder, "jshint_wrapper.js"),
@@ -101,6 +103,7 @@ def jshint_js(js_text, globals=None, options=None):
     )
 
     def dump_jshint_error():
+        # type: () -> None
         raise RuntimeError("jshint failed to run succesfully\nreturncode: %d\nstdout: \"%s\"\nstderr: \"%s\"" % (
             returncode,
             stdout,
@@ -118,21 +121,21 @@ def jshint_js(js_text, globals=None, options=None):
     except ValueError:
         dump_jshint_error()
 
-    jshint_errors = [] # type: List[str]
+    jshint_errors = [] # type: List[Text]
 
     js_text_lines = js_text.split("\n")
 
     for jshint_error_obj in jshint_json.get("errors", []):
-        text =  "JSHINT: " + js_text_lines[jshint_error_obj["line"] - 1] + "\n"
-        text += "JSHINT: " + " " * (jshint_error_obj["character"] - 1) + "^\n"
-        text += "JSHINT: %s: %s" % (jshint_error_obj["code"], jshint_error_obj["reason"])
+        text =  u"JSHINT: " + js_text_lines[jshint_error_obj["line"] - 1] + "\n"
+        text += u"JSHINT: " + " " * (jshint_error_obj["character"] - 1) + "^\n"
+        text += u"JSHINT: %s: %s" % (jshint_error_obj["code"], jshint_error_obj["reason"])
         jshint_errors.append(text)
 
     return JSHintJSReturn(jshint_errors, jshint_json.get("globals", []))
 
 
 def print_js_hint_messages(js_hint_messages, source_line):
-    # type: (List[str], SourceLine) -> None
+    # type: (List[Text], SourceLine) -> None
     for js_hint_message in js_hint_messages:
         _logger.warn(source_line.makeError(js_hint_message))
 
@@ -151,7 +154,7 @@ def validate_js_expressions(tool, schema, jshint_options=None):
     else:
         return
 
-    default_globals = ["self", "inputs", "runtime", "console"]
+    default_globals = [u"self", u"inputs", u"runtime", u"console"]
 
     try:
         expression_lib_errors, expression_lib_globals = jshint_js("\n".join(expression_lib), default_globals, jshint_options)

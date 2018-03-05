@@ -188,7 +188,7 @@ def validate_document(document_loader,  # type: Loader
                       fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,  # type: bool
                       overrides=None,  # type: List[Dict]
-                      metadata=None,  # type: Optional[Dict],
+                      metadata=None,  # type: Optional[Dict]
                       should_validate_js=True, # type: bool
                       validate_js_options=None # type: Dict
                       ):
