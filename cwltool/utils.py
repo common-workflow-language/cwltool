@@ -189,7 +189,7 @@ def get_data(filename):
     if not filepath or not (os.path.isfile(filepath) or os.path.isdir(filepath)):
         filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
 
-    if os.path.isfile(filepath) or os.path.isdir(filepath):
+    if not(os.path.isfile(filepath) or os.path.isdir(filepath)):
         raise Exception("Resource %s not found." % filepath)
 
     return filepath
