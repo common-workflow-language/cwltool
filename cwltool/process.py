@@ -243,7 +243,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
         elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
                 if secret_store:
-                    n.write(secret_store.retrieve(p.resolved.encode("utf-8")))
+                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
                 else:
                     n.write(p.resolved.encode("utf-8"))
             ensure_writable(p.target)

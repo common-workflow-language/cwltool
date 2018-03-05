@@ -17,6 +17,7 @@ from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .pathmapper import PathMapper, ensure_writable
+from .secrets import SecretStore
 from .utils import docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
@@ -132,8 +133,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         return None
 
-    def add_volumes(self, pathmapper, runtime):
-        # type: (PathMapper, List[Text]) -> None
+    def add_volumes(self, pathmapper, runtime, secret_store=None):
+        # type: (PathMapper, List[Text], SecretStore) -> None
 
         host_outdir = self.outdir
         container_outdir = self.builder.outdir
@@ -170,13 +171,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         shutil.copytree(vol.resolved, host_outdir_tgt)
                         ensure_writable(host_outdir_tgt)
             elif vol.type == "CreateFile":
+                if secret_store:
+                    contents = secret_store.retrieve(vol.resolved)
+                else:
+                    contents = vol.resolved
                 if host_outdir_tgt:
                     with open(host_outdir_tgt, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
+                        f.write(contents.encode("utf-8"))
                 else:
                     fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
                     with os.fdopen(fd, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
+                        f.write(contents.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:rw" % (
                         docker_windows_path_adjust(createtmp),
                         docker_windows_path_adjust(vol.target)))
@@ -196,9 +201,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--volume=%s:%s:rw" % (
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-        self.add_volumes(self.pathmapper, runtime)
+        self.add_volumes(self.pathmapper, runtime, secret_store=kwargs.get("secret_store"))
         if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime)
+            self.add_volumes(self.generatemapper, runtime, secret_store=kwargs.get("secret_store"))
 
         if user_space_docker_cmd:
             runtime = [x.replace(":ro", "") for x in runtime]
