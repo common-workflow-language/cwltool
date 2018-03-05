@@ -11,7 +11,7 @@ from cwltool.main import main
 from cwltool.utils import onWindows
 from six import StringIO
 
-from cwltool.utils import get_data
+from .util import get_data
 
 
 class TestOverride(unittest.TestCase):

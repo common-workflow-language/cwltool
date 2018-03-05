@@ -17,7 +17,8 @@ from cwltool import load_tool
 from cwltool.load_tool import fetch_document, validate_document
 from cwltool.main import makeRelative, main, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
-from cwltool.utils import onWindows, get_data
+from cwltool.utils import onWindows
+from .util import get_data
 
 
 class TestPack(unittest.TestCase):

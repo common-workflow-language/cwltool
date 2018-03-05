@@ -3,7 +3,7 @@ import unittest
 
 from cwltool.main import main
 
-from cwltool.utils import get_data
+from .util import get_data
 
 class CWL_Version_Checks(unittest.TestCase):
     # no cwlVersion in the workflow

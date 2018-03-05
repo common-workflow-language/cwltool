@@ -8,7 +8,10 @@ import cwltool.process
 import cwltool.workflow
 import pytest
 from cwltool.main import main
-from cwltool.utils import onWindows, get_data
+from cwltool.utils import onWindows
+
+from .util import get_data
+
 
 class TestCheck(unittest.TestCase):
     @pytest.mark.skipif(onWindows(),

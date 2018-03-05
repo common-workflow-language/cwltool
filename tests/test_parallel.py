@@ -6,7 +6,8 @@ import pytest
 import cwltool
 import cwltool.factory
 from cwltool.executors import MultithreadedJobExecutor
-from cwltool.utils import onWindows, get_data
+from cwltool.utils import onWindows
+from .util import get_data
 
 
 class TestParallel(unittest.TestCase):

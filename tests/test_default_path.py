@@ -1,6 +1,6 @@
 import unittest
 from cwltool.load_tool import fetch_document, validate_document
-from cwltool.utils import get_data
+from .util import get_data
 from schema_salad.ref_resolver import Loader
 
 class TestDefaultPath(unittest.TestCase):
