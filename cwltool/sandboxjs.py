@@ -320,7 +320,8 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
             info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
                 (returncode, fn_linenum(), stdfmt(stdout), stdfmt(stderr))
         else:
-            info = stdfmt(stderr)
+            info = u"Javascript expression was: %s\nstdout was: %s\nstderr was: %s" %\
+                (js, stdfmt(stdout), stdfmt(stderr))
 
         if returncode == -1:
             raise JavascriptException(u"Long-running script killed after %s seconds: %s" % (timeout, info))
