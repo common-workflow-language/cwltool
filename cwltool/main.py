@@ -160,6 +160,8 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
 ):
     # (...) -> Tuple[Dict[Text, Any], Text]
 
+    secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
+
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
@@ -192,6 +194,9 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
             del cmd_line["job_order"]
 
             job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
+
+            if secrets_req:
+                secret_store.store([shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
 
             if _logger.isEnabledFor(logging.DEBUG):
                 _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
@@ -246,8 +251,6 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
-
-    secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
 
     if secrets_req:
         secret_store.store([shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
