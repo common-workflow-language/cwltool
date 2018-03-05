@@ -25,6 +25,7 @@ from .errors import WorkflowException
 from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
+from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
 from .utils import copytree_with_merge, onWindows
 
@@ -170,8 +171,8 @@ class JobBase(object):
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
-    def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move"):
-        # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
+    def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move", secret_store=None):
+        # type: (List[Text], MutableMapping[Text, Text], bool, Text, SecretStore) -> None
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
@@ -214,6 +215,10 @@ class JobBase(object):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
+            if secret_store:
+                commands = secret_store.retrieve(commands)
+                env = secret_store.retrieve(env)
+
             job_script_contents = None  # type: Text
             builder = getattr(self, "builder", None)  # type: Builder
             if builder is not None:
@@ -309,10 +314,10 @@ class CommandLineJob(JobBase):
 
         stageFiles(self.pathmapper, ignoreWritable=True, symLink=True)
         if self.generatemapper:
-            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))
 
 
 class ContainerCommandLineJob(JobBase):
@@ -382,7 +387,7 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
 
-        self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))
 
 
 def _job_popen(

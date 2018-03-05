@@ -36,6 +36,7 @@ from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
 from .process import (Process, normalizeFilesDirs,
                       scandeps, shortname, use_custom_schema,
                       use_standard_schema)
+from .secrets import SecretStore
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
@@ -154,7 +155,8 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
                    stdout=sys.stdout,       # type: IO[Any]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    loader=None,             # type: Loader
-                   input_basedir=""         # type: Text
+                   input_basedir="",        # type: Text
+                   secret_store=None        # type: SecretStore
 ):
     # (...) -> Tuple[Dict[Text, Any], Text]
 
@@ -244,6 +246,11 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
+
+    secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
+
+    if secrets_req:
+        secret_store.store([shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
@@ -556,6 +563,8 @@ def main(argsl=None,  # type: List[str]
                 setattr(args, 'move_outputs', "copy")
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
+        secret_store = SecretStore()
+
         try:
             job_order_object = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
@@ -563,7 +572,8 @@ def main(argsl=None,  # type: List[str]
                                               stdout=stdout,
                                               make_fs_access=make_fs_access,
                                               loader=jobloader,
-                                              input_basedir=input_basedir)
+                                              input_basedir=input_basedir,
+                                              secret_store=secret_store)
         except SystemExit as e:
             return e.code
 
@@ -585,6 +595,7 @@ def main(argsl=None,  # type: List[str]
                                      makeTool=makeTool,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
+                                     secret_store=secret_store,
                                      **vars(args))
 
             # This is the workflow output, it needs to be written
