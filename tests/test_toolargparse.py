@@ -6,7 +6,7 @@ from tempfile import NamedTemporaryFile
 from cwltool.main import main
 from cwltool.utils import onWindows
 
-from .util import get_data
+from .util import get_test_data
 
 class ToolArgparse(unittest.TestCase):
     script = '''
@@ -74,9 +74,9 @@ outputs: []
             f.flush()
             f.close()
             self.assertEquals(main(["--debug", f.name, '--input',
-                get_data('tests/echo.cwl')]), 0)
+                get_test_data('echo.cwl')]), 0)
             self.assertEquals(main(["--debug", f.name, '--input',
-                get_data('tests/echo.cwl')]), 0)
+                get_test_data('echo.cwl')]), 0)
 
 
     @pytest.mark.skipif(onWindows(),
@@ -108,7 +108,7 @@ outputs: []
             f.close()
             try:
                 self.assertEquals(main([f.name, '--foo.one',
-                    get_data('tests/echo.cwl'), '--foo.two', 'test']), 0)
+                    get_test_data('echo.cwl'), '--foo.two', 'test']), 0)
             except SystemExit as e:
                 self.assertEquals(e.code, 0)
 

@@ -9,7 +9,7 @@ import cwltool.factory
 # we should modify the subprocess imported from cwltool.sandboxjs
 from cwltool.sandboxjs import (check_js_threshold_version,
                                subprocess)
-from .util import get_data
+from .util import get_test_data
 
 
 class Javascript_Sanity_Checks(unittest.TestCase):
@@ -44,5 +44,5 @@ class TestValueFrom(unittest.TestCase):
 
     def test_value_from_two_concatenated_expressions(self):
         f = cwltool.factory.Factory()
-        echo = f.make(get_data("tests/wf/vf-concat.cwl"))
+        echo = f.make(get_test_data("wf/vf-concat.cwl"))
         self.assertEqual(echo(), {u"out": u"a sting\n"})
