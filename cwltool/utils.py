@@ -1,14 +1,17 @@
 from __future__ import absolute_import
 
-# no imports from cwltool allowed
-
 import os
 import shutil
 import stat
+from typing import Any, Callable, Dict, List, Text, Tuple, Union
+
 import six
-from six.moves import urllib
-from six.moves import zip_longest
-from typing import Any,Callable, Dict, List, Tuple, Text, Union
+from pkg_resources import (Requirement, ResolutionError,  # type: ignore
+                           resource_filename)
+
+from six.moves import urllib, zip_longest
+
+# no imports from cwltool allowed
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -172,3 +175,17 @@ def bytes2str_in_dicts(a):
 
     # simply return elements itself
     return a
+
+def get_data(filename):
+    # type: (Text) -> Text
+    filename = os.path.normpath(
+        filename)  # normalizing path depending on OS or else it will cause problem when joining path
+    filepath = None
+    try:
+        filepath = resource_filename(
+            Requirement.parse("cwltool"), filename)
+    except ResolutionError:
+        pass
+    if not filepath or not os.path.isfile(filepath):
+        filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
+    return filepath

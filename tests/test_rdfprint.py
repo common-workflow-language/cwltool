@@ -4,7 +4,7 @@ import unittest
 from six import StringIO
 from cwltool.main import main
 
-from .util import get_data
+from cwltool.utils import get_data
 
 class RDF_Print(unittest.TestCase):
 
