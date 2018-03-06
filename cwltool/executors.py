@@ -69,10 +69,10 @@ class JobExecutor(object):
         self.run_jobs(t, job_order_object, logger, **kwargs)
 
         if self.final_output and self.final_output[0] and finaloutdir:
-            self.final_output[0] = relocateOutputs(self.final_output[0], finaloutdir,
-                                                   self.output_dirs, kwargs.get("move_outputs"),
-                                                   kwargs["make_fs_access"](""),
-                                                   kwargs["compute_checksum"])
+            self.final_output[0] = relocateOutputs(
+                self.final_output[0], finaloutdir, self.output_dirs,
+                kwargs.get("move_outputs"), kwargs["make_fs_access"](""),
+                kwargs.get("compute_checksum", True))
 
         if kwargs.get("rm_tmpdir"):
             cleanIntermediate(self.output_dirs)
@@ -120,8 +120,8 @@ class MultithreadedJobExecutor(JobExecutor):
         self.exceptions = []
 
     def run_job(self,
-                job, # type:  JobBase
-                **kwargs  # type:  Any
+                job,      # type: JobBase
+                **kwargs  # type: Any
                 ):
         # type: (...) -> None
         def runner():
