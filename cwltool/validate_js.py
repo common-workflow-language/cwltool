@@ -93,8 +93,13 @@ def jshint_js(js_text, globals=None, options=None):
 
     linter_folder = get_data("cwltool/jshint")
 
+    wrapper_file = path.join(linter_folder, "jshint_wrapper.js")
+
+    if not path.isfile(wrapper_file):
+        raise Exception("JS hint wrapper file not found")
+
     returncode, stdout, stderr = exec_js_process(
-        path.join(linter_folder, "jshint_wrapper.js"),
+        wrapper_file,
         json.dumps({
             "code": js_text,
             "options": options,
