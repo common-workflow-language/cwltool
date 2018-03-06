@@ -5,6 +5,8 @@ $namespaces:
 hints:
   "cwltool:Secrets":
     secrets: [pw]
+  DockerRequirement:
+    dockerPull: debian:8
 inputs:
   pw: string
 outputs:

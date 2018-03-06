@@ -274,12 +274,18 @@ class JobBase(object):
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
-        if self.generatemapper:
+        if self.generatemapper and secret_store:
             # Delete any runtime-generated files containing secrets.
             for f, p in self.generatemapper.items():
                 if p.type == "CreateFile":
                     if secret_store.has_secret(p.resolved):
-                        os.remove(p.target)
+                        host_outdir = self.outdir
+                        container_outdir = self.builder.outdir
+                        host_outdir_tgt = p.target
+                        if p.target.startswith(container_outdir+"/"):
+                            host_outdir_tgt = os.path.join(
+                                host_outdir, p.target[len(container_outdir)+1:])
+                        os.remove(host_outdir_tgt)
 
         with job_output_lock:
             self.output_callback(outputs, processStatus)
