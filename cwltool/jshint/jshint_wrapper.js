@@ -1,5 +1,6 @@
 "use strict";
-var jshint = require("./jshint.js");
+// set a global object, in order for jshint to work
+var global = this;
 
 function validateJS(input) {
   var jshintGlobalsObj = {};
@@ -13,13 +14,13 @@ function validateJS(input) {
     delete input.options.includewarnings;
   }
 
-  jshint.JSHINT(
+  JSHINT(
     input.code,
     input.options,
     jshintGlobalsObj
   )
 
-  var jshintData = jshint.JSHINT.data();
+  var jshintData = JSHINT.data();
   if (jshintData.errors !== undefined) {
     if (includewarnings !== undefined) {
       jshintData.errors = jshintData.errors.filter(function (error) {
@@ -42,30 +43,5 @@ function validateJS(input) {
     })
   }
 
-
-
   return jshintData;
 }
-
-
-process.stdin.setEncoding("utf8");
-var incoming = "";
-process.stdin.on("data", function (chunk) {
-  incoming += chunk;
-  var i = incoming.indexOf("\n");
-  if (i > -1) {
-    try {
-      var input = incoming.substr(0, i);
-      console.log(JSON.stringify(validateJS(JSON.parse(input))));
-
-      incoming = incoming.substr(i + 1);
-    }
-    catch (e) {
-      console.error(e)
-    }
-    /*strings to indicate the process has finished*/
-    console.log("r1cepzbhUTxtykz5XTC4");
-    console.error("r1cepzbhUTxtykz5XTC4");
-  }
-});
-process.stdin.on("end", process.exit);

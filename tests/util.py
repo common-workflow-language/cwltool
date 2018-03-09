@@ -11,7 +11,7 @@ def get_test_data(filename):
     filepath = None
     try:
         filepath = resource_filename(
-            Requirement.parse("cwltool"), os.path.join(filename, "tests"))
+            Requirement.parse("cwltool"), os.path.join("tests", filename))
     except ResolutionError:
         pass
     if not filepath or not os.path.isfile(filepath):

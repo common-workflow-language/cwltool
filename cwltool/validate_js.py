@@ -93,18 +93,23 @@ def jshint_js(js_text, globals=None, options=None):
 
     linter_folder = get_data("cwltool/jshint")
 
-    wrapper_file = path.join(linter_folder, "jshint_wrapper.js")
+    with open(path.join(linter_folder, "jshint.js"), "r") as file:
+        # NOTE: we need a global variable for lodash (which jshint depends on)
+        jshint_functions_text = "var global = this;" + file.read()
 
-    if not path.isfile(wrapper_file):
-        raise Exception("JS hint wrapper file not found")
+    with open(path.join(linter_folder, "jshint_wrapper.js"), "r") as file:
+        # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
+        # is interpreted as a block with a label `validateJS`
+        jshint_functions_text += "\n" + file.read() + "\nvar ob = {validateJS: validateJS}; ob"
 
     returncode, stdout, stderr = exec_js_process(
-        wrapper_file,
-        json.dumps({
+        "validateJS(%s)" % json.dumps({
             "code": js_text,
             "options": options,
             "globals": globals
-        })
+        }),
+        timeout=30,
+        context=jshint_functions_text
     )
 
     def dump_jshint_error():

@@ -11,6 +11,7 @@ import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 from .utils import onWindows, get_data
+from pkg_resources import resource_stream
 
 import six
 
@@ -53,7 +54,7 @@ def check_js_threshold_version(working_alias):
         return False
 
 
-def new_js_proc(js_file_name, force_docker_pull=False):
+def new_js_proc(js_text, force_docker_pull=False):
     # type: (Text, bool) -> subprocess.Popen
 
     required_node_version, docker = (False,)*2
@@ -64,7 +65,7 @@ def new_js_proc(js_file_name, force_docker_pull=False):
             if subprocess.check_output([n, "--eval", "process.stdout.write('t')"]).decode('utf-8') != "t":
                 continue
             else:
-                nodejs = subprocess.Popen([n, js_file_name],
+                nodejs = subprocess.Popen([n, "--eval", js_text],
                                           stdin=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
@@ -95,7 +96,7 @@ def new_js_proc(js_file_name, force_docker_pull=False):
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
                                        "--sig-proxy=true", "--interactive",
-                                       "--rm", nodeimg, "node", js_file_name],
+                                       "--rm", nodeimg, "node", "--eval", js_text],
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             docker = True
         except OSError as e:
@@ -121,17 +122,40 @@ def new_js_proc(js_file_name, force_docker_pull=False):
 
     return nodejs
 
-def exec_js_process(js_file_location, input, timeout=None, force_docker_pull=False, debug=False):
-    # type: (Text, Text, int, bool, bool) -> Tuple[int, Text, Text]
+
+def exec_js_process(js_text, timeout=None, js_console=False, context=None, force_docker_pull=False, debug=False):
+    # type: (Text, int, bool, Text, bool, bool) -> Tuple[int, Text, Text]
+
     if not hasattr(localdata, "procs"):
         localdata.procs = {}
 
-    if localdata.procs.get(js_file_location) is None \
-            or localdata.procs[js_file_location].poll() is not None \
-            or onWindows():
-        localdata.procs[js_file_location] = new_js_proc(js_file_location, force_docker_pull=force_docker_pull)
+    if js_console and context is not None:
+        raise NotImplementedError("js_console=True and context not implemented")
 
-    nodejs = localdata.procs[js_file_location]
+    if js_console:
+        js_engine = 'cwlNodeEngineJSConsole.js'
+        _logger.warn("Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
+    elif context is not None:
+        js_engine = "cwlNodeEngineWithContext.js"
+    else:
+        js_engine = 'cwlNodeEngine.js'
+
+    if localdata.procs.get(js_engine) is None \
+            or localdata.procs[js_engine].poll() is not None \
+            or onWindows():
+        res = resource_stream(__name__, js_engine)
+        js_engine_code = res.read().decode('utf-8')
+
+        localdata.procs[js_engine] = new_js_proc(js_engine_code, force_docker_pull=force_docker_pull)
+        if context is not None:
+            output = exec_js_process(context, timeout=timeout, js_console=js_console, context=context, force_docker_pull=force_docker_pull, debug=debug)
+            if output != (0, "", ""):
+                # restart to reset the context
+                localdata.procs[js_engine].kill()
+                del localdata.procs[js_engine]
+                return output
+
+    nodejs = localdata.procs[js_engine]
 
     killed = []
 
@@ -149,7 +173,7 @@ def exec_js_process(js_file_location, input, timeout=None, force_docker_pull=Fal
     tm = threading.Timer(timeout, terminate)
     tm.start()
 
-    stdin_buf = BytesIO((input + "\n").encode('utf-8'))
+    stdin_buf = BytesIO((json.dumps(js_text) + "\n").encode('utf-8'))
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
 
@@ -283,16 +307,11 @@ def code_fragment_to_js(js, jslib=""):
 
 def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_console=False):
     # type: (Text, Text, int, bool, bool, bool) -> JSON
-    if js_console:
-        js_engine = 'cwlNodeEngineJSConsole.js'
-        _logger.warn("Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
-    else:
-        js_engine = 'cwlNodeEngine.js'
 
     fn = code_fragment_to_js(js, jslib)
 
     returncode, stdout, stderr = exec_js_process(
-        get_data("cwltool/" + js_engine), json.dumps(fn), timeout, force_docker_pull, debug)
+        fn, timeout=timeout, js_console=js_console, force_docker_pull=force_docker_pull, debug=debug)
 
     if js_console:
         if len(stderr) > 0:
