@@ -36,8 +36,10 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          normalizeFilesDirs, visit_class, trim_listing,
                          ensure_writable)
+from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
+
 
 # if six.PY3:
 # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
@@ -207,8 +209,8 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
-    # type: (PathMapper, Callable[..., Any], bool, bool) -> None
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_store=None):
+    # type: (PathMapper, Callable[..., Any], bool, bool, SecretStore) -> None
     for f, p in pm.items():
         if not p.staged:
             continue
@@ -240,7 +242,10 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
                 ensure_writable(p.target)
         elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
-                n.write(p.resolved.encode("utf-8"))
+                if secret_store:
+                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
+                else:
+                    n.write(p.resolved.encode("utf-8"))
             ensure_writable(p.target)
 
 def collectFilesAndDirs(obj, out):
@@ -256,8 +261,14 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access, compute_checksum):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
+                    outdir,                # type: Text
+                    output_dirs,           # type: Set[Text]
+                    action,                # type: Text
+                    fs_access,             # type: StdFsAccess
+                    compute_checksum=True  # type: bool
+                    ):
+    # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
