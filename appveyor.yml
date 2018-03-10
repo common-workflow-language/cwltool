@@ -1,6 +1,8 @@
 version: .{build}-{branch}
 
 environment:
+  nodejs_version: "MAJOR"
+
   SYSTEMROOT: "C:\\WINDOWS"
 
   matrix:
@@ -22,6 +24,8 @@ environment:
 
 
 install:
+  # Get the latest stable version of Node.js or io.js
+  - ps: Install-Product node $env:nodejs_version
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
 
 build_script:
