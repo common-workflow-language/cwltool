@@ -183,8 +183,8 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
     PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
     def process_finished(): # type: () -> bool
-        return stdout_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR) and \
-            stderr_buf.getvalue().decode().endswith(PROCESS_FINISHED_STR)
+        return stdout_buf.getvalue().decode('utf-8').endswith(PROCESS_FINISHED_STR) and \
+            stderr_buf.getvalue().decode('utf-8').endswith(PROCESS_FINISHED_STR)
 
     # On windows system standard input/output are not handled properly by select module
     # (modules like  pywin32, msvcrt, gevent don't work either)
