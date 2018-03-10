@@ -2,7 +2,7 @@ import functools
 import itertools
 import json
 import logging
-import sys
+from io import open
 from collections import namedtuple
 from os import path
 from typing import Any, Dict, List, Text, Tuple, Union
@@ -94,15 +94,11 @@ def jshint_js(js_text, globals=None, options=None):
 
     linter_folder = get_data("cwltool/jshint")
 
-    opts = { "mode": "r" }
-    if sys.version_info >= (3, 0):
-        opts["encoding"] = "utf-8"
-
-    with open(path.join(linter_folder, "jshint.js"), **opts) as file:
+    with open(path.join(linter_folder, "jshint.js"), 'r', encoding='utf-8') as file:
         # NOTE: we need a global variable for lodash (which jshint depends on)
         jshint_functions_text = "var global = this;" + file.read()
 
-    with open(path.join(linter_folder, "jshint_wrapper.js"), **opts) as file:
+    with open(path.join(linter_folder, "jshint_wrapper.js"), "r", encoding='utf-8') as file:
         # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
         # is interpreted as a block with a label `validateJS`
         jshint_functions_text += "\n" + file.read() + "\nvar ob = {validateJS: validateJS}; ob"
