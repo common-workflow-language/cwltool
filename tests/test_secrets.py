@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import unittest
 
 from cwltool.secrets import SecretStore
-from .util import get_data
 
 class TestSecrets(unittest.TestCase):
     def test_secrets(self):
