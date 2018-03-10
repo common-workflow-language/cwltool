@@ -7,6 +7,7 @@ from collections import namedtuple
 from os import path
 from typing import Any, Dict, List, Text, Tuple, Union
 
+import copy
 import avro.schema
 import schema_salad
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
