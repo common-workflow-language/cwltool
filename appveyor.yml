@@ -1,7 +1,7 @@
 version: .{build}-{branch}
 
 environment:
-  nodejs_version: "MAJOR"
+  nodejs_version: "8"
 
   SYSTEMROOT: "C:\\WINDOWS"
 
