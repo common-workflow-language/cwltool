@@ -161,24 +161,21 @@ def validate_js_expressions(tool, schema, jshint_options=None):
 
     requirements = tool["requirements"]
 
+    default_globals = [u"self", u"inputs", u"runtime", u"console"]
+
     for i, prop in enumerate(reversed(requirements)):
         if prop["class"] == "InlineJavascriptRequirement":
             expression_lib = prop.get("expressionLib", [])
-            expression_lib_source_line = SourceLine(requirements, i)
             break
     else:
         return
 
-    default_globals = [u"self", u"inputs", u"runtime", u"console"]
+    expression_lib_globals = []
 
-    try:
-        expression_lib_errors, expression_lib_globals = jshint_js("\n".join(expression_lib), default_globals, jshint_options)
-    except JavascriptException as js_exception:
-        _logger.warning(str(js_exception))
-        _logger.warning("Validation of JavaScript expressions cannot be done.")
-        return
-
-    print_js_hint_messages(expression_lib_errors, expression_lib_source_line)
+    for i, expression_lib_line in enumerate(expression_lib):
+        expression_lib_line_errors, expression_lib_line_globals = jshint_js(expression_lib_line, default_globals, jshint_options)
+        expression_lib_globals.extend(expression_lib_line_globals)
+        print_js_hint_messages(expression_lib_line_errors, SourceLine(expression_lib, i))
 
     expressions = get_expressions(tool, schema)
 
