@@ -31,7 +31,7 @@ build_script:
 
 
 test_script:
-  - "%CMD_IN_ENV% py.test --verbose"
+  - "%CMD_IN_ENV% py.test --verbose -p no:cacheprovider"
 
 branches:
   only:
