@@ -68,15 +68,6 @@ def get_expressions(tool, schema, source_line=None):
     else:
         return []
 
-def should_include_jshint_message(error_code):
-    # type: (Text) -> bool
-    include_warnings = [
-        "W117", # <VARIABLE> not defined
-        "W104", "W119"  # using ES6 features
-    ]
-
-    return error_code[0] == "E" or error_code in include_warnings
-
 JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
 
 def jshint_js(js_text, globals=None, options=None):
