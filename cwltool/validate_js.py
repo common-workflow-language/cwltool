@@ -97,7 +97,7 @@ def jshint_js(js_text, globals=None, options=None):
     opts = { "mode": "r" }
     if sys.version_info >= (3, 0):
         opts["encoding"] = "utf-8"
-    
+
     with open(path.join(linter_folder, "jshint.js"), **opts) as file:
         # NOTE: we need a global variable for lodash (which jshint depends on)
         jshint_functions_text = "var global = this;" + file.read()
@@ -170,11 +170,11 @@ def validate_js_expressions(tool, schema, jshint_options=None):
     else:
         return
 
-    expression_lib_globals = []
+    globals = copy.deepcopy(default_globals)
 
     for i, expression_lib_line in enumerate(expression_lib):
-        expression_lib_line_errors, expression_lib_line_globals = jshint_js(expression_lib_line, default_globals, jshint_options)
-        expression_lib_globals.extend(expression_lib_line_globals)
+        expression_lib_line_errors, expression_lib_line_globals = jshint_js(expression_lib_line, globals, jshint_options)
+        globals.extend(expression_lib_line_globals)
         print_js_hint_messages(expression_lib_line_errors, SourceLine(expression_lib, i))
 
     expressions = get_expressions(tool, schema)
@@ -187,7 +187,7 @@ def validate_js_expressions(tool, schema, jshint_options=None):
             if unscanned_str[scan_slice[0]] == '$':
                 code_fragment = unscanned_str[scan_slice[0] + 1:scan_slice[1]]
                 code_fragment_js = code_fragment_to_js(code_fragment, "")
-                expression_errors, _ = jshint_js(code_fragment_js, expression_lib_globals + default_globals, jshint_options)
+                expression_errors, _ = jshint_js(code_fragment_js, globals, jshint_options)
                 print_js_hint_messages(expression_errors, source_line)
 
             unscanned_str = unscanned_str[scan_slice[1]:]
