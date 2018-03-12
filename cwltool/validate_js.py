@@ -14,7 +14,6 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine
 from schema_salad.validate import ValidationException, validate_ex
 
-from . import process
 from .expression import scanner as scan_expression
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
                         exec_js_process, execjs)

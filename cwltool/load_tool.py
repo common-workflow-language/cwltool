@@ -25,7 +25,6 @@ from schema_salad.validate import ValidationException
 
 from . import process, update
 from .errors import WorkflowException
-from .validate_js import validate_js_expressions
 from .process import Process, shortname, get_schema
 from .update import ALLUPDATES
 
