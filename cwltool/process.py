@@ -445,7 +445,7 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (CommentedMap, **Any) -> None
+        # type: (Dict[Text, Any], **Any) -> None
         """
         kwargs:
 
@@ -560,7 +560,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             else:
                 validate_js_options = None
 
-            validate_js_expressions(toolpath_object, self.doc_schema.names[toolpath_object["class"]], validate_js_options)
+            validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
