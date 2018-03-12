@@ -140,20 +140,18 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
     else:
         js_engine = 'cwlNodeEngine.js'
 
-    if localdata.procs.get(js_engine) is None \
+    created_new_process = False
+
+    if (context is None and localdata.procs.get(js_engine) is None) \
+            or (context is not None and localdata.procs.get((js_engine, context)) is None) \
             or localdata.procs[js_engine].poll() is not None \
             or onWindows():
         res = resource_stream(__name__, js_engine)
         js_engine_code = res.read().decode('utf-8')
 
+        created_new_process = True
+
         localdata.procs[js_engine] = new_js_proc(js_engine_code, force_docker_pull=force_docker_pull)
-        if context is not None:
-            output = exec_js_process(context, timeout=timeout, js_console=js_console, context=context, force_docker_pull=force_docker_pull, debug=debug)
-            if output != (0, "", ""):
-                # restart to reset the context
-                localdata.procs[js_engine].kill()
-                del localdata.procs[js_engine]
-                return output
 
     nodejs = localdata.procs[js_engine]
 
@@ -173,7 +171,12 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
     tm = threading.Timer(timeout, terminate)
     tm.start()
 
-    stdin_buf = BytesIO((json.dumps(js_text) + "\n").encode('utf-8'))
+    stdin_text = ""
+    if created_new_process and context is not None:
+        stdin_text = json.dumps(context) + "\n"
+    stdin_text += json.dumps(js_text) + "\n"
+
+    stdin_buf = BytesIO(stdin_text.encode('utf-8'))
     stdout_buf = BytesIO()
     stderr_buf = BytesIO()
 
