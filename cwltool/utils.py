@@ -175,21 +175,3 @@ def bytes2str_in_dicts(a):
 
     # simply return elements itself
     return a
-
-def get_data(filename):
-    # type: (Text) -> Text
-    filename = os.path.normpath(
-        filename)  # normalizing path depending on OS or else it will cause problem when joining path
-    filepath = None
-    try:
-        filepath = resource_filename(
-            Requirement.parse("cwltool"), filename)
-    except ResolutionError:
-        pass
-    if not filepath or not (os.path.isfile(filepath) or os.path.isdir(filepath)):
-        filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
-
-    if not(os.path.isfile(filepath) or os.path.isdir(filepath)):
-        raise Exception("Resource %s not found." % filepath)
-
-    return filepath

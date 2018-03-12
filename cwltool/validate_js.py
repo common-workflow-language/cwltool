@@ -20,7 +20,7 @@ from .expression import scanner as scan_expression
 from .process import Process
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
                         exec_js_process, execjs)
-from .utils import get_data
+from pkg_resources import resource_stream
 
 _logger = logging.getLogger("cwltool")
 
@@ -84,16 +84,14 @@ def jshint_js(js_text, globals=None, options=None):
             "esversion": 5
         }
 
-    linter_folder = get_data("cwltool/jshint")
-
-    with open(path.join(linter_folder, "jshint.js"), 'r', encoding='utf-8') as file:
+    with resource_stream(__name__, "jshint/jshint.js") as file:
         # NOTE: we need a global variable for lodash (which jshint depends on)
-        jshint_functions_text = "var global = this;" + file.read()
+        jshint_functions_text = "var global = this;" + file.read().decode('utf-8')
 
-    with open(path.join(linter_folder, "jshint_wrapper.js"), "r", encoding='utf-8') as file:
+    with resource_stream(__name__, "jshint/jshint_wrapper.js") as file:
         # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
         # is interpreted as a block with a label `validateJS`
-        jshint_functions_text += "\n" + file.read() + "\nvar ob = {validateJS: validateJS}; ob"
+        jshint_functions_text += "\n" + file.read().decode('utf-8') + "\nvar ob = {validateJS: validateJS}; ob"
 
     returncode, stdout, stderr = exec_js_process(
         "validateJS(%s)" % json.dumps({

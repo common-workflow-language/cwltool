@@ -10,7 +10,7 @@ import threading
 import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
-from .utils import onWindows, get_data
+from .utils import onWindows
 from pkg_resources import resource_stream
 
 import six
