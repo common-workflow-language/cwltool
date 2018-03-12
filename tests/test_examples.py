@@ -26,7 +26,7 @@ import cwltool.workflow
 import schema_salad.validate
 from cwltool.main import main
 
-from .util import get_test_data
+from .util import get_data
 
 sys.argv = ['']
 
@@ -135,7 +135,7 @@ class TestParamMatching(unittest.TestCase):
 class TestFactory(unittest.TestCase):
     def test_factory(self):
         f = cwltool.factory.Factory()
-        echo = f.make(get_test_data("echo.cwl"))
+        echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
     def test_default_args(self):
@@ -150,7 +150,7 @@ class TestFactory(unittest.TestCase):
 
     def test_partial_scatter(self):
         f = cwltool.factory.Factory(on_error="continue")
-        fail = f.make(get_test_data("wf/scatterfail.cwl"))
+        fail = f.make(get_data("tests/wf/scatterfail.cwl"))
         try:
             fail()
         except cwltool.factory.WorkflowStatus as e:
@@ -162,7 +162,7 @@ class TestFactory(unittest.TestCase):
 
     def test_partial_output(self):
         f = cwltool.factory.Factory(on_error="continue")
-        fail = f.make(get_test_data("wf/wffail.cwl"))
+        fail = f.make(get_data("tests/wf/wffail.cwl"))
         try:
             fail()
         except cwltool.factory.WorkflowStatus as e:
@@ -523,21 +523,21 @@ class TestTypeCompare(unittest.TestCase):
         # fails if the step 'out' doesn't match.
         with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
-            echo = f.make(get_test_data("test_bad_outputs_wf.cwl"))
+            echo = f.make(get_data("tests/test_bad_outputs_wf.cwl"))
             self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
     def test_malformed_outputs(self):
         # check that tool validation fails if one of the outputs is not a valid CWL type
         f = cwltool.factory.Factory()
         with self.assertRaises(schema_salad.validate.ValidationException):
-            echo = f.make(get_test_data("wf/malformed_outputs.cwl"))
+            echo = f.make(get_data("tests/wf/malformed_outputs.cwl"))
             echo()
 
     def test_separate_without_prefix(self):
         # check that setting 'separate = false' on an inputBinding without prefix fails the workflow
         with self.assertRaises(WorkflowException):
             f = cwltool.factory.Factory()
-            echo = f.make(get_test_data("wf/separate_without_prefix.cwl"))
+            echo = f.make(get_data("tests/wf/separate_without_prefix.cwl"))
             echo()
 
 
@@ -555,7 +555,7 @@ class TestTypeCompare(unittest.TestCase):
 class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):
         # Require that --enable-ext is provided.
-        self.assertEquals(main(["--print-dot", get_test_data('wf/revsort.cwl')]), 0)
+        self.assertEquals(main(["--print-dot", get_data('tests/wf/revsort.cwl')]), 0)
 
 
 class TestCmdLine(unittest.TestCase):
@@ -575,7 +575,7 @@ class TestJsConsole(TestCmdLine):
     def test_js_console_cmd_line_tool(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
             error_code, stdout, stderr = self.get_main_output(["--js-console", "--no-container",
-                                                               get_test_data("wf/" + test_file)])
+                                                               get_data("tests/wf/" + test_file)])
 
             self.assertIn("[log] Log message", stderr)
             self.assertIn("[err] Error message", stderr)
@@ -585,7 +585,7 @@ class TestJsConsole(TestCmdLine):
     def test_no_js_console(self):
         for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
             error_code, stdout, stderr = self.get_main_output(["--no-container",
-                                                               get_test_data("wf/" + test_file)])
+                                                               get_data("tests/wf/" + test_file)])
 
             self.assertNotIn("[log] Log message", stderr)
             self.assertNotIn("[err] Error message", stderr)
@@ -598,7 +598,7 @@ class TestCache(TestCmdLine):
     def test_wf_without_container(self):
         test_file = "hello-workflow.cwl"
         error_code, stdout, stderr = self.get_main_output(["--cachedir", "cache",
-                                                   get_test_data("wf/" + test_file), "--usermessage", "hello"])
+                                                   get_data("tests/wf/" + test_file), "--usermessage", "hello"])
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
 
@@ -609,20 +609,20 @@ class TestChecksum(TestCmdLine):
 
     def test_compute_checksum(self):
         f = cwltool.factory.Factory(compute_checksum=True, use_container=False)
-        echo = f.make(get_test_data("wf/cat-tool.cwl"))
+        echo = f.make(get_data("tests/wf/cat-tool.cwl"))
         output = echo(file1={
                 "class": "File",
-                "location": get_test_data("wf/whale.txt")
+                "location": get_data("tests/wf/whale.txt")
             },
             reverse=False
         )
         self.assertEquals(output['output']["checksum"], "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376")
 
     def test_no_compute_checksum(self):
-        test_file = "wf/wc-tool.cwl"
-        job_file = "wf/wc-job.json"
+        test_file = "tests/wf/wc-tool.cwl"
+        job_file = "tests/wf/wc-job.json"
         error_code, stdout, stderr = self.get_main_output(["--no-compute-checksum",
-                                                   get_test_data(test_file), get_test_data(job_file)])
+                                                   get_data(test_file), get_data(job_file)])
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
         self.assertNotIn("checksum", stdout)
