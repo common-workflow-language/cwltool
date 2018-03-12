@@ -188,9 +188,7 @@ def validate_document(document_loader,  # type: Loader
                       fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,  # type: bool
                       overrides=None,  # type: List[Dict]
-                      metadata=None,  # type: Optional[Dict]
-                      should_validate_js=True, # type: bool
-                      validate_js_options=None # type: Dict
+                      metadata=None  # type: Optional[Dict]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -283,9 +281,6 @@ def validate_document(document_loader,  # type: Loader
 
     if overrides:
         new_metadata[u"cwltool:overrides"] = overrides
-
-    if workflowobj.get("class") is not None and should_validate_js:
-        validate_js_expressions(processobj, avsc_names.names[workflowobj["class"]], validate_js_options)
 
     return document_loader, avsc_names, processobj, new_metadata, uri
 

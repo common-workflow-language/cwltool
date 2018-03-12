@@ -471,25 +471,13 @@ def main(argsl=None,  # type: List[str]
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
                 return 0
 
-            if args.js_hint_options_file is not None:
-                try:
-                    with open(args.js_hint_options_file) as options_file:
-                        validate_js_options = json.load(options_file)
-                except (OSError, ValueError) as e:
-                    _logger.error("Failed to read options file %s" % args.js_hint_options_file)
-                    raise e
-            else:
-                validate_js_options = None
-
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
                                     enable_dev=args.enable_dev, strict=args.strict,
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=overrides,
-                                    should_validate_js=not args.disable_js_validation,
-                                    validate_js_options=validate_js_options)
+                                    overrides=overrides)
 
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))

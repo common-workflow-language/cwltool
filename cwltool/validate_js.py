@@ -15,9 +15,7 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.validate import ValidationException, validate_ex
 
 from . import process
-from .command_line_tool import CommandLineTool
 from .expression import scanner as scan_expression
-from .process import Process
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
                         exec_js_process, execjs)
 from pkg_resources import resource_stream
@@ -142,6 +140,7 @@ def print_js_hint_messages(js_hint_messages, source_line):
 
 def validate_js_expressions(tool, schema, jshint_options=None):
     # type: (CommentedMap, avro.schema.Schema, Dict) -> None
+
     if tool.get("requirements") is None:
         return
 
