@@ -445,7 +445,7 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[Text, Any], **Any) -> None
+        # type: (CommentedMap, **Any) -> None
         """
         kwargs:
 
