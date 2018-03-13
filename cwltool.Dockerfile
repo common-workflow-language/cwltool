@@ -1,21 +1,18 @@
-FROM commonworkflowlanguage/cwltool_module
+FROM python:3.6-alpine as builder
+
+RUN apk add --no-cache git
+
+WORKDIR /cwltool
+COPY . .
+
+RUN python setup.py bdist_wheel --dist-dir=/wheels
+RUN pip wheel -r requirements.txt --wheel-dir=/wheels
+RUN pip install --use-wheel --no-index --root=/pythonroot/ /wheels/*.whl
+
+FROM python:3.6-alpine
 MAINTAINER peter.amstutz@curoverse.com
 
-# Let's start with some basic stuff.
-RUN apt-get update -qq && apt-get install -qqy \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    lxc \
-    iptables \
-    python-setuptools
+RUN apk add --no-cache docker nodejs
+COPY --from=builder /pythonroot/usr/local /usr
 
-# Install Docker from Docker Inc. repositories.
-RUN curl -sSL https://get.docker.com/ | sh
-
-# Install the magic wrapper.
-ADD ./wrapdocker /usr/local/bin/wrapdocker
-RUN chmod +x /usr/local/bin/wrapdocker
-
-VOLUME /var/lib/docker
-ENTRYPOINT ["wrapdocker", "cwltool"]
+ENTRYPOINT ["cwltool"]
