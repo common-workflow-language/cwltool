@@ -13,6 +13,6 @@ FROM python:3.6-alpine
 MAINTAINER peter.amstutz@curoverse.com
 
 RUN apk add --no-cache docker nodejs
-COPY --from=builder /pythonroot/usr/local /usr
+COPY --from=builder /pythonroot/ /
 
 ENTRYPOINT ["cwltool"]
