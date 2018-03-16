@@ -113,23 +113,10 @@ pylint_report.txt: ${PYSOURCES}
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
 
-.coverage: $(PYSOURCES) all
-	export COVERAGE_PROCESS_START=${mkfile_dir}.coveragerc; \
-	       cd ${CWL}; ./run_test.sh RUNNER=cwltool
-	coverage run setup.py test
-	coverage combine ${CWL} ${CWL}/draft-3/ ./
+.coverage: tests
 
-coverage.xml: .coverage
-	python-coverage xml
-
-coverage.html: htmlcov/index.html
-
-htmlcov/index.html: .coverage
-	python-coverage html
-	@echo Test coverage of the Python code is now in htmlcov/index.html
-
-coverage-report: .coverage
-	python-coverage report
+coverage: .coverage
+	coverage report
 
 diff-cover: coverage-gcovr.xml coverage.xml
 	diff-cover coverage-gcovr.xml coverage.xml
@@ -139,8 +126,8 @@ diff-cover.html: coverage-gcovr.xml coverage.xml
 		--html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
-test: FORCE
-	./setup.py test
+test: $(PYSOURCES)
+	python setup.py test --addopts "--cov-report html --cov-report xml --cov cwltool"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > sloccount.sc
