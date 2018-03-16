@@ -187,7 +187,7 @@ class JobBase(object):
                  ProcessProvActivity=None,  # type: ProvEntity
                  reference_locations=None,  # type: Dict[Text, Any]
                  rm_tmpdir=True,            # type: bool
-                 move_outputs="move"        # type: Text
+                 move_outputs="move",       # type: Text
                  secret_store=None          # type: SecretStore
                  ):  # type (...) ->  None
         ro = kwargs.get("ro")
@@ -245,7 +245,7 @@ class JobBase(object):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
-            
+
             if secret_store:
                 commands = secret_store.retrieve(commands)
                 env = secret_store.retrieve(env)
