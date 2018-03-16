@@ -32,6 +32,7 @@ from .errors import WorkflowException
 from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
+from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
 from .utils import copytree_with_merge, onWindows
 
@@ -187,6 +188,7 @@ class JobBase(object):
                  reference_locations=None,  # type: Dict[Text, Any]
                  rm_tmpdir=True,            # type: bool
                  move_outputs="move"        # type: Text
+                 secret_store=None          # type: SecretStore
                  ):  # type (...) ->  None
         ro = kwargs.get("ro")
         scr, _ = get_feature(self, "ShellCommandRequirement")
@@ -243,6 +245,11 @@ class JobBase(object):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
+            
+            if secret_store:
+                commands = secret_store.retrieve(commands)
+                env = secret_store.retrieve(env)
+
 
             job_script_contents = None  # type: Text
             builder = getattr(self, "builder", None)  # type: Builder
@@ -311,6 +318,19 @@ class JobBase(object):
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
+        if self.generatemapper and secret_store:
+            # Delete any runtime-generated files containing secrets.
+            for f, p in self.generatemapper.items():
+                if p.type == "CreateFile":
+                    if secret_store.has_secret(p.resolved):
+                        host_outdir = self.outdir
+                        container_outdir = self.builder.outdir
+                        host_outdir_tgt = p.target
+                        if p.target.startswith(container_outdir+"/"):
+                            host_outdir_tgt = os.path.join(
+                                host_outdir, p.target[len(container_outdir)+1:])
+                        os.remove(host_outdir_tgt)
+
         with job_output_lock:
             self.output_callback(outputs, processStatus)
 
@@ -357,12 +377,13 @@ class CommandLineJob(JobBase):
         if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
             env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
 
-        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True)
+        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=kwargs.get("secret_store"))
         if self.generatemapper:
-            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute([], env, kwargs, document, WorkflowRunID, ProcessProvActivity,reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute([], env, kwargs, document, WorkflowRunID, ProcessProvActivity,reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))
+
 
 
 class ContainerCommandLineJob(JobBase):
@@ -431,7 +452,7 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
 
-        self._execute(runtime, env, kwargs, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)  # included kwargs to see if the workflow has been executed using the provenance flag.
+        self._execute(runtime, env, kwargs, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))  # included kwargs to see if the workflow has been executed using the provenance flag.
 
 
 def _job_popen(
