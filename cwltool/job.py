@@ -211,14 +211,16 @@ class JobBase(object):
                     ProcessRunID=str(ProcessProvActivity.identifier)
                     if 'location' in str(value):
                         location=str(value['location'])
+                        filename=str(value["location"]).split("/")[-1]
                         if location in reference_locations:  # workflow level inputs referenced as hash in prov document
                             document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
+                        elif len(filename)==40 and int(filename, 16): #for the case when you re-run the master-job.json
+                            document.used(ProcessRunID, "data:"+filename, datetime.datetime.now(),None, {"prov:role":provRole })
                         else:  # add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
                             document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
                     else:  # add the actual data value in the prov document
                         document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
         outputs = {}  # type: Dict[Text,Text]
-
         try:
             stdin_path = None
             if self.stdin:

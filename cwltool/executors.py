@@ -122,7 +122,7 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(r.outdir)
                     if ro:
                         #here we are recording provenance of each subprocess of the workflow
-                        if ".cwl" in getattr(r, "name"): #for prospective provenance
+                        if ".cwl" in getattr(r, "name") or "workflow main" in getattr(r, "name"): #for prospective provenance NOTE: the second condition is for packed file
                             steps=[]
                             for s in r.steps:
                                 stepname="wf:main/"+str(s.name)[5:]
@@ -159,7 +159,7 @@ class SingleJobExecutor(JobExecutor):
                             #each subprocess is defined as an activity()
                             provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
                             ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: "wfprov:ProcessRun", "prov:label": provLabel})
-                            if hasattr(r, 'name') and ".cwl" not in getattr(r, "name"):
+                            if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
                                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
                             document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
                             #this is where you run each step. so start and end time for the step

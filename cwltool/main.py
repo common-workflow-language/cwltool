@@ -65,9 +65,6 @@ _logger = logging.getLogger("cwltool")
 #Adding default namespaces
 document = ProvDocument()
 engineUUID=""
-activity_workflowRun={}  # type: Dict[Text, Any]
-defaultStreamHandler = logging.StreamHandler()
-_logger.addHandler(defaultStreamHandler)
 _logger.setLevel(logging.INFO)
 #adding the SoftwareAgent to PROV document
 engineUUID="engine:"+str(uuid.uuid4())
@@ -627,7 +624,7 @@ def main(argsl=None,  # type: List[str]
         try:
             if args.provenance and args.ro:
                 generate_provDoc()
-            
+
             job_order_object = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
