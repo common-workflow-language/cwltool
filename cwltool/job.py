@@ -190,7 +190,7 @@ class JobBase(object):
                  move_outputs="move",       # type: Text
                  secret_store=None          # type: SecretStore
                  ):  # type (...) ->  None
-        ro = kwargs.get("ro")
+        research_obj = kwargs.get("research_obj")
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
         if scr:
@@ -208,7 +208,7 @@ class JobBase(object):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if hasattr(self, "joborder"):
             for key, value in getattr(self, "joborder").items():
-                if ro:
+                if research_obj:
                     provRole=self.name+"/"+str(key)
                     ProcessRunID=str(ProcessProvActivity.identifier)
                     if 'location' in str(value):
@@ -282,7 +282,7 @@ class JobBase(object):
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
             #creating entities for the outputs produced by each step (in the provenance document) and associating them with
             #the ProcessRunID
-            if ro:
+            if research_obj:
                 for key, value in outputs.items():
                     StepOutput_checksum="data:"+str(value["checksum"][5:])
                     document.entity(StepOutput_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
@@ -308,11 +308,11 @@ class JobBase(object):
 
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
-            if ro:
+            if research_obj:
                 document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
-            if ro:
+            if research_obj:
                 document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
 
         if _logger.isEnabledFor(logging.DEBUG):

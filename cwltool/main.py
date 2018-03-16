@@ -47,7 +47,7 @@ from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
-from .provenance import create_ro
+from .provenance import create_researchObject
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
 from .process import (Process, normalizeFilesDirs,
                       scandeps, shortname, use_custom_schema,
@@ -447,7 +447,7 @@ def main(argsl=None,  # type: List[str]
                      'find_default_container': None,
                      'make_template': False,
                      'provenance': None,
-                     'ro': None,
+                     'research_obj': None,
                      'make_template': False,
                      'overrides': None
         }):
@@ -499,7 +499,7 @@ def main(argsl=None,  # type: List[str]
             use_standard_schema("v1.0")
         #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
-            args.ro = create_ro(tmpPrefix=args.tmpdir_prefix)
+            args.research_obj = create_researchObject(tmpPrefix=args.tmpdir_prefix)
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
@@ -540,7 +540,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
             if args.provenance:  # Can't really be combined with args.pack at same time
-                packedWorkflow=args.ro.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
+                packedWorkflow=args.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
                 #extract path to include in PROV document
                 packedWorkflowpath_without_main=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]
                 packedWorkflowPath=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]+"#main"
@@ -634,7 +634,7 @@ def main(argsl=None,  # type: List[str]
         secret_store = SecretStore()
 
         try:
-            if args.provenance and args.ro:
+            if args.provenance and args.research_obj:
                 generate_provDoc()
 
             job_order_object = init_job_order(job_order_object, args, tool,
@@ -642,7 +642,7 @@ def main(argsl=None,  # type: List[str]
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
                                               make_fs_access=make_fs_access,
-                                              provArgs=args.ro,
+                                              provArgs=args.research_obj,
                                               loader=jobloader,
                                               input_basedir=input_basedir,
                                               secret_store=secret_store)
@@ -676,9 +676,8 @@ def main(argsl=None,  # type: List[str]
             # prov: This is the workflow output, it needs to be copied in RO
             if out is not None:
                 #prov: closing the RO after writing everything and removing any temporary files
-                if args.provenance and args.ro:
-                    args.ro.add_output(out, args.provenance)
-                    #args.ro.close(args.provenance)
+                if args.provenance and args.research_obj:
+                    args.research_obj.add_output(out, args.provenance)
 
 
                 def locToPath(p):
@@ -734,12 +733,12 @@ def main(argsl=None,  # type: List[str]
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
-            args.ro.snapshot_generation(ProvDependencies[1])
-            args.ro.snapshot_generation(job_order_object[0])
+            args.research_obj.snapshot_generation(ProvDependencies[1])
+            args.research_obj.snapshot_generation(job_order_object[0])
 
             #adding prov profile and graphs to RO
-            args.ro.add_provProfile(document)
-            args.ro.close(args.provenance)
+            args.research_obj.add_provProfile(document)
+            args.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)

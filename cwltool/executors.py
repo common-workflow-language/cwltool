@@ -111,7 +111,7 @@ class SingleJobExecutor(JobExecutor):
                         self.output_callback,
                         **kwargs)
         try:
-            ro = kwargs.get("ro")
+            research_obj = kwargs.get("research_obj")
             for r in jobiter:
                 if r:
                     builder = kwargs.get("builder", None)  # type: Builder
@@ -120,7 +120,7 @@ class SingleJobExecutor(JobExecutor):
                         r.builder = builder
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
-                    if ro:
+                    if research_obj:
                         #here we are recording provenance of each subprocess of the workflow
                         if ".cwl" in getattr(r, "name") or "workflow main" in getattr(r, "name"): #for prospective provenance NOTE: the second condition is for packed file
                             steps=[]
@@ -142,10 +142,11 @@ class SingleJobExecutor(JobExecutor):
                                         raise WorkflowException(
                                             u"Input '%s' not in input object and does not have a default value." % (i["id"]))
                             ##create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
-                            relativised_input_object=ro.create_job(customised_job, kwargs) #call the method to generate a file with customised job
+                            relativised_input_object=research_obj.create_job(customised_job, kwargs) #call the method to generate a file with customised job
+
                             for key, value in relativised_input_object.items():
                                 strvalue=str(value)
-                                if "data" in strvalue:
+                                if "Data" in strvalue:
                                     shahash="data:"+value.split("/")[-1]
                                     rel_path=value[3:]
                                     reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
@@ -163,12 +164,12 @@ class SingleJobExecutor(JobExecutor):
                                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
                             document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
                             #this is where you run each step. so start and end time for the step
-                    if ro:
+                    if research_obj:
                         r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
                     else:
                         r.run(**kwargs)
                         #capture workflow level outputs in the prov doc
-                    if ro:
+                    if research_obj:
                         for eachOutput in self.final_output:
                             for key, value in eachOutput.items():
                                 outputProvRole="wf:main"+"/"+str(key)

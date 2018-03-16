@@ -27,14 +27,14 @@ relativised_input_object={}  # type: Dict[str, Any]
 _logger = logging.getLogger("cwltool")
 
 # RO folders
-METADATA = "metadata"
-DATA = "data"
-OUTPUT= "output"
-WORKFLOW = "workflow"
-SNAPSHOT = "snapshot"
+METADATA = "Metadata"
+DATA = "Data"
+OUTPUT= "Output"
+WORKFLOW = "Workflow"
+SNAPSHOT = "Snapshot"
 # sub-folders
 MAIN = os.path.join(WORKFLOW, "main")
-PROVENANCE = os.path.join(METADATA, "provenance")
+PROVENANCE = os.path.join(METADATA, "Provenance")
 
 class ProvenanceException(BaseException):
     pass
@@ -45,7 +45,7 @@ class ProvenanceException(BaseException):
 # See ./cwltool/schemas/v1.0/Process.yml
 hashmethod = hashlib.sha1
 
-class RO():
+class ResearchObject():
     def __init__(self, tmpPrefix="tmp"):
         # type: (...) -> None
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
@@ -306,10 +306,6 @@ class RO():
         # This makes later close() a no-op
         self.folder = None
 
-def create_ro(tmpPrefix  # type: str
+def create_researchObject(tmpPrefix  # type: str
              ):
-    return RO(tmpPrefix)
-
-#def inputObjectProv():
-#    "inside inputObjectProv function in Provenance file: ", relativised_input_object)
-#    return relativised_input_object
+    return ResearchObject(tmpPrefix)
