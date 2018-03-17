@@ -305,15 +305,12 @@ class JobBase(object):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-
+        if research_obj:
+            document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
-            if research_obj:
-                document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
         else:
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
-            if research_obj:
-                document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
 
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
