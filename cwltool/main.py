@@ -245,7 +245,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
         exit(1)
     if provArgs:
         inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "",
-                              basedir=file_uri(input_basedir + "/"))
+                              basedir=file_uri(str(input_basedir) + "/"))
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=file_uri(str(input_basedir) + "/"))
@@ -289,7 +289,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
     if "id" in job_order_object:
         del job_order_object["id"]
     if provArgs:
-        return (job_order_object, inputforProv)
+        return (job_order_object, inputforProv[1])
     else:
         return (job_order_object, None)
 
@@ -637,7 +637,7 @@ def main(argsl=None,  # type: List[str]
             if args.provenance and args.research_obj:
                 generate_provDoc()
 
-            job_order_object = init_job_order(job_order_object, args, tool,
+            job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
@@ -662,7 +662,7 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', input_basedir)
             del args.workflow
             del args.job_order
-            (out, status) = executor(tool, job_order_object[0],
+            (out, status) = executor(tool, job_order_object,
                                      logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
@@ -729,12 +729,14 @@ def main(argsl=None,  # type: List[str]
     finally:
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
 
-        if hasattr(args, "ro") and args.provenance and args.rm_tmpdir:
+        if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir:
             document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
             args.research_obj.snapshot_generation(ProvDependencies[1])
-            args.research_obj.snapshot_generation(job_order_object[0])
+            #for input file dependencies
+            args.research_obj.snapshot_generation(inputforProv)
+            args.research_obj.snapshot_generation(job_order_object)
 
             #adding prov profile and graphs to RO
             args.research_obj.add_provProfile(document)
