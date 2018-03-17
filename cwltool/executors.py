@@ -153,7 +153,7 @@ class SingleJobExecutor(JobExecutor):
                                     document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
                                     #document.specializationOf(rel_path, shahash) NOTE:THIS NEEDS FIXING as it required both params as entities.
                                 else:
-                                    ArtefactValue="data:"+strvalue
+                                    ArtefactValue="data:"+strvalue.split("/")[-1]
                                     document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
                         else:
                             ProcessRunID="run:"+str(uuid.uuid4())
