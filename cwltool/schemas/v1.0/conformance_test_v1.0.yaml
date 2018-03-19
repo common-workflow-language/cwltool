@@ -1,7 +1,7 @@
 - job: v1.0/bwa-mem-job.json
   tool: v1.0/bwa-mem-tool.cwl
   output:
-    args: [bwa, mem, -t, '4', -I, '1,2,3,4', -m, '3',
+    args: [bwa, mem, -t, '2', -I, '1,2,3,4', -m, '3',
       chr20.fa,
       example_human_Illumina.pe_1.fastq,
       example_human_Illumina.pe_2.fastq]
@@ -135,16 +135,15 @@
     output: 2
   doc: Testing the string 'null' does not trip up an Any with a default value.
 
-## TODO: Upgrade framework to allow specifying negative tests.
-# - job: v1.0/empty.json
-#   tool: v1.0/null-expression2-tool.cwl
-#   failure: true
-#   doc: Test Any without defaults can be unspecified.
+- job: v1.0/empty.json
+  tool: v1.0/null-expression2-tool.cwl
+  should_fail: true
+  doc: Test Any without defaults can be unspecified.
 
-# - job: v1.0/null-expression1-job.json
-#   tool: v1.0/null-expression2-tool.cwl
-#   failure: true
-#   doc: Test explicitly passing null to Any type without a default value.
+- job: v1.0/null-expression1-job.json
+  tool: v1.0/null-expression2-tool.cwl
+  should_fail: true
+  doc: Test explicitly passing null to Any type without a default value.
 
 - job: v1.0/null-expression2-job.json
   tool: v1.0/null-expression2-tool.cwl
@@ -152,14 +151,22 @@
     output: 2
   doc: Testing the string 'null' does not trip up an Any without a default value.
 
-- job: v1.0/wc-job.json
+- job: v1.0/any-type-job.json
+  tool: v1.0/any-type-compat.cwl
+  output:
+    output1: ["hello", "world"]
+    output2: ["foo", "bar"]
+    output3: hello
+  doc: Testing Any type compatibility in outputSource
+
+- job: v1.0/cat-job.json
   output:
     output:
-      checksum: sha1$3596ea087bfdaf52380eae441077572ed289d657
+      checksum: sha1$47a013e660d408619d894b20806b1d5086aab03b
       class: File
       location: output
-      size: 3
-  tool: v1.0/wc-tool.cwl
+      size: 13
+  tool: v1.0/cat-tool.cwl
   doc: Test command execution in with stdin and stdout redirection
 
 - job: v1.0/parseInt-job.json
@@ -212,6 +219,14 @@
     Test single step workflow with Scatter step and two data links connected to
     same input, flattened merge behavior
 
+- job: v1.0/count-lines6-job.json
+  output:
+    count_output: 32
+  tool: v1.0/count-lines13-wf.cwl
+  doc: |
+    Test that no MultipleInputFeatureRequirement is necessary when
+    workflow step source is a single-item list
+
 - job: v1.0/empty.json
   output: {count_output: 1}
   tool: v1.0/count-lines5-wf.cwl
@@ -221,6 +236,11 @@
   output: {count_output: 16}
   tool: v1.0/count-lines5-wf.cwl
   doc: Test workflow with default value for input parameter (provided)
+
+- job: v1.0/empty.json
+  output: {default_output: workflow_default}
+  tool: v1.0/echo-wf-default.cwl
+  doc: Test that workflow defaults override tool defaults
 
 - job: v1.0/env-job.json
   output:
@@ -255,6 +275,36 @@
     out: ["foo one three", "foo two four"]
   tool: "v1.0/scatter-wf4.cwl#main"
   doc: Test workflow scatter with two scatter parameters and dotproduct join method
+
+- job: v1.0/scatter-empty-job1.json
+  output:
+    out: []
+  tool: v1.0/scatter-wf1.cwl
+  doc: Test workflow scatter with single empty list parameter
+
+- job: v1.0/scatter-empty-job2.json
+  output:
+    out: [[], []]
+  tool: v1.0/scatter-wf2.cwl
+  doc: Test workflow scatter with two scatter parameters and nested_crossproduct join method with second list empty
+
+- job: v1.0/scatter-empty-job3.json
+  output:
+    out: []
+  tool: "v1.0/scatter-wf3.cwl#main"
+  doc: Test workflow scatter with two scatter parameters and nested_crossproduct join method with first list empty
+
+- job: v1.0/scatter-empty-job2.json
+  output:
+    out: []
+  tool: "v1.0/scatter-wf3.cwl#main"
+  doc: Test workflow scatter with two scatter parameters, one of which is empty and flat_crossproduct join method
+
+- job: v1.0/scatter-empty-job4.json
+  output:
+    out: []
+  tool: "v1.0/scatter-wf4.cwl#main"
+  doc: Test workflow scatter with two empty scatter parameters and dotproduct join method
 
 - tool: v1.0/echo-tool.cwl
   job: v1.0/env-job.json
@@ -378,7 +428,36 @@
                 "class": "File",
                 "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
                 "size": 0
-            }
+            },
+            {
+                "location": "input.idx6.txt",
+                "class": "File",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "size": 0
+            },
+            {
+            "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "class": "File",
+            "location": "input.txt.idx7",
+            "size": 0
+            },
+            {
+            "checksum": "sha1$47a013e660d408619d894b20806b1d5086aab03b",
+            "class": "File",
+            "location": "hello.txt",
+            "size": 13
+            },
+            {
+            "class": "Directory",
+            "listing": [{
+               "basename": "index",
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "class": "File",
+                "location": "index",
+                "size": 0
+            }],
+            "location": "input.txt_idx8",
+          }
         ],
         "size": 1111
     }
@@ -634,6 +713,14 @@
   doc: |
     Test optional output file and optional secondaryFile on output.
 
+
+- job: v1.0/empty.json
+  output: {
+    "out": "a string\n"
+  }
+  tool: v1.0/vf-concat.cwl
+  doc: Test that second expression in concatenated valueFrom is not ignored
+
 - job: v1.0/step-valuefrom-wf.json
   output: {count_output: 16}
   tool: v1.0/step-valuefrom-wf.cwl
@@ -749,6 +836,25 @@
   tool: v1.0/scatter-valuefrom-wf5.cwl
   doc: Test workflow scatter with single scatter parameter and valueFrom on step input
 
+- job: v1.0/scatter-valuefrom-job3.json
+  tool: v1.0/scatter-valuefrom-wf6.cwl
+  doc: Test valueFrom eval on scattered input parameter
+  output:
+    out_message: [
+        {
+            "checksum": "sha1$98030575f6fc40e5021be5a8803a6bef94aee11f",
+            "location": Any,
+            "class": "File",
+            "size": 16
+        },
+        {
+            "checksum": "sha1$edcacd50778d98ae113015406b3195c165059dd8",
+            "location": Any,
+            "class": "File",
+            "size": 16
+        }
+    ]
+
 - job: v1.0/conflict-job.json
   output: {
     "fileout": {
@@ -790,20 +896,20 @@
         "listing": [
             {
               "class": "File",
-              "location": "hello.txt",
-                "checksum": "sha1$47a013e660d408619d894b20806b1d5086aab03b",
-                "size": 13
-            },
-            {
-              "class": "File",
               "location": "goodbye.txt",
                 "checksum": "sha1$dd0a4c4c49ba43004d6611771972b6cf969c1c01",
                 "size": 24
+            },
+            {
+              "class": "File",
+              "location": "hello.txt",
+                "checksum": "sha1$47a013e660d408619d894b20806b1d5086aab03b",
+                "size": 13
             }
         ],
     }
   tool: v1.0/dir3.cwl
-  doc: Test directory input in Docker
+  doc: Test directory output
 
 - job: v1.0/dir4-job.yml
   output: {
@@ -820,8 +926,8 @@
 - job: v1.0/dir-job.yml
   output: {
     "outlist": {
-        "checksum": "sha1$907a866a3e0b7f1fc5a2222531c5fb9063704438",
-        "size": 33,
+        "checksum": "sha1$13cda8661796ae241da3a18668fb552161a72592",
+        "size": 20,
         "location": "output.txt",
         "class": "File"
     }
@@ -851,14 +957,14 @@
   tool: v1.0/cat3-tool.cwl
   doc: Test file literal as input
 
-- job: examples/arguments-job.yml
+- job: v1.0/arguments-job.yml
   output:
     classfile:
         checksum: sha1$e68df795c0686e9aa1a1195536bd900f5f417b18
         location: Hello.class
         class: File
         size: 184
-  tool: examples/linkfile.cwl
+  tool: v1.0/linkfile.cwl
   doc: Test expression in InitialWorkDir listing
 
 - job: v1.0/wc-job.json
@@ -1057,7 +1163,6 @@
         "location": "work_dir",
       }
     test_result: {
-        "basename": "output.txt",
         "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
         "class": "File",
         "location": "output.txt",
@@ -1109,3 +1214,212 @@
   output: {}
   tool: v1.0/initialwork-path.cwl
   doc: Test that file path in $(inputs) for initialworkdir is in $(outdir).
+
+- job: v1.0/count-lines6-job.json
+  output:
+    count_output: 34
+  tool: v1.0/count-lines12-wf.cwl
+  doc: |
+    Test single step workflow with Scatter step and two data links connected to
+    same input, flattened merge behavior. Workflow inputs are set as list
+
+- job: v1.0/sum-job.json
+  output:
+    result: 12
+  tool: v1.0/sum-wf.cwl
+  doc: Test step input with multiple sources with multiple types
+
+- job: v1.0/empty.json
+  output: {
+    "stderr_file": {
+        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+        "location": Any,
+        "class": "File",
+        "size": 0
+    },
+    "stdout_file": {
+        "checksum": "sha1$1555252d52d4ec3262538a4426a83a99cfff4402",
+        "location": Any,
+        "class": "File",
+        "size": 9
+    }
+  }
+  tool: v1.0/shellchar.cwl
+  doc: "Test that shell directives are not interpreted."
+
+- job: v1.0/empty.json
+  output: {
+    "stderr_file": {
+        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+        "location": Any,
+        "class": "File",
+        "size": 0
+    },
+    "stdout_file": {
+        "checksum": "sha1$1555252d52d4ec3262538a4426a83a99cfff4402",
+        "location": Any,
+        "class": "File",
+        "size": 9
+    }
+  }
+  tool: v1.0/shellchar2.cwl
+  doc: "Test that shell directives are quoted."
+
+- job: v1.0/empty.json
+  output:
+    out: {
+        "basename": "emptyWritableDir",
+        "listing": [
+            {
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "basename": "blurg",
+                "location": "blurg",
+                "class": "File",
+                "size": 0
+            }
+        ],
+        "location": "emptyWritableDir",
+        "class": "Directory"
+    }
+  tool: v1.0/writable-dir.cwl
+  doc: Test empty writable dir with InitialWorkDirRequirement
+
+- job: v1.0/empty.json
+  output:
+    out: {
+        "basename": "emptyWritableDir",
+        "listing": [
+            {
+                "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+                "basename": "blurg",
+                "location": "blurg",
+                "class": "File",
+                "size": 0
+            }
+        ],
+        "location": "emptyWritableDir",
+        "class": "Directory"
+    }
+  tool: v1.0/writable-dir-docker.cwl
+  doc: Test empty writable dir with InitialWorkDirRequirement inside Docker
+
+- job: v1.0/dynresreq-job.json
+  tool: v1.0/dynresreq.cwl
+  doc: Test dynamic resource reqs referencing inputs
+  output:
+     output: {
+        "location": "cores.txt",
+        "size": 2,
+        "class": "File",
+        "checksum": "sha1$7448d8798a4380162d4b56f9b452e2f6f9e24e7a"
+     }
+
+- job: v1.0/file-literal.yml
+  output:
+    output_file:
+      class: File
+      checksum: sha1$d0e04ff6c413c7d57f9a0ca0a33cd3ab52e2dd9c
+      location: output.txt
+      size: 18
+  tool: v1.0/cat3-nodocker.cwl
+  doc: Test file literal as input without Docker
+- doc: Test that OutputBinding.glob is sorted as specified by POSIX
+  job: v1.0/empty.json
+  tool: v1.0/glob_test.cwl
+  output:
+    letters:
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: a
+        class: File
+        size: 0
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: b
+        class: File
+        size: 0
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: c
+        class: File
+        size: 0
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: w
+        class: File
+        size: 0
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: x
+        class: File
+        size: 0
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: y
+        class: File
+        size: 0
+      - checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+        location: z
+        class: File
+        size: 0
+
+- doc: Test InitialWorkDirRequirement with a nested directory structure from another step
+  job: v1.0/empty.json
+  output:
+    ya_empty:
+      class: File
+      checksum: sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709
+      location: ya
+      size: 0
+  tool: v1.0/iwdr_with_nested_dirs.cwl
+
+- job: v1.0/bool-empty-inputbinding-job.json
+  output: {
+    "args": [
+    ]
+  }
+  tool: v1.0/bool-empty-inputbinding.cwl
+  doc: "Test that boolean flags do not appear on command line if inputBinding is empty and not null"
+
+- job: v1.0/empty.json
+  output: {
+    "args": []
+  }
+  tool: v1.0/stage-unprovided-file.cwl
+  doc: Test that expression engine does not fail to evaluate reference to self
+       with unprovided input
+
+- tool: v1.0/exit-success.cwl
+  doc: Test successCodes
+  job: v1.0/empty.json
+  output: {}
+
+- job: v1.0/dynresreq-job.json
+  doc: Test simple workflow with a dynamic resource requirement
+  tool: v1.0/dynresreq-workflow.cwl
+  output:
+     cores: {
+        "location": "output",
+        "size": 2,
+        "class": "File",
+        "checksum": "sha1$7448d8798a4380162d4b56f9b452e2f6f9e24e7a"
+     }
+
+- job: v1.0/empty-array-job.json
+  output: {
+    "args": []
+  }
+  tool: v1.0/empty-array-input.cwl
+  doc: "Test that empty array input does not add anything to command line" 
+
+- job: v1.0/empty.json
+  tool: v1.0/steplevel-resreq.cwl
+  doc: Test that ResourceRequirement on a step level redefines requirement on the workflow level
+  output:
+     out: {
+        "location": "cores.txt",
+        "size": 2,
+        "class": "File",
+        "checksum": "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+     }
+
+- job: v1.0/array-of-strings-job.yml
+  output: {
+    "args": ["replacementValue"]
+  }
+  tool: v1.0/valueFrom-constant.cwl
+  doc: Test valueFrom with constant value overriding provided array inputs

@@ -267,6 +267,36 @@
   tool: "v1.1.0-dev1/scatter-wf4.cwl#main"
   doc: Test workflow scatter with two scatter parameters and dotproduct join method
 
+- job: v1.1.0-dev1/scatter-empty-job1.json
+  output:
+    out: []
+  tool: v1.1.0-dev1/scatter-wf1.cwl
+  doc: Test workflow scatter with single empty list parameter
+
+- job: v1.1.0-dev1/scatter-empty-job2.json
+  output:
+    out: [[], []]
+  tool: v1.1.0-dev1/scatter-wf2.cwl
+  doc: Test workflow scatter with two scatter parameters and nested_crossproduct join method with second list empty
+
+- job: v1.1.0-dev1/scatter-empty-job3.json
+  output:
+    out: []
+  tool: "v1.1.0-dev1/scatter-wf3.cwl#main"
+  doc: Test workflow scatter with two scatter parameters and nested_crossproduct join method with first list empty
+
+- job: v1.1.0-dev1/scatter-empty-job2.json
+  output:
+    out: []
+  tool: "v1.1.0-dev1/scatter-wf3.cwl#main"
+  doc: Test workflow scatter with two scatter parameters, one of which is empty and flat_crossproduct join method
+
+- job: v1.1.0-dev1/scatter-empty-job4.json
+  output:
+    out: []
+  tool: "v1.1.0-dev1/scatter-wf4.cwl#main"
+  doc: Test workflow scatter with two empty scatter parameters and dotproduct join method
+
 - tool: v1.1.0-dev1/echo-tool.cwl
   job: v1.1.0-dev1/env-job.json
   output:
@@ -1082,3 +1112,57 @@
   job: v1.1.0-dev1/cat-job.json
   tool: v1.1.0-dev1/null-defined.cwl
   doc: Test that provided parameter is not null in expression
+
+- job: v1.1.0-dev1/empty.json
+  output: {
+    "stderr_file": {
+        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+        "location": Any,
+        "class": "File",
+        "size": 0
+    },
+    "stdout_file": {
+        "checksum": "sha1$1555252d52d4ec3262538a4426a83a99cfff4402",
+        "location": Any,
+        "class": "File",
+        "size": 9
+    }
+  }
+  tool: v1.1.0-dev1/shellchar.cwl
+  doc: "Test that shell directives are not interpreted."
+
+- job: v1.1.0-dev1/empty.json
+  output: {
+    "stderr_file": {
+        "checksum": "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709",
+        "location": Any,
+        "class": "File",
+        "size": 0
+    },
+    "stdout_file": {
+        "checksum": "sha1$1555252d52d4ec3262538a4426a83a99cfff4402",
+        "location": Any,
+        "class": "File",
+        "size": 9
+    }
+  }
+  tool: v1.1.0-dev1/shellchar2.cwl
+  doc: "Test that shell directives are quoted."
+
+- job: v1.1.0-dev1/empty-array-job.json
+  output: {
+    "args": []
+  }
+  tool: v1.1.0-dev1/empty-array-input.cwl
+  doc: "Test that empty array input does not add anything to command line"
+
+- job: v1.1.0-dev1/empty.json
+  tool: v1.1.0-dev1/steplevel-resreq.cwl
+  doc: Test that ResourceRequirement on a step level redefines requirement on the workflow level
+  output:
+     out: {
+        "location": "cores.txt",
+        "size": 2,
+        "class": "File",
+        "checksum": "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+     }
