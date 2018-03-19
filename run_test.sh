@@ -5,10 +5,24 @@ $(basename $0): Run common workflow tool description language conformance tests.
 
 Syntax:
         $(basename $0) [RUNNER=/path/to/cwl-runner] [DRAFT=cwl-draft-version]
+                       [EXTRA=--optional-arguments-to-cwl-runner]
 
 Options:
-  -nT   Run a specific test.
-  -l    List tests
+  -nT                   Run a specific test.
+  -l                    List tests
+  -jJ                   Specifies the number of tests to run simultaneously
+                        (defaults to one).
+  --only-tools          Only test CommandLineTools
+  --junit-xml=FILENAME  Store results in JUnit XML format using the given
+                        FILENAME
+  --classname=CLASSNAME In the JUnit XML, tag the results with the given
+                        CLASSNAME
+  --verbose             Print the cwltest invocation and pass --verbose to
+                        cwltest
+
+Note:
+  EXTRA is useful for passing --enable-dev to the CWL reference runner:
+  Example: RUNNER=cwltool EXTRA=--enable-dev
 EOF
 
 DRAFT=v1.0
@@ -18,6 +32,8 @@ RUNNER=cwl-runner
 PLATFORM=$(uname -s)
 COVERAGE="python"
 EXTRA=""
+CLASS=""
+VERBOSE=""
 
 while [[ -n "$1" ]]
 do
@@ -31,20 +47,31 @@ do
         -n*)
             TEST_N=$arg
             ;;
+        -j*)
+            TEST_J=$arg
+            ;;
         -l)
             TEST_L=-l
             ;;
         --only-tools)
-            ONLY_TOOLS=--only-tools
+            ONLY_TOOLS=$arg
             ;;
         --junit-xml=*)
             JUNIT_XML=$arg
+            ;;
+        --classname=*)
+            CLASS=$arg
+            ;;
+        --verbose)
+            VERBOSE=$arg
             ;;
         *=*)
             eval $(echo $arg | cut -d= -f1)=\"$(echo $arg | cut -d= -f2-)\"
             ;;
     esac
 done
+
+DRAFT_DIR="$(cd $(dirname $0); pwd)/${DRAFT}"
 
 if ! runner="$(which $RUNNER)" ; then
     echo >&2 "$helpmessage"
@@ -68,10 +95,13 @@ runtest() {
     "$1" --version
 
     runs=$((runs+1))
-    (cd $DRAFT
-     cwltest --tool "$1" \
-	     --test=conformance_test_${DRAFT}.yaml ${TEST_N} \
-	     ${TEST_L} ${ONLY_TOOLS} ${JUNIT_XML} --basedir ${DRAFT} -- ${EXTRA}
+    (cd $DRAFT_DIR
+     COMMAND="cwltest --tool $1 \
+	     --test=conformance_test_${DRAFT}.yaml ${CLASS} ${TEST_N} \
+	     ${VERBOSE} ${TEST_L} ${TEST_J} ${ONLY_TOOLS} ${JUNIT_XML} \
+	     --basedir ${DRAFT_DIR} -- ${EXTRA}"
+     if [[ $VERBOSE == "--verbose" ]]; then echo ${COMMAND}; fi
+     ${COMMAND}
     )
     checkexit
 }

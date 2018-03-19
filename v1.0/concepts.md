@@ -322,7 +322,7 @@ Expressions are denoted by the syntax `$(...)` or `${...}`.  A code
 fragment wrapped in the `$(...)` syntax must be evaluated as a
 [ECMAScript expression](http://www.ecma-international.org/ecma-262/5.1/#sec-11).  A
 code fragment wrapped in the `${...}` syntax must be evaluated as a
-[EMACScript function body](http://www.ecma-international.org/ecma-262/5.1/#sec-13)
+[ECMAScript function body](http://www.ecma-international.org/ecma-262/5.1/#sec-13)
 for an anonymous, zero-argument function.  Expressions must return a valid JSON
 data type: one of null, string, number, boolean, array, object. Other return
 values must result in a `permanentFailure`. Implementations must permit any
@@ -384,5 +384,5 @@ To discover CWL documents look in the following locations:
 
 `$XDG_DATA_HOME/commonwl/` (usually `$HOME/.local/share/commonwl`)
 
-`$XDF_DATA_HOME` is from the [XDG Base Directory
+`$XDG_DATA_HOME` is from the [XDG Base Directory
 Specification](http://standards.freedesktop.org/basedir-spec/basedir-spec-0.6.html)
