@@ -118,6 +118,14 @@ diff_pylint_report: pylint_report.txt
 coverage: .coverage
 	coverage report
 
+coverage.xml: .coverage
+	coverage xml
+
+coverage.html: htmlcov/index.html
+
+htmlcov/index.html: .coverage
+	coverage html
+
 diff-cover: coverage-gcovr.xml coverage.xml
 	diff-cover coverage-gcovr.xml coverage.xml
 
@@ -127,7 +135,7 @@ diff-cover.html: coverage-gcovr.xml coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(PYSOURCES)
-	python setup.py test --addopts "--cov-report html --cov-report xml --cov cwltool"
+	python setup.py test --addopts "--cov cwltool"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > sloccount.sc
