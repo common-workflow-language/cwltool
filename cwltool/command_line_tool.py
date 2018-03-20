@@ -470,7 +470,7 @@ class CommandLineTool(Process):
             def register_reader(f):
                 if f["location"] not in muts:
                     builder.mutation_manager.register_reader(j.name, f)
-                    readers[f["location"]] = f
+                    readers[f["location"]] = copy.copy(f)
 
             for li in j.generatefiles["listing"]:
                 li = cast(Dict[Text, Any], li)
