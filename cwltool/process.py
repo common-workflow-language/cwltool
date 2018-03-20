@@ -351,55 +351,6 @@ def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
             shutil.rmtree(a, True)
 
 
-def formatSubclassOf(fmt, cls, ontology, visited):
-    # type: (Text, Text, Graph, Set[Text]) -> bool
-    """Determine if `fmt` is a subclass of `cls`."""
-
-    if URIRef(fmt) == URIRef(cls):
-        return True
-
-    if ontology is None:
-        return False
-
-    if fmt in visited:
-        return False
-
-    visited.add(fmt)
-
-    uriRefFmt = URIRef(fmt)
-
-    for s, p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
-        # Find parent classes of `fmt` and search upward
-        if formatSubclassOf(o, cls, ontology, visited):
-            return True
-
-    for s, p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
-        # Find equivalent classes of `fmt` and search horizontally
-        if formatSubclassOf(o, cls, ontology, visited):
-            return True
-
-    for s, p, o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
-        # Find equivalent classes of `fmt` and search horizontally
-        if formatSubclassOf(s, cls, ontology, visited):
-            return True
-
-    return False
-
-
-def checkFormat(actualFile, inputFormats, ontology):
-    # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
-    for af in aslist(actualFile):
-        if not af:
-            continue
-        if "format" not in af:
-            raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
-        for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
-                return
-        raise validate.ValidationException(
-            u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
-
-
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
@@ -592,6 +543,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder.debug = kwargs.get("debug")
         builder.js_console = kwargs.get("js_console")
         builder.mutation_manager = kwargs.get("mutation_manager")
+        builder.formatgraph = self.formatgraph
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
@@ -626,13 +578,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
                 builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
-        if self.formatgraph:
-            for i in self.tool["inputs"]:
-                d = shortname(i["id"])
-                if d in builder.job and i.get("format"):
-                    checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
-
-        builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
+        builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job, discover_secondaryFiles=kwargs.get("toplevel")))
 
         if self.tool.get("baseCommand"):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):

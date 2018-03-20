@@ -559,6 +559,7 @@ class Workflow(Process):
         yield wj
 
         kwargs["part_of"] = u"workflow %s" % wj.name
+        kwargs["toplevel"] = False
 
         for w in wj.job(builder.job, output_callbacks, **kwargs):
             yield w
