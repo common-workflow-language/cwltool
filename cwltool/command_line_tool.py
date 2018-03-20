@@ -630,8 +630,6 @@ class CommandLineTool(Process):
                             f.seek(0, 2)
                             filesize = f.tell()
                         files["size"] = filesize
-                        if "format" in schema:
-                            files["format"] = builder.do_eval(schema["format"], context=files)
 
             optional = False
             single = False
@@ -686,6 +684,10 @@ class CommandLineTool(Process):
                                     elif fs_access.isdir(sfitem["location"]):
                                         sfitem["class"] = "Directory"
                                         primary["secondaryFiles"].append(sfitem)
+
+            if "format" in schema:
+                for primary in aslist(r):
+                    primary["format"] = builder.do_eval(schema["format"], context=primary)
 
             # Ensure files point to local references outside of the run environment
             adjustFileObjs(r, cast(  # known bug in mypy
