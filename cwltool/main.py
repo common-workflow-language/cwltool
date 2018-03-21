@@ -65,14 +65,12 @@ _logger = logging.getLogger("cwltool")
 
 #Adding default namespaces
 document = ProvDocument()
-engineUUID=""
-_logger.setLevel(logging.INFO)
 #adding the SoftwareAgent to PROV document
 engineUUID="engine:"+str(uuid.uuid4())
-#defining workflow level run ID
 WorkflowRunUUID=str(uuid.uuid4())
 WorkflowRunID="run:"+WorkflowRunUUID
-#for retrospective details. This is where we should make all the changes and capture provenance.
+_logger.setLevel(logging.INFO)
+
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
@@ -188,7 +186,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
     # (...) -> Tuple[Dict[Text, Any], Text]
 
     secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
-
+    
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
@@ -338,28 +336,6 @@ def print_pack(document_loader, processobj, uri, metadata):
         return json.dumps(packed, indent=4)
     else:
         return json.dumps(packed["$graph"][0], indent=4)
-
-def generate_provDoc():
-    # type: () -> None
-    document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
-    document.add_namespace('prov', 'http://www.w3.org/ns/prov')
-    document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
-    document.add_namespace('run', 'urn:uuid:')
-    document.add_namespace('engine', 'urn:uuid4:')
-    document.add_namespace('data', 'urn:hash:sha1')
-    cwlversionProv="cwltool "+ str(versionstring().split()[-1])
-    roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
-    document.add_namespace("wf", roIdentifierWorkflow)
-    roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/master-job.json#"
-    document.add_namespace("input", roIdentifierInput)
-    #Get cwltool version
-    cwlversionProv="cwltool "+ str(versionstring().split()[-1])
-    document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
-    #define workflow run level activity
-    activity_workflowRun = document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": "Run of workflow/packed.cwl#main"})
-    #association between SoftwareAgent and WorkflowRun
-    mainWorkflow = "wf:main"
-    document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
 
 #version of CWLtool used to execute the workflow.
 def versionstring():
@@ -540,10 +516,7 @@ def main(argsl=None,  # type: List[str]
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
             if args.provenance:  # Can't really be combined with args.pack at same time
-                packedWorkflow=args.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
-                #extract path to include in PROV document
-                packedWorkflowpath_without_main=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]
-                packedWorkflowPath=str(packedWorkflow).split("/")[-2]+"/"+str(packedWorkflow).split("/")[-1]+"#main"
+                args.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
@@ -635,7 +608,8 @@ def main(argsl=None,  # type: List[str]
 
         try:
             if args.provenance and args.research_obj:
-                generate_provDoc()
+                cwlversionProv="cwltool "+ str(versionstring().split()[-1])
+                args.research_obj.generate_provDoc(document, cwlversionProv, engineUUID, WorkflowRunUUID)
 
             job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
@@ -663,23 +637,17 @@ def main(argsl=None,  # type: List[str]
             del args.workflow
             del args.job_order
             (out, status) = executor(tool, job_order_object,
+                                     engineUUID=engineUUID,
                                      logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
                                      provDoc=document,
-                                     engUUID=engineUUID,
                                      WorkflowID=WorkflowRunID,
                                      make_fs_access=make_fs_access,
                                      secret_store=secret_store,
                                      **vars(args))
 
-            # prov: This is the workflow output, it needs to be copied in RO
             if out is not None:
-                #prov: closing the RO after writing everything and removing any temporary files
-                if args.provenance and args.research_obj:
-                    args.research_obj.add_output(out, args.provenance)
-
-
                 def locToPath(p):
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in p:

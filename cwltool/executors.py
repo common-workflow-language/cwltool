@@ -10,7 +10,7 @@ import time
 from abc import ABCMeta, abstractmethod
 import prov.model as prov
 from typing import Dict, Text, Any, Tuple, Set, List
-
+import itertools
 
 from .builder import Builder
 from .errors import WorkflowException
@@ -42,27 +42,31 @@ class JobExecutor(object):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
+                 engUUID,
                  document,
-                 engineUUID,
                  WorkflowRunID,
                  logger,
+                 make_fs_access,
                  **kwargs  # type: Any
                  ):
         pass
 
     def execute(self, t,  # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                logger=_logger,
-                provDoc=None,
                 engineID=None,
+                logger=None,
+                makeTool=None,
+                select_resources=None,
+                provDoc=None,
                 WorkflowID=None,
+                make_fs_access=None,
+                secret_store=None,
                 **kwargs  # type: Any
                 ):
         # type: (...) -> Tuple[Dict[Text, Any], Text]
 
         if "basedir" not in kwargs:
             raise WorkflowException("Must provide 'basedir' in kwargs")
-
         finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
         kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
             "tmp_outdir_prefix") else tempfile.mkdtemp()
@@ -77,13 +81,12 @@ class JobExecutor(object):
         if jobReqs:
             for req in jobReqs:
                 t.requirements.append(req)
-
-        self.run_jobs(t, job_order_object, provDoc, engineID, WorkflowID, logger, **kwargs)
+        self.run_jobs(t, job_order_object, engineID, provDoc, WorkflowID, logger, make_fs_access, **kwargs)
 
         if self.final_output and self.final_output[0] and finaloutdir:
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
-                kwargs.get("move_outputs"), kwargs["make_fs_access"](""),
+                kwargs.get("move_outputs"), make_fs_access(""),
                 kwargs.get("compute_checksum", True))
 
         if kwargs.get("rm_tmpdir"):
@@ -99,10 +102,11 @@ class SingleJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
+                 engUUID,
                  document,
-                 engineUUID,
                  WorkflowRunID,
                  logger,
+                 make_fs_access,
                  **kwargs  # type: Any
                  ):
         reference_locations={} # type: Dict[Text, Any]
@@ -123,59 +127,22 @@ class SingleJobExecutor(JobExecutor):
                     if research_obj:
                         #here we are recording provenance of each subprocess of the workflow
                         if ".cwl" in getattr(r, "name") or "workflow main" in getattr(r, "name"): #for prospective provenance NOTE: the second condition is for packed file
-                            steps=[]
-                            for s in r.steps:
-                                stepname="wf:main/"+str(s.name)[5:]
-                                steps.append(stepname)
-                                document.entity(stepname, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
-                            #create prospective provenance recording for the workflow
-                            document.entity("wf:main", {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":str(steps),  "prov:label":"Prospective provenance"})
-                            customised_job={} #new job object for RO
-                            for e, i in enumerate(r.tool["inputs"]):
-                                with SourceLine(r.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
-                                    iid = shortname(i["id"])
-                                    if iid in job_order_object:
-                                        customised_job[iid]= copy.deepcopy(job_order_object[iid]) #add the input element in dictionary for provenance
-                                    elif "default" in i:
-                                        customised_job[iid]= copy.deepcopy(i["default"]) #add the defualt elements in the dictionary for provenance
-                                    else:
-                                        raise WorkflowException(
-                                            u"Input '%s' not in input object and does not have a default value." % (i["id"]))
+                            research_obj.prospective_prov(document, r)
+                            customised_job=research_obj.copy_job_order(r, job_order_object)
                             ##create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
-                            relativised_input_object=research_obj.create_job(customised_job, kwargs) #call the method to generate a file with customised job
-
-                            for key, value in relativised_input_object.items():
-                                strvalue=str(value)
-                                if "Data" in strvalue:
-                                    shahash="data:"+value.split("/")[-1]
-                                    rel_path=value[3:]
-                                    reference_locations[job_order_object[key]["location"]]=relativised_input_object[key][11:]
-                                    document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
-                                    #document.specializationOf(rel_path, shahash) NOTE:THIS NEEDS FIXING as it required both params as entities.
-                                else:
-                                    ArtefactValue="data:"+strvalue.split("/")[-1]
-                                    document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
+                            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) #call the method to generate a file with customised job
+                            #call the methods to create data artefacts in provenance document
+                            research_obj.declare_artefact(relativised_input_object, document, job_order_object) 
                         else:
-                            ProcessRunID="run:"+str(uuid.uuid4())
-                            #each subprocess is defined as an activity()
-                            provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
-                            ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: "wfprov:ProcessRun", "prov:label": provLabel})
-                            if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
-                                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
-                            document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
-                            #this is where you run each step. so start and end time for the step
+                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
                     if research_obj:
                         r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
                     else:
                         r.run(**kwargs)
-                        #capture workflow level outputs in the prov doc
-                    if research_obj:
-                        for eachOutput in self.final_output:
-                            for key, value in eachOutput.items():
-                                outputProvRole="wf:main"+"/"+str(key)
-                                output_checksum="data:"+str(value["checksum"][5:])
-                                document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
-                                document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
+                    #capture workflow level outputs in the prov doc
+                    if research_obj and self.final_output:
+                        ProcessRunID=None
+                        research_obj.generate_outputProv(self.final_output[0], document, WorkflowRunID, ProcessRunID)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
@@ -219,15 +186,16 @@ class MultithreadedJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
+                 engUUID,
                  document,
-                 engineUUID,
                  WorkflowRunID,
                  logger,
+                 make_fs_access,
                  **kwargs  # type: Any
                  ):
 
         jobiter = t.job(job_order_object, self.output_callback, **kwargs)
-
+        
         for r in jobiter:
             if r:
                 builder = kwargs.get("builder", None)  # type: Builder

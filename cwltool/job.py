@@ -19,7 +19,7 @@ from io import open
 from threading import Lock
 
 import shellescape
-
+from .provenance import ResearchObject
 import time
 import datetime
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
@@ -32,6 +32,8 @@ from .errors import WorkflowException
 from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
+
+#from .executors import SingleJobExecutor
 from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
 from .utils import copytree_with_merge, onWindows
@@ -190,6 +192,7 @@ class JobBase(object):
                  move_outputs="move",       # type: Text
                  secret_store=None          # type: SecretStore
                  ):  # type (...) ->  None
+                 
         research_obj = kwargs.get("research_obj")
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
@@ -206,22 +209,9 @@ class JobBase(object):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-        if hasattr(self, "joborder"):
-            for key, value in getattr(self, "joborder").items():
-                if research_obj:
-                    provRole=self.name+"/"+str(key)
-                    ProcessRunID=str(ProcessProvActivity.identifier)
-                    if 'location' in str(value):
-                        location=str(value['location'])
-                        filename=str(value["location"]).split("/")[-1]
-                        if location in reference_locations:  # workflow level inputs referenced as hash in prov document
-                            document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
-                        elif len(filename)==40 and int(filename, 16): #for the case when you re-run the master-job.json
-                            document.used(ProcessRunID, "data:"+filename, datetime.datetime.now(),None, {"prov:role":provRole })
-                        else:  # add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
-                            document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
-                    else:  # add the actual data value in the prov document
-                        document.used(ProcessRunID, "data:"+str(value), datetime.datetime.now(),None, {"prov:role":provRole })
+        if hasattr(self, "joborder") and research_obj:
+            job_order=self.joborder
+            research_obj.used_artefacts(job_order, ProcessProvActivity, document, reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
@@ -280,16 +270,11 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
-            #creating entities for the outputs produced by each step (in the provenance document) and associating them with
-            #the ProcessRunID
+            #creating entities for the outputs produced by each step (in the provenance document)
             if research_obj:
-                for key, value in outputs.items():
-                    StepOutput_checksum="data:"+str(value["checksum"][5:])
-                    document.entity(StepOutput_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
-                    stepProv="wf:main"+"/"+str(self.name)+"/"+str(key)
-                    ProcessRunID=str(ProcessProvActivity.identifier)
-                    document.wasGeneratedBy(StepOutput_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
-
+                ProcessRunID=str(ProcessProvActivity.identifier)
+                research_obj.generate_outputProv(outputs, document, WorkflowRunID, ProcessRunID, str(self.name))
+                
         except OSError as e:
             if e.errno == 2:
                 if runtime:
