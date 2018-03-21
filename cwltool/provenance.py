@@ -123,6 +123,9 @@ class ResearchObject():
                 pass
 
     def packed_workflow(self, packed):
+        '''
+        packs workflow and commandline tools to generate re-runnable workflow object in RO
+        '''
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
         with open(path, "w") as f:
             # YAML is always UTF8
@@ -145,6 +148,9 @@ class ResearchObject():
 
 
     def add_data_file(self, from_fp):
+        '''
+        copies inputs to Data
+        '''
         with tempfile.NamedTemporaryFile(
                 prefix=self.tmpPrefix, delete=False) as tmp:
             checksum = self._checksum_copy(from_fp, tmp)
