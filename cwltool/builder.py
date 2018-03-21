@@ -203,10 +203,9 @@ class Builder(object):
 
             if schema["type"] == "File":
                 self.files.append(datum)
-                if binding:
-                    if binding.get("loadContents"):
-                        with self.fs_access.open(datum["location"], "rb") as f:
-                            datum["contents"] = f.read(CONTENT_LIMIT)
+                if (binding and binding.get("loadContents")) or schema.get("loadContents"):
+                    with self.fs_access.open(datum["location"], "rb") as f:
+                        datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:

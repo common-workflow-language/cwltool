@@ -17,6 +17,7 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .utils import aslist
+from .builder import CONTENT_LIMIT
 import six
 from six.moves import range
 
@@ -370,6 +371,9 @@ class WorkflowJob(object):
                 i["id"]: i["valueFrom"] for i in step.tool["inputs"]
                 if "valueFrom" in i}
 
+            loadContents = set(i["id"] for i in step.tool["inputs"]
+                               if i.get("loadContents"))
+
             if len(valueFrom) > 0 and not bool(self.workflow.get_requirement("StepInputExpressionRequirement")[0]):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
@@ -379,6 +383,12 @@ class WorkflowJob(object):
             def postScatterEval(io):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
                 shortio = {shortname(k): v for k, v in six.iteritems(io)}
+
+                fs_access = kwargs["make_fs_access"]("")
+                for k, v in io.items():
+                    if k in loadContents and v.get("contents") is None:
+                        with fs_access.open(v["location"], "rb") as f:
+                            v["contents"] = f.read(CONTENT_LIMIT)
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
