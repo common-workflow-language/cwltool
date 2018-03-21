@@ -74,7 +74,9 @@ class ResearchObject():
 
 
     def generate_provDoc(self, document, cwlversionProv, engineUUID, WorkflowRunUUID):
-        
+        '''
+        add basic namespaces
+        '''
         document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         document.add_namespace('prov', 'http://www.w3.org/ns/prov')
         document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
@@ -272,7 +274,7 @@ class ResearchObject():
         except TypeError:
             pass
 
-    def add_provProfile(self, document):
+    def finalize_provProfile(self, document):
         '''
         Transfer the provenance related files to RO
         '''

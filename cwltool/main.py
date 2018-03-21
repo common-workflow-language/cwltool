@@ -707,7 +707,7 @@ def main(argsl=None,  # type: List[str]
             args.research_obj.snapshot_generation(job_order_object)
 
             #adding prov profile and graphs to RO
-            args.research_obj.add_provProfile(document)
+            args.research_obj.finalize_provProfile(document)
             args.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
