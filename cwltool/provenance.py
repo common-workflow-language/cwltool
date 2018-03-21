@@ -280,8 +280,11 @@ class ResearchObject():
         '''
         original_path=os.path.join(self.folder, PROVENANCE)
         provPath=original_path+"/ProvenanceProfile.json"
+        provNpath=original_path+"/ProvNrepresentation.provn"
         provDot=original_path+'/ProvenanceDotGraph.dot'
         document.serialize(provPath, indent=2)
+        ProvNfile= open(provNpath,"w+")
+        ProvNfile.write(document.get_provn())
         provgraph=graph.prov_to_graph(document)
         pos = nx.nx_agraph.graphviz_layout(provgraph)
         nx.draw(provgraph, pos=pos)
