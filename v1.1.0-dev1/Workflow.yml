@@ -91,6 +91,7 @@ $graph:
       doc: |
         Specify valid types of data that may be assigned to this parameter.
 
+
 - name: WorkflowInputParameter
   type: record
   extends: InputParameter
