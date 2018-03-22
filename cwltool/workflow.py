@@ -13,11 +13,13 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
 
 from . import command_line_tool, expression
+from .builder import CONTENT_LIMIT
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
+from .stdfsaccess import StdFsAccess
 from .utils import aslist
-from .builder import CONTENT_LIMIT
+
 import six
 from six.moves import range
 
@@ -384,7 +386,7 @@ class WorkflowJob(object):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
                 shortio = {shortname(k): v for k, v in six.iteritems(io)}
 
-                fs_access = kwargs["make_fs_access"]("")
+                fs_access = (kwargs.get("make_fs_access") or StdFsAccess)("")
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:

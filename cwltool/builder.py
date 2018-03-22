@@ -3,7 +3,7 @@ import copy
 import os
 import logging
 import json
-from typing import Any, Callable, Dict, List, Text, Type, Union
+from typing import Any, Callable, Dict, List, Text, Type, Union, Set
 
 import six
 from six import iteritems, string_types
@@ -122,7 +122,7 @@ class Builder(object):
             return None
 
     def bind_input(self, schema, datum, lead_pos=None, tail_pos=None, discover_secondaryFiles=False):
-        # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
+        # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int], bool) -> List[Dict[Text, Any]]
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
