@@ -29,7 +29,7 @@ install:
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
 
 build_script:
-  - "%CMD_IN_ENV% pip install -U setuptools pip"
+  - "%CMD_IN_ENV% python -m pip install -U setuptools pip"
   - "%CMD_IN_ENV% pip install pytest mock"
   - "%CMD_IN_ENV% pip install ."
 
