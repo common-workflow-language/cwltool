@@ -27,7 +27,7 @@ install:
   - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
 
 build_script:
-  - "%CMD_IN_ENV% pip install -U setuptools"
+  - "%CMD_IN_ENV% python -m pip install -U setuptools"
   - "%CMD_IN_ENV% pip install ."
 
 
