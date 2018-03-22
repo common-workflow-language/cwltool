@@ -187,7 +187,7 @@ def validate_document(document_loader,  # type: Loader
                       fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,  # type: bool
                       overrides=None,  # type: List[Dict]
-                      metadata=None,  # type: Optional[Dict]
+                      metadata=None  # type: Optional[Dict]
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""

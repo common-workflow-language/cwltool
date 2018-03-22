@@ -16,7 +16,7 @@ except ImportError:
     tagger = egg_info_cmd.egg_info
 
 needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-pytest_runner = ['pytest-runner'] if needs_pytest else []
+pytest_runner = ['pytest-runner', 'pytest-cov'] if needs_pytest else []
 
 setup(name='cwltool',
       version='1.0',

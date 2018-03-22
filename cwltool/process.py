@@ -30,6 +30,7 @@ from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .validate_js import validate_js_expressions
 from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
@@ -498,6 +499,19 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                     "processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.outputs_record_schema, indent=4)))
+
+        if toolpath_object.get("class") is not None and not kwargs.get("disable_js_validation", False):
+            if kwargs.get("js_hint_options_file") is not None:
+                try:
+                    with open(kwargs["js_hint_options_file"]) as options_file:
+                        validate_js_options = json.load(options_file)
+                except (OSError, ValueError) as e:
+                    _logger.error("Failed to read options file %s" % kwargs["js_hint_options_file"])
+                    raise e
+            else:
+                validate_js_options = None
+
+            validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
