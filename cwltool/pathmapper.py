@@ -5,7 +5,12 @@ import os
 import stat
 import uuid
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union
+from tempfile import NamedTemporaryFile
+
+import requests
+from cachecontrol import CacheControl
+from cachecontrol.caches import FileCache
+from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union, MutableMapping
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
@@ -55,7 +60,7 @@ def adjustDirObjs(rec, op):
     visit_class(rec, ("Directory",), op)
 
 def normalizeFilesDirs(job):
-    # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]]) -> None
+    # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]]) -> None
     def addLocation(d):
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
@@ -139,6 +144,48 @@ def trim_listing(obj):
     if obj.get("location", "").startswith("file://") and "listing" in obj:
         del obj["listing"]
 
+# Download http Files
+def downloadHttpFile(httpurl):
+    # type: (Text) -> Text
+    cache_session = None
+    if "XDG_CACHE_HOME" in os.environ:
+        directory = os.environ["XDG_CACHE_HOME"]
+    elif "HOME" in os.environ:
+        directory = os.environ["HOME"]
+    else:
+        directory = os.path.expanduser('~')
+
+    cache_session = CacheControl(
+        requests.Session(),
+        cache=FileCache(
+            os.path.join(directory, ".cache", "cwltool")))
+
+    r = cache_session.get(httpurl, stream=True)
+    with NamedTemporaryFile(mode='wb', delete=False) as f:
+        for chunk in r.iter_content(chunk_size=16384):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+    r.close()
+    return f.name
+
+def ensure_writable(path):
+    # type: (Text) -> None
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode|stat.S_IWUSR)
+            for name in dirs:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode|stat.S_IWUSR)
+    else:
+        st = os.stat(path)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(path, mode|stat.S_IWUSR)
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
@@ -207,15 +254,19 @@ class PathMapper(object):
             if "contents" in obj and obj["location"].startswith("_:"):
                 self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile", staged)
             else:
-                with SourceLine(obj, "location", validate.ValidationException):
-                    # Dereference symbolic links
+                with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
                     deref = ab
-                    st = os.lstat(deref)
-                    while stat.S_ISLNK(st.st_mode):
-                        rl = os.readlink(deref)
-                        deref = rl if os.path.isabs(rl) else os.path.join(
-                            os.path.dirname(deref), rl)
+                    if urllib.parse.urlsplit(deref).scheme in ['http','https']:
+                        deref = downloadHttpFile(path)
+                    else:
+                        # Dereference symbolic links
                         st = os.lstat(deref)
+                        while stat.S_ISLNK(st.st_mode):
+                            rl = os.readlink(deref)
+                            deref = rl if os.path.isabs(rl) else os.path.join(
+                                os.path.dirname(deref), rl)
+                            st = os.lstat(deref)
+
                     self._pathmap[path] = MapperEnt(deref, tgt, "WritableFile" if copy else "File", staged)
                     self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy, staged=staged)
 

@@ -30,13 +30,17 @@ from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .validate_js import validate_js_expressions
 from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class, trim_listing)
+                         normalizeFilesDirs, visit_class, trim_listing,
+                         ensure_writable)
+from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
+
 
 # if six.PY3:
 # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
@@ -206,8 +210,8 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
-    # type: (PathMapper, Callable[..., Any], bool, bool) -> None
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_store=None):
+    # type: (PathMapper, Callable[..., Any], bool, bool, SecretStore) -> None
     for f, p in pm.items():
         if not p.staged:
             continue
@@ -230,15 +234,20 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
             os.makedirs(p.target, 0o0755)
         elif p.type == "WritableFile" and not ignoreWritable:
             shutil.copy(p.resolved, p.target)
+            ensure_writable(p.target)
         elif p.type == "WritableDirectory" and not ignoreWritable:
             if p.resolved.startswith("_:"):
                 os.makedirs(p.target, 0o0755)
             else:
                 shutil.copytree(p.resolved, p.target)
-        elif p.type == "CreateFile" and not ignoreWritable:
+                ensure_writable(p.target)
+        elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
-                n.write(p.resolved.encode("utf-8"))
-
+                if secret_store:
+                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
+                else:
+                    n.write(p.resolved.encode("utf-8"))
+            ensure_writable(p.target)
 
 def collectFilesAndDirs(obj, out):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
@@ -253,8 +262,14 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
+                    outdir,                # type: Text
+                    output_dirs,           # type: Set[Text]
+                    action,                # type: Text
+                    fs_access,             # type: StdFsAccess
+                    compute_checksum=True  # type: bool
+                    ):
+    # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -276,9 +291,13 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         if src != dst:
             _logger.debug("Copying %s to %s", src, dst)
             if os.path.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
-                shutil.copy(src, dst)
+                shutil.copy2(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -292,8 +311,8 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         return f
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
-
-    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+    if compute_checksum:
+        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,
@@ -385,7 +404,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
-        with SourceLine(inputs, e, WorkflowException):
+        with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
             fieldname = shortname(inp[u"id"])
             if job.get(fieldname) is not None:
                 pass
@@ -394,7 +413,7 @@ def fillInDefaults(inputs, job):
             elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
                 job[fieldname] = None
             else:
-                raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
+                raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -414,6 +433,15 @@ def avroize_type(field_type, name_prefix=""):
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
     return field_type
+
+def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
+    req = {}  # type: Dict[Text, Any]
+    if not isinstance(overrides, list):
+        raise validate.ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
+    for ov in overrides:
+        if ov["overrideTarget"] == toolid:
+            req.update(ov)
+    return req
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
@@ -449,7 +477,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:
             self.names = names
         self.tool = toolpath_object
-        self.requirements = kwargs.get("requirements", []) + self.tool.get("requirements", [])
+        self.requirements = (kwargs.get("requirements", []) +
+                             self.tool.get("requirements", []) +
+                             get_overrides(kwargs.get("overrides", []), self.tool["id"]).get("requirements", []))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
@@ -488,7 +518,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(u"Missing 'type' in "
+                            "parameter '%s'" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -504,7 +535,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
@@ -512,9 +544,23 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.outputs_record_schema, indent=4)))
+
+        if toolpath_object.get("class") is not None and not kwargs.get("disable_js_validation", False):
+            if kwargs.get("js_hint_options_file") is not None:
+                try:
+                    with open(kwargs["js_hint_options_file"]) as options_file:
+                        validate_js_options = json.load(options_file)
+                except (OSError, ValueError) as e:
+                    _logger.error("Failed to read options file %s" % kwargs["js_hint_options_file"])
+                    raise e
+            else:
+                validate_js_options = None
+
+            validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
@@ -532,6 +578,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         tmpdir: tmpdir on host for this job
         stagedir: stagedir on host for this job
         select_resources: callback to select compute resources
+        debug: enable debugging output
+        js_console: enable javascript console output
         """
 
         builder = Builder()
@@ -556,10 +604,12 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
         builder.debug = kwargs.get("debug")
+        builder.js_console = kwargs.get("js_console")
         builder.mutation_manager = kwargs.get("mutation_manager")
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
+        builder.force_docker_pull = kwargs.get("force_docker_pull")
 
         loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
         if loadListingReq:
@@ -586,8 +636,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+            if self.tool[u"class"] != 'Workflow':
+                builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+                builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         if self.formatgraph:
             for i in self.tool["inputs"]:

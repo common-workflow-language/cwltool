@@ -5,10 +5,13 @@ from __future__ import absolute_import
 import os
 import shutil
 import stat
+from typing import Any, Callable, Dict, List, Text, Tuple, Union
+
 import six
-from six.moves import urllib
-from six.moves import zip_longest
-from typing import Any,Callable, Dict, List, Tuple, Text, Union
+from pkg_resources import (Requirement, ResolutionError,  # type: ignore
+                           resource_filename)
+
+from six.moves import urllib, zip_longest
 
 windows_default_container_id = "frolvlad/alpine-bash"
 

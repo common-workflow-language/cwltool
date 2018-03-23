@@ -27,8 +27,9 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=pep8 diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
-DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount python-flake8 python-mock
-VERSION=1.0.$(shell date +%Y%m%d%H%M%S --date=`git log --first-parent \
+DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
+	   python-flake8 python-mock shellcheck
+VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
@@ -56,7 +57,7 @@ install: FORCE
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
 dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
-	./setup.py sdist
+	./setup.py sdist bdist_wheel
 
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
@@ -89,7 +90,7 @@ pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > pydocstyle_report.txt 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --violations=pep8 $^
+	diff-quality --violations=pycodestyle $^
 
 ## autopep8    : fix most Python code indentation and formatting
 autopep8: $(PYSOURCES)
@@ -112,23 +113,18 @@ pylint_report.txt: ${PYSOURCES}
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
 
-.coverage: $(PYSOURCES) all
-	export COVERAGE_PROCESS_START=${mkfile_dir}.coveragerc; \
-	       cd ${CWL}; ./run_test.sh RUNNER=cwltool
-	coverage run setup.py test
-	coverage combine ${CWL} ${CWL}/draft-3/ ./
+.coverage: tests
+
+coverage: .coverage
+	coverage report
 
 coverage.xml: .coverage
-	python-coverage xml
+	coverage xml
 
 coverage.html: htmlcov/index.html
 
 htmlcov/index.html: .coverage
-	python-coverage html
-	@echo Test coverage of the Python code is now in htmlcov/index.html
-
-coverage-report: .coverage
-	python-coverage report
+	coverage html
 
 diff-cover: coverage-gcovr.xml coverage.xml
 	diff-cover coverage-gcovr.xml coverage.xml
@@ -138,8 +134,8 @@ diff-cover.html: coverage-gcovr.xml coverage.xml
 		--html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
-test: FORCE
-	./setup.py test
+test: $(PYSOURCES)
+	python setup.py test --addopts "--cov cwltool"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > sloccount.sc
@@ -160,7 +156,7 @@ mypy2: ${PYSOURCES}
 	rm -Rf typeshed/2and3/schema_salad
 	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
-	MYPYPATH=$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
+	MYPYPATH=$$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
 
@@ -171,8 +167,21 @@ mypy3: ${PYSOURCES}
 	rm -Rf typeshed/2and3/schema_salad
 	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
 		typeshed/2and3/schema_salad
-	MYPYPATH=$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
+	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
 
+release: FORCE
+	./release-test.sh
+	. testenv2/bin/activate && \
+		testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
+		pip install twine && \
+		twine upload testenv2/src/${MODULE}/dist/* && \
+		git tag ${VERSION} && git push --tags
+
 FORCE:
+
+# Use this to print the value of a Makefile variable
+# Example `make print-VERSION`
+# From https://www.cmcrossroads.com/article/printing-value-makefile-variable
+print-%  : ; @echo $* = $($*)

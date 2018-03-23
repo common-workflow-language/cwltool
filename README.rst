@@ -1,45 +1,57 @@
 ==================================================================
-Common workflow language tool description reference implementation
+Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL Conformance test: |Build Status|
-
-Travis: |Unix Build Status|
+CWL conformance tests: |Build Status| Travis CI: |Unix Build Status|
 
 .. |Unix Build Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=unix%20build
    :target: https://travis-ci.org/common-workflow-language/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
-intended to be feature complete and provide comprehensive validation of CWL
+intended to feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
-This is written and tested for Python 2.7.
+This is written and tested for Python ``2.7 and 3.x {x = 3, 4, 5, 6}``
 
-The reference implementation consists of two packages.  The "cwltool" package
+The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
-"cwltool" module and console executable by the same name.
+``cwltool`` module and console executable by the same name.
 
-The "cwlref-runner" package is optional and provides an additional entry point
-under the alias "cwl-runner", which is the implementation-agnostic name for the
+The ``cwlref-runner`` package is optional and provides an additional entry point
+under the alias ``cwl-runner``, which is the implementation-agnostic name for the
 default CWL interpreter installed on a host.
 
 Install
 -------
 
+It is highly recommended to setup virtual environment before installing `cwltool`:
+
+.. code:: bash
+
+  virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
+  source venv/bin/activate     # Activate environment before installing `cwltool`
+
 Installing the official package from PyPi (will install "cwltool" package as
-well)::
+well)
+
+.. code:: bash
 
   pip install cwlref-runner
 
-If installing alongside another CWL implementation then::
+If installing alongside another CWL implementation then
+
+.. code:: bash
 
   pip install cwltool
 
-To install from source::
+Or you can install from source:
 
-  git clone https://github.com/common-workflow-language/cwltool.git
-  cd cwltool && python setup.py install
-  cd cwlref-runner && python setup.py install  # co-installing? skip this
+.. code:: bash
+
+  git clone https://github.com/common-workflow-language/cwltool.git # clone cwltool repo
+  cd cwltool         # Switch to source directory
+  pip install .      # Install `cwltool` from source
+  cwltool --version  # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
@@ -50,9 +62,22 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
+To run the basis tests after installing `cwltool` execute the following:
+
 .. code:: bash
 
-    python setup.py test
+  pip install pytest mock
+  py.test --ignore cwltool/schemas/ --pyarg cwltool
+
+To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
+first downloading the complete code repository (see the ``git clone`` instructions above) and then run
+the following in the terminal:
+``pip install tox; tox``
+
+List of all environment can be seen using:
+``tox --listenvs``
+and running a specfic test env using:
+``tox -e <env name>``
 
 -  Running the entire suite of CWL conformance tests:
 
@@ -87,6 +112,42 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
 .. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+Using user-space replacements for Docker
+----------------------------------------
+
+Some shared computing environments don't support Docker software containers for technical or policy reasons.
+As a work around, the CWL reference runner supports using a alternative ``docker`` implementations on Linux
+with the ``--user-space-docker-cmd`` option.
+
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
+is ``dx-docker`` https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images
+
+udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-indigo-datacloud-repositories
+
+dx-docker installation: start with the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+  
+or 
+
+.. code:: bash
+
+  cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+
+``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ as a Docker container runtime, an experimental feature.
+Singularity will run software containers specified in ``DockerRequirement`` and therefore works with Docker images only,
+native Singularity images are not supported.
+To use Singularity as the Docker container runtime, provide ``--singularity`` command line option to ``cwltool``.
+
+
+.. code:: bash
+
+  cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/cat-job.json
 
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
@@ -123,13 +184,17 @@ For this example, grab the test.json (and input file) from https://github.com/Ca
 Import as a module
 ------------------
 
-Add::
+Add
+
+.. code:: python
 
   import cwltool
 
 to your script.
 
-The easiest way to use cwltool to run a tool or workflow from Python is to use a Factory::
+The easiest way to use cwltool to run a tool or workflow from Python is to use a Factory
+
+.. code:: python
 
   import cwltool.factory
   fac = cwltool.factory.Factory()
@@ -142,7 +207,7 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
 
-CWL tools may be decoarated with ``SoftwareRequirement`` hints that cwltool
+CWL tools may be decorated with ``SoftwareRequirement`` hints that cwltool
 may in turn use to resolve to packages in various package managers or
 dependency management systems such as `Environment Modules
 <http://modules.sourceforge.net/>`__.
@@ -171,8 +236,8 @@ following ``hint`` definition for an example CWL tool.
       - r93
 
 Now imagine deploying cwltool on a cluster with Software Modules installed
-and that a ``seqtk`` module is avaialble at version ``r93``. This means cluster
-users likely won't have the ``seqtk`` the binary on their ``PATH`` by default but after
+and that a ``seqtk`` module is available at version ``r93``. This means cluster
+users likely won't have the binary ``seqtk`` on their ``PATH`` by default, but after
 sourcing this module with the command ``modulecmd sh load seqtk/r93`` ``seqtk`` is
 available on the ``PATH``. A simple dependency resolvers configuration file, called
 ``dependency-resolvers-conf.yml`` for instance, that would enable cwltool to source
@@ -180,7 +245,7 @@ the correct module environment before executing the above tool would simply be:
 
 .. code:: yaml
 
-  - type: module
+  - type: modules
 
 The outer list indicates that one plugin is being enabled, the plugin parameters are
 defined as a dictionary for this one list item. There is only one required parameter
@@ -188,10 +253,11 @@ for the plugin above, this is ``type`` and defines the plugin type. This paramet
 is required for all plugins. The available plugins and the parameters
 available for each are documented (incompletely) `here
 <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__.
-Unfortunately, this documentation is in the context of Galaxy tool ``requirement`` s instead of CWL ``SoftwareRequirement`` s, but the concepts map fairly directly.
+Unfortunately, this documentation is in the context of Galaxy tool
+``requirement`` s instead of CWL ``SoftwareRequirement`` s, but the concepts map fairly directly.
 
 cwltool is distributed with an example of such seqtk tool and sample corresponding
-job. It could executed from the cwltool root using a dependency resolvers 
+job. It could executed from the cwltool root using a dependency resolvers
 configuration file such as the above one using the command::
 
   cwltool --beta-dependency-resolvers-configuration /path/to/dependency-resolvers-conf.yml \
@@ -208,8 +274,8 @@ the same concepts - the resolver plugin type ``galaxy_packages`` can be used.
 "Galaxy packages" are a lighter weight alternative to Environment Modules that are
 really just defined by a way to lay out directories into packages and versions
 to find little scripts that are sourced to modify the environment. They have
-been used for years in Galaxy community to adapt Galaxy tools to cluster 
-environments but require neither knowledge of Galaxy nor any special tools to 
+been used for years in Galaxy community to adapt Galaxy tools to cluster
+environments but require neither knowledge of Galaxy nor any special tools to
 setup. These should work just fine for CWL tools.
 
 The cwltool source code repository's test directory is setup with a very simple
@@ -238,7 +304,7 @@ Then cwltool will simply find that ``env.sh`` file and source it before executin
 the corresponding tool. That ``env.sh`` script is only responsible for modifying
 the job's ``PATH`` to add the required binaries.
 
-This is a full example that works since resolving "Galaxy packages" has no 
+This is a full example that works since resolving "Galaxy packages" has no
 external requirements. Try it out by executing the following command from cwltool's
 root directory::
 
@@ -302,7 +368,7 @@ user, install its own Conda environment and manage multiple versions of Conda pa
 on both Linux and Mac OS X.
 
 The Conda plugin can be endlessly configured, but a sensible set of defaults
-that has proven a powerful stack for dependency management within the Galaxy tool 
+that has proven a powerful stack for dependency management within the Galaxy tool
 development ecosystem can be enabled by simply passing cwltool the
 ``--beta-conda-dependencies`` flag.
 
@@ -346,41 +412,85 @@ at the following links:
 - `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
-Cwltool control flow
---------------------
+Overriding workflow requirements at load time
+---------------------------------------------
+
+Sometimes a workflow needs additional requirements to run in a particular
+environment or with a particular dataset.  To avoid the need to modify the
+underlying workflow, cwltool supports requirement "overrides".
+
+The format of the "overrides" object is a mapping of item identifier (workflow,
+workflow step, or command line tool) to the process requirements that should be applied.
+
+.. code:: yaml
+
+  cwltool:overrides:
+    echo.cwl:
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
+
+Overrides can be specified either on the command line, or as part of the job
+input document.  Workflow steps are identified using the name of the workflow
+file followed by the step name as a document fragment identifier "#id".
+Override identifiers are relative to the toplevel workflow document.
+
+.. code:: bash
+
+  cwltool --overrides overrides.yml my-tool.cwl my-job.yml
+
+.. code:: yaml
+
+  input_parameter1: value1
+  input_parameter2: value2
+  cwltool:overrides:
+    workflow.cwl#step1:
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
+
+.. code:: bash
+
+  cwltool my-tool.cwl my-job-with-overrides.yml
+
+
+CWL Tool Control Flow
+---------------------
 
 Technical outline of how cwltool works internally, for maintainers.
 
-#. Use CWL `load_tool()` to load document.
+#. Use CWL ``load_tool()`` to load document.
 
    #. Fetches the document from file or URL
    #. Applies preprocessing (syntax/identifier expansion and normalization)
    #. Validates the document based on cwlVersion
    #. If necessary, updates the document to latest spec
-   #. Constructs a Process object using `make_tool()` callback.  This yields a
+   #. Constructs a Process object using ``make_tool()``` callback.  This yields a
       CommandLineTool, Workflow, or ExpressionTool.  For workflows, this
       recursively constructs each workflow step.
    #. To construct custom types for CommandLineTool, Workflow, or
-      ExpressionTool, provide a custom `make_tool()`
+      ExpressionTool, provide a custom ``make_tool()``
 
-#. Iterate on the `job()` method of the Process object to get back runnable jobs.
+#. Iterate on the ``job()`` method of the Process object to get back runnable jobs.
 
-   #. `job()` is a generator method (uses the Python iterator protocol)
-   #. Each time the `job()` method is invoked in an iteration, it returns one
-      of: a runnable item (an object with a `run()` method), `None` (indicating
+   #. ``job()`` is a generator method (uses the Python iterator protocol)
+   #. Each time the ``job()`` method is invoked in an iteration, it returns one
+      of: a runnable item (an object with a ``run()`` method), ``None`` (indicating
       there is currently no work ready to run) or end of iteration (indicating
       the process is complete.)
-   #. Invoke the runnable item by calling `run()`.  This runs the tool and gets output.
+   #. Invoke the runnable item by calling ``run()``.  This runs the tool and gets output.
    #. Output of a process is reported by an output callback.
-   #. `job()` may be iterated over multiple times.  It will yield all the work
+   #. ``job()`` may be iterated over multiple times.  It will yield all the work
       that is currently ready to run and then yield None.
 
-#. "Workflow" objects create a corresponding "WorkflowJob" and "WorkflowJobStep" objects to hold the workflow state for the duration of the job invocation.
+#. ``Workflow`` objects create a corresponding ``WorkflowJob`` and ``WorkflowJobStep`` objects to hold the workflow state for the duration of the job invocation.
 
    #. The WorkflowJob iterates over each WorkflowJobStep and determines if the
       inputs the step are ready.
    #. When a step is ready, it constructs an input object for that step and
-      iterates on the `job()` method of the workflow job step.
+      iterates on the ``job()`` method of the workflow job step.
    #. Each runnable item is yielded back up to top level run loop
    #. When a step job completes and receives an output callback, the
       job outputs are assigned to the output of the workflow step.
@@ -388,10 +498,10 @@ Technical outline of how cwltool works internally, for maintainers.
       workflow output, intermediate directories are deleted, and the output
       callback for the workflow is called.
 
-#. "CommandLineTool" job() objects yield a single runnable object.
+#. ``CommandLineTool`` job() objects yield a single runnable object.
 
-   #. The CommandLineTool `job()` method calls `makeJobRunner()` to create a
-      `CommandLineJob` object
+   #. The CommandLineTool ``job()`` method calls ``makeJobRunner()`` to create a
+      ``CommandLineJob`` object
    #. The job method configures the CommandLineJob object by setting public
       attributes
    #. The job method iterates over file and directories inputs to the
@@ -402,7 +512,7 @@ Technical outline of how cwltool works internally, for maintainers.
    #. Files are staged to targets paths using either Docker volume binds (when
       using containers) or symlinks (if not).  This staging step enables files
       to be logically rearranged or renamed independent of their source layout.
-   #. The run() method of CommandLineJob executes the command line tool or
+   #. The ``run()`` method of CommandLineJob executes the command line tool or
       Docker container, waits for it to complete, collects output, and makes
       the output callback.
 

@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import copy
 import os
+import logging
 from typing import Any, Callable, Dict, List, Text, Type, Union
 
 import six
@@ -17,6 +18,8 @@ from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
+
+_logger = logging.getLogger("cwltool")
 
 AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
@@ -48,7 +51,9 @@ class Builder(object):
         self.stagedir = None  # type: Text
         self.make_fs_access = None  # type: Type[StdFsAccess]
         self.debug = False  # type: bool
+        self.js_console = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
+        self.force_docker_pull = False  # type: bool
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
@@ -58,8 +63,8 @@ class Builder(object):
         self.job_script_provider = None  # type: Any
 
     def build_job_script(self, commands):
-        # type: (List[bytes]) -> Text
-        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, List[bytes]], Text]
+        # type: (List[Text]) -> Text
+        build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
         if build_job_script_method:
             return build_job_script_method(self, commands)
         else:
@@ -73,6 +78,7 @@ class Builder(object):
             lead_pos = []
         bindings = []  # type: List[Dict[Text,Text]]
         binding = None  # type: Dict[Text,Any]
+        value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
 
@@ -82,9 +88,12 @@ class Builder(object):
                 binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
 
             binding["datum"] = datum
+            if "valueFrom" in binding:
+                value_from_expression = True
 
         # Handle union types
         if isinstance(schema["type"], list):
+            bound_input = False
             for t in schema["type"]:
                 if isinstance(t, (str, Text)) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
@@ -95,8 +104,13 @@ class Builder(object):
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
-                    return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
-            raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
+                    if not value_from_expression:
+                        return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                    else:
+                        self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                        bound_input = True
+            if not bound_input:
+                raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], dict):
             st = copy.deepcopy(schema["type"])
             if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
@@ -104,7 +118,10 @@ class Builder(object):
             for k in ("secondaryFiles", "format", "streamable"):
                 if k in schema:
                     st[k] = schema[k]
-            bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
+            if value_from_expression:
+                self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+            else:
+                bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
         else:
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[schema["type"]]
@@ -145,18 +162,25 @@ class Builder(object):
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
-                            secondary_eval = self.do_eval(sf, context=datum)
-                            if isinstance(secondary_eval, string_types):
-                                sfpath = {"location": secondary_eval,
-                                          "class": "File"}
-                            else:
-                                sfpath = secondary_eval
+                            sfpath = self.do_eval(sf, context=datum)
                         else:
-                            sfpath = {"location": substitute(datum["location"], sf), "class": "File"}
-                        if isinstance(sfpath, list):
-                            datum["secondaryFiles"].extend(sfpath)
-                        else:
-                            datum["secondaryFiles"].append(sfpath)
+                            sfpath = substitute(datum["basename"], sf)
+                        for sfname in aslist(sfpath):
+                            found = False
+                            for d in datum["secondaryFiles"]:
+                                if not d.get("basename"):
+                                    d["basename"] = d["location"][d["location"].rindex("/")+1:]
+                                if d["basename"] == sfname:
+                                    found = True
+                            if not found:
+                                if isinstance(sfname, dict):
+                                    datum["secondaryFiles"].append(sfname)
+                                else:
+                                    datum["secondaryFiles"].append({
+                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "basename": sfname,
+                                        "class": "File"})
+
                     normalizeFilesDirs(datum["secondaryFiles"])
 
                 def _capture_files(f):
@@ -195,20 +219,23 @@ class Builder(object):
     def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
-            with SourceLine(binding, "valueFrom", WorkflowException):
+            with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
+        if prefix is None and not sep:
+            with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
+                raise WorkflowException("'separate' option can not be specified without prefix")
 
         l = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
-            if binding.get("itemSeparator"):
+            if binding.get("itemSeparator") and value:
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
-            elif prefix:
+            elif prefix and value:
                 return [prefix]
             else:
                 return []
@@ -218,7 +245,7 @@ class Builder(object):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
-        elif value is False or value is None:
+        elif value is False or value is None or (value is True and not prefix):
             return []
         else:
             l = [value]
@@ -232,17 +259,21 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True, recursive=False):
-        # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False, strip_whitespace=True):
+        # type: (Union[Dict[Text, Text], Text], Any, bool, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
                 return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
             if isinstance(ex, list):
                 return [self.do_eval(v, context, pull_image, recursive) for v in ex]
-
+        if context is None and type(ex) is str and "self" in ex:
+            return None
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
                                   context=context, pull_image=pull_image,
                                   timeout=self.timeout,
-                                  debug=self.debug)
+                                  debug=self.debug,
+                                  js_console=self.js_console,
+                                  force_docker_pull=self.force_docker_pull,
+                                  strip_whitespace=strip_whitespace)
