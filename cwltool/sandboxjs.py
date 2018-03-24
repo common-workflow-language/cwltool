@@ -251,7 +251,6 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
         finished = False
 
         while not finished and tm.is_alive():
-            print("hello")
             try:
                 if nodejs.stdin in wselect:
                     if not input_queue.empty():
