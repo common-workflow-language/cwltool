@@ -54,7 +54,8 @@ class TestValueFrom(unittest.TestCase):
 
 
 class ExecJsProcessTest(unittest.TestCase):
-
+    @pytest.mark.skipif(onWindows(),
+                        reason="Caching processes for windows is not supported.")
     def test_caches_js_processes(self):
         exec_js_process("7", context="{}")
 
