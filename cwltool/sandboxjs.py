@@ -142,18 +142,27 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
 
     created_new_process = False
 
-    if (context is None and localdata.procs.get(js_engine) is None) \
-            or (context is not None and localdata.procs.get((js_engine, context)) is None) \
-            or localdata.procs[js_engine].poll() is not None \
+    if context is None:
+        nodejs = localdata.procs.get(js_engine)
+    else:
+        nodejs = localdata.procs.get((js_engine, context))
+
+    if nodejs is None \
+            or nodejs.poll() is not None \
             or onWindows():
         res = resource_stream(__name__, js_engine)
         js_engine_code = res.read().decode('utf-8')
 
         created_new_process = True
 
-        localdata.procs[js_engine] = new_js_proc(js_engine_code, force_docker_pull=force_docker_pull)
+        new_proc = new_js_proc(js_engine_code, force_docker_pull=force_docker_pull)
 
-    nodejs = localdata.procs[js_engine]
+        if context is None:
+            localdata.procs[js_engine] = new_proc
+            nodejs = new_proc
+        else:
+            localdata.procs[(js_engine, context)] = new_proc
+            nodejs = new_proc
 
     killed = []
 
@@ -242,6 +251,7 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
         finished = False
 
         while not finished and tm.is_alive():
+            print("hello")
             try:
                 if nodejs.stdin in wselect:
                     if not input_queue.empty():
