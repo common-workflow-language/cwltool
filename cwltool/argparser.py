@@ -156,6 +156,11 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         "timestamps to the errors, warnings, and "
                         "notifications.")
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
+    parser.add_argument("--disable-js-validation", action="store_true", help="Disable javascript validation.")
+    parser.add_argument("--js-hint-options-file",
+                        type=Text,
+                        help="File of options to pass to jshint."
+                        "This includes the added option \"includewarnings\". ")
     dockergroup = parser.add_mutually_exclusive_group()
     dockergroup.add_argument("--user-space-docker-cmd", metavar="CMD",
                         help="(Linux/OS X only) Specify a user space docker "

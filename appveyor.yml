@@ -1,6 +1,8 @@
 version: .{build}-{branch}
 
 environment:
+  nodejs_version: "8"
+
   SYSTEMROOT: "C:\\WINDOWS"
 
   matrix:
@@ -22,18 +24,18 @@ environment:
 
 
 install:
+  # Get the latest stable version of Node.js or io.js
+  - ps: Install-Product node $env:nodejs_version
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - "python --version"
-  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
 
 build_script:
-  - "%CMD_IN_ENV% pip install -U setuptools pip"
+  - "%CMD_IN_ENV% python -m pip install -U setuptools pip"
+  - "%CMD_IN_ENV% pip install pytest mock"
   - "%CMD_IN_ENV% pip install ."
 
 
 test_script:
-
-  - "%CMD_IN_ENV% python setup.py test"
+  - "%CMD_IN_ENV% py.test --verbose -p no:cacheprovider"
 
 branches:
   only:

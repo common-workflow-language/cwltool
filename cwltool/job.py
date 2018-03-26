@@ -123,14 +123,14 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
             host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir)+1:])
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
                 os.remove(host_outdir_tgt)
-            elif os.path.isdir(host_outdir_tgt):
+            elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
             if onWindows():
                 if vol.type in ("File", "WritableFile"):
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
-            else:
+            elif not vol.resolved.startswith("_:"):
                 os.symlink(vol.resolved, host_outdir_tgt)
 
 class JobBase(object):

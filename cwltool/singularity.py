@@ -37,8 +37,22 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                                                             string=dockerRequirement["dockerPull"]) + ".img"
                 dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
 
-        # check to see if the Singularity container is already downloaded
-        if os.path.isfile(dockerRequirement["dockerImageId"]):
+        # check if Singularity image is available in $SINGULARITY_CACHEDIR
+        if "SINGULARITY_CACHEDIR" in os.environ \
+        and os.path.isfile(os.path.join(os.environ["SINGULARITY_CACHEDIR"], dockerRequirement["dockerImageId"])):
+            _logger.info("Using local copy of Singularity image found in $SINGULARITY_CACHEDIR")
+            dockerRequirement["dockerImageId"] = os.path.join(os.environ["SINGULARITY_CACHEDIR"], dockerRequirement["dockerImageId"])
+            found = True
+
+        # check if Singularity image is available in $SINGULARITY_PULLFOLDER
+        elif "SINGULARITY_PULLFOLDER" in os.environ \
+        and os.path.isfile(os.path.join(os.environ["SINGULARITY_PULLFOLDER"], dockerRequirement["dockerImageId"])):
+            _logger.info("Using local copy of Singularity image found in $SINGULARITY_PULLFOLDER")
+            dockerRequirement["dockerImageId"] = os.path.join(os.environ["SINGULARITY_PULLFOLDER"], dockerRequirement["dockerImageId"])
+            found = True
+
+        # check if Singularity image is available in current working directory
+        elif os.path.isfile(dockerRequirement["dockerImageId"]):
             _logger.info("Using local copy of Singularity image")
             found = True
 
