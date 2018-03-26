@@ -129,7 +129,7 @@ class SingleJobExecutor(JobExecutor):
                         if ".cwl" in getattr(r, "name") or "workflow main" in getattr(r, "name"): #for prospective provenance NOTE: the second condition is for packed file
                             research_obj.prospective_prov(document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
-                            ##create master-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
+                            ##create primary-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) #call the method to generate a file with customised job
                             #call the methods to create data artefacts in provenance document
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object) 

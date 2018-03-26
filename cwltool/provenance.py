@@ -36,14 +36,14 @@ relativised_input_object={}  # type: Dict[str, Any]
 _logger = logging.getLogger("cwltool")
 
 # RO folders
-METADATA = "Metadata"
-DATA = "Data"
-OUTPUT= "Output"
-WORKFLOW = "Workflow"
-SNAPSHOT = "Snapshot"
+METADATA = "metadata"
+DATA = "data"
+OUTPUT= "output"
+WORKFLOW = "workflow"
+SNAPSHOT = "snapshot"
 # sub-folders
 MAIN = os.path.join(WORKFLOW, "main")
-PROVENANCE = os.path.join(METADATA, "Provenance")
+PROVENANCE = os.path.join(METADATA, "provenance")
 
 class ProvenanceException(BaseException):
     pass
@@ -86,7 +86,7 @@ class ResearchObject():
         WorkflowRunID="run:"+WorkflowRunUUID
         roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
         document.add_namespace("wf", roIdentifierWorkflow)
-        roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/master-job.json#"
+        roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
         document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
         #define workflow run level activity
@@ -230,7 +230,7 @@ class ResearchObject():
         relativised_input_objecttemp2={}
         relativised_input_objecttemp={}
         self._relativise_files(job, kwargs, make_fs_access, relativised_input_objecttemp2)
-        path=os.path.join(self.folder, WORKFLOW, "master-job.json")
+        path=os.path.join(self.folder, WORKFLOW, "primary-job.json")
         _logger.info(u"[provenance] Generated customised job file: %s", path)
         with open(path, "w") as f:
             json.dump(job, f, indent=4)
@@ -238,9 +238,9 @@ class ResearchObject():
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
         with open(path, 'r') as f:
-            MasterInput_file = json.load(f)
+            primaryInput_file = json.load(f)
         relativised_input_objecttemp={}
-        for key, value in MasterInput_file.iteritems():
+        for key, value in primaryInput_file.iteritems():
             if isinstance(value, dict):
                 if value.get("class") == "File":
                     relativised_input_objecttemp[key]=value
@@ -365,7 +365,7 @@ class ResearchObject():
                 document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
-                #copy the file in Outputs
+                #copy the file in outputs
                 outputfile_path= os.path.join(self.folder, OUTPUT, tuple_entry[1][5:7])
                 path = os.path.join(outputfile_path, tuple_entry[1][5:])
                 if not os.path.isdir(path):
@@ -407,7 +407,7 @@ class ResearchObject():
                 filename=str(value["location"]).split("/")[-1]
                 if location in reference_locations:  # workflow level inputs referenced as hash in prov document
                     document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
-                elif len(filename)==40 and int(filename, 16): #for the case when you re-run the master-job.json
+                elif len(filename)==40 and int(filename, 16): #for the case when you re-run the primary-job.json
                     document.used(ProcessRunID, "data:"+filename, datetime.datetime.now(),None, {"prov:role":provRole })
                 else:  # add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
                     document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
