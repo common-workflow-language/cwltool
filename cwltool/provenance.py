@@ -81,7 +81,7 @@ class ResearchObject():
         document.add_namespace('prov', 'http://www.w3.org/ns/prov')
         document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
         document.add_namespace('run', 'urn:uuid:')
-        document.add_namespace('engine', 'urn:uuid4:')
+        document.add_namespace('engine', 'urn:uuid:')
         document.add_namespace('data', 'urn:hash:sha1')
         WorkflowRunID="run:"+WorkflowRunUUID
         roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
