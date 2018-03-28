@@ -46,6 +46,7 @@ SNAPSHOT = "snapshot"
 MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC=Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
+WFPROV=Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
 
 
 class ProvenanceException(BaseException):
@@ -99,9 +100,9 @@ class ResearchObject():
         document.add_namespace("wf", roIdentifierWorkflow)
         roIdentifierInput=ro_base + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
-        document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
+        document.agent(engineUUID, {prov.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwlversionProv})
         #define workflow run level activity
-        document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: "wfprov:WorkflowRun", "prov:label": "Run of workflow/packed.cwl#main"})
+        document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
         mainWorkflow = "wf:main"
         document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
@@ -331,7 +332,7 @@ class ResearchObject():
             ProcessRunID="run:"+str(uuid.uuid4())
             #each subprocess is defined as an activity()
             provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
-            ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: "wfprov:ProcessRun", "prov:label": provLabel})
+            ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
             
             if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
@@ -347,7 +348,7 @@ class ResearchObject():
             if relativised_input_object.get("class") == "File":
                 #create an artefact
                 shahash="data:"+relativised_input_object["location"].split("/")[-1] 
-                document.entity(shahash, {prov.PROV_TYPE:"wfprov:Artifact"})
+                document.entity(shahash, {prov.PROV_TYPE:WFPROV["Artifact"]})
                 
             for o in relativised_input_object.values():
                 self.declare_artefact(o, document, job_order_object)
@@ -385,11 +386,11 @@ class ResearchObject():
 
             if ProcessRunID:
                 stepProv =  "wf:main"+"/"+name+"/"+str(tuple_entry[0])
-                document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:SubProcessArtifact"})
+                document.entity(output_checksum, {prov.PROV_TYPE: WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
             else:
                 outputProvRole ="wf:main"+"/"+str(tuple_entry[0])
-                document.entity(output_checksum, {prov.PROV_TYPE:"wfprov:Artifact"})
+                document.entity(output_checksum, {prov.PROV_TYPE:WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
                 #copy the file in outputs
@@ -440,7 +441,7 @@ class ResearchObject():
                     document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
             else:  # add the actual data value in the prov document
                 ArtefactValue="data:"+str(value)
-                document.entity(ArtefactValue, {prov.PROV_TYPE:"wfprov:Artifact"})
+                document.entity(ArtefactValue, {prov.PROV_TYPE:WFPROV["Artifact"]})
                 document.used(ProcessRunID, ArtefactValue, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def copy_job_order(self, r, job_order_object):
