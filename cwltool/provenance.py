@@ -469,13 +469,18 @@ class ResearchObject():
         return customised_job
 
     def prospective_prov(self, document, r):
+        #create prospective provenance recording for the workflow as wfdesc prov:Plan
+        
+        # FIXME: Workflow is not always called "#main"!
+        document.entity("wf:main", {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+
         steps=[]
         for s in r.steps:
+            # FIXME: Use URI fragment identifier for step name, e.g. for spaces
             stepname="wf:main/"+str(s.name)[5:]
             steps.append(stepname)
-            document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
-        #create prospective provenance recording for the workflow
-        document.entity("wf:main", {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "wfdesc:hasSubProcess":str(steps),  "prov:label":"Prospective provenance"})
+            step = document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
+            document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
 
 
 #**************************************
