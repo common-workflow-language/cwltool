@@ -16,9 +16,9 @@ import copy
 import datetime
 import prov.model as prov
 from pathlib2 import Path
-from networkx.drawing.nx_agraph import graphviz_layout
-from networkx.drawing.nx_agraph import write_dot
-from networkx.drawing.nx_pydot import write_dot
+# Disabled due to excessive transitive dependencies
+#from networkx.drawing.nx_agraph import graphviz_layout
+#from networkx.drawing.nx_pydot import write_dot
 from .errors import WorkflowException
 import prov.graph as graph
 import uuid
@@ -291,11 +291,14 @@ class ResearchObject():
         document.serialize(provPath, indent=2)
         ProvNfile= open(provNpath,"w+")
         ProvNfile.write(document.get_provn())
-        provgraph=graph.prov_to_graph(document)
-        pos = nx.nx_agraph.graphviz_layout(provgraph)
-        nx.draw(provgraph, pos=pos)
-        write_dot(provgraph, provDot)
-        check_call(['dot','-Tpng',provDot,'-o',original_path+'/ProvenanceVisualGraph.png'])
+        
+## graphical prov rendering disabled
+## .. as nx requires excessive/tricky dependencies
+#        provgraph=graph.prov_to_graph(document)
+#        pos = nx.nx_agraph.graphviz_layout(provgraph)
+#        nx.draw(provgraph, pos=pos)
+#        write_dot(provgraph, provDot)
+#        check_call(['dot','-Tpng',provDot,'-o',original_path+'/ProvenanceVisualGraph.png'])
 
     def startProcess(self, r, document, engineUUID, WorkflowRunID):
             '''
