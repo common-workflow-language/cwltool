@@ -482,6 +482,8 @@ class ResearchObject():
             step = document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
             document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
 
+        # TODO: Declare roles/parameters as well
+
 
 #**************************************
 
