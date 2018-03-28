@@ -64,6 +64,8 @@ class ResearchObject():
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
         self.tmpPrefix = tmpPrefix
         self._initialize()
+        # Should be replaced by generate_provDoc
+        self.wf_ns = Namespace("ex", "http://example.com/")
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
 
     def _initialize(self):
@@ -97,7 +99,7 @@ class ResearchObject():
         ## info only, won't really be used by prov as sub-resources use /
         document.add_namespace('researchobject', ro_base)
         roIdentifierWorkflow= ro_base + "workflow/packed.cwl#"
-        document.add_namespace("wf", roIdentifierWorkflow)
+        self.wf_ns = document.add_namespace("wf", roIdentifierWorkflow)
         roIdentifierInput=ro_base + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
         document.agent(engineUUID, {prov.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwlversionProv})
@@ -384,12 +386,13 @@ class ResearchObject():
         for tuple_entry in merged_total:
             output_checksum="data:"+str(tuple_entry[1][5:])
 
-            if ProcessRunID:
-                stepProv =  "wf:main"+"/"+name+"/"+str(tuple_entry[0])
+            if ProcessRunID:                
+                stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
+
                 document.entity(output_checksum, {prov.PROV_TYPE: WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
             else:
-                outputProvRole ="wf:main"+"/"+str(tuple_entry[0])
+                outputProvRole = self.wf_ns["main"+"/"+str(tuple_entry[0])]
                 document.entity(output_checksum, {prov.PROV_TYPE:WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
@@ -440,9 +443,13 @@ class ResearchObject():
                 else:  # add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
                     document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
             else:  # add the actual data value in the prov document
-                ArtefactValue="data:"+str(value)
-                document.entity(ArtefactValue, {prov.PROV_TYPE:WFPROV["Artifact"]})
-                document.used(ProcessRunID, ArtefactValue, datetime.datetime.now(),None, {"prov:role":provRole })
+                # Convert to bytes so we can get a hash (and add to RO)
+                b = io.BytesIO(str(value).encode("utf8"))
+                data_file = self.add_data_file(b)
+                # FIXME: Don't naively assume add_data_file uses hash in filename!
+                data_id="data:" + posixpath.split(data_file)[1]
+                document.entity(data_id, {prov.PROV_TYPE:WFPROV["Artifact"], prov.PROV_VALUE:str(value)})
+                document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def copy_job_order(self, r, job_order_object):
         '''
