@@ -78,15 +78,23 @@ class ResearchObject():
         add basic namespaces
         '''
         document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
-        document.add_namespace('prov', 'http://www.w3.org/ns/prov')
+        #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
         document.add_namespace('run', 'urn:uuid:')
         document.add_namespace('engine', 'urn:uuid:')
-        document.add_namespace('data', 'urn:hash:sha1')
+        # NOTE: Internet draft expired 2004-03-04 (!)
+        #  https://tools.ietf.org/html/draft-thiemann-hash-urn-01
+        # TODO: Change to nih:sha-256; hashes
+        #  https://tools.ietf.org/html/rfc6920#section-7
+        document.add_namespace('data', 'urn:hash::sha1:')
         WorkflowRunID="run:"+WorkflowRunUUID
-        roIdentifierWorkflow="app://"+WorkflowRunUUID+"/workflow/packed.cwl#"
+        # https://tools.ietf.org/id/draft-soilandreyes-arcp
+        ro_base = "arcp://uuid,"+WorkflowRunUUID+"/"
+        ## info only, won't really be used by prov as sub-resources use /
+        document.add_namespace('researchobject', ro_base)
+        roIdentifierWorkflow= ro_base + "workflow/packed.cwl#"
         document.add_namespace("wf", roIdentifierWorkflow)
-        roIdentifierInput="app://"+WorkflowRunUUID+"/workflow/primary-job.json#"
+        roIdentifierInput=ro_base + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
         document.agent(engineUUID, {prov.PROV_TYPE: "prov:SoftwareAgent", "prov:type": "wfprov:WorkflowEngine", "prov:label": cwlversionProv})
         #define workflow run level activity
