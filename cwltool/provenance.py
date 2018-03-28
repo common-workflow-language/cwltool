@@ -15,6 +15,7 @@ import time
 import copy
 import datetime
 import prov.model as prov
+from prov.model import Namespace, PROV
 from pathlib2 import Path
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
@@ -44,6 +45,8 @@ SNAPSHOT = "snapshot"
 # sub-folders
 MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
+WFDESC=Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
+
 
 class ProvenanceException(BaseException):
     pass
@@ -293,14 +296,27 @@ class ResearchObject():
         Transfer the provenance related files to RO
         '''
         original_path=os.path.join(self.folder, PROVENANCE)
-        provPath=original_path+"/ProvenanceProfile.json"
-        provNpath=original_path+"/ProvNrepresentation.provn"
-        provDot=original_path+'/ProvenanceDotGraph.dot'
-        document.serialize(provPath, indent=2)
-        ProvNfile= open(provNpath,"w+")
-        ProvNfile.write(document.get_provn())
+        # TODO: Generate filename per workflow run also for nested workflows
+        # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
+        basename = original_path + "/primary.cwlprov"
         
-## graphical prov rendering disabled
+        # https://www.w3.org/TR/prov-n/
+        document.serialize(basename + ".provn", format="provn", indent=2)
+        # https://www.w3.org/TR/prov-xml/
+        document.serialize(basename + ".xml", format="xml", indent=4)
+        # https://www.w3.org/Submission/prov-json/
+        document.serialize(basename + ".json", format="json", indent=2)
+        # https://www.w3.org/TR/prov-o/
+        document.serialize(basename + ".ttl", format="rdf", rdf_format="turtle")
+        document.serialize(basename + ".nt", format="rdf", rdf_format="ntriples")
+        # TODO: Use a nice JSON-LD context
+        # see also https://eprints.soton.ac.uk/395985/
+        # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
+        document.serialize(basename + ".jsonld", format="rdf", rdf_format="json-ld")
+
+        # https://www.graphviz.org/
+        provDot= provNpath= basename + ".dot"
+## NOTE: graphviz rendering disabled
 ## .. as nx requires excessive/tricky dependencies
 #        provgraph=graph.prov_to_graph(document)
 #        pos = nx.nx_agraph.graphviz_layout(provgraph)
@@ -449,9 +465,9 @@ class ResearchObject():
         for s in r.steps:
             stepname="wf:main/"+str(s.name)[5:]
             steps.append(stepname)
-            document.entity(stepname, {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan"})
+            document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
         #create prospective provenance recording for the workflow
-        document.entity("wf:main", {prov.PROV_TYPE: "wfdesc:Process", "prov:type": "prov:Plan", "wfdesc:hasSubProcess=":str(steps),  "prov:label":"Prospective provenance"})
+        document.entity("wf:main", {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "wfdesc:hasSubProcess":str(steps),  "prov:label":"Prospective provenance"})
 
 
 #**************************************
