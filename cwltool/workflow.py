@@ -545,7 +545,8 @@ class Workflow(Process):
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
 
-        static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
+        if kwargs.get("do_validate", True):
+            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
 
 
     def job(self,

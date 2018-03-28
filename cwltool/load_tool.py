@@ -187,7 +187,8 @@ def validate_document(document_loader,  # type: Loader
                       fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,  # type: bool
                       overrides=None,  # type: List[Dict]
-                      metadata=None  # type: Optional[Dict]
+                      metadata=None,  # type: Optional[Dict]
+                      do_validate=True
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -203,7 +204,7 @@ def validate_document(document_loader,  # type: Loader
     jobobj = None
     if "cwl:tool" in workflowobj:
         job_loader = default_loader(fetcher_constructor)  # type: ignore
-        jobobj, _ = job_loader.resolve_all(workflowobj, uri)
+        jobobj, _ = job_loader.resolve_all(workflowobj, uri, checklinks=do_validate)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
@@ -254,7 +255,7 @@ def validate_document(document_loader,  # type: Loader
     _add_blank_ids(workflowobj)
 
     workflowobj["id"] = fileuri
-    processobj, new_metadata = document_loader.resolve_all(workflowobj, fileuri)
+    processobj, new_metadata = document_loader.resolve_all(workflowobj, fileuri, checklinks=do_validate)
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
@@ -269,7 +270,8 @@ def validate_document(document_loader,  # type: Loader
     if preprocess_only:
         return document_loader, avsc_names, processobj, new_metadata, uri
 
-    schema.validate_doc(avsc_names, processobj, document_loader, strict)
+    if do_validate:
+        schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if new_metadata.get("cwlVersion") != update.LATEST:
         processobj = cast(CommentedMap, cmap(update.update(
