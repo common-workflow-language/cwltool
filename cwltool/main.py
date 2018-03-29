@@ -65,10 +65,11 @@ _logger = logging.getLogger("cwltool")
 
 #Adding default namespaces
 document = ProvDocument()
+document.add_namespace("run", "urn:uuid:")
 #adding the SoftwareAgent to PROV document
-engineUUID="engine:"+str(uuid.uuid4())
+engineUUID="run:%s" % uuid.uuid4()
 WorkflowRunUUID=str(uuid.uuid4())
-WorkflowRunID="run:"+WorkflowRunUUID
+WorkflowRunID="run:%s" % WorkflowRunUUID
 _logger.setLevel(logging.INFO)
 
 
@@ -605,11 +606,14 @@ def main(argsl=None,  # type: List[str]
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         secret_store = SecretStore()
-
+        # pre-declared for finally block
+        inputforProv = None
+        job_order_object = None
         try:
             if args.provenance and args.research_obj:
-                cwlversionProv="cwltool "+ str(versionstring().split()[-1])
-                args.research_obj.generate_provDoc(document, cwlversionProv, engineUUID, WorkflowRunUUID)
+                # Ensure version starts with 'cwltool'
+                cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+                args.research_obj.generate_provDoc(document, cwltoolVersion, engineUUID, WorkflowRunUUID)
 
             job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
@@ -698,13 +702,15 @@ def main(argsl=None,  # type: List[str]
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
 
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir:
-            document.wasEndedBy(WorkflowRunID, None, WorkflowRunID, datetime.datetime.now())
+            document.wasEndedBy(WorkflowRunID, None, engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
             args.research_obj.snapshot_generation(ProvDependencies[1])
             #for input file dependencies
-            args.research_obj.snapshot_generation(inputforProv)
-            args.research_obj.snapshot_generation(job_order_object)
+            if inputforProv:            
+                args.research_obj.snapshot_generation(inputforProv)
+            if job_order_object:
+                args.research_obj.snapshot_generation(job_order_object)
 
             #adding prov profile and graphs to RO
             args.research_obj.finalize_provProfile(document)
