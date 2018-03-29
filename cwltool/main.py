@@ -476,6 +476,10 @@ def main(argsl=None,  # type: List[str]
             use_standard_schema("v1.0")
         #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
+            if not args.compute_checksum:                
+                _logger.warn("[warn] --provenance implies checksums, --no-compute-checksum ignored")
+                args.compute_checksum = True
+
             args.research_obj = create_researchObject(tmpPrefix=args.tmpdir_prefix)
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
