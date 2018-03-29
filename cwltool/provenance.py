@@ -48,6 +48,8 @@ PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC=Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV=Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
 
+# BagIt and YAML always use UTF-8
+ENCODING="UTF-8"
 
 class ProvenanceException(BaseException):
     pass
@@ -60,29 +62,74 @@ hashmethod = hashlib.sha1
 
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp"):
+        self.tmpPrefix = tmpPrefix
         # type: (...) -> None
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
-        self.tmpPrefix = tmpPrefix
+        # map of filename "data/de/alsdklkas": 12398123 bytes
+        self.bagged_size = {}
+
+        # These should be replaced by generate_provDoc when workflow/run IDs are known:
+        u = uuid.uuid4()
+        self.identifier = "urn:uuid:%s" % u
+        self.base_uri = "arcp://uuid,%s/" % u
+        self.wf_ns = Namespace("ex", "http://example.com/wf-%s#" % u)
+        self.cwltoolVersion = "cwltool (unknown version)"
+        ##
+        
+
         self._initialize()
-        # Should be replaced by generate_provDoc
-        self.wf_ns = Namespace("ex", "http://example.com/")
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
 
     def _initialize(self):
         # type: (...) -> None
         for f in (METADATA, DATA, WORKFLOW, SNAPSHOT, PROVENANCE):
             os.makedirs(os.path.join(self.folder, f))
+        self._initialize_bagit()
+
+    def _initialize_bagit(self):
+        # Write fixed bagit header
+        bagit = os.path.join(self.folder, "bagit.txt")
+        with open(bagit, "w") as bagitFile:
+            # TODO: \n or \r\n ?
+            # Special case, bagit.txt is ASCII only
+            bagitFile.write("BagIt-Version: 0.97\n".encode("ASCII"))
+            bagitFile.write(("Tag-File-Character-Encoding: %s\n" % ENCODING).encode("ASCII"))
 
     def _finalize(self):
-        # TODO: Write manifest and bagit metadata
-        # _logger.info(u"[provenance] Generated research object manifest: %s", self.folder)
+        self._write_ro_manifest()
+        self._write_bag_info()
+
+    def _write_ro_manifest(self):
+        # TODO: write metadata/manifest.json
         pass
 
+    def _write_bag_info(self):
+        info = os.path.join(self.folder, "bag-info.txt")
+        with open(info, "w") as infoFile:            
+            infoFile.write(("External-Description: Research Object of CWL workflow run\n").encode(ENCODING))
+            infoFile.write(("Bag-Software-Agent: %s\n" % self.cwltoolVersion).encode(ENCODING))
+            infoFile.write(("Bagging-Date: %s\n" % datetime.date.today().isoformat()).encode(ENCODING))
+            # FIXME: require sha-512 to comply with profile
+            #infoFile.write(("BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n").encode(ENCODING))
+            
+            # Calculate size of data/ (assuming no external fetch.txt files)
+            totalSize = sum(self.bagged_size.values())
+            numFiles = len(self.bagged_size)
+            infoFile.write(("Payload-Oxum: %d.%d\n" % (totalSize, numFiles)).encode(ENCODING))
+            infoFile.write(("External-Identifier: %s\n" % self.identifier).encode(ENCODING))            
 
-    def generate_provDoc(self, document, cwlversionProv, engineUUID, WorkflowRunUUID):
+        # TODO: Checksum of metadata files?
+        _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
+
+    def generate_provDoc(self, document, cwltoolVersion, engineUUID, workflowRunUUID):
         '''
         add basic namespaces
         '''
+        # For consistent formatting, ensure it's a valid UUID instance
+        if not isinstance(workflowRunUUID, uuid.UUID):
+            workflowRunUUID = uuid.UUID(str(workflowRunUUID))
+
+        self.cwltoolVersion = cwltoolVersion
         document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
@@ -93,22 +140,23 @@ class ResearchObject():
         # TODO: Change to nih:sha-256; hashes
         #  https://tools.ietf.org/html/rfc6920#section-7
         document.add_namespace('data', 'urn:hash::sha1:')
-        WorkflowRunID="run:"+WorkflowRunUUID
+        workflowRunID="run:%s" % workflowRunUUID
+        self.identifier = "urn:uuid:%s" % workflowRunUUID
         # https://tools.ietf.org/id/draft-soilandreyes-arcp
-        ro_base = "arcp://uuid,"+WorkflowRunUUID+"/"
+        self.base_uri = "arcp://uuid,%s/" % workflowRunUUID
         ## info only, won't really be used by prov as sub-resources use /
-        document.add_namespace('researchobject', ro_base)
-        roIdentifierWorkflow= ro_base + "workflow/packed.cwl#"
+        document.add_namespace('researchobject', self.base_uri)
+        roIdentifierWorkflow= self.base_uri + "workflow/packed.cwl#"
         self.wf_ns = document.add_namespace("wf", roIdentifierWorkflow)
-        roIdentifierInput=ro_base + "workflow/primary-job.json#"
+        roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
-        document.agent(engineUUID, {prov.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwlversionProv})
+        document.agent(engineUUID, {prov.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwltoolVersion})
         #define workflow run level activity
-        document.activity(WorkflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
+        document.activity(workflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
         mainWorkflow = "wf:main"
-        document.wasAssociatedWith(WorkflowRunID, engineUUID, mainWorkflow)
-        return WorkflowRunID
+        document.wasAssociatedWith(workflowRunID, engineUUID, mainWorkflow)
+        return workflowRunID
 
 
     def snapshot_generation(self, ProvDep):
@@ -143,7 +191,7 @@ class ResearchObject():
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
         with open(path, "w") as f:
             # YAML is always UTF8
-            f.write(packed.encode("UTF-8"))
+            f.write(packed.encode(ENCODING))
         _logger.info(u"[provenance] Added packed workflow: %s", path)
         return (path)
 
@@ -217,21 +265,30 @@ class ResearchObject():
         if not os.path.exists(local_path):
             raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
 
+        if (rel_path in self.bagged_size):
+            # Already added, assume checksum OK
+            return
+        self.bagged_size[rel_path] = os.path.getsize(local_path)
+
         if "sha1" not in checksums:
             # ensure we always have sha1
             checksums = dict(checksums)
             with open(local_path) as fp:
+                # FIXME: Need sha-256 / sha-512 as well for RO BagIt profile?
                 checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
+
+        
 
         # Add checksums to corresponding manifest files
         for (method,hash) in checksums.items():
-            # Quite naive for now - assume file is not already listed in manifest
+            # File not in manifest because we bailed out on 
+            # existence in bagged_size above
             manifest = os.path.join(self.folder,
                 "manifest-" + method.lower() + ".txt")
             with open(manifest, "a") as checksumFile:
                 line = "%s %s\n" % (hash, rel_path)
                 _logger.info(u"[provenance] Added to %s: %s", manifest, line)
-                checksumFile.write(line)
+                checksumFile.write(line.encode(ENCODING))
 
     def create_job(self, job, make_fs_access, kwargs):
         #TODO handle nested workflow at level 2 provenance
@@ -444,7 +501,7 @@ class ResearchObject():
                     document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
             else:  # add the actual data value in the prov document
                 # Convert to bytes so we can get a hash (and add to RO)
-                b = io.BytesIO(str(value).encode("utf8"))
+                b = io.BytesIO(str(value).encode(ENCODING))
                 data_file = self.add_data_file(b)
                 # FIXME: Don't naively assume add_data_file uses hash in filename!
                 data_id="data:" + posixpath.split(data_file)[1]
