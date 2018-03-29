@@ -408,23 +408,40 @@ class ResearchObject():
         # TODO: Generate filename per workflow run also for nested workflows
         # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
         basename = original_path + "/primary.cwlprov"
-        
+        # TODO: Also support other profiles than CWLProv, e.g. ProvOne
+
         # https://www.w3.org/TR/prov-n/
         document.serialize(basename + ".provn", format="provn", indent=2)
+        self.add_tagfile(basename + ".provn")
+        
         # https://www.w3.org/TR/prov-xml/
         document.serialize(basename + ".xml", format="xml", indent=4)
+        self.add_tagfile(basename + ".xml")
+        
         # https://www.w3.org/Submission/prov-json/
         document.serialize(basename + ".json", format="json", indent=2)
-        # https://www.w3.org/TR/prov-o/
+        self.add_tagfile(basename + ".json")
+        
+        # "rdf" aka https://www.w3.org/TR/prov-o/ 
+        # which can be serialized to ttl/nt/jsonld (and more!)
+
+        # https://www.w3.org/TR/turtle/
         document.serialize(basename + ".ttl", format="rdf", rdf_format="turtle")
+        self.add_tagfile(basename + ".ttl")
+        
+        # https://www.w3.org/TR/n-triples/
         document.serialize(basename + ".nt", format="rdf", rdf_format="ntriples")
+        self.add_tagfile(basename + ".nt")
+        
+        # https://www.w3.org/TR/json-ld/
         # TODO: Use a nice JSON-LD context
         # see also https://eprints.soton.ac.uk/395985/
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
         document.serialize(basename + ".jsonld", format="rdf", rdf_format="json-ld")
+        self.add_tagfile(basename + ".jsonld")
 
-        # https://www.graphviz.org/
-        provDot= provNpath= basename + ".dot"
+        # https://www.graphviz.org/ dot
+        provDot= basename + ".dot"
 ## NOTE: graphviz rendering disabled
 ## .. as nx requires excessive/tricky dependencies
 #        provgraph=graph.prov_to_graph(document)
@@ -432,6 +449,7 @@ class ResearchObject():
 #        nx.draw(provgraph, pos=pos)
 #        write_dot(provgraph, provDot)
 #        check_call(['dot','-Tpng',provDot,'-o',original_path+'/ProvenanceVisualGraph.png'])
+#        self.add_tagfile(provDot)
 
     def startProcess(self, r, document, engineUUID, WorkflowRunID):
             '''
