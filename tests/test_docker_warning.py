@@ -2,14 +2,14 @@ from __future__ import absolute_import
 import unittest
 from mock import mock
 from cwltool.utils import windows_default_container_id
-from cwltool.draft2tool import DEFAULT_CONTAINER_MSG, CommandLineTool
+from cwltool.command_line_tool import DEFAULT_CONTAINER_MSG, CommandLineTool
 
 
 class TestDefaultDockerWarning(unittest.TestCase):
 
     # Test to check warning when default docker Container is used on Windows
-    @mock.patch("cwltool.draft2tool.onWindows",return_value = True)
-    @mock.patch("cwltool.draft2tool._logger")
+    @mock.patch("cwltool.command_line_tool.onWindows",return_value = True)
+    @mock.patch("cwltool.command_line_tool._logger")
     def test_default_docker_warning(self,mock_logger,mock_windows):
 
         class TestCommandLineTool(CommandLineTool):

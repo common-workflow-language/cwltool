@@ -78,6 +78,7 @@ class Builder(object):
             lead_pos = []
         bindings = []  # type: List[Dict[Text,Text]]
         binding = None  # type: Dict[Text,Any]
+        value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
 
@@ -87,9 +88,12 @@ class Builder(object):
                 binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
 
             binding["datum"] = datum
+            if "valueFrom" in binding:
+                value_from_expression = True
 
         # Handle union types
         if isinstance(schema["type"], list):
+            bound_input = False
             for t in schema["type"]:
                 if isinstance(t, (str, Text)) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
@@ -100,8 +104,13 @@ class Builder(object):
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
-                    return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
-            raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
+                    if not value_from_expression:
+                        return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                    else:
+                        self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                        bound_input = True
+            if not bound_input:
+                raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], dict):
             st = copy.deepcopy(schema["type"])
             if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
@@ -109,7 +118,10 @@ class Builder(object):
             for k in ("secondaryFiles", "format", "streamable"):
                 if k in schema:
                     st[k] = schema[k]
-            bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
+            if value_from_expression:
+                self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+            else:
+                bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
         else:
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[schema["type"]]
@@ -212,15 +224,18 @@ class Builder(object):
 
         prefix = binding.get("prefix")
         sep = binding.get("separate", True)
+        if prefix is None and not sep:
+            with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
+                raise WorkflowException("'separate' option can not be specified without prefix")
 
         l = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
-            if binding.get("itemSeparator"):
+            if binding.get("itemSeparator") and value:
                 l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
-            elif prefix:
+            elif prefix and value:
                 return [prefix]
             else:
                 return []
@@ -230,7 +245,7 @@ class Builder(object):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
-        elif value is False or value is None:
+        elif value is False or value is None or (value is True and not prefix):
             return []
         else:
             l = [value]
@@ -244,14 +259,15 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True, recursive=False):
-        # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False, strip_whitespace=True):
+        # type: (Union[Dict[Text, Text], Text], Any, bool, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
                 return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
             if isinstance(ex, list):
                 return [self.do_eval(v, context, pull_image, recursive) for v in ex]
-
+        if context is None and type(ex) is str and "self" in ex:
+            return None
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
@@ -259,4 +275,5 @@ class Builder(object):
                                   timeout=self.timeout,
                                   debug=self.debug,
                                   js_console=self.js_console,
-                                  force_docker_pull=self.force_docker_pull)
+                                  force_docker_pull=self.force_docker_pull,
+                                  strip_whitespace=strip_whitespace)

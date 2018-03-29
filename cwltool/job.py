@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+
 import codecs
 import functools
 import io
@@ -11,25 +12,28 @@ import stat
 import subprocess
 import sys
 import tempfile
+from abc import ABCMeta, abstractmethod
 from io import open
-from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
-                    Tuple, Union, cast)
+from threading import Lock
 
 import shellescape
+from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
+                    Union, cast)
 
-from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
-from . import docker
 from .builder import Builder
-from .docker_id import docker_vm_id
 from .errors import WorkflowException
-from .pathmapper import PathMapper, ensure_writable
-from .process import (UnsupportedRequirement, empty_subtree, get_feature,
+from .pathmapper import PathMapper
+from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
+from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
+from .utils import copytree_with_merge, onWindows
 
 _logger = logging.getLogger("cwltool")
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
+
+job_output_lock = Lock()
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
@@ -110,14 +114,14 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
             host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir)+1:])
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
                 os.remove(host_outdir_tgt)
-            elif os.path.isdir(host_outdir_tgt):
+            elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
             if onWindows():
                 if vol.type in ("File", "WritableFile"):
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
-            else:
+            elif not vol.resolved.startswith("_:"):
                 os.symlink(vol.resolved, host_outdir_tgt)
 
 class JobBase(object):
@@ -167,8 +171,8 @@ class JobBase(object):
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
 
-    def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move"):
-        # type: (List[Text], MutableMapping[Text, Text], bool, Text) -> None
+    def _execute(self, runtime, env, rm_tmpdir=True, move_outputs="move", secret_store=None):
+        # type: (List[Text], MutableMapping[Text, Text], bool, Text, SecretStore) -> None
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
@@ -211,6 +215,10 @@ class JobBase(object):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
+            if secret_store:
+                commands = secret_store.retrieve(commands)
+                env = secret_store.retrieve(env)
+
             job_script_contents = None  # type: Text
             builder = getattr(self, "builder", None)  # type: Builder
             if builder is not None:
@@ -266,7 +274,21 @@ class JobBase(object):
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
 
-        self.output_callback(outputs, processStatus)
+        if self.generatemapper and secret_store:
+            # Delete any runtime-generated files containing secrets.
+            for f, p in self.generatemapper.items():
+                if p.type == "CreateFile":
+                    if secret_store.has_secret(p.resolved):
+                        host_outdir = self.outdir
+                        container_outdir = self.builder.outdir
+                        host_outdir_tgt = p.target
+                        if p.target.startswith(container_outdir+"/"):
+                            host_outdir_tgt = os.path.join(
+                                host_outdir, p.target[len(container_outdir)+1:])
+                        os.remove(host_outdir_tgt)
+
+        with job_output_lock:
+            self.output_callback(outputs, processStatus)
 
         if self.stagedir and os.path.exists(self.stagedir):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
@@ -303,68 +325,33 @@ class CommandLineJob(JobBase):
         if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
             env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
 
-        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True)
+        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=kwargs.get("secret_store"))
         if self.generatemapper:
-            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute([], env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))
 
 
-class DockerCommandLineJob(JobBase):
+class ContainerCommandLineJob(JobBase):
+    __metaclass__ = ABCMeta
 
-    def add_volumes(self, pathmapper, runtime):
-        # type: (PathMapper, List[Text]) -> None
+    @abstractmethod
+    def get_from_requirements(self, r, req, pull_image, dry_run=False):
+        # type: (Dict[Text, Text], bool, bool, bool) -> Text
+        pass
 
-        host_outdir = self.outdir
-        container_outdir = self.builder.outdir
-        for src, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            if vol.target.startswith(container_outdir+"/"):
-                host_outdir_tgt = os.path.join(
-                    host_outdir, vol.target[len(container_outdir)+1:])
-            else:
-                host_outdir_tgt = None
-            if vol.type in ("File", "Directory"):
-                if not vol.resolved.startswith("_:"):
-                    runtime.append(u"--volume=%s:%s:ro" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
-            elif vol.type == "WritableFile":
-                if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
-                else:
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                    ensure_writable(host_outdir_tgt)
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
-                    os.makedirs(vol.target, 0o0755)
-                else:
-                    if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (
-                            docker_windows_path_adjust(vol.resolved),
-                            docker_windows_path_adjust(vol.target)))
-                    else:
-                        shutil.copytree(vol.resolved, host_outdir_tgt)
-                        ensure_writable(host_outdir_tgt)
-            elif vol.type == "CreateFile":
-                if host_outdir_tgt:
-                    with open(host_outdir_tgt, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                else:
-                    fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
-                    with os.fdopen(fd, "wb") as f:
-                        f.write(vol.resolved.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(createtmp),
-                        docker_windows_path_adjust(vol.target)))
+    @abstractmethod
+    def create_runtime(self, env, rm_container, record_container_id, cidfile_dir,
+                       cidfile_prefix, **kwargs):
+        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
+        pass
 
     def run(self, pull_image=True, rm_container=True,
+            record_container_id=False, cidfile_dir="",
+            cidfile_prefix="",
             rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> None
+        # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
@@ -386,8 +373,7 @@ class DockerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = str(docker.get_from_requirements(
-                        docker_req, True, pull_image))
+                    img_id = str(self.get_from_requirements(docker_req, True, pull_image))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
@@ -398,79 +384,23 @@ class DockerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
             except Exception as e:
-                _logger.debug("Docker error", exc_info=True)
+                container = "Singularity" if kwargs.get("singularity") else "Docker"
+                _logger.debug("%s error" % container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "Docker is required to run this tool: %s" % e)
+                        "%s is required to run this tool: %s" % (container, e))
                 else:
                     raise WorkflowException(
-                        "Docker is not available for this tool, try "
-                        "--no-container to disable Docker, or install "
+                        "{0} is not available for this tool, try "
+                        "--no-container to disable {0}, or install "
                         "a user space Docker replacement like uDocker with "
-                        "--user-space-docker-cmd.: %s" % e)
+                        "--user-space-docker-cmd.: {1}".format(container, e))
 
         self._setup(kwargs)
-
-        if user_space_docker_cmd:
-            runtime = [user_space_docker_cmd, u"run"]
-        else:
-            runtime = [u"docker", u"run", u"-i"]
-
-        runtime.append(u"--volume=%s:%s:rw" % (
-            docker_windows_path_adjust(os.path.realpath(self.outdir)),
-            self.builder.outdir))
-        runtime.append(u"--volume=%s:%s:rw" % (
-            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
-
-        self.add_volumes(self.pathmapper, runtime)
-        if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime)
-
-        if user_space_docker_cmd:
-            runtime = [x.replace(":ro", "") for x in runtime]
-            runtime = [x.replace(":rw", "") for x in runtime]
-
-        runtime.append(u"--workdir=%s" % (
-            docker_windows_path_adjust(self.builder.outdir)))
-        if not user_space_docker_cmd:
-
-            if not kwargs.get("no_read_only"):
-                runtime.append(u"--read-only=true")
-
-            if kwargs.get("custom_net", None) is not None:
-                runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
-            elif kwargs.get("disable_net", None):
-                runtime.append(u"--net=none")
-
-            if self.stdout:
-                runtime.append("--log-driver=none")
-
-            euid, egid = docker_vm_id()
-            if not onWindows():
-                # MS Windows does not have getuid() or geteuid() functions
-                euid, egid = euid or os.geteuid(), egid or os.getgid()
-
-            if kwargs.get("no_match_user", None) is False \
-                    and (euid, egid) != (None, None):
-                runtime.append(u"--user=%d:%d" % (euid, egid))
-
-        if rm_container:
-            runtime.append(u"--rm")
-
-        runtime.append(u"--env=TMPDIR=/tmp")
-
-        # spec currently says "HOME must be set to the designated output
-        # directory." but spec might change to designated temp directory.
-        # runtime.append("--env=HOME=/tmp")
-        runtime.append(u"--env=HOME=%s" % self.builder.outdir)
-
-        for t, v in self.environment.items():
-            runtime.append(u"--env=%s=%s" % (t, v))
-
+        runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
 
-        self._execute(
-            runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs)
+        self._execute(runtime, env, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))
 
 
 def _job_popen(
@@ -550,7 +480,7 @@ def _job_popen(
             stdin_path=stdin_path,
         )
         with open(os.path.join(job_dir, "job.json"), "wb") as f:
-            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False) # type: ignore
+            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False)  # type: ignore
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:

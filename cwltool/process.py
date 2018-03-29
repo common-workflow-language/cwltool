@@ -30,14 +30,17 @@ from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .validate_js import validate_js_expressions
 from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          normalizeFilesDirs, visit_class, trim_listing,
                          ensure_writable)
+from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
+
 
 # if six.PY3:
 # AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
@@ -207,8 +210,8 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
-    # type: (PathMapper, Callable[..., Any], bool, bool) -> None
+def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_store=None):
+    # type: (PathMapper, Callable[..., Any], bool, bool, SecretStore) -> None
     for f, p in pm.items():
         if not p.staged:
             continue
@@ -240,7 +243,10 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True):
                 ensure_writable(p.target)
         elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
-                n.write(p.resolved.encode("utf-8"))
+                if secret_store:
+                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
+                else:
+                    n.write(p.resolved.encode("utf-8"))
             ensure_writable(p.target)
 
 def collectFilesAndDirs(obj, out):
@@ -256,8 +262,14 @@ def collectFilesAndDirs(obj, out):
             collectFilesAndDirs(l, out)
 
 
-def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Set[Text], Text, StdFsAccess) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
+                    outdir,                # type: Text
+                    output_dirs,           # type: Set[Text]
+                    action,                # type: Text
+                    fs_access,             # type: StdFsAccess
+                    compute_checksum=True  # type: bool
+                    ):
+    # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -299,8 +311,8 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         return f
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
-
-    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+    if compute_checksum:
+        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,
@@ -401,7 +413,7 @@ def fillInDefaults(inputs, job):
             elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
                 job[fieldname] = None
             else:
-                raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
+                raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -506,7 +518,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException(u"Missing 'type' in "
+                            "parameter '%s'" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -522,7 +535,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
@@ -530,9 +544,23 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
+            raise validate.ValidationException(u"Got error '%s' while "
+                    "processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.outputs_record_schema, indent=4)))
+
+        if toolpath_object.get("class") is not None and not kwargs.get("disable_js_validation", False):
+            if kwargs.get("js_hint_options_file") is not None:
+                try:
+                    with open(kwargs["js_hint_options_file"]) as options_file:
+                        validate_js_options = json.load(options_file)
+                except (OSError, ValueError) as e:
+                    _logger.error("Failed to read options file %s" % kwargs["js_hint_options_file"])
+                    raise e
+            else:
+                validate_js_options = None
+
+            validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
@@ -608,8 +636,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
             builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
-            builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-            builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+            if self.tool[u"class"] != 'Workflow':
+                builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+                builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         if self.formatgraph:
             for i in self.tool["inputs"]:

@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
 requirements:
@@ -15,5 +16,5 @@ outputs:
       glob: out.txt
       loadContents: true
       outputEval: $(self[0].contents)
-arguments: ["echo", "-n", $(inputs.m1), {shellQuote: false, valueFrom: "$MESSAGE"}]
+arguments: ["echo", $(inputs.m1), {shellQuote: false, valueFrom: "$MESSAGE"}]
 stdout: out.txt

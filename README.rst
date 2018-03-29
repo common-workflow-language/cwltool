@@ -2,11 +2,21 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL conformance tests: |Build Status| Travis CI: |Unix Build Status|
+CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status|
 
-.. |Unix Build Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=unix%20build
+
+.. |Conformance Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+   
+.. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=Linux%20builds
    :target: https://travis-ci.org/common-workflow-language/cwltool
+   
+.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/master.svg?label=Windows%20builds
+   :target: https://ci.appveyor.com/project/mr-c/cwltool
 
+.. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
+  :target: https://codecov.io/gh/common-workflow-language/cwltool
+   
 This is the reference implementation of the Common Workflow Language.  It is
 intended to feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
@@ -110,9 +120,6 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
 
-.. |Build Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
 Using user-space replacements for Docker
 ----------------------------------------
 
@@ -138,6 +145,16 @@ or
 .. code:: bash
 
   cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+
+``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ as a Docker container runtime, an experimental feature.
+Singularity will run software containers specified in ``DockerRequirement`` and therefore works with Docker images only,
+native Singularity images are not supported.
+To use Singularity as the Docker container runtime, provide ``--singularity`` command line option to ``cwltool``.
+
+
+.. code:: bash
+
+  cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/cat-job.json
 
 Tool or workflow loading from remote or local locations
 -------------------------------------------------------
