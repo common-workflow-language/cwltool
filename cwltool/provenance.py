@@ -560,7 +560,7 @@ class ResearchObject():
         adds used() for each data artefact
         '''
         for key, value in job_order.items():
-            provRole=name+"/"+str(key)
+            provRole = self.wf_ns["main"+"/"+name+"/"+str(key)]
             ProcessRunID=str(ProcessProvActivity.identifier)
             if isinstance(value, dict) and 'location' in value:
                 location=str(value['location'])
