@@ -380,6 +380,7 @@ def main(argsl=None,  # type: List[str]
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
     #input_basedir=''
+    workflowobj = None
     try:
         if args is None:
             if argsl is None:
@@ -477,8 +478,8 @@ def main(argsl=None,  # type: List[str]
         #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
             if not args.compute_checksum:                
-                _logger.warn("[warn] --provenance implies checksums, --no-compute-checksum ignored")
-                args.compute_checksum = True
+                _logger.error("--provenance incompatible with --no-compute-checksum")
+                return 1
 
             args.research_obj = create_researchObject(tmpPrefix=args.tmpdir_prefix)
 
@@ -705,7 +706,7 @@ def main(argsl=None,  # type: List[str]
     finally:
         _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
 
-        if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir:
+        if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
             document.wasEndedBy(WorkflowRunID, None, engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
