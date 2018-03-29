@@ -39,7 +39,6 @@ _logger = logging.getLogger("cwltool")
 # RO folders
 METADATA = "metadata"
 DATA = "data"
-OUTPUT= "output"
 WORKFLOW = "workflow"
 SNAPSHOT = "snapshot"
 # sub-folders
@@ -67,10 +66,11 @@ class ResearchObject():
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}
+        self.tagfiles = set()
 
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
         u = uuid.uuid4()
-        self.identifier = "urn:uuid:%s" % u
+        self.workflowRunURI = "urn:uuid:%s" % u
         self.base_uri = "arcp://uuid,%s/" % u
         self.wf_ns = Namespace("ex", "http://example.com/wf-%s#" % u)
         self.cwltoolVersion = "cwltool (unknown version)"
@@ -99,25 +99,53 @@ class ResearchObject():
         self._write_ro_manifest()
         self._write_bag_info()
 
+    def add_tagfile(self, path):
+        checksums = {}
+        with open(path) as fp:
+            # FIXME: Should have more efficient open_tagfile() that 
+            # does all checksums in one go while writing through, 
+            # adding checksums after closing. 
+            # Below probably OK for now as metadata files
+            # are not too large..?
+            
+            checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
+            fp.seek(0)
+            # Older Python's might not have all checksums
+            if "sha256" in hashlib.__all__:
+                fp.seek(0)
+                checksums["sha256"]= self._checksum_copy(fp, hashmethod=hashlib.sha256)            
+            if "sha512" in hashlib.__all__:
+                fp.seek(0)
+                checksums["sha512"]= self._checksum_copy(fp, hashmethod=hashlib.sha512)
+        rel_path = self._posix_path(os.path.relpath(path, self.folder))
+        self.tagfiles.add(rel_path)
+        self._add_to_manifest(rel_path, checksums)
+
+
     def _write_ro_manifest(self):
+
+
         # TODO: write metadata/manifest.json
         pass
 
     def _write_bag_info(self):
-        info = os.path.join(self.folder, "bag-info.txt")
+        info = os.path.join(self.folder, "bag-info.txt")        
         with open(info, "w") as infoFile:            
             infoFile.write(("External-Description: Research Object of CWL workflow run\n").encode(ENCODING))
             infoFile.write(("Bag-Software-Agent: %s\n" % self.cwltoolVersion).encode(ENCODING))
             infoFile.write(("Bagging-Date: %s\n" % datetime.date.today().isoformat()).encode(ENCODING))
             # FIXME: require sha-512 to comply with profile
+            # FIXME: Update profile
             #infoFile.write(("BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n").encode(ENCODING))
             
             # Calculate size of data/ (assuming no external fetch.txt files)
             totalSize = sum(self.bagged_size.values())
             numFiles = len(self.bagged_size)
             infoFile.write(("Payload-Oxum: %d.%d\n" % (totalSize, numFiles)).encode(ENCODING))
-            infoFile.write(("External-Identifier: %s\n" % self.identifier).encode(ENCODING))            
-
+            # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
+            # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
+            infoFile.write(("External-Identifier: %s\n" % self.base_uri).encode(ENCODING))
+        self.add_tagfile(info)
         # TODO: Checksum of metadata files?
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
@@ -141,7 +169,7 @@ class ResearchObject():
         #  https://tools.ietf.org/html/rfc6920#section-7
         document.add_namespace('data', 'urn:hash::sha1:')
         workflowRunID="run:%s" % workflowRunUUID
-        self.identifier = "urn:uuid:%s" % workflowRunUUID
+        self.workflowRunURI = "urn:uuid:%s" % workflowRunUUID
         # https://tools.ietf.org/id/draft-soilandreyes-arcp
         self.base_uri = "arcp://uuid,%s/" % workflowRunUUID
         ## info only, won't really be used by prov as sub-resources use /
@@ -154,8 +182,11 @@ class ResearchObject():
         #define workflow run level activity
         document.activity(workflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
+        # FIXME: Below assumes main workflow always called "#main", 
+        # is this always true after packing?
         mainWorkflow = "wf:main"
         document.wasAssociatedWith(workflowRunID, engineUUID, mainWorkflow)
+        document.wasStartedBy(workflowRunID, None, engineUUID, datetime.datetime.now())        
         return workflowRunID
 
 
@@ -177,6 +208,7 @@ class ResearchObject():
                 file_to_cp = Path(filepath)
                 if file_to_cp.exists():
                     shutil.copy(filepath, path)
+                    self.add_tagfile(path)
             elif key == "secondaryFiles" or key == "listing":
                 for files in value:
                     if isinstance(files, dict):
@@ -192,6 +224,7 @@ class ResearchObject():
         with open(path, "w") as f:
             # YAML is always UTF8
             f.write(packed.encode(ENCODING))
+        self.add_tagfile(path)            
         _logger.info(u"[provenance] Added packed workflow: %s", path)
         return (path)
 
@@ -258,6 +291,29 @@ class ResearchObject():
     def _local_path(self, posix_path):
         return self._convert_path(posix_path, posixpath, os.path)
 
+    def _add_to_manifest(self, rel_path, checksums):
+        if (posixpath.isabs(rel_path)):
+            raise ProvenanceException("rel_path must be relative: %s" % rel_path)        
+        
+        if (posixpath.commonprefix(["data/", rel_path]) == "data/"):
+            # payload file go to manifest
+            manifest = "manifest"
+        else:
+            # metadata files go to tag manifest
+            manifest = "tagmanifest"
+
+        # Add checksums to corresponding manifest files
+        for (method,hash) in checksums.items():
+            # File not in manifest because we bailed out on 
+            # existence in bagged_size above
+            manifestpath = os.path.join(self.folder,
+                "%s-%s.txt" % (manifest, method.lower()))
+            with open(manifestpath, "a") as checksumFile:
+                line = "%s %s\n" % (hash, rel_path)
+                _logger.debug(u"[provenance] Added to %s: %s", manifestpath, line)
+                checksumFile.write(line.encode(ENCODING))
+
+
     def _add_to_bagit(self, rel_path, **checksums):
         if (posixpath.isabs(rel_path)):
             raise ProvenanceException("rel_path must be relative: %s" % rel_path)
@@ -277,18 +333,7 @@ class ResearchObject():
                 # FIXME: Need sha-256 / sha-512 as well for RO BagIt profile?
                 checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
 
-        
-
-        # Add checksums to corresponding manifest files
-        for (method,hash) in checksums.items():
-            # File not in manifest because we bailed out on 
-            # existence in bagged_size above
-            manifest = os.path.join(self.folder,
-                "manifest-" + method.lower() + ".txt")
-            with open(manifest, "a") as checksumFile:
-                line = "%s %s\n" % (hash, rel_path)
-                _logger.info(u"[provenance] Added to %s: %s", manifest, line)
-                checksumFile.write(line.encode(ENCODING))
+        self._add_to_manifest(rel_path, checksums)
 
     def create_job(self, job, make_fs_access, kwargs):
         #TODO handle nested workflow at level 2 provenance
@@ -305,10 +350,14 @@ class ResearchObject():
         _logger.info(u"[provenance] Generated customised job file: %s", path)
         with open(path, "w") as f:
             json.dump(job, f, indent=4)
+        self.add_tagfile(path)
+
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
         with open(path, 'r') as f:
+            # FIXME: Why read back the file we just wrote? It should still
+            # be in the "job" object
             primaryInput_file = json.load(f)
         relativised_input_objecttemp={}
         for key, value in primaryInput_file.iteritems():
@@ -415,6 +464,7 @@ class ResearchObject():
 
         if isinstance(relativised_input_object, str) or isinstance(relativised_input_object, unicode):
             # Just a string value, no need to iterate further
+            # FIXME: Should these be added as PROV entities as well?
             return
 
         try:
@@ -441,6 +491,7 @@ class ResearchObject():
 
         #generate data artefacts at workflow level
         for tuple_entry in merged_total:
+            # FIXME: What are these magic array[][] positions???
             output_checksum="data:"+str(tuple_entry[1][5:])
 
             if ProcessRunID:                
@@ -453,13 +504,10 @@ class ResearchObject():
                 document.entity(output_checksum, {prov.PROV_TYPE:WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
-                #copy the file in outputs
-                outputfile_path= os.path.join(self.folder, OUTPUT, tuple_entry[1][5:7])
-                path = os.path.join(outputfile_path, tuple_entry[1][5:])
-                if not os.path.isdir(path):
-                    os.makedirs(path)
-                _logger.info(u"[provenance] Moving output files to RO")
-                shutil.copy(tuple_entry[2][7:], path) 
+                # FIXME: What are these magic array positions???
+                with open(tuple_entry[2][7:]) as fp:
+                    rel_path = self.add_data_file(fp)
+                    _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
     def array_output(self, key, current_l): 
         '''
@@ -562,6 +610,7 @@ class ResearchObject():
                 _logger.info(u"[provenance] Deleting temporary %s", self.folder)
                 shutil.rmtree(self.folder, ignore_errors=True)
         else:
+            saveTo = os.path.abspath(saveTo)
             _logger.info(u"[provenance] Finalizing Research Object")
             self._finalize()  # write manifest etc.
             # TODO: Write as archive (.zip or .tar) based on extension?
