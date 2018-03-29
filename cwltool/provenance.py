@@ -75,7 +75,9 @@ class ResearchObject():
         self.wf_ns = Namespace("ex", "http://example.com/wf-%s#" % u)
         self.cwltoolVersion = "cwltool (unknown version)"
         ##
-        
+        # This function will be added by create_job()
+        self.make_fs_access = None
+        ##
 
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
@@ -296,10 +298,10 @@ class ResearchObject():
             raise ProvenanceException("rel_path must be relative: %s" % rel_path)        
         
         if (posixpath.commonprefix(["data/", rel_path]) == "data/"):
-            # payload file go to manifest
+            # payload file, go to manifest
             manifest = "manifest"
         else:
-            # metadata files go to tag manifest
+            # metadata file, go to tag manifest
             manifest = "tagmanifest"
 
         # Add checksums to corresponding manifest files
@@ -343,9 +345,10 @@ class ResearchObject():
         a json file containing the relative paths and link to the associated
         cwl document
         '''
+        self.make_fs_access = make_fs_access
         relativised_input_objecttemp2={}
         relativised_input_objecttemp={}
-        self._relativise_files(job, kwargs, make_fs_access, relativised_input_objecttemp2)
+        self._relativise_files(job, kwargs, relativised_input_objecttemp2)
         path=os.path.join(self.folder, WORKFLOW, "primary-job.json")
         _logger.info(u"[provenance] Generated customised job file: %s", path)
         with open(path, "w") as f:
@@ -369,7 +372,7 @@ class ResearchObject():
         relativised_input_object.update({k: v for k, v in relativised_input_objecttemp.items() if v})
         return relativised_input_object, relativised_input_objecttemp2
 
-    def _relativise_files(self, structure, kwargs, make_fs_access, relativised_input_objecttemp2):
+    def _relativise_files(self, structure, kwargs, relativised_input_objecttemp2):
         '''
         save any file objects into RO and update the local paths
         '''
@@ -378,16 +381,19 @@ class ResearchObject():
         if isinstance(structure, dict):
             if structure.get("class") == "File":
                 #standardised fs access object creation
-                fsaccess = make_fs_access("")
+                fsaccess = self.make_fs_access("")
                 # TODO: Replace location/path with new add_data_file() paths
                 with fsaccess.open(structure["location"], "rb") as f:
                     relative_path=self.add_data_file(f)
                     ref_location=structure["location"]
                     structure["location"]= "../"+relative_path
+                    if not "checksum" in structure:
+                        # FIXME: This naively relies on add_data_file setting hash as filename
+                        structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
                     relativised_input_objecttemp2[ref_location] = structure["location"]
 
             for o in structure.values():
-                self._relativise_files(o, kwargs, make_fs_access, relativised_input_objecttemp2)
+                self._relativise_files(o, kwargs, relativised_input_objecttemp2)
             return
 
         if isinstance(structure, str) or isinstance(structure, unicode):
@@ -396,7 +402,7 @@ class ResearchObject():
         try:
             for o in iter(structure):
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(o, kwargs, make_fs_access, relativised_input_objecttemp2)
+                self._relativise_files(o, kwargs, relativised_input_objecttemp2)
         except TypeError:
             pass
 
@@ -556,15 +562,37 @@ class ResearchObject():
         for key, value in job_order.items():
             provRole=name+"/"+str(key)
             ProcessRunID=str(ProcessProvActivity.identifier)
-            if 'location' in str(value):
+            if isinstance(value, dict) and 'location' in value:
                 location=str(value['location'])
-                filename=str(value["location"]).split("/")[-1]
-                if location in reference_locations:  # workflow level inputs referenced as hash in prov document
-                    document.used(ProcessRunID, "data:"+str(reference_locations[location]), datetime.datetime.now(), None, {"prov:role":provRole })
-                elif len(filename)==40 and int(filename, 16): #for the case when you re-run the primary-job.json
-                    document.used(ProcessRunID, "data:"+filename, datetime.datetime.now(),None, {"prov:role":provRole })
-                else:  # add checksum created by cwltool of the intermediate data products. NOTE: will only work if --compute-checksums is enabled.
-                    document.used(ProcessRunID, "data:"+str(value['checksum'][5:]), datetime.datetime.now(),None, {"prov:role":provRole })
+                #filename=location.split("/")[-1]
+                filename=posixpath.basename(location)
+                
+                if 'checksum' in value:
+                    c = value['checksum']
+                    _logger.info("[provenance] Used data w/ checksum %s", c)
+                    (method, checksum) = value['checksum'].split("$", 1)
+                    if (method == "sha1"):
+                        document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
+                        return # successfully logged
+                    else:
+                        _logger.warn("[provenance] Unknown checksum algorithm %s", method)
+                        pass
+                else:
+                    _logger.info("[provenance] Used data w/o checksum %s", location)
+                    # FIXME: Store manually
+                    pass
+
+                # If we made it here, then we didn't log it correctly with checksum above,
+                # we'll have to hash it again (and potentially add it to RO)
+                # TODO: Avoid duplication of code here and in 
+                # _relativise_files()
+                # TODO: check we don't double-hash everything now
+                fsaccess = self.make_fs_access("")
+                with fsaccess.open(location, "rb") as f:
+                    relative_path=self.add_data_file(f)
+                    checksum = posixpath.basename(relative_path)
+                    document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
+
             else:  # add the actual data value in the prov document
                 # Convert to bytes so we can get a hash (and add to RO)
                 b = io.BytesIO(str(value).encode(ENCODING))
