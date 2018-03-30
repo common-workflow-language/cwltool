@@ -154,6 +154,7 @@ class JobBase(object):
         self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
+        self.timeout = None  # type: int
 
     def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
@@ -235,9 +236,16 @@ class JobBase(object):
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
-                commands, stdin_path, stdout_path, stderr_path, env,
-                self.outdir, tempfile.mkdtemp(prefix=tmp_outdir_prefix),
-                job_script_contents)
+                commands,
+                stdin_path=stdin_path,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                env=env,
+                cwd=self.outdir,
+                job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
+                job_script_contents=job_script_contents,
+                timeout=self.timeout
+            )
 
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
@@ -429,6 +437,7 @@ def _job_popen(
         cwd,                       # type: Text
         job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
+        timeout=None  # type: int
        ):  # type: (...) -> int
     if not job_script_contents and not FORCE_SHELLED_POPEN:
 
@@ -463,7 +472,20 @@ def _job_popen(
         if sp.stdin:
             sp.stdin.close()
 
+        tm = None
+        if timeout:
+            def terminate():
+                try:
+                    sp.terminate()
+                except OSError:
+                    pass
+            tm = threading.Timer(timeout, terminate)
+            tm.start()
+
         rcode = sp.wait()
+
+        if tm:
+            tm.cancel()
 
         if isinstance(stdin, io.IOBase):
             stdin.close()
