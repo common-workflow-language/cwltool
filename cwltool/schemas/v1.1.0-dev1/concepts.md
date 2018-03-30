@@ -6,7 +6,7 @@
 
 **YAML**: http://yaml.org
 
-**Avro**: https://avro.apache.org/docs/current/spec.html
+**Avro**: https://avro.apache.org/docs/1.8.1/spec.html
 
 **Uniform Resource Identifier (URI) Generic Syntax**: https://tools.ietf.org/html/rfc3986)
 
@@ -375,6 +375,9 @@ must include the field `cwl:tool` supplying an IRI to the default CWL
 document that should be executed using the fields of the input object as
 input parameters.
 
+The `cwl-runner` interface is required for conformance testing and is
+documented in [cwl-runner.cwl](cwl-runner.cwl).
+
 ## Discovering CWL documents on a local filesystem
 
 To discover CWL documents look in the following locations:
@@ -385,5 +388,5 @@ To discover CWL documents look in the following locations:
 
 `$XDG_DATA_HOME/commonwl/` (usually `$HOME/.local/share/commonwl`)
 
-`$XDF_DATA_HOME` is from the [XDG Base Directory
+`$XDG_DATA_HOME` is from the [XDG Base Directory
 Specification](http://standards.freedesktop.org/basedir-spec/basedir-spec-0.6.html)
