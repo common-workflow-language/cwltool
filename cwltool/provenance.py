@@ -27,7 +27,7 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import Any, Dict
+from typing import Any, Dict, Set
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 from .process import shortname
@@ -65,8 +65,8 @@ class ResearchObject():
         self.tmpPrefix = tmpPrefix
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
         # map of filename "data/de/alsdklkas": 12398123 bytes
-        self.bagged_size = {}
-        self.tagfiles = set()
+        self.bagged_size = {} #type: Dict
+        self.tagfiles = set() #type: Set
 
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
         u = uuid.uuid4()
@@ -89,6 +89,7 @@ class ResearchObject():
         self._initialize_bagit()
 
     def _initialize_bagit(self):
+        # type: (...) -> None
         # Write fixed bagit header
         bagit = os.path.join(self.folder, "bagit.txt")
         with open(bagit, "w") as bagitFile:
