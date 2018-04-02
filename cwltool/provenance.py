@@ -92,7 +92,7 @@ class ResearchObject():
         # type: (...) -> None
         # Write fixed bagit header
         bagit = os.path.join(self.folder, "bagit.txt")
-        with open(bagit, "w") as bagitFile:
+        with io.open(bagit, "w", encoding= "ASCII") as bagitFile:
             # TODO: \n or \r\n ?
             # Special case, bagit.txt is ASCII only
             bagitFile.write("BagIt-Version: 0.97\n".encode("ASCII"))
