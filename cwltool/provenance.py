@@ -61,8 +61,8 @@ hashmethod = hashlib.sha1
 
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp"):
-        self.tmpPrefix = tmpPrefix
         # type: (...) -> None
+        self.tmpPrefix = tmpPrefix
         self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}
@@ -620,8 +620,10 @@ class ResearchObject():
         return customised_job
 
     def prospective_prov(self, document, r):
-        #create prospective provenance recording for the workflow as wfdesc prov:Plan
-        
+        '''
+        create prospective provenance recording for the workflow as wfdesc prov:Plan
+        '''
+
         # FIXME: Workflow is not always called "#main"!
         document.entity("wf:main", {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
 
