@@ -497,6 +497,7 @@ def main(argsl=None,  # type: List[str]
                                                                         tool_file_uri)
         except Exception as e:
             _logger.error(Text(e), exc_info=args.debug)
+            return 1
 
         if args.overrides:
             overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
