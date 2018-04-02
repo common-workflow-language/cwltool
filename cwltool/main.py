@@ -187,7 +187,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
     # (...) -> Tuple[Dict[Text, Any], Text]
 
     secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
-    
+
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
@@ -240,7 +240,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
-        return 1
+        #return 1
         exit(1)
     if provArgs:
         inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "",
@@ -613,7 +613,7 @@ def main(argsl=None,  # type: List[str]
         secret_store = SecretStore()
         # pre-declared for finally block
         inputforProv = None
-        job_order_object = None
+        #job_order_object = None
         try:
             if args.provenance and args.research_obj:
                 # Ensure version starts with 'cwltool'
