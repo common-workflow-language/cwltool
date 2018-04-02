@@ -15,7 +15,7 @@ import time
 import copy
 import datetime
 import prov.model as prov
-from prov.model import Namespace, PROV
+from prov.identifier import Namespace
 from pathlib2 import Path
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
