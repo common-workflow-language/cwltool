@@ -11,7 +11,7 @@ from io import open
 
 import datetime
 import requests
-from typing import (Dict, List, Text, Any, MutableMapping)
+from typing import (Dict, List, Text, Any, MutableMapping, Set)
 import threading
 
 from .docker_id import docker_vm_id
@@ -23,14 +23,14 @@ from .utils import docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
 
-found_images = set()
+found_images = set()  # type: Set[Text]
 found_images_lock = threading.Lock()
 
 class DockerCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def get_image(dockerRequirement, pull_image, dry_run=False, force_pull=False):
-        # type: (Dict[Text, Text], bool, bool) -> bool
+        # type: (Dict[Text, Text], bool, bool, bool) -> bool
         found = False
 
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:

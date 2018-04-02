@@ -337,8 +337,8 @@ class ContainerCommandLineJob(JobBase):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def get_from_requirements(self, r, req, pull_image, dry_run=False):
-        # type: (Dict[Text, Text], bool, bool, bool) -> Text
+    def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
+        # type: (Dict[Text, Text], bool, bool, bool, bool) -> Text
         pass
 
     @abstractmethod
