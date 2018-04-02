@@ -12,6 +12,7 @@ from io import open
 import datetime
 import requests
 from typing import (Dict, List, Text, Any, MutableMapping)
+import threading
 
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
@@ -22,16 +23,22 @@ from .utils import docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
 
+found_images = set()
+found_images_lock = threading.Lock()
 
 class DockerCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
-    def get_image(dockerRequirement, pull_image, dry_run=False):
+    def get_image(dockerRequirement, pull_image, dry_run=False, force_pull=False):
         # type: (Dict[Text, Text], bool, bool) -> bool
         found = False
 
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+
+        with found_images_lock:
+            if dockerRequirement["dockerImageId"] in found_images:
+                return True
 
         for ln in subprocess.check_output(
                 ["docker", "images", "--no-trunc", "--all"]).decode('utf-8').splitlines():
@@ -58,7 +65,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             except ValueError:
                 pass
 
-        if not found and pull_image:
+        if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
             if "dockerPull" in dockerRequirement:
                 cmd = ["docker", "pull", str(dockerRequirement["dockerPull"])]
@@ -106,9 +113,13 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     subprocess.check_call(cmd, stdout=sys.stderr)
                     found = True
 
+        if found:
+            with found_images_lock:
+                found_images.add(dockerRequirement["dockerImageId"])
+
         return found
 
-    def get_from_requirements(self, r, req, pull_image, dry_run=False):
+    def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
         # type: (Dict[Text, Text], bool, bool, bool) -> Text
         if r:
             errmsg = None
@@ -125,7 +136,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 else:
                     return None
 
-            if self.get_image(r, pull_image, dry_run):
+            if self.get_image(r, pull_image, dry_run, force_pull=force_pull):
                 return r["dockerImageId"]
             else:
                 if req:
