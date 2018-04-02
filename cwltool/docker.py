@@ -120,7 +120,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         return found
 
     def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
-        # type: (Dict[Text, Text], bool, bool, bool) -> Text
+        # type: (Dict[Text, Text], bool, bool, bool, bool) -> Text
         if r:
             errmsg = None
             try:
