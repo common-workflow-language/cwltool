@@ -72,6 +72,7 @@ class JobExecutor(object):
             "tmp_outdir_prefix") else tempfile.mkdtemp()
         self.output_dirs.add(kwargs["outdir"])
         kwargs["mutation_manager"] = MutationManager()
+        kwargs["toplevel"] = True
 
         jobReqs = None
         if "cwl:requirements" in job_order_object:
