@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import io
+from io import open
 import json
 import os
 import os.path
@@ -10,7 +11,6 @@ import itertools
 import logging
 import hashlib
 from shutil import copyfile
-import io
 import time
 import copy
 import datetime
@@ -101,7 +101,7 @@ class ResearchObject():
         # type: (...) -> None
         # Write fixed bagit header
         bagit = os.path.join(self.folder, "bagit.txt")
-        with io.open(bagit, "w", encoding = ENCODING) as bagitFile:
+        with open(bagit, "w", encoding = ENCODING) as bagitFile:
             # TODO: \n or \r\n ?
             bagitFile.write(u"BagIt-Version: 0.97\n")
             bagitFile.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
@@ -112,7 +112,7 @@ class ResearchObject():
 
     def add_tagfile(self, path):
         checksums = {}
-        with io.open(path, "rb") as fp:
+        with open(path, "rb") as fp:
             # FIXME: Should have more efficient open_tagfile() that 
             # does all checksums in one go while writing through, 
             # adding checksums after closing. 
@@ -141,21 +141,21 @@ class ResearchObject():
 
     def _write_bag_info(self):
         info = os.path.join(self.folder, "bag-info.txt")        
-        with open(info, "w") as infoFile:            
-            infoFile.write(("External-Description: Research Object of CWL workflow run\n").encode(ENCODING))
-            infoFile.write(("Bag-Software-Agent: %s\n" % self.cwltoolVersion).encode(ENCODING))
-            infoFile.write(("Bagging-Date: %s\n" % datetime.date.today().isoformat()).encode(ENCODING))
+        with open(info, "w", encoding=ENCODING) as infoFile:            
+            infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
+            infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
+            infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
             # FIXME: require sha-512 to comply with profile
             # FIXME: Update profile
-            #infoFile.write(("BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n").encode(ENCODING))
+            #infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
             
             # Calculate size of data/ (assuming no external fetch.txt files)
             totalSize = sum(self.bagged_size.values())
             numFiles = len(self.bagged_size)
-            infoFile.write(("Payload-Oxum: %d.%d\n" % (totalSize, numFiles)).encode(ENCODING))
+            infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
             # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
             # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
-            infoFile.write(("External-Identifier: %s\n" % self.base_uri).encode(ENCODING))
+            infoFile.write(u"External-Identifier: %s\n" % self.base_uri)
         self.add_tagfile(info)
         # TODO: Checksum of metadata files?
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
@@ -340,7 +340,7 @@ class ResearchObject():
         if "sha1" not in checksums:
             # ensure we always have sha1
             checksums = dict(checksums)
-            with open(local_path) as fp:
+            with open(local_path, "rb") as fp:
                 # FIXME: Need sha-256 / sha-512 as well for RO BagIt profile?
                 checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
 
@@ -540,7 +540,7 @@ class ResearchObject():
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
                 # FIXME: What are these magic array positions???
-                with io.open(tuple_entry[2][7:], "rb") as fp:
+                with open(tuple_entry[2][7:], "rb") as fp:
                     rel_path = self.add_data_file(fp)
                     _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
