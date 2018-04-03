@@ -214,6 +214,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--custom-net", type=Text,
                         help="Will be passed to `docker run` as the '--net' "
                              "parameter. Implies '--enable-net'.")
+    parser.add_argument("--disable-validate", dest="do_validate",
+                        action="store_false", default=True,
+                        help=argparse.SUPPRESS)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-ga4gh-tool-registry", action="store_true", help="Enable resolution using GA4GH tool registry API",
