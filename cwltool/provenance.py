@@ -540,7 +540,7 @@ class ResearchObject():
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
                 # FIXME: What are these magic array positions???
-                with open(tuple_entry[2][7:]) as fp:
+                with io.open(tuple_entry[2][7:], "rb") as fp:
                     rel_path = self.add_data_file(fp)
                     _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
