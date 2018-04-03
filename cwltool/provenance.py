@@ -96,9 +96,8 @@ class ResearchObject():
         bagit = os.path.join(self.folder, "bagit.txt")
         with io.open(bagit, "w", encoding = ENCODING) as bagitFile:
             # TODO: \n or \r\n ?
-            # Special case, bagit.txt is ASCII only
-            bagitFile.write(unicode("BagIt-Version: 0.97\n".encode(ENCODING)))
-            bagitFile.write(unicode(("Tag-File-Character-Encoding: %s\n" % ENCODING).encode(ENCODING)))
+            bagitFile.write(u"BagIt-Version: 0.97\n")
+            bagitFile.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
 
     def _finalize(self):
         self._write_ro_manifest()
@@ -418,7 +417,7 @@ class ResearchObject():
         # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
         basename = original_path + "/primary.cwlprov"
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
-        
+
         # https://www.w3.org/TR/prov-n/
         document.serialize(basename + ".provn", format="provn", indent=2)
         self.add_tagfile(basename + ".provn")
