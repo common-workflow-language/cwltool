@@ -16,6 +16,7 @@ import copy
 import datetime
 import prov.model as prov
 from prov.identifier import Namespace
+from prov.model import PROV
 from pathlib2 import Path
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
@@ -23,6 +24,7 @@ from pathlib2 import Path
 from .errors import WorkflowException
 import prov.graph as graph
 import uuid
+import urllib
 import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
@@ -92,11 +94,11 @@ class ResearchObject():
         # type: (...) -> None
         # Write fixed bagit header
         bagit = os.path.join(self.folder, "bagit.txt")
-        with io.open(bagit, "w", encoding= "ASCII") as bagitFile:
+        with io.open(bagit, "w", encoding = ENCODING) as bagitFile:
             # TODO: \n or \r\n ?
             # Special case, bagit.txt is ASCII only
-            bagitFile.write("BagIt-Version: 0.97\n".encode("ASCII"))
-            bagitFile.write(("Tag-File-Character-Encoding: %s\n" % ENCODING).encode("ASCII"))
+            bagitFile.write(unicode("BagIt-Version: 0.97\n".encode(ENCODING)))
+            bagitFile.write(unicode(("Tag-File-Character-Encoding: %s\n" % ENCODING).encode(ENCODING)))
 
     def _finalize(self):
         self._write_ro_manifest()
@@ -416,7 +418,7 @@ class ResearchObject():
         # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
         basename = original_path + "/primary.cwlprov"
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
-
+        
         # https://www.w3.org/TR/prov-n/
         document.serialize(basename + ".provn", format="provn", indent=2)
         self.add_tagfile(basename + ".provn")
@@ -446,7 +448,7 @@ class ResearchObject():
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
         document.serialize(basename + ".jsonld", format="rdf", rdf_format="json-ld")
         self.add_tagfile(basename + ".jsonld")
-
+        _logger.info("[provenance] added all tag files")
         # https://www.graphviz.org/ dot
         provDot= basename + ".dot"
 ## NOTE: graphviz rendering disabled
@@ -464,11 +466,12 @@ class ResearchObject():
             ''' 
             ProcessRunID="run:"+str(uuid.uuid4())
             #each subprocess is defined as an activity()
-            provLabel="Run of workflow/packed.cwl#main/"+str(r.name)
+            ProcessName= urllib.quote(str(r.name), safe=":/,#")
+            provLabel="Run of workflow/packed.cwl#main/"+ProcessName
             ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
             
             if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+r.name))
+                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
             document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
             return ProcessProvActivity
 
@@ -519,7 +522,8 @@ class ResearchObject():
             # FIXME: What are these magic array[][] positions???
             output_checksum="data:"+str(tuple_entry[1][5:])
 
-            if ProcessRunID:                
+            if ProcessRunID:
+                name = urllib.quote(name, safe=":/,#")
                 stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
 
                 document.entity(output_checksum, {prov.PROV_TYPE: WFPROV["Artifact"]})
@@ -631,7 +635,8 @@ class ResearchObject():
         steps=[]
         for s in r.steps:
             # FIXME: Use URI fragment identifier for step name, e.g. for spaces
-            stepname="wf:main/"+str(s.name)[5:]
+            stepnametemp="wf:main/"+str(s.name)[5:]
+            stepname=urllib.quote(stepnametemp, safe=":/,#")
             steps.append(stepname)
             step = document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
             document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
