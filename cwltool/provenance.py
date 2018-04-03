@@ -372,7 +372,7 @@ class ResearchObject():
             # be in the "job" object
             primaryInput_file = json.load(f)
         relativised_input_objecttemp={}
-        for key, value in primaryInput_file.iteritems():
+        for key, value in primaryInput_file.items():
             if isinstance(value, dict):
                 if value.get("class") == "File":
                     relativised_input_objecttemp[key]=value
