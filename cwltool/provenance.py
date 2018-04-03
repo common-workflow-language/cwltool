@@ -24,7 +24,14 @@ from pathlib2 import Path
 from .errors import WorkflowException
 import prov.graph as graph
 import uuid
-import urllib
+
+try:
+    # Python3
+    from urllib.parse import quote
+except ImportError:
+    # Python2
+    from urllib import quote
+
 import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
@@ -465,7 +472,7 @@ class ResearchObject():
             ''' 
             ProcessRunID="run:"+str(uuid.uuid4())
             #each subprocess is defined as an activity()
-            ProcessName= urllib.quote(str(r.name), safe=":/,#")
+            ProcessName= quote(str(r.name), safe=":/,#")
             provLabel="Run of workflow/packed.cwl#main/"+ProcessName
             ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
             
@@ -522,7 +529,7 @@ class ResearchObject():
             output_checksum="data:"+str(tuple_entry[1][5:])
 
             if ProcessRunID:
-                name = urllib.quote(name, safe=":/,#")
+                name = quote(name, safe=":/,#")
                 stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
 
                 document.entity(output_checksum, {prov.PROV_TYPE: WFPROV["Artifact"]})
@@ -635,7 +642,7 @@ class ResearchObject():
         for s in r.steps:
             # FIXME: Use URI fragment identifier for step name, e.g. for spaces
             stepnametemp="wf:main/"+str(s.name)[5:]
-            stepname=urllib.quote(stepnametemp, safe=":/,#")
+            stepname=quote(stepnametemp, safe=":/,#")
             steps.append(stepname)
             step = document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
             document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
