@@ -14,7 +14,8 @@ import io
 import time
 import copy
 import datetime
-import prov.model as prov
+import prov.model as provM
+import prov.graph as graph
 from prov.identifier import Namespace
 from prov.model import PROV
 from pathlib2 import Path
@@ -22,7 +23,6 @@ from pathlib2 import Path
 #from networkx.drawing.nx_agraph import graphviz_layout
 #from networkx.drawing.nx_pydot import write_dot
 from .errors import WorkflowException
-import prov.graph as graph
 import uuid
 
 try:
@@ -189,9 +189,9 @@ class ResearchObject():
         self.wf_ns = document.add_namespace("wf", roIdentifierWorkflow)
         roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
-        document.agent(engineUUID, {prov.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwltoolVersion})
+        document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwltoolVersion})
         #define workflow run level activity
-        document.activity(workflowRunID, datetime.datetime.now(), None, {prov.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
+        document.activity(workflowRunID, datetime.datetime.now(), None, {provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
         # FIXME: Below assumes main workflow always called "#main", 
         # is this always true after packing?
@@ -474,7 +474,7 @@ class ResearchObject():
             #each subprocess is defined as an activity()
             ProcessName= quote(str(r.name), safe=":/,#")
             provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-            ProcessProvActivity = document.activity(ProcessRunID, None, None, {prov.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+            ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
             
             if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
@@ -490,7 +490,7 @@ class ResearchObject():
             if relativised_input_object.get("class") == "File":
                 #create an artefact
                 shahash="data:"+relativised_input_object["location"].split("/")[-1] 
-                document.entity(shahash, {prov.PROV_TYPE:WFPROV["Artifact"]})
+                document.entity(shahash, {provM.PROV_TYPE:WFPROV["Artifact"]})
                 
             for o in relativised_input_object.values():
                 self.declare_artefact(o, document, job_order_object)
@@ -532,11 +532,11 @@ class ResearchObject():
                 name = quote(name, safe=":/,#")
                 stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
 
-                document.entity(output_checksum, {prov.PROV_TYPE: WFPROV["Artifact"]})
+                document.entity(output_checksum, {provM.PROV_TYPE: WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
             else:
                 outputProvRole = self.wf_ns["main"+"/"+str(tuple_entry[0])]
-                document.entity(output_checksum, {prov.PROV_TYPE:WFPROV["Artifact"]})
+                document.entity(output_checksum, {provM.PROV_TYPE:WFPROV["Artifact"]})
                 document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
 
                 # FIXME: What are these magic array positions???
@@ -610,7 +610,7 @@ class ResearchObject():
                 data_file = self.add_data_file(b)
                 # FIXME: Don't naively assume add_data_file uses hash in filename!
                 data_id="data:" + posixpath.split(data_file)[1]
-                document.entity(data_id, {prov.PROV_TYPE:WFPROV["Artifact"], prov.PROV_VALUE:str(value)})
+                document.entity(data_id, {provM.PROV_TYPE:WFPROV["Artifact"], provM.PROV_VALUE:str(value)})
                 document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def copy_job_order(self, r, job_order_object):
@@ -636,7 +636,7 @@ class ResearchObject():
         '''
 
         # FIXME: Workflow is not always called "#main"!
-        document.entity("wf:main", {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+        document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
 
         steps=[]
         for s in r.steps:
@@ -644,7 +644,7 @@ class ResearchObject():
             stepnametemp="wf:main/"+str(s.name)[5:]
             stepname=quote(stepnametemp, safe=":/,#")
             steps.append(stepname)
-            step = document.entity(stepname, {prov.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
+            step = document.entity(stepname, {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
             document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
 
         # TODO: Declare roles/parameters as well
