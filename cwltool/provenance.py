@@ -216,14 +216,13 @@ class ResearchObject():
         pass
 
     def _write_bag_info(self):
-        info = os.path.join(self.folder, "bag-info.txt")        
-        with open(info, "w", encoding=ENCODING) as infoFile:            
+        with self.write_bag_file("bag-info.txt") as infoFile:            
             infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
             infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
             infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
-            # FIXME: require sha-512 to comply with profile
+            # FIXME: require sha-512 of payload to comply with profile?
             # FIXME: Update profile
-            #infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
+            infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
             
             # Calculate size of data/ (assuming no external fetch.txt files)
             totalSize = sum(self.bagged_size.values())
@@ -232,7 +231,6 @@ class ResearchObject():
             # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
             # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
             infoFile.write(u"External-Identifier: %s\n" % self.base_uri)
-        self.add_tagfile(info)
         # TODO: Checksum of metadata files?
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
@@ -307,13 +305,13 @@ class ResearchObject():
         '''
         packs workflow and commandline tools to generate re-runnable workflow object in RO
         '''
-        path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
-        with open(path, "wb") as f:
+        
+        rel_path = posixpath.join(_posix_path(WORKFLOW), "packed.cwl")
+        # Write as binary 
+        with self.write_bag_file(rel_path, encoding=None) as f:
             # YAML is always UTF8, but json.dumps gives us str in py2
             f.write(packed.encode(ENCODING))
-        self.add_tagfile(path)            
-        _logger.info(u"[provenance] Added packed workflow: %s", path)
-        return (path)
+        _logger.info(u"[provenance] Added packed workflow: %s", rel_path)
 
     def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
@@ -418,21 +416,18 @@ class ResearchObject():
         relativised_input_objecttemp2={}
         relativised_input_objecttemp={}
         self._relativise_files(job, kwargs, relativised_input_objecttemp2)
-        path=os.path.join(self.folder, WORKFLOW, "primary-job.json")
-        _logger.info(u"[provenance] Generated customised job file: %s", path)
-        with open(path, "wb") as f:
-            json.dump(job, f, indent=4)
-        self.add_tagfile(path)
+        
+        rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
+        j = json.dumps(job, indent=4, ensure_ascii=False)
+        with self.write_bag_file(rel_path) as fp:
+            fp.write(j)
+        _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
 
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
-        with open(path, 'r') as f:
-            # FIXME: Why read back the file we just wrote? It should still
-            # be in the "job" object
-            primaryInput_file = json.load(f)
         relativised_input_objecttemp={}
-        for key, value in primaryInput_file.items():
+        for key, value in job.items():
             if isinstance(value, dict):
                 if value.get("class") == "File":
                     relativised_input_objecttemp[key]=value
