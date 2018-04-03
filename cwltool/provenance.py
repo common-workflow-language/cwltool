@@ -109,7 +109,7 @@ class WritableBagFile(io.FileIO):
         # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }       
         checksums = {}
         for name in self.hashes:
-            checksums[name] = self.hashes[name].hexdigest()            
+            checksums[name] = self.hashes[name].hexdigest().lower()
         self.ro.add_to_manifest(self.rel_path, checksums)        
 
     # To simplify our hash calculation we won't support
@@ -123,16 +123,11 @@ class WritableBagFile(io.FileIO):
 #        raise OSError("WritableBagFile is not seekable")
     def readable(self):
         return False
-#    def read(self, *args, **kwargs):
-#        raise OSError("WritableBagFile is not readable")
-#    def readall(self, *args, **kwargs):
-#        raise OSError("WritableBagFile is not readable")
-#    def readinto(self, *args, **kwargs):
-#        raise OSError("WritableBagFile is not readable")
-#    def truncate(self, size=None):
+    def truncate(self, size=None):
         # FIXME: This breaks contract io.IOBase,
         # as it means we would have to recalculate the hash
-#        raise OSError("WritableBagFile can't truncate")
+        if size is not None:
+            raise OSError("WritableBagFile can't truncate")
 
 
 class ResearchObject():
@@ -188,6 +183,7 @@ class ResearchObject():
 
     def add_tagfile(self, path):
         checksums = {}
+        # Read file to calculate its checksum
         with open(path, "rb") as fp:
             # FIXME: Should have more efficient open_tagfile() that 
             # does all checksums in one go while writing through, 
@@ -291,6 +287,7 @@ class ResearchObject():
                 else:
                     filepath=value
                 file_to_cp = Path(filepath)
+                # FIXME: What if destination path already exists?
                 if file_to_cp.exists():
                     shutil.copy(filepath, path)
                     self.add_tagfile(path)
