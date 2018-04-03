@@ -26,7 +26,7 @@ def is_expression(tool, schema):
     return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, (str, Text))
 
 class SuppressLog(logging.Filter):
-    def __init__(self, name):  # type: (Text, logging.Logger) -> None
+    def __init__(self, name):  # type: (Text) -> None
         name = str(name)
         super(SuppressLog, self).__init__(name)
 
