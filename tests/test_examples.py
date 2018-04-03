@@ -138,6 +138,11 @@ class TestFactory(unittest.TestCase):
         echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
+    def test_factory_bad_outputs(self):
+        f = cwltool.factory.Factory()
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            echo = f.make(get_data("tests/echo_broken_outputs.cwl"))
+
     def test_default_args(self):
         f = cwltool.factory.Factory()
         assert f.execkwargs["use_container"] is True
