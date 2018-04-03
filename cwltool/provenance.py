@@ -68,11 +68,78 @@ class ProvenanceException(BaseException):
 # See ./cwltool/schemas/v1.0/Process.yml
 hashmethod = hashlib.sha1
 
+def _convert_path(path, from_path=os.path, to_path=posixpath):
+    if from_path == to_path:
+        return path
+    if (from_path.isabs(path)):
+        raise ProvenanceException("path must be relative: %s" % path)
+        # ..as it might include system paths like "C:\" or /tmp
+    split = path.split(from_path.sep)
+    converted = to_path.sep.join(split)
+    return converted
+
+def _posix_path(local_path):
+    return _convert_path(local_path, os.path, posixpath)
+
+def _local_path(posix_path):
+    return _convert_path(posix_path, posixpath, os.path)
+
+class WritableBagFile(io.FileIO):
+    def __init__(self, ro, rel_path):
+        self.ro = ro
+        if (posixpath.isabs(rel_path)):
+            raise ProvenanceException("rel_path must be relative: %s" % rel_path)        
+        self.rel_path = rel_path
+        self.hashes = {"sha1": hashlib.sha1(),
+                       "sha256": hashlib.sha256(),
+                       "sha512": hashlib.sha512()}
+        # Open file in RO folder
+        path = os.path.abspath(os.path.join(ro.folder, _local_path(rel_path)))        
+        if not path.startswith(os.path.abspath(ro.folder)):
+            raise ValueError("Path is outside Research Object: %s" % path)
+        super(WritableBagFile, self).__init__(path, mode="w")
+
+    def write(self, b):
+        super(WritableBagFile, self).write(b)
+        for h in self.hashes.values():
+            h.update(b)
+
+    def close(self):
+        super(WritableBagFile, self).close()        
+        # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }       
+        checksums = {}
+        for name in self.hashes:
+            checksums[name] = self.hashes[name].hexdigest()            
+        self.ro.add_to_manifest(self.rel_path, checksums)        
+
+    # To simplify our hash calculation we won't support
+    # seeking, reading or truncating, as we can't do
+    # similar seeks in the current hash. 
+    # TODO: Support these? At the expense of invalidating
+    # the current hash, then having to recalculate at close()
+    def seekable(self):
+        return False
+#    def seek(self, *args, **kwargs):
+#        raise OSError("WritableBagFile is not seekable")
+    def readable(self):
+        return False
+#    def read(self, *args, **kwargs):
+#        raise OSError("WritableBagFile is not readable")
+#    def readall(self, *args, **kwargs):
+#        raise OSError("WritableBagFile is not readable")
+#    def readinto(self, *args, **kwargs):
+#        raise OSError("WritableBagFile is not readable")
+#    def truncate(self, size=None):
+        # FIXME: This breaks contract io.IOBase,
+        # as it means we would have to recalculate the hash
+#        raise OSError("WritableBagFile can't truncate")
+
+
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp"):
         # type: (...) -> None
         self.tmpPrefix = tmpPrefix
-        self.folder = tempfile.mkdtemp(prefix=tmpPrefix)
+        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {} #type: Dict
         self.tagfiles = set() #type: Set
@@ -110,6 +177,15 @@ class ResearchObject():
         self._write_ro_manifest()
         self._write_bag_info()
 
+    def write_bag_file(self, path, encoding=ENCODING):
+        # For some reason below throws BlockingIOError
+        #fp = io.BufferedWriter(WritableBagFile(self, path))        
+        fp = WritableBagFile(self, path)
+        if encoding:
+            return io.TextIOWrapper(fp, encoding=encoding)
+        else:
+            return fp
+
     def add_tagfile(self, path):
         checksums = {}
         with open(path, "rb") as fp:
@@ -128,9 +204,9 @@ class ResearchObject():
             if "sha512" in hashlib.__all__:
                 fp.seek(0)
                 checksums["sha512"]= self._checksum_copy(fp, hashmethod=hashlib.sha512)
-        rel_path = self._posix_path(os.path.relpath(path, self.folder))
+        rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
-        self._add_to_manifest(rel_path, checksums)
+        self.add_to_manifest(rel_path, checksums)
 
 
     def _write_ro_manifest(self):
@@ -232,9 +308,9 @@ class ResearchObject():
         packs workflow and commandline tools to generate re-runnable workflow object in RO
         '''
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
-        with open(path, "w", encoding=ENCODING) as f:
-            # YAML is always UTF8
-            f.write(packed)
+        with open(path, "wb") as f:
+            # YAML is always UTF8, but json.dumps gives us str in py2
+            f.write(packed.encode(ENCODING))
         self.add_tagfile(path)            
         _logger.info(u"[provenance] Added packed workflow: %s", path)
         return (path)
@@ -272,7 +348,7 @@ class ResearchObject():
 
         # Relative posix path
         # (to avoid \ on Windows)
-        rel_path = self._posix_path(os.path.relpath(path, self.folder))
+        rel_path = _posix_path(os.path.relpath(path, self.folder))
 
         # Register in bagit checksum
         if hashmethod == hashlib.sha1:
@@ -286,23 +362,7 @@ class ResearchObject():
         _logger.info(u"[provenance] Relative path for data file %s", rel_path)
         return rel_path
 
-    def _convert_path(self, path, from_path=os.path, to_path=posixpath):
-        if from_path == to_path:
-            return path
-        if (from_path.isabs(path)):
-            raise ProvenanceException("path must be relative: %s" % path)
-            # ..as it might include system paths like "C:\" or /tmp
-        split = path.split(from_path.sep)
-        converted = to_path.sep.join(split)
-        return converted
-
-    def _posix_path(self, local_path):
-        return self._convert_path(local_path, os.path, posixpath)
-
-    def _local_path(self, posix_path):
-        return self._convert_path(posix_path, posixpath, os.path)
-
-    def _add_to_manifest(self, rel_path, checksums):
+    def add_to_manifest(self, rel_path, checksums):
         if (posixpath.isabs(rel_path)):
             raise ProvenanceException("rel_path must be relative: %s" % rel_path)        
         
@@ -320,7 +380,7 @@ class ResearchObject():
             manifestpath = os.path.join(self.folder,
                 "%s-%s.txt" % (manifest, method.lower()))
             with open(manifestpath, "a", encoding=ENCODING) as checksumFile:
-                line = "%s %s\n" % (hash, rel_path)
+                line = u"%s %s\n" % (hash, rel_path)
                 _logger.debug(u"[provenance] Added to %s: %s", manifestpath, line)
                 checksumFile.write(line)
 
@@ -328,7 +388,7 @@ class ResearchObject():
     def _add_to_bagit(self, rel_path, **checksums):
         if (posixpath.isabs(rel_path)):
             raise ProvenanceException("rel_path must be relative: %s" % rel_path)
-        local_path = os.path.join(self.folder, self._local_path(rel_path))
+        local_path = os.path.join(self.folder, _local_path(rel_path))
         if not os.path.exists(local_path):
             raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
 
@@ -344,7 +404,7 @@ class ResearchObject():
                 # FIXME: Need sha-256 / sha-512 as well for RO BagIt profile?
                 checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
 
-        self._add_to_manifest(rel_path, checksums)
+        self.add_to_manifest(rel_path, checksums)
 
     def create_job(self, job, make_fs_access, kwargs):
         #TODO handle nested workflow at level 2 provenance
@@ -360,7 +420,7 @@ class ResearchObject():
         self._relativise_files(job, kwargs, relativised_input_objecttemp2)
         path=os.path.join(self.folder, WORKFLOW, "primary-job.json")
         _logger.info(u"[provenance] Generated customised job file: %s", path)
-        with open(path, "w") as f:
+        with open(path, "wb") as f:
             json.dump(job, f, indent=4)
         self.add_tagfile(path)
 
@@ -419,52 +479,44 @@ class ResearchObject():
         '''
         Transfer the provenance related files to RO
         '''
-        original_path=os.path.join(self.folder, PROVENANCE)
         # TODO: Generate filename per workflow run also for nested workflows
         # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
-        basename = original_path + "/primary.cwlprov"
+        # NOTE: Relative posix path
+        basename = posixpath.join(_posix_path(PROVENANCE), "primary.cwlprov")
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
-        # https://www.w3.org/TR/prov-n/
-        document.serialize(basename + ".provn", format="provn", indent=2)
-        self.add_tagfile(basename + ".provn")
-        
         # https://www.w3.org/TR/prov-xml/
-        document.serialize(basename + ".xml", format="xml", indent=4)
-        self.add_tagfile(basename + ".xml")
+        with self.write_bag_file(basename + ".xml") as fp:
+            document.serialize(fp, format="xml", indent=4)
+
+        # https://www.w3.org/TR/prov-n/
+        with self.write_bag_file(basename + ".provn") as fp:
+            document.serialize(fp, format="provn", indent=2) 
+        
         
         # https://www.w3.org/Submission/prov-json/
-        document.serialize(basename + ".json", format="json", indent=2)
-        self.add_tagfile(basename + ".json")
+        with self.write_bag_file(basename + ".json") as fp:
+            document.serialize(fp, format="json", indent=2)
         
         # "rdf" aka https://www.w3.org/TR/prov-o/ 
         # which can be serialized to ttl/nt/jsonld (and more!)
 
         # https://www.w3.org/TR/turtle/
-        document.serialize(basename + ".ttl", format="rdf", rdf_format="turtle")
-        self.add_tagfile(basename + ".ttl")
+        with self.write_bag_file(basename + ".ttl") as fp:
+            document.serialize(fp, format="rdf", rdf_format="turtle")
         
         # https://www.w3.org/TR/n-triples/
-        document.serialize(basename + ".nt", format="rdf", rdf_format="ntriples")
-        self.add_tagfile(basename + ".nt")
+        with self.write_bag_file(basename + ".nt") as fp:
+            document.serialize(fp, format="rdf", rdf_format="ntriples")
         
         # https://www.w3.org/TR/json-ld/
         # TODO: Use a nice JSON-LD context
         # see also https://eprints.soton.ac.uk/395985/
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
-        document.serialize(basename + ".jsonld", format="rdf", rdf_format="json-ld")
-        self.add_tagfile(basename + ".jsonld")
+        with self.write_bag_file(basename + ".jsonld") as fp:
+            document.serialize(fp, format="rdf", rdf_format="json-ld")
+
         _logger.info("[provenance] added all tag files")
-        # https://www.graphviz.org/ dot
-        provDot= basename + ".dot"
-## NOTE: graphviz rendering disabled
-## .. as nx requires excessive/tricky dependencies
-#        provgraph=graph.prov_to_graph(document)
-#        pos = nx.nx_agraph.graphviz_layout(provgraph)
-#        nx.draw(provgraph, pos=pos)
-#        write_dot(provgraph, provDot)
-#        check_call(['dot','-Tpng',provDot,'-o',original_path+'/ProvenanceVisualGraph.png'])
-#        self.add_tagfile(provDot)
 
     def startProcess(self, r, document, engineUUID, WorkflowRunID):
             '''
