@@ -105,7 +105,7 @@ class ResearchObject():
 
     def add_tagfile(self, path):
         checksums = {}
-        with open(path) as fp:
+        with io.open(path, "rb") as fp:
             # FIXME: Should have more efficient open_tagfile() that 
             # does all checksums in one go while writing through, 
             # adding checksums after closing. 
@@ -225,9 +225,9 @@ class ResearchObject():
         packs workflow and commandline tools to generate re-runnable workflow object in RO
         '''
         path = os.path.join(self.folder, WORKFLOW, "packed.cwl")
-        with open(path, "w") as f:
+        with open(path, "w", encoding=ENCODING) as f:
             # YAML is always UTF8
-            f.write(packed.encode(ENCODING))
+            f.write(packed)
         self.add_tagfile(path)            
         _logger.info(u"[provenance] Added packed workflow: %s", path)
         return (path)
@@ -312,10 +312,10 @@ class ResearchObject():
             # existence in bagged_size above
             manifestpath = os.path.join(self.folder,
                 "%s-%s.txt" % (manifest, method.lower()))
-            with open(manifestpath, "a") as checksumFile:
+            with open(manifestpath, "a", encoding=ENCODING) as checksumFile:
                 line = "%s %s\n" % (hash, rel_path)
                 _logger.debug(u"[provenance] Added to %s: %s", manifestpath, line)
-                checksumFile.write(line.encode(ENCODING))
+                checksumFile.write(line)
 
 
     def _add_to_bagit(self, rel_path, **checksums):
