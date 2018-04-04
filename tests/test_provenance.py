@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import unittest
 
+from io import open
 import os
 import tempfile
 from six import StringIO
@@ -67,27 +68,27 @@ class TestProvenance(unittest.TestCase):
 
 class TestConvertPath(unittest.TestCase):
 
-    def nt_to_posix(self):
+    def test_nt_to_posix(self):
         self.assertEquals("a/b/c", 
             provenance._convert_path(r"a\b\c", ntpath, posixpath))
     
-    def posix_to_nt(self):            
+    def test_posix_to_nt(self):            
         self.assertEquals(r"a\b\c", 
             provenance._convert_path("a/b/c", posixpath, ntpath))
 
-    def posix_to_posix(self):            
+    def test_posix_to_posix(self):            
         self.assertEquals("a/b/c",
             provenance._convert_path("a/b/c", posixpath, posixpath))
 
-    def nt_to_nt(self):
+    def test_nt_to_nt(self):
         self.assertEquals(r"a\b\c", 
             provenance._convert_path(r"a\b\c", ntpath, ntpath))
 
-    def posix_to_nt_absolute_fails(self):            
+    def test_posix_to_nt_absolute_fails(self):            
         with self.assertRaises(ValueError):        
             provenance._convert_path("/absolute/path", posixpath, ntpath)
     
-    def nt_to_posix_absolute_fails(self):            
+    def test_nt_to_posix_absolute_fails(self):            
         with self.assertRaises(ValueError):        
             provenance._convert_path(r"D:\absolute\path", ntpath, posixpath)
 
@@ -95,6 +96,57 @@ class TestWritableBagFile(unittest.TestCase):
     def setUp(self):
         self.ro = provenance.ResearchObject()
 
-    def absolute_path_fails(self):
+    def tearDown(self):
+        self.ro.close()
+
+    def test_absolute_path_fails(self):
         with self.assertRaises(ValueError):
             self.ro.write_bag_file("/absolute/path/fails")
+
+    def test_writableString(self):
+        with self.ro.write_bag_file("file.txt") as f1:
+            self.assertTrue(f1.writable())
+            f1.write(u"Hello\n")
+            # TODO: Check Windows does not modify \n to \r\n here
+        
+        sha1 = os.path.join(self.ro.folder, "tagmanifest-sha1.txt")
+        self.assertTrue(os.path.isfile(sha1))
+        with open(sha1, "r", encoding="UTF-8") as f2:
+            sha = f2.readline().strip()
+            self.assertTrue(sha.endswith("file.txt"))
+#stain@biggie:~/src/cwltool$ echo Hello | sha1sum
+#1d229271928d3f9e2bb0375bd6ce5db6c6d348d9  -
+            self.assertTrue(sha.startswith("1d229271928d3f9e2bb0375bd6ce5db6c6d348d9"))
+
+    def test_writableUnicodeString(self):
+        with self.ro.write_bag_file("file.txt") as f:
+            self.assertTrue(f.writable())
+            f.write(u"Here is a snowman: \u2603 \n")
+
+    def test_writableBytes(self):
+        with self.ro.write_bag_file("file.txt", encoding=None) as f:
+            b = u"Here is a snowman: \u2603 \n".encode("UTF-8")
+            f.write(b)
+
+    def test_not_seekable(self):
+        with self.ro.write_bag_file("file.txt") as f:
+            self.assertFalse(f.seekable())
+            with self.assertRaises(IOError):
+                f.seek(0)
+
+    def test_not_readable(self):
+        with self.ro.write_bag_file("file.txt") as f:
+            self.assertFalse(f.readable())
+            with self.assertRaises(IOError):
+                f.read()
+
+    def test_truncate_fails(self):        
+        with self.ro.write_bag_file("file.txt") as f:
+            f.write("Hello there")
+            # Will fail because the checksum can't rewind
+            with self.assertRaises(IOError):
+                f.truncate(0)
+
+class TestResearchObject(unittest.TestCase):
+    # TODO: Test ResearchObject methods
+    pass
