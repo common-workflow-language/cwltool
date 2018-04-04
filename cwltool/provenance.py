@@ -37,6 +37,12 @@ from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 from .process import shortname
 
+try:
+    from past.builtins import basestring
+except ImportError:
+    # Python2 already have basestring
+    pass
+
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 relativised_input_object={}  # type: Dict[str, Any]
 _logger = logging.getLogger("cwltool")
@@ -646,7 +652,7 @@ class ResearchObject():
                 self._relativise_files(o, kwargs, relativised_input_objecttemp2)
             return
 
-        if isinstance(structure, str) or isinstance(structure, unicode):
+        if isinstance(structure, basestring):
             # Just a string value, no need to iterate further
             return
         try:
@@ -730,7 +736,7 @@ class ResearchObject():
                 self.declare_artefact(o, document, job_order_object)
             return
 
-        if isinstance(relativised_input_object, str) or isinstance(relativised_input_object, unicode):
+        if isinstance(relativised_input_object, basestring):
             # Just a string value, no need to iterate further
             # FIXME: Should these be added as PROV entities as well?
             return
