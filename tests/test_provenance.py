@@ -142,7 +142,7 @@ class TestWritableBagFile(unittest.TestCase):
 
     def test_truncate_fails(self):        
         with self.ro.write_bag_file("file.txt") as f:
-            f.write("Hello there")
+            f.write(u"Hello there")
             # Will fail because the checksum can't rewind
             with self.assertRaises(IOError):
                 f.truncate(0)
