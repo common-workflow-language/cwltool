@@ -12,6 +12,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import uuid
 import prov.model as prov
 from prov.model import ProvEntity, ProvDocument
 from abc import ABCMeta, abstractmethod
@@ -417,6 +418,18 @@ class ContainerCommandLineJob(JobBase):
 
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
+
+                if document and img_id and ProcessProvActivity:
+                    # TODO: Integrate with record_container_id 
+                    container_agent = document.agent(uuid.uuid4().urn, 
+                        {"prov:label": "Container execution of image %s" % img_id})
+                    # FIXME: img_id is not a sha256 id, it might just be "debian:8"
+                    #img_entity = document.entity("nih:sha-256;%s" % img_id,
+                    #                  {"prov:label": "Container image %s" % img_id} )                    
+                    # The image is the plan for this activity-agent association
+                    #document.wasAssociatedWith(ProcessProvActivity, container_agent, img_entity)
+                    document.wasAssociatedWith(ProcessProvActivity, container_agent)
+
             except Exception as e:
                 container = "Singularity" if kwargs.get("singularity") else "Docker"
                 _logger.debug("%s error" % container, exc_info=True)

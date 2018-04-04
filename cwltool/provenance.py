@@ -429,6 +429,8 @@ class ResearchObject():
         # TODO: Change to nih:sha-256; hashes
         #  https://tools.ietf.org/html/rfc6920#section-7
         document.add_namespace('data', 'urn:hash::sha1:')
+        # Also needed for docker images
+        document.add_namespace("sha256", "nih:sha-256;")
         workflowRunID="run:%s" % workflowRunUUID
         self.workflowRunURI = "urn:uuid:%s" % workflowRunUUID
         # https://tools.ietf.org/id/draft-soilandreyes-arcp
