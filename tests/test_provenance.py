@@ -9,8 +9,9 @@ import shutil
 
 from .util import get_data
 
+@pytest.mark.skipif(onWindows(),
+                    reason="On Windows this would invoke a default docker container")
 class TestProvenance(unittest.TestCase):
-
     folder = None
 
     def setUp(self):
@@ -31,5 +32,5 @@ class TestProvenance(unittest.TestCase):
             "--message", "Hello tool"]), 0)
 
     def test_revsort_workflow(self):
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
+        self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
             get_data('tests/wf/revsort-job.json')]), 0)
