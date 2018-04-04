@@ -61,10 +61,6 @@ ENCODING="UTF-8"
 # Citation for conformsTo
 __citation__="https://doi.org/10.5281/zenodo.1208477"
 
-class ProvenanceException(BaseException):
-    pass
-
-
 # sha1, compatible with the File type's "checksum" field
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
@@ -74,7 +70,7 @@ def _convert_path(path, from_path=os.path, to_path=posixpath):
     if from_path == to_path:
         return path
     if (from_path.isabs(path)):
-        raise ProvenanceException("path must be relative: %s" % path)
+        raise ValueError("path must be relative: %s" % path)
         # ..as it might include system paths like "C:\" or /tmp
     split = path.split(from_path.sep)
     converted = to_path.sep.join(split)
@@ -90,7 +86,7 @@ class WritableBagFile(io.FileIO):
     def __init__(self, ro, rel_path):
         self.ro = ro
         if (posixpath.isabs(rel_path)):
-            raise ProvenanceException("rel_path must be relative: %s" % rel_path)        
+            raise ValueError("rel_path must be relative: %s" % rel_path)        
         self.rel_path = rel_path
         self.hashes = {"sha1": hashlib.sha1(),
                        "sha256": hashlib.sha256(),
@@ -127,15 +123,13 @@ class WritableBagFile(io.FileIO):
     # the current hash, then having to recalculate at close()
     def seekable(self):
         return False
-#    def seek(self, *args, **kwargs):
-#        raise OSError("WritableBagFile is not seekable")
     def readable(self):
         return False
     def truncate(self, size=None):
         # FIXME: This breaks contract io.IOBase,
         # as it means we would have to recalculate the hash
         if size is not None:
-            raise OSError("WritableBagFile can't truncate")
+            raise IOError("WritableBagFile can't truncate")
 
 
 class ResearchObject():
@@ -555,7 +549,7 @@ class ResearchObject():
 
     def add_to_manifest(self, rel_path, checksums):
         if (posixpath.isabs(rel_path)):
-            raise ProvenanceException("rel_path must be relative: %s" % rel_path)        
+            raise ValueError("rel_path must be relative: %s" % rel_path)        
         
         if (posixpath.commonprefix(["data/", rel_path]) == "data/"):
             # payload file, go to manifest
@@ -578,10 +572,10 @@ class ResearchObject():
 
     def _add_to_bagit(self, rel_path, **checksums):
         if (posixpath.isabs(rel_path)):
-            raise ProvenanceException("rel_path must be relative: %s" % rel_path)
+            raise ValueError("rel_path must be relative: %s" % rel_path)
         local_path = os.path.join(self.folder, _local_path(rel_path))
         if not os.path.exists(local_path):
-            raise ProvenanceException("File %s does not exist within RO: %s" % rel_path, local_path)
+            raise IOError("File %s does not exist within RO: %s" % rel_path, local_path)
 
         if (rel_path in self.bagged_size):
             # Already added, assume checksum OK
