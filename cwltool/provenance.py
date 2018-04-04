@@ -60,6 +60,9 @@ WFPROV=Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
 # BagIt and YAML always use UTF-8
 ENCODING="UTF-8"
 
+# Citation for conformsTo
+__citation__="https://doi.org/10.5281/zenodo.1208477"
+
 class ProvenanceException(BaseException):
     pass
 
@@ -145,7 +148,7 @@ class ResearchObject():
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {} #type: Dict
         self.tagfiles = set() #type: Set
-        self._data_provenance = {} #type: Dict
+        self._file_provenance = {} #type: Dict
 
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
         self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
@@ -190,7 +193,7 @@ class ResearchObject():
         else:
             return fp
 
-    def add_tagfile(self, path):
+    def add_tagfile(self, path, when=None):
         checksums = {}
         # Read file to calculate its checksum
         with open(path, "rb") as fp:
@@ -212,6 +215,8 @@ class ResearchObject():
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
         self.add_to_manifest(rel_path, checksums)
+        if when:
+            self._file_provenance[rel_path] = {"createdOn" : when.isoformat()}
 
     def _ro_aggregates(self):
         aggregates = []
@@ -235,14 +240,97 @@ class ResearchObject():
                 "folder": "/%s/" % folder,
                 "filename": f,    
             }
-            if path in self._data_provenance:
+            if path in self._file_provenance:
                 # Made by workflow run, merge captured provenance 
-                a["bundledAs"].update(self._data_provenance[path])
+                a["bundledAs"].update(self._file_provenance[path])
             else:
                 # Probably made outside wf run, part of job object?
                 pass
             aggregates.append(a)
+
+        for path in self.tagfiles:
+            if (not (path.startswith(METADATA) or path.startswith(WORKFLOW) or
+                path.startswith(SNAPSHOT))):
+                # probably a bagit file
+                continue
+            if path == posixpath.join(METADATA, "manifest.json"):
+                continue
+
+            a = {}
+            # These are local paths like metadata/provenance - but
+            # we need to relativize them for our current directory for
+            # as we are saved in metadata/manifest.json
+            uri = posixpath.relpath(path, METADATA)
+
+            a["uri"] = uri
+            a.update(self._guess_mediatype(path))
+            
+            if path in self._file_provenance:
+                # Propagate file provenance (e.g. timestamp)
+                a.update(self._file_provenance[path])
+            elif not path.startswith(SNAPSHOT):
+                # make new timestamp?
+                a.update(self._self_made())
+            aggregates.append(a)
         return aggregates            
+    
+    def _guess_mediatype(self, rel_path):
+        MEDIA_TYPES = {
+            # Adapted from 
+            # https://w3id.org/bundle/2014-11-05/#media-types
+
+            "txt":    'text/plain; charset="UTF-8"',
+            "ttl":    'text/turtle; charset="UTF-8"',
+            "rdf":    'application/rdf+xml',
+            "json":   'application/json',
+            "jsonld": 'application/ld+json',    
+            "xml":    'application/xml',
+            ## 
+            "cwl":    'text/x+yaml; charset="UTF-8"',
+            "provn":  'text/provenance-notation; charset="UTF-8"',
+            "nt":     'application/n-triples',
+        }
+        CONFORMS_TO = {
+            "provn":  'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
+            "cwl":    'https://w3id.org/cwl/',
+        }
+
+        PROV_CONFORMS_TO = {
+            "provn":  'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
+            "rdf":    'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            "ttl":    'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            "nt":     'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            "jsonld": 'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            
+            "xml":    'http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/',
+            "json":   'http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/',
+        }
+
+
+        extension = rel_path.rsplit(".", 1)[-1].lower()
+        if extension == rel_path:
+            # No ".", no extension
+            extension = None
+
+        a = {}
+        if extension in MEDIA_TYPES:
+            a["mediatype"] = MEDIA_TYPES[extension]
+
+        if extension in CONFORMS_TO:
+            # TODO: Open CWL file to read its declared "cwlVersion", e.g.
+            # cwlVersion = "v1.0"
+            a["conformsTo"] = CONFORMS_TO[extension]
+
+        if (rel_path.startswith(_posix_path(PROVENANCE))
+            and extension in PROV_CONFORMS_TO):
+            if ".cwlprov" in rel_path:
+                # Our own!
+                a["conformsTo"] = [PROV_CONFORMS_TO[extension], __citation__]
+            else:
+                # Some other PROV
+                # TODO: Recognize ProvOne etc.
+                a["conformsTo"] = PROV_CONFORMS_TO[extension]
+        return a
 
     def _ro_annotations(self):
         return []
@@ -347,7 +435,8 @@ class ResearchObject():
                 # FIXME: What if destination path already exists?
                 if file_to_cp.exists():
                     shutil.copy(filepath, path)
-                    self.add_tagfile(path)
+                    when = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))                    
+                    self.add_tagfile(path, when)
             elif key == "secondaryFiles" or key == "listing":
                 for files in value:
                     if isinstance(files, dict):
@@ -412,7 +501,7 @@ class ResearchObject():
             self._add_to_bagit(rel_path)
         _logger.info(u"[provenance] Added data file %s", path)
         if when:
-            self._data_provenance[rel_path] = self._self_made(when)
+            self._file_provenance[rel_path] = self._self_made(when)
         _logger.info(u"[provenance] Relative path for data file %s", rel_path)
         return rel_path
 
