@@ -333,7 +333,43 @@ class ResearchObject():
         return a
 
     def _ro_annotations(self):
-        return []
+        annotations = []
+        annotations.append({
+            "uri": uuid.uuid4().urn,
+            "about": self.workflowRunURI,
+            "content": "/",
+            # https://www.w3.org/TR/annotation-vocab/#named-individuals
+            "oa:motivatedBy": { "@id": "oa:describing"}
+        })
+
+        # How was it run?
+        prov_files = [posixpath.relpath(p, METADATA)
+            for p in self.tagfiles if p.startswith(_posix_path(PROVENANCE))]
+        annotations.append({
+            "uri": uuid.uuid4().urn,
+            "about": self.workflowRunURI,
+            "content": prov_files,
+            # Modulation of https://www.w3.org/TR/prov-aq/
+            "oa:motivatedBy": { "@id": "http://www.w3.org/ns/prov#has_provenance"}
+        })
+
+        # Where is the main workflow?
+        annotations.append({
+            "uri": uuid.uuid4().urn,
+            "about": posixpath.join(WORKFLOW, "packed.cwl"),
+            "oa:motivatedBy": { "@id": "oa:highlighting"}
+        })
+
+        annotations.append({
+            "uri": uuid.uuid4().urn,
+            "about": self.workflowRunURI,
+            "content": [posixpath.join(WORKFLOW, "packed.cwl"), 
+                        posixpath.join(WORKFLOW, "primary-job.json")],
+            "oa:motivatedBy": { "@id": "oa:linking"}
+        })
+
+
+        return annotations
 
     def _write_ro_manifest(self):
         # Does not have to be this order, but it's nice to be consistent
