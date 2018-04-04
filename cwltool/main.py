@@ -67,6 +67,7 @@ _logger = logging.getLogger("cwltool")
 document = ProvDocument()
 document.add_namespace("run", "urn:uuid:")
 #adding the SoftwareAgent to PROV document
+# FIXME: Make engineUUID/WorkflowRunID just be UUID rather than have run: prefix
 engineUUID="run:%s" % uuid.uuid4()
 WorkflowRunUUID=str(uuid.uuid4())
 WorkflowRunID="run:%s" % WorkflowRunUUID
