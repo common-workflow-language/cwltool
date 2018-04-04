@@ -858,6 +858,9 @@ class ResearchObject():
         '''
         creates copy of job object for provenance
         '''
+        if not hasattr(r, "tool"):
+            # direct command line tool execution
+            return job_order_object
         customised_job={} #new job object for RO
         for e, i in enumerate(r.tool["inputs"]):
             with SourceLine(r.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
@@ -875,9 +878,13 @@ class ResearchObject():
         '''
         create prospective provenance recording for the workflow as wfdesc prov:Plan
         '''
+        if not hasattr(r, "steps"):
+            # direct command line tool execution
+            document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+            return
 
-        # FIXME: Workflow is not always called "#main"!
-        document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+        # FIXME: Workflow is always called "#main"?
+        document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Workflow"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
 
         steps=[]
         for s in r.steps:
