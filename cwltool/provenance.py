@@ -37,11 +37,8 @@ from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 from .process import shortname
 
-try:
-    from past.builtins import basestring
-except ImportError:
-    # Python2 already have basestring
-    pass
+# This will need "pip install future" on Python 2 (!)
+from past.builtins import basestring
 
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 relativised_input_object={}  # type: Dict[str, Any]
