@@ -24,6 +24,7 @@ from pathlib2 import Path
 #from networkx.drawing.nx_pydot import write_dot
 from .errors import WorkflowException
 import uuid
+from collections import OrderedDict
 
 try:
     # Python3
@@ -110,7 +111,13 @@ class WritableBagFile(io.FileIO):
         checksums = {}
         for name in self.hashes:
             checksums[name] = self.hashes[name].hexdigest().lower()
-        self.ro.add_to_manifest(self.rel_path, checksums)        
+        self.ro.add_to_manifest(self.rel_path, checksums)
+
+        # FIXME: Convert below block to a ResearchObject method
+        if (self.rel_path.startswith("data/")):
+            self.ro.bagged_size[self.rel_path] = self.tell()
+        else:
+            self.ro.tagfiles.add(self.rel_path)       
 
     # To simplify our hash calculation we won't support
     # seeking, reading or truncating, as we can't do
@@ -138,8 +145,10 @@ class ResearchObject():
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {} #type: Dict
         self.tagfiles = set() #type: Set
+        self._data_provenance = {} #type: Dict
 
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
+        self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
         u = uuid.uuid4()
         self.workflowRunURI = "urn:uuid:%s" % u
         self.base_uri = "arcp://uuid,%s/" % u
@@ -204,12 +213,58 @@ class ResearchObject():
         self.tagfiles.add(rel_path)
         self.add_to_manifest(rel_path, checksums)
 
+    def _ro_aggregates(self):
+        aggregates = []
+        for path in self.bagged_size.keys():            
+            a = {}
+        
+            (folder,f) = posixpath.split(path)
+            
+            # NOTE: Here we end up aggregating the abstract
+            # data items by their sha1 hash, so that it matches
+            # the entity() in the prov files.  
+
+            # TODO: Change to nih:sha-256; hashes
+            #  https://tools.ietf.org/html/rfc6920#section-7
+            a["uri"] = 'urn:hash::sha1:' + f
+            a["bundledAs"] = {
+                # The arcp URI is suitable ORE proxy; local to this RO.
+                # (as long as we don't also aggregate it by relative path!)
+                "uri": self.base_uri + path,
+                # relate it to the data/ path
+                "folder": "/%s/" % folder,
+                "filename": f,    
+            }
+            if path in self._data_provenance:
+                # Made by workflow run, merge captured provenance 
+                a["bundledAs"].update(self._data_provenance[path])
+            else:
+                # Probably made outside wf run, part of job object?
+                pass
+            aggregates.append(a)
+        return aggregates            
+
+    def _ro_annotations(self):
+        return []
 
     def _write_ro_manifest(self):
+        # Does not have to be this order, but it's nice to be consistent
+        manifest = OrderedDict()
+        manifest["@context"] = [ 
+                {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA)) },
+                "https://w3id.org/bundle/context"
+            ]
+        manifest["id"] = "/"
+        filename = "manifest.json"
+        manifest["manifest"] = filename        
+        manifest.update(self._self_made())
+        manifest["aggregates"] = self._ro_aggregates()
+        manifest["annotations"] = self._ro_annotations()
 
-
-        # TODO: write metadata/manifest.json
-        pass
+        j = json.dumps(manifest, indent=4, ensure_ascii=False)
+        rel_path = posixpath.join(_posix_path(METADATA), filename)
+        with self.write_bag_file(rel_path) as fp:
+            fp.write(j + "\n")
 
     def _write_bag_info(self):
         with self.write_bag_file("bag-info.txt") as infoFile:            
@@ -259,6 +314,8 @@ class ResearchObject():
         self.wf_ns = document.add_namespace("wf", roIdentifierWorkflow)
         roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
+        # FIXME: Make engineUUID actually be a UUID rather than have run: prefix
+        self.engineUUID = engineUUID.replace("run:", "urn:uuid:")
         document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwltoolVersion})
         #define workflow run level activity
         document.activity(workflowRunID, datetime.datetime.now(), None, {provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
@@ -324,7 +381,7 @@ class ResearchObject():
         return checksum.hexdigest().lower()
 
 
-    def add_data_file(self, from_fp):
+    def add_data_file(self, from_fp, when=None):
         '''
         copies inputs to Data
         '''
@@ -354,8 +411,20 @@ class ResearchObject():
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
         _logger.info(u"[provenance] Added data file %s", path)
+        if when:
+            self._data_provenance[rel_path] = self._self_made(when)
         _logger.info(u"[provenance] Relative path for data file %s", rel_path)
         return rel_path
+
+    def _self_made(self, when=None):
+        if when is None:
+            when = datetime.datetime.now()
+        return {
+                "createdOn": when.isoformat(),
+                "createdBy": { "uri": self.engineUUID, 
+                               "name": self.cwltoolVersion
+                             }
+                }
 
     def add_to_manifest(self, rel_path, checksums):
         if (posixpath.isabs(rel_path)):
@@ -417,7 +486,7 @@ class ResearchObject():
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(job, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as fp:
-            fp.write(j)
+            fp.write(j + "\n")
         _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
 
         #Generate dictionary with keys as workflow level input IDs and values as
@@ -471,6 +540,7 @@ class ResearchObject():
         '''
         Transfer the provenance related files to RO
         '''
+        self.prov_document = document
         # TODO: Generate filename per workflow run also for nested workflows
         # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
         # NOTE: Relative posix path
@@ -557,6 +627,8 @@ class ResearchObject():
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
+        ## A bit too late, but we don't know the "inner" when
+        when = datetime.datetime.now()
         key_files=[]
         for key, value in final_output.items():
 
@@ -577,15 +649,14 @@ class ResearchObject():
                 stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
 
                 document.entity(output_checksum, {provM.PROV_TYPE: WFPROV["Artifact"]})
-                document.wasGeneratedBy(output_checksum, ProcessRunID, datetime.datetime.now(), None, {"prov:role":stepProv})
+                document.wasGeneratedBy(output_checksum, ProcessRunID, when, None, {"prov:role":stepProv})
             else:
                 outputProvRole = self.wf_ns["main"+"/"+str(tuple_entry[0])]
                 document.entity(output_checksum, {provM.PROV_TYPE:WFPROV["Artifact"]})
-                document.wasGeneratedBy(output_checksum, WorkflowRunID, datetime.datetime.now(), None, {"prov:role":outputProvRole })
-
+                document.wasGeneratedBy(output_checksum, WorkflowRunID, when, None, {"prov:role":outputProvRole })
                 # FIXME: What are these magic array positions???
                 with open(tuple_entry[2][7:], "rb") as fp:
-                    rel_path = self.add_data_file(fp)
+                    rel_path = self.add_data_file(fp, when)
                     _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
     def array_output(self, key, current_l): 
