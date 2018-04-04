@@ -25,6 +25,17 @@ def is_expression(tool, schema):
     # type: (Union[CommentedMap, Any], avro.schema.Schema) -> bool
     return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, (str, Text))
 
+class SuppressLog(logging.Filter):
+    def __init__(self, name):  # type: (Text) -> None
+        name = str(name)
+        super(SuppressLog, self).__init__(name)
+
+    def filter(self, record):
+        return False
+
+_logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
+_logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings"))
+
 def get_expressions(tool, schema, source_line=None):
     # type: (Union[CommentedMap, Any], avro.schema.Schema, SourceLine) -> List[Tuple[Text, SourceLine]]
     if is_expression(tool, schema):
@@ -35,7 +46,7 @@ def get_expressions(tool, schema, source_line=None):
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
                 return [(tool, source_line)]
-            elif validate_ex(possible_schema, tool, raise_ex=False):
+            elif validate_ex(possible_schema, tool, raise_ex=False, logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 
         return get_expressions(tool, valid_schema, source_line)

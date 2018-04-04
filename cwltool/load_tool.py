@@ -123,24 +123,30 @@ def _convert_stdstreams_to_files(workflowobj):
 
     if isinstance(workflowobj, dict):
         if workflowobj.get('class') == 'CommandLineTool':
-            for out in workflowobj.get('outputs', []):
-                if type(out) is not CommentedMap:
-                    with SourceLine(workflowobj, "outputs", ValidationException, _logger.isEnabledFor(logging.DEBUG)):
-                        raise ValidationException("Output '%s' is not a valid OutputParameter." % out)
-                for streamtype in ['stdout', 'stderr']:
-                    if out.get('type') == streamtype:
-                        if 'outputBinding' in out:
-                            raise ValidationException(
-                                "Not allowed to specify outputBinding when"
-                                " using %s shortcut." % streamtype)
-                        if streamtype in workflowobj:
-                            filename = workflowobj[streamtype]
-                        else:
-                            filename = Text(hashlib.sha1(json.dumps(workflowobj,
-                                        sort_keys=True).encode('utf-8')).hexdigest())
-                            workflowobj[streamtype] = filename
-                        out['type'] = 'File'
-                        out['outputBinding'] = cmap({'glob': filename})
+            with SourceLine(workflowobj, "outputs", ValidationException,
+                            _logger.isEnabledFor(logging.DEBUG)):
+                outputs = workflowobj.get('outputs', [])
+                if not isinstance(outputs, CommentedSeq):
+                    raise ValidationException('"outputs" section is not '
+                            'valid.')
+                for out in workflowobj.get('outputs', []):
+                    if type(out) is not CommentedMap:
+                        raise ValidationException("Output '{}' is not a "
+                                    "valid OutputParameter.".format(out))
+                    for streamtype in ['stdout', 'stderr']:
+                        if out.get('type') == streamtype:
+                            if 'outputBinding' in out:
+                                raise ValidationException(
+                                    "Not allowed to specify outputBinding when"
+                                    " using %s shortcut." % streamtype)
+                            if streamtype in workflowobj:
+                                filename = workflowobj[streamtype]
+                            else:
+                                filename = Text(hashlib.sha1(json.dumps(workflowobj,
+                                            sort_keys=True).encode('utf-8')).hexdigest())
+                                workflowobj[streamtype] = filename
+                            out['type'] = 'File'
+                            out['outputBinding'] = cmap({'glob': filename})
             for inp in workflowobj.get('inputs', []):
                 if inp.get('type') == 'stdin':
                     if 'inputBinding' in inp:
@@ -187,7 +193,8 @@ def validate_document(document_loader,  # type: Loader
                       fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,  # type: bool
                       overrides=None,  # type: List[Dict]
-                      metadata=None  # type: Optional[Dict]
+                      metadata=None,  # type: Optional[Dict]
+                      do_validate=True
                       ):
     # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -203,7 +210,7 @@ def validate_document(document_loader,  # type: Loader
     jobobj = None
     if "cwl:tool" in workflowobj:
         job_loader = default_loader(fetcher_constructor)  # type: ignore
-        jobobj, _ = job_loader.resolve_all(workflowobj, uri)
+        jobobj, _ = job_loader.resolve_all(workflowobj, uri, checklinks=do_validate)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
@@ -219,9 +226,11 @@ def validate_document(document_loader,  # type: Loader
             workflowobj['cwlVersion'] = metadata['cwlVersion']
         else:
             raise ValidationException(
-                  "No cwlVersion found. "
-                  "Use the following syntax in your CWL document to declare the version: cwlVersion: <version>.\n"
-                  "Note: if this is a CWL draft-2 (pre v1.0) document then it will need to be upgraded first.")
+                "No cwlVersion found. "
+                "Use the following syntax in your CWL document to declare "
+                "the version: cwlVersion: <version>.\n"
+                "Note: if this is a CWL draft-2 (pre v1.0) document then it "
+                "will need to be upgraded first.")
 
     if not isinstance(workflowobj["cwlVersion"], (str, Text)):
         raise Exception("'cwlVersion' must be a string, got %s" % type(workflowobj["cwlVersion"]))
@@ -254,7 +263,7 @@ def validate_document(document_loader,  # type: Loader
     _add_blank_ids(workflowobj)
 
     workflowobj["id"] = fileuri
-    processobj, new_metadata = document_loader.resolve_all(workflowobj, fileuri)
+    processobj, new_metadata = document_loader.resolve_all(workflowobj, fileuri, checklinks=do_validate)
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
@@ -269,7 +278,8 @@ def validate_document(document_loader,  # type: Loader
     if preprocess_only:
         return document_loader, avsc_names, processobj, new_metadata, uri
 
-    schema.validate_doc(avsc_names, processobj, document_loader, strict)
+    if do_validate:
+        schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
     if new_metadata.get("cwlVersion") != update.LATEST:
         processobj = cast(CommentedMap, cmap(update.update(

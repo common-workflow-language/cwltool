@@ -427,8 +427,8 @@ def main(argsl=None,  # type: List[str]
                      'make_template': False,
                      'provenance': None,
                      'research_obj': None,
-                     'make_template': False,
-                     'overrides': None
+                     'overrides': None,
+                     'do_validate': True
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
@@ -519,7 +519,8 @@ def main(argsl=None,  # type: List[str]
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=overrides)
+                                    overrides=overrides, 
+                                    do_validate=args.do_validate)
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
@@ -544,6 +545,7 @@ def main(argsl=None,  # type: List[str]
 
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
             make_tool_kwds["overrides"] = overrides
+            make_tool_kwds["disable_js_validation"] = args.disable_js_validation or (not args.do_validate)
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
                              makeTool, make_tool_kwds)
