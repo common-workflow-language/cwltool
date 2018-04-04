@@ -6,6 +6,7 @@ import tempfile
 from six import StringIO
 from cwltool.main import main
 import shutil
+import pytest
 
 from .util import get_data
 
