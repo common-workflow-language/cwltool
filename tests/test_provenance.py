@@ -112,11 +112,23 @@ class TestWritableBagFile(unittest.TestCase):
         sha1 = os.path.join(self.ro.folder, "tagmanifest-sha1.txt")
         self.assertTrue(os.path.isfile(sha1))
         with open(sha1, "r", encoding="UTF-8") as f2:
-            sha = f2.readline().strip()
-            self.assertTrue(sha.endswith("file.txt"))
+            s = f2.readline().strip()
+            self.assertTrue(s.endswith("file.txt"))
 #stain@biggie:~/src/cwltool$ echo Hello | sha1sum
 #1d229271928d3f9e2bb0375bd6ce5db6c6d348d9  -
-            self.assertTrue(sha.startswith("1d229271928d3f9e2bb0375bd6ce5db6c6d348d9"))
+            self.assertTrue(s.startswith("1d229271928d3f9e2bb0375bd6ce5db6c6d348d9"))
+
+        sha256 = os.path.join(self.ro.folder, "tagmanifest-sha256.txt")
+        self.assertTrue(os.path.isfile(sha256))
+        with open(sha256, "r", encoding="UTF-8") as f3:
+            s = f3.readline().strip()
+            self.assertTrue(s.endswith("file.txt"))
+#stain@biggie:~/src/cwltool$ echo Hello | sha256sum
+#66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18  -
+            self.assertTrue(s.startswith("66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"))
+
+        sha512 = os.path.join(self.ro.folder, "tagmanifest-sha512.txt")
+        self.assertTrue(os.path.isfile(sha512))
 
     def test_writableUnicodeString(self):
         with self.ro.write_bag_file("file.txt") as f:
@@ -142,7 +154,7 @@ class TestWritableBagFile(unittest.TestCase):
 
     def test_truncate_fails(self):        
         with self.ro.write_bag_file("file.txt") as f:
-            f.write("Hello there")
+            f.write(u"Hello there")
             # Will fail because the checksum can't rewind
             with self.assertRaises(IOError):
                 f.truncate(0)
