@@ -7,6 +7,7 @@ from six import StringIO
 from cwltool.main import main
 import shutil
 import pytest
+from cwltool.utils import onWindows
 
 from .util import get_data
 
