@@ -9,8 +9,13 @@ import shutil
 import pytest
 from cwltool.utils import onWindows
 
+# Module to be tested
+from cwltool import provenance
+
 from .util import get_data
 import bagit
+import posixpath
+import ntpath
 
 @pytest.mark.skipif(onWindows(),
                     reason="On Windows this would invoke a default docker container")
@@ -60,3 +65,36 @@ class TestProvenance(unittest.TestCase):
         self.assertFalse(list(missing_tagfiles), "Some files only in tagmanifest")
         bag.validate()
 
+class TestConvertPath(unittest.TestCase):
+
+    def nt_to_posix(self):
+        self.assertEquals("a/b/c", 
+            provenance._convert_path(r"a\b\c", ntpath, posixpath))
+    
+    def posix_to_nt(self):            
+        self.assertEquals(r"a\b\c", 
+            provenance._convert_path("a/b/c", posixpath, ntpath))
+
+    def posix_to_posix(self):            
+        self.assertEquals("a/b/c",
+            provenance._convert_path("a/b/c", posixpath, posixpath))
+
+    def nt_to_nt(self):
+        self.assertEquals(r"a\b\c", 
+            provenance._convert_path(r"a\b\c", ntpath, ntpath))
+
+    def posix_to_nt_absolute_fails(self):            
+        with self.assertRaises(ValueError):        
+            provenance._convert_path("/absolute/path", posixpath, ntpath)
+    
+    def nt_to_posix_absolute_fails(self):            
+        with self.assertRaises(ValueError):        
+            provenance._convert_path(r"D:\absolute\path", ntpath, posixpath)
+
+class TestWritableBagFile(unittest.TestCase):
+    def setUp(self):
+        self.ro = provenance.ResearchObject()
+
+    def absolute_path_fails(self):
+        with self.assertRaises(ValueError):
+            self.ro.write_bag_file("/absolute/path/fails")
