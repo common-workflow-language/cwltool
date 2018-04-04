@@ -611,7 +611,7 @@ class ResearchObject():
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(job, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as fp:
-            fp.write(j + "\n")
+            fp.write(j + u"\n")
         _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
 
         #Generate dictionary with keys as workflow level input IDs and values as
