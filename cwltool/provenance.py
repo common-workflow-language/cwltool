@@ -419,6 +419,8 @@ class ResearchObject():
         document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
+        # TODO: Make this ontology. For now only has cwlprov:image
+        document.add_namespace('cwlprov', 'https://w3id.org/cwl/prov#')
         document.add_namespace('run', 'urn:uuid:')
         document.add_namespace('engine', 'urn:uuid:')
         # NOTE: Internet draft expired 2004-03-04 (!)

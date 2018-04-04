@@ -14,7 +14,7 @@ import sys
 import tempfile
 import uuid
 import prov.model as prov
-from prov.model import ProvEntity, ProvDocument
+from prov.model import ProvEntity, ProvDocument, PROV
 from abc import ABCMeta, abstractmethod
 from io import open
 from threading import Lock
@@ -422,7 +422,9 @@ class ContainerCommandLineJob(JobBase):
                 if document and img_id and ProcessProvActivity:
                     # TODO: Integrate with record_container_id 
                     container_agent = document.agent(uuid.uuid4().urn, 
-                        {"prov:label": "Container execution of image %s" % img_id})
+                        {"prov:type": PROV["SoftwareAgent"],
+                         "cwlprov:image": img_id,
+                         "prov:label": "Container execution of image %s" % img_id})
                     # FIXME: img_id is not a sha256 id, it might just be "debian:8"
                     #img_entity = document.entity("nih:sha-256;%s" % img_id,
                     #                  {"prov:label": "Container image %s" % img_id} )                    
