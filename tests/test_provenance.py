@@ -103,6 +103,10 @@ class TestWritableBagFile(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ro.write_bag_file("/absolute/path/fails")
 
+    def test_climboutfails(self):
+        with self.assertRaises(ValueError):
+            self.ro.write_bag_file("../../outside-ro")
+
     def test_writableString(self):
         with self.ro.write_bag_file("file.txt") as f1:
             self.assertTrue(f1.writable())
@@ -140,6 +144,20 @@ class TestWritableBagFile(unittest.TestCase):
             b = u"Here is a snowman: \u2603 \n".encode("UTF-8")
             f.write(b)
 
+    def test_data(self):
+        with self.ro.write_bag_file("data/file.txt") as f1:
+            self.assertTrue(f1.writable())
+            f1.write(u"Hello\n")
+            # TODO: Check Windows does not modify \n to \r\n here
+        
+        # Because this is under data/ it should add to manifest
+        # rather than tagmanifest
+        sha1 = os.path.join(self.ro.folder, "manifest-sha1.txt")
+        self.assertTrue(os.path.isfile(sha1))
+        with open(sha1, "r", encoding="UTF-8") as f2:
+            s = f2.readline().strip()
+            self.assertTrue(s.endswith("data/file.txt"))
+
     def test_not_seekable(self):
         with self.ro.write_bag_file("file.txt") as f:
             self.assertFalse(f.seekable())
@@ -155,6 +173,7 @@ class TestWritableBagFile(unittest.TestCase):
     def test_truncate_fails(self):        
         with self.ro.write_bag_file("file.txt") as f:
             f.write(u"Hello there")
+            f.truncate() # OK as we're always at end
             # Will fail because the checksum can't rewind
             with self.assertRaises(IOError):
                 f.truncate(0)

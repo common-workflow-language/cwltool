@@ -103,18 +103,18 @@ class WritableBagFile(io.FileIO):
             h.update(b)
 
     def close(self):
+        # FIXME: Convert below block to a ResearchObject method?
+        if (self.rel_path.startswith("data/")):
+            self.ro.bagged_size[self.rel_path] = self.tell()
+        else:
+            self.ro.tagfiles.add(self.rel_path)       
+
         super(WritableBagFile, self).close()        
         # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }       
         checksums = {}
         for name in self.hashes:
             checksums[name] = self.hashes[name].hexdigest().lower()
         self.ro.add_to_manifest(self.rel_path, checksums)
-
-        # FIXME: Convert below block to a ResearchObject method
-        if (self.rel_path.startswith("data/")):
-            self.ro.bagged_size[self.rel_path] = self.tell()
-        else:
-            self.ro.tagfiles.add(self.rel_path)       
 
     # To simplify our hash calculation we won't support
     # seeking, reading or truncating, as we can't do
@@ -246,6 +246,8 @@ class ResearchObject():
                 # probably a bagit file
                 continue
             if path == posixpath.join(METADATA, "manifest.json"):
+                # Should not really be there yet! But anyway, we won't 
+                # aggregate it.
                 continue
 
             a = {}
