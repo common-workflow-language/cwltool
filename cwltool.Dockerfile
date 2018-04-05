@@ -14,5 +14,8 @@ LABEL maintainer peter.amstutz@curoverse.com
 
 RUN apk add --no-cache docker nodejs
 COPY --from=builder /pythonroot/ /
+COPY cwltool-in-docker.sh /cwltool-in-docker.sh
 
-ENTRYPOINT ["cwltool"]
+WORKDIR /error
+
+ENTRYPOINT ["/cwltool-in-docker.sh"]
