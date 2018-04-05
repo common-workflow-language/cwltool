@@ -6,6 +6,7 @@ import os
 from abc import ABCMeta, abstractmethod
 
 from typing import Dict, Text, Any, Tuple, Set, List
+from schema_salad.validate import ValidationException
 
 from .builder import Builder
 from .errors import WorkflowException
@@ -13,6 +14,7 @@ from .mutation import MutationManager
 from .job import JobBase
 from .process import relocateOutputs, cleanIntermediate, Process
 from . import loghandler
+
 
 _logger = logging.getLogger("cwltool")
 
@@ -107,7 +109,7 @@ class SingleJobExecutor(JobExecutor):
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
-        except WorkflowException:
+        except (ValidationException, WorkflowException):
             raise
         except Exception as e:
             logger.exception("Got workflow error")

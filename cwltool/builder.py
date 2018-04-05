@@ -76,12 +76,12 @@ def checkFormat(actualFile, inputFormats, ontology):
         if not af:
             continue
         if "format" not in af:
-            raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
+            raise validate.ValidationException(u"File has no 'format' defined: %s" % json.dumps(af, indent=4))
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-            u"Incompatible file format, expected format(s) %s but file object is: %s" % (inputFormats, json.dumps(af, indent=4)))
+            u"File has an incompatible format: %s" % json.dumps(af, indent=4))
 
 class Builder(object):
     def __init__(self):  # type: () -> None
@@ -237,7 +237,10 @@ class Builder(object):
                     normalizeFilesDirs(datum["secondaryFiles"])
 
                 if "format" in schema:
-                    checkFormat(datum, self.do_eval(schema["format"]), self.formatgraph)
+                    try:
+                        checkFormat(datum, self.do_eval(schema["format"]), self.formatgraph)
+                    except validate.ValidationException as ve:
+                        raise WorkflowException("Expected value of '%s' to have format %s but\n  %s" % (schema["name"], schema["format"], ve))
 
                 def _capture_files(f):
                     self.files.append(f)
