@@ -151,7 +151,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        cidfile_prefix="", **kwargs):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
 
-        runtime = [u"singularity", u"--quiet", u"exec"]
+        runtime = [u"singularity", u"--quiet", u"exec", u"--contain"]
         runtime.append(u"--bind")
         runtime.append(
             u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
