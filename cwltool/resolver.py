@@ -1,8 +1,12 @@
 from __future__ import absolute_import
 import logging
 import os
+import sys
 
-from pathlib import Path
+if sys.version_info < (3, 4):
+    from pathlib2 import Path
+else:
+    from pathlib import Path
 from six.moves import urllib
 
 
