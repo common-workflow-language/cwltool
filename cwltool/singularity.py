@@ -116,7 +116,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         for _, vol in pathmapper.items():
             if not vol.staged:
                 continue
-            if stage_output:
+            if stage_output and not vol.target.startswith(container_outdir):
                 containertgt = container_outdir + vol.target[len(host_outdir):]
             else:
                 containertgt = vol.target
