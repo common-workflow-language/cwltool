@@ -164,7 +164,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        cidfile_prefix="", **kwargs):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
 
-        runtime = [u"singularity", u"--quiet", u"exec", u"--contain"]
+        runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
+                u"--ipc", u"--userns"]
         runtime.append(u"--bind")
         runtime.append(u"{}:{}:rw".format(
             docker_windows_path_adjust(os.path.realpath(self.outdir)),
@@ -182,7 +183,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         if kwargs.get("custom_net", None) is not None:
             raise UnsupportedRequirement(
-                "Singularity implementation does not support networking")
+                "Singularity implementation does not support custom networking")
+        elif kwargs.get("disable_net", None):
+            runtime.append(u"--net")
 
         env["SINGULARITYENV_TMPDIR"] = "/tmp"
         env["SINGULARITYENV_HOME"] = self.builder.outdir
