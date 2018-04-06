@@ -2,28 +2,33 @@ from __future__ import absolute_import
 import logging
 import os
 
+from pathlib import Path
 from six.moves import urllib
 
-from schema_salad.ref_resolver import file_uri
 
 _logger = logging.getLogger("cwltool")
 
 
 def resolve_local(document_loader, uri):
-    if uri.startswith("/"):
-        return None
-    shares = [os.environ.get("XDG_DATA_HOME", os.path.join(os.path.expanduser('~'), ".local", "share"))]
-    shares.extend(os.environ.get("XDG_DATA_DIRS", "/usr/local/share/:/usr/share/").split(":"))
-    shares = [os.path.join(s, "commonwl", uri) for s in shares]
-    shares.insert(0, os.path.join(os.getcwd(), uri))
+    if uri.startswith("/") and os.path.exists(uri):
+        return Path(uri).as_uri()
+    if os.path.exists(urllib.parse.urlparse(
+            urllib.parse.urldefrag(
+                "{}/{}".format(Path.cwd().as_uri(), uri))[0])[2]):
+        return "{}/{}".format(Path.cwd().as_uri(), uri)
+    sharepaths = [os.environ.get("XDG_DATA_HOME", os.path.join(
+        os.path.expanduser('~'), ".local", "share"))]
+    sharepaths.extend(os.environ.get(
+        "XDG_DATA_DIRS", "/usr/local/share/:/usr/share/").split(":"))
+    shares = [os.path.join(s, "commonwl", uri) for s in sharepaths]
 
     _logger.debug("Search path is %s", shares)
 
-    for s in shares:
-        if os.path.exists(s):
-            return file_uri(s)
-        if os.path.exists("%s.cwl" % s):
-            return file_uri(s)
+    for path in shares:
+        if os.path.exists(path):
+            return Path(uri).as_uri()
+        if os.path.exists("{}.cwl".format(path)):
+            return Path("{}.cwl".format(path)).as_uri()
     return None
 
 
@@ -32,7 +37,6 @@ def tool_resolver(document_loader, uri):
         ret = r(document_loader, uri)
         if ret is not None:
             return ret
-    return file_uri(os.path.abspath(uri), split_frag=True)
 
 
 ga4gh_tool_registries = ["https://dockstore.org:8443"]
