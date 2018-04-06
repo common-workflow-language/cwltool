@@ -165,7 +165,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
 
         runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
-                u"--ipc", u"--userns"]
+                u"--ipc"]  # , u"--userns"]
         runtime.append(u"--bind")
         runtime.append(u"{}:{}:rw".format(
             docker_windows_path_adjust(os.path.realpath(self.outdir)),
