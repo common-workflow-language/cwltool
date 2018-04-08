@@ -10,7 +10,7 @@ import time
 from abc import ABCMeta, abstractmethod
 import prov.model as prov
 from typing import Dict, Text, Any, Tuple, Set, List
-import itertools
+from schema_salad.validate import ValidationException
 
 from .builder import Builder
 from .errors import WorkflowException
@@ -19,6 +19,7 @@ from .job import JobBase
 from .process import relocateOutputs, cleanIntermediate, Process, shortname, uniquename, get_overrides
 from . import loghandler
 from schema_salad.sourceline import SourceLine
+
 
 _logger = logging.getLogger("cwltool")
 
@@ -148,7 +149,7 @@ class SingleJobExecutor(JobExecutor):
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
-        except WorkflowException:
+        except (ValidationException, WorkflowException):
             raise
         except Exception as e:
             logger.exception("Got workflow error")
