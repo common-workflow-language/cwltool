@@ -19,7 +19,7 @@ import prov.graph as graph
 from prov.identifier import Namespace
 from prov.model import PROV
 from pathlib2 import Path
-import bagit
+#import bagit
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
 #from networkx.drawing.nx_pydot import write_dot
