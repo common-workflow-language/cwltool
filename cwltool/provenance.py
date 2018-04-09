@@ -19,6 +19,7 @@ import prov.graph as graph
 from prov.identifier import Namespace
 from prov.model import PROV
 from pathlib2 import Path
+import bagit
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
 #from networkx.drawing.nx_pydot import write_dot
@@ -390,22 +391,23 @@ class ResearchObject():
 
     def _write_bag_info(self):
         with self.write_bag_file("bag-info.txt") as infoFile:
-            infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
-            infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
+            # For consistency let's try to keep these alphabetical
+            # (even if order should not matter)
             infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
             # FIXME: require sha-512 of payload to comply with profile?
-            # FIXME: Update profile
+            # FIXME: Update ro-bagit profile
             infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
-            
-            # Calculate size of data/ (assuming no external fetch.txt files)
-            totalSize = sum(self.bagged_size.values())
-            numFiles = len(self.bagged_size)
-            infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
+            infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
+            infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
 
             # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
             # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
             infoFile.write(u"External-Identifier: %s\n" % self.base_uri)
 
+            # Calculate size of data/ (assuming no external fetch.txt files)
+            totalSize = sum(self.bagged_size.values())
+            numFiles = len(self.bagged_size)
+            infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_provDoc(self, document, cwltoolVersion, engineUUID, workflowRunUUID):
@@ -574,7 +576,7 @@ class ResearchObject():
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
             with open(manifestpath, "a", encoding=ENCODING, newline='\n') as checksumFile:
-                line = u"%s %s\n" % (hash, rel_path)
+                line = u"%s  %s\n" % (hash, rel_path)
                 _logger.debug(u"[provenance] Added to %s: %s", manifestpath, line)
                 checksumFile.write(line)
 
