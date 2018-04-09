@@ -167,7 +167,9 @@ class ResearchObject():
         # type: (...) -> None
         # Write fixed bagit header
         bagit = os.path.join(self.folder, "bagit.txt")
-        with open(bagit, "w", encoding = ENCODING) as bagitFile:
+        # encoding: always UTF-8 (although ASCII would suffice here)
+        # newline: ensure LF also on Windows
+        with open(bagit, "w", encoding = ENCODING, newline='\n') as bagitFile:
             # TODO: \n or \r\n ?
             bagitFile.write(u"BagIt-Version: 0.97\n")
             bagitFile.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
@@ -181,7 +183,9 @@ class ResearchObject():
         #fp = io.BufferedWriter(WritableBagFile(self, path))        
         fp = WritableBagFile(self, path)
         if encoding:
-            return io.TextIOWrapper(fp, encoding=encoding)
+            # encoding: match Tag-File-Character-Encoding: UTF-8
+            # newline: ensure LF also on Windows
+            return io.TextIOWrapper(fp, encoding=encoding, newline="\n")
         else:
             return fp
 
@@ -385,7 +389,7 @@ class ResearchObject():
             fp.write(j + "\n")
 
     def _write_bag_info(self):
-        with self.write_bag_file("bag-info.txt") as infoFile:            
+        with self.write_bag_file("bag-info.txt") as infoFile:
             infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
             infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
             infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
@@ -397,10 +401,11 @@ class ResearchObject():
             totalSize = sum(self.bagged_size.values())
             numFiles = len(self.bagged_size)
             infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
+
             # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
             # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
             infoFile.write(u"External-Identifier: %s\n" % self.base_uri)
-        # TODO: Checksum of metadata files?
+
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_provDoc(self, document, cwltoolVersion, engineUUID, workflowRunUUID):
@@ -566,7 +571,9 @@ class ResearchObject():
             # existence in bagged_size above
             manifestpath = os.path.join(self.folder,
                 "%s-%s.txt" % (manifest, method.lower()))
-            with open(manifestpath, "a", encoding=ENCODING) as checksumFile:
+            # encoding: match Tag-File-Character-Encoding: UTF-8
+            # newline: ensure LF also on Windows
+            with open(manifestpath, "a", encoding=ENCODING, newline='\n') as checksumFile:
                 line = u"%s %s\n" % (hash, rel_path)
                 _logger.debug(u"[provenance] Added to %s: %s", manifestpath, line)
                 checksumFile.write(line)
