@@ -41,6 +41,15 @@ from .process import shortname
 # This will need "pip install future" on Python 2 (!)
 from past.builtins import basestring
 
+from socket import getfqdn
+from getpass import getuser
+try:
+    # pwd is only available on Unix
+    from pwd import getpwnam
+except:
+    getpwnam = None
+
+
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 relativised_input_object={}  # type: Dict[str, Any]
 _logger = logging.getLogger("cwltool")
@@ -55,6 +64,7 @@ MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC=Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV=Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
+FOAF=Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
 
 # BagIt and YAML always use UTF-8
 ENCODING="UTF-8"
@@ -83,6 +93,37 @@ def _posix_path(local_path):
 def _local_path(posix_path):
     return _convert_path(posix_path, posixpath, os.path)
 
+def _whoami():
+    """
+    Return a dictionary about the current operating system user:
+    - username
+    - fullname
+    - hostname
+    - email
+    - rfc822
+    
+    the key "rfc822" has an email-like string of the current user and hostname:
+
+        "Alice W Land <alice@host5.example.org>"
+    """
+    user = getuser()
+    host = getfqdn()
+    fullname = user
+    if getpwnam:
+        p = getpwnam(user)
+        if p:
+            fullname = p.pw_gecos.split(",",1)[0]
+    # FIXME: This is most likely NOT a correct emai laddress 
+    email = u"%s@%s" % (user, host)
+    return {"username": user,
+            "fullname": fullname,
+            "hostname": host,
+            "email": email,
+            "rfc822": 
+              u"%s <%s>" % (fullname, email)
+           }
+    
+
 class WritableBagFile(io.FileIO):
     def __init__(self, ro, rel_path):
         self.ro = ro
@@ -108,7 +149,7 @@ class WritableBagFile(io.FileIO):
         if (self.rel_path.startswith("data/")):
             self.ro.bagged_size[self.rel_path] = self.tell()
         else:
-            self.ro.tagfiles.add(self.rel_path)       
+            self.ro.tagfiles.add(self.rel_path)
 
         super(WritableBagFile, self).close()        
         # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }       
@@ -390,15 +431,17 @@ class ResearchObject():
             fp.write(j + "\n")
 
     def _write_bag_info(self):
+        whoami = _whoami()
         with self.write_bag_file("bag-info.txt") as infoFile:
-            # For consistency let's try to keep these alphabetical
-            # (even if order should not matter)
-            infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
-            # FIXME: require sha-512 of payload to comply with profile?
-            # FIXME: Update ro-bagit profile
-            infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
             infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
+            # FIXME: require sha-512 of payload to comply with profile?
+            # FIXME: Update profile
+            infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
+            infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
             infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
+            infoFile.write(u"Contact-Name: %s\n" % whoami["fullname"])
+            # FIXME: This is most likely NOT a correct email address
+            infoFile.write(u"Contact-Email: %s\n" % whoami["email"])
 
             # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
             # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
@@ -424,6 +467,7 @@ class ResearchObject():
         document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
         # TODO: Make this ontology. For now only has cwlprov:image
         document.add_namespace('cwlprov', 'https://w3id.org/cwl/prov#')
+        document.add_namespace('foaf', 'http://xmlns.com/foaf/0.1/')
         document.add_namespace('run', 'urn:uuid:')
         document.add_namespace('engine', 'urn:uuid:')
         # NOTE: Internet draft expired 2004-03-04 (!)
@@ -445,9 +489,44 @@ class ResearchObject():
         document.add_namespace("input", roIdentifierInput)
         # FIXME: Make engineUUID actually be a UUID rather than have run: prefix
         self.engineUUID = engineUUID.replace("run:", "urn:uuid:")
-        document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"], "prov:type": WFPROV["WorkflowEngine"], "prov:label": cwltoolVersion})
+        whoami = _whoami()
+
+        # FIXME: Is there a way to get ORCID or real email address of the user?
+        # ~/.config/cwl config file?
+        # NOTE: While in theory we could do mbox:username@hostname as identifier,
+        # this would easily cause accidental clashes like root@localhost across
+        # different machines, as well as not actually being an email address 
+        account = document.entity(uuid.uuid4().urn, {provM.PROV_TYPE: FOAF["OnlineAccount"], 
+            "foaf:accountName": whoami["username"],
+            # won't have a foaf:accountServiceHomepage for unix hosts, but
+            # we can at least provide hostname
+            "cwlprov:hostname": whoami["hostname"],
+            # and email-like in the label
+            "prov:label": whoami["rfc822"], 
+        })
+        # TODO: Can we determine if the accoutn is a Person or a bot? (e.g. username root/nobody)
+        user = document.agent(uuid.uuid4().urn, {provM.PROV_TYPE: PROV["Person"], 
+            "prov:label": whoami["fullname"],
+            "foaf:name": whoami["fullname"],
+            "foaf:account": account,
+            })
+
+        # The execution of cwltool
+        wfengine = document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"], 
+            "prov:type": WFPROV["WorkflowEngine"], 
+            "cwlprov:hostname": whoami["hostname"],
+            "prov:label": cwltoolVersion})
+        
+        # Who started cwltool? The whoami user.
+
+        # FIXME: This datetime will be a bit too delayed, we should
+        # capture when cwltool.py earliest started?
+        document.wasStartedBy(wfengine, None, user, datetime.datetime.now())
+
+
         #define workflow run level activity
-        document.activity(workflowRunID, datetime.datetime.now(), None, {provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
+        document.activity(workflowRunID, datetime.datetime.now(), None, {
+            provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
         # FIXME: Below assumes main workflow always called "#main", 
         # is this always true after packing?
