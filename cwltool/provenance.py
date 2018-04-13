@@ -105,19 +105,15 @@ def _local_path(posix_path):
 
 def _whoami():
     """
-    Return a dictionary about the current operating system user:
-    - username
-    - fullname
+    Return the current operating system account as (username, fullname)
     """
-    user = getuser()
-    fullname = user
+    username = getuser()
+    fullname = username
     if getpwnam:
-        p = getpwnam(user)
+        p = getpwnam(username)
         if p:
             fullname = p.pw_gecos.split(",",1)[0]
-    return {"username": user,
-            "fullname": fullname,
-           }
+    return (username, fullname)
     
 
 class WritableBagFile(io.FileIO):
@@ -282,15 +278,15 @@ class ResearchObject():
         })
         
     def user_provenance(self, document):
-        whoami = _whoami()
+        (username, fullname) = _whoami()
 
         if not self.full_name:
-            self.full_name = whoami["fullname"]
+            self.full_name = fullname
 
         document.add_namespace(ORCID)
 
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],             
-            FOAF["accountName"]: whoami["username"]
+            FOAF["accountName"]: username
         })
         user = document.agent(self.orcid or userUUID, 
             {provM.PROV_TYPE: PROV["Person"], 
@@ -618,8 +614,6 @@ class ResearchObject():
         # The execution of cwltool
         wfengine = document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"], 
             "prov:type": WFPROV["WorkflowEngine"], 
-            # FIXME: enable if --host_provenance
-            #"cwlprov:hostname": whoami["hostname"],
             "prov:label": cwltoolVersion})
         
         # FIXME: This datetime will be a bit too delayed, we should
