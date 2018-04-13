@@ -63,6 +63,8 @@ from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
 
+# FIXME: ProvDocument() should be made within provenance.py
+# and not touched out here
 #Adding default namespaces
 document = ProvDocument()
 document.add_namespace("run", "urn:uuid:")
@@ -482,7 +484,17 @@ def main(argsl=None,  # type: List[str]
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
 
-            args.research_obj = create_researchObject(tmpPrefix=args.tmpdir_prefix)
+            args.research_obj = create_researchObject(
+                tmpPrefix=args.tmpdir_prefix,
+                # Optionals, might be None
+                orcid=args.orcid,
+                full_name=args.full_name)
+            # Note: Record host info, if enabled
+            if (args.host_provenance):
+                args.research_obj.host_provenance()
+            # .. so user provenance may link to account@hostname
+            if (args.user_provenance):
+                args.research_obj.user_provenance()
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
@@ -543,6 +555,8 @@ def main(argsl=None,  # type: List[str]
                 dependencies_configuration = DependenciesConfiguration(args)  # type: DependenciesConfiguration
                 make_tool_kwds["job_script_provider"] = dependencies_configuration
 
+            # FIXME: this means print(args) or repr(args) may recurse to crash the stack
+            # as the repr() of the partial includes the same args and thus itself again
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
             make_tool_kwds["overrides"] = overrides
             make_tool_kwds["disable_js_validation"] = args.disable_js_validation or (not args.do_validate)

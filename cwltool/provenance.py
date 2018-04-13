@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import io
 from io import open
 import json
+import re
 import os
 import os.path
 import posixpath
@@ -65,6 +66,7 @@ PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC=Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV=Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
 FOAF=Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
+SCHEMA=Namespace("schema", 'http://schema.org/')
 
 # BagIt and YAML always use UTF-8
 ENCODING="UTF-8"
@@ -152,7 +154,7 @@ class WritableBagFile(io.FileIO):
 
     def close(self):
         # FIXME: Convert below block to a ResearchObject method?
-        if (self.rel_path.startswith("data/")):
+        if self.rel_path.startswith("data/"):
             self.ro.bagged_size[self.rel_path] = self.tell()
         else:
             self.ro.tagfiles.add(self.rel_path)
@@ -179,11 +181,67 @@ class WritableBagFile(io.FileIO):
         if size is not None:
             raise IOError("WritableBagFile can't truncate")
 
+def _valid_orcid(orcid): # type: (str) -> str
+    """Ensure orcid is a valid ORCID identifier.
+
+    If the string is None or empty, None is returned.
+    Otherwise the string must be equivalent to one of these forms:
+
+    0000-0002-1825-0097
+    orcid.org/0000-0002-1825-0097
+    http://orcid.org/0000-0002-1825-0097
+    https://orcid.org/0000-0002-1825-0097
+
+    If the ORCID number or prefix is invalid, a ValueError is raised.
+
+    The returned ORCID string is always in the form of:
+    https://orcid.org/0000-0002-1825-0097
+    """
+
+    if not orcid:
+        # Unspecified is OK. Empty string equivalent to unspecified
+        return None
+    # Liberal in what we consume, e.g. ORCID.org/0000-0002-1825-009x
+    orcid = orcid.lower()
+    match = re.match(
+            # Note: concatinated r"" r"" below so we can add comments to pattern
+
+            # Optional hostname, with or without protocol
+            r"(http://orcid\.org|https://orcid\.org|orcid\.org/)?"
+            ## alternative pattern, but probably messier
+            ## r"^((https?://)?orcid.org/)?"
+
+            # ORCID number is always 4x4 numerical digits,
+            # but last digit (modulus 11 checksum)
+            # can also be X (but we made it lowercase above).
+            # e.g. 0000-0002-1825-0097
+            # or   0000-0002-1825-009X
+            r"(?P<orcid>(\d{4}-\d{4}-\d{4}-\d{3}[0-9x]))$",
+        orcid)
+
+    if not match:
+        help_url=u"https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier"
+        raise ValueError(u"Invalid ORCID: %s\n%s" % (orcid, help_url))
+
+    # Conservative in what we produce:
+    # a) Ensure any checksum digit is uppercase
+    orcid_num = match.group("orcid").upper()
+    # b) Re-add the official prefix https://orcid.org/
+    return u"https://orcid.org/%s" % orcid_num
 
 class ResearchObject():
-    def __init__(self, tmpPrefix="tmp"):
-        # type: (...) -> None
+    def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
+        # type: str
         self.tmpPrefix = tmpPrefix
+        # type: str
+        self.orcid = _valid_orcid(orcid)
+        if self.orcid:
+            _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
+        # type: str
+        self.full_name = full_name or None
+        if self.full_name:
+            _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
+        # type: str
         self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {} #type: Dict
@@ -225,6 +283,39 @@ class ResearchObject():
     def _finalize(self):
         self._write_ro_manifest()
         self._write_bag_info()
+
+    def host_provenance(self):
+        # TODO
+        pass
+    def user_provenance(self):
+        whoami = _whoami()
+
+        if not self.full_name:
+            self.full_name = whoami["fullname"]
+
+        account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],             
+            "foaf:accountName": whoami["username"],
+            # won't have a foaf:accountServiceHomepage for unix hosts, but
+            # we can at least provide hostname
+            "cwlprov:hostname": whoami["hostname"],
+            # and email-like in the label
+            "prov:label": whoami["rfc822"], 
+        })
+        user = document.agent(self.orcid or userUUID, 
+            {provM.PROV_TYPE: PROV["Person"], 
+            "prov:label": self.full_name,
+            "foaf:name": self.full_name,
+            "foaf:account": account,
+            })
+        # cwltool may be started on the shell (directly by user),
+        # by shell script (indirectly by user)
+        # or from a different program
+        #   (which again is launched by any of the above)
+        # 
+        # We can't tell in which way, but ultimately we're still
+        # acting in behalf of that user (even if we might
+        # get their name wrong!)
+        document.actedOnBehalfOf(account, user)
 
     def write_bag_file(self, path, encoding=ENCODING):
         # For some reason below throws BlockingIOError
@@ -430,9 +521,12 @@ class ResearchObject():
         manifest.update(self._self_made())
         manifest["authoredBy"] = {
             "name": _whoami()["fullname"],            
-            # FIXME: ORCID of user?
-            "uri": userUUID
         }
+        if self.orcid:
+            manifest["authoredBy"]["orcid"] = self.orcid
+        else:
+            manifest["authoredBy"]["uri"] = userUUID
+
         manifest["aggregates"] = self._ro_aggregates()
         manifest["annotations"] = self._ro_annotations()
 
@@ -479,6 +573,8 @@ class ResearchObject():
         # TODO: Make this ontology. For now only has cwlprov:image
         document.add_namespace('cwlprov', 'https://w3id.org/cwl/prov#')
         document.add_namespace('foaf', 'http://xmlns.com/foaf/0.1/')
+        document.add_namespace('schema', 'http://schema.org/')
+        document.add_namespace('orcid', 'https://orcid.org/')
         document.add_namespace('run', 'urn:uuid:')
         document.add_namespace('engine', 'urn:uuid:')
         # NOTE: Internet draft expired 2004-03-04 (!)
@@ -499,40 +595,37 @@ class ResearchObject():
         roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
         # FIXME: Make engineUUID actually be a UUID rather than have run: prefix
-        self.engineUUID = engineUUID.replace("run:", "urn:uuid:")
-        whoami = _whoami()
+        self.engineUUID = engineUUID.replace("run:", "urn:uuid:")        
 
-        # FIXME: Is there a way to get ORCID or real email address of the user?
-        # ~/.config/cwl config file?
-        # NOTE: While in theory we could do mbox:username@hostname as identifier,
-        # this would easily cause accidental clashes like root@localhost across
-        # different machines, as well as not actually being an email address 
-        account = document.entity(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"], 
-            "foaf:accountName": whoami["username"],
-            # won't have a foaf:accountServiceHomepage for unix hosts, but
-            # we can at least provide hostname
-            "cwlprov:hostname": whoami["hostname"],
-            # and email-like in the label
-            "prov:label": whoami["rfc822"], 
-        })
-        # TODO: Can we determine if the accoutn is a Person or a bot? (e.g. username root/nobody)
-        user = document.agent(userUUID, {provM.PROV_TYPE: PROV["Person"], 
-            "prov:label": whoami["fullname"],
-            "foaf:name": whoami["fullname"],
-            "foaf:account": account,
-            })
+        # More info about the account (e.g. username, fullname)
+        # may or may not have been previously logged by user_provenance()
+        # .. but we always know cwltool was launched (directly or indirectly)
+        # by a user account, as cwltool is a command line tool
+        account = document.agent(accountUUID)
+        if self.orcid or self.full_name:
+            person = {provM.PROV_TYPE: PROV["Person"], "prov:type": SCHEMA["Person"]}
+            if self.full_name:
+                person["prov:label"] = self.full_name
+                person["foaf:name"] = self.full_name
+                person["schema:name"] = self.full_name
+            else:
+                # TODO: Look up name from ORCID API?
+                pass
+
+            a = document.agent(self.orcid or uuid.uuid4().urn, 
+                               person)
+            document.actedOnBehalfOf(account, a)
 
         # The execution of cwltool
         wfengine = document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"], 
             "prov:type": WFPROV["WorkflowEngine"], 
-            "cwlprov:hostname": whoami["hostname"],
+            # FIXME: enable if --host_provenance
+            #"cwlprov:hostname": whoami["hostname"],
             "prov:label": cwltoolVersion})
         
-        # Who started cwltool? The whoami user.
-
         # FIXME: This datetime will be a bit too delayed, we should
         # capture when cwltool.py earliest started?
-        document.wasStartedBy(wfengine, None, user, datetime.datetime.now())
+        document.wasStartedBy(wfengine, None, account, datetime.datetime.now())
 
 
         #define workflow run level activity
@@ -1029,6 +1122,8 @@ class ResearchObject():
         # This makes later close() a no-op
         self.folder = None
 
-def create_researchObject(tmpPrefix  # type: str
+def create_researchObject(tmpPrefix,  # type: str
+    orcid=None, # type: str
+    full_name=None # type: str
              ):
-    return ResearchObject(tmpPrefix)
+    return ResearchObject(tmpPrefix, orcid, full_name)
