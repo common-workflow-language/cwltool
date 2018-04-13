@@ -67,6 +67,8 @@ WFDESC=Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV=Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
 FOAF=Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
 SCHEMA=Namespace("schema", 'http://schema.org/')
+CWLPROV=Namespace('cwlprov', 'https://w3id.org/cwl/prov#')
+ORCID=Namespace("orcid", "https://orcid.org/")
 
 # BagIt and YAML always use UTF-8
 ENCODING="UTF-8"
@@ -284,28 +286,30 @@ class ResearchObject():
         self._write_ro_manifest()
         self._write_bag_info()
 
-    def host_provenance(self):
+    def host_provenance(self, document):
         # TODO
         pass
-    def user_provenance(self):
+    def user_provenance(self, document):
         whoami = _whoami()
 
         if not self.full_name:
             self.full_name = whoami["fullname"]
 
+        document.add_namespace(ORCID)
+
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],             
-            "foaf:accountName": whoami["username"],
+            FOAF["accountName"]: whoami["username"],
             # won't have a foaf:accountServiceHomepage for unix hosts, but
             # we can at least provide hostname
-            "cwlprov:hostname": whoami["hostname"],
+            CWLPROV["hostname"]: whoami["hostname"],
             # and email-like in the label
             "prov:label": whoami["rfc822"], 
         })
         user = document.agent(self.orcid or userUUID, 
             {provM.PROV_TYPE: PROV["Person"], 
             "prov:label": self.full_name,
-            "foaf:name": self.full_name,
-            "foaf:account": account,
+            FOAF["name"]: self.full_name,
+            FOAF["account"]: account,
             })
         # cwltool may be started on the shell (directly by user),
         # by shell script (indirectly by user)
