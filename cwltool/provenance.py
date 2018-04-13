@@ -108,29 +108,15 @@ def _whoami():
     Return a dictionary about the current operating system user:
     - username
     - fullname
-    - hostname
-    - email
-    - rfc822
-    
-    the key "rfc822" has an email-like string of the current user and hostname:
-
-        "Alice W Land <alice@host5.example.org>"
     """
     user = getuser()
-    host = getfqdn()
     fullname = user
     if getpwnam:
         p = getpwnam(user)
         if p:
             fullname = p.pw_gecos.split(",",1)[0]
-    # FIXME: This is most likely NOT a correct email address 
-    email = u"%s@%s" % (user, host)
     return {"username": user,
             "fullname": fullname,
-            "hostname": host,
-            "email": email,
-            "rfc822": 
-              u"%s <%s>" % (fullname, email)
            }
     
 
@@ -287,8 +273,14 @@ class ResearchObject():
         self._write_bag_info()
 
     def host_provenance(self, document):
-        # TODO
-        pass
+        hostname = getfqdn()
+        account = document.agent(accountUUID,{provM.PROV_TYPE: FOAF["OnlineAccount"],
+            # won't have a foaf:accountServiceHomepage for unix hosts, but
+            # we can at least provide hostname
+            "prov:location": hostname,
+            CWLPROV["hostname"]: hostname
+        })
+        
     def user_provenance(self, document):
         whoami = _whoami()
 
@@ -298,12 +290,7 @@ class ResearchObject():
         document.add_namespace(ORCID)
 
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],             
-            FOAF["accountName"]: whoami["username"],
-            # won't have a foaf:accountServiceHomepage for unix hosts, but
-            # we can at least provide hostname
-            CWLPROV["hostname"]: whoami["hostname"],
-            # and email-like in the label
-            "prov:label": whoami["rfc822"], 
+            FOAF["accountName"]: whoami["username"]
         })
         user = document.agent(self.orcid or userUUID, 
             {provM.PROV_TYPE: PROV["Person"], 
@@ -512,6 +499,22 @@ class ResearchObject():
 
         return annotations
 
+    def _authoredBy(self):
+        authoredBy = {}
+        if self.orcid:
+            authoredBy["orcid"] = self.orcid
+        if self.full_name:
+            authoredBy["name"] = self.full_name
+            if not self.orcid:
+                authoredBy["uri"] = userUUID
+
+        if authoredBy:
+            return {"authoredBy": authoredBy}
+        else:
+            # No point to claim it's authoredBy {}
+            return {}
+
+
     def _write_ro_manifest(self):
         # Does not have to be this order, but it's nice to be consistent
         manifest = OrderedDict()
@@ -523,13 +526,7 @@ class ResearchObject():
         filename = "manifest.json"
         manifest["manifest"] = filename        
         manifest.update(self._self_made())
-        manifest["authoredBy"] = {
-            "name": _whoami()["fullname"],            
-        }
-        if self.orcid:
-            manifest["authoredBy"]["orcid"] = self.orcid
-        else:
-            manifest["authoredBy"]["uri"] = userUUID
+        manifest.update(self._authoredBy())
 
         manifest["aggregates"] = self._ro_aggregates()
         manifest["annotations"] = self._ro_annotations()
@@ -540,7 +537,6 @@ class ResearchObject():
             fp.write(j + "\n")
 
     def _write_bag_info(self):
-        whoami = _whoami()
         with self.write_bag_file("bag-info.txt") as infoFile:
             infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
             # FIXME: require sha-512 of payload to comply with profile?
@@ -548,9 +544,8 @@ class ResearchObject():
             infoFile.write(u"BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
             infoFile.write(u"Bagging-Date: %s\n" % datetime.date.today().isoformat())
             infoFile.write(u"External-Description: Research Object of CWL workflow run\n")
-            infoFile.write(u"Contact-Name: %s\n" % whoami["fullname"])
-            # FIXME: This is most likely NOT a correct email address
-            infoFile.write(u"Contact-Email: %s\n" % whoami["email"])
+            if self.full_name:
+                infoFile.write(u"Contact-Name: %s\n" % self.full_name)
 
             # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity) 
             # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
