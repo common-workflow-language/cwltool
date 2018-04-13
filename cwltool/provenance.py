@@ -77,6 +77,12 @@ __citation__="https://doi.org/10.5281/zenodo.1208477"
 # See ./cwltool/schemas/v1.0/Process.yml
 hashmethod = hashlib.sha1
 
+# TODO: Better identifiers for user, at least
+# these should be preserved in ~/.config/cwl for every execution
+# on this host
+userUUID = uuid.uuid4().urn
+accountUUID = uuid.uuid4().urn
+
 def _convert_path(path, from_path=os.path, to_path=posixpath):
     if from_path == to_path:
         return path
@@ -422,6 +428,11 @@ class ResearchObject():
         filename = "manifest.json"
         manifest["manifest"] = filename        
         manifest.update(self._self_made())
+        manifest["authoredBy"] = {
+            "name": _whoami()["fullname"],            
+            # FIXME: ORCID of user?
+            "uri": userUUID
+        }
         manifest["aggregates"] = self._ro_aggregates()
         manifest["annotations"] = self._ro_annotations()
 
@@ -496,7 +507,7 @@ class ResearchObject():
         # NOTE: While in theory we could do mbox:username@hostname as identifier,
         # this would easily cause accidental clashes like root@localhost across
         # different machines, as well as not actually being an email address 
-        account = document.entity(uuid.uuid4().urn, {provM.PROV_TYPE: FOAF["OnlineAccount"], 
+        account = document.entity(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"], 
             "foaf:accountName": whoami["username"],
             # won't have a foaf:accountServiceHomepage for unix hosts, but
             # we can at least provide hostname
@@ -505,7 +516,7 @@ class ResearchObject():
             "prov:label": whoami["rfc822"], 
         })
         # TODO: Can we determine if the accoutn is a Person or a bot? (e.g. username root/nobody)
-        user = document.agent(uuid.uuid4().urn, {provM.PROV_TYPE: PROV["Person"], 
+        user = document.agent(userUUID, {provM.PROV_TYPE: PROV["Person"], 
             "prov:label": whoami["fullname"],
             "foaf:name": whoami["fullname"],
             "foaf:account": account,
