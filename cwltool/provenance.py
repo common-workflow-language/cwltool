@@ -284,8 +284,8 @@ class ResearchObject():
             self.full_name = fullname
 
         document.add_namespace(ORCID)
-
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],             
+            "prov:label": username,
             FOAF["accountName"]: username
         })
         user = document.agent(self.orcid or userUUID, 
