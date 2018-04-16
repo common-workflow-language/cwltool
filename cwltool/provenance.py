@@ -10,12 +10,13 @@ import shutil
 import tempfile
 import itertools
 import logging
+
 import hashlib
+# Old Python2 might not have these
 try:
     from hashlib import sha256
 except:
     sha256 = None
-
 try:
     from hashlib import sha512
 except:
@@ -29,12 +30,10 @@ import prov.model as provM
 import prov.graph as graph
 from prov.identifier import Namespace
 from prov.model import PROV, ProvDocument
-from pathlib2 import Path
-#import bagit
+
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
 #from networkx.drawing.nx_pydot import write_dot
-from .errors import WorkflowException
 import uuid
 from collections import OrderedDict
 
@@ -44,10 +43,10 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import Any, Dict, Set, Tuple, Text, Optional, IO, Callable, cast
+from typing import Any, Dict, Set, Tuple, Text, Optional, IO, Callable, cast, Union
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
-from .process import shortname
+
 
 # This will need "pip install future" on Python 2 (!)
 from past.builtins import basestring
@@ -59,6 +58,10 @@ try:
     from pwd import getpwnam
 except:
     getpwnam = None
+
+from .errors import WorkflowException
+from .process import shortname
+from .stdfsaccess import StdFsAccess
 
 
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
@@ -259,7 +262,7 @@ class ResearchObject():
         self.cwltoolVersion = "cwltool (unknown version)"
         ##
         # This function will be added by create_job()
-        self.make_fs_access = None
+        self.make_fs_access = None  # type: Callable[[Text], StdFsAccess]
         ##
 
         self._initialize()
@@ -579,6 +582,7 @@ class ResearchObject():
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_provDoc(self, document, cwltoolVersion, engineUUID, workflowRunUUID):
+        # type: (ProvDocument, str, str, Union[str,uuid.UUID]) -> str
         '''
         add basic namespaces
         '''
@@ -656,6 +660,7 @@ class ResearchObject():
 
 
     def snapshot_generation(self, ProvDep):
+        # type: (Dict[str,str]) -> None        
         '''
         Copies all the cwl files involved in this workflow run to snapshot
         directory
@@ -670,9 +675,9 @@ class ResearchObject():
                     filepath=value[7:]
                 else:
                     filepath=value
-                file_to_cp = Path(filepath)
+                
                 # FIXME: What if destination path already exists?
-                if file_to_cp.exists():
+                if os.path.exists(filepath):
                     shutil.copy(filepath, path)
                     when = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
                     self.add_tagfile(path, when)
@@ -809,6 +814,8 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self, job, make_fs_access, kwargs):
+        # type: (Dict, Callable[[Text], StdFsAccess], Dict[str,Any]) -> Tuple[Dict,Dict]
+
         #TODO handle nested workflow at level 2 provenance
         #TODO customise the file
         '''
@@ -817,8 +824,8 @@ class ResearchObject():
         cwl document
         '''
         self.make_fs_access = make_fs_access
-        relativised_input_objecttemp2={}
-        relativised_input_objecttemp={}
+        relativised_input_objecttemp2={} # type: Dict[Any,Any]
+        relativised_input_objecttemp={}  # type: Dict[Any,Any]
         self._relativise_files(job, kwargs, relativised_input_objecttemp2)
 
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
@@ -841,6 +848,7 @@ class ResearchObject():
         return relativised_input_object, relativised_input_objecttemp2
 
     def _relativise_files(self, structure, kwargs, relativised_input_objecttemp2):
+        # type: (Any, Dict, Dict) -> None
         '''
         save any file objects into RO and update the local paths
         '''
