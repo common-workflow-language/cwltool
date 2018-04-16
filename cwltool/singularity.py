@@ -8,7 +8,7 @@ import subprocess
 import sys
 from io import open
 
-from typing import (Dict, List, Text, MutableMapping, Any)
+from typing import (Dict, List, Text, Optional, MutableMapping, Any)
 
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
@@ -21,8 +21,18 @@ _logger = logging.getLogger("cwltool")
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
     @staticmethod
-    def get_image(dockerRequirement, pull_image, dry_run=False):
-        # type: (Dict[Text, Text], bool, bool) -> bool
+    def get_image(dockerRequirement,  # type: Dict[Text, Text]
+                  pull_image,         # type: bool
+                  dry_run=False       # type: bool
+                 ):
+        # type: (...) -> bool
+        """
+        Acquire the software container image in the specified dockerRequirement
+        using Singularity and returns the success as a bool. Updates the
+        provided dockerRequirement with the specific dockerImageId to the full
+        path of the local image, if found. Likewise the
+        dockerRequirement['dockerPull'] is updated to a docker:// URI if needed.
+        """
         found = False
 
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
@@ -30,25 +40,33 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if match:
                 dockerRequirement["dockerImageId"] = re.sub(pattern=r'([a-z]*://)', repl=r'',
                                                             string=dockerRequirement["dockerPull"])
-                dockerRequirement["dockerImageId"] = re.sub(pattern=r'[:/]', repl=r'-',
-                                                            string=dockerRequirement["dockerImageId"]) + ".img"
+                dockerRequirement["dockerImageId"] = re.sub(
+                    pattern=r'[:/]', repl=r'-', string=dockerRequirement["dockerImageId"]) + ".img"
             else:
-                dockerRequirement["dockerImageId"] = re.sub(pattern=r'[:/]', repl=r'-',
-                                                            string=dockerRequirement["dockerPull"]) + ".img"
+                dockerRequirement["dockerImageId"] = re.sub(
+                    pattern=r'[:/]', repl=r'-', string=dockerRequirement["dockerPull"]) + ".img"
                 dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
-        if "SINGULARITY_CACHEDIR" in os.environ \
-        and os.path.isfile(os.path.join(os.environ["SINGULARITY_CACHEDIR"], dockerRequirement["dockerImageId"])):
-            _logger.info("Using local copy of Singularity image found in $SINGULARITY_CACHEDIR")
-            dockerRequirement["dockerImageId"] = os.path.join(os.environ["SINGULARITY_CACHEDIR"], dockerRequirement["dockerImageId"])
+        if "SINGULARITY_CACHEDIR" in os.environ and os.path.isfile(
+                os.path.join(os.environ["SINGULARITY_CACHEDIR"],
+                             dockerRequirement["dockerImageId"])):
+            _logger.info("Using local copy of Singularity image found in "
+                         "$SINGULARITY_CACHEDIR")
+            dockerRequirement["dockerImageId"] = os.path.join(
+                os.environ["SINGULARITY_CACHEDIR"],
+                dockerRequirement["dockerImageId"])
             found = True
 
         # check if Singularity image is available in $SINGULARITY_PULLFOLDER
-        elif "SINGULARITY_PULLFOLDER" in os.environ \
-        and os.path.isfile(os.path.join(os.environ["SINGULARITY_PULLFOLDER"], dockerRequirement["dockerImageId"])):
-            _logger.info("Using local copy of Singularity image found in $SINGULARITY_PULLFOLDER")
-            dockerRequirement["dockerImageId"] = os.path.join(os.environ["SINGULARITY_PULLFOLDER"], dockerRequirement["dockerImageId"])
+        elif "SINGULARITY_PULLFOLDER" in os.environ and os.path.isfile(
+                os.path.join(os.environ["SINGULARITY_PULLFOLDER"],
+                             dockerRequirement["dockerImageId"])):
+            _logger.info("Using local copy of Singularity image found in "
+                         "$SINGULARITY_PULLFOLDER")
+            dockerRequirement["dockerImageId"] = os.path.join(
+                os.environ["SINGULARITY_PULLFOLDER"],
+                dockerRequirement["dockerImageId"])
             found = True
 
         # check if Singularity image is available in current working directory
@@ -69,21 +87,31 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         return found
 
-    def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
-        # type: (Dict[Text, Text], bool, bool, bool, bool) -> Text
-        # returns the filename of the Singularity image (e.g. hello-world-latest.img)
+    def get_from_requirements(self,
+                              r,                # type: Optional[Dict[Text, Text]]
+                              req,              # type: bool
+                              pull_image,       # type: bool
+                              dry_run=False,    # type: bool
+                              force_pull=False  # type: bool
+                             ):
+        # type: (...) -> Text
+        """
+        Returns the filename of the Singularity image (e.g.
+        hello-world-latest.img).
+        """
 
         if force_pull:
-            _logger.warn("--force-docker-pull currently not supported for singularity")
+            _logger.warning("--force-docker-pull currently not supported for "
+                            "singularity")
 
         if r:
             errmsg = None
             try:
                 subprocess.check_output(["singularity", "--version"])
-            except subprocess.CalledProcessError as e:
-                errmsg = "Cannot execute 'singularity --version' " + Text(e)
-            except OSError as e:
-                errmsg = "'singularity' executable not found: " + Text(e)
+            except subprocess.CalledProcessError as err:
+                errmsg = "Cannot execute 'singularity --version' {}".format(err)
+            except OSError as err:
+                errmsg = "'singularity' executable not found: {}".format(err)
 
             if errmsg:
                 if req:
@@ -95,7 +123,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 return os.path.abspath(r["dockerImageId"])
             else:
                 if req:
-                    raise WorkflowException(u"Container image %s not found" % r["dockerImageId"])
+                    raise WorkflowException(u"Container image {} not "
+                                            "found".format(r["dockerImageId"]))
 
         return None
 
@@ -104,10 +133,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         host_outdir = self.outdir
         container_outdir = self.builder.outdir
-        for src, vol in pathmapper.items():
+        for _, vol in pathmapper.items():
             if not vol.staged:
                 continue
-            if stage_output:
+            if stage_output and not vol.target.startswith(container_outdir):
                 containertgt = container_outdir + vol.target[len(host_outdir):]
             else:
                 containertgt = vol.target
@@ -119,13 +148,15 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
                     runtime.append(u"--bind")
-                    runtime.append("%s:%s:ro" % (
-                    docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
+                    runtime.append("{}:{}:ro".format(
+                        docker_windows_path_adjust(vol.resolved),
+                        docker_windows_path_adjust(containertgt)))
             elif vol.type == "WritableFile":
                 if self.inplace_update:
                     runtime.append(u"--bind")
-                    runtime.append("%s:%s:rw" % (
-                    docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
+                    runtime.append("{}:{}:rw".format(
+                        docker_windows_path_adjust(vol.resolved),
+                        docker_windows_path_adjust(containertgt)))
                 else:
                     shutil.copy(vol.resolved, host_outdir_tgt)
                     ensure_writable(host_outdir_tgt)
@@ -135,28 +166,40 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 else:
                     if self.inplace_update:
                         runtime.append(u"--bind")
-                        runtime.append("%s:%s:rw" % (
-                        docker_windows_path_adjust(vol.resolved), docker_windows_path_adjust(containertgt)))
+                        runtime.append("{}:{}:rw".format(
+                            docker_windows_path_adjust(vol.resolved),
+                            docker_windows_path_adjust(containertgt)))
                     else:
                         shutil.copytree(vol.resolved, vol.target)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
-                with open(createtmp, "wb") as f:
-                    f.write(vol.resolved.encode("utf-8"))
+                with open(createtmp, "wb") as tmp:
+                    tmp.write(vol.resolved.encode("utf-8"))
                 runtime.append(u"--bind")
-                runtime.append(
-                    "%s:%s:ro" % (docker_windows_path_adjust(createtmp), docker_windows_path_adjust(vol.target)))
+                runtime.append("{}:{}:ro".format(
+                    docker_windows_path_adjust(createtmp),
+                    docker_windows_path_adjust(vol.target)))
 
-    def create_runtime(self, env, rm_container=True, record_container_id=False, cidfile_dir="",
-                       cidfile_prefix="", **kwargs):
-        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
+    def create_runtime(self,
+                       env,                        # type: MutableMapping[Text, Text]
+                       rm_container=True,          # type: bool
+                       record_container_id=False,  # type: bool
+                       cidfile_dir="",             # type: Text
+                       cidfile_prefix="",          # type: Text
+                       **kwargs
+                      ):
+        # type: (...) -> List
+        """ Returns the Singularity runtime list of commands and options."""
 
-        runtime = [u"singularity", u"--quiet", u"exec"]
+        runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
+                   u"--ipc"]  # , u"--userns"]
         runtime.append(u"--bind")
-        runtime.append(
-            u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.outdir)), self.builder.outdir))
+        runtime.append(u"{}:{}:rw".format(
+            docker_windows_path_adjust(os.path.realpath(self.outdir)),
+            self.builder.outdir))
         runtime.append(u"--bind")
-        runtime.append(u"%s:%s:rw" % (docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
+        runtime.append(u"{}:{}:rw".format(
+            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
         self.add_volumes(self.pathmapper, runtime, stage_output=False)
         if self.generatemapper:
@@ -167,11 +210,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         if kwargs.get("custom_net", None) is not None:
             raise UnsupportedRequirement(
-                "Singularity implementation does not support networking")
+                "Singularity implementation does not support custom networking")
+        elif kwargs.get("disable_net", None):
+            runtime.append(u"--net")
 
         env["SINGULARITYENV_TMPDIR"] = "/tmp"
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
-        for t, v in self.environment.items():
-            env["SINGULARITYENV_" + t] = v
+        for name, value in self.environment.items():
+            env["SINGULARITYENV_{}".format(name)] = value
         return runtime
