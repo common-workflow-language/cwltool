@@ -260,6 +260,7 @@ class WorkflowJobStep(object):
 
     def job(self, joborder, output_callback, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
+        ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         _logger.info(u"[%s] start", self.name)
@@ -340,6 +341,7 @@ class WorkflowJob(object):
 
     def try_make_job(self, step, final_output_callback, **kwargs):
         # type: (WorkflowJobStep, Callable[[Any, Any], Any], **Any) -> Generator
+        ## FIXME: Generator[of what?]
 
         js_console = kwargs.get("js_console", False)
         debug = kwargs.get("debug", False)

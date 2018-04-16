@@ -710,6 +710,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]
+        ## FIXME: Declare base type for what Generator yields
         return None
 
 

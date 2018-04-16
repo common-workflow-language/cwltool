@@ -883,6 +883,7 @@ class ResearchObject():
             pass
 
     def finalize_provProfile(self, document):
+        # type: (ProvDocument) -> None
         '''
         Transfer the provenance related files to RO
         '''
@@ -927,6 +928,9 @@ class ResearchObject():
         _logger.info("[provenance] added all tag files")
 
     def startProcess(self, r, document, engineUUID, WorkflowRunID):
+            # type: (Any, ProvDocument, str, str) -> None        
+            ## FIXME: What is the real name and type of r?
+            ## process.py/workflow.py just says "Any" or "Generator"..
             '''
             record start of each step
             '''
