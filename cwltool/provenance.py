@@ -18,7 +18,7 @@ import datetime
 import prov.model as provM
 import prov.graph as graph
 from prov.identifier import Namespace
-from prov.model import PROV
+from prov.model import PROV, ProvDocument
 from pathlib2 import Path
 #import bagit
 # Disabled due to excessive transitive dependencies
@@ -34,7 +34,7 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import Any, Dict, Set
+from typing import Any, Dict, Set, Tuple, Text
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 from .process import shortname
@@ -105,6 +105,7 @@ def _local_path(posix_path):
     return _convert_path(posix_path, posixpath, os.path)
 
 def _whoami():
+    # type: () -> Tuple[str,str]
     """
     Return the current operating system account as (username, fullname)
     """
@@ -166,7 +167,7 @@ class WritableBagFile(io.FileIO):
         if size is not None:
             raise IOError("WritableBagFile can't truncate")
 
-def _valid_orcid(orcid): # type: (str) -> str
+def _valid_orcid(orcid): # type: (Text) -> Text
     """Ensure orcid is a valid ORCID identifier.
 
     If the string is None or empty, None is returned.
@@ -215,18 +216,16 @@ def _valid_orcid(orcid): # type: (str) -> str
     return u"https://orcid.org/%s" % orcid_num
 
 class ResearchObject():
-    def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
-        # type: str
-        self.tmpPrefix = tmpPrefix
-        # type: str
+    def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None): 
+        # type: (str, str, str) -> None
+
+        self.tmpPrefix = tmpPrefix        
         self.orcid = _valid_orcid(orcid)
         if self.orcid:
             _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
-        # type: str
         self.full_name = full_name or None
         if self.full_name:
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
-        # type: str
         self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {} #type: Dict
@@ -270,6 +269,7 @@ class ResearchObject():
         self._write_bag_info()
 
     def host_provenance(self, document):
+        # type: (ProvDocument) -> None
         hostname = getfqdn()
         account = document.agent(accountUUID,{provM.PROV_TYPE: FOAF["OnlineAccount"],
             # won't have a foaf:accountServiceHomepage for unix hosts, but
@@ -279,6 +279,7 @@ class ResearchObject():
         })
 
     def user_provenance(self, document):
+        # type: (ProvDocument) -> None
         (username, fullname) = _whoami()
 
         if not self.full_name:
