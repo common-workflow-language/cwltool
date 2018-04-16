@@ -13,7 +13,7 @@ import schema_salad.validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader
 
-from .utils import aslist
+from .utils import aslist, visit_class
 
 def findId(doc, frg):  # type: (Any, Any) -> Dict
     if isinstance(doc, dict):
@@ -112,6 +112,16 @@ def v1_0dev4to1_0(doc, loader, baseuri):
 def v1_0to1_1_0dev1(doc, loader, baseuri):
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0 to v1.1.0-dev1."""
+
+    def add_networkaccess(t):
+        t.setdefault("requirements", [])
+        t["requirements"].append({
+            "class": "NetworkAccess",
+            "networkAccess": True
+            })
+
+    visit_class(doc, ("CommandLineTool",), add_networkaccess)
+
     return (doc, "v1.1.0-dev1")
 
 
@@ -127,7 +137,7 @@ DEVUPDATES = {
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "v1.0"
+LATEST = "v1.1.0-dev1"
 
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument

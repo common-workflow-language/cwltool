@@ -11,6 +11,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import threading
 from abc import ABCMeta, abstractmethod
 from io import open
 from threading import Lock
@@ -154,7 +155,8 @@ class JobBase(object):
         self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
-        self.timeout = None  # type: int
+        self.timelimit = None  # type: int
+        self.networkaccess = False  # type: bool
 
     def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
@@ -244,7 +246,8 @@ class JobBase(object):
                 cwd=self.outdir,
                 job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
                 job_script_contents=job_script_contents,
-                timeout=self.timeout
+                timelimit=self.timelimit,
+                name=self.name
             )
 
             if self.successCodes and rcode in self.successCodes:
@@ -437,8 +440,10 @@ def _job_popen(
         cwd,                       # type: Text
         job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
-        timeout=None  # type: int
+        timeout=None,              # type: int
+        name=None                  # type: str
        ):  # type: (...) -> int
+
     if not job_script_contents and not FORCE_SHELLED_POPEN:
 
         stdin = None  # type: Union[IO[Any], int]
@@ -473,13 +478,14 @@ def _job_popen(
             sp.stdin.close()
 
         tm = None
-        if timeout:
+        if timelimit:
             def terminate():
                 try:
+                    _logger.warn(u"[job %s] exceeded time limit of %d seconds and will be terminated", name, timelimit)
                     sp.terminate()
                 except OSError:
                     pass
-            tm = threading.Timer(timeout, terminate)
+            tm = threading.Timer(timelimit, terminate)
             tm.start()
 
         rcode = sp.wait()
