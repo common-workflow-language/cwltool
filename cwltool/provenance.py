@@ -69,6 +69,7 @@ FOAF=Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
 SCHEMA=Namespace("schema", 'http://schema.org/')
 CWLPROV=Namespace('cwlprov', 'https://w3id.org/cwl/prov#')
 ORCID=Namespace("orcid", "https://orcid.org/")
+UUID=Namespace("id", "urn:uuid:")
 
 # BagIt and YAML always use UTF-8
 ENCODING="UTF-8"
@@ -235,7 +236,7 @@ class ResearchObject():
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
         self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
         u = uuid.uuid4()
-        self.workflowRunURI = "urn:uuid:%s" % u
+        self.workflowRunURI = u.urn
         self.base_uri = "arcp://uuid,%s/" % u
         self.wf_ns = Namespace("ex", "http://example.com/wf-%s#" % u)
         self.cwltoolVersion = "cwltool (unknown version)"
@@ -282,7 +283,8 @@ class ResearchObject():
 
         if not self.full_name:
             self.full_name = fullname
-
+        
+        document.add_namespace(UUID)
         document.add_namespace(ORCID)
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],
             "prov:label": username,
@@ -570,8 +572,7 @@ class ResearchObject():
         document.add_namespace('foaf', 'http://xmlns.com/foaf/0.1/')
         document.add_namespace('schema', 'http://schema.org/')
         document.add_namespace('orcid', 'https://orcid.org/')
-        document.add_namespace('run', 'urn:uuid:')
-        document.add_namespace('engine', 'urn:uuid:')
+        document.add_namespace('id', 'urn:uuid:')
         # NOTE: Internet draft expired 2004-03-04 (!)
         #  https://tools.ietf.org/html/draft-thiemann-hash-urn-01
         # TODO: Change to nih:sha-256; hashes
@@ -579,8 +580,7 @@ class ResearchObject():
         document.add_namespace('data', 'urn:hash::sha1:')
         # Also needed for docker images
         document.add_namespace("sha256", "nih:sha-256;")
-        workflowRunID="run:%s" % workflowRunUUID
-        self.workflowRunURI = "urn:uuid:%s" % workflowRunUUID
+        self.workflowRunURI = workflowRunUUID.urn
         # https://tools.ietf.org/id/draft-soilandreyes-arcp
         self.base_uri = "arcp://uuid,%s/" % workflowRunUUID
         ## info only, won't really be used by prov as sub-resources use /
@@ -589,8 +589,7 @@ class ResearchObject():
         self.wf_ns = document.add_namespace("wf", roIdentifierWorkflow)
         roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
         document.add_namespace("input", roIdentifierInput)
-        # FIXME: Make engineUUID actually be a UUID rather than have run: prefix
-        self.engineUUID = engineUUID.replace("run:", "urn:uuid:")
+        self.engineUUID = engineUUID
 
         # More info about the account (e.g. username, fullname)
         # may or may not have been previously logged by user_provenance()
@@ -622,15 +621,15 @@ class ResearchObject():
 
 
         #define workflow run level activity
-        document.activity(workflowRunID, datetime.datetime.now(), None, {
+        document.activity(self.workflowRunURI, datetime.datetime.now(), None, {
             provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
         # FIXME: Below assumes main workflow always called "#main",
         # is this always true after packing?
         mainWorkflow = "wf:main"
-        document.wasAssociatedWith(workflowRunID, engineUUID, mainWorkflow)
-        document.wasStartedBy(workflowRunID, None, engineUUID, datetime.datetime.now())
-        return workflowRunID
+        document.wasAssociatedWith(self.workflowRunURI, engineUUID, mainWorkflow)
+        document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
+        return self.workflowRunURI
 
 
     def snapshot_generation(self, ProvDep):
@@ -892,7 +891,7 @@ class ResearchObject():
             '''
             record start of each step
             '''
-            ProcessRunID="run:"+str(uuid.uuid4())
+            ProcessRunID=uuid.uuid4().urn
             #each subprocess is defined as an activity()
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
             provLabel="Run of workflow/packed.cwl#main/"+ProcessName
