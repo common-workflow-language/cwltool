@@ -292,6 +292,10 @@ class ResearchObject():
 
     def host_provenance(self, document):
         # type: (ProvDocument) -> None
+        document.add_namespace(CWLPROV)
+        document.add_namespace(UUID)
+        document.add_namespace(FOAF)
+
         hostname = getfqdn()
         account = document.agent(accountUUID,{provM.PROV_TYPE: FOAF["OnlineAccount"],
             # won't have a foaf:accountServiceHomepage for unix hosts, but
@@ -309,6 +313,7 @@ class ResearchObject():
 
         document.add_namespace(UUID)
         document.add_namespace(ORCID)
+        document.add_namespace(FOAF)
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],
             "prov:label": username,
             FOAF["accountName"]: username
