@@ -214,7 +214,7 @@ def _valid_orcid(orcid): # type: (Text) -> Text
             # Note: concatinated r"" r"" below so we can add comments to pattern
 
             # Optional hostname, with or without protocol
-            r"(http://orcid\.org|https://orcid\.org|orcid\.org/)?"
+            r"(http://orcid\.org/|https://orcid\.org/|orcid\.org/)?"
             ## alternative pattern, but probably messier
             ## r"^((https?://)?orcid.org/)?"
 
