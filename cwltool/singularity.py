@@ -8,7 +8,7 @@ import subprocess
 import sys
 from io import open
 
-from typing import (Dict, List, Text, MutableMapping, Any)
+from typing import (Dict, List, Text, Optional, MutableMapping, Any)
 
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
@@ -21,8 +21,18 @@ _logger = logging.getLogger("cwltool")
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
     @staticmethod
-    def get_image(dockerRequirement, pull_image, dry_run=False):
-        # type: (Dict[Text, Text], bool, bool) -> bool
+    def get_image(dockerRequirement,  # type: Dict[Text, Text]
+                  pull_image,         # type: bool
+                  dry_run=False       # type: bool
+                 ):
+        # type: (...) -> bool
+        """
+        Acquire the software container image in the specified dockerRequirement
+        using Singularity and returns the success as a bool. Updates the
+        provided dockerRequirement with the specific dockerImageId to the full
+        path of the local image, if found. Likewise the
+        dockerRequirement['dockerPull'] is updated to a docker:// URI if needed.
+        """
         found = False
 
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
@@ -77,12 +87,22 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         return found
 
-    def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
-        # type: (Dict[Text, Text], bool, bool, bool, bool) -> Text
-        # returns the filename of the Singularity image (e.g. hello-world-latest.img)
+    def get_from_requirements(self,
+                              r,                # type: Optional[Dict[Text, Text]]
+                              req,              # type: bool
+                              pull_image,       # type: bool
+                              dry_run=False,    # type: bool
+                              force_pull=False  # type: bool
+                             ):
+        # type: (...) -> Text
+        """
+        Returns the filename of the Singularity image (e.g.
+        hello-world-latest.img).
+        """
 
         if force_pull:
-            _logger.warn("--force-docker-pull currently not supported for singularity")
+            _logger.warning("--force-docker-pull currently not supported for "
+                            "singularity")
 
         if r:
             errmsg = None
@@ -160,12 +180,19 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     docker_windows_path_adjust(createtmp),
                     docker_windows_path_adjust(vol.target)))
 
-    def create_runtime(self, env, rm_container=True, record_container_id=False, cidfile_dir="",
-                       cidfile_prefix="", **kwargs):
-        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
+    def create_runtime(self,
+                       env,                        # type: MutableMapping[Text, Text]
+                       rm_container=True,          # type: bool
+                       record_container_id=False,  # type: bool
+                       cidfile_dir="",             # type: Text
+                       cidfile_prefix="",          # type: Text
+                       **kwargs
+                      ):
+        # type: (...) -> List
+        """ Returns the Singularity runtime list of commands and options."""
 
         runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
-                u"--ipc"]  # , u"--userns"]
+                   u"--ipc"]  # , u"--userns"]
         runtime.append(u"--bind")
         runtime.append(u"{}:{}:rw".format(
             docker_windows_path_adjust(os.path.realpath(self.outdir)),
