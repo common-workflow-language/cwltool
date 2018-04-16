@@ -29,7 +29,7 @@ import datetime
 import prov.model as provM
 import prov.graph as graph
 from prov.identifier import Namespace
-from prov.model import PROV, ProvDocument
+from prov.model import PROV, ProvDocument, ProvActivity
 
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
@@ -43,7 +43,7 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import Any, Dict, Set, Tuple, Text, Optional, IO, Callable, cast, Union
+from typing import Any, Dict, Set, List, Tuple, Text, Optional, IO, Callable, cast, Union
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 
@@ -286,6 +286,7 @@ class ResearchObject():
             bagitFile.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
 
     def _finalize(self):
+        # type: () -> None
         self._write_ro_manifest()
         self._write_bag_info()
 
@@ -369,9 +370,10 @@ class ResearchObject():
             self._file_provenance[rel_path] = {"createdOn" : when.isoformat()}
 
     def _ro_aggregates(self):
+        # type: () -> List[Dict[str,Any]]
         aggregates = []
         for path in self.bagged_size.keys():
-            a = {}
+            a = {}  # type: Dict[str,Any]
 
             (folder,f) = posixpath.split(path)
 
@@ -427,6 +429,7 @@ class ResearchObject():
         return aggregates
 
     def _guess_mediatype(self, rel_path):
+        # type: (str) -> Optional[Dict[str,str]]
         MEDIA_TYPES = {
             # Adapted from
             # https://w3id.org/bundle/2014-11-05/#media-types
@@ -464,7 +467,7 @@ class ResearchObject():
             # No ".", no extension
             extension = None
 
-        a = {}
+        a = {} # type: Dict[str, Any]
         if extension in MEDIA_TYPES:
             a["mediatype"] = MEDIA_TYPES[extension]
 
@@ -485,6 +488,7 @@ class ResearchObject():
         return a
 
     def _ro_annotations(self):
+        # type: () -> List[Dict]
         annotations = []
         annotations.append({
             "uri": uuid.uuid4().urn,
@@ -524,6 +528,7 @@ class ResearchObject():
         return annotations
 
     def _authoredBy(self):
+        # type: () -> Dict
         authoredBy = {}
         if self.orcid:
             authoredBy["orcid"] = self.orcid
@@ -540,8 +545,10 @@ class ResearchObject():
 
 
     def _write_ro_manifest(self):
+        # type: () -> None
+
         # Does not have to be this order, but it's nice to be consistent
-        manifest = OrderedDict()
+        manifest = OrderedDict() # type: Dict[str,Any]
         manifest["@context"] = [
                 {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA)) },
                 "https://w3id.org/bundle/context"
@@ -561,6 +568,8 @@ class ResearchObject():
             fp.write(j + "\n")
 
     def _write_bag_info(self):
+        # type: () -> None
+
         with self.write_bag_file("bag-info.txt") as infoFile:
             infoFile.write(u"Bag-Software-Agent: %s\n" % self.cwltoolVersion)
             # FIXME: require sha-512 of payload to comply with profile?
@@ -660,7 +669,7 @@ class ResearchObject():
 
 
     def snapshot_generation(self, ProvDep):
-        # type: (Dict[str,str]) -> None        
+        # type: (Dict[str,str]) -> None
         '''
         Copies all the cwl files involved in this workflow run to snapshot
         directory
@@ -675,7 +684,7 @@ class ResearchObject():
                     filepath=value[7:]
                 else:
                     filepath=value
-                
+
                 # FIXME: What if destination path already exists?
                 if os.path.exists(filepath):
                     shutil.copy(filepath, path)
@@ -928,7 +937,7 @@ class ResearchObject():
         _logger.info("[provenance] added all tag files")
 
     def startProcess(self, r, document, engineUUID, WorkflowRunID):
-            # type: (Any, ProvDocument, str, str) -> None        
+            # type: (Any, ProvDocument, str, str) -> None
             ## FIXME: What is the real name and type of r?
             ## process.py/workflow.py just says "Any" or "Generator"..
             '''
@@ -946,6 +955,7 @@ class ResearchObject():
             return ProcessProvActivity
 
     def declare_artefact(self, relativised_input_object, document, job_order_object):
+        # type: (Any, ProvDocument, Dict) -> None
         '''
         create data artefact entities for all file objects.
         '''
@@ -974,12 +984,13 @@ class ResearchObject():
 
 
     def generate_outputProv(self, final_output, document, WorkflowRunID=None, ProcessRunID=None, name=None):
+        # type: (Dict, ProvDocument, str, str, str) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
         ## A bit too late, but we don't know the "inner" when
         when = datetime.datetime.now()
-        key_files=[]
+        key_files=[] # type: List[List[Any]]
         for key, value in final_output.items():
 
             if isinstance(value, list):
@@ -1010,6 +1021,7 @@ class ResearchObject():
                     _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
     def array_output(self, key, current_l):
+        # type: (Any, List) -> List
         '''
         helper function for generate_outputProv()
         for the case when we have an array of files as output
@@ -1022,6 +1034,7 @@ class ResearchObject():
         return new_l
 
     def dict_output(self, key, current_dict):
+        # type: (Any, Dict) -> List
         '''
         helper function for generate_outputProv()
         for the case when the output is key:value where value is a file item
@@ -1032,11 +1045,12 @@ class ResearchObject():
         return new_d
 
     def used_artefacts(self, job_order, ProcessProvActivity, document, reference_locations, name):
+        # type: (Dict, Any, ProvDocument, ProvActivity, str) -> None
         '''
         adds used() for each data artefact
         '''
         for key, value in job_order.items():
-            provRole = self.wf_ns["main"+"/"+name+"/"+str(key)]
+            provRole = self.wf_ns["main/%s/%s" % (name, key)]
             ProcessRunID=str(ProcessProvActivity.identifier)
             if isinstance(value, dict) and 'location' in value:
                 location=str(value['location'])
@@ -1074,11 +1088,12 @@ class ResearchObject():
                 b = io.BytesIO(str(value).encode(ENCODING))
                 data_file = self.add_data_file(b)
                 # FIXME: Don't naively assume add_data_file uses hash in filename!
-                data_id="data:" + posixpath.split(data_file)[1]
+                data_id="data:%s" % posixpath.split(data_file)[1]
                 document.entity(data_id, {provM.PROV_TYPE:WFPROV["Artifact"], provM.PROV_VALUE:str(value)})
                 document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def copy_job_order(self, r, job_order_object):
+        # type: (Any,Any) -> Any
         '''
         creates copy of job object for provenance
         '''
@@ -1099,6 +1114,7 @@ class ResearchObject():
         return customised_job
 
     def prospective_prov(self, document, r):
+        # type: (ProvDocument,Any) -> None
         '''
         create prospective provenance recording for the workflow as wfdesc prov:Plan
         '''
@@ -1125,6 +1141,7 @@ class ResearchObject():
 #**************************************
 
     def close(self, saveTo=None):
+        # type: (Optional[str]) -> None
         """Close the Research Object, optionally saving to specified folder.
 
         Closing will remove any temporary files used by this research object.
@@ -1157,8 +1174,6 @@ class ResearchObject():
         # This makes later close() a no-op
         self.folder = None
 
-def create_researchObject(tmpPrefix,  # type: str
-    orcid=None, # type: str
-    full_name=None # type: str
-             ):
+def create_researchObject(tmpPrefix,orcid=None,full_name=None):
+    # type: (str,Optional[str],Optional[str]) -> ResearchObject
     return ResearchObject(tmpPrefix, orcid, full_name)
