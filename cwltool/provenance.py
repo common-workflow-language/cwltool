@@ -119,7 +119,7 @@ def _whoami():
         p = getpwnam(user)
         if p:
             fullname = p.pw_gecos.split(",",1)[0]
-    # FIXME: This is most likely NOT a correct emai laddress 
+    # FIXME: This is most likely NOT a correct email address 
     email = u"%s@%s" % (user, host)
     return {"username": user,
             "fullname": fullname,
