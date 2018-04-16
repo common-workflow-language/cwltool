@@ -62,17 +62,18 @@ from .utils import onWindows, windows_default_container_id
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
+_logger.setLevel(logging.INFO)
 
 # FIXME: ProvDocument() should be made within provenance.py
-# and not touched out here
-#Adding default namespaces
+# and not touched out here. It also need to be local for each 
+# (potentially nested) workflow run
 document = ProvDocument()
-document.add_namespace("id", "urn:uuid:")
 #adding the SoftwareAgent to PROV document
 engineUUID=uuid.uuid4().urn
+# FIXME: The below should be set local to each (potentially nested) workflow run
+# and not from here
 WorkflowRunUUID=uuid.uuid4()
 WorkflowRunID=WorkflowRunUUID.urn
-_logger.setLevel(logging.INFO)
 
 
 def single_job_executor(t,                 # type: Process
