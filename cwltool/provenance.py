@@ -11,6 +11,16 @@ import tempfile
 import itertools
 import logging
 import hashlib
+try:
+    from hashlib import sha256
+except:
+    sha256 = None
+
+try:
+    from hashlib import sha512
+except:
+    sha512 = None
+
 from shutil import copyfile
 import time
 import copy
@@ -34,7 +44,7 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import Any, Dict, Set, Tuple, Text, Optional
+from typing import Any, Dict, Set, Tuple, Text, Optional, IO, Callable, cast
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 from .process import shortname
@@ -95,9 +105,9 @@ def _convert_path(path, from_path=os.path, to_path=posixpath):
     if (from_path.isabs(path)):
         raise ValueError("path must be relative: %s" % path)
         # ..as it might include system paths like "C:\" or /tmp
-    
+
     split = path.split(from_path.sep)
-    
+
     converted = to_path.sep.join(split)
     return converted
 
@@ -224,10 +234,10 @@ def _valid_orcid(orcid): # type: (Text) -> Text
     return u"https://orcid.org/%s" % orcid_num
 
 class ResearchObject():
-    def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None): 
+    def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
         # type: (str, str, str) -> None
 
-        self.tmpPrefix = tmpPrefix        
+        self.tmpPrefix = tmpPrefix
         self.orcid = _valid_orcid(orcid)
         if self.orcid:
             _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
@@ -292,7 +302,7 @@ class ResearchObject():
 
         if not self.full_name:
             self.full_name = fullname
-        
+
         document.add_namespace(UUID)
         document.add_namespace(ORCID)
         account = document.agent(accountUUID, {provM.PROV_TYPE: FOAF["OnlineAccount"],
@@ -316,17 +326,21 @@ class ResearchObject():
         document.actedOnBehalfOf(account, user)
 
     def write_bag_file(self, path, encoding=ENCODING):
+        # type: (str, str) -> IO
+
         # For some reason below throws BlockingIOError
         #fp = io.BufferedWriter(WritableBagFile(self, path))
-        fp = WritableBagFile(self, path)
+        fp = cast(IO, WritableBagFile(self, path))
         if encoding:
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
-            return io.TextIOWrapper(fp, encoding=encoding, newline="\n")
+            return cast(IO,
+                io.TextIOWrapper(fp, encoding=encoding, newline="\n"))
         else:
             return fp
 
     def add_tagfile(self, path, when=None):
+        # type: (str, datetime.datetime) -> None
         checksums = {}
         # Read file to calculate its checksum
         with open(path, "rb") as fp:
@@ -339,12 +353,12 @@ class ResearchObject():
             checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
             fp.seek(0)
             # Older Python's might not have all checksums
-            if "sha256" in hashlib.__all__:
+            if sha256:
                 fp.seek(0)
-                checksums["sha256"]= self._checksum_copy(fp, hashmethod=hashlib.sha256)
-            if "sha512" in hashlib.__all__:
+                checksums["sha256"]= self._checksum_copy(fp, hashmethod=sha256)
+            if sha512:
                 fp.seek(0)
-                checksums["sha512"]= self._checksum_copy(fp, hashmethod=hashlib.sha512)
+                checksums["sha512"]= self._checksum_copy(fp, hashmethod=sha512)
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
         self.add_to_manifest(rel_path, checksums)
@@ -683,6 +697,9 @@ class ResearchObject():
 
     def _checksum_copy(self, fp, copy_to_fp=None,
                        hashmethod=hashmethod, buffersize=1024*1024):
+        # type: (IO, Optional[IO], Callable[[], Any], int) -> str
+
+        # TODO: Use hashlib.new(hashmethod_str) instead?
         checksum = hashmethod()
         contents = fp.read(buffersize)
         while contents != b"":
@@ -696,6 +713,7 @@ class ResearchObject():
 
 
     def add_data_file(self, from_fp, when=None):
+        # type: (IO, Optional[datetime.datetime]) -> str
         '''
         copies inputs to Data
         '''
@@ -731,6 +749,7 @@ class ResearchObject():
         return rel_path
 
     def _self_made(self, when=None):
+        # type: (Optional[datetime.datetime]) -> Dict[str,Any]
         if when is None:
             when = datetime.datetime.now()
         return {
@@ -741,6 +760,8 @@ class ResearchObject():
                 }
 
     def add_to_manifest(self, rel_path, checksums):
+        # type: (str, Dict[str,str]) -> None
+
         if (posixpath.isabs(rel_path)):
             raise ValueError("rel_path must be relative: %s" % rel_path)
 
@@ -766,11 +787,12 @@ class ResearchObject():
 
 
     def _add_to_bagit(self, rel_path, **checksums):
+        # type: (str, Any) -> None
         if (posixpath.isabs(rel_path)):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         local_path = os.path.join(self.folder, _local_path(rel_path))
         if not os.path.exists(local_path):
-            raise IOError("File %s does not exist within RO: %s" % rel_path, local_path)
+            raise IOError("File %s does not exist within RO: %s" % (rel_path, local_path))
 
         if (rel_path in self.bagged_size):
             # Already added, assume checksum OK
