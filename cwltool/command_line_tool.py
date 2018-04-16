@@ -250,8 +250,11 @@ class CommandLineTool(Process):
             ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
+        workReuse = self.get_requirement("WorkReuse")[0]
+        enableReuse = workReuse.get("enableReuse", True) if workReuse else True
+
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
-        if kwargs.get("cachedir"):
+        if kwargs.get("cachedir") and enableReuse:
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
