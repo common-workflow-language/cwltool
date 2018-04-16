@@ -34,7 +34,7 @@ import graphviz
 import networkx as nx
 import ruamel.yaml as yaml
 import warnings
-from typing import Any, Dict, Set, Tuple, Text
+from typing import Any, Dict, Set, Tuple, Text, Optional
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 from .process import shortname
@@ -89,19 +89,24 @@ userUUID = uuid.uuid4().urn
 accountUUID = uuid.uuid4().urn
 
 def _convert_path(path, from_path=os.path, to_path=posixpath):
+    # type: (str,Any,Any) -> str
     if from_path == to_path:
         return path
     if (from_path.isabs(path)):
         raise ValueError("path must be relative: %s" % path)
         # ..as it might include system paths like "C:\" or /tmp
+    
     split = path.split(from_path.sep)
+    
     converted = to_path.sep.join(split)
     return converted
 
 def _posix_path(local_path):
+    # type: (str) -> str
     return _convert_path(local_path, os.path, posixpath)
 
 def _local_path(posix_path):
+    # type: (str) -> str
     return _convert_path(posix_path, posixpath, os.path)
 
 def _whoami():
@@ -120,6 +125,7 @@ def _whoami():
 
 class WritableBagFile(io.FileIO):
     def __init__(self, ro, rel_path):
+        # type: (ResearchObject, str) -> None
         self.ro = ro
         if (posixpath.isabs(rel_path)):
             raise ValueError("rel_path must be relative: %s" % rel_path)
@@ -134,6 +140,7 @@ class WritableBagFile(io.FileIO):
         super(WritableBagFile, self).__init__(path, mode="w")
 
     def write(self, b):
+        # type: (bytes) -> None
         super(WritableBagFile, self).write(b)
         for h in self.hashes.values():
             h.update(b)
@@ -162,6 +169,7 @@ class WritableBagFile(io.FileIO):
     def readable(self):
         return False
     def truncate(self, size=None):
+        # type: (Optional[int]) -> None
         # FIXME: This breaks contract io.IOBase,
         # as it means we would have to recalculate the hash
         if size is not None:
