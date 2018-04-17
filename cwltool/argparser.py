@@ -139,13 +139,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Do not record host info in provenance.",                        
                         dest="host_provenance")
     provgroup.add_argument("--orcid",
-                        help="Record user ORCID identifier as part of provenance, e.g. https://orcid.org/0000-0002-1825-0097 or 0000-0002-1825-0097",
+                        help="Record user ORCID identifier as part of provenance, e.g. https://orcid.org/0000-0002-1825-0097 or 0000-0002-1825-0097. Alternatively the environment variable ORCID may be set.",
                         dest="orcid",
                         default=os.environ.get("ORCID"),
                         type=Text)
     provgroup.add_argument("--full-name",
-                        help="Record full name of user as part of provenance, e.g. Josiah Carberry. You may need to use shell quotes to preserve spaces.",
-                        dest="full_name",
+                        help="Record full name of user as part of provenance, e.g. Josiah Carberry. You may need to use shell quotes to preserve spaces. Alternatively the environment variable CWL_FULL_NAME may be set.",
+                        dest="cwl_full_name",
                         default=os.environ.get("CWL_FULL_NAME"),
                         type=Text)
 

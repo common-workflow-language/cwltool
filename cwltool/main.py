@@ -488,7 +488,7 @@ def main(argsl=None,  # type: List[str]
                 tmpPrefix=args.tmpdir_prefix,
                 # Optionals, might be None
                 orcid=args.orcid,
-                full_name=args.full_name)
+                full_name=args.cwl_full_name)
             # Note: Record host info, if enabled
             if (args.host_provenance):
                 args.research_obj.host_provenance(document)
