@@ -484,16 +484,27 @@ Optional parameters are available to capture information about *who* executed th
       --provenance revsort-run-1/ \
       tests/wf/revsort.cwl tests/wf/revsort-job.json
 
+These parameters are opt-in as they track person-identifiable information. 
+The options ``--enable-user-provenance`` and ``--enable-host-provenance`` will
+pick up account/machine info from where ``cwltool`` is executed (e.g. 
+UNIX username).  This may get the full name of the user wrong, in which case 
+``--full-name`` can be supplied.
+
 For consistent tracking it is recommended to apply for 
 an `ORCID <https://orcid.org/>`__ identifier and provide it as above, 
 since ``--enable-user-provenance --enable-host-provenance`` 
 are only able to identify the local machine account.
 
-It is possible to set the shell environment variable 
-`ORCID` to avoid supplying ``--orcid`` for every workflow run, 
+It is possible to set the shell environment variables
+`ORCID` and `CWL_FULL_NAME` to avoid supplying ``--orcid`` 
+or `--full-name` for every workflow run, 
 for instance by augmenting the ``~/.bashrc`` or equivalent:
 
     export ORCID=https://orcid.org/0000-0002-1825-0097
+    export CWL_FULL_NAME="Stian Soiland-Reyes"
+
+Care should be taken to preserve spaces when setting `--full-name` or `CWL_FULL_NAME`.
+
 
 CWLProv folder structure
 ^^^^^^^^^^^^^^^^^^^^^^^^
