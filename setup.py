@@ -49,7 +49,6 @@ setup(name='cwltool',
       include_package_data=True,
       install_requires=[
           'setuptools',
-          'future >= 0.16.0',
           'requests >= 2.4.3',
           'ruamel.yaml >= 0.12.4, < 0.15',
           'rdflib >= 4.2.2, < 4.3.0',
@@ -63,7 +62,7 @@ setup(name='cwltool',
           'bagit >= 1.6.4'
       ],
       extras_require={
-          ':python_version<"3"': [ 'pathlib2' ],
+          ':python_version<"3"': [ 'pathlib2', 'future' ],
           'deps': ["galaxy-lib >= 17.09.3"]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
