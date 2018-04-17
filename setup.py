@@ -58,6 +58,7 @@ setup(name='cwltool',
           'six >= 1.8.0',
       ],
       extras_require={
+          ':python_version<"3" and platform_system=="Linux"': [ 'subprocess32' ],
           ':python_version<"3"': [ 'pathlib2' ],
           'deps': ["galaxy-lib >= 17.09.3"]
       },
