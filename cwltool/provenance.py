@@ -188,6 +188,33 @@ class WritableBagFile(io.FileIO):
         if size is not None:
             raise IOError("WritableBagFile can't truncate")
 
+def _check_mod_11_2(numeric_string):
+    # type: (Text) -> bool
+    """Validate numeric_string for its MOD-11-2 checksum.
+
+    Any "-" in the numeric_string are ignored.
+
+    The last digit of numeric_string is assumed to be the checksum, 0-9 or X.
+
+    See ISO/IEC 7064:2003 and
+    https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier
+    """
+    # Strip -
+    nums = numeric_string.replace("-", "")
+    total = 0
+    # skip last (check)digit
+    for x in nums[:-1]:
+        digit = int(x)
+        total = (total+digit)*2
+    remainder = total % 11
+    result = (12-remainder) % 11
+    if result==10:
+        checkdigit = "X"
+    else:
+        checkdigit = str(result)
+    # Compare against last digit or X
+    return nums[-1].upper() == checkdigit
+
 def _valid_orcid(orcid): # type: (Text) -> Text
     """Ensure orcid is a valid ORCID identifier.
 
@@ -222,18 +249,22 @@ def _valid_orcid(orcid): # type: (Text) -> Text
             # but last digit (modulus 11 checksum)
             # can also be X (but we made it lowercase above).
             # e.g. 0000-0002-1825-0097
-            # or   0000-0002-1825-009X
+            # or   0000-0002-1694-233x
             r"(?P<orcid>(\d{4}-\d{4}-\d{4}-\d{3}[0-9x]))$",
         orcid)
 
+    help_url=u"https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier"
     if not match:
-        help_url=u"https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier"
         raise ValueError(u"Invalid ORCID: %s\n%s" % (orcid, help_url))
 
     # Conservative in what we produce:
     # a) Ensure any checksum digit is uppercase
     orcid_num = match.group("orcid").upper()
-    # b) Re-add the official prefix https://orcid.org/
+    # b) ..and correct
+    if not _check_mod_11_2(orcid_num):
+        raise ValueError(u"Invalid ORCID checksum: %s\n%s" % (orcid_num, help_url))
+
+    # c) Re-add the official prefix https://orcid.org/
     return u"https://orcid.org/%s" % orcid_num
 
 class ResearchObject():

@@ -178,6 +178,72 @@ class TestWritableBagFile(unittest.TestCase):
             with self.assertRaises(IOError):
                 f.truncate(0)
 
+class TestORCID(unittest.TestCase):
+    def test_check_mod_11_2(self):
+        # Taken from "Some sample ORCID iDs" on
+        # https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier
+        self.assertTrue(provenance._check_mod_11_2("0000-0002-1825-0097"))
+        self.assertTrue(provenance._check_mod_11_2("0000-0001-5109-3700"))
+        self.assertTrue(provenance._check_mod_11_2("0000-0002-1694-233X"))
+
+        # dashes optional
+        self.assertTrue(provenance._check_mod_11_2("0000000218250097"))
+        self.assertTrue(provenance._check_mod_11_2("0000000151093700"))
+        self.assertTrue(provenance._check_mod_11_2("000000021694233X"))
+
+        # Swap check-digits around to force error
+        self.assertFalse(provenance._check_mod_11_2("0000-0002-1825-009X"))
+        self.assertFalse(provenance._check_mod_11_2("0000-0001-5109-3707"))
+        self.assertFalse(provenance._check_mod_11_2("0000-0002-1694-2330"))
+
+
+    def test_valid_orcid(self):
+        # https://orcid.org/ (Expected form)
+        self.assertEqual(provenance._valid_orcid("https://orcid.org/0000-0002-1694-233X"), "https://orcid.org/0000-0002-1694-233X")
+
+        # http://orcid.org
+        self.assertEqual(provenance._valid_orcid("http://orcid.org/0000-0002-1694-233X"), "https://orcid.org/0000-0002-1694-233X")
+        # orcid.org
+        self.assertEqual(provenance._valid_orcid("orcid.org/0000-0001-5109-3700"), "https://orcid.org/0000-0001-5109-3700")
+        # just the number
+        self.assertEqual(provenance._valid_orcid("0000-0002-1825-0097"), "https://orcid.org/0000-0002-1825-0097")
+        # ..but missing digit fails (even if checksum is correct)
+        self.assertTrue(provenance._check_mod_11_2("0002-1694-233X"))
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("0002-1694-2332")
+
+        # lower-case X is OK (and fixed)
+        self.assertEqual(provenance._valid_orcid("https://orcid.org/0000-0002-1694-233x"), "https://orcid.org/0000-0002-1694-233X")
+        # upper-case ORCID.ORG is OK.. (and fixed)
+        self.assertEqual(provenance._valid_orcid("https://ORCID.ORG/0000-0002-1694-233X"), "https://orcid.org/0000-0002-1694-233X")
+        # Unicode string (Python 2)
+        self.assertEqual(provenance._valid_orcid(u"https://orcid.org/0000-0002-1694-233X"), "https://orcid.org/0000-0002-1694-233X")
+
+    def test_invalid_orcid(self):
+        # Wrong checkdigit fails
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("https://orcid.org/0000-0002-1694-2332")
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("0000-0002-1694-2332")
+
+        # Missing dashes fails (although that's OK for checksum)
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("https://orcid.org/000000021694233X")
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("000000021694233X")
+        # Wrong hostname fails
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("https://example.org/0000-0002-1694-233X")
+        # Wrong protocol fails
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("ftp://orcid.org/0000-0002-1694-233X")
+        # Trying to be clever fails (no URL parsing!)
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("https://orcid.org:443/0000-0002-1694-233X")
+        with self.assertRaises(ValueError):
+            provenance._valid_orcid("http://orcid.org:80/0000-0002-1694-233X")
+
+
 class TestResearchObject(unittest.TestCase):
     # TODO: Test ResearchObject methods
     pass
