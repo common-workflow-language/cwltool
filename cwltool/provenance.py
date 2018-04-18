@@ -972,22 +972,26 @@ class ResearchObject():
 
         _logger.info("[provenance] added all tag files")
 
-    def startProcess(self, r, document, engineUUID, WorkflowRunID):
+    def startProcess(self, r, document, engineUUID, WorkflowRunID=None):
             # type: (Any, ProvDocument, str, str) -> None
             ## FIXME: What is the real name and type of r?
             ## process.py/workflow.py just says "Any" or "Generator"..
             '''
-            record start of each step
+            record start of each Process
             '''
             ProcessRunID=uuid.uuid4().urn
-            #each subprocess is defined as an activity()
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
-            provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-            ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-
-            if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
+            if WorkflowRunID:
+                provLabel="Run of workflow/packed.cwl#main/"+ProcessName
+                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+            #if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-            document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+                document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+            else:
+                provLabel="Run of CommandLineTool/packed.cwl#main/"
+                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
+                document.wasStartedBy(ProcessRunID, None, engineUUID, datetime.datetime.now(), None, None)
             return ProcessProvActivity
 
     def declare_artefact(self, relativised_input_object, document, job_order_object):

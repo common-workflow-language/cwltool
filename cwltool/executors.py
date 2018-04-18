@@ -128,11 +128,17 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(r.outdir)
                     if research_obj:
                         #record provenance of each subprocess of the workflow
-                        if ".cwl" in getattr(r, "name") or "workflow main" in getattr(r, "name"): #for prospective provenance NOTE: the second condition is for packed file
+                        if not hasattr(t, "steps"):
                             research_obj.prospective_prov(document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            research_obj.declare_artefact(relativised_input_object, document, job_order_object) 
+                            research_obj.declare_artefact(relativised_input_object, document, job_order_object)
+                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID)
+                        elif hasattr(r, "workflow"):
+                            research_obj.prospective_prov(document, r)
+                            customised_job=research_obj.copy_job_order(r, job_order_object)
+                            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
+                            research_obj.declare_artefact(relativised_input_object, document, job_order_object)
                         else:
                             ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
                         r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
