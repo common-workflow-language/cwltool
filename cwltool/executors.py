@@ -135,10 +135,8 @@ class SingleJobExecutor(JobExecutor):
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) #call the method to generate a file with customised job
                             #call the methods to create data artefacts in provenance document
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object) 
-#                        else:
-#                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
-                    if research_obj:
-                        ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
+                        else:
+                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
                         r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
                     else:
                         r.run(**kwargs)
