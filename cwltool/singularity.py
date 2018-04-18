@@ -12,8 +12,8 @@ from .job import ContainerCommandLineJob
 from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
+if sys.version_info[0] < 3:
+    import subprocess32 as subprocess
 else:
     import subprocess  # type: ignore
 
