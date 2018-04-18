@@ -482,13 +482,12 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 elif key == "outputs":
                     self.outputs_record_schema["fields"].append(c)
 
-        with SourceLine(toolpath_object, "inputs",
-                avro.schema.SchemaParseException):
+        with SourceLine(toolpath_object, "inputs", validate.ValidationException):
             self.inputs_record_schema = cast(
                 Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(
                     self.inputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
-        with SourceLine(toolpath_object, "outputs", avro.schema.SchemaParseException):
+        with SourceLine(toolpath_object, "outputs", validate.ValidationException):
             self.outputs_record_schema = cast(Dict[six.text_type, Any],
                     schema_salad.schema.make_valid_avro(
                         self.outputs_record_schema, {}, set()))
