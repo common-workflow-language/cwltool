@@ -18,9 +18,9 @@ try:
 except ImportError:
     import Queue as queue  # type: ignore
 if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # pylint: disable=import-error
+    import subprocess32 as subprocess  # type: ignore
 else:
-    import subprocess
+    import subprocess  # type: ignore
 
 
 class JavascriptException(Exception):

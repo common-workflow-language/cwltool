@@ -28,9 +28,9 @@ from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
 from .utils import copytree_with_merge, onWindows
 if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # pylint: disable=import-error
+    import subprocess32 as subprocess  # type: ignore
 else:
-    import subprocess
+    import subprocess  # type: ignore
 
 
 _logger = logging.getLogger("cwltool")

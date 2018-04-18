@@ -4,9 +4,9 @@ import os
 import sys
 from typing import List, Text, Tuple
 if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # pylint: disable=import-error
+    import subprocess32 as subprocess  # type: ignore
 else:
-    import subprocess
+    import subprocess  # type: ignore
 
 
 def docker_vm_id():  # type: () -> Tuple[int, int]

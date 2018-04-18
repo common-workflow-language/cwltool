@@ -20,9 +20,9 @@ from .pathmapper import PathMapper, ensure_writable
 from .secrets import SecretStore
 from .utils import docker_windows_path_adjust, onWindows
 if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # pylint: disable=import-error
+    import subprocess32 as subprocess  # type: ignore
 else:
-    import subprocess
+    import subprocess  # type: ignore
 
 _logger = logging.getLogger("cwltool")
 
