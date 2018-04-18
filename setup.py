@@ -59,7 +59,8 @@ setup(name='cwltool',
           'prov == 1.5.1',
           'pathlib2 == 2.3.0',
           'graphviz == 0.8.2',
-          'bagit >= 1.6.4'
+          'bagit >= 1.6.4',
+          'future'
       ],
       extras_require={
           ':python_version<"3" and platform_system=="Linux"':
