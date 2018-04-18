@@ -5,20 +5,23 @@ import logging
 import os
 import re
 import select
-import subprocess
 import threading
 import sys
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
-from .utils import onWindows
-from pkg_resources import resource_stream
-
 import six
+from pkg_resources import resource_stream
+from .utils import onWindows
 
 try:
     import queue  # type: ignore
 except ImportError:
     import Queue as queue  # type: ignore
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess  # type: ignore
+else:
+    import subprocess  # type: ignore
+
 
 class JavascriptException(Exception):
     pass
@@ -194,7 +197,7 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
 
     PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
-    def process_finished(): # type: () -> bool
+    def process_finished():  # type: () -> bool
         return stdout_buf.getvalue().decode('utf-8').endswith(PROCESS_FINISHED_STR) and \
             stderr_buf.getvalue().decode('utf-8').endswith(PROCESS_FINISHED_STR)
 
@@ -363,4 +366,4 @@ def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_con
         return json.loads(stdout)
     except ValueError as e:
         raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
-                                    (e, fn_linenum(), stdout, stderr))
+                                  (e, fn_linenum(), stdout, stderr))
