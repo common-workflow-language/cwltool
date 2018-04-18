@@ -62,7 +62,9 @@ setup(name='cwltool',
           'bagit >= 1.6.4'
       ],
       extras_require={
-          ':python_version<"3"': [ 'pathlib2', 'future' ],
+          ':python_version<"3" and platform_system=="Linux"':
+          ['subprocess32 == 3.5.0rc1'],
+          ':python_version<"3"': ['pathlib2'],
           'deps': ["galaxy-lib >= 17.09.3"]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
