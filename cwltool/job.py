@@ -329,7 +329,7 @@ class CommandLineJob(JobBase):
     def run(self,
             document=None,             # type: ProvDocument
             WorkflowRunID=None,        # type: Text
-            ProcessProvActivity=None,  # type: ProvActivity
+            ProcessProvActivity=None,  # type: ProvEntity
             reference_locations=None,  # type: Dict[Text, Any]
             pull_image=True,           # type: bool
             rm_container=True,         # type: bool
@@ -339,7 +339,6 @@ class CommandLineJob(JobBase):
             ):  # type: (...) -> None
 
         self._setup(kwargs)
-
         env = self.environment
         if not os.path.exists(self.tmpdir):
             os.makedirs(self.tmpdir)
@@ -391,8 +390,7 @@ class ContainerCommandLineJob(JobBase):
             reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (ProvDocument, Text, ProvActivity, Dict[Text, Any], bool, bool,
-        # bool, Text, Text, bool, Text, **Any) -> None 
+        # type: (ProvDocument, Text, ProvEntity, Dict[Text, Any], bool, bool, bool, Text, Text, bool, Text, **Any) -> None 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         img_id = None
