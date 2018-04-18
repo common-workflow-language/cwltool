@@ -64,7 +64,7 @@ from .process import shortname
 from .stdfsaccess import StdFsAccess
 
 
-warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
+
 relativised_input_object={}  # type: Dict[str, Any]
 _logger = logging.getLogger("cwltool")
 
