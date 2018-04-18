@@ -9,7 +9,6 @@ import os
 import re
 import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 from abc import ABCMeta, abstractmethod
@@ -28,6 +27,11 @@ from .process import (UnsupportedRequirement, get_feature,
 from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
 from .utils import copytree_with_merge, onWindows
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess  # type: ignore
+else:
+    import subprocess  # type: ignore
+
 
 _logger = logging.getLogger("cwltool")
 

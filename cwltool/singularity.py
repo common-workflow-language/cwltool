@@ -1,22 +1,41 @@
+"""Support for executing Docker containers using Singularity."""
 from __future__ import absolute_import
-
 import logging
 import os
 import re
 import shutil
-import subprocess
 import sys
-from io import open
-
-from typing import (Dict, List, Text, Optional, MutableMapping, Any)
-
+from io import open  # pylint: disable=redefined-builtin
+from typing import (Dict, List, Text, Optional, MutableMapping)
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
+if os.name == 'posix' and sys.version_info[0] < 3:
+    from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
+                              CalledProcessError, DEVNULL, PIPE, Popen,
+                              TimeoutExpired)
+elif os.name == 'posix':
+    from subprocess import (check_call, check_output,  # type: ignore
+                            CalledProcessError, DEVNULL, PIPE, Popen,
+                            TimeoutExpired)
+else:  # we're not on Unix, so none of this matters
+    pass
 
 _logger = logging.getLogger("cwltool")
+_USERNS = None
+
+def _singularity_supports_userns():  # type: ()->bool
+    global _USERNS  # pylint: disable=global-statement
+    if _USERNS is None:
+        try:
+            _USERNS = "No valid /bin/sh" in Popen(
+                [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
+                stderr=PIPE, stdout=DEVNULL).communicate(timeout=60)[1]
+        except TimeoutExpired:
+            _USERNS = False
+    return _USERNS
 
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
@@ -82,7 +101,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
                 if not dry_run:
-                    subprocess.check_call(cmd, stdout=sys.stderr)
+                    check_call(cmd, stdout=sys.stderr)
                     found = True
 
         return found
@@ -107,8 +126,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if r:
             errmsg = None
             try:
-                subprocess.check_output(["singularity", "--version"])
-            except subprocess.CalledProcessError as err:
+                check_output(["singularity", "--version"])
+            except CalledProcessError as err:
                 errmsg = "Cannot execute 'singularity --version' {}".format(err)
             except OSError as err:
                 errmsg = "'singularity' executable not found: {}".format(err)
@@ -154,7 +173,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             elif vol.type == "WritableFile":
                 if self.inplace_update:
                     runtime.append(u"--bind")
-                    runtime.append("{}:{}:rw".format(
+                    runtime.append(u"{}:{}:rw".format(
                         docker_windows_path_adjust(vol.resolved),
                         docker_windows_path_adjust(containertgt)))
                 else:
@@ -166,7 +185,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 else:
                     if self.inplace_update:
                         runtime.append(u"--bind")
-                        runtime.append("{}:{}:rw".format(
+                        runtime.append(u"{}:{}:rw".format(
                             docker_windows_path_adjust(vol.resolved),
                             docker_windows_path_adjust(containertgt)))
                     else:
@@ -176,7 +195,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 with open(createtmp, "wb") as tmp:
                     tmp.write(vol.resolved.encode("utf-8"))
                 runtime.append(u"--bind")
-                runtime.append("{}:{}:ro".format(
+                runtime.append(u"{}:{}:ro".format(
                     docker_windows_path_adjust(createtmp),
                     docker_windows_path_adjust(vol.target)))
 
@@ -192,7 +211,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         """ Returns the Singularity runtime list of commands and options."""
 
         runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
-                   u"--ipc"]  # , u"--userns"]
+                   u"--ipc"]
+        if _singularity_supports_userns():
+            runtime.append(u"--userns")
         runtime.append(u"--bind")
         runtime.append(u"{}:{}:rw".format(
             docker_windows_path_adjust(os.path.realpath(self.outdir)),
