@@ -382,7 +382,6 @@ def main(argsl=None,  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
-    #input_basedir=''
     workflowobj = None
     try:
         if args is None:
