@@ -123,6 +123,7 @@ def check_output(args: _CMD,
 
 PIPE = ...  # type: int
 STDOUT = ...  # type: int
+DEVNULL = ...  # type: int
 class SubprocessError(Exception): ...
 class TimeoutExpired(SubprocessError):
 # morally: _CMD

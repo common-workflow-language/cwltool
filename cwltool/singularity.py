@@ -13,9 +13,13 @@ from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
 if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess
+    from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
+                              CalledProcessError, DEVNULL, PIPE, Popen,
+                              TimeoutExpired)
 else:
-    import subprocess  # type: ignore
+    from subprocess import (check_call, check_output,  # type: ignore
+                            CalledProcessError, DEVNULL, PIPE, Popen,
+                            TimeoutExpired)
 
 _logger = logging.getLogger("cwltool")
 _USERNS = None
@@ -23,9 +27,12 @@ _USERNS = None
 def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
-        _USERNS = "No valid /bin/sh" in subprocess.run(
-            [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
-            stderr=subprocess.PIPE).stderr.decode('utf-8')
+        try:
+            _USERNS = "No valid /bin/sh" in Popen(
+                [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
+                stderr=PIPE, stdout=DEVNULL).communicate(timeout=60)[1]
+        except TimeoutExpired:
+            _USERNS = False
     return _USERNS
 
 
@@ -92,7 +99,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
                 if not dry_run:
-                    subprocess.check_call(cmd, stdout=sys.stderr)
+                    check_call(cmd, stdout=sys.stderr)
                     found = True
 
         return found
@@ -117,8 +124,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if r:
             errmsg = None
             try:
-                subprocess.check_output(["singularity", "--version"])
-            except subprocess.CalledProcessError as err:
+                check_output(["singularity", "--version"])
+            except CalledProcessError as err:
                 errmsg = "Cannot execute 'singularity --version' {}".format(err)
             except OSError as err:
                 errmsg = "'singularity' executable not found: {}".format(err)
