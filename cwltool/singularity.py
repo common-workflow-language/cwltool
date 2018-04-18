@@ -16,11 +16,12 @@ if os.name == 'posix' and sys.version_info[0] < 3:
     from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
                               CalledProcessError, DEVNULL, PIPE, Popen,
                               TimeoutExpired)
-else:
+elif os.name == 'posix':
     from subprocess import (check_call, check_output,  # type: ignore
-                            CalledProcessError, PIPE, Popen,
+                            CalledProcessError, DEVNULL, PIPE, Popen,
                             TimeoutExpired)
-    DEVNULL = None
+else:  # we're not on Unix, so none of this matters
+    pass
 
 _logger = logging.getLogger("cwltool")
 _USERNS = None
