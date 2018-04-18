@@ -138,12 +138,12 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
                         r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
+                        #capture workflow level outputs in the prov doc
+                        if self.final_output:
+                            ProcessRunID=None
+                            research_obj.generate_outputProv(self.final_output[0], document, WorkflowRunID, ProcessRunID)
                     else:
                         r.run(**kwargs)
-                    #capture workflow level outputs in the prov doc
-                    if research_obj and self.final_output:
-                        ProcessRunID=None
-                        research_obj.generate_outputProv(self.final_output[0], document, WorkflowRunID, ProcessRunID)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
