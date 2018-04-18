@@ -127,19 +127,18 @@ class SingleJobExecutor(JobExecutor):
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
                     if research_obj:
-                        #record provenance of each subprocess of the workflow
-                        if not hasattr(t, "steps"):
+                        if not hasattr(t, "steps"): #record provenance of an independent commandline tool execution
                             research_obj.prospective_prov(document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object)
                             ProcessProvActivity = research_obj.startProcess(r, document, engUUID)
-                        elif hasattr(r, "workflow"):
+                        elif hasattr(r, "workflow"): #record provenance for the workflow execution
                             research_obj.prospective_prov(document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object)
-                        else:
+                        else: #in case of commandline tool execution as part of workflow
                             ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
                         r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
                         #capture workflow level outputs in the prov doc
