@@ -18,8 +18,9 @@ if os.name == 'posix' and sys.version_info[0] < 3:
                               TimeoutExpired)
 else:
     from subprocess import (check_call, check_output,  # type: ignore
-                            CalledProcessError, DEVNULL, PIPE, Popen,
+                            CalledProcessError, PIPE, Popen,
                             TimeoutExpired)
+    DEVNULL = None
 
 _logger = logging.getLogger("cwltool")
 _USERNS = None
