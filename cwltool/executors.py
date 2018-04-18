@@ -127,13 +127,11 @@ class SingleJobExecutor(JobExecutor):
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
                     if research_obj:
-                        #here we are recording provenance of each subprocess of the workflow
+                        #record provenance of each subprocess of the workflow
                         if ".cwl" in getattr(r, "name") or "workflow main" in getattr(r, "name"): #for prospective provenance NOTE: the second condition is for packed file
                             research_obj.prospective_prov(document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
-                            ##create primary-job.json and returns a dictionary with workflow level identifiers as keys and locations or actual values of the attributes as values.
-                            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) #call the method to generate a file with customised job
-                            #call the methods to create data artefacts in provenance document
+                            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object) 
                         else:
                             ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
@@ -196,7 +194,7 @@ class MultithreadedJobExecutor(JobExecutor):
                  ):
 
         jobiter = t.job(job_order_object, self.output_callback, **kwargs)
-        
+
         for r in jobiter:
             if r:
                 builder = kwargs.get("builder", None)  # type: Builder
