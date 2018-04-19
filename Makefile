@@ -15,7 +15,7 @@
 #
 # Contact: common-workflow-language@googlegroups.com
 
-# make pep8 to check for basic Python code compliance
+# make pycodestyle to check for basic Python code compliance
 # make autopep8 to fix most pep8 errors
 # make pylint to check Python code for enhanced compliance including naming
 #  and documentation
@@ -26,7 +26,7 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pep8 diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
+DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
@@ -71,15 +71,16 @@ clean: FORCE
 sort_imports:
 	isort ${MODULE}/*.py tests/*.py setup.py
 
-## pep8        : check Python code style
-pep8: $(PYSOURCES)
-	pep8 --exclude=_version.py  --show-source --show-pep8 $^ || true
+pep8: pycodestyle
+## pycodestyle        : check Python code style
+pycodestyle: $(PYSOURCES)
+	pycodestyle --exclude=_version.py  --show-source --show-pep8 $^ || true
 
-pep8_report.txt: $(PYSOURCES)
-	pep8 --exclude=_version.py $^ > pep8_report.txt || true
+pycodestyle_report.txt: $(PYSOURCES)
+	pycodestyle --exclude=_version.py $^ > $@ || true
 
-diff_pep8_report: pep8_report.txt
-	diff-quality --violations=pep8 pep8_report.txt
+diff_pycodestyle_report: pycodestyle_report.txt
+	diff-quality --violations=pycodestyle $^
 
 pep257: pydocstyle
 ## pydocstyle      : check Python code style
