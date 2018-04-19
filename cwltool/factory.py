@@ -55,7 +55,8 @@ class Factory(object):
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
-        load = load_tool.load_tool(cwl, self.makeTool)
+        load = load_tool.load_tool(cwl, self.makeTool,
+                                   strict=self.execkwargs.get("strict", True))
         if isinstance(load, int):
             raise Exception("Error loading tool")
         return Callable(load, self)

@@ -11,3 +11,4 @@ prov==1.5.1
 graphviz==0.8.2
 # for testing only
 bagit==1.6.4
+pathlib2==2.3.2; python_version<"3"
