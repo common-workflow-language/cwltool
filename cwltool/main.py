@@ -245,7 +245,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
         #return 1
         exit(1)
     if provArgs:
-        inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "",
+        inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "", provArgs,
                               basedir=file_uri(str(input_basedir) + "/"))
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
@@ -306,8 +306,8 @@ def makeRelative(base, ob):
             ob["location"] = os.path.relpath(u, base)
 
 
-def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Text) -> Tuple[Dict[Text, Any], Dict[Text, Any]]
+def printdeps(obj, document_loader, stdout, relative_deps, uri, provArgs=None, basedir=None):
+    # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Any, Text) -> Tuple[Dict[Text, Any], Dict[Text, Any]]
     deps = {"class": "File",
             "location": uri}  # type: Dict[Text, Any]
 
@@ -328,9 +328,10 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
         absdeps=copy.deepcopy(deps)
         visit_class(deps, ("File", "Directory"), functools.partial(makeRelative, base))
-
-    stdout.write(json.dumps(absdeps, indent=4))
-    return (deps, absdeps)
+    if provArgs:
+        return (deps, absdeps)
+    else:
+        stdout.write(json.dumps(absdeps, indent=4))
 
 def print_pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
@@ -727,7 +728,7 @@ def main(argsl=None,  # type: List[str]
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
             document.wasEndedBy(WorkflowRunID, None, engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
-            ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
+            ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
             args.research_obj.snapshot_generation(ProvDependencies[1])
             #for input file dependencies
             if inputforProv:            
