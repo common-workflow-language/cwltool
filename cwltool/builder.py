@@ -11,6 +11,7 @@ from six import iteritems, string_types
 import schema_salad.validate as validate
 import schema_salad.schema as schema
 from schema_salad.sourceline import SourceLine
+from schema_salad.schema import AvroSchemaFromJSONData
 
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDFS
@@ -149,7 +150,7 @@ class Builder(object):
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
                 else:
-                    avsc = schema.AvroSchemaFromJSONData(t, self.names)
+                    avsc = AvroSchemaFromJSONData(t, self.names)
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
