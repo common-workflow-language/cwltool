@@ -340,9 +340,11 @@ def print_pack(document_loader, processobj, uri, metadata):
     else:
         return json.dumps(packed["$graph"][0], indent=4)
 
-#version of CWLtool used to execute the workflow.
 def versionstring():
     # type: () -> Text
+    '''
+    version of CWLtool used to execute the workflow.
+    '''
     pkg = pkg_resources.require("cwltool")
     if pkg:
         return u"%s %s" % (sys.argv[0], pkg[0].version)
