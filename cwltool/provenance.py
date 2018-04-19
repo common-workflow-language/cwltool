@@ -627,7 +627,7 @@ class ResearchObject():
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_provDoc(self, cwltoolVersion, engineUUID):
-        # type: (ProvDocument, str, str, Union[str,uuid.UUID]) -> str
+        # type: (str, str) -> Tuple[str, ProvDocument]
         '''
         add basic namespaces
         '''
