@@ -16,7 +16,6 @@ import requests.sessions
 from six import iteritems, itervalues, string_types
 from six.moves import urllib
 
-from avro.schema import Names
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 import schema_salad.schema as schema
 from schema_salad.ref_resolver import ContextType, Fetcher, Loader, file_uri
@@ -200,7 +199,7 @@ def validate_document(document_loader,  # type: Loader
                       metadata=None,  # type: Optional[Dict]
                       do_validate=True
                      ):
-    # type: (...) -> Tuple[Loader, Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
+    # type: (...) -> Tuple[Loader, schema.Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
 
     if isinstance(workflowobj, list):
@@ -333,7 +332,7 @@ def validate_document(document_loader,  # type: Loader
 
 
 def make_tool(document_loader,  # type: Loader
-              avsc_names,       # type: Names
+              avsc_names,       # type: schema.Names
               metadata,         # type: Dict[Text, Any]
               uri,              # type: Text
               makeTool,         # type: Callable[..., Process]
