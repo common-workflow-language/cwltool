@@ -186,7 +186,7 @@ class JobBase(object):
     def _execute(self,
                  runtime,                   # type: List[Text]
                  env,                       # type: MutableMapping[Text, Text]
-                 kwargs,                    # type: Any
+                 research_obj,              # type: Any
                  document=None,             # type: ProvDocument
                  WorkflowRunID=None,        # type: Text
                  ProcessProvActivity=None,  # type: ProvEntity
@@ -196,7 +196,7 @@ class JobBase(object):
                  secret_store=None          # type: SecretStore
                  ):  # type (...) ->  None
                  
-        research_obj = kwargs.get("research_obj")
+
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
         if scr:
@@ -365,8 +365,8 @@ class CommandLineJob(JobBase):
         if self.generatemapper:
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
-
-        self._execute([], env, kwargs, document, 
+        research_obj=kwargs.get("research_obj")
+        self._execute([], env, research_obj, document, 
                       WorkflowRunID, 
                       ProcessProvActivity,
                       reference_locations, 
@@ -455,8 +455,8 @@ class ContainerCommandLineJob(JobBase):
         self._setup(kwargs)
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
-
-        self._execute(runtime, env, kwargs, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))  # included kwargs to see if the workflow has been executed using the provenance flag.
+        research_obj=kwargs.get("research_obj")
+        self._execute(runtime, env, research_obj, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))  
 
 
 def _job_popen(
