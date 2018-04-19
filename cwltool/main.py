@@ -72,7 +72,7 @@ WorkflowRunID=None
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        provDoc=document,  # type: ProvDocument
+                        provDoc=None,  # type: ProvDocument
                         **kwargs           # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
@@ -327,6 +327,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, provArgs=None, b
         return (deps, absdeps)
     else:
         stdout.write(json.dumps(absdeps, indent=4))
+        return 0
 
 def print_pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
@@ -632,8 +633,7 @@ def main(argsl=None,  # type: List[str]
         inputforProv = None
 
         try:
-            if args.provenance and args.research_obj:
-                job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
+            job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,
