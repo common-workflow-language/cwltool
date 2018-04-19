@@ -482,23 +482,16 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 elif key == "outputs":
                     self.outputs_record_schema["fields"].append(c)
 
-        try:
-            self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
+        with SourceLine(toolpath_object, "inputs", validate.ValidationException):
+            self.inputs_record_schema = cast(
+                Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(
+                    self.inputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
-        except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error '%s' while "
-                    "processing inputs of %s:\n%s" %
-                                               (Text(e), self.tool["id"],
-                                                json.dumps(self.inputs_record_schema, indent=4)))
-
-        try:
-            self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+        with SourceLine(toolpath_object, "outputs", validate.ValidationException):
+            self.outputs_record_schema = cast(Dict[six.text_type, Any],
+                    schema_salad.schema.make_valid_avro(
+                        self.outputs_record_schema, {}, set()))
             AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
-        except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error '%s' while "
-                    "processing outputs of %s:\n%s" %
-                                               (Text(e), self.tool["id"],
-                                                json.dumps(self.outputs_record_schema, indent=4)))
 
         if toolpath_object.get("class") is not None and not kwargs.get("disable_js_validation", False):
             if kwargs.get("js_hint_options_file") is not None:
