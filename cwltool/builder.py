@@ -8,9 +8,10 @@ from typing import Any, Callable, Dict, List, Text, Type, Union, Set
 import six
 from six import iteritems, string_types
 
-import avro
 import schema_salad.validate as validate
+import schema_salad.schema as schema
 from schema_salad.sourceline import SourceLine
+from schema_salad.schema import AvroSchemaFromJSONData
 
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDFS
@@ -24,8 +25,6 @@ from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
-
-AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -85,7 +84,7 @@ def checkFormat(actualFile, inputFormats, ontology):
 
 class Builder(object):
     def __init__(self):  # type: () -> None
-        self.names = None  # type: avro.schema.Names
+        self.names = None  # type: schema.Names
         self.schemaDefs = None  # type: Dict[Text, Dict[Text, Any]]
         self.files = None  # type: List[Dict[Text, Text]]
         self.fs_access = None  # type: StdFsAccess
