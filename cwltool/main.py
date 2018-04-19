@@ -64,15 +64,10 @@ from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 _logger = logging.getLogger("cwltool")
 _logger.setLevel(logging.INFO)
 
-# FIXME: ProvDocument() should be made within provenance.py
-# and not touched out here. It also need to be local for each 
-# (potentially nested) workflow run
-document = ProvDocument()
 engineUUID=uuid.uuid4().urn
-# FIXME: The below should be set local to each (potentially nested) workflow run
-# and not from here
-WorkflowRunUUID=uuid.uuid4()
-WorkflowRunID=WorkflowRunUUID.urn
+
+document=None
+WorkflowRunID=None
 
 
 def single_job_executor(t,                 # type: Process
@@ -490,6 +485,9 @@ def main(argsl=None,  # type: List[str]
                 # Optionals, might be None
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)
+            # Ensure version starts with 'cwltool'
+            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+            WorkflowRunID, document = args.research_obj.generate_provDoc(cwltoolVersion, engineUUID)
             # Note: Record host info, if enabled
             if (args.host_provenance):
                 args.research_obj.host_provenance(document)
@@ -632,14 +630,10 @@ def main(argsl=None,  # type: List[str]
         secret_store = SecretStore()
         # pre-declared for finally block
         inputforProv = None
-        #job_order_object = None
+
         try:
             if args.provenance and args.research_obj:
-                # Ensure version starts with 'cwltool'
-                cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-                args.research_obj.generate_provDoc(document, cwltoolVersion, engineUUID, WorkflowRunUUID)
-
-            job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
+                job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
                                               print_input_deps=args.print_input_deps,
                                               relative_deps=args.relative_deps,
                                               stdout=stdout,

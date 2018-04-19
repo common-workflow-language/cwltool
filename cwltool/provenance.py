@@ -626,14 +626,14 @@ class ResearchObject():
             infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
-    def generate_provDoc(self, document, cwltoolVersion, engineUUID, workflowRunUUID):
+    def generate_provDoc(self, cwltoolVersion, engineUUID):
         # type: (ProvDocument, str, str, Union[str,uuid.UUID]) -> str
         '''
         add basic namespaces
         '''
-        # For consistent formatting, ensure it's a valid UUID instance
-        if not isinstance(workflowRunUUID, uuid.UUID):
-            workflowRunUUID = uuid.UUID(str(workflowRunUUID))
+
+        workflowRunUUID = uuid.uuid4()
+        document = ProvDocument()
 
         self.cwltoolVersion = cwltoolVersion
         document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
@@ -701,7 +701,7 @@ class ResearchObject():
         mainWorkflow = "wf:main"
         document.wasAssociatedWith(self.workflowRunURI, engineUUID, mainWorkflow)
         document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
-        return self.workflowRunURI
+        return self.workflowRunURI, document
 
 
     def snapshot_generation(self, ProvDep):
