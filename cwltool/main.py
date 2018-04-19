@@ -66,8 +66,6 @@ _logger.setLevel(logging.INFO)
 
 engineUUID=uuid.uuid4().urn
 
-document=None
-WorkflowRunID=None
 
 
 def single_job_executor(t,                 # type: Process
@@ -79,7 +77,7 @@ def single_job_executor(t,                 # type: Process
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
-    return executor(t, job_order_object, document, **kwargs)
+    return executor(t, job_order_object, provDoc, **kwargs)
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -327,7 +325,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, provArgs=None, b
         return (deps, absdeps)
     else:
         stdout.write(json.dumps(absdeps, indent=4))
-        return 0
+        return (None, None)
 
 def print_pack(document_loader, processobj, uri, metadata):
     # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
@@ -357,6 +355,7 @@ def supportedCWLversions(enable_dev):
         versions = list(UPDATES)
     versions.sort()
     return versions
+
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
          executor=None,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
@@ -381,6 +380,8 @@ def main(argsl=None,  # type: List[str]
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
     workflowobj = None
+    document=None
+    WorkflowRunID=None
     try:
         if args is None:
             if argsl is None:
@@ -477,7 +478,7 @@ def main(argsl=None,  # type: List[str]
             use_standard_schema("v1.0")
         #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
-            if not args.compute_checksum:                
+            if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
 
@@ -531,7 +532,7 @@ def main(argsl=None,  # type: List[str]
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=overrides, 
+                                    overrides=overrides,
                                     do_validate=args.do_validate)
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
@@ -717,15 +718,13 @@ def main(argsl=None,  # type: List[str]
             return 1
 
     finally:
-        _logger.info(u"End Time:  %s", time.strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
-
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
             document.wasEndedBy(WorkflowRunID, None, engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
             args.research_obj.snapshot_generation(ProvDependencies[1])
             #for input file dependencies
-            if inputforProv:            
+            if inputforProv:
                 args.research_obj.snapshot_generation(inputforProv)
             if job_order_object:
                 args.research_obj.snapshot_generation(job_order_object)
