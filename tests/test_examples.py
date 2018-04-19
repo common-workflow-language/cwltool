@@ -556,6 +556,13 @@ class TestTypeCompare(unittest.TestCase):
             f = cwltool.factory.Factory()
             f.make("tests/checker_wf/broken-wf2.cwl")
 
+    def test_var_spool_cwl_checker(self):
+        """ Confirm that references to /var/spool/cwl are caught."""
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            f = cwltool.factory.Factory()
+            f.make("tests/non_portable.cwl")
+        f = cwltool.factory.Factory(strict=False)
+        f.make("tests/non_portable.cwl")
 
 class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):
