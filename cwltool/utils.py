@@ -6,7 +6,9 @@ import os
 import platform
 import shutil
 import stat
-from typing import Any, Callable, Dict, List, Text, Tuple, Union
+from functools import partial
+
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, Iterable
 if os.name == 'posix':
     import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
 else:
