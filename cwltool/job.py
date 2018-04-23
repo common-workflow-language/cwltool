@@ -393,7 +393,6 @@ class ContainerCommandLineJob(JobBase):
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (ProvDocument, Text, ProvEntity, Dict[Text, Any], bool, bool, bool, Text, Text, bool, Text, **Any) -> None 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
-        print ("newly added provenance obj in run !!!!1", vars(main_provenanceObject))
         img_id = None
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
