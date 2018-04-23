@@ -24,6 +24,7 @@ import cwltool.process
 import cwltool.workflow
 import schema_salad.validate
 from cwltool.main import main
+from cwltool.utils import onWindows
 
 from .util import get_data, needs_docker
 
@@ -615,7 +616,8 @@ class TestCache(TestCmdLine):
 class TestChecksum(TestCmdLine):
 
     def test_compute_checksum(self):
-        f = cwltool.factory.Factory(compute_checksum=True)
+        f = cwltool.factory.Factory(compute_checksum=True,
+                use_container=onWindows())
         echo = f.make(get_data("tests/wf/cat-tool.cwl"))
         output = echo(file1={
                 "class": "File",
