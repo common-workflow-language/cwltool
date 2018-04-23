@@ -12,6 +12,12 @@ from .process import shortname
 
 _logger = logging.getLogger("cwltool")
 
+def _get_type(tp):
+    if isinstance(tp, dict):
+        if tp.get("type") not in ("array", "record", "enum"):
+            return tp["type"]
+    return tp
+
 def check_types(srctype, sinktype, linkMerge, valueFrom):
     # type: (Any, Any, Text, Text) -> Text
     """Check if the source and sink types are "pass", "warning", or "exception".
@@ -27,9 +33,9 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
         else:
             return "exception"
     elif linkMerge == "merge_nested":
-        return check_types({"items": srctype["type"], "type": "array"}, sinktype["type"], None, None)
+        return check_types({"items": _get_type(srctype), "type": "array"}, _get_type(sinktype), None, None)
     elif linkMerge == "merge_flattened":
-        return check_types(merge_flatten_type(srctype["type"]), sinktype["type"], None, None)
+        return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
     else:
         raise WorkflowException(u"Unrecognized linkMerge enu_m '%s'" % linkMerge)
 
