@@ -22,9 +22,9 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
         else:
             return "exception"
     elif linkMerge == "merge_nested":
-        return check_types({"items": srctype, "type": "array"}, sinktype, None, None)
+        return check_types({"items": srctype["type"], "type": "array"}, sinktype["type"], None, None)
     elif linkMerge == "merge_flattened":
-        return check_types(merge_flatten_type(srctype), sinktype, None, None)
+        return check_types(merge_flatten_type(srctype["type"]), sinktype["type"], None, None)
     else:
         raise WorkflowException(u"Unrecognized linkMerge enu_m '%s'" % linkMerge)
 

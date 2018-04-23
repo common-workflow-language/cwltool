@@ -19,7 +19,7 @@ from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
-from .checker import static_checker
+from .checker import static_checker, can_assign_src_to_sink
 
 import six
 from six.moves import range
