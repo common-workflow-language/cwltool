@@ -155,7 +155,14 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
             return can_assign_src_to_sink(src["items"], sink["items"], strict)
         elif src["type"] == "record" and sink["type"] == "record":
             return _compare_records(src, sink, strict)
-        return False
+        elif src["type"] == "File" and sink["type"] == "File":
+            for sinksf in sink.get("secondaryFiles", [])
+                if not [1 for srcsf in src.get("secondaryFiles", []) if sinksf == srcsf]:
+                    if strict:
+                        return False
+            return True
+        else:
+            return can_assign_src_to_sink(src["type"], sink["type"], strict)
     elif isinstance(src, list):
         if strict:
             for t in src:
@@ -670,7 +677,7 @@ def check_all_types(src_dict, sinks, sourceField):
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
             for src in srcs_of_sink:
-                check_result = check_types(src["type"], sink["type"], linkMerge, valueFrom)
+                check_result = check_types(src, sink, linkMerge, valueFrom)
                 if check_result == "warning":
                     validation["warning"].append(SrcSink(src, sink, linkMerge))
                 elif check_result == "exception":
