@@ -126,13 +126,13 @@ class SingleJobExecutor(JobExecutor):
                             research_obj.prospective_prov(provobj.document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            research_obj.declare_artefact(relativised_input_object, provobj.document, job_order_object)
+                            provobj.declare_artefact(relativised_input_object, job_order_object)
                             ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID)
                         elif hasattr(r, "workflow"): #record provenance for the workflow execution
                             research_obj.prospective_prov(provobj.document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            research_obj.declare_artefact(relativised_input_object, provobj.document, job_order_object)
+                            provobj.declare_artefact(relativised_input_object, job_order_object)
                         else: #in case of commandline tool execution as part of workflow
                             ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID, provobj.workflowRunURI)
                         r.run(provobj, ProcessProvActivity, reference_locations, **kwargs)

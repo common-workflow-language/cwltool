@@ -489,6 +489,34 @@ class ProvenanceGeneration():
             new_d.append((key, current_dict['checksum'], current_dict['location']))
         return new_d
 
+    def declare_artefact(self, relativised_input_object, job_order_object):
+        # type: (Any, ProvDocument, Dict) -> None
+        '''
+        create data artefact entities for all file objects.
+        '''
+        if isinstance(relativised_input_object, dict):
+            # Base case - we found a File we need to update
+            if relativised_input_object.get("class") == "File":
+                #create an artefact
+                shahash="data:"+relativised_input_object["location"].split("/")[-1]
+                self.document.entity(shahash, {provM.PROV_TYPE:WFPROV["Artifact"]})
+
+            for o in relativised_input_object.values():
+                self.declare_artefact(o, job_order_object)
+            return
+
+        if isinstance(relativised_input_object, basestring):
+            # Just a string value, no need to iterate further
+            # FIXME: Should these be added as PROV entities as well?
+            return
+
+        try:
+            for o in iter(relativised_input_object):
+                # Recurse and rewrite any nested File objects
+                self.declare_artefact(o, job_order_object)
+        except TypeError:
+            pass
+
     def finalize_provProfile(self):
             # type: () -> None
             '''
@@ -1115,34 +1143,6 @@ class ResearchObject():
             for o in iter(structure):
                 # Recurse and rewrite any nested File objects
                 self._relativise_files(o, kwargs, relativised_input_objecttemp2)
-        except TypeError:
-            pass
-
-    def declare_artefact(self, relativised_input_object, document, job_order_object):
-        # type: (Any, ProvDocument, Dict) -> None
-        '''
-        create data artefact entities for all file objects.
-        '''
-        if isinstance(relativised_input_object, dict):
-            # Base case - we found a File we need to update
-            if relativised_input_object.get("class") == "File":
-                #create an artefact
-                shahash="data:"+relativised_input_object["location"].split("/")[-1]
-                document.entity(shahash, {provM.PROV_TYPE:WFPROV["Artifact"]})
-
-            for o in relativised_input_object.values():
-                self.declare_artefact(o, document, job_order_object)
-            return
-
-        if isinstance(relativised_input_object, basestring):
-            # Just a string value, no need to iterate further
-            # FIXME: Should these be added as PROV entities as well?
-            return
-
-        try:
-            for o in iter(relativised_input_object):
-                # Recurse and rewrite any nested File objects
-                self.declare_artefact(o, document, job_order_object)
         except TypeError:
             pass
 
