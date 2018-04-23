@@ -8,7 +8,6 @@ import sys
 from io import StringIO
 
 from cwltool.errors import WorkflowException
-from cwltool.utils import onWindows
 
 try:
     reload
@@ -26,7 +25,7 @@ import cwltool.workflow
 import schema_salad.validate
 from cwltool.main import main
 
-from .util import get_data
+from .util import get_data, needs_docker
 
 sys.argv = ['']
 
@@ -603,9 +602,7 @@ class TestJsConsole(TestCmdLine):
             self.assertNotIn("[err] Error message", stderr)
 
 
-@pytest.mark.skipif(onWindows(),
-                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
-                           "which is not supported on AppVeyor")
+@needs_docker
 class TestCache(TestCmdLine):
     def test_wf_without_container(self):
         test_file = "hello-workflow.cwl"
@@ -614,9 +611,7 @@ class TestCache(TestCmdLine):
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
 
-@pytest.mark.skipif(onWindows(),
-                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
-                           "which is not supported on AppVeyor")
+@needs_docker
 class TestChecksum(TestCmdLine):
 
     def test_compute_checksum(self):

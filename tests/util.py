@@ -3,7 +3,8 @@ import os
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
-
+import distutils.spawn
+import pytest
 
 def get_data(filename):
     filename = os.path.normpath(
@@ -17,3 +18,8 @@ def get_data(filename):
     if not filepath or not os.path.isfile(filepath):
         filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
     return filepath
+
+
+needs_docker = pytest.mark.skipif(not bool(distutils.spawn.find_executable('docker')),
+                                  reason="Requires the docker executable on the "
+                                  "system path.")
