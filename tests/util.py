@@ -17,6 +17,9 @@ def get_data(filename):
         pass
     if not filepath or not os.path.isfile(filepath):
         filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
+        # warning, __file__ is all lowercase on Windows systems, this can
+        # sometimes conflict with docker toolkit. Workaround: pip install .
+        # and run the tests elsewhere via python -m pytest --pyarg cwltool
     return filepath
 
 
