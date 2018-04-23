@@ -73,7 +73,7 @@ def docker_windows_path_adjust(path):
     if path is not None and onWindows():
         split = path.split(':')
         if len(split) == 2:
-            if int(platform.win32_ver()[0]) < 9:  # type: ignore
+            if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
                 split[0] = split[0].lower()  # Docker toolbox uses lowecase windows Drive letters
             else:
                 split[0] = split[0].capitalize()
