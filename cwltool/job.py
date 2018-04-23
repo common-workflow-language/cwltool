@@ -391,7 +391,7 @@ class ContainerCommandLineJob(JobBase):
             reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (ProvDocument, Text, ProvEntity, Dict[Text, Any], bool, bool, bool, Text, Text, bool, Text, **Any) -> None 
+        # type: (Any, ProvEntity, Dict[Text, Any], bool, bool, bool, Text, Text, bool, Text, **Any) -> None 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
         img_id = None
         env = None  # type: MutableMapping[Text, Text]

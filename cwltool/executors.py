@@ -52,7 +52,7 @@ class JobExecutor(object):
 
     def execute(self, t,  # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                provobj,
+                provobj=None,
                 logger=None,
                 makeTool=None,
                 select_resources=None,

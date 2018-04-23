@@ -70,14 +70,13 @@ engineUUID=uuid.uuid4().urn
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        main_provenanceObject=None,      # type: ProvDocument
+                        main_provenanceObject=None,      # type: Any
                         **kwargs           # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
-    print ("what is the value of main prov obj doc: ~~~~~~~`", main_provenanceObject.get)
     return executor(t, job_order_object, main_provenanceObject, **kwargs)
 
 def generate_example_input(inptype):

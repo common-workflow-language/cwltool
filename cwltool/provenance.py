@@ -271,7 +271,7 @@ def _valid_orcid(orcid): # type: (Text) -> Text
 
 class ProvenanceGeneration():
     def __init__(self, ro, full_name=None, orcid=None):
-        # type: (str, str, str) -> None
+        # type: (ResearchObject, str, str) -> None
         #self.orcid = _valid_orcid(orcid)
         self.orcid=orcid
         self.ro=ro
@@ -383,13 +383,12 @@ class ProvenanceGeneration():
             return ProcessProvActivity
     
     def used_artefacts(self, job_order, ProcessRunID, reference_locations, name):
-        # type: (Dict, Any, ProvDocument, ProvActivity, str) -> None
+        # type: (Dict, ProvActivity, str, str) -> None
         '''
         adds used() for each data artefact
         '''
         for key, value in job_order.items():
             provRole = self.ro.wf_ns["main/%s/%s" % (name, key)]
-            #ProcessRunID=ProcessProvActivity._identifier
             if isinstance(value, dict) and 'location' in value:
                 location=str(value['location'])
 
@@ -429,7 +428,7 @@ class ProvenanceGeneration():
                 self.document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def generate_outputProv(self, final_output, ProcessRunID=None, name=None):
-        # type: (Dict, ProvDocument, str, str, str) -> None
+        # type: (Dict, str, str) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
@@ -490,7 +489,7 @@ class ProvenanceGeneration():
         return new_d
 
     def declare_artefact(self, relativised_input_object, job_order_object):
-        # type: (Any, ProvDocument, Dict) -> None
+        # type: (Any, Dict) -> None
         '''
         create data artefact entities for all file objects.
         '''
@@ -518,7 +517,7 @@ class ProvenanceGeneration():
             pass
 
     def prospective_prov(self, r):
-        # type: (ProvDocument,Any) -> None
+        # type: (Any) -> None
         '''
         create prospective provenance recording for the workflow as wfdesc prov:Plan
         '''
