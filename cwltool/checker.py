@@ -149,11 +149,11 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
             SourceLine(sink, "type").makeError(
             "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
-        if sink.get("secondaryFiles"):
-            msg += "\n" + SourceLine(sink.get("_tool_entry", warning.sink), "secondaryFiles").makeError("  sink '%s' expects secondaryFiles %s" % (shortname(sink["id"]), sink.get("secondaryFiles")))
-            msg += "\n" + SourceLine(src.get("_tool_entry", warning.src), "secondaryFiles").makeError("  source '%s' has secondaryFiles %s" % (shortname(src["id"]), src.get("secondaryFiles")))
         if linkMerge:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
+        if sink.get("secondaryFiles") and sorted(sink.get("secondaryFiles",[])) != sorted(src.get("secondaryFiles",[])):
+            msg += "\n" + SourceLine(sink.get("_tool_entry", warning.sink), "secondaryFiles").makeError("  sink '%s' expects secondaryFiles %s" % (shortname(sink["id"]), sink.get("secondaryFiles")))
+            msg += "\n" + SourceLine(src.get("_tool_entry", warning.src), "secondaryFiles").makeError("  source '%s' has secondaryFiles %s" % (shortname(src["id"]), src.get("secondaryFiles")))
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src
