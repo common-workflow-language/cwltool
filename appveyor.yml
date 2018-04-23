@@ -48,7 +48,7 @@ build_script:
 
 
 test_script:
-  - "%PYTHON%\\python.exe -m py.test --verbose -p no:cacheprovider"
+  - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider"
 
 branches:
   only:
