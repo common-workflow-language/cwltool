@@ -39,7 +39,7 @@ environment:
       PYTHON_ARCH: "64"
 
 install:
-  - "%PYTHON%\\python.exe -m pip install wheel setuptools pip pytest mock"
+  - "%PYTHON%\\python.exe -m pip install -U wheel setuptools pip pytest mock"
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
 
