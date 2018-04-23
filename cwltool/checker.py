@@ -3,9 +3,12 @@ from collections import namedtuple
 import logging
 
 from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
+import six
+
 from schema_salad.sourceline import SourceLine, cmap
 import schema_salad.validate as validate
 from .process import shortname
+
 
 _logger = logging.getLogger("cwltool")
 
