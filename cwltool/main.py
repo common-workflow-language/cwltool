@@ -495,10 +495,10 @@ def main(argsl=None,  # type: List[str]
             main_provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             # Note: Record host info, if enabled
             if (args.host_provenance):
-                args.research_obj.host_provenance(document)
+                args.research_obj.host_provenance(main_provenanceObject.document)
             # .. so user provenance may link to account@hostname
             if (args.user_provenance):
-                args.research_obj.user_provenance(document)
+                args.research_obj.user_provenance(main_provenanceObject.document)
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
