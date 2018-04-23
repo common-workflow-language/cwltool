@@ -187,8 +187,7 @@ class JobBase(object):
                  runtime,                   # type: List[Text]
                  env,                       # type: MutableMapping[Text, Text]
                  research_obj,              # type: Any
-                 document=None,             # type: ProvDocument
-                 WorkflowRunID=None,        # type: Text
+                 main_provenanceObject=None,
                  ProcessProvActivity=None,  # type: ProvEntity
                  reference_locations=None,  # type: Dict[Text, Any]
                  rm_tmpdir=True,            # type: bool
@@ -214,7 +213,7 @@ class JobBase(object):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if hasattr(self, "joborder") and research_obj:
             job_order=self.joborder
-            research_obj.used_artefacts(job_order, ProcessProvActivity, document, reference_locations, str(self.name))
+            main_provenanceObject.used_artefacts(job_order, ProcessProvActivity, reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
@@ -276,7 +275,7 @@ class JobBase(object):
             #creating entities for the outputs produced by each step (in the provenance document)
             if research_obj:
                 ProcessRunID=str(ProcessProvActivity.identifier)
-                research_obj.generate_outputProv(outputs, document, WorkflowRunID, ProcessRunID, str(self.name))
+                main_provenanceObject.generate_outputProv(outputs, ProcessRunID, str(self.name))
                 
         except OSError as e:
             if e.errno == 2:
@@ -294,7 +293,7 @@ class JobBase(object):
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         if research_obj:
-            document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
+            main_provenanceObject.document.wasEndedBy(str(ProcessProvActivity.identifier), None, main_provenanceObject.workflowRunURI, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
@@ -331,8 +330,7 @@ class JobBase(object):
 class CommandLineJob(JobBase):
 
     def run(self,
-            document=None,             # type: ProvDocument
-            WorkflowRunID=None,        # type: Text
+            main_provenanceObject=None,
             ProcessProvActivity=None,  # type: ProvEntity
             reference_locations=None,  # type: Dict[Text, Any]
             pull_image=True,           # type: bool
@@ -366,8 +364,7 @@ class CommandLineJob(JobBase):
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
         research_obj=kwargs.get("research_obj")
-        self._execute([], env, research_obj, document, 
-                      WorkflowRunID, 
+        self._execute([], env, research_obj, main_provenanceObject, 
                       ProcessProvActivity,
                       reference_locations, 
                       rm_tmpdir=rm_tmpdir, 
@@ -390,13 +387,13 @@ class ContainerCommandLineJob(JobBase):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
         pass
 
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,
+    def run(self, main_provenanceObject=None, ProcessProvActivity=None,
             reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (ProvDocument, Text, ProvEntity, Dict[Text, Any], bool, bool, bool, Text, Text, bool, Text, **Any) -> None 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
-
+        print ("newly added provenance obj in run !!!!1", vars(main_provenanceObject))
         img_id = None
         env = None  # type: MutableMapping[Text, Text]
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
@@ -426,9 +423,9 @@ class ContainerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
 
-                if document and img_id and ProcessProvActivity:
+                if main_provenanceObject.document and img_id and ProcessProvActivity:
                     # TODO: Integrate with record_container_id 
-                    container_agent = document.agent(uuid.uuid4().urn, 
+                    container_agent = main_provenanceObject.document.agent(uuid.uuid4().urn, 
                         {"prov:type": PROV["SoftwareAgent"],
                          "cwlprov:image": img_id,
                          "prov:label": "Container execution of image %s" % img_id})
@@ -437,8 +434,7 @@ class ContainerCommandLineJob(JobBase):
                     #                  {"prov:label": "Container image %s" % img_id} )                    
                     # The image is the plan for this activity-agent association
                     #document.wasAssociatedWith(ProcessProvActivity, container_agent, img_entity)
-                    document.wasAssociatedWith(ProcessProvActivity, container_agent)
-
+                    main_provenanceObject.document.wasAssociatedWith(ProcessProvActivity, container_agent)
             except Exception as e:
                 container = "Singularity" if kwargs.get("singularity") else "Docker"
                 _logger.debug("%s error" % container, exc_info=True)
@@ -456,7 +452,7 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
         research_obj=kwargs.get("research_obj")
-        self._execute(runtime, env, research_obj, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))  
+        self._execute(runtime, env, research_obj, main_provenanceObject, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))  
 
 
 def _job_popen(

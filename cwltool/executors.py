@@ -43,9 +43,7 @@ class JobExecutor(object):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 engUUID,
-                 document,
-                 WorkflowRunID,
+                 provobj,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any
@@ -54,12 +52,10 @@ class JobExecutor(object):
 
     def execute(self, t,  # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                engineID=None,
+                provobj,
                 logger=None,
                 makeTool=None,
                 select_resources=None,
-                provDoc=None,
-                WorkflowID=None,
                 make_fs_access=None,
                 secret_store=None,
                 **kwargs  # type: Any
@@ -83,7 +79,7 @@ class JobExecutor(object):
         if jobReqs:
             for req in jobReqs:
                 t.requirements.append(req)
-        self.run_jobs(t, job_order_object, engineID, provDoc, WorkflowID, logger, make_fs_access, **kwargs)
+        self.run_jobs(t, job_order_object, provobj, logger, make_fs_access, **kwargs)
 
         if self.final_output and self.final_output[0] and finaloutdir:
             self.final_output[0] = relocateOutputs(
@@ -103,14 +99,13 @@ class JobExecutor(object):
 class SingleJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
-                 job_order_object,  # type: Dict[Text, Any]
-                 engUUID,
-                 document,
-                 WorkflowRunID,
-                 logger,
-                 make_fs_access,
-                 **kwargs  # type: Any
+                 job_order_object=None,  # type: Dict[Text, Any]
+                 provobj=None,
+                 logger=None,
+                 make_fs_access=None,
+                  **kwargs   
                  ):
+
         reference_locations={} # type: Dict[Text, Any]
         ProcessProvActivity=None
         jobiter = t.job(job_order_object,
@@ -128,23 +123,23 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(r.outdir)
                     if research_obj:
                         if not hasattr(t, "steps"): #record provenance of an independent commandline tool execution
-                            research_obj.prospective_prov(document, r)
+                            research_obj.prospective_prov(provobj.document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            research_obj.declare_artefact(relativised_input_object, document, job_order_object)
-                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID)
+                            research_obj.declare_artefact(relativised_input_object, provobj.document, job_order_object)
+                            ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID)
                         elif hasattr(r, "workflow"): #record provenance for the workflow execution
-                            research_obj.prospective_prov(document, r)
+                            research_obj.prospective_prov(provobj.document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            research_obj.declare_artefact(relativised_input_object, document, job_order_object)
+                            research_obj.declare_artefact(relativised_input_object, provobj.document, job_order_object)
                         else: #in case of commandline tool execution as part of workflow
-                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
-                        r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
+                            ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID, provobj.workflowRunURI)
+                        r.run(provobj, ProcessProvActivity, reference_locations, **kwargs)
                         #capture workflow level outputs in the prov doc
                         if self.final_output:
                             ProcessRunID=None
-                            research_obj.generate_outputProv(self.final_output[0], document, WorkflowRunID, ProcessRunID)
+                            provobj.generate_outputProv(self.final_output[0], ProcessRunID)
                     else:
                         r.run(**kwargs)
                 else:
@@ -190,9 +185,7 @@ class MultithreadedJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 engUUID,
-                 document,
-                 WorkflowRunID,
+                 provobj,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any

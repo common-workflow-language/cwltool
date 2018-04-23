@@ -47,7 +47,7 @@ from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
-from .provenance import create_researchObject
+from .provenance import create_researchObject, ProvenanceGeneration
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
 from .process import (Process, normalizeFilesDirs,
                       scandeps, shortname, use_custom_schema,
@@ -70,14 +70,15 @@ engineUUID=uuid.uuid4().urn
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        provDoc=None,  # type: ProvDocument
+                        main_provenanceObject=None,      # type: ProvDocument
                         **kwargs           # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
-    return executor(t, job_order_object, provDoc, **kwargs)
+    print ("what is the value of main prov obj doc: ~~~~~~~`", main_provenanceObject.get)
+    return executor(t, job_order_object, main_provenanceObject, **kwargs)
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -382,6 +383,7 @@ def main(argsl=None,  # type: List[str]
     workflowobj = None
     document=None
     WorkflowRunID=None
+    main_provenanceObject=None
     try:
         if args is None:
             if argsl is None:
@@ -489,7 +491,8 @@ def main(argsl=None,  # type: List[str]
                 full_name=args.cwl_full_name)
             # Ensure version starts with 'cwltool'
             cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-            WorkflowRunID, document = args.research_obj.generate_provDoc(cwltoolVersion, engineUUID)
+            main_provenanceObject=ProvenanceGeneration(args.research_obj, cwltoolVersion, engineUUID)
+            main_provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             # Note: Record host info, if enabled
             if (args.host_provenance):
                 args.research_obj.host_provenance(document)
@@ -660,12 +663,10 @@ def main(argsl=None,  # type: List[str]
             del args.workflow
             del args.job_order
             (out, status) = executor(tool, job_order_object,
-                                     engineUUID=engineUUID,
+                                     provobj=main_provenanceObject,
                                      logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
-                                     provDoc=document,
-                                     WorkflowID=WorkflowRunID,
                                      make_fs_access=make_fs_access,
                                      secret_store=secret_store,
                                      **vars(args))
@@ -719,7 +720,7 @@ def main(argsl=None,  # type: List[str]
 
     finally:
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
-            document.wasEndedBy(WorkflowRunID, None, engineUUID, datetime.datetime.now())
+            main_provenanceObject.document.wasEndedBy(main_provenanceObject.workflowRunURI, None, main_provenanceObject.engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
             args.research_obj.snapshot_generation(ProvDependencies[1])
@@ -728,9 +729,8 @@ def main(argsl=None,  # type: List[str]
                 args.research_obj.snapshot_generation(inputforProv)
             if job_order_object:
                 args.research_obj.snapshot_generation(job_order_object)
-
-            #adding prov profile and graphs to RO
-            args.research_obj.finalize_provProfile(document)
+            #adding prov profile to RO
+            main_provenanceObject.finalize_provProfile()
             args.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)

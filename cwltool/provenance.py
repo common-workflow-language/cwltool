@@ -162,6 +162,8 @@ class WritableBagFile(io.FileIO):
         # FIXME: Convert below block to a ResearchObject method?
         if self.rel_path.startswith("data/"):
             self.ro.bagged_size[self.rel_path] = self.tell()
+        elif self.rel_path.startswith("metadata/"):
+            pass
         else:
             self.ro.tagfiles.add(self.rel_path)
 
@@ -266,6 +268,273 @@ def _valid_orcid(orcid): # type: (Text) -> Text
 
     # c) Re-add the official prefix https://orcid.org/
     return u"https://orcid.org/%s" % orcid_num
+
+class ProvenanceGeneration():
+    def __init__(self, ro, full_name=None, orcid=None):
+        # type: (str, str, str) -> None
+        #self.orcid = _valid_orcid(orcid)
+        self.orcid=orcid
+        self.ro=ro
+        self.folder = self.ro.folder
+        self.document = ProvDocument()
+        # These should be replaced by generate_provDoc when workflow/run IDs are known:
+        self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
+        u = uuid.uuid4()
+        self.workflowRunURI = u.urn
+        self.add_to_manifest=self.ro.add_to_manifest
+        if self.orcid:
+            _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
+        self.full_name = full_name or None
+        if self.full_name:
+            _logger.info(u"[provenance] Creator Full name: %s", self.full_name) 
+
+    def generate_provDoc(self, cwltoolVersion, engineUUID):
+        # type: (str, str) -> Tuple[str, ProvDocument]
+        '''
+        add basic namespaces
+        '''
+
+        workflowRunUUID = uuid.uuid4()
+
+        self.cwltoolVersion = cwltoolVersion
+        self.document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
+        #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
+        self.document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
+        # TODO: Make this ontology. For now only has cwlprov:image
+        self.document.add_namespace('cwlprov', 'https://w3id.org/cwl/prov#')
+        self.document.add_namespace('foaf', 'http://xmlns.com/foaf/0.1/')
+        self.document.add_namespace('schema', 'http://schema.org/')
+        self.document.add_namespace('orcid', 'https://orcid.org/')
+        self.document.add_namespace('id', 'urn:uuid:')
+        # NOTE: Internet draft expired 2004-03-04 (!)
+        #  https://tools.ietf.org/html/draft-thiemann-hash-urn-01
+        # TODO: Change to nih:sha-256; hashes
+        #  https://tools.ietf.org/html/rfc6920#section-7
+        self.document.add_namespace('data', 'urn:hash::sha1:')
+        # Also needed for docker images
+        self.document.add_namespace("sha256", "nih:sha-256;")
+        self.workflowRunURI = workflowRunUUID.urn
+        # https://tools.ietf.org/id/draft-soilandreyes-arcp
+        self.base_uri = "arcp://uuid,%s/" % workflowRunUUID
+        ## info only, won't really be used by prov as sub-resources use /
+        self.document.add_namespace('researchobject', self.base_uri)
+        roIdentifierWorkflow= self.base_uri + "workflow/packed.cwl#"
+        self.wf_ns = self.document.add_namespace("wf", roIdentifierWorkflow)
+        roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
+        self.document.add_namespace("input", roIdentifierInput)
+        self.engineUUID = engineUUID
+
+        # More info about the account (e.g. username, fullname)
+        # may or may not have been previously logged by user_provenance()
+        # .. but we always know cwltool was launched (directly or indirectly)
+        # by a user account, as cwltool is a command line tool
+        account = self.document.agent(accountUUID)
+        if self.orcid or self.full_name:
+            person = {provM.PROV_TYPE: PROV["Person"], "prov:type": SCHEMA["Person"]}
+            if self.full_name:
+                person["prov:label"] = self.full_name
+                person["foaf:name"] = self.full_name
+                person["schema:name"] = self.full_name
+            else:
+                # TODO: Look up name from ORCID API?
+                pass
+            a = self.document.agent(self.orcid or uuid.uuid4().urn,
+                               person)
+            self.document.actedOnBehalfOf(account, a)
+        # The execution of cwltool
+        wfengine = self.document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"],
+            "prov:type": WFPROV["WorkflowEngine"],
+            "prov:label": cwltoolVersion})
+        # FIXME: This datetime will be a bit too delayed, we should
+        # capture when cwltool.py earliest started?
+        self.document.wasStartedBy(wfengine, None, account, datetime.datetime.now())
+        #define workflow run level activity
+        self.document.activity(self.workflowRunURI, datetime.datetime.now(), None, {
+            provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
+        #association between SoftwareAgent and WorkflowRun
+        # FIXME: Below assumes main workflow always called "#main",
+        # is this always true after packing?
+        mainWorkflow = "wf:main"
+        self.document.wasAssociatedWith(self.workflowRunURI, engineUUID, mainWorkflow)
+        self.document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
+        return (self.workflowRunURI, self.document)
+
+
+    def startProcess(self, r, document, engineUUID, WorkflowRunID=None):
+            # type: (Any, ProvDocument, str, str) -> None
+            ## FIXME: What is the real name and type of r?
+            ## process.py/workflow.py just says "Any" or "Generator"..
+            '''
+            record start of each Process
+            '''
+            ProcessRunID=uuid.uuid4().urn
+            ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
+            if WorkflowRunID:
+                provLabel="Run of workflow/packed.cwl#main/"+ProcessName
+                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+            #if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
+                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
+                document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+            else:
+                provLabel="Run of CommandLineTool/packed.cwl#main/"
+                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
+                document.wasStartedBy(ProcessRunID, None, engineUUID, datetime.datetime.now(), None, None)
+            return ProcessProvActivity
+    
+    def used_artefacts(self, job_order, ProcessRunID, reference_locations, name):
+        # type: (Dict, Any, ProvDocument, ProvActivity, str) -> None
+        '''
+        adds used() for each data artefact
+        '''
+        for key, value in job_order.items():
+            provRole = self.ro.wf_ns["main/%s/%s" % (name, key)]
+            #ProcessRunID=ProcessProvActivity._identifier
+            if isinstance(value, dict) and 'location' in value:
+                location=str(value['location'])
+
+                if 'checksum' in value:
+                    c = value['checksum']
+                    _logger.info("[provenance] Used data w/ checksum %s", c)
+                    (method, checksum) = value['checksum'].split("$", 1)
+                    if (method == "sha1"):
+                        self.document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
+                        return # successfully logged
+                    else:
+                        _logger.warn("[provenance] Unknown checksum algorithm %s", method)
+                        pass
+                else:
+                    _logger.info("[provenance] Used data w/o checksum %s", location)
+                    # FIXME: Store manually
+                    pass
+
+                # If we made it here, then we didn't log it correctly with checksum above,
+                # we'll have to hash it again (and potentially add it to RO)
+                # TODO: Avoid duplication of code here and in
+                # _relativise_files()
+                # TODO: check we don't double-hash everything now
+                fsaccess = self.ro.make_fs_access("")
+                with fsaccess.open(location, "rb") as f:
+                    relative_path=self.ro.add_data_file(f)
+                    checksum = posixpath.basename(relative_path)
+                    self.document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
+
+            else:  # add the actual data value in the prov document
+                # Convert to bytes so we can get a hash (and add to RO)
+                b = io.BytesIO(str(value).encode(ENCODING))
+                data_file = self.ro.add_data_file(b)
+                # FIXME: Don't naively assume add_data_file uses hash in filename!
+                data_id="data:%s" % posixpath.split(data_file)[1]
+                self.document.entity(data_id, {provM.PROV_TYPE:WFPROV["Artifact"], provM.PROV_VALUE:str(value)})
+                self.document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
+
+    def generate_outputProv(self, final_output, ProcessRunID=None, name=None):
+        # type: (Dict, ProvDocument, str, str, str) -> None
+        '''
+        create wasGeneratedBy() for each output and copy each output file in the RO
+        '''
+        ## A bit too late, but we don't know the "inner" when
+        when = datetime.datetime.now()
+        key_files=[] # type: List[List[Any]]
+        for key, value in final_output.items():
+
+            if isinstance(value, list):
+                key_files.append(self.array_output(key, value))
+            elif isinstance (value, dict):
+                key_files.append(self.dict_output(key, value))
+
+        merged_total= list(itertools.chain.from_iterable(key_files))
+
+        #generate data artefacts at workflow level
+        for tuple_entry in merged_total:
+            # FIXME: What are these magic array[][] positions???
+            output_checksum="data:"+str(tuple_entry[1][5:])
+
+            if ProcessRunID:
+                name = urllib.parse.quote(name, safe=":/,#")
+                stepProv = self.ro.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
+
+                self.document.entity(output_checksum, {provM.PROV_TYPE: WFPROV["Artifact"]})
+                self.document.wasGeneratedBy(output_checksum, ProcessRunID, when, None, {"prov:role":stepProv})
+            else:
+                outputProvRole = self.wf_ns["main"+"/"+str(tuple_entry[0])]
+                self.document.entity(output_checksum, {provM.PROV_TYPE:WFPROV["Artifact"]})
+                self.document.wasGeneratedBy(output_checksum, self.workflowRunURI, when, None, {"prov:role":outputProvRole })
+                # FIXME: What are these magic array positions???
+                with open(tuple_entry[2][7:], "rb") as fp:
+                    rel_path = self.ro.add_data_file(fp, when)
+                    _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
+
+    def array_output(self, key, current_l):
+        # type: (Any, List) -> List
+        '''
+        helper function for generate_outputProv()
+        for the case when we have an array of files as output
+        '''
+        new_l=[]
+        for y in current_l:
+            if isinstance(y, dict):
+                new_l.append((key, y['checksum'], y['location']))
+
+        return new_l
+
+    def dict_output(self, key, current_dict):
+        # type: (Any, Dict) -> List
+        '''
+        helper function for generate_outputProv()
+        for the case when the output is key:value where value is a file item
+        '''
+        new_d = []
+        if current_dict.get("class") == "File":
+            new_d.append((key, current_dict['checksum'], current_dict['location']))
+        return new_d
+
+    def finalize_provProfile(self):
+            # type: () -> None
+            '''
+            Transfer the provenance related files to RO
+            '''
+            #self.prov_document = document
+            # TODO: Generate filename per workflow run also for nested workflows
+            # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
+            # NOTE: Relative posix path
+            basename = posixpath.join(_posix_path(PROVENANCE), "primary.cwlprov")
+            # TODO: Also support other profiles than CWLProv, e.g. ProvOne
+
+            # https://www.w3.org/TR/prov-xml/
+            with self.ro.write_bag_file(basename + ".xml") as fp:
+                self.document.serialize(fp, format="xml", indent=4)
+
+            # https://www.w3.org/TR/prov-n/
+            with self.ro.write_bag_file(basename + ".provn") as fp:
+                self.document.serialize(fp, format="provn", indent=2)
+
+
+            # https://www.w3.org/Submission/prov-json/
+            with self.ro.write_bag_file(basename + ".json") as fp:
+                self.document.serialize(fp, format="json", indent=2)
+
+            # "rdf" aka https://www.w3.org/TR/prov-o/
+            # which can be serialized to ttl/nt/jsonld (and more!)
+
+            # https://www.w3.org/TR/turtle/
+            with self.ro.write_bag_file(basename + ".ttl") as fp:
+                self.document.serialize(fp, format="rdf", rdf_format="turtle")
+
+            # https://www.w3.org/TR/n-triples/
+            with self.ro.write_bag_file(basename + ".nt") as fp:
+                self.document.serialize(fp, format="rdf", rdf_format="ntriples")
+
+            # https://www.w3.org/TR/json-ld/
+            # TODO: Use a nice JSON-LD context
+            # see also https://eprints.soton.ac.uk/395985/
+            # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
+            with self.ro.write_bag_file(basename + ".jsonld") as fp:
+                self.document.serialize(fp, format="rdf", rdf_format="json-ld")
+
+            _logger.info("[provenance] added all tag files")
+
+
 
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
@@ -626,84 +895,6 @@ class ResearchObject():
             infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
-    def generate_provDoc(self, cwltoolVersion, engineUUID):
-        # type: (str, str) -> Tuple[str, ProvDocument]
-        '''
-        add basic namespaces
-        '''
-
-        workflowRunUUID = uuid.uuid4()
-        document = ProvDocument()
-
-        self.cwltoolVersion = cwltoolVersion
-        document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
-        #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
-        document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
-        # TODO: Make this ontology. For now only has cwlprov:image
-        document.add_namespace('cwlprov', 'https://w3id.org/cwl/prov#')
-        document.add_namespace('foaf', 'http://xmlns.com/foaf/0.1/')
-        document.add_namespace('schema', 'http://schema.org/')
-        document.add_namespace('orcid', 'https://orcid.org/')
-        document.add_namespace('id', 'urn:uuid:')
-        # NOTE: Internet draft expired 2004-03-04 (!)
-        #  https://tools.ietf.org/html/draft-thiemann-hash-urn-01
-        # TODO: Change to nih:sha-256; hashes
-        #  https://tools.ietf.org/html/rfc6920#section-7
-        document.add_namespace('data', 'urn:hash::sha1:')
-        # Also needed for docker images
-        document.add_namespace("sha256", "nih:sha-256;")
-        self.workflowRunURI = workflowRunUUID.urn
-        # https://tools.ietf.org/id/draft-soilandreyes-arcp
-        self.base_uri = "arcp://uuid,%s/" % workflowRunUUID
-        ## info only, won't really be used by prov as sub-resources use /
-        document.add_namespace('researchobject', self.base_uri)
-        roIdentifierWorkflow= self.base_uri + "workflow/packed.cwl#"
-        self.wf_ns = document.add_namespace("wf", roIdentifierWorkflow)
-        roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
-        document.add_namespace("input", roIdentifierInput)
-        self.engineUUID = engineUUID
-
-        # More info about the account (e.g. username, fullname)
-        # may or may not have been previously logged by user_provenance()
-        # .. but we always know cwltool was launched (directly or indirectly)
-        # by a user account, as cwltool is a command line tool
-        account = document.agent(accountUUID)
-        if self.orcid or self.full_name:
-            person = {provM.PROV_TYPE: PROV["Person"], "prov:type": SCHEMA["Person"]}
-            if self.full_name:
-                person["prov:label"] = self.full_name
-                person["foaf:name"] = self.full_name
-                person["schema:name"] = self.full_name
-            else:
-                # TODO: Look up name from ORCID API?
-                pass
-
-            a = document.agent(self.orcid or uuid.uuid4().urn,
-                               person)
-            document.actedOnBehalfOf(account, a)
-
-        # The execution of cwltool
-        wfengine = document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"],
-            "prov:type": WFPROV["WorkflowEngine"],
-            "prov:label": cwltoolVersion})
-
-        # FIXME: This datetime will be a bit too delayed, we should
-        # capture when cwltool.py earliest started?
-        document.wasStartedBy(wfengine, None, account, datetime.datetime.now())
-
-
-        #define workflow run level activity
-        document.activity(self.workflowRunURI, datetime.datetime.now(), None, {
-            provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
-        #association between SoftwareAgent and WorkflowRun
-        # FIXME: Below assumes main workflow always called "#main",
-        # is this always true after packing?
-        mainWorkflow = "wf:main"
-        document.wasAssociatedWith(self.workflowRunURI, engineUUID, mainWorkflow)
-        document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
-        return self.workflowRunURI, document
-
-
     def snapshot_generation(self, ProvDep):
         # type: (Dict[str,str]) -> None
         '''
@@ -927,73 +1118,6 @@ class ResearchObject():
         except TypeError:
             pass
 
-    def finalize_provProfile(self, document):
-        # type: (ProvDocument) -> None
-        '''
-        Transfer the provenance related files to RO
-        '''
-        self.prov_document = document
-        # TODO: Generate filename per workflow run also for nested workflows
-        # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
-        # NOTE: Relative posix path
-        basename = posixpath.join(_posix_path(PROVENANCE), "primary.cwlprov")
-        # TODO: Also support other profiles than CWLProv, e.g. ProvOne
-
-        # https://www.w3.org/TR/prov-xml/
-        with self.write_bag_file(basename + ".xml") as fp:
-            document.serialize(fp, format="xml", indent=4)
-
-        # https://www.w3.org/TR/prov-n/
-        with self.write_bag_file(basename + ".provn") as fp:
-            document.serialize(fp, format="provn", indent=2)
-
-
-        # https://www.w3.org/Submission/prov-json/
-        with self.write_bag_file(basename + ".json") as fp:
-            document.serialize(fp, format="json", indent=2)
-
-        # "rdf" aka https://www.w3.org/TR/prov-o/
-        # which can be serialized to ttl/nt/jsonld (and more!)
-
-        # https://www.w3.org/TR/turtle/
-        with self.write_bag_file(basename + ".ttl") as fp:
-            document.serialize(fp, format="rdf", rdf_format="turtle")
-
-        # https://www.w3.org/TR/n-triples/
-        with self.write_bag_file(basename + ".nt") as fp:
-            document.serialize(fp, format="rdf", rdf_format="ntriples")
-
-        # https://www.w3.org/TR/json-ld/
-        # TODO: Use a nice JSON-LD context
-        # see also https://eprints.soton.ac.uk/395985/
-        # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
-        with self.write_bag_file(basename + ".jsonld") as fp:
-            document.serialize(fp, format="rdf", rdf_format="json-ld")
-
-        _logger.info("[provenance] added all tag files")
-
-    def startProcess(self, r, document, engineUUID, WorkflowRunID=None):
-            # type: (Any, ProvDocument, str, str) -> None
-            ## FIXME: What is the real name and type of r?
-            ## process.py/workflow.py just says "Any" or "Generator"..
-            '''
-            record start of each Process
-            '''
-            ProcessRunID=uuid.uuid4().urn
-            ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
-            if WorkflowRunID:
-                provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-            #if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-                document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
-            else:
-                provLabel="Run of CommandLineTool/packed.cwl#main/"
-                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-                document.wasStartedBy(ProcessRunID, None, engineUUID, datetime.datetime.now(), None, None)
-            return ProcessProvActivity
-
     def declare_artefact(self, relativised_input_object, document, job_order_object):
         # type: (Any, ProvDocument, Dict) -> None
         '''
@@ -1021,116 +1145,6 @@ class ResearchObject():
                 self.declare_artefact(o, document, job_order_object)
         except TypeError:
             pass
-
-
-    def generate_outputProv(self, final_output, document, WorkflowRunID=None, ProcessRunID=None, name=None):
-        # type: (Dict, ProvDocument, str, str, str) -> None
-        '''
-        create wasGeneratedBy() for each output and copy each output file in the RO
-        '''
-        ## A bit too late, but we don't know the "inner" when
-        when = datetime.datetime.now()
-        key_files=[] # type: List[List[Any]]
-        for key, value in final_output.items():
-
-            if isinstance(value, list):
-                key_files.append(self.array_output(key, value))
-            elif isinstance (value, dict):
-                key_files.append(self.dict_output(key, value))
-
-        merged_total= list(itertools.chain.from_iterable(key_files))
-
-        #generate data artefacts at workflow level
-        for tuple_entry in merged_total:
-            # FIXME: What are these magic array[][] positions???
-            output_checksum="data:"+str(tuple_entry[1][5:])
-
-            if ProcessRunID:
-                name = urllib.parse.quote(name, safe=":/,#")
-                stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
-
-                document.entity(output_checksum, {provM.PROV_TYPE: WFPROV["Artifact"]})
-                document.wasGeneratedBy(output_checksum, ProcessRunID, when, None, {"prov:role":stepProv})
-            else:
-                outputProvRole = self.wf_ns["main"+"/"+str(tuple_entry[0])]
-                document.entity(output_checksum, {provM.PROV_TYPE:WFPROV["Artifact"]})
-                document.wasGeneratedBy(output_checksum, WorkflowRunID, when, None, {"prov:role":outputProvRole })
-                # FIXME: What are these magic array positions???
-                with open(tuple_entry[2][7:], "rb") as fp:
-                    rel_path = self.add_data_file(fp, when)
-                    _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
-
-    def array_output(self, key, current_l):
-        # type: (Any, List) -> List
-        '''
-        helper function for generate_outputProv()
-        for the case when we have an array of files as output
-        '''
-        new_l=[]
-        for y in current_l:
-            if isinstance(y, dict):
-                new_l.append((key, y['checksum'], y['location']))
-
-        return new_l
-
-    def dict_output(self, key, current_dict):
-        # type: (Any, Dict) -> List
-        '''
-        helper function for generate_outputProv()
-        for the case when the output is key:value where value is a file item
-        '''
-        new_d = []
-        if current_dict.get("class") == "File":
-            new_d.append((key, current_dict['checksum'], current_dict['location']))
-        return new_d
-
-    def used_artefacts(self, job_order, ProcessProvActivity, document, reference_locations, name):
-        # type: (Dict, Any, ProvDocument, ProvActivity, str) -> None
-        '''
-        adds used() for each data artefact
-        '''
-        for key, value in job_order.items():
-            provRole = self.wf_ns["main/%s/%s" % (name, key)]
-            ProcessRunID=str(ProcessProvActivity.identifier)
-            if isinstance(value, dict) and 'location' in value:
-                location=str(value['location'])
-                #filename=location.split("/")[-1]
-                filename=posixpath.basename(location)
-
-                if 'checksum' in value:
-                    c = value['checksum']
-                    _logger.info("[provenance] Used data w/ checksum %s", c)
-                    (method, checksum) = value['checksum'].split("$", 1)
-                    if (method == "sha1"):
-                        document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
-                        return # successfully logged
-                    else:
-                        _logger.warn("[provenance] Unknown checksum algorithm %s", method)
-                        pass
-                else:
-                    _logger.info("[provenance] Used data w/o checksum %s", location)
-                    # FIXME: Store manually
-                    pass
-
-                # If we made it here, then we didn't log it correctly with checksum above,
-                # we'll have to hash it again (and potentially add it to RO)
-                # TODO: Avoid duplication of code here and in
-                # _relativise_files()
-                # TODO: check we don't double-hash everything now
-                fsaccess = self.make_fs_access("")
-                with fsaccess.open(location, "rb") as f:
-                    relative_path=self.add_data_file(f)
-                    checksum = posixpath.basename(relative_path)
-                    document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
-
-            else:  # add the actual data value in the prov document
-                # Convert to bytes so we can get a hash (and add to RO)
-                b = io.BytesIO(str(value).encode(ENCODING))
-                data_file = self.add_data_file(b)
-                # FIXME: Don't naively assume add_data_file uses hash in filename!
-                data_id="data:%s" % posixpath.split(data_file)[1]
-                document.entity(data_id, {provM.PROV_TYPE:WFPROV["Artifact"], provM.PROV_VALUE:str(value)})
-                document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def copy_job_order(self, r, job_order_object):
         # type: (Any,Any) -> Any
