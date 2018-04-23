@@ -105,7 +105,7 @@ class TestPack(unittest.TestCase):
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
         packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
-        temp_packed_path = tempfile.mkstemp()[1]
+        temp_packed_handle, temp_packed_path = tempfile.mkstemp()
         with open(temp_packed_path, 'w') as f:
             json.dump(packed, f)
         normal_output = StringIO()
@@ -117,6 +117,7 @@ class TestPack(unittest.TestCase):
                                 get_data(test_wf_job)],
                                stdout=normal_output), 0)
         self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
+        os.close(temp_packed_handle)
         os.remove(temp_packed_path)
 
     @needs_docker
@@ -129,7 +130,7 @@ class TestPack(unittest.TestCase):
             document_loader, workflowobj, uri)
         packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
         assert "$namespaces" in packed
-        temp_packed_path = tempfile.mkstemp()[1]
+        temp_packed_handle, temp_packed_path = tempfile.mkstemp()
         with open(temp_packed_path, 'w') as f:
             json.dump(packed, f)
         normal_output = StringIO()
@@ -141,4 +142,5 @@ class TestPack(unittest.TestCase):
                                 get_data(test_wf_job)],
                                stdout=normal_output), 0)
         self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
+        os.close(temp_packed_handle)
         os.remove(temp_packed_path)
