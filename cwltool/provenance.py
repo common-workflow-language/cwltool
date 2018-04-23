@@ -517,6 +517,30 @@ class ProvenanceGeneration():
         except TypeError:
             pass
 
+    def prospective_prov(self, r):
+        # type: (ProvDocument,Any) -> None
+        '''
+        create prospective provenance recording for the workflow as wfdesc prov:Plan
+        '''
+        if not hasattr(r, "steps"):
+            # direct command line tool execution
+            self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+            return
+
+        # FIXME: Workflow is always called "#main"?
+        self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Workflow"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+
+        steps=[]
+        for s in r.steps:
+            # FIXME: Use URI fragment identifier for step name, e.g. for spaces
+            stepnametemp="wf:main/"+str(s.name)[5:]
+            stepname=urllib.parse.quote(stepnametemp, safe=":/,#")
+            steps.append(stepname)
+            step = self.document.entity(stepname, {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
+            self.document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
+
+        # TODO: Declare roles/parameters as well
+
     def finalize_provProfile(self):
             # type: () -> None
             '''
@@ -561,8 +585,6 @@ class ProvenanceGeneration():
                 self.document.serialize(fp, format="rdf", rdf_format="json-ld")
 
             _logger.info("[provenance] added all tag files")
-
-
 
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
@@ -1167,29 +1189,6 @@ class ResearchObject():
                         u"Input '%s' not in input object and does not have a default value." % (i["id"]))
         return customised_job
 
-    def prospective_prov(self, document, r):
-        # type: (ProvDocument,Any) -> None
-        '''
-        create prospective provenance recording for the workflow as wfdesc prov:Plan
-        '''
-        if not hasattr(r, "steps"):
-            # direct command line tool execution
-            document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
-            return
-
-        # FIXME: Workflow is always called "#main"?
-        document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Workflow"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
-
-        steps=[]
-        for s in r.steps:
-            # FIXME: Use URI fragment identifier for step name, e.g. for spaces
-            stepnametemp="wf:main/"+str(s.name)[5:]
-            stepname=urllib.parse.quote(stepnametemp, safe=":/,#")
-            steps.append(stepname)
-            step = document.entity(stepname, {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
-            document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
-
-        # TODO: Declare roles/parameters as well
 
 
 #**************************************

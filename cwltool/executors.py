@@ -123,13 +123,13 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(r.outdir)
                     if research_obj:
                         if not hasattr(t, "steps"): #record provenance of an independent commandline tool execution
-                            research_obj.prospective_prov(provobj.document, r)
+                            provobj.prospective_prov(r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             provobj.declare_artefact(relativised_input_object, job_order_object)
                             ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID)
                         elif hasattr(r, "workflow"): #record provenance for the workflow execution
-                            research_obj.prospective_prov(provobj.document, r)
+                            provobj.prospective_prov(r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             provobj.declare_artefact(relativised_input_object, job_order_object)
