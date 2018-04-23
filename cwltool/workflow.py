@@ -156,7 +156,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
         elif src["type"] == "record" and sink["type"] == "record":
             return _compare_records(src, sink, strict)
         elif src["type"] == "File" and sink["type"] == "File":
-            for sinksf in sink.get("secondaryFiles", [])
+            for sinksf in sink.get("secondaryFiles", []):
                 if not [1 for srcsf in src.get("secondaryFiles", []) if sinksf == srcsf]:
                     if strict:
                         return False
@@ -617,11 +617,14 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         sink = warning.sink
         linkMerge = warning.linkMerge
         msg = SourceLine(src, "type").makeError(
-            "Source '%s' of type %s is partially incompatible"
+            "Source '%s' of type %s may be incompatible"
             % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
             SourceLine(sink, "type").makeError(
             "  with sink '%s' of type %s"
             % (shortname(sink["id"]), json.dumps(sink["type"])))
+        if sink.get("secondaryFiles"):
+            msg += "\n" + SourceLine(sink.get("_tool_entry", warning.sink), "secondaryFiles").makeError("  sink '%s' expects secondaryFiles %s" % (shortname(sink["id"]), sink.get("secondaryFiles")))
+            msg += "\n" + SourceLine(src.get("_tool_entry", warning.src), "secondaryFiles").makeError("  source '%s' has secondaryFiles %s" % (shortname(src["id"]), src.get("secondaryFiles")))
         if linkMerge:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         warning_msgs.append(msg)
@@ -738,6 +741,7 @@ class WorkflowStep(Process):
                         if "default" in param and "default" in tool_entry:
                             step_default = param["default"]
                         param.update(tool_entry)
+                        param["_tool_entry"] = tool_entry
                         if step_default is not None:
                             param["default"] = step_default
                         found = True

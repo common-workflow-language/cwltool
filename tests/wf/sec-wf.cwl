@@ -9,13 +9,4 @@ steps:
     in:
       file1: file1
     out: []
-    run:
-      id: substep
-      class: CommandLineTool
-      inputs:
-        file1:
-          type: File
-          seconaryFiles:
-            - .idx
-      outputs: []
-      baseCommand: true
+    run: sec-tool.cwl
