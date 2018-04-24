@@ -98,7 +98,7 @@ class JobExecutor(object):
 
 class SingleJobExecutor(JobExecutor):
     def run_jobs(self,
-                 t,  # type: Process
+                 t,                      # type: Process
                  job_order_object=None,  # type: Dict[Text, Any]
                  provobj=None,
                  logger=None,

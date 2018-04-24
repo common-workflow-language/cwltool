@@ -380,9 +380,9 @@ def main(argsl=None,  # type: List[str]
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
     workflowobj = None
-    document=None
-    WorkflowRunID=None
     main_provenanceObject=None
+    # pre-declared for finally block
+    inputforProv = None
     try:
         if args is None:
             if argsl is None:
@@ -632,8 +632,6 @@ def main(argsl=None,  # type: List[str]
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         secret_store = SecretStore()
-        # pre-declared for finally block
-        inputforProv = None
 
         try:
             job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
