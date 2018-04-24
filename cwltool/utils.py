@@ -3,6 +3,7 @@ from __future__ import absolute_import
 # no imports from cwltool allowed
 
 import os
+import platform
 import shutil
 import stat
 from typing import Any, Callable, Dict, List, Text, Tuple, Union
@@ -60,15 +61,24 @@ def copytree_with_merge(src, dst, symlinks=False, ignore=None):
             shutil.copy2(s, d)
 
 
-# changes windowspath(only) appropriately to be passed to docker run command
-# as docker treat them as unix paths so convert C:\Users\foo to /C/Users/foo
 def docker_windows_path_adjust(path):
     # type: (Text) -> (Text)
+    r"""
+    Changes only windows paths so that the can be appropriately passed to the
+    docker run command as as docker treats them as unix paths.
+
+    Example: 'C:\Users\foo to /C/Users/foo (Docker for Windows) or /c/Users/foo
+    (Docker toolbox).
+    """
     if path is not None and onWindows():
-        sp=path.split(':')
-        if len(sp)==2:
-            sp[0]=sp[0].capitalize()  # Capitalizing windows Drive letters
-            path=':'.join(sp)
+        split = path.split(':')
+        if len(split) == 2:
+            if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
+                split[0] = split[0].lower()  # Docker toolbox uses lowecase windows Drive letters
+            else:
+                split[0] = split[0].capitalize()
+                # Docker for Windows uses uppercase windows Drive letters
+            path = ':'.join(split)
         path = path.replace(':', '').replace('\\', '/')
         return path if path[0] == '/' else '/' + path
     return path

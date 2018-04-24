@@ -1,8 +1,8 @@
 # Windows Compatibility
-cwltool is compatible with Windows. This means that you can create and run CWL
-workflows on Windows. On Windows, all workflows and tools are executed in
-[Docker Containers](https://docs.docker.com/docker-for-windows/). The default
-Docker Container is
+The CWL reference runner, cwltool, is compatible with Microsoft Windows when
+Docker is installed. On Windows, all CWL CommandLineTools are executed using
+[Docker software containers](https://docs.docker.com/docker-for-windows/). The
+default Docker Container is
 [Alpine with Bash support](https://github.com/frol/docker-alpine-bash). You can
 specify other Docker Containers for your tools and workflows using hints,
 [requirements](http://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement)),
@@ -10,8 +10,10 @@ or the `--default-container` cwltool option.
 
 ## Supported Windows versions
 * Windows 10 with native [Docker for Windows](https://docs.docker.com/docker-for-windows/).
-* Windows 8.1 with [Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_windows/).
-* Windows 7 & 8 with Docker ToolBox may work (Not tested, please let us know!).
+* Windows 7, 8, and 8.1 with [Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_windows/).
+
+If you are using Docker Toolbox, then you must run cwltool in the Docker
+Quickstart Terminal.
 
 ## Installation
 
@@ -26,7 +28,7 @@ Before installing cwltool, please install:
 * [Node.js](https://nodejs.org/en/download/) (optional, please install if your
   workflows or tools contain [Javascript Expressions](http://www.commonwl.org/v1.0/CommandLineTool.html#InlineJavascriptRequirement))
 
-### Install using pip
+### Install using pip (recommended)
 
 ```
 pip install cwltool
@@ -58,18 +60,25 @@ There are two types of tests available for cwltool: unit tests and conformance t
 
 ### Unit tests
 
-To run cwltool's unit tests, go to the cwltool repository on your system and run:
+To run cwltool's unit tests, run the following command:
+```
+python -m pytest --pyarg cwltool
+```
+
+Or go to the checkout of the cwltool Git repository on your system and run:
 
 ```
 python setup.py test
 ```
 
+
+
 ### Conformance tests
 
-To run the conformance tests, follow these instructions:
+To run the CWL conformance tests, follow these instructions:
 
 ```
-pip install cwltest  
+pip install cwltest mock 
 git clone https://github.com/common-workflow-language/common-workflow-language.git   
 cd common-workflow-language/v1.0  
 cwltest --test conformance_test_v1.0.yaml -j 4 --tool cwltool
@@ -130,3 +139,4 @@ can't then use the `--eval-timeout` argument and set a higher timeout value.
 *If you still have problems with setting up and using Docker on Windows, please
 consult the online Docker Community. If the problem is specific to cwltool,
 create an [issue on cwltool](https://github.com/common-workflow-language/cwltool/issues).*
+
