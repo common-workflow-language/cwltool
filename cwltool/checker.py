@@ -8,7 +8,7 @@ import six
 from schema_salad.sourceline import SourceLine, cmap
 import schema_salad.validate as validate
 from .process import shortname
-
+from .errors import WorkflowException
 
 _logger = logging.getLogger("cwltool")
 
