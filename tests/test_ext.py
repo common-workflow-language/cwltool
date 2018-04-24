@@ -11,11 +11,10 @@ import cwltool.process
 import cwltool.workflow
 from cwltool.main import main
 from cwltool.utils import onWindows
-from .util import get_data
+from .util import get_data, needs_docker
 
 
-@pytest.mark.skipif(onWindows(),
-                    reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
+@needs_docker
 class TestListing(unittest.TestCase):
     def test_missing_enable_ext(self):
         # Require that --enable-ext is provided.
