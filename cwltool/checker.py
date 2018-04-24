@@ -13,6 +13,7 @@ from .process import shortname
 _logger = logging.getLogger("cwltool")
 
 def _get_type(tp):
+    # type: (Any) -> Any
     if isinstance(tp, dict):
         if tp.get("type") not in ("array", "record", "enum"):
             return tp["type"]
