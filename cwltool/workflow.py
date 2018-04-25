@@ -104,6 +104,28 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
     return False
 
 
+def check_source(src, state, inp, iid, inputobj, incomplete, linkMerge):
+    if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
+        if not match_types(
+                inp["type"], state[src], iid, inputobj,
+                linkMerge=linkMerge,
+                valueFrom=inp.get("valueFrom")):
+            raise WorkflowException(
+                u"Type mismatch between source '%s' (%s) and "
+                "sink '%s' (%s)" % (src,
+                                    state[src].parameter["type"], inp["id"],
+                                    inp["type"]))
+        return True
+    elif src not in state:
+        raise WorkflowException(
+            u"Connect source '%s' on parameter '%s' does not "
+            "exist" % (src, inp["id"]))
+    elif not incomplete:
+        return False
+    else:
+        return True
+
+
 def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField, incomplete=False):
     # type: (Dict[Text, WorkflowStateItem], List[Dict[Text, Any]], bool, bool, Text, bool) -> Dict[Text, Any]
     inputobj = {}  # type: Dict[Text, Any]
@@ -112,30 +134,18 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
         if frag_only:
             iid = shortname(iid)
         if sourceField in inp:
-            connections = aslist(inp[sourceField])
-            if (len(connections) > 1 and
-                not supportsMultipleInput):
-                raise WorkflowException(
-                    "Workflow contains multiple inbound links to a single "
-                    "parameter but MultipleInputFeatureRequirement is not "
-                    "declared.")
-            for src in connections:
-                if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
-                    if not match_types(
-                            inp["type"], state[src], iid, inputobj,
-                            inp.get("linkMerge", ("merge_nested"
-                                                  if len(connections) > 1 else None)),
-                            valueFrom=inp.get("valueFrom")):
-                        raise WorkflowException(
-                            u"Type mismatch between source '%s' (%s) and "
-                            "sink '%s' (%s)" % (src,
-                                                state[src].parameter["type"], inp["id"],
-                                                inp["type"]))
-                elif src not in state:
+            if isinstance(inp[sourceField], list):
+                connections = inp[sourceField]
+                if not supportsMultipleInput:
                     raise WorkflowException(
-                        u"Connect source '%s' on parameter '%s' does not "
-                        "exist" % (src, inp["id"]))
-                elif not incomplete:
+                        "Workflow contains multiple inbound links to a single "
+                        "parameter but MultipleInputFeatureRequirement is not "
+                        "declared.")
+                for src in connections:
+                    if not check_source(src, state, inp, iid, inputobj, incomplete, inp.get("linkMerge", "merge_nested")):
+                        return None
+            else:
+                if not check_source(inp[sourceField], state, inp, iid, inputobj, incomplete, None):
                     return None
 
         if inputobj.get(iid) is None and "default" in inp:
