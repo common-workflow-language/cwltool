@@ -137,7 +137,7 @@ DEVUPDATES = {
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "v1.1.0-dev1"
+LATEST = "v1.0"
 
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument

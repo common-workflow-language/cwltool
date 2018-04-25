@@ -497,6 +497,8 @@ class CommandLineTool(Process):
                 if not isinstance(j.timelimit, int) or j.timelimit < 0:
                     raise Exception("timelimit must be an integer >= 0, got: %s" % j.timelimit)
 
+        if self.metadata["cwlVersion"] == "v1.0":
+            j.networkaccess = True
         networkaccess = self.get_requirement("NetworkAccess")[0]
         if networkaccess:
             with SourceLine(networkaccess, "networkAccess", validate.ValidationException, debug):
