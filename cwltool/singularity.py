@@ -30,9 +30,9 @@ def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
-            _USERNS = "No valid /bin/sh" in Popen(
+            _USERNS = u"No valid /bin/sh" in (Popen(
                 [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
-                stderr=PIPE, stdout=DEVNULL).communicate(timeout=60)[1]
+                stderr=PIPE, stdout=DEVNULL).communicate(timeout=60)[1]).decode('utf-8')
         except TimeoutExpired:
             _USERNS = False
     return _USERNS
