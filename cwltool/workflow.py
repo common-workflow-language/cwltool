@@ -104,7 +104,15 @@ def match_types(sinktype, src, iid, inputobj, linkMerge, valueFrom):
     return False
 
 
-def check_source(src, state, inp, iid, inputobj, incomplete, linkMerge):
+def check_source(src,        # type: Text
+                 state,      # type: Dict[Text, WorkflowStateItem]
+                 inp,        # type: Dict[Text, Any]
+                 iid,        # type: Text
+                 inputobj,   # type: Dict[Text, Any]
+                 incomplete, # type: bool
+                 linkMerge   # type: Optional[Text]
+):
+    # type: (...) -> Dict[Text, Any]
     if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
         if not match_types(
                 inp["type"], state[src], iid, inputobj,
@@ -126,8 +134,14 @@ def check_source(src, state, inp, iid, inputobj, incomplete, linkMerge):
         return True
 
 
-def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceField, incomplete=False):
-    # type: (Dict[Text, WorkflowStateItem], List[Dict[Text, Any]], bool, bool, Text, bool) -> Dict[Text, Any]
+def object_from_state(state,                  # type: Dict[Text, WorkflowStateItem]
+                      parms,                  # type: List[Dict[Text, Any]]
+                      frag_only,              # type: bool
+                      supportsMultipleInput,  # type: bool
+                      sourceField,            # type: Text
+                      incomplete=False        # type: bool
+):
+    # type: (...) -> Dict[Text, Any]
     inputobj = {}  # type: Dict[Text, Any]
     for inp in parms:
         iid = inp["id"]
