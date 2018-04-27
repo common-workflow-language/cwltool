@@ -759,8 +759,11 @@ def mergedirs(listing):
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
-        elif e["class"] == "Directory" and e.get("listing"):
-            ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
+        elif e["class"] == "Directory":
+            if e.get("listing"):
+                ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
+            if ents[e["basename"]]["location"].startswith("_:"):
+                ents[e["basename"]]["location"] = e["location"]
     for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
