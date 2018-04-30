@@ -303,7 +303,7 @@ class TestScanDeps(unittest.TestCase):
         else:
             stream = StringIO()
         main(["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")], stdout=stream)
-        self.assertNotRegexpMatches(json.loads(stream.getvalue())["secondaryFiles"][0]["location"], r"^_:")
+        self.assertNotEquals(json.loads(stream.getvalue())["secondaryFiles"][0]["location"][:2], "_:")
 
 
 class TestDedup(unittest.TestCase):
