@@ -4,6 +4,7 @@ import pytest
 import subprocess
 from os import path
 import sys
+import logging
 
 from io import StringIO
 
@@ -556,13 +557,49 @@ class TestTypeCompare(unittest.TestCase):
             f = cwltool.factory.Factory()
             f.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
-    def test_var_spool_cwl_checker(self):
+    def test_var_spool_cwl_checker1(self):
         """ Confirm that references to /var/spool/cwl are caught."""
-        with self.assertRaises(schema_salad.validate.ValidationException):
+
+        stream = StringIO()
+        streamhandler = logging.StreamHandler(stream)
+        _logger = logging.getLogger("cwltool")
+        _logger.addHandler(streamhandler)
+
+        try:
             f = cwltool.factory.Factory()
             f.make(get_data("tests/non_portable.cwl"))
-        f = cwltool.factory.Factory(strict=False)
-        f.make(get_data("tests/non_portable.cwl"))
+            self.assertRegexpMatches(stream.getvalue(), r"non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected")
+        finally:
+            _logger.removeHandler(streamhandler)
+
+    def test_var_spool_cwl_checker2(self):
+        """ Confirm that references to /var/spool/cwl are caught."""
+
+        stream = StringIO()
+        streamhandler = logging.StreamHandler(stream)
+        _logger = logging.getLogger("cwltool")
+        _logger.addHandler(streamhandler)
+
+        try:
+            f = cwltool.factory.Factory()
+            f.make(get_data("tests/non_portable2.cwl"))
+            self.assertRegexpMatches(stream.getvalue(), r"non_portable2.cwl:19:4: Non-portable reference to /var/spool/cwl detected")
+        finally:
+            _logger.removeHandler(streamhandler)
+
+    def test_var_spool_cwl_checker3(self):
+        """ Confirm that references to /var/spool/cwl are caught."""
+
+        stream = StringIO()
+        streamhandler = logging.StreamHandler(stream)
+        _logger = logging.getLogger("cwltool")
+        _logger.addHandler(streamhandler)
+        try:
+            f = cwltool.factory.Factory()
+            f.make(get_data("tests/portable.cwl"))
+            self.assertNotRegexpMatches(stream.getvalue(), r"portable.cwl:19:4: Non-portable reference to /var/spool/cwl detected")
+        finally:
+            _logger.removeHandler(streamhandler)
 
 class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):

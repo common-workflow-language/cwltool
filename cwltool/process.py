@@ -393,21 +393,26 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
 def var_spool_cwl_detector(obj,           # type: Union[Mapping, Iterable, Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
-                          ):              # type: (...)->None
+                          ):              # type: (...)->bool
     """ Detects any textual reference to /var/spool/cwl. """
+    r = False
     if isinstance(obj, string_types):
-        if "var/spool/cwl" in obj:
+        if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
             _logger.warn(SourceLine(
                 item=item, key=obj_key, raise_type=Text).makeError(
-"""Non-portable reference to /var/spool/cwl detected: '{}'.
-To fix, replace /var/spool/cwl with $(runtime.outdir) or add
-'dockerOutputDirectory: /var/spool/cwl' to DockerRequirement.""".format(obj)))
+"""Non-portable reference to /var/spool/cwl detected:
+  '{}'
+To fix, replace /var/spool/cwl with $(runtime.outdir) or
+  add DockerRequirement to the 'requirements' section and
+  declare 'dockerOutputDirectory: /var/spool/cwl'.""".format(obj)))
+            r = True
     elif isinstance(obj, dict):
         for key, value in iteritems(obj):
-            var_spool_cwl_detector(value, obj, key)
+            r = var_spool_cwl_detector(value, obj, key) or r
     elif isinstance(obj, list):
         for key, value in enumerate(obj):
-            var_spool_cwl_detector(value, obj, key)
+            r = var_spool_cwl_detector(value, obj, key) or r
+    return r
 
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
@@ -522,7 +527,21 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
-        if not (kwargs.get("use_container") and dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl"):
+
+        if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
+            _logger.warn(SourceLine(
+                item=dockerReq, raise_type=Text).makeError(
+"""When 'dockerOutputDirectory' is declared, DockerRequirement
+  should go in the 'requirements' section, not 'hints'."""))
+
+        if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
+            if is_req:
+                # In this specific case, it is legal to have /var/spool/cwl, so skip the check.
+                pass
+            else:
+                # Must be a requirement
+                var_spool_cwl_detector(self.tool)
+        else:
             var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, **kwargs):
