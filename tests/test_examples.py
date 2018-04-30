@@ -568,7 +568,7 @@ class TestTypeCompare(unittest.TestCase):
         try:
             f = cwltool.factory.Factory()
             f.make(get_data("tests/non_portable.cwl"))
-            self.assertRegexpMatches(stream.getvalue(), r"non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected")
+            self.assertIn("non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected", stream.getvalue())
         finally:
             _logger.removeHandler(streamhandler)
 
@@ -583,7 +583,7 @@ class TestTypeCompare(unittest.TestCase):
         try:
             f = cwltool.factory.Factory()
             f.make(get_data("tests/non_portable2.cwl"))
-            self.assertRegexpMatches(stream.getvalue(), r"non_portable2.cwl:19:4: Non-portable reference to /var/spool/cwl detected")
+            self.assertIn("non_portable2.cwl:19:4: Non-portable reference to /var/spool/cwl detected", stream.getvalue())
         finally:
             _logger.removeHandler(streamhandler)
 
@@ -597,7 +597,7 @@ class TestTypeCompare(unittest.TestCase):
         try:
             f = cwltool.factory.Factory()
             f.make(get_data("tests/portable.cwl"))
-            self.assertNotRegexpMatches(stream.getvalue(), r"portable.cwl:19:4: Non-portable reference to /var/spool/cwl detected")
+            self.assertNotIn("Non-portable reference to /var/spool/cwl detected", stream.getvalue())
         finally:
             _logger.removeHandler(streamhandler)
 
