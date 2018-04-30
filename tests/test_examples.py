@@ -4,8 +4,9 @@ import pytest
 import subprocess
 from os import path
 import sys
+import json
 
-from io import StringIO
+from io import StringIO, BytesIO
 
 from cwltool.errors import WorkflowException
 
@@ -294,6 +295,11 @@ class TestScanDeps(unittest.TestCase):
             "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         }], sc)
+
+    def test_trick_scandeps(self):
+        stream = BytesIO()
+        main(["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")], stdout=stream)
+        self.assertNotRegexpMatches(json.loads(stream.getvalue())["secondaryFiles"][0]["location"], r"^_:")
 
 
 class TestDedup(unittest.TestCase):
