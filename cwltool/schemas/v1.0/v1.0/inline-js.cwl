@@ -1,6 +1,5 @@
 cwlVersion: v1.0
 class: CommandLineTool
-baseCommand: echo
 
 requirements:
   - class: InlineJavascriptRequirement
@@ -39,3 +38,8 @@ arguments:
         }
         return r;
       }
+  # Test errors similar to https://github.com/common-workflow-language/cwltool/issues/648 are fixed
+  - prefix: -D
+    valueFrom: $(true)
+  - prefix: -E
+    valueFrom: $(false)

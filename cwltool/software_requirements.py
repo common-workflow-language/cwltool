@@ -42,7 +42,7 @@ class DependenciesConfiguration(object):
             if not tool_dependency_dir:
                 tool_dependency_dir = os.path.abspath(os.path.dirname(conf_file))
             self.tool_dependency_dir = tool_dependency_dir
-            self.dependency_resolvers_config_file = conf_file
+            self.dependency_resolvers_config_file = os.path.abspath(conf_file)
         elif conda_dependencies:
             if not tool_dependency_dir:
                 tool_dependency_dir = os.path.abspath("./cwltool_deps")

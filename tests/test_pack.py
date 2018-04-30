@@ -17,8 +17,7 @@ from cwltool import load_tool
 from cwltool.load_tool import fetch_document, validate_document
 from cwltool.main import makeRelative, main, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
-from cwltool.utils import onWindows
-from .util import get_data
+from .util import get_data, needs_docker
 
 
 class TestPack(unittest.TestCase):
@@ -96,9 +95,7 @@ class TestPack(unittest.TestCase):
         double_packed = json.loads(print_pack(document_loader, processobj, uri2, metadata))
         self.assertEqual(packed, double_packed)
 
-    @pytest.mark.skipif(onWindows(),
-                        reason="Instance of cwltool is used, on Windows it invokes a default docker container"
-                               "which is not supported on AppVeyor")
+    @needs_docker
     def test_packed_workflow_execution(self):
         load_tool.loaders = {}
         test_wf = "tests/wf/count-lines1-wf.cwl"
@@ -108,7 +105,7 @@ class TestPack(unittest.TestCase):
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
         packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
-        temp_packed_path = tempfile.mkstemp()[1]
+        temp_packed_handle, temp_packed_path = tempfile.mkstemp()
         with open(temp_packed_path, 'w') as f:
             json.dump(packed, f)
         normal_output = StringIO()
@@ -120,11 +117,10 @@ class TestPack(unittest.TestCase):
                                 get_data(test_wf_job)],
                                stdout=normal_output), 0)
         self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
+        os.close(temp_packed_handle)
         os.remove(temp_packed_path)
 
-    @pytest.mark.skipif(onWindows(),
-                        reason="Instance of cwltool is used, on Windows it invokes a default docker container"
-                               "which is not supported on AppVeyor")
+    @needs_docker
     def test_preserving_namespaces(self):
         test_wf = "tests/wf/formattest.cwl"
         test_wf_job = "tests/wf/formattest-job.json"
@@ -134,7 +130,7 @@ class TestPack(unittest.TestCase):
             document_loader, workflowobj, uri)
         packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
         assert "$namespaces" in packed
-        temp_packed_path = tempfile.mkstemp()[1]
+        temp_packed_handle, temp_packed_path = tempfile.mkstemp()
         with open(temp_packed_path, 'w') as f:
             json.dump(packed, f)
         normal_output = StringIO()
@@ -146,4 +142,5 @@ class TestPack(unittest.TestCase):
                                 get_data(test_wf_job)],
                                stdout=normal_output), 0)
         self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
+        os.close(temp_packed_handle)
         os.remove(temp_packed_path)

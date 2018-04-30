@@ -152,6 +152,11 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         "timestamps to the errors, warnings, and "
                         "notifications.")
     parser.add_argument("--js-console", action="store_true", help="Enable javascript console output")
+    parser.add_argument("--disable-js-validation", action="store_true", help="Disable javascript validation.")
+    parser.add_argument("--js-hint-options-file",
+                        type=Text,
+                        help="File of options to pass to jshint."
+                        "This includes the added option \"includewarnings\". ")
     dockergroup = parser.add_mutually_exclusive_group()
     dockergroup.add_argument("--user-space-docker-cmd", metavar="CMD",
                         help="(Linux/OS X only) Specify a user space docker "
@@ -209,6 +214,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--custom-net", type=Text,
                         help="Will be passed to `docker run` as the '--net' "
                              "parameter. Implies '--enable-net'.")
+    parser.add_argument("--disable-validate", dest="do_validate",
+                        action="store_false", default=True,
+                        help=argparse.SUPPRESS)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-ga4gh-tool-registry", action="store_true", help="Enable resolution using GA4GH tool registry API",

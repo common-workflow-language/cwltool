@@ -1,6 +1,8 @@
 version: .{build}-{branch}
 
 environment:
+  nodejs_version: "8"
+
   SYSTEMROOT: "C:\\WINDOWS"
 
   matrix:
@@ -12,28 +14,41 @@ environment:
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "32"
+
     - PYTHON: "C:\\Python34-x64"
       PYTHON_VERSION: "3.4.x"
       PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5.x"
+      PYTHON_ARCH: "32"
 
     - PYTHON: "C:\\Python35-x64"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python36"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "64"
 
 install:
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - "python --version"
-  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+  - "%PYTHON%\\python.exe -m pip install -U wheel setuptools pip pytest mock"
+  # Get the latest stable version of Node.js or io.js
+  - ps: Install-Product node $env:nodejs_version
 
 build_script:
-  - "%CMD_IN_ENV% pip install -U setuptools pip"
-  - "%CMD_IN_ENV% pip install ."
+  - "%PYTHON%\\python.exe -m pip install ."
 
 
 test_script:
-
-  - "%CMD_IN_ENV% python setup.py test"
+  - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider"
 
 branches:
   only:

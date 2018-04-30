@@ -8,7 +8,6 @@ import sys
 from io import StringIO
 
 from cwltool.errors import WorkflowException
-from cwltool.utils import onWindows
 
 try:
     reload
@@ -25,8 +24,9 @@ import cwltool.process
 import cwltool.workflow
 import schema_salad.validate
 from cwltool.main import main
+from cwltool.utils import onWindows
 
-from .util import get_data
+from .util import get_data, needs_docker
 
 sys.argv = ['']
 
@@ -137,6 +137,11 @@ class TestFactory(unittest.TestCase):
         f = cwltool.factory.Factory()
         echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
+
+    def test_factory_bad_outputs(self):
+        f = cwltool.factory.Factory()
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            echo = f.make(get_data("tests/echo_broken_outputs.cwl"))
 
     def test_default_args(self):
         f = cwltool.factory.Factory()
@@ -546,11 +551,18 @@ class TestTypeCompare(unittest.TestCase):
         # mismatches its sink type.
         with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
-            f.make("tests/checker_wf/broken-wf.cwl")
+            f.make(get_data("tests/checker_wf/broken-wf.cwl"))
         with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
-            f.make("tests/checker_wf/broken-wf2.cwl")
+            f.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
+    def test_var_spool_cwl_checker(self):
+        """ Confirm that references to /var/spool/cwl are caught."""
+        with self.assertRaises(schema_salad.validate.ValidationException):
+            f = cwltool.factory.Factory()
+            f.make(get_data("tests/non_portable.cwl"))
+        f = cwltool.factory.Factory(strict=False)
+        f.make(get_data("tests/non_portable.cwl"))
 
 class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):
@@ -591,9 +603,7 @@ class TestJsConsole(TestCmdLine):
             self.assertNotIn("[err] Error message", stderr)
 
 
-@pytest.mark.skipif(onWindows(),
-                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
-                           "which is not supported on AppVeyor")
+@needs_docker
 class TestCache(TestCmdLine):
     def test_wf_without_container(self):
         test_file = "hello-workflow.cwl"
@@ -602,13 +612,12 @@ class TestCache(TestCmdLine):
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
 
-@pytest.mark.skipif(onWindows(),
-                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
-                           "which is not supported on AppVeyor")
+@needs_docker
 class TestChecksum(TestCmdLine):
 
     def test_compute_checksum(self):
-        f = cwltool.factory.Factory(compute_checksum=True, use_container=False)
+        f = cwltool.factory.Factory(compute_checksum=True,
+                use_container=onWindows())
         echo = f.make(get_data("tests/wf/cat-tool.cwl"))
         output = echo(file1={
                 "class": "File",
