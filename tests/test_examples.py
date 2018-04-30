@@ -297,7 +297,10 @@ class TestScanDeps(unittest.TestCase):
         }], sc)
 
     def test_trick_scandeps(self):
-        stream = BytesIO()
+        if sys.version_info[0] < 3:
+            stream = BytesIO()
+        else:
+            stream = StringIO()
         main(["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")], stdout=stream)
         self.assertNotRegexpMatches(json.loads(stream.getvalue())["secondaryFiles"][0]["location"], r"^_:")
 
