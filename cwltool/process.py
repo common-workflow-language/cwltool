@@ -28,6 +28,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
+from six import iteritems, itervalues, string_types
 
 from .validate_js import validate_js_expressions
 from .utils import cmp_like_py2
@@ -388,6 +389,27 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
             req.update(ov)
     return req
 
+
+def var_spool_cwl_detector(obj,           # type: Union[Mapping, Iterable, Text]
+                           item=None,     # type: Optional[Any]
+                           obj_key=None,  # type: Optional[Any]
+                          ):              # type: (...)->None
+    """ Detects any textual reference to /var/spool/cwl. """
+    if isinstance(obj, string_types):
+        if "var/spool/cwl" in obj:
+            _logger.warn(SourceLine(
+                item=item, key=obj_key, raise_type=Text).makeError(
+"""Non-portable reference to /var/spool/cwl detected: '{}'.
+To fix, replace /var/spool/cwl with $(runtime.outdir) or add
+'dockerOutputDirectory: /var/spool/cwl' to DockerRequirement.""".format(obj)))
+    elif isinstance(obj, dict):
+        for key, value in iteritems(obj):
+            var_spool_cwl_detector(value, obj, key)
+    elif isinstance(obj, list):
+        for key, value in enumerate(obj):
+            var_spool_cwl_detector(value, obj, key)
+
+
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
@@ -498,6 +520,10 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 validate_js_options = None
 
             validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
+
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+        if not (kwargs.get("use_container") and dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl"):
+            var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
