@@ -16,7 +16,7 @@ from collections import Iterable
 from io import open
 from functools import cmp_to_key
 from typing import (Any, Callable, Dict, Generator, List, Set, Text,
-                    Tuple, Union, cast)
+                    Tuple, Union, cast, Optional)
 
 import schema_salad.schema as schema
 import schema_salad.validate as validate
@@ -390,7 +390,7 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
     return req
 
 
-def var_spool_cwl_detector(obj,           # type: Union[Mapping, Iterable, Text]
+def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
                           ):              # type: (...)->bool
