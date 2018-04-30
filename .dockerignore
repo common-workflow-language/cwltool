@@ -1,0 +1,6 @@
+.tox/
+.eggs/
+.vscode/
+build/
+dist/
+*.Dockerfile
