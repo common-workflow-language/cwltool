@@ -224,33 +224,6 @@ def validate_document(document_loader,  # type: Loader
 
         workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
 
-    def var_spool_cwl_detector(obj,           # type: Union[Mapping, Iterable, Text]
-                               item=None,     # type: Optional[Any]
-                               obj_key=None,  # type: Optional[Any]
-                              ):              # type: (...)->None
-        """ Detects any textual reference to /var/spool/cwl. """
-        if isinstance(obj, string_types):
-            if "var/spool/cwl" in obj:
-                message = SourceLine(
-                    item=item, key=obj_key, raise_type=Text,
-                    include_traceback=_logger.isEnabledFor(logging.DEBUG)).makeError(
-                        "Non-portable reference to /var/spool/cwl found: "
-                        "'{}'.\n Replace with /var/spool/cwl/ with "
-                        "$(runtime.outdir).".format(obj))
-                if not strict:
-                    _logger.warning(message)
-                else:
-                    raise ValidationException(message)
-            else:
-                return
-        elif isinstance(obj, Mapping):
-            for key, value in iteritems(obj):
-                var_spool_cwl_detector(value, obj, key)
-        elif isinstance(obj, Iterable):
-            for element in obj:
-                var_spool_cwl_detector(element, obj, None)
-    var_spool_cwl_detector(workflowobj)
-
     fileuri = urllib.parse.urldefrag(uri)[0]
     if "cwlVersion" not in workflowobj:
         if metadata and 'cwlVersion' in metadata:
