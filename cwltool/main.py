@@ -379,9 +379,9 @@ def main(argsl=None,  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
+    # pre-declared for finally block
     workflowobj = None
     main_provenanceObject=None
-    # pre-declared for finally block
     inputforProv = None
     try:
         if args is None:

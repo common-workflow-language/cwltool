@@ -682,7 +682,7 @@ class ResearchObject():
         # acting in behalf of that user (even if we might
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
-
+        
     def write_bag_file(self, path, encoding=ENCODING):
         # type: (str, str) -> IO
 
