@@ -12,6 +12,7 @@ from .job import ContainerCommandLineJob
 from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
+from schema_salad.sourceline import SourceLine
 if os.name == 'posix' and sys.version_info[0] < 3:
     from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
                               CalledProcessError, DEVNULL, PIPE, Popen,
@@ -30,19 +31,27 @@ def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
-            _USERNS = "No valid /bin/sh" in Popen(
+            result = Popen(
                 [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
-                stderr=PIPE, stdout=DEVNULL).communicate(timeout=60)[1]
+                stderr=PIPE, stdout=DEVNULL,
+                universal_newlines=True).communicate(timeout=60)[1]
+            _USERNS = "No valid /bin/sh" in result
         except TimeoutExpired:
             _USERNS = False
     return _USERNS
 
+def _normalizeImageId(string):  # type: (Text)->Text
+    candidate = re.sub(pattern=r'([a-z]*://)', repl=r'', string=string)
+    return re.sub(pattern=r'[:/]', repl=r'-', string=candidate) + ".img"
+
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
+
     @staticmethod
     def get_image(dockerRequirement,  # type: Dict[Text, Text]
                   pull_image,         # type: bool
-                  dry_run=False       # type: bool
+                  dry_run=False,      # type: bool
+                  force_pull=False    # type: bool
                  ):
         # type: (...) -> bool
         """
@@ -54,55 +63,56 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         """
         found = False
 
+        candidates = []
+
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r'([a-z]*://)', string=dockerRequirement["dockerPull"])
-            if match:
-                dockerRequirement["dockerImageId"] = re.sub(pattern=r'([a-z]*://)', repl=r'',
-                                                            string=dockerRequirement["dockerPull"])
-                dockerRequirement["dockerImageId"] = re.sub(
-                    pattern=r'[:/]', repl=r'-', string=dockerRequirement["dockerImageId"]) + ".img"
-            else:
-                dockerRequirement["dockerImageId"] = re.sub(
-                    pattern=r'[:/]', repl=r'-', string=dockerRequirement["dockerPull"]) + ".img"
+            candidate = _normalizeImageId(dockerRequirement['dockerPull'])
+            candidates.append(candidate)
+            dockerRequirement['dockerImageId'] = candidate
+            if not match:
                 dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
+        elif "dockerImageId" in dockerRequirement:
+            candidates.append(dockerRequirement['dockerImageId'])
+            candidates.append(_normalizeImageId(dockerRequirement['dockerImageId']))
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
-        if "SINGULARITY_CACHEDIR" in os.environ and os.path.isfile(
-                os.path.join(os.environ["SINGULARITY_CACHEDIR"],
-                             dockerRequirement["dockerImageId"])):
-            _logger.info("Using local copy of Singularity image found in "
-                         "$SINGULARITY_CACHEDIR")
-            dockerRequirement["dockerImageId"] = os.path.join(
-                os.environ["SINGULARITY_CACHEDIR"],
-                dockerRequirement["dockerImageId"])
-            found = True
+        for target in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER",
+                os.getcwd()):
+            if target in os.environ:
+                for candidate in candidates:
+                    path = os.path.join(os.environ[target], candidate)
+                    if os.path.isfile(path):
+                        _logger.info("Using local copy of Singularity image "
+                                     "found in {}".format(target))
+                        dockerRequirement["dockerImageId"] = path
+                        found = True
 
-        # check if Singularity image is available in $SINGULARITY_PULLFOLDER
-        elif "SINGULARITY_PULLFOLDER" in os.environ and os.path.isfile(
-                os.path.join(os.environ["SINGULARITY_PULLFOLDER"],
-                             dockerRequirement["dockerImageId"])):
-            _logger.info("Using local copy of Singularity image found in "
-                         "$SINGULARITY_PULLFOLDER")
-            dockerRequirement["dockerImageId"] = os.path.join(
-                os.environ["SINGULARITY_PULLFOLDER"],
-                dockerRequirement["dockerImageId"])
-            found = True
-
-        # check if Singularity image is available in current working directory
-        elif os.path.isfile(dockerRequirement["dockerImageId"]):
-            _logger.info("Using local copy of Singularity image")
-            found = True
-
-        # if the .img file is not already present, pull the image
-        elif pull_image:
+        if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
             if "dockerPull" in dockerRequirement:
-                cmd = ["singularity", "pull", "--name", str(dockerRequirement["dockerImageId"]),
+                cmd = ["singularity", "pull", "--force", "--name",
+                       str(dockerRequirement["dockerImageId"]),
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
                 if not dry_run:
                     check_call(cmd, stdout=sys.stderr)
                     found = True
+            elif "dockerFile" in dockerRequirement:
+                raise WorkflowException(SourceLine(
+                    dockerRequirement, 'dockerFile').makeError(
+                    "dockerFile is not currently supported when using the "
+                    "Singularity runtime for Docker containers."))
+            elif "dockerLoad" in dockerRequirement:
+                raise WorkflowException(SourceLine(
+                    dockerRequirement, 'dockerLoad').makeError(
+                    "dockerLoad is not currently supported when using the "
+                    "Singularity runtime for Docker containers."))
+            elif "dockerImport" in dockerRequirement:
+                raise WorkflowException(SourceLine(
+                    dockerRequirement, 'dockerImport').makeError(
+                    "dockerImport is not currently supported when using the "
+                    "Singularity runtime for Docker containers."))
 
         return found
 
@@ -119,10 +129,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hello-world-latest.img).
         """
 
-        if force_pull:
-            _logger.warning("--force-docker-pull currently not supported for "
-                            "singularity")
-
         if r:
             errmsg = None
             try:
@@ -138,7 +144,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 else:
                     return None
 
-            if self.get_image(r, pull_image, dry_run):
+            if self.get_image(r, pull_image, dry_run, force_pull):
                 return os.path.abspath(r["dockerImageId"])
             else:
                 if req:
