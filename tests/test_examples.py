@@ -4,9 +4,10 @@ import pytest
 import subprocess
 from os import path
 import sys
+import json
 import logging
 
-from io import StringIO
+from io import StringIO, BytesIO
 
 from cwltool.errors import WorkflowException
 
@@ -295,6 +296,14 @@ class TestScanDeps(unittest.TestCase):
             "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         }], sc)
+
+    def test_trick_scandeps(self):
+        if sys.version_info[0] < 3:
+            stream = BytesIO()
+        else:
+            stream = StringIO()
+        main(["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")], stdout=stream)
+        self.assertNotEquals(json.loads(stream.getvalue())["secondaryFiles"][0]["location"][:2], "_:")
 
 
 class TestDedup(unittest.TestCase):
