@@ -71,7 +71,7 @@ class ResolverTest(unittest.TestCase):
     def test_resolve_local(self):
         real = os.path.realpath(get_data(""))
         rootdir = Path(real).as_uri()
-        self.assertEqual(rootdir+"/tests/echo.cwl", resolve_local(None, "tests/echo.cwl"))
-        self.assertEqual(rootdir+"/tests/echo.cwl#main", resolve_local(None, "tests/echo.cwl#main"))
+        self.assertEqual(rootdir+"/tests/echo.cwl", resolve_local(None, get_data("tests/echo.cwl")))
+        self.assertEqual(rootdir+"/tests/echo.cwl#main", resolve_local(None, get_data("tests/echo.cwl#main")))
         self.assertEqual(rootdir+"/tests/echo.cwl", resolve_local(None, real+"/tests/echo.cwl"))
         self.assertEqual(rootdir+"/tests/echo.cwl#main", resolve_local(None, real+"/tests/echo.cwl#main"))
