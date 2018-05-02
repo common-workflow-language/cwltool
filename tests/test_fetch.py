@@ -73,10 +73,10 @@ class ResolverTest(unittest.TestCase):
         os.chdir(os.path.join(get_data("")))
         try:
             root = Path.cwd()
-            rooturi = root.resolve().as_uri()
+            rooturi = root.as_uri()
             self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, os.path.join("tests", "echo.cwl")))
-            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, os.path.join("tests", "echo.cwl#main")))
+            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, os.path.join("tests", "echo.cwl")+"#main"))
             self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, str(root / "tests" / "echo.cwl")))
-            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, str(root / "tests" / "echo.cwl#main")))
+            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, str(root / "tests" / "echo.cwl")+"#main"))
         finally:
             os.chdir(origpath)
