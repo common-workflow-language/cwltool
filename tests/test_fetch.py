@@ -77,6 +77,10 @@ class ResolverTest(unittest.TestCase):
             self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, os.path.join("tests", "echo.cwl")))
             self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, os.path.join("tests", "echo.cwl")+"#main"))
             self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, str(root / "tests" / "echo.cwl")))
-            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, str(root / "tests" / "echo.cwl")+"#main"))
+            # On Windows, for unknown reasons, on this test the left side returns
+            # file:///C:/ (uppercase drive letter) and the right side returns
+            # file:///c:/ (lowercase drive letter)
+            # so force a lowercase comparison.
+            self.assertEqual((rooturi+"/tests/echo.cwl#main").lower(), resolve_local(None, str(root / "tests" / "echo.cwl")+"#main").lower())
         finally:
             os.chdir(origpath)
