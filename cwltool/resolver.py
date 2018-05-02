@@ -14,8 +14,15 @@ _logger = logging.getLogger("cwltool")
 
 
 def resolve_local(document_loader, uri):
-    if uri.startswith("/") and os.path.exists(uri):
-        return Path(uri).as_uri()
+    if uri.startswith("/"):
+        path, frag = urllib.parse.urldefrag(uri)
+        if os.path.exists(path):
+            if frag:
+                return "{}#{}".format(Path(path).as_uri(), frag)
+            else:
+                return Path(path).as_uri()
+        else:
+            return None
     if os.path.exists(urllib.parse.urlparse(
             urllib.parse.urldefrag(
                 "{}/{}".format(Path.cwd().as_uri(), uri))[0])[2]):
