@@ -5,7 +5,7 @@ import logging
 from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
 import six
 
-from schema_salad.sourceline import SourceLine, cmap
+from schema_salad.sourceline import SourceLine, cmap, strip_dup_lineno, indent, bullets
 import schema_salad.validate as validate
 from .process import shortname
 from .errors import WorkflowException
@@ -153,17 +153,28 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         src = warning.src
         sink = warning.sink
         linkMerge = warning.linkMerge
-        msg = SourceLine(src, "type").makeError(
-            "Source '%s' of type %s may be incompatible"
-            % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
-            SourceLine(sink, "type").makeError(
-            "  with sink '%s' of type %s"
-            % (shortname(sink["id"]), json.dumps(sink["type"])))
-        if linkMerge:
-            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         if sink.get("secondaryFiles") and sorted(sink.get("secondaryFiles",[])) != sorted(src.get("secondaryFiles",[])):
-            msg += "\n" + SourceLine(sink.get("_tool_entry", warning.sink), "secondaryFiles").makeError("  sink '%s' expects secondaryFiles %s" % (shortname(sink["id"]), sink.get("secondaryFiles")))
-            msg += "\n" + SourceLine(src.get("_tool_entry", warning.src), "secondaryFiles").makeError("  source '%s' has secondaryFiles %s" % (shortname(src["id"]), src.get("secondaryFiles")))
+            msg1 = "Sink '%s'" % (shortname(sink["id"]))
+            msg2 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError(
+                "expects secondaryFiles: %s but" % (sink.get("secondaryFiles")))
+            if "secondaryFiles" in src:
+                msg3 = SourceLine(src, "secondaryFiles").makeError(
+                    "source '%s' has secondaryFiles %s." % (shortname(src["id"]), src.get("secondaryFiles")))
+            else:
+                msg3 = SourceLine(src, "id").makeError(
+                    "source '%s' does not include secondaryFiles." % (shortname(src["id"])))
+            msg4 = SourceLine(src, "id").makeError("To fix, add secondaryFiles: %s to definition of '%s'." % (sink.get("secondaryFiles"), shortname(src["id"])))
+            msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg2, msg3, msg4], "  ")))
+        else:
+            msg = SourceLine(src, "type").makeError(
+                "Source '%s' of type %s may be incompatible"
+                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+                SourceLine(sink, "type").makeError(
+                "  with sink '%s' of type %s"
+                % (shortname(sink["id"]), json.dumps(sink["type"])))
+            if linkMerge:
+                msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
+
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src
@@ -187,8 +198,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
                 % shortname(sink["id"]))
             exception_msgs.append(msg)
 
-    all_warning_msg = "\n".join(warning_msgs)
-    all_exception_msg = "\n".join(exception_msgs)
+    all_warning_msg = strip_dup_lineno("\n".join(warning_msgs))
+    all_exception_msg = strip_dup_lineno("\n".join(exception_msgs))
 
     if warnings:
         _logger.warning("Workflow checker warning:\n%s" % all_warning_msg)
