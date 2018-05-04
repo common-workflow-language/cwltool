@@ -43,6 +43,17 @@ class TestPack(unittest.TestCase):
 
         self.assertEqual(expect_packed, packed)
 
+
+    def test_pack_rewrites(self):
+        load_tool.loaders = {}
+
+        document_loader, workflowobj, uri = fetch_document("/home/peter/.arvbox/arvbox/arvados/sdk/cwl/tests/wf-defaults/wf5.cwl")
+        document_loader, avsc_names, processobj, metadata, uri = validate_document(
+            document_loader, workflowobj, uri)
+        rewrites = {}
+        packed = cwltool.pack.pack(document_loader, processobj, uri, metadata, rewrite_out=rewrites)
+        self.assertEqual(6, len(rewrites))
+
     def test_pack_missing_cwlVersion(self):
         """Test to ensure the generated pack output is not missing
         the `cwlVersion` in case of single tool workflow and single step workflow"""
