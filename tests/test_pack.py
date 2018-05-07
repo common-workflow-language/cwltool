@@ -47,7 +47,7 @@ class TestPack(unittest.TestCase):
     def test_pack_rewrites(self):
         load_tool.loaders = {}
 
-        document_loader, workflowobj, uri = fetch_document("/home/peter/.arvbox/arvbox/arvados/sdk/cwl/tests/wf-defaults/wf5.cwl")
+        document_loader, workflowobj, uri = fetch_document("tests/wf-defaults/wf5.cwl")
         document_loader, avsc_names, processobj, metadata, uri = validate_document(
             document_loader, workflowobj, uri)
         rewrites = {}
