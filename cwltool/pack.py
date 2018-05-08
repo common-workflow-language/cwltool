@@ -58,6 +58,7 @@ def replace_refs(d, rewrite, stem, newstem):
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
                     d[s] = newstem + v[len(stem):]
+                    rewrite[v] = d[s]
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
@@ -72,6 +73,7 @@ def replace_refs(d, rewrite, stem, newstem):
                         d[s] = "#" + id_
                     else:
                         d[s] = newstem + id_
+                    rewrite[v] = d[s]
             replace_refs(v, rewrite, stem, newstem)
 
 def import_embed(d, seen):
@@ -182,7 +184,7 @@ def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
     if schemas:
         packed["$schemas"] = list(schemas)
 
-    for r in rewrite:
+    for r in list(rewrite.keys()):
         v = rewrite[r]
         replace_refs(packed, rewrite, r + "/" if "#" in r else r + "#", v + "/")
 
