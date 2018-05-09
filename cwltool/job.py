@@ -9,7 +9,6 @@ import os
 import re
 import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 from abc import ABCMeta, abstractmethod
@@ -28,6 +27,11 @@ from .process import (UnsupportedRequirement, get_feature,
 from .secrets import SecretStore
 from .utils import bytes2str_in_dicts
 from .utils import copytree_with_merge, onWindows
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess  # type: ignore
+else:
+    import subprocess  # type: ignore
+
 
 _logger = logging.getLogger("cwltool")
 
@@ -337,8 +341,8 @@ class ContainerCommandLineJob(JobBase):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def get_from_requirements(self, r, req, pull_image, dry_run=False):
-        # type: (Dict[Text, Text], bool, bool, bool) -> Text
+    def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
+        # type: (Dict[Text, Text], bool, bool, bool, bool) -> Text
         pass
 
     @abstractmethod
@@ -373,7 +377,7 @@ class ContainerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = str(self.get_from_requirements(docker_req, True, pull_image))
+                    img_id = str(self.get_from_requirements(docker_req, True, pull_image, force_pull=kwargs.get("force_docker_pull")))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()

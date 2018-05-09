@@ -7,21 +7,21 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 
 .. |Conformance Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
-   
+
 .. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=Linux%20builds
    :target: https://travis-ci.org/common-workflow-language/cwltool
-   
+
 .. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/master.svg?label=Windows%20builds
    :target: https://ci.appveyor.com/project/mr-c/cwltool
 
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
   :target: https://codecov.io/gh/common-workflow-language/cwltool
-   
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
-This is written and tested for Python ``2.7 and 3.x {x = 3, 4, 5, 6}``
+This is written and tested for `Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 4, 5, 6}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -88,6 +88,8 @@ List of all environment can be seen using:
 ``tox --listenvs``
 and running a specfic test env using:
 ``tox -e <env name>``
+and additionally run a specific test using this format:
+``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
 
 -  Running the entire suite of CWL conformance tests:
 
@@ -139,8 +141,8 @@ Run `cwltool` just as you normally would, but with the new option, e.g. from the
 .. code:: bash
 
   cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
-  
-or 
+
+or
 
 .. code:: bash
 

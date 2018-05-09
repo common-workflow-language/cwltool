@@ -396,7 +396,8 @@ def main(argsl=None,  # type: List[str]
                      'ga4gh_tool_registries': [],
                      'find_default_container': None,
                                    'make_template': False,
-                                   'overrides': None
+                                   'overrides': None,
+                                   'do_validate': True
         }):
             if not hasattr(args, k):
                 setattr(args, k, v)
@@ -457,13 +458,10 @@ def main(argsl=None,  # type: List[str]
                                                                         fetcher_constructor,
                                                                         overrides,
                                                                         tool_file_uri)
-        except Exception as e:
-            _logger.error(Text(e), exc_info=args.debug)
 
-        if args.overrides:
-            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
+            if args.overrides:
+                overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
-        try:
             document_loader, workflowobj, uri = fetch_document(uri, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
 
@@ -477,7 +475,8 @@ def main(argsl=None,  # type: List[str]
                                     preprocess_only=args.print_pre or args.pack,
                                     fetcher_constructor=fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=overrides)
+                                    overrides=overrides,
+                                    do_validate=args.do_validate)
 
             if args.print_pre:
                 stdout.write(json.dumps(processobj, indent=4))
@@ -497,6 +496,7 @@ def main(argsl=None,  # type: List[str]
 
             make_tool_kwds["find_default_container"] = functools.partial(find_default_container, args)
             make_tool_kwds["overrides"] = overrides
+            make_tool_kwds["disable_js_validation"] = args.disable_js_validation or (not args.do_validate)
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
                              makeTool, make_tool_kwds)

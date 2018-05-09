@@ -8,11 +8,11 @@ from os import path
 from typing import Any, Dict, List, Text, Tuple, Union
 
 import copy
-import avro.schema
 import schema_salad
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine
-from schema_salad.validate import ValidationException, validate_ex
+from schema_salad.validate import Schema, ValidationException, validate_ex
+import avro.schema  # always import after schema_salad, never before
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .expression import scanner as scan_expression
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
@@ -22,8 +22,20 @@ from pkg_resources import resource_stream
 _logger = logging.getLogger("cwltool")
 
 def is_expression(tool, schema):
-    # type: (Union[CommentedMap, Any], avro.schema.Schema) -> bool
+    # type: (Union[CommentedMap, Any], Schema) -> bool
     return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, (str, Text))
+
+class SuppressLog(logging.Filter):
+    def __init__(self, name):  # type: (Text) -> None
+        name = str(name)
+        super(SuppressLog, self).__init__(name)
+
+    def filter(self, record):
+        return False
+
+
+_logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
+_logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings"))
 
 def get_expressions(tool, schema, source_line=None):
     # type: (Union[CommentedMap, Any], avro.schema.Schema, SourceLine) -> List[Tuple[Text, SourceLine]]
@@ -35,7 +47,7 @@ def get_expressions(tool, schema, source_line=None):
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
                 return [(tool, source_line)]
-            elif validate_ex(possible_schema, tool, raise_ex=False):
+            elif validate_ex(possible_schema, tool, raise_ex=False, logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 
         return get_expressions(tool, valid_schema, source_line)
@@ -44,7 +56,7 @@ def get_expressions(tool, schema, source_line=None):
             return []
 
         return list(itertools.chain(*
-            map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool)) # type: ignore # https://github.com/python/mypy/issues/4679
+            map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool))  # type: ignore # https://github.com/python/mypy/issues/4679
         ))
 
     elif isinstance(schema, avro.schema.RecordSchema):
@@ -65,6 +77,7 @@ def get_expressions(tool, schema, source_line=None):
     else:
         return []
 
+
 JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
 
 def jshint_js(js_text, globals=None, options=None):
@@ -74,7 +87,7 @@ def jshint_js(js_text, globals=None, options=None):
     if options is None:
         options = {
             "includewarnings": [
-                "W117", # <VARIABLE> not defined
+                "W117",  # <VARIABLE> not defined
                 "W104", "W119"  # using ES6 features
             ],
             "strict": "implied",
@@ -119,12 +132,12 @@ def jshint_js(js_text, globals=None, options=None):
     except ValueError:
         dump_jshint_error()
 
-    jshint_errors = [] # type: List[Text]
+    jshint_errors = []  # type: List[Text]
 
     js_text_lines = js_text.split("\n")
 
     for jshint_error_obj in jshint_json.get("errors", []):
-        text =  u"JSHINT: " + js_text_lines[jshint_error_obj["line"] - 1] + "\n"
+        text = u"JSHINT: " + js_text_lines[jshint_error_obj["line"] - 1] + "\n"
         text += u"JSHINT: " + " " * (jshint_error_obj["character"] - 1) + "^\n"
         text += u"JSHINT: %s: %s" % (jshint_error_obj["code"], jshint_error_obj["reason"])
         jshint_errors.append(text)
@@ -138,7 +151,7 @@ def print_js_hint_messages(js_hint_messages, source_line):
         _logger.warn(source_line.makeError(js_hint_message))
 
 def validate_js_expressions(tool, schema, jshint_options=None):
-    # type: (CommentedMap, avro.schema.Schema, Dict) -> None
+    # type: (CommentedMap, Schema, Dict) -> None
 
     if tool.get("requirements") is None:
         return

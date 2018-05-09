@@ -16,10 +16,9 @@ from collections import Iterable
 from io import open
 from functools import cmp_to_key
 from typing import (Any, Callable, Dict, Generator, List, Set, Text,
-                    Tuple, Union, cast)
+                    Tuple, Union, cast, Optional)
 
-import avro.schema
-import schema_salad.schema
+import schema_salad.schema as schema
 import schema_salad.validate as validate
 import six
 from pkg_resources import resource_stream
@@ -29,6 +28,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
+from six import iteritems, itervalues, string_types
 
 from .validate_js import validate_js_expressions
 from .utils import cmp_like_py2
@@ -41,11 +41,6 @@ from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
-
-# if six.PY3:
-# AvroSchemaFromJSONData = avro.schema.SchemaFromJSONData
-# else:
-AvroSchemaFromJSONData = avro.schema.make_avsc_object
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
@@ -108,7 +103,7 @@ salad_files = ('metaschema.yml',
                'vocab_res_src.yml',
                'vocab_res_proc.yml')
 
-SCHEMA_CACHE = {}  # type: Dict[Text, Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text, Any], Loader]]
+SCHEMA_CACHE = {}  # type: Dict[Text, Tuple[Loader, Union[schema.Names, schema.SchemaParseException], Dict[Text, Any], Loader]]
 SCHEMA_FILE = None  # type: Dict[Text, Any]
 SCHEMA_DIR = None  # type: Dict[Text, Any]
 SCHEMA_ANY = None  # type: Dict[Text, Any]
@@ -129,7 +124,7 @@ def use_custom_schema(version, name, text):
         del SCHEMA_CACHE[version]
 
 def get_schema(version):
-    # type: (Text) -> Tuple[Loader, Union[avro.schema.Names, avro.schema.SchemaParseException], Dict[Text,Any], Loader]
+    # type: (Text) -> Tuple[Loader, Union[schema.Names, schema.SchemaParseException], Dict[Text,Any], Loader]
 
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
@@ -159,10 +154,10 @@ def get_schema(version):
 
     if version in custom_schemas:
         cache[custom_schemas[version][0]] = custom_schemas[version][1]
-        SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+        SCHEMA_CACHE[version] = schema.load_schema(
             custom_schemas[version][0], cache=cache)
     else:
-        SCHEMA_CACHE[version] = schema_salad.schema.load_schema(
+        SCHEMA_CACHE[version] = schema.load_schema(
             "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache)
 
     return SCHEMA_CACHE[version]
@@ -352,55 +347,6 @@ def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
             shutil.rmtree(a, True)
 
 
-def formatSubclassOf(fmt, cls, ontology, visited):
-    # type: (Text, Text, Graph, Set[Text]) -> bool
-    """Determine if `fmt` is a subclass of `cls`."""
-
-    if URIRef(fmt) == URIRef(cls):
-        return True
-
-    if ontology is None:
-        return False
-
-    if fmt in visited:
-        return False
-
-    visited.add(fmt)
-
-    uriRefFmt = URIRef(fmt)
-
-    for s, p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
-        # Find parent classes of `fmt` and search upward
-        if formatSubclassOf(o, cls, ontology, visited):
-            return True
-
-    for s, p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
-        # Find equivalent classes of `fmt` and search horizontally
-        if formatSubclassOf(o, cls, ontology, visited):
-            return True
-
-    for s, p, o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
-        # Find equivalent classes of `fmt` and search horizontally
-        if formatSubclassOf(s, cls, ontology, visited):
-            return True
-
-    return False
-
-
-def checkFormat(actualFile, inputFormats, ontology):
-    # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
-    for af in aslist(actualFile):
-        if not af:
-            continue
-        if "format" not in af:
-            raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
-        for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
-                return
-        raise validate.ValidationException(
-            u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
-
-
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
@@ -443,6 +389,32 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
             req.update(ov)
     return req
 
+
+def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
+                           item=None,     # type: Optional[Any]
+                           obj_key=None,  # type: Optional[Any]
+                          ):              # type: (...)->bool
+    """ Detects any textual reference to /var/spool/cwl. """
+    r = False
+    if isinstance(obj, string_types):
+        if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
+            _logger.warn(SourceLine(
+                item=item, key=obj_key, raise_type=Text).makeError(
+"""Non-portable reference to /var/spool/cwl detected:
+  '{}'
+To fix, replace /var/spool/cwl with $(runtime.outdir) or
+  add DockerRequirement to the 'requirements' section and
+  declare 'dockerOutputDirectory: /var/spool/cwl'.""".format(obj)))
+            r = True
+    elif isinstance(obj, dict):
+        for key, value in iteritems(obj):
+            r = var_spool_cwl_detector(value, obj, key) or r
+    elif isinstance(obj, list):
+        for key, value in enumerate(obj):
+            r = var_spool_cwl_detector(value, obj, key) or r
+    return r
+
+
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
@@ -458,7 +430,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         """
 
         self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
-        self.names = None  # type: avro.schema.Names
+        self.names = None  # type: schema.Names
 
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None:
@@ -470,9 +442,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             SCHEMA_DIR = cast(Dict[Text, Any],
                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"])
 
-        names = schema_salad.schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
-                                                     schema_salad.ref_resolver.Loader({}))[0]
-        if isinstance(names, avro.schema.SchemaParseException):
+        names = schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
+                                        Loader({}))[0]
+        if isinstance(names, schema.SchemaParseException):
             raise names
         else:
             self.names = names
@@ -498,10 +470,10 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         if sd:
             sdtypes = sd["types"]
-            av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
+            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
-            AvroSchemaFromJSONData(av, self.names)  # type: ignore
+            schema.AvroSchemaFromJSONData(av, self.names)  # type: ignore
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -531,23 +503,15 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 elif key == "outputs":
                     self.outputs_record_schema["fields"].append(c)
 
-        try:
-            self.inputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
-            AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
-        except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error '%s' while "
-                    "processing inputs of %s:\n%s" %
-                                               (Text(e), self.tool["id"],
-                                                json.dumps(self.inputs_record_schema, indent=4)))
-
-        try:
-            self.outputs_record_schema = cast(Dict[six.text_type, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
-        except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error '%s' while "
-                    "processing outputs of %s:\n%s" %
-                                               (Text(e), self.tool["id"],
-                                                json.dumps(self.outputs_record_schema, indent=4)))
+        with SourceLine(toolpath_object, "inputs", validate.ValidationException):
+            self.inputs_record_schema = cast(
+                Dict[six.text_type, Any], schema.make_valid_avro(
+                    self.inputs_record_schema, {}, set()))
+            schema.AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
+        with SourceLine(toolpath_object, "outputs", validate.ValidationException):
+            self.outputs_record_schema = cast(Dict[six.text_type, Any],
+                    schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            schema.AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
 
         if toolpath_object.get("class") is not None and not kwargs.get("disable_js_validation", False):
             if kwargs.get("js_hint_options_file") is not None:
@@ -561,6 +525,24 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 validate_js_options = None
 
             validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
+
+        dockerReq, is_req = self.get_requirement("DockerRequirement")
+
+        if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
+            _logger.warn(SourceLine(
+                item=dockerReq, raise_type=Text).makeError(
+"""When 'dockerOutputDirectory' is declared, DockerRequirement
+  should go in the 'requirements' section, not 'hints'."""))
+
+        if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
+            if is_req:
+                # In this specific case, it is legal to have /var/spool/cwl, so skip the check.
+                pass
+            else:
+                # Must be a requirement
+                var_spool_cwl_detector(self.tool)
+        else:
+            var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
@@ -606,6 +588,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder.debug = kwargs.get("debug")
         builder.js_console = kwargs.get("js_console")
         builder.mutation_manager = kwargs.get("mutation_manager")
+        builder.formatgraph = self.formatgraph
 
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
@@ -640,13 +623,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
                 builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
-        if self.formatgraph:
-            for i in self.tool["inputs"]:
-                d = shortname(i["id"])
-                if d in builder.job and i.get("format"):
-                    checkFormat(builder.job[d], builder.do_eval(i["format"]), self.formatgraph)
-
-        builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job))
+        builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job, discover_secondaryFiles=kwargs.get("toplevel")))
 
         if self.tool.get("baseCommand"):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):
@@ -827,8 +804,11 @@ def mergedirs(listing):
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
-        elif e["class"] == "Directory" and e.get("listing"):
-            ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
+        elif e["class"] == "Directory":
+            if e.get("listing"):
+                ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
+            if ents[e["basename"]]["location"].startswith("_:"):
+                ents[e["basename"]]["location"] = e["location"]
     for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])

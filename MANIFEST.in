@@ -1,3 +1,4 @@
+include MANIFEST.in
 include gittaggers.py Makefile cwltool.py
 include tests/*
 include tests/tmp1/tmp2/tmp3/.gitkeep

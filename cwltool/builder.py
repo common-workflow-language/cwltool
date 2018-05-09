@@ -2,14 +2,19 @@ from __future__ import absolute_import
 import copy
 import os
 import logging
-from typing import Any, Callable, Dict, List, Text, Type, Union
+import json
+from typing import Any, Callable, Dict, List, Text, Type, Union, Set
 
 import six
 from six import iteritems, string_types
 
-import avro
 import schema_salad.validate as validate
+import schema_salad.schema as schema
 from schema_salad.sourceline import SourceLine
+from schema_salad.schema import AvroSchemaFromJSONData
+
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDFS
 
 from . import expression
 from .errors import WorkflowException
@@ -21,8 +26,6 @@ from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
 
 _logger = logging.getLogger("cwltool")
 
-AvroSchemaFromJSONData = avro.schema.make_avsc_object
-
 CONTENT_LIMIT = 64 * 1024
 
 
@@ -32,10 +35,56 @@ def substitute(value, replace):  # type: (Text, Text) -> Text
     else:
         return value + replace
 
+def formatSubclassOf(fmt, cls, ontology, visited):
+    # type: (Text, Text, Graph, Set[Text]) -> bool
+    """Determine if `fmt` is a subclass of `cls`."""
+
+    if URIRef(fmt) == URIRef(cls):
+        return True
+
+    if ontology is None:
+        return False
+
+    if fmt in visited:
+        return False
+
+    visited.add(fmt)
+
+    uriRefFmt = URIRef(fmt)
+
+    for s, p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
+        # Find parent classes of `fmt` and search upward
+        if formatSubclassOf(o, cls, ontology, visited):
+            return True
+
+    for s, p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
+        # Find equivalent classes of `fmt` and search horizontally
+        if formatSubclassOf(o, cls, ontology, visited):
+            return True
+
+    for s, p, o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
+        # Find equivalent classes of `fmt` and search horizontally
+        if formatSubclassOf(s, cls, ontology, visited):
+            return True
+
+    return False
+
+def checkFormat(actualFile, inputFormats, ontology):
+    # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
+    for af in aslist(actualFile):
+        if not af:
+            continue
+        if "format" not in af:
+            raise validate.ValidationException(u"File has no 'format' defined: %s" % json.dumps(af, indent=4))
+        for inpf in aslist(inputFormats):
+            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
+                return
+        raise validate.ValidationException(
+            u"File has an incompatible format: %s" % json.dumps(af, indent=4))
 
 class Builder(object):
     def __init__(self):  # type: () -> None
-        self.names = None  # type: avro.schema.Names
+        self.names = None  # type: schema.Names
         self.schemaDefs = None  # type: Dict[Text, Dict[Text, Any]]
         self.files = None  # type: List[Dict[Text, Text]]
         self.fs_access = None  # type: StdFsAccess
@@ -54,6 +103,7 @@ class Builder(object):
         self.js_console = False  # type: bool
         self.mutation_manager = None  # type: MutationManager
         self.force_docker_pull = False  # type: bool
+        self.formatgraph = None  # type: Graph
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
@@ -70,8 +120,8 @@ class Builder(object):
         else:
             return None
 
-    def bind_input(self, schema, datum, lead_pos=None, tail_pos=None):
-        # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int]) -> List[Dict[Text, Any]]
+    def bind_input(self, schema, datum, lead_pos=None, tail_pos=None, discover_secondaryFiles=False):
+        # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int], bool) -> List[Dict[Text, Any]]
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
@@ -105,9 +155,9 @@ class Builder(object):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
                     if not value_from_expression:
-                        return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                        return self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles)
                     else:
-                        self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                        self.bind_input(schema, datum, lead_pos=lead_pos, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles)
                         bound_input = True
             if not bound_input:
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
@@ -119,9 +169,9 @@ class Builder(object):
                 if k in schema:
                     st[k] = schema[k]
             if value_from_expression:
-                self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos)
+                self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles)
             else:
-                bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos))
+                bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
         else:
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[schema["type"]]
@@ -129,7 +179,7 @@ class Builder(object):
             if schema["type"] == "record":
                 for f in schema["fields"]:
                     if f["name"] in datum:
-                        bindings.extend(self.bind_input(f, datum[f["name"]], lead_pos=lead_pos, tail_pos=f["name"]))
+                        bindings.extend(self.bind_input(f, datum[f["name"]], lead_pos=lead_pos, tail_pos=f["name"], discover_secondaryFiles=discover_secondaryFiles))
                     else:
                         datum[f["name"]] = f.get("default")
 
@@ -147,15 +197,14 @@ class Builder(object):
                         if k in schema:
                             itemschema[k] = schema[k]
                     bindings.extend(
-                        self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos))
+                        self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
                 binding = None
 
             if schema["type"] == "File":
                 self.files.append(datum)
-                if binding:
-                    if binding.get("loadContents"):
-                        with self.fs_access.open(datum["location"], "rb") as f:
-                            datum["contents"] = f.read(CONTENT_LIMIT)
+                if (binding and binding.get("loadContents")) or schema.get("loadContents"):
+                    with self.fs_access.open(datum["location"], "rb") as f:
+                        datum["contents"] = f.read(CONTENT_LIMIT)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -175,13 +224,22 @@ class Builder(object):
                             if not found:
                                 if isinstance(sfname, dict):
                                     datum["secondaryFiles"].append(sfname)
-                                else:
+                                elif discover_secondaryFiles:
                                     datum["secondaryFiles"].append({
                                         "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
                                         "basename": sfname,
                                         "class": "File"})
+                                else:
+                                    raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
+                                        sfname, json.dumps(datum, indent=4)))
 
                     normalizeFilesDirs(datum["secondaryFiles"])
+
+                if "format" in schema:
+                    try:
+                        checkFormat(datum, self.do_eval(schema["format"]), self.formatgraph)
+                    except validate.ValidationException as ve:
+                        raise WorkflowException("Expected value of '%s' to have format %s but\n  %s" % (schema["name"], schema["format"], ve))
 
                 def _capture_files(f):
                     self.files.append(f)
