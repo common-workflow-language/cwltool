@@ -8,7 +8,7 @@ pipeline {
   stages {
     stage('build') {
       steps {
-        bat 'python setup.py '
+        pybat 'python setup.py test'
       }
     }
   }
