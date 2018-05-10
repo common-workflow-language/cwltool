@@ -138,14 +138,13 @@ class TestParamMatching(unittest.TestCase):
 
 class TestFactory(unittest.TestCase):
 
-    #def _find_default_container(default_container_id, builder):
-    #    return default_container_id
+    def _find_default_container(default_container_id, builder):
+        return default_container_id
 
     def test_factory(self):
         if onWindows():
-            #opts = {'find_default_container': functools.partial(
-            #    _find_default_container, windows_default_container_id)}
-            opts = {'default_container': windows_default_container_id,
+            opts = {'find_default_container': functools.partial(
+                _find_default_container, windows_default_container_id),
                     'use_container': True}
         else:
             opts = {}
