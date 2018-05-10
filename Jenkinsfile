@@ -8,10 +8,7 @@ pipeline {
   stages {
     stage('build') {
       steps {
-        withPythonEnv(pythonInstallation: 'C:\\Program Files\\Python36\\python.exe') {
-          pybat(script: 'python setup.py test', returnStatus: true, returnStdout: true)
-        }
-
+        bat(script: 'python -m virtualenv env', returnStatus: true, returnStdout: true)
       }
     }
   }
