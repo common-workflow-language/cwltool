@@ -28,7 +28,7 @@ import cwltool.process
 import cwltool.workflow
 import schema_salad.validate
 from cwltool.main import main
-from cwltool.utils import onWindows
+from cwltool.utils import onWindows, windows_default_container_id
 
 from .util import get_data, needs_docker
 
