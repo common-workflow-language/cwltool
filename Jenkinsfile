@@ -9,7 +9,7 @@ pipeline {
     stage('build') {
       steps {
         withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
-          pybat(script: 'setup.py test --addopts --junit-xml=tests.xml', returnStdout: true)
+          pybat(script: 'setup.py test --addopts --junit-xml=tests.xml', returnStatus: true)
         }
 
         junit 'tests.xml'
