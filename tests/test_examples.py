@@ -138,7 +138,11 @@ class TestParamMatching(unittest.TestCase):
 
 class TestFactory(unittest.TestCase):
     def test_factory(self):
-        f = cwltool.factory.Factory()
+        if onWindows():
+            opts = {'default_container': windows_default_container_id}
+        else:
+            opts = {}
+        f = cwltool.factory.Factory(**opts)
         echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
