@@ -6,6 +6,8 @@ from os import path
 import sys
 import json
 import logging
+import tempfile
+import shutil
 
 from io import StringIO, BytesIO
 
@@ -651,12 +653,29 @@ class TestJsConsole(TestCmdLine):
 
 @needs_docker
 class TestCache(TestCmdLine):
+    def setUp(self):
+        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
+
+    def tearDown(self):
+        shutil.rmtree(self.cache_dir)
+
     def test_wf_without_container(self):
         test_file = "hello-workflow.cwl"
-        error_code, stdout, stderr = self.get_main_output(["--cachedir", "cache",
+        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir,
                                                    get_data("tests/wf/" + test_file), "--usermessage", "hello"])
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
+
+    def test_issue_740_fixed(self):
+        test_file = "cache_test_workflow.cwl"
+        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir, get_data("tests/wf/" + test_file)])
+        self.assertIn("completed success", stderr)
+        self.assertEquals(error_code, 0)
+
+        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir, get_data("tests/wf/" + test_file)])
+        self.assertNotIn("Output of job will be cached in", stderr)
+        self.assertEquals(error_code, 0)
+
 
 @needs_docker
 class TestChecksum(TestCmdLine):

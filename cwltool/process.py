@@ -17,6 +17,7 @@ from io import open
 from functools import cmp_to_key
 from typing import (Any, Callable, Dict, Generator, List, Set, Text,
                     Tuple, Union, cast, Optional)
+import copy
 
 import schema_salad.schema as schema
 import schema_salad.validate as validate
@@ -453,6 +454,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                              self.tool.get("requirements", []) +
                              get_overrides(kwargs.get("overrides", []), self.tool["id"]).get("requirements", []))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
+        # Versions of requirements and hints which aren't mutated.
+        self.original_requirements = copy.deepcopy(self.requirements)
+        self.original_hints = copy.deepcopy(self.hints)
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
