@@ -147,7 +147,7 @@ class TestFactory(unittest.TestCase):
             #    _find_default_container, windows_default_container_id)}
             opts = {'default_container': windows_default_container_id,
                     'use_container': True}
-         else:
+        else:
             opts = {}
         f = cwltool.factory.Factory(**opts)
         echo = f.make(get_data("tests/echo.cwl"))
