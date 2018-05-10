@@ -136,11 +136,11 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs), "true true")
         self.assertEqual(expr.interpolate("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
 
+def _find_default_container(default_container_id, builder):
+   return default_container_id
+
 
 class TestFactory(unittest.TestCase):
-
-    def _find_default_container(default_container_id, builder):
-        return default_container_id
 
     def test_factory(self):
         if onWindows():
