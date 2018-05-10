@@ -8,7 +8,9 @@ pipeline {
   stages {
     stage('build') {
       steps {
-        pybat 'python setup.py test'
+	withPythonEnv('python') {
+          pybat 'python setup.py test'
+        }
       }
     }
   }
