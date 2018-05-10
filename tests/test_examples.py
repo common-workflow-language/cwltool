@@ -137,10 +137,17 @@ class TestParamMatching(unittest.TestCase):
 
 
 class TestFactory(unittest.TestCase):
+
+    #def _find_default_container(default_container_id, builder):
+    #    return default_container_id
+
     def test_factory(self):
         if onWindows():
-            opts = {'default_container': windows_default_container_id}
-        else:
+            #opts = {'find_default_container': functools.partial(
+            #    _find_default_container, windows_default_container_id)}
+            opts = {'default_container': windows_default_container_id,
+                    'use_container': True}
+         else:
             opts = {}
         f = cwltool.factory.Factory(**opts)
         echo = f.make(get_data("tests/echo.cwl"))
