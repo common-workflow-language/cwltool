@@ -12,13 +12,13 @@ from cwltool.factory import Factory
 
 def get_windows_safe_factory(**execkwargs):
     if onWindows():
-        opts = {'find_default_container': functools.partial(
+        makekwargs = {'find_default_container': functools.partial(
             force_default_container, windows_default_container_id),
-                'use_container': True,
-                'default_container': windows_default_container_id}
+                      'use_container': True}
+        execkwargs['default_container': windows_default_container_id]
     else:
         opts = {}
-    return Factory(makekwargs=opts, **execkwargs)
+    return Factory(makekwargs=makekwargs, **execkwargs)
 
 def force_default_container(default_container_id, builder):
    return default_container_id
