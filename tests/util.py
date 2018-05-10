@@ -6,6 +6,22 @@ from pkg_resources import (Requirement, ResolutionError,  # type: ignore
 import distutils.spawn
 import pytest
 
+from cwltool.utils import onWindows
+from cwltool.factory import Factory
+
+def get_windows_safe_factory(**execkwargs):
+    if onWindows():
+        opts = {'find_default_container': functools.partial(
+            force_default_container, windows_default_container_id),
+                'use_container': True,
+                'default_container': windows_default_container_id}
+    else:
+        opts = {}
+    return Factory(makekwargs=opts, **execkwargs)
+
+def force_default_container(default_container_id, builder):
+   return default_container_id
+
 def get_data(filename):
     filename = os.path.normpath(
         filename)  # normalizing path depending on OS or else it will cause problem when joining path

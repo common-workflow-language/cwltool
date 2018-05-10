@@ -2,7 +2,7 @@ import unittest
 
 import cwltool
 import cwltool.factory
-from .util import get_data
+from .util import get_data, get_windows_safe_factory
 
 
 class TestInitialWorkDir(unittest.TestCase):
@@ -11,6 +11,6 @@ class TestInitialWorkDir(unittest.TestCase):
         """
         test that files in InitialWorkingDirectory are created with a newline character
         """
-        f = cwltool.factory.Factory()
+        f = get_windows_safe_factory()
         echo = f.make(get_data("tests/wf/iwdr-entry.cwl"))
         self.assertEqual(echo(message="hello"), {"out": "CONFIGVAR=hello\n"})

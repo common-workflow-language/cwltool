@@ -7,7 +7,7 @@ import cwltool
 import cwltool.factory
 from cwltool.executors import MultithreadedJobExecutor
 from cwltool.utils import onWindows
-from .util import get_data
+from .util import get_data, get_windows_safe_factory
 
 
 class TestParallel(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestParallel(unittest.TestCase):
     def test_scattered_workflow(self):
         test_file = "tests/wf/scatter-wf4.cwl"
         job_file = "tests/wf/scatter-job2.json"
-        f = cwltool.factory.Factory(executor=MultithreadedJobExecutor())
+        f = get_windows_safe_factory(executor=MultithreadedJobExecutor())
         echo = f.make(get_data(test_file))
         with open(get_data(job_file)) as job:
             self.assertEqual(echo(**json.load(job)), {'out': ['foo one three', 'foo two four']})
