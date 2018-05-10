@@ -8,7 +8,7 @@ pipeline {
   stages {
     stage('build') {
       steps {
-        bat(script: 'python -m virtualenv env', returnStatus: true, returnStdout: true)
+        bat(script: 'python.exe -m virtualenv env', returnStatus: true, returnStdout: true)
       }
     }
   }
