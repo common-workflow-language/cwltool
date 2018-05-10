@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import unittest
 import pytest
-import functools
 import subprocess
 from os import path
 import sys

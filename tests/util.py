@@ -1,12 +1,13 @@
 from __future__ import absolute_import
 import os
+import functools
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
 import distutils.spawn
 import pytest
 
-from cwltool.utils import onWindows
+from cwltool.utils import onWindows, windows_default_container_id
 from cwltool.factory import Factory
 
 def get_windows_safe_factory(**execkwargs):
