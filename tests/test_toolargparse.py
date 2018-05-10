@@ -73,9 +73,6 @@ outputs: []
             f.close()
             self.assertEquals(main(["--debug", f.name, '--input',
                 get_data('tests/echo.cwl')]), 0)
-            self.assertEquals(main(["--debug", f.name, '--input',
-                get_data('tests/echo.cwl')]), 0)
-
 
     @needs_docker
     def test_bool(self):
