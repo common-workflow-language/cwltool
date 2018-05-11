@@ -46,10 +46,11 @@ install:
 build_script:
   - "%PYTHON%\\python.exe -m pip install ."
 
-
 test_script:
   - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml"
-  - ps: >-
+
+after_test:
+  - ps: |
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($Env:APPVEYOR_JOB_ID)", (Resolve-Path .\tests.xml))
 
