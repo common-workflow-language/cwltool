@@ -3,13 +3,9 @@ pipeline {
     node {
       label 'windows'
     }
+  }
   environment {
     CODECOV_TOKEN = credentials('jenkins-codecov-tokeN')
-  }
-
-  }
-  options {
-    timeout(30)
   }
   stages {
     stage('build') {
