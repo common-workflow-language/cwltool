@@ -2,11 +2,12 @@ import unittest
 
 import cwltool
 import cwltool.factory
-from .util import get_data, get_windows_safe_factory
+from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 
 class TestInitialWorkDir(unittest.TestCase):
 
+    @windows_needs_docker
     def test_newline_in_entry(self):
         """
         test that files in InitialWorkingDirectory are created with a newline character

@@ -43,3 +43,8 @@ def get_data(filename):
 needs_docker = pytest.mark.skipif(not bool(distutils.spawn.find_executable('docker')),
                                   reason="Requires the docker executable on the "
                                   "system path.")
+
+windows_needs_docker = pytest.mark.skipif(
+        onWindows() and not bool(distutils.spawn.find_executable('docker')),
+        reason="Running this test on MS Windows requires the docker executable "
+        "on the system path.")

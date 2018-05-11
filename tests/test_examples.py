@@ -30,7 +30,8 @@ import schema_salad.validate
 from cwltool.main import main
 from cwltool.utils import onWindows
 
-from .util import get_data, needs_docker, get_windows_safe_factory
+from .util import (get_data, needs_docker, get_windows_safe_factory,
+        windows_needs_docker)
 
 sys.argv = ['']
 
@@ -137,6 +138,7 @@ class TestParamMatching(unittest.TestCase):
 
 class TestFactory(unittest.TestCase):
 
+    @windows_needs_docker
     def test_factory(self):
         f = get_windows_safe_factory()
         echo = f.make(get_data("tests/echo.cwl"))
