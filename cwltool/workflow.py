@@ -361,6 +361,9 @@ class WorkflowJob(object):
         self.state = {}
         self.processStatus = "success"
 
+        if "outdir" in kwargs:
+            del kwargs["outdir"]
+
         for e, i in enumerate(self.tool["inputs"]):
             with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
