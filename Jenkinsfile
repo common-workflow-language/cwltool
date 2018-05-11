@@ -18,7 +18,6 @@ pipeline {
     stage('CWL-conformance-test') {
       steps {
         withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
-          pybat 'git clone https://github.com/common-workflow-language/common-workflow-language.git'
           pybat '.jenkins/conformance.bat'
         }
       }
