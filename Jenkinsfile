@@ -3,6 +3,9 @@ pipeline {
     node {
       label 'windows'
     }
+  environment {
+    CODECOV_TOKEN = credentials('jenkins-codecov-tokeN')
+  }
 
   }
   options {
