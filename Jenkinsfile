@@ -5,7 +5,7 @@ pipeline {
     }
   }
   environment {
-    CODECOV_TOKEN = credentials('jenkins-codecov-tokeN')
+    CODECOV_TOKEN = credentials('jenkins-codecov-token')
   }
   stages {
     stage('build') {
