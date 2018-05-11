@@ -1,7 +1,5 @@
-CALL %WORKSPACE%\setup.bat
-echo %cd%
-echo %~dp0
+CALL %~dp0\setup.bat
 pip install pytest pytest-cov
-python setup.py test --addopts "--junit-xml=tests.xml --cov-report xml --cov cwltool"
+python setup.py test --addopts "--junit-xml=tests.xml --cov=.\"
 pip install codecov
 codecov
