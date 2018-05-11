@@ -12,6 +12,7 @@ from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.workflow import defaultMakeTool
 from cwltool.resolver import resolve_local
+from cwltool.utils import onWindows
 
 if sys.version_info < (3, 4):
     from pathlib2 import Path
@@ -71,15 +72,25 @@ class ResolverTest(unittest.TestCase):
     def test_resolve_local(self):
         origpath = os.getcwd()
         os.chdir(os.path.join(get_data("")))
+        def norm(uri):
+            if onWindows():
+                return uri.lower()
+            else:
+                return uri
         try:
             root = Path.cwd()
             rooturi = root.as_uri()
-            self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, os.path.join("tests", "echo.cwl")))
-            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, os.path.join("tests", "echo.cwl")+"#main"))
-            self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, str(root / "tests" / "echo.cwl")))
-            # On Windows and Python 2.7, the left side of this test returns
-            # file:///C:/ (uppercase drive letter) and the right side returns
-            # file:///c:/ (lowercase drive letter) so force a lowercase comparison.
-            self.assertEqual((rooturi+"/tests/echo.cwl#main").lower(), resolve_local(None, str(root / "tests" / "echo.cwl")+"#main").lower())
+            self.assertEqual(norm(rooturi+"/tests/echo.cwl"),
+                    norm(resolve_local(None, os.path.join("tests",
+                        "echo.cwl"))))
+            self.assertEqual(norm(rooturi+"/tests/echo.cwl#main"),
+                    norm(resolve_local(None, os.path.join("tests",
+                        "echo.cwl")+"#main")))
+            self.assertEqual(norm(rooturi+"/tests/echo.cwl"),
+                    norm(resolve_local(None, str(root / "tests" /
+                        "echo.cwl"))))
+            self.assertEqual(norm(rooturi+"/tests/echo.cwl#main"),
+                    norm(resolve_local(None, str(root / "tests" /
+                        "echo.cwl")+"#main")))
         finally:
             os.chdir(origpath)

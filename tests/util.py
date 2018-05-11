@@ -1,10 +1,27 @@
 from __future__ import absolute_import
 import os
+import functools
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
 import distutils.spawn
 import pytest
+
+from cwltool.utils import onWindows, windows_default_container_id
+from cwltool.factory import Factory
+
+def get_windows_safe_factory(**execkwargs):
+    if onWindows():
+        makekwargs = {'find_default_container': functools.partial(
+            force_default_container, windows_default_container_id),
+                      'use_container': True}
+        execkwargs['default_container'] = windows_default_container_id
+    else:
+        makekwargs = {}
+    return Factory(makekwargs=makekwargs, **execkwargs)
+
+def force_default_container(default_container_id, builder):
+   return default_container_id
 
 def get_data(filename):
     filename = os.path.normpath(
@@ -26,3 +43,8 @@ def get_data(filename):
 needs_docker = pytest.mark.skipif(not bool(distutils.spawn.find_executable('docker')),
                                   reason="Requires the docker executable on the "
                                   "system path.")
+
+windows_needs_docker = pytest.mark.skipif(
+        onWindows() and not bool(distutils.spawn.find_executable('docker')),
+        reason="Running this test on MS Windows requires the docker executable "
+        "on the system path.")
