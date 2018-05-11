@@ -10,7 +10,7 @@ pipeline {
       steps {
         withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
           pybat(script: 'pip install .', returnStdout: true)
-          pybat(script: jenkins.bat)
+          pybat jenkins.bat
         }
 
       }
