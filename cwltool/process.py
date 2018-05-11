@@ -566,6 +566,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         select_resources: callback to select compute resources
         debug: enable debugging output
         js_console: enable javascript console output
+        tmp_outdir_prefix: Path prefix for intermediate output directories
         """
 
         builder = Builder()
@@ -622,7 +623,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
+            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir")
+                    or tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]))
             if self.tool[u"class"] != 'Workflow':
                 builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
                 builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
