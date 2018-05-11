@@ -14,7 +14,7 @@ class TestParallel(unittest.TestCase):
     @windows_needs_docker
     def test_sequential_workflow(self):
         test_file = "tests/wf/count-lines1-wf.cwl"
-        f = cwltool.factory.Factory(executor=MultithreadedJobExecutor())
+        f = get_windows_safe_factory(executor=MultithreadedJobExecutor())
         echo = f.make(get_data(test_file))
         self.assertEqual(echo(file1= {
                 "class": "File",
