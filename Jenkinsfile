@@ -19,7 +19,7 @@ pipeline {
       steps {
         git 'https://github.com/common-workflow-language/common-workflow-language.git'
         withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
-          pybat '.jenkins/conformance-test.bat'
+          pybat '.jenkins/conformance_test.bat'
         }
       }
     }
