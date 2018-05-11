@@ -17,8 +17,8 @@ pipeline {
     }
     stage('CWL-conformance-test') {
       steps {
-        git 'https://github.com/common-workflow-language/common-workflow-language.git'
         withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
+          git 'https://github.com/common-workflow-language/common-workflow-language.git'
           pybat '.jenkins/conformance.bat'
         }
       }
