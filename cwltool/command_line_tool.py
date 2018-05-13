@@ -296,7 +296,7 @@ class CommandLineTool(Process):
                            "EnvVarRequirement",
                            "CreateFileRequirement",
                            "ShellCommandRequirement"}
-            for rh in (self.requirements, self.hints):
+            for rh in (self.original_requirements, self.original_hints):
                 for r in reversed(rh):
                     if r["class"] in interesting and r["class"] not in keydict:
                         keydict[r["class"]] = r

@@ -28,6 +28,41 @@ _logger = logging.getLogger("cwltool")
 
 found_images = set()  # type: Set[Text]
 found_images_lock = threading.Lock()
+__docker_machine_mounts = None  # type: List[Text]
+__docker_machine_mounts_lock = threading.Lock()
+
+def _get_docker_machine_mounts():  # type: () -> List[Text]
+    global __docker_machine_mounts
+    if __docker_machine_mounts is None:
+        with __docker_machine_mounts_lock:
+            if 'DOCKER_MACHINE_NAME' not in os.environ:
+                __docker_machine_mounts = []
+            else:
+                __docker_machine_mounts = [u'/' + line.split(None, 1)[0]
+                        for line in subprocess.check_output(
+                            ['docker-machine', 'ssh',
+                                os.environ['DOCKER_MACHINE_NAME'],
+                                'mount', '-t', 'vboxsf'],
+                            universal_newlines=True).splitlines()]
+    return __docker_machine_mounts
+
+def _check_docker_machine_path(path):  # type: (Text) -> None
+    mounts = _get_docker_machine_mounts()
+    if mounts:
+        found = False
+        for mount in mounts:
+            if path.startswith(mount):
+                found = True
+                break
+        if not found:
+            raise WorkflowException(
+                "Input path {path} is not in the list of host paths mounted "
+                "into the Docker virtual machine named {name}. Already mounted "
+                "paths: {mounts}.\n"
+                "See https://docs.docker.com/toolbox/toolbox_install_windows/#optional-add-shared-directories"
+                " for instructions on how to add this path to your VM.".format(path=path,
+                    name=os.environ["DOCKER_MACHINE_NAME"], mounts=mounts))
+
 
 class DockerCommandLineJob(ContainerCommandLineJob):
 
@@ -162,6 +197,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 host_outdir_tgt = None
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
+                    _check_docker_machine_path(docker_windows_path_adjust(
+                        vol.resolved))
                     runtime.append(u"--volume=%s:%s:ro" % (
                         docker_windows_path_adjust(vol.resolved),
                         docker_windows_path_adjust(vol.target)))
