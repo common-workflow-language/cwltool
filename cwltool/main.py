@@ -70,14 +70,13 @@ engineUUID=uuid.uuid4().urn
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        main_provenanceObject=None,      # type: Any
                         **kwargs           # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
-    return executor(t, job_order_object, main_provenanceObject, **kwargs)
+    return executor(t, job_order_object, **kwargs)
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -381,7 +380,6 @@ def main(argsl=None,  # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
-    main_provenanceObject=None
     inputforProv = None
     try:
         if args is None:

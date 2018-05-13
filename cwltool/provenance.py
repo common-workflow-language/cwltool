@@ -372,16 +372,16 @@ class create_ProvProfile():
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
             if WorkflowRunID:
                 provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
             #if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
                 document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
             else:
                 provLabel="Run of CommandLineTool/packed.cwl#main/"
-                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
                 document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
                 document.wasStartedBy(ProcessRunID, None, engineUUID, datetime.datetime.now(), None, None)
-            return ProcessProvActivity
+            return ProcessRunID
     
     def used_artefacts(self, job_order, ProcessRunID, reference_locations, name):
         # type: (Dict, ProvActivity, str, str) -> None
@@ -444,7 +444,8 @@ class create_ProvProfile():
                 key_files.append(self.dict_output(key, value))
 
         merged_total= list(itertools.chain.from_iterable(key_files))
-
+        print "what is processRunID in generate_outputProv: "
+        print ProcessRunID
         #generate data artefacts at workflow level
         for tuple_entry in merged_total:
             # FIXME: What are these magic array[][] positions???

@@ -261,7 +261,7 @@ class WorkflowJobStep(object):
         self.name = uniquename(u"step %s" % shortname(self.id))
         self.provObj=provObj
 
-    def job(self, joborder, output_callback,provObj=None, **kwargs):
+    def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
@@ -460,7 +460,7 @@ class WorkflowJob(object):
             self.processStatus = "permanentFail"
             step.completed = True
 
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, **kwargs):
+    def run(self, document=None, WorkflowRunID=None, ProcessRunID=None,reference_locations=None, **kwargs):
         _logger.info(u"[%s] start", self.name)
 
 

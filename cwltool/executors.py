@@ -110,7 +110,7 @@ class SingleJobExecutor(JobExecutor):
                  ):
 
         reference_locations={} # type: Dict[Text, Any]
-        ProcessProvActivity=None
+        ProcessRunID=None
         jobiter = t.job(job_order_object,
                         self.output_callback,
                         **kwargs)
@@ -131,16 +131,15 @@ class SingleJobExecutor(JobExecutor):
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             provObj.declare_artefact(relativised_input_object, job_order_object)
-                            ProcessProvActivity = provObj.startProcess(r, provObj.document, provObj.engineUUID)
+                            ProcessRunID = provObj.startProcess(r, provObj.document, provObj.engineUUID)
                         elif hasattr(r, "workflow"): #record provenance for the workflow execution
                             provObj.prospective_prov(r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             r.provObj.declare_artefact(relativised_input_object, job_order_object)
                         else: #in case of commandline tool execution as part of workflow
-                            ProcessProvActivity = provObj.startProcess(r, provObj.document, provObj.engineUUID, provObj.workflowRunURI)
-                        r.run(provObj, ProcessProvActivity, reference_locations, **kwargs)
-                        #capture main workflow level outputs in the provenance document
+                            ProcessRunID= provObj.startProcess(r, provObj.document, provObj.engineUUID, provObj.workflowRunURI)
+                        r.run(provObj, ProcessRunID, reference_locations, **kwargs)
                     else:
                         r.run(**kwargs)
                 else:
