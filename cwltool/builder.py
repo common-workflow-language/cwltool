@@ -104,14 +104,19 @@ class Builder(object):
         self.mutation_manager = None  # type: MutationManager
         self.force_docker_pull = False  # type: bool
         self.formatgraph = None  # type: Graph
-
         # One of "no_listing", "shallow_listing", "deep_listing"
         # Will be default "no_listing" for CWL v1.1
         self.loadListing = "deep_listing"  # type: Union[None, str]
+        self.provobj=None
 
         self.find_default_container = None  # type: Callable[[], Text]
         self.job_script_provider = None  # type: Any
-
+        '''
+        print "="*20
+        print "value of self in Builder is: "
+        print vars(self)
+        print "="*20
+        '''
     def build_job_script(self, commands):
         # type: (List[Text]) -> Text
         build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]

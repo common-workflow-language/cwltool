@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import threading
-
+import ipdb
 import os
 import copy
 import uuid
@@ -89,8 +89,14 @@ class JobExecutor(object):
 
         if kwargs.get("rm_tmpdir"):
             cleanIntermediate(self.output_dirs)
-
+        
         if self.final_output and self.final_status:
+            if kwargs["research_obj"]:
+                ProcessRunID=None
+                name="primary"
+                t.parent.generate_outputProv(self.final_output[0], ProcessRunID)
+                t.parent.document.wasEndedBy(t.parent.workflowRunURI, None, t.parent.engineUUID, datetime.datetime.now())
+                t.parent.finalize_provProfile(name) 
             return (self.final_output[0], self.final_status[0])
         else:
             return (None, "permanentFail")
@@ -122,24 +128,22 @@ class SingleJobExecutor(JobExecutor):
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
                     if research_obj:
+                        provObj=r.provObj
                         if not hasattr(t, "steps"): #record provenance of an independent commandline tool execution
-                            provobj.prospective_prov(r)
+                            provObj.prospective_prov(r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            provobj.declare_artefact(relativised_input_object, job_order_object)
-                            ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID)
+                            provObj.declare_artefact(relativised_input_object, job_order_object)
+                            ProcessProvActivity = provObj.startProcess(r, provObj.document, provObj.engineUUID)
                         elif hasattr(r, "workflow"): #record provenance for the workflow execution
-                            provobj.prospective_prov(r)
+                            provObj.prospective_prov(r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
-                            provobj.declare_artefact(relativised_input_object, job_order_object)
+                            r.provObj.declare_artefact(relativised_input_object, job_order_object)
                         else: #in case of commandline tool execution as part of workflow
-                            ProcessProvActivity = provobj.startProcess(r, provobj.document, provobj.engineUUID, provobj.workflowRunURI)
-                        r.run(provobj, ProcessProvActivity, reference_locations, **kwargs)
-                        #capture workflow level outputs in the prov doc
-                        if self.final_output:
-                            ProcessRunID=None
-                            provobj.generate_outputProv(self.final_output[0], ProcessRunID)
+                            ProcessProvActivity = provObj.startProcess(r, provObj.document, provObj.engineUUID, provObj.workflowRunURI)
+                        r.run(provObj, ProcessProvActivity, reference_locations, **kwargs)
+                        #capture main workflow level outputs in the provenance document
                     else:
                         r.run(**kwargs)
                 else:

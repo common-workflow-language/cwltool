@@ -272,15 +272,16 @@ def _valid_orcid(orcid): # type: (Text) -> Text
 class ProvenanceGeneration():
     def __init__(self, ro, full_name=None, orcid=None):
         # type: (ResearchObject, str, str) -> None
-        #self.orcid = _valid_orcid(orcid)
+
         self.orcid=orcid
         self.ro=ro
+        #self.orcid = _valid_orcid(orcid)
         self.folder = self.ro.folder
         self.document = ProvDocument()
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
-        self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
         u = uuid.uuid4()
         self.workflowRunURI = u.urn
+        self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
         self.add_to_manifest=self.ro.add_to_manifest
         if self.orcid:
             _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
@@ -540,7 +541,7 @@ class ProvenanceGeneration():
 
         # TODO: Declare roles/parameters as well
 
-    def finalize_provProfile(self):
+    def finalize_provProfile(self, name):
             # type: () -> None
             '''
             Transfer the provenance related files to RO
@@ -549,7 +550,9 @@ class ProvenanceGeneration():
             # TODO: Generate filename per workflow run also for nested workflows
             # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
             # NOTE: Relative posix path
-            basename = posixpath.join(_posix_path(PROVENANCE), "primary.cwlprov")
+            wf_name=urllib.parse.quote(str(name), safe=":/,#")
+            filename=wf_name+".cwlprov"
+            basename = posixpath.join(_posix_path(PROVENANCE), filename)
             # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
             # https://www.w3.org/TR/prov-xml/

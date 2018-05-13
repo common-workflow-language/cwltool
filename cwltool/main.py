@@ -489,7 +489,9 @@ def main(argsl=None,  # type: List[str]
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)
             # Ensure version starts with 'cwltool'
-            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+            #cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+            
+            '''
             main_provenanceObject=ProvenanceGeneration(args.research_obj, cwltoolVersion, engineUUID)
             main_provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             # Note: Record host info, if enabled
@@ -498,6 +500,7 @@ def main(argsl=None,  # type: List[str]
             # .. so user provenance may link to account@hostname
             if (args.user_provenance):
                 args.research_obj.user_provenance(main_provenanceObject.document)
+            '''
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
@@ -717,7 +720,7 @@ def main(argsl=None,  # type: List[str]
 
     finally:
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
-            main_provenanceObject.document.wasEndedBy(main_provenanceObject.workflowRunURI, None, main_provenanceObject.engineUUID, datetime.datetime.now())
+            #main_provenanceObject.document.wasEndedBy(main_provenanceObject.workflowRunURI, None, main_provenanceObject.engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
             args.research_obj.snapshot_generation(ProvDependencies[1])
@@ -727,7 +730,7 @@ def main(argsl=None,  # type: List[str]
             if job_order_object:
                 args.research_obj.snapshot_generation(job_order_object)
             #adding prov profile to RO
-            main_provenanceObject.finalize_provProfile()
+            #main_provenanceObject.finalize_provProfile()
             args.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)

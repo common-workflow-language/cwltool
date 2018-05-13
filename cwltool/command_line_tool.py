@@ -84,11 +84,11 @@ class ExpressionTool(Process):
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
+            provObj=None,
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(job_order, **kwargs)
-
         j = ExpressionTool.ExpressionJob()
         j.builder = builder
         j.script = self.tool["expression"]
@@ -246,6 +246,7 @@ class CommandLineTool(Process):
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
+            provObj=None,
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
@@ -338,7 +339,7 @@ class CommandLineTool(Process):
                     partial(rm_pending_output_callback, output_callbacks,
                             jobcachepending))
 
-        builder = self._init_job(job_order, **kwargs)
+        builder = self._init_job(job_order, provObj, **kwargs)
 
         reffiles = copy.deepcopy(builder.files)
 
@@ -349,6 +350,7 @@ class CommandLineTool(Process):
         j.stdin = None
         j.stderr = None
         j.stdout = None
+        j.provObj=self.provObj
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
         j.permanentFailCodes = self.tool.get("permanentFailCodes")

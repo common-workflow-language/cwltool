@@ -3,6 +3,7 @@ import copy
 import functools
 import json
 import logging
+import datetime
 import random
 import tempfile
 from collections import namedtuple
@@ -17,8 +18,10 @@ from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
-
+from .provenance import create_researchObject, ProvenanceGeneration
 import six
+import pkg_resources  # part of setuptools
+import sys
 from six.moves import range
 _logger = logging.getLogger("cwltool")
 
@@ -246,9 +249,9 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
             raise WorkflowException(u"Value for %s not specified" % (inp["id"]))
     return inputobj
 
-
+import ipdb
 class WorkflowJobStep(object):
-    def __init__(self, step):  # type: (Any) -> None
+    def __init__(self, step, provObj):  # type: (Any) -> None
         self.step = step
         self.tool = step.tool
         self.id = step.id
@@ -256,16 +259,16 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
+        self.provObj=provObj
 
-
-    def job(self, joborder, output_callback, **kwargs):
+    def job(self, joborder, output_callback,provObj=None, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         _logger.info(u"[%s] start", self.name)
 
-        for j in self.step.job(joborder, output_callback, **kwargs):
+        for j in self.step.job(joborder, output_callback, self.provObj, **kwargs):
             yield j
 
 
@@ -273,8 +276,9 @@ class WorkflowJob(object):
     def __init__(self, workflow, **kwargs):
         # type: (Workflow, **Any) -> None
         self.workflow = workflow
+        self.provObj=workflow.provenanceObject
         self.tool = workflow.tool
-        self.steps = [WorkflowJobStep(s) for s in workflow.steps]
+        self.steps = [WorkflowJobStep(s, self.provObj) for s in workflow.steps]
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
         self.did_callback = False
@@ -304,7 +308,11 @@ class WorkflowJob(object):
             _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
             wo = {}
             self.processStatus = "permanentFail"
-
+        if "functools" in str(type(final_output_callback)) and self.provObj:
+            ProcessRunID=None
+            self.provObj.generate_outputProv(wo, ProcessRunID)
+            self.provObj.document.wasEndedBy(self.provObj.workflowRunURI, None, self.provObj.engineUUID, datetime.datetime.now())
+            self.provObj.finalize_provProfile(self.name)
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
 
         self.did_callback = True
@@ -457,7 +465,7 @@ class WorkflowJob(object):
 
 
 
-    def job(self, joborder, output_callback, **kwargs):
+    def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator
         self.state = {}
         self.processStatus = "success"
@@ -525,13 +533,31 @@ class WorkflowJob(object):
             self.do_output_callback(output_callback) #could have called earlier on line 336;
             #depends which one comes first. All steps are completed or all outputs have beend produced.
 
-
+import uuid
+def versionstring():
+    # type: () -> Text
+    '''
+    version of CWLtool used to execute the workflow.
+    '''
+    pkg = pkg_resources.require("cwltool")
+    if pkg:
+        return u"%s %s" % (sys.argv[0], pkg[0].version)
+    else:
+        return u"%s %s" % (sys.argv[0], "unknown version")
 
 class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
 
+        if kwargs["research_obj"]:
+            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+            engineUUID=uuid.uuid4().urn
+            orcid=kwargs["orcid"]
+            full_name=kwargs["cwl_full_name"]
+            self.provenanceObject=ProvenanceGeneration(kwargs['research_obj'], orcid, full_name)
+            self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
+            self.parent= self.provenanceObject
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints
 
@@ -539,8 +565,8 @@ class Workflow(Process):
         self.steps = []  # type: List[WorkflowStep]
         validation_errors = []
         for n, step in enumerate(self.tool.get("steps", [])):
-            try:
-                self.steps.append(WorkflowStep(step, n, **kwargs))
+            try: 
+                self.steps.append(WorkflowStep(step, n, self.parent, **kwargs))
             except validate.ValidationException as v:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -568,6 +594,7 @@ class Workflow(Process):
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
+            provObj=None,
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]
@@ -683,13 +710,13 @@ def check_all_types(src_dict, sinks, sourceField):
 
 
 class WorkflowStep(Process):
-    def __init__(self, toolpath_object, pos, **kwargs):
+    def __init__(self, toolpath_object, pos, parentworkflowProv, **kwargs):
         # type: (Dict[Text, Any], int, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
             self.id = "#step" + Text(pos)
-
+        self.provObj=parentworkflowProv
         kwargs["requirements"] = (kwargs.get("requirements", []) +
                                   toolpath_object.get("requirements", []) +
                                   get_overrides(kwargs.get("overrides", []), self.id).get("requirements", []))
@@ -826,6 +853,7 @@ class WorkflowStep(Process):
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
+            provObj=None,
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]
@@ -840,7 +868,8 @@ class WorkflowStep(Process):
                                             functools.partial(
                                                 self.receive_output,
                                                 output_callbacks),
-                                            **kwargs):
+                                                self.provObj,
+                                                **kwargs):
                 yield t
         except WorkflowException:
             _logger.error(u"Exception on step '%s'", kwargs.get("name"))

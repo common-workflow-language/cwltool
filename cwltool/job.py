@@ -161,7 +161,7 @@ class JobBase(object):
         self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
-
+        self.provObj=None
     def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
@@ -213,7 +213,8 @@ class JobBase(object):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if hasattr(self, "joborder") and research_obj:
             job_order=self.joborder
-            main_provenanceObject.used_artefacts(job_order, ProcessProvActivity, reference_locations, str(self.name))
+            self.provObj.used_artefacts(job_order, ProcessProvActivity, reference_locations, str(self.name))
+            #main_provenanceObject.used_artefacts(job_order, ProcessProvActivity, reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
@@ -275,8 +276,8 @@ class JobBase(object):
             #creating entities for the outputs produced by each step (in the provenance document)
             if research_obj:
                 ProcessRunID=str(ProcessProvActivity.identifier)
-                main_provenanceObject.generate_outputProv(outputs, ProcessRunID, str(self.name))
-                
+                self.provObj.generate_outputProv(outputs, ProcessRunID, str(self.name))
+
         except OSError as e:
             if e.errno == 2:
                 if runtime:
@@ -293,7 +294,7 @@ class JobBase(object):
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         if research_obj:
-            main_provenanceObject.document.wasEndedBy(str(ProcessProvActivity.identifier), None, main_provenanceObject.workflowRunURI, datetime.datetime.now())
+            self.provObj.document.wasEndedBy(ProcessProvActivity.identifier, None, self.provObj.workflowRunURI, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
@@ -422,9 +423,9 @@ class ContainerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
 
-                if main_provenanceObject.document and img_id and ProcessProvActivity:
+                if self.provObj.document and img_id and ProcessProvActivity:
                     # TODO: Integrate with record_container_id 
-                    container_agent = main_provenanceObject.document.agent(uuid.uuid4().urn, 
+                    container_agent = self.provObj.document.agent(uuid.uuid4().urn, 
                         {"prov:type": PROV["SoftwareAgent"],
                          "cwlprov:image": img_id,
                          "prov:label": "Container execution of image %s" % img_id})
@@ -433,7 +434,7 @@ class ContainerCommandLineJob(JobBase):
                     #                  {"prov:label": "Container image %s" % img_id} )                    
                     # The image is the plan for this activity-agent association
                     #document.wasAssociatedWith(ProcessProvActivity, container_agent, img_entity)
-                    main_provenanceObject.document.wasAssociatedWith(ProcessProvActivity, container_agent)
+                    self.provObj.document.wasAssociatedWith(ProcessProvActivity, container_agent)
             except Exception as e:
                 container = "Singularity" if kwargs.get("singularity") else "Docker"
                 _logger.debug("%s error" % container, exc_info=True)

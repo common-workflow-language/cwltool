@@ -496,10 +496,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                     raise e
             else:
                 validate_js_options = None
-
             validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
-    def _init_job(self, joborder, **kwargs):
+    def _init_job(self, joborder, provObj=None, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
         """
         kwargs:
@@ -518,7 +517,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         debug: enable debugging output
         js_console: enable javascript console output
         """
-
+        self.provObj=provObj
         builder = Builder()
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
                                             Text]], copy.deepcopy(joborder))
@@ -693,6 +692,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
+            provObj=None,
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]
