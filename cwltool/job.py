@@ -273,8 +273,6 @@ class JobBase(object):
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
             #creating entities for the outputs produced by each step (in the provenance document)
             if research_obj:
-                print "what is Process RUNID here???"
-                print ProcessRunID
                 self.provObj.generate_outputProv(outputs, ProcessRunID, str(self.name))
 
         except OSError as e:

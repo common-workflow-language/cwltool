@@ -444,8 +444,6 @@ class create_ProvProfile():
                 key_files.append(self.dict_output(key, value))
 
         merged_total= list(itertools.chain.from_iterable(key_files))
-        print "what is processRunID in generate_outputProv: "
-        print ProcessRunID
         #generate data artefacts at workflow level
         for tuple_entry in merged_total:
             # FIXME: What are these magic array[][] positions???
