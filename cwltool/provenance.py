@@ -269,7 +269,7 @@ def _valid_orcid(orcid): # type: (Text) -> Text
     # c) Re-add the official prefix https://orcid.org/
     return u"https://orcid.org/%s" % orcid_num
 
-class ProvenanceGeneration():
+class create_ProvProfile():
     def __init__(self, ro, full_name=None, orcid=None):
         # type: (ResearchObject, str, str) -> None
 

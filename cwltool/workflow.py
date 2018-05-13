@@ -18,7 +18,7 @@ from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
 from .utils import aslist
-from .provenance import create_researchObject, ProvenanceGeneration
+from .provenance import create_researchObject, create_ProvProfile
 import six
 import pkg_resources  # part of setuptools
 import sys
@@ -555,7 +555,7 @@ class Workflow(Process):
             engineUUID=uuid.uuid4().urn
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
-            self.provenanceObject=ProvenanceGeneration(kwargs['research_obj'], orcid, full_name)
+            self.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
             self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             self.parent= self.provenanceObject
         kwargs["requirements"] = self.requirements
