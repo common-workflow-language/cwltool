@@ -43,7 +43,6 @@ class JobExecutor(object):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 provobj,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any
@@ -52,7 +51,6 @@ class JobExecutor(object):
 
     def execute(self, t,  # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                provobj=None,
                 logger=None,
                 makeTool=None,
                 select_resources=None,
@@ -79,7 +77,7 @@ class JobExecutor(object):
         if jobReqs:
             for req in jobReqs:
                 t.requirements.append(req)
-        self.run_jobs(t, job_order_object, provobj, logger, make_fs_access, **kwargs)
+        self.run_jobs(t, job_order_object, logger, make_fs_access, **kwargs)
 
         if self.final_output and self.final_output[0] and finaloutdir:
             self.final_output[0] = relocateOutputs(
@@ -106,7 +104,6 @@ class SingleJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,                      # type: Process
                  job_order_object=None,  # type: Dict[Text, Any]
-                 provobj=None,
                  logger=None,
                  make_fs_access=None,
                   **kwargs   
@@ -189,7 +186,6 @@ class MultithreadedJobExecutor(JobExecutor):
     def run_jobs(self,
                  t,  # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 provobj,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any
