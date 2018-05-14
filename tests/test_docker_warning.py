@@ -21,5 +21,5 @@ class TestDefaultDockerWarning(unittest.TestCase):
                 return windows_default_container_id
 
         TestObject = TestCommandLineTool()
-        TestObject.makeJobRunner()
+        TestObject.make_job_runner()
         mock_logger.warning.assert_called_with(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))

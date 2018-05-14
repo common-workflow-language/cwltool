@@ -6,3 +6,4 @@ shellescape==3.4.1
 schema-salad>=2.6,<3
 typing==3.5.3
 pathlib2==2.3.2; python_version<"3"
+mypy-extensions

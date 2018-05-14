@@ -509,7 +509,7 @@ Technical outline of how cwltool works internally, for maintainers.
 
 #. ``CommandLineTool`` job() objects yield a single runnable object.
 
-   #. The CommandLineTool ``job()`` method calls ``makeJobRunner()`` to create a
+   #. The CommandLineTool ``job()`` method calls ``make_job_runner()`` to create a
       ``CommandLineJob`` object
    #. The job method configures the CommandLineJob object by setting public
       attributes

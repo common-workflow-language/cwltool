@@ -22,7 +22,7 @@ def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
 
 def printrdf(wf, ctx, sr):
     # type: (Process, ContextType, Text) -> Text
-    return gather(wf, ctx).serialize(format=sr).decode('utf-8')
+    return gather(wf, ctx).serialize(format=sr).decode('utf-8')  # type: ignore
 
 
 def lastpart(uri):  # type: (Any) -> Text

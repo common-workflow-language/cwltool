@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import copy
-import re
-from typing import Any, Callable, Dict, List, Set, Text, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Set, Text, Union, cast
 
 from schema_salad.ref_resolver import Loader, SubLoader
 from six.moves import urllib
@@ -23,8 +22,13 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
+LoadRefType = Callable[[Optional[Text], Text], Union[Dict, List, Text, None]]
 
-def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict, List, Text]], Set[Text]) -> None
+
+def find_run(d,        # type: Any
+             loadref,  # type: LoadRefType
+             runs      # type: Set[Text]
+            ):  # type: (...) -> None
     if isinstance(d, list):
         for s in d:
             find_run(s, loadref, runs)
@@ -97,24 +101,28 @@ def import_embed(d, seen):
             import_embed(d[k], seen)
 
 
-def pack(document_loader, processobj, uri, metadata, rewrite_out=None):
-    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Text], Dict[Text, Text]) -> Dict[Text, Any]
+def pack(document_loader,  # type: Loader
+         processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+         uri,              # type: Text
+         metadata,         # type: Dict[Text, Text]
+         rewrite_out=None  # type: Dict[Text, Text]
+        ):  # type: (...) -> Dict[Text, Any]
 
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
     if isinstance(processobj, dict):
         document_loader.idx[processobj["id"]] = CommentedMap(six.iteritems(processobj))
     elif isinstance(processobj, list):
-        path, frag = urllib.parse.urldefrag(uri)
+        _, frag = urllib.parse.urldefrag(uri)
         for po in processobj:
             if not frag:
                 if po["id"].endswith("#main"):
                     uri = po["id"]
             document_loader.idx[po["id"]] = CommentedMap(six.iteritems(po))
 
-    def loadref(b, u):
-        # type: (Text, Text) -> Union[Dict, List, Text]
-        return document_loader.resolve_ref(u, base_url=b)[0]
+    def loadref(base, uri):
+        # type: (Optional[Text], Text) -> Union[Dict, List, Text, None]
+        return document_loader.resolve_ref(uri, base_url=base)[0]
 
     ids = set()  # type: Set[Text]
     find_ids(processobj, ids)

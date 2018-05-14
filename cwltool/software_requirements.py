@@ -10,7 +10,7 @@ from __future__ import absolute_import
 import argparse
 import os
 import string
-from typing import (Any, Dict, List, Text)
+from typing import Any, Dict, List, Optional, Text
 
 try:
     from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
@@ -18,7 +18,7 @@ try:
 except ImportError:
     ToolRequirement = None  # type: ignore
     ToolRequirements = None  # type: ignore
-    deps = None
+    deps = None  # type: ignore
 
 from .utils import get_feature
 

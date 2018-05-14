@@ -1,21 +1,14 @@
 from __future__ import absolute_import
 import copy
-import json
 import re
-import traceback
-from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import
+from typing import (Any, Callable, Dict, Optional, Text,  # pylint: disable=unused-import
                     Tuple, Union)
-from copy import deepcopy
-
-import six
 from six.moves import urllib
 import schema_salad.validate
+from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Loader
 
-from .utils import aslist
-
-def findId(doc, frg):  # type: (Any, Any) -> Dict
+def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
     if isinstance(doc, dict):
         if "id" in doc and doc["id"] == frg:
             return doc
@@ -100,34 +93,34 @@ def traverseImport(doc, loader, baseuri, func):
             _, frag = urllib.parse.urldefrag(imp)
             if frag:
                 frag = "#" + frag
-                r = findId(r, frag)
+                r = findId(r, frag)  # type: ignore
             return func(r, loader, imp)
 
-def v1_0dev4to1_0(doc, loader, baseuri):
+def v1_0dev4to1_0(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0.dev4 to v1.0."""
     return (doc, "v1.0")
 
 
-def v1_0to1_1_0dev1(doc, loader, baseuri):
+def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0 to v1.1.0-dev1."""
     return (doc, "v1.1.0-dev1")
 
 
 UPDATES = {
-    "v1.0": None
-}  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
+    u"v1.0": None
+}  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 DEVUPDATES = {
-    "v1.0": v1_0to1_1_0dev1,
-    "v1.1.0-dev1": None
-}  # type: Dict[Text, Callable[[Any, Loader, Text], Tuple[Any, Text]]]
+    u"v1.0": v1_0to1_1_0dev1,
+    u"v1.1.0-dev1": None
+}  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = "v1.0"
+LATEST = u"v1.0"
 
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
@@ -143,7 +136,7 @@ def checkversion(doc, metadata, enable_dev):
     Returns the document and the validated version string.
     """
 
-    cdoc = None  # type: CommentedMap
+    cdoc = None  # type: Optional[CommentedMap]
     if isinstance(doc, CommentedSeq):
         lc = metadata.lc
         metadata = copy.copy(metadata)
@@ -155,6 +148,7 @@ def checkversion(doc, metadata, enable_dev):
         cdoc = doc
     else:
         raise Exception("Expected CommentedMap or CommentedSeq")
+    assert cdoc is not None
 
     version = cdoc[u"cwlVersion"]
 
@@ -181,7 +175,7 @@ def update(doc, loader, baseuri, enable_dev, metadata):
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
 
-    nextupdate = identity  # type: Callable[[Any, Loader, Text], Tuple[Any, Text]]
+    nextupdate = identity  # type: Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 
     while nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)

@@ -6,19 +6,18 @@ import stat
 import uuid
 from functools import partial
 from tempfile import NamedTemporaryFile
-
+from typing import (Any, Callable, Dict, Iterable, List,  # pylint: disable=unused-import
+                    MutableMapping, Optional, Set, Text,
+                    Tuple, Union)
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union, MutableMapping
-
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
-from .utils import convert_pathsep_to_unix
-
+from .utils import convert_pathsep_to_unix, Directory
 from .stdfsaccess import StdFsAccess, abspath
 
 _logger = logging.getLogger("cwltool")
@@ -38,7 +37,10 @@ def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]
         for d in rec:
             adjustFiles(d, op)
 
-def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+def visit_class(rec,  # type: Optional[Any]
+                cls,  # type: Iterable
+                op    # type: Union[Callable[..., Any], partial[Any]]
+               ):  # type: (...) -> None
     """Apply a function to with "class" in cls."""
 
     if isinstance(rec, dict):
@@ -60,7 +62,7 @@ def adjustDirObjs(rec, op):
     visit_class(rec, ("Directory",), op)
 
 def normalizeFilesDirs(job):
-    # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]]) -> None
+    # type: (Optional[Union[List[Dict[Text, Any]], MutableMapping[Text, Any], Directory]]) -> None
     def addLocation(d):
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
@@ -295,7 +297,9 @@ class PathMapper(object):
     def items(self):  # type: () -> List[Tuple[Text, MapperEnt]]
         return list(self._pathmap.items())
 
-    def reversemap(self, target):  # type: (Text) -> Tuple[Text, Text]
+    def reversemap(self,
+                   target  # type: Text
+                  ):  # type: (...) -> Optional[Tuple[Text, Text]]
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])

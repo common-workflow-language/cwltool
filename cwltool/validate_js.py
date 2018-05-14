@@ -5,7 +5,7 @@ import logging
 from io import open
 from collections import namedtuple
 from os import path
-from typing import Any, Dict, List, Text, Tuple, Union
+from typing import Any, Dict, List, Optional, Text, Tuple, Union
 
 import copy
 import schema_salad
@@ -37,8 +37,10 @@ class SuppressLog(logging.Filter):
 _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
 _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings"))
 
-def get_expressions(tool, schema, source_line=None):
-    # type: (Union[CommentedMap, Any], avro.schema.Schema, SourceLine) -> List[Tuple[Text, SourceLine]]
+def get_expressions(tool,             # type: Union[CommentedMap, Any]
+                    schema,           # type: avro.schema.Schema
+                    source_line=None  # type: Optional[SourceLine]
+                   ):  # type: (...) -> List[Tuple[Text, Optional[SourceLine]]]
     if is_expression(tool, schema):
         return [(tool, source_line)]
     elif isinstance(schema, avro.schema.UnionSchema):
@@ -47,9 +49,11 @@ def get_expressions(tool, schema, source_line=None):
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
                 return [(tool, source_line)]
-            elif validate_ex(possible_schema, tool, raise_ex=False, logger=_logger_validation_warnings):
+            elif validate_ex(possible_schema, tool, strict=True, raise_ex=False,
+                             logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 
+        assert valid_schema is not None
         return get_expressions(tool, valid_schema, source_line)
     elif isinstance(schema, avro.schema.ArraySchema):
         if not isinstance(tool, list):
@@ -146,9 +150,10 @@ def jshint_js(js_text, globals=None, options=None):
 
 
 def print_js_hint_messages(js_hint_messages, source_line):
-    # type: (List[Text], SourceLine) -> None
-    for js_hint_message in js_hint_messages:
-        _logger.warn(source_line.makeError(js_hint_message))
+    # type: (List[Text], Optional[SourceLine]) -> None
+    if source_line:
+        for js_hint_message in js_hint_messages:
+            _logger.warn(source_line.makeError(js_hint_message))
 
 def validate_js_expressions(tool, schema, jshint_options=None):
     # type: (CommentedMap, Schema, Dict) -> None

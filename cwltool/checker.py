@@ -2,15 +2,15 @@ import json
 from collections import namedtuple
 import logging
 
-from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
+from typing import (Any, Callable, Dict, Generator, # pylint: disable=unused-import
+                    Iterable, List, Optional, Text, Union, cast)
 import six
 
-from schema_salad.sourceline import SourceLine, cmap, strip_dup_lineno, indent, bullets
+from schema_salad.sourceline import SourceLine, strip_dup_lineno, bullets
 import schema_salad.validate as validate
+from .loghandler import _logger
 from .process import shortname
 from .errors import WorkflowException
-
-_logger = logging.getLogger("cwltool")
 
 def _get_type(tp):
     # type: (Any) -> Any
@@ -20,7 +20,7 @@ def _get_type(tp):
     return tp
 
 def check_types(srctype, sinktype, linkMerge, valueFrom):
-    # type: (Any, Any, Text, Text) -> Text
+    # type: (Any, Any, Optional[Text], Optional[Text]) -> Text
     """Check if the source and sink types are "pass", "warning", or "exception".
     """
 

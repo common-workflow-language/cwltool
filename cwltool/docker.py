@@ -1,34 +1,33 @@
 from __future__ import absolute_import
 
-import logging
 import os
 import re
 import shutil
 import sys
 import tempfile
-from io import open
+from io import open  # pylint: disable=redefined-builtin
 import datetime
 import threading
 
+from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
+                    MutableMapping, Set, Text)
 import requests
-from typing import (Dict, List, Text, Any, MutableMapping, Set)
 
+from .loghandler import _logger
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable
-from .secrets import SecretStore
-from .utils import docker_windows_path_adjust, onWindows
+from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
+from .secrets import SecretStore  # pylint: disable=unused-import
+from .utils import docker_windows_path_adjust, onWindows, DEFAULT_TMP_PREFIX
 if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
+    import subprocess32 as subprocess  # type: ignore  # pylint: disable=import-error
 else:
     import subprocess  # type: ignore
 
-_logger = logging.getLogger("cwltool")
-
 found_images = set()  # type: Set[Text]
 found_images_lock = threading.Lock()
-__docker_machine_mounts = None  # type: List[Text]
+__docker_machine_mounts = None  # type: Optional[List[Text]]
 __docker_machine_mounts_lock = threading.Lock()
 
 def _get_docker_machine_mounts():  # type: () -> List[Text]
@@ -46,7 +45,9 @@ def _get_docker_machine_mounts():  # type: () -> List[Text]
                             universal_newlines=True).splitlines()]
     return __docker_machine_mounts
 
-def _check_docker_machine_path(path):  # type: (Text) -> None
+def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
+    if not path:
+        return
     mounts = _get_docker_machine_mounts()
     if mounts:
         found = False
@@ -70,7 +71,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def get_image(dockerRequirement,      # type: Dict[Text, Text]
                   pull_image,             # type: bool
                   force_pull=False,       # type: bool
-                  tmp_outdir_prefix=None  # type: Text
+                  tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
                  ):  # type: (...) -> bool
         found = False
 
@@ -100,7 +101,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         del sp[2]
 
                 # check for repository:tag match or image id match
-                if ((sp[0] == m.group(1) and sp[1] == m.group(2)) or dockerRequirement["dockerImageId"] == m.group(3)):
+                if (m and
+                        ((sp[0] == m.group(1) and sp[1] == m.group(2)) or
+                         dockerRequirement["dockerImageId"] == m.group(3))):
                     found = True
                     break
             except ValueError:
@@ -130,13 +133,15 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     with open(dockerRequirement["dockerLoad"], "rb") as f:
                         loadproc = subprocess.Popen(cmd, stdin=f, stdout=sys.stderr)
                 else:
-                    loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=sys.stderr)
+                    loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                                stdout=sys.stderr)
+                    assert loadproc.stdin is not None
                     _logger.info(u"Sending GET request to %s", dockerRequirement["dockerLoad"])
                     req = requests.get(dockerRequirement["dockerLoad"], stream=True)
-                    n = 0
+                    size = 0
                     for chunk in req.iter_content(1024 * 1024):
-                        n += len(chunk)
-                        _logger.info("\r%i bytes" % (n))
+                        size += len(chunk)
+                        _logger.info("\r%i bytes", size)
                         loadproc.stdin.write(chunk)
                     loadproc.stdin.close()
                 rcode = loadproc.wait()
@@ -161,8 +166,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                               req,                    # type: bool
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
-                              tmp_outdir_prefix=None  # type: Text
-                             ):  # type: (...) -> Text
+                              tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
+                             ):  # type: (...) -> Optional[Text]
         if r:
             errmsg = None
             try:
@@ -194,11 +199,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         for src, vol in pathmapper.items():
             if not vol.staged:
                 continue
+            host_outdir_tgt = None  # type: Optional[Text]
             if vol.target.startswith(container_outdir+"/"):
                 host_outdir_tgt = os.path.join(
                     host_outdir, vol.target[len(container_outdir)+1:])
-            else:
-                host_outdir_tgt = None
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
                     _check_docker_machine_path(docker_windows_path_adjust(
@@ -212,19 +216,34 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_windows_path_adjust(vol.resolved),
                         docker_windows_path_adjust(vol.target)))
                 else:
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                    ensure_writable(host_outdir_tgt)
+                    if host_outdir_tgt:
+                        shutil.copy(vol.resolved, host_outdir_tgt)
+                        ensure_writable(host_outdir_tgt)
+                    else:
+                        raise WorkflowException(
+                            "Unable to compute host_outdir_tgt for "
+                            "WriteableFile.")
             elif vol.type == "WritableDirectory":
                 if vol.resolved.startswith("_:"):
-                    os.makedirs(host_outdir_tgt, 0o0755)
+                    if host_outdir_tgt:
+                        os.makedirs(host_outdir_tgt, 0o0755)
+                    else:
+                        raise WorkflowException(
+                            "Unable to compute host_outdir_tgt for "
+                            "WritableDirectory.")
                 else:
                     if self.inplace_update:
                         runtime.append(u"--volume=%s:%s:rw" % (
                             docker_windows_path_adjust(vol.resolved),
                             docker_windows_path_adjust(vol.target)))
                     else:
-                        shutil.copytree(vol.resolved, host_outdir_tgt)
-                        ensure_writable(host_outdir_tgt)
+                        if host_outdir_tgt:
+                            shutil.copytree(vol.resolved, host_outdir_tgt)
+                            ensure_writable(host_outdir_tgt)
+                        else:
+                            raise WorkflowException(
+                                "Unable to compute host_outdir_tgt for "
+                                "WritableDirectory.")
             elif vol.type == "CreateFile":
                 if secret_store:
                     contents = secret_store.retrieve(vol.resolved)
@@ -285,7 +304,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 euid, egid = euid or os.geteuid(), egid or os.getgid()
 
             if kwargs.get("no_match_user", None) is False \
-                    and (euid, egid) != (None, None):
+                    and (euid is not None and egid is not None):
                 runtime.append(u"--user=%d:%d" % (euid, egid))
 
         if rm_container:

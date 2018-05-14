@@ -120,7 +120,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=None  # type: Text
-                             ):  # type: (...) -> Text
+                             ):
+        # type: (...) -> Optional[Text]
         """
         Returns the filename of the Singularity image (e.g.
         hello-world-latest.img).
@@ -154,6 +155,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         # type: (PathMapper, List[Text], bool) -> None
 
         host_outdir = self.outdir
+        host_outdir_tgt = None  # type: Optional[Text]
         container_outdir = self.builder.outdir
         for _, vol in pathmapper.items():
             if not vol.staged:
@@ -165,9 +167,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
                     host_outdir, vol.target[len(container_outdir) + 1:])
-            else:
-                host_outdir_tgt = None
             if vol.type in ("File", "Directory"):
+
                 if not vol.resolved.startswith("_:"):
                     runtime.append(u"--bind")
                     runtime.append("{}:{}:ro".format(
@@ -179,11 +180,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     runtime.append(u"{}:{}:rw".format(
                         docker_windows_path_adjust(vol.resolved),
                         docker_windows_path_adjust(containertgt)))
-                else:
+                elif host_outdir_tgt:
                     shutil.copy(vol.resolved, host_outdir_tgt)
                     ensure_writable(host_outdir_tgt)
             elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
+                if vol.resolved.startswith("_:") and host_outdir_tgt:
                     os.makedirs(host_outdir_tgt, 0o0755)
                 else:
                     if self.inplace_update:
