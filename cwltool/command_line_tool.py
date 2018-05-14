@@ -204,11 +204,12 @@ def check_valid_locations(fs_access, ob):
     if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
-def make_path_mapper(reffiles, stagedir, basedir, **kwargs):
-    # type: (List[Any], Text, Text, **Any) -> PathMapper
-    return PathMapper(reffiles, basedir, stagedir,
-                      separateDirs=kwargs.get("separateDirs", True))
+def make_path_mapper(reffiles, stagedir, basedir, separateDirs=True):
+    # type: (List[Any], Text, Text, bool) -> PathMapper
+    return PathMapper(reffiles, basedir, stagedir, separateDirs)
 
+
+OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, eval_timeout, debug, js_console,
@@ -380,14 +381,8 @@ class CommandLineTool(Process):
                           u" as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
             _logger.debug(u"[job %s] %s", j.name, json.dumps(job_order, indent=4))
 
-        builder.pathmapper = None
-        make_path_mapper_kwargs = kwargs
-        if "stagedir" in make_path_mapper_kwargs:
-            make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
-            del make_path_mapper_kwargs["stagedir"]
-
         builder.pathmapper = make_path_mapper(
-            reffiles, builder.stagedir, basedir, **make_path_mapper_kwargs)
+            reffiles, builder.stagedir, basedir, kwargs.get("separateDirs", True))
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, builder)
@@ -535,9 +530,15 @@ class CommandLineTool(Process):
 
         yield j
 
-    def collect_output_ports(self, ports, builder, outdir, compute_checksum=True, jobname="", readers=None):
-        # type: (Set[Dict[Text, Any]], Builder, Text, bool, Text, Dict[Text, Any]) -> Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
-        ret = {}  # type: Dict[Text, Union[Text, List[Any], Dict[Text, Any]]]
+    def collect_output_ports(self,
+                             ports,                  # type: Set[Dict[Text, Any]]
+                             builder,                # type: Builder
+                             outdir,                 # type: Text
+                             compute_checksum=True,  # type: bool
+                             jobname="",             # type: Text
+                             readers=None            # type: Dict[Text, Any]
+                            ):  # type: (...) -> OutputPorts
+        ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
         try:
             fs_access = builder.make_fs_access(outdir)
@@ -587,7 +588,7 @@ class CommandLineTool(Process):
                        fs_access,             # type: StdFsAccess
                        compute_checksum=True  # type: bool
                       ):
-        # type: (...) -> Optioanal[Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]]
+        # type: (...) -> Optional[Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]]
         r = []  # type: List[Any]
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -631,7 +632,7 @@ class CommandLineTool(Process):
                                                   int], locale.strcoll)))])
                         except (OSError, IOError) as e:
                             _logger.warning(Text(e))
-                        except:
+                        except Exception:
                             _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise
 

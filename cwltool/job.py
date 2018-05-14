@@ -134,7 +134,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
     def __init__(self,
                  builder,   # type: Builder
                  joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
-                 make_pathmapper,  # type: Callable[..., PathMapper]
+                 make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,  # type: List[Dict[Text, Text]]
                  hints,  # type: List[Dict[Text, Text]]
                  name,   # type: Text
@@ -152,7 +152,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
         self.name = name
         self.command_line = []  # type: List[Text]
         self.pathmapper = PathMapper([], u"", u"")
-        self.make_pathmapper = make_pathmapper
+        self.make_path_mapper = make_path_mapper
         self.generatemapper = None  # type: Optional[PathMapper]
 
         # set in CommandLineTool.job(i)
@@ -189,14 +189,12 @@ class JobBase(with_metaclass(ABCMeta, object)):
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         if self.generatefiles["listing"]:
-            make_path_mapper_kwargs = kwargs
-            if "basedir" in make_path_mapper_kwargs:
-                make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
-                del make_path_mapper_kwargs["basedir"]
-            self.generatemapper = self.make_pathmapper(cast(List[Any], self.generatefiles["listing"]),
-                                                       self.builder.outdir, basedir=self.outdir, separateDirs=False, **make_path_mapper_kwargs)
+            self.generatemapper = self.make_path_mapper(
+                cast(List[Any], self.generatefiles["listing"]),
+                self.builder.outdir, self.outdir, separateDirs=False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
-                          json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
+                          json.dumps({p: self.generatemapper.mapper(p)
+                              for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
                  runtime,                # type:List[Text]

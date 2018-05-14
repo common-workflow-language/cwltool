@@ -7,7 +7,7 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List, Optional,
-                    Text, Union, cast)
+                    Text, Tuple, Union, cast)
 
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -46,16 +46,16 @@ def defaultMakeTool(toolpath_object,      # type: Dict[Text, Any]
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
             return command_line_tool.CommandLineTool(
-                    toolpath_object, eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, **kwargs)
+                toolpath_object, eval_timeout, debug, js_console,
+                force_docker_pull, job_script_provider, **kwargs)
         elif toolpath_object["class"] == "ExpressionTool":
             return command_line_tool.ExpressionTool(
-                    toolpath_object, eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, **kwargs)
+                toolpath_object, eval_timeout, debug, js_console,
+                force_docker_pull, job_script_provider, **kwargs)
         elif toolpath_object["class"] == "Workflow":
-            return Workflow(toolpath_object, eval_timeout, debug, js_console,
-                            force_docker_pull, job_script_provider, makeTool,
-                            **kwargs)
+            return Workflow(
+                toolpath_object, eval_timeout, debug, js_console,
+                force_docker_pull, job_script_provider, makeTool, **kwargs)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
@@ -206,9 +206,13 @@ class WorkflowJob(object):
         self.state = {}  # type: Dict[Text, Optional[WorkflowStateItem]]
         self.processStatus = u""
         self.did_callback = False
-        self.outdir = kwargs.get("outdir")
-        self.outdir = tempfile.mkdtemp(
-            prefix=kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
+        self.made_progress = None  # type: Optional[bool]
+
+        if "outdir" in kwargs:
+            self.outdir = kwargs["outdir"]
+        else:
+            self.outdir = tempfile.mkdtemp(
+                prefix=kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
 
         self.name = uniquename(u"workflow {}".format(
             kwargs.get("name",
@@ -341,7 +345,10 @@ class WorkflowJob(object):
                 tot = 1
                 emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
                 if emptyscatter:
-                    _logger.warning(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
+                    _logger.warning(
+                        "[job %s] Notice: scattering over empty input in "
+                        "'%s'.  All outputs will be empty.", step.name,
+                        "', '".join(emptyscatter))
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(
@@ -352,10 +359,9 @@ class WorkflowJob(object):
                         step, inputobj, scatter, callback, mutation_manager,
                         basedir, **kwargs)
                 elif method == "flat_crossproduct":
-                    jobs = cast(Generator,
-                                flat_crossproduct_scatter(
-                                    step, inputobj, scatter, callback,
-                                    mutation_manager, basedir, 0, **kwargs))
+                    jobs = flat_crossproduct_scatter(
+                        step, inputobj, scatter, callback, mutation_manager,
+                        basedir, **kwargs)
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"[job %s] job input %s", step.name,
@@ -385,24 +391,29 @@ class WorkflowJob(object):
 
     def job(self, joborder, output_callback, mutation_manager, basedir, **kwargs):
         # type: (Dict[Text, Any], Callable[[Any, Any], Any], MutationManager, Text, **Any) -> Generator
+        self.state = {}
         self.processStatus = "success"
 
         if "outdir" in kwargs:
             del kwargs["outdir"]
 
-        for e, i in enumerate(self.tool["inputs"]):
-            with SourceLine(self.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
-                iid = shortname(i["id"])
-                if iid in joborder:
-                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(joborder[iid]), "success")
-                elif "default" in i:
-                    self.state[i["id"]] = WorkflowStateItem(i, copy.deepcopy(i["default"]), "success")
+        for index, inp in enumerate(self.tool["inputs"]):
+            with SourceLine(self.tool["inputs"], index, WorkflowException,
+                            _logger.isEnabledFor(logging.DEBUG)):
+                inp_id = shortname(inp["id"])
+                if inp_id in joborder:
+                    self.state[inp["id"]] = WorkflowStateItem(
+                        inp, copy.deepcopy(joborder[inp_id]), "success")
+                elif "default" in inp:
+                    self.state[inp["id"]] = WorkflowStateItem(
+                        inp, copy.deepcopy(inp["default"]), "success")
                 else:
                     raise WorkflowException(
-                        u"Input '%s' not in input object and does not have a default value." % (i["id"]))
+                        u"Input '%s' not in input object and does not have a "
+                        " default value." % (inp["id"]))
 
-        for s in self.steps:
-            for out in s.tool["outputs"]:
+        for step in self.steps:
+            for out in step.tool["outputs"]:
                 self.state[out["id"]] = None
 
         completed = 0
@@ -418,23 +429,24 @@ class WorkflowJob(object):
                         step.iterable = self.try_make_job(
                             step, output_callback, mutation_manager, basedir,
                             **kwargs)
-                    except WorkflowException as e:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, e)
+                    except WorkflowException as exc:
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
                 if step.iterable:
                     try:
                         for newjob in step.iterable:
-                            if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
+                            if kwargs.get("on_error", "stop") == "stop" \
+                                    and self.processStatus != "success":
                                 break
                             if newjob:
                                 self.made_progress = True
                                 yield newjob
                             else:
                                 break
-                    except WorkflowException as e:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, e)
+                    except WorkflowException as exc:
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -470,15 +482,15 @@ class Workflow(Process):
 
         self.steps = []  # type: List[WorkflowStep]
         validation_errors = []
-        for n, step in enumerate(self.tool.get("steps", [])):
+        for index, step in enumerate(self.tool.get("steps", [])):
             try:
                 self.steps.append(WorkflowStep(
-                    step, n, eval_timeout, debug, js_console,
+                    step, index, eval_timeout, debug, js_console,
                     force_docker_pull, job_script_provider, makeTool, **kwargs))
-            except validate.ValidationException as v:
+            except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
-                validation_errors.append(v)
+                validation_errors.append(vexc)
 
         if validation_errors:
             raise validate.ValidationException("\n".join(str(v) for v in validation_errors))
@@ -507,20 +519,20 @@ class Workflow(Process):
             **kwargs           # type: Any
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, mutation_manager, basedir, **kwargs)
-        wj = WorkflowJob(self, **kwargs)
-        yield wj
+        job = WorkflowJob(self, **kwargs)
+        yield job
 
-        kwargs["part_of"] = u"workflow %s" % wj.name
+        kwargs["part_of"] = u"workflow %s" % job.name
         kwargs["toplevel"] = False
 
-        for w in wj.job(builder.job, output_callbacks, mutation_manager,
-                        basedir, **kwargs):
-            yield w
+        for wjob in job.job(builder.job, output_callbacks, mutation_manager,
+                            basedir, **kwargs):
+            yield wjob
 
     def visit(self, op):
         op(self.tool)
-        for s in self.steps:
-            s.visit(op)
+        for step in self.steps:
+            step.visit(op)
 
 
 
@@ -557,22 +569,22 @@ class WorkflowStep(Process):
                     toolpath_object["run"], makeTool,
                     eval_timeout, debug, js_console, force_docker_pull,
                     job_script_provider, kwargs,
-                    enable_dev=kwargs.get("enable_dev", False),
-                    strict=kwargs.get("strict", True),
-                    fetcher_constructor=kwargs.get("fetcher_constructor"),
-                    resolver=kwargs.get("resolver"),
-                    overrides=kwargs.get("overrides"))
-        except validate.ValidationException as v:
+                    kwargs.get("enable_dev", False),
+                    kwargs.get("strict", True),
+                    kwargs.get("resolver"),
+                    kwargs.get("fetcher_constructor"),
+                    kwargs.get("overrides"))
+        except validate.ValidationException as vexc:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], validate.indent(str(v))))
+                (toolpath_object["run"], validate.indent(str(vexc))))
 
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
         bound = set()
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
-            for n, step_entry in enumerate(toolpath_object[stepfield]):
+            for index, step_entry in enumerate(toolpath_object[stepfield]):
                 if isinstance(step_entry, six.string_types):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
@@ -602,16 +614,17 @@ class WorkflowStep(Process):
                         param["type"] = "Any"
                     else:
                         validation_errors.append(
-                            SourceLine(self.tool["out"], n).makeError(
-                                "Workflow step output '%s' does not correspond to" % shortname(step_entry))
+                            SourceLine(self.tool["out"], index).makeError(
+                                "Workflow step output '%s' does not correspond to"
+                                % shortname(step_entry))
                             + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
                                 "  tool output (expected '%s')" % (
                                     "', '".join(
                                         [shortname(tool_entry["id"]) for tool_entry in
                                          self.embedded_tool.tool[toolfield]]))))
                 param["id"] = inputid
-                param.lc.line = toolpath_object[stepfield].lc.data[n][0]
-                param.lc.col = toolpath_object[stepfield].lc.data[n][1]
+                param.lc.line = toolpath_object[stepfield].lc.data[index][0]
+                param.lc.col = toolpath_object[stepfield].lc.data[index][1]
                 param.lc.filename = toolpath_object[stepfield].lc.filename
                 toolpath_object[toolfield].append(param)
 
@@ -623,7 +636,8 @@ class WorkflowStep(Process):
 
         if missing:
             validation_errors.append(SourceLine(self.tool, "in").makeError(
-                "Step is missing required parameter%s '%s'" % ("s" if len(missing) > 1 else "", "', '".join(missing))))
+                "Step is missing required parameter%s '%s'" %
+                ("s" if len(missing) > 1 else "", "', '".join(missing))))
 
         if validation_errors:
             raise validate.ValidationException("\n".join(validation_errors))
@@ -652,31 +666,34 @@ class WorkflowStep(Process):
 
             method = self.tool.get("scatterMethod")
             if method is None and len(scatter) != 1:
-                raise validate.ValidationException("Must specify scatterMethod when scattering over multiple inputs")
+                raise validate.ValidationException(
+                    "Must specify scatterMethod when scattering over multiple inputs")
 
             inp_map = {i["id"]: i for i in inputparms}
-            for s in scatter:
-                if s not in inp_map:
+            for inp in scatter:
+                if inp not in inp_map:
                     raise validate.ValidationException(
-                        SourceLine(self.tool, "scatter").makeError(u"Scatter parameter '%s' does not correspond to an input parameter of this "
-                                                                   u"step, expecting '%s'" % (shortname(s), "', '".join(shortname(k) for k in inp_map.keys()))))
+                        SourceLine(self.tool, "scatter").makeError(
+                            "Scatter parameter '%s' does not correspond to "
+                            "an input parameter of this step, expecting '%s'"
+                            % (shortname(inp), "', '".join(
+                                shortname(k) for k in inp_map.keys()))))
 
-                inp_map[s]["type"] = {"type": "array", "items": inp_map[s]["type"]}
+                inp_map[inp]["type"] = {"type": "array", "items": inp_map[inp]["type"]}
 
             if self.tool.get("scatterMethod") == "nested_crossproduct":
                 nesting = len(scatter)
             else:
                 nesting = 1
 
-            for r in range(0, nesting):
-                for op in outputparms:
-                    op["type"] = {"type": "array", "items": op["type"]}
+            for _ in range(0, nesting):
+                for oparam in outputparms:
+                    oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
 
     def receive_output(self, output_callback, jobout, processStatus):
         # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
-        # _logger.debug("WorkflowStep output from run is %s", jobout)
         output = {}
         for i in self.tool["outputs"]:
             field = shortname(i["id"])
@@ -693,26 +710,22 @@ class WorkflowStep(Process):
             basedir,           # type: Text
             **kwargs           # type: Any
            ):  # type: (...) -> Generator[Any, None, None]
-        for i in self.tool["inputs"]:
-            p = i["id"]
-            field = shortname(p)
-            job_order[field] = job_order[i["id"]]
-            del job_order[i["id"]]
+        for inp in self.tool["inputs"]:
+            field = shortname(inp["id"])
+            job_order[field] = job_order[inp["id"]]
+            del job_order[inp["id"]]
 
         try:
-            for t in self.embedded_tool.job(job_order,
-                                            functools.partial(
-                                                self.receive_output,
-                                                output_callbacks),
-                                            mutation_manager, basedir,
-                                            **kwargs):
-                yield t
+            for tool in self.embedded_tool.job(
+                    job_order, functools.partial(self.receive_output, output_callbacks),
+                    mutation_manager, basedir, **kwargs):
+                yield tool
         except WorkflowException:
             _logger.error(u"Exception on step '%s'", kwargs.get("name"))
             raise
-        except Exception as e:
+        except Exception as exc:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(Text(e))
+            raise WorkflowException(Text(exc))
 
     def visit(self, op):
         self.embedded_tool.visit(op)
@@ -732,8 +745,8 @@ class ReceiveScatterOutput(object):
 
     def receive_scatter_output(self, index, jobout, processStatus):
         # type: (int, Dict[Text, Text], Text) -> None
-        for k, v in jobout.items():
-            self.dest[k][index] = v
+        for key, val in jobout.items():
+            self.dest[key][index] = val
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -750,11 +763,11 @@ class ReceiveScatterOutput(object):
             self.output_callback(self.dest, self.processStatus)
 
 
-def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
+def parallel_steps(steps, rc, kwargs):
+    # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
     while rc.completed < rc.total:
         made_progress = False
-        for index in range(len(steps)):
-            step = steps[index]
+        for index, step in enumerate(steps):
             if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
                 break
             try:
@@ -766,8 +779,8 @@ def parallel_steps(steps, rc, kwargs):  # type: (List[Generator], ReceiveScatter
                         yield j
                     else:
                         break
-            except WorkflowException as e:
-                _logger.error(u"Cannot make scatter job: %s", e)
+            except WorkflowException as exc:
+                _logger.error(u"Cannot make scatter job: %s", exc)
                 _logger.debug("", exc_info=True)
                 rc.receive_scatter_output(index, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
@@ -782,30 +795,32 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
                        basedir,           # type: Text
                        **kwargs           # type: Any
                       ):  # type: (...) -> Generator
-    l = None  # type: Optional[int]
-    for s in scatter_keys:
-        if l is None:
-            l = len(joborder[s])
-        elif l != len(joborder[s]):
-            raise WorkflowException("Length of input arrays must be equal when performing dotproduct scatter.")
-    assert l is not None
+    jobl = None  # type: Optional[int]
+    for key in scatter_keys:
+        if jobl is None:
+            jobl = len(joborder[key])
+        elif jobl != len(joborder[key]):
+            raise WorkflowException(
+                "Length of input arrays must be equal when performing "
+                "dotproduct scatter.")
+    assert jobl is not None
 
     output = {}  # type: Dict[Text,List[Optional[Text]]]
     for i in process.tool["outputs"]:
-        output[i["id"]] = [None] * l
+        output[i["id"]] = [None] * jobl
 
-    rc = ReceiveScatterOutput(output_callback, output, l)
+    rc = ReceiveScatterOutput(output_callback, output, jobl)
 
     steps = []
-    for n in range(0, l):
-        jo = copy.copy(joborder)
-        for s in scatter_keys:
-            jo[s] = joborder[s][n]
+    for index in range(0, jobl):
+        sjobo = copy.copy(joborder)
+        for key in scatter_keys:
+            sjobo[key] = joborder[key][index]
 
-        jo = kwargs["postScatterEval"](jo)
+        sjobo = kwargs["postScatterEval"](sjobo)
 
         steps.append(process.job(
-            jo, functools.partial(rc.receive_scatter_output, n),
+            sjobo, functools.partial(rc.receive_scatter_output, index),
             mutation_manager, basedir, **kwargs))
 
     return parallel_steps(steps, rc, kwargs)
@@ -813,29 +828,29 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
 def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback,
                                 mutation_manager, basedir, **kwargs):
-    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], MutationManager, Text, **Any) -> Generator
     scatter_key = scatter_keys[0]
-    l = len(joborder[scatter_key])
+    jobl = len(joborder[scatter_key])
     output = {}  # type: Dict[Text, List[Optional[Text]]]
     for i in process.tool["outputs"]:
-        output[i["id"]] = [None] * l
+        output[i["id"]] = [None] * jobl
 
-    rc = ReceiveScatterOutput(output_callback, output, l)
+    rc = ReceiveScatterOutput(output_callback, output, jobl)
 
     steps = []
-    for n in range(0, l):
-        jo = copy.copy(joborder)
-        jo[scatter_key] = joborder[scatter_key][n]
+    for index in range(0, jobl):
+        sjob = copy.copy(joborder)
+        sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
-            jo = kwargs["postScatterEval"](jo)
+            sjob = kwargs["postScatterEval"](sjob)
             steps.append(process.job(
-                jo, functools.partial(rc.receive_scatter_output, n),
+                sjob, functools.partial(rc.receive_scatter_output, index),
                 mutation_manager, basedir, **kwargs))
         else:
             steps.append(nested_crossproduct_scatter(
-                process, jo, scatter_keys[1:],
-                functools.partial(rc.receive_scatter_output, n),
+                process, sjob, scatter_keys[1:],
+                functools.partial(rc.receive_scatter_output, index),
                 mutation_manager, basedir, **kwargs))
 
     return parallel_steps(steps, rc, kwargs)
@@ -845,61 +860,57 @@ def crossproduct_size(joborder, scatter_keys):
     # type: (Dict[Text, Any], List[Text]) -> int
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
-        sum = len(joborder[scatter_key])
+        ssum = len(joborder[scatter_key])
     else:
-        sum = 0
-        for n in range(0, len(joborder[scatter_key])):
-            jo = copy.copy(joborder)
-            jo[scatter_key] = joborder[scatter_key][n]
-            sum += crossproduct_size(joborder, scatter_keys[1:])
-    return sum
+        ssum = 0
+        for _ in range(0, len(joborder[scatter_key])):
+            ssum += crossproduct_size(joborder, scatter_keys[1:])
+    return ssum
 
+def flat_crossproduct_scatter(process,           # type: WorkflowJobStep
+                              joborder,          # type: Dict[Text, Any]
+                              scatter_keys,      # type: List[Text]
+                              output_callback,   # type: Callable[..., Any]
+                              **kwargs           # type: Any
+                             ):  # type: (...) -> Generator
+    output = {}  # type: Dict[Text, List[Optional[Text]]]
+    for i in process.tool["outputs"]:
+        output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
+    callback = ReceiveScatterOutput(output_callback, output, 0)
+    (steps, total) = _flat_crossproduct_scatter(
+        process, joborder, scatter_keys, callback, startindex=0, **kwargs)
+    callback.setTotal(total)
+    return parallel_steps(steps, callback, kwargs)
 
-def flat_crossproduct_scatter(process,          # type: WorkflowJobStep
-                              joborder,         # type: Dict[Text, Any]
-                              scatter_keys,     # type: List[Text]
-                              output_callback,  # type: Union[ReceiveScatterOutput, Callable[..., Any]]
-                              mutation_manager, # type: MutationManager
-                              basedir,          # type: Text
-                              startindex,       # type: int
-                              **kwargs          # type: Any
-                             ):  # type: (...) -> Union[List[Generator], Generator]
+def _flat_crossproduct_scatter(process,           # type: WorkflowJobStep
+                               joborder,          # type: Dict[Text, Any]
+                               scatter_keys,      # type: List[Text]
+                               callback,          # type: ReceiveScatterOutput
+                               mutation_manager,  # type: MutationManager
+                               basedir,           # type: Text
+                               startindex,        # type: int
+                               **kwargs           # type: Any
+                              ):  # type: (...) -> Tuple[List[Generator], int]
+    """ Inner loop. """
     scatter_key = scatter_keys[0]
-    l = len(joborder[scatter_key])
-    rc = None  # type: Optional[ReceiveScatterOutput]
-
-    if startindex == 0 and not isinstance(output_callback, ReceiveScatterOutput):
-        output = {}  # type: Dict[Text, List[Optional[Text]]]
-        for i in process.tool["outputs"]:
-            output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
-        rc = ReceiveScatterOutput(output_callback, output, startindex)
-    elif isinstance(output_callback, ReceiveScatterOutput):
-        rc = output_callback
-    else:
-        raise Exception("Unhandled code path. Please report this.")
-    assert rc is not None
-
+    jobl = len(joborder[scatter_key])
     steps = []
     put = startindex
-    for n in range(0, l):
-        jo = copy.copy(joborder)
-        jo[scatter_key] = joborder[scatter_key][n]
+    for index in range(0, jobl):
+        sjob = copy.copy(joborder)
+        sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
-            jo = kwargs["postScatterEval"](jo)
+            sjob = kwargs["postScatterEval"](sjob)
             steps.append(process.job(
-                jo, functools.partial(rc.receive_scatter_output, put),
+                sjob, functools.partial(callback.receive_scatter_output, put),
                 mutation_manager, basedir, **kwargs))
             put += 1
         else:
-            add = flat_crossproduct_scatter(
-                process, jo, scatter_keys[1:], rc, mutation_manager, basedir,
-                put, **kwargs)
-            put += len(cast(List[Generator], add))
+            (add, _) = _flat_crossproduct_scatter(
+                process, sjob, scatter_keys[1:], callback, mutation_manager,
+                basedir, put, **kwargs)
+            put += len(add)
             steps.extend(add)
 
-    if startindex == 0 and not isinstance(output_callback, ReceiveScatterOutput):
-        rc.setTotal(put)
-        return parallel_steps(steps, rc, kwargs)
-    else:
-        return steps
+    return (steps, put)
