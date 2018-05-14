@@ -344,26 +344,18 @@ class WorkflowJob(object):
                     _logger.warning(u"[job %s] Notice: scattering over empty input in '%s'.  All outputs will be empty.", step.name, "', '".join(emptyscatter))
 
                 if method == "dotproduct" or method is None:
-                    jobs = dotproduct_scatter(step, inputobj, scatter,
-                                              cast(  # known bug with mypy
-                                                  # https://github.com/python/mypy/issues/797
-                                                  Callable[[Any], Any], callback),
-                                              mutation_manager, basedir,
-                                              **kwargs)
+                    jobs = dotproduct_scatter(
+                        step, inputobj, scatter, callback, mutation_manager,
+                        basedir, **kwargs)
                 elif method == "nested_crossproduct":
-                    jobs = nested_crossproduct_scatter(step, inputobj,
-                                                       scatter, cast(Callable[[Any], Any], callback),
-                                                       # known bug in mypy
-                                                       # https://github.com/python/mypy/issues/797
-                                                       **kwargs)
+                    jobs = nested_crossproduct_scatter(
+                        step, inputobj, scatter, callback, mutation_manager,
+                        basedir, **kwargs)
                 elif method == "flat_crossproduct":
                     jobs = cast(Generator,
-                                flat_crossproduct_scatter(step, inputobj,
-                                                          scatter,
-                                                          cast(Callable[[Any], Any],
-                                                               # known bug in mypy
-                                                               # https://github.com/python/mypy/issues/797
-                                                               callback), 0, **kwargs))
+                                flat_crossproduct_scatter(
+                                    step, inputobj, scatter, callback,
+                                    mutation_manager, basedir, 0, **kwargs))
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"[job %s] job input %s", step.name,
@@ -819,7 +811,8 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
     return parallel_steps(steps, rc, kwargs)
 
 
-def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback, **kwargs):
+def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback,
+                                mutation_manager, basedir, **kwargs):
     # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], **Any) -> Generator
     scatter_key = scatter_keys[0]
     l = len(joborder[scatter_key])
@@ -836,13 +829,14 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
 
         if len(scatter_keys) == 1:
             jo = kwargs["postScatterEval"](jo)
-            steps.append(process.job(jo, functools.partial(rc.receive_scatter_output, n), **kwargs))
+            steps.append(process.job(
+                jo, functools.partial(rc.receive_scatter_output, n),
+                mutation_manager, basedir, **kwargs))
         else:
-            # known bug with mypy, https://github.com/python/mypy/issues/797
-            casted = cast(Callable[[Any], Any], functools.partial(rc.receive_scatter_output, n))
-            steps.append(nested_crossproduct_scatter(process, jo,
-                                                     scatter_keys[1:],
-                                                     casted, **kwargs))
+            steps.append(nested_crossproduct_scatter(
+                process, jo, scatter_keys[1:],
+                functools.partial(rc.receive_scatter_output, n),
+                mutation_manager, basedir, **kwargs))
 
     return parallel_steps(steps, rc, kwargs)
 
@@ -861,10 +855,12 @@ def crossproduct_size(joborder, scatter_keys):
     return sum
 
 
-def flat_crossproduct_scatter(process,          # WorkflowJobStep
-                              joborder,         # Dict[Text, Any]
-                              scatter_keys,     # List[Text]
-                              output_callback,  # Union[ReceiveScatterOutput, Callable[..., Any]]
+def flat_crossproduct_scatter(process,          # type: WorkflowJobStep
+                              joborder,         # type: Dict[Text, Any]
+                              scatter_keys,     # type: List[Text]
+                              output_callback,  # type: Union[ReceiveScatterOutput, Callable[..., Any]]
+                              mutation_manager, # type: MutationManager
+                              basedir,          # type: Text
                               startindex,       # type: int
                               **kwargs          # type: Any
                              ):  # type: (...) -> Union[List[Generator], Generator]
@@ -891,10 +887,14 @@ def flat_crossproduct_scatter(process,          # WorkflowJobStep
 
         if len(scatter_keys) == 1:
             jo = kwargs["postScatterEval"](jo)
-            steps.append(process.job(jo, functools.partial(rc.receive_scatter_output, put), **kwargs))
+            steps.append(process.job(
+                jo, functools.partial(rc.receive_scatter_output, put),
+                mutation_manager, basedir, **kwargs))
             put += 1
         else:
-            add = flat_crossproduct_scatter(process, jo, scatter_keys[1:], rc, put, **kwargs)
+            add = flat_crossproduct_scatter(
+                process, jo, scatter_keys[1:], rc, mutation_manager, basedir,
+                put, **kwargs)
             put += len(cast(List[Generator], add))
             steps.extend(add)
 

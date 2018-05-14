@@ -314,16 +314,16 @@ class Builder(object):
             with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
-        prefix = binding.get("prefix")  #  type: Optional[Text]
+        prefix = binding.get("prefix")  # type: Optional[Text]
         sep = binding.get("separate", True)
         if prefix is None and not sep:
             with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
-        l = []  # type: List[Dict[Text,Text]]
+        argl = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
             if binding.get("itemSeparator") and value:
-                l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
+                argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
@@ -332,7 +332,7 @@ class Builder(object):
             else:
                 return []
         elif isinstance(value, dict) and value.get("class") in ("File", "Directory"):
-            l = [value]
+            argl = [value]
         elif isinstance(value, dict):
             return [prefix] if prefix else []
         elif value is True and prefix:
@@ -340,10 +340,10 @@ class Builder(object):
         elif value is False or value is None or (value is True and not prefix):
             return []
         else:
-            l = [value]
+            argl = [value]
 
         args = []
-        for j in l:
+        for j in argl:
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:

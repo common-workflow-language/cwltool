@@ -580,8 +580,14 @@ class CommandLineTool(Process):
                 for r in readers.values():
                     builder.mutation_manager.release_reader(jobname, r)
 
-    def collect_output(self, schema, builder, outdir, fs_access, compute_checksum=True):
-        # type: (Dict[Text, Any], Builder, Text, StdFsAccess, bool) -> Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]
+    def collect_output(self,
+                       schema,                # type: Dict[Text, Any]
+                       builder,               # type: Builder
+                       outdir,                # type: Text
+                       fs_access,             # type: StdFsAccess
+                       compute_checksum=True  # type: bool
+                      ):
+        # type: (...) -> Optioanal[Union[Dict[Text, Any], List[Union[Dict[Text, Any], Text]]]]
         r = []  # type: List[Any]
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -717,7 +723,7 @@ class CommandLineTool(Process):
                 Callable[[Any], Any], revmap))
 
             if not r and optional:
-                empty_and_optional = True
+                return None
 
         if (not empty_and_optional and isinstance(schema["type"], dict)
                 and schema["type"]["type"] == "record"):
