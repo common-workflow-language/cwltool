@@ -276,12 +276,14 @@ class WorkflowJob(object):
     def __init__(self, workflow, **kwargs):
         # type: (Workflow, **Any) -> None
         self.workflow = workflow
-        self.provObj=workflow.provenanceObject
+        self.provObj=None
         self.tool = workflow.tool
-        self.steps = [WorkflowJobStep(s, self.provObj) for s in workflow.steps]
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
         self.did_callback = False
+        if kwargs["research_obj"]:
+            self.provObj=workflow.provenanceObject
+        self.steps = [WorkflowJobStep(s, self.provObj) for s in workflow.steps]
 
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
@@ -549,7 +551,7 @@ class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
-
+        self.parent=None
         if kwargs["research_obj"]:
             cwltoolVersion="cwltool %s" % versionstring().split()[-1]
             engineUUID=uuid.uuid4().urn

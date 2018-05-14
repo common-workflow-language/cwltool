@@ -420,7 +420,7 @@ class ContainerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
 
-                if self.provObj.document and img_id and ProcessRunID:
+                if self.provObj and img_id and ProcessRunID:
                     # TODO: Integrate with record_container_id 
                     container_agent = self.provObj.document.agent(uuid.uuid4().urn, 
                         {"prov:type": PROV["SoftwareAgent"],
