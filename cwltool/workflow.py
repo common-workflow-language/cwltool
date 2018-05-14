@@ -871,6 +871,8 @@ def flat_crossproduct_scatter(process,           # type: WorkflowJobStep
                               joborder,          # type: Dict[Text, Any]
                               scatter_keys,      # type: List[Text]
                               output_callback,   # type: Callable[..., Any]
+                              mutation_manager,  # type: MutationManager
+                              basedir,           # type: Text
                               **kwargs           # type: Any
                              ):  # type: (...) -> Generator
     output = {}  # type: Dict[Text, List[Optional[Text]]]
@@ -878,7 +880,8 @@ def flat_crossproduct_scatter(process,           # type: WorkflowJobStep
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
     callback = ReceiveScatterOutput(output_callback, output, 0)
     (steps, total) = _flat_crossproduct_scatter(
-        process, joborder, scatter_keys, callback, startindex=0, **kwargs)
+        process, joborder, scatter_keys, callback, mutation_manager, basedir,
+        0, **kwargs)
     callback.setTotal(total)
     return parallel_steps(steps, callback, kwargs)
 
