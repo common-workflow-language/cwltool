@@ -25,13 +25,15 @@ environment:
       PYTHON_ARCH: "64"
 
 install:
-  - "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
+  - "%PYTHON%\\python.exe -m pip install -U wheel pytest mock"
+    #- "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
 
 build_script:
   - "%PYTHON%\\python.exe -m pip install ."
 
 test_script:
-  - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml -n2"
+  - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml"
+    #- "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml -n2"
 
 on_finish:
   - ps: |
