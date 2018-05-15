@@ -360,6 +360,28 @@ class create_ProvProfile():
         self.document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
         return (self.workflowRunURI, self.document)
 
+    def _evaluate(self, t, r, job_order_object, make_fs_access, kwargs):
+        '''
+        evaluate the nature of r and 
+        initialize the activity start
+        '''
+        reference_locations={} # type: Dict[Text, Any]
+        ProcessRunID=None
+        research_obj=kwargs["research_obj"]
+        if not hasattr(t, "steps"): #record provenance of an independent commandline tool execution
+            self.prospective_prov(r)
+            customised_job=research_obj.copy_job_order(r, job_order_object)
+            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
+            self.declare_artefact(relativised_input_object, job_order_object)
+            ProcessRunID = self.startProcess(r, self.document, self.engineUUID)
+        elif hasattr(r, "workflow"): #record provenance for the workflow execution
+            self.prospective_prov(r)
+            customised_job=research_obj.copy_job_order(r, job_order_object)
+            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
+            self.declare_artefact(relativised_input_object, job_order_object)
+        else: #in case of commandline tool execution as part of workflow
+            ProcessRunID = self.startProcess(r, self.document, self.engineUUID, self.workflowRunURI)
+        return ProcessRunID, reference_locations
 
     def startProcess(self, r, document, engineUUID, WorkflowRunID=None):
             # type: (Any, ProvDocument, str, str) -> None
