@@ -417,7 +417,7 @@ To fix, replace /var/spool/cwl with $(runtime.outdir) or
             r = var_spool_cwl_detector(value, obj, key) or r
     return r
 
-def eval_resource(builder, resource_req):
+def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         if expression.needs_parsing(resource_req):
             visit_class(builder.job, ("File",), add_sizes)
             return builder.do_eval(resource_req)
