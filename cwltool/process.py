@@ -31,6 +31,7 @@ from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 from six import iteritems, itervalues, string_types
 
+from . import expression
 from .validate_js import validate_js_expressions
 from .utils import cmp_like_py2
 from .builder import Builder
@@ -40,7 +41,8 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          ensure_writable)
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature, copytree_with_merge, onWindows
+from .utils import (aslist, get_feature, copytree_with_merge, onWindows,
+                    add_sizes)
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -415,6 +417,12 @@ To fix, replace /var/spool/cwl with $(runtime.outdir) or
             r = var_spool_cwl_detector(value, obj, key) or r
     return r
 
+def eval_resource(builder, resource_req):
+        if expression.needs_parsing(resource_req):
+            visit_class(builder.job, ("File",), add_sizes)
+            return builder.do_eval(resource_req)
+        return resource_req
+
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
@@ -698,9 +706,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             mn = None
             mx = None
             if resourceReq.get(a + "Min"):
-                mn = builder.do_eval(resourceReq[a + "Min"])
+                mn = eval_resource(builder, resourceReq[a + "Min"])
             if resourceReq.get(a + "Max"):
-                mx = builder.do_eval(resourceReq[a + "Max"])
+                mx = eval_resource(builder, resourceReq[a + "Max"])
             if mn is None:
                 mn = mx
             elif mx is None:
