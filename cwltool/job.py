@@ -271,9 +271,6 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
-            #creating entities for the outputs produced by each step (in the provenance document)
-            if research_obj:
-                self.provObj.generate_outputProv(outputs, ProcessRunID, str(self.name))
 
         except OSError as e:
             if e.errno == 2:
@@ -291,6 +288,8 @@ class JobBase(object):
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         if research_obj:
+            #creating entities for the outputs produced by each step (in the provenance document)
+            self.provObj.generate_outputProv(outputs, ProcessRunID, str(self.name))
             self.provObj.document.wasEndedBy(ProcessRunID, None, self.provObj.workflowRunURI, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
