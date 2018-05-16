@@ -92,9 +92,9 @@ class JobExecutor(object):
             if kwargs["research_obj"]:
                 ProcessRunID=None
                 name="primary"
-                t.parent.generate_outputProv(self.final_output[0], ProcessRunID)
-                t.parent.document.wasEndedBy(t.parent.workflowRunURI, None, t.parent.engineUUID, datetime.datetime.now())
-                t.parent.finalize_provProfile(name) 
+                t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
+                t.parent_wf.document.wasEndedBy(t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID, datetime.datetime.now())
+                t.parent_wf.finalize_provProfile(name)
             return (self.final_output[0], self.final_status[0])
         else:
             return (None, "permanentFail")
@@ -113,7 +113,6 @@ class SingleJobExecutor(JobExecutor):
                         self.output_callback,
                         **kwargs)
         try:
-            research_obj = kwargs.get("research_obj")
             for r in jobiter:
                 if r:
                     builder = kwargs.get("builder", None)  # type: Builder
@@ -122,7 +121,7 @@ class SingleJobExecutor(JobExecutor):
                         r.builder = builder
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
-                    if research_obj:
+                    if kwargs["research_obj"]:
                         provObj=r.provObj
                         ProcessRunID, reference_locations = provObj._evaluate(t, r, job_order_object, make_fs_access, kwargs)
                         r.run(provObj, ProcessRunID, reference_locations, **kwargs)

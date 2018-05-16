@@ -551,15 +551,15 @@ class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
-        self.parent=None
+        self.parent_wf=None
         if kwargs["research_obj"]:
             cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-            engineUUID=uuid.uuid4().urn
+            engineUUID=uuid.uuid4().urn #UUID should be replaced with something else so that we don't have different UUIDs for the same engine.
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
             self.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
             self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
-            self.parent= self.provenanceObject
+            self.parent_wf= self.provenanceObject
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints
 
@@ -568,7 +568,7 @@ class Workflow(Process):
         validation_errors = []
         for n, step in enumerate(self.tool.get("steps", [])):
             try: 
-                self.steps.append(WorkflowStep(step, n, self.parent, **kwargs))
+                self.steps.append(WorkflowStep(step, n, self.parent_wf, **kwargs))
             except validate.ValidationException as v:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
