@@ -50,7 +50,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     @staticmethod
     def get_image(dockerRequirement,  # type: Dict[Text, Text]
                   pull_image,         # type: bool
-                  dry_run=False,      # type: bool
                   force_pull=False    # type: bool
                  ):
         # type: (...) -> bool
@@ -95,9 +94,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        str(dockerRequirement["dockerImageId"]),
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
-                if not dry_run:
-                    check_call(cmd, stdout=sys.stderr)
-                    found = True
+                check_call(cmd, stdout=sys.stderr)
+                found = True
             elif "dockerFile" in dockerRequirement:
                 raise WorkflowException(SourceLine(
                     dockerRequirement, 'dockerFile').makeError(
@@ -117,13 +115,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         return found
 
     def get_from_requirements(self,
-                              r,                # type: Optional[Dict[Text, Text]]
-                              req,              # type: bool
-                              pull_image,       # type: bool
-                              dry_run=False,    # type: bool
-                              force_pull=False  # type: bool
-                             ):
-        # type: (...) -> Text
+                              r,                      # type: Optional[Dict[Text, Text]]
+                              req,                    # type: bool
+                              pull_image,             # type: bool
+                              force_pull=False,       # type: bool
+                              tmp_outdir_prefix=None  # type: Text
+                             ):  # type: (...) -> Text
         """
         Returns the filename of the Singularity image (e.g.
         hello-world-latest.img).
@@ -144,7 +141,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 else:
                     return None
 
-            if self.get_image(r, pull_image, dry_run, force_pull):
+            if self.get_image(r, pull_image, force_pull):
                 return os.path.abspath(r["dockerImageId"])
             else:
                 if req:

@@ -30,7 +30,8 @@ import schema_salad.validate
 from cwltool.main import main
 from cwltool.utils import onWindows
 
-from .util import get_data, needs_docker
+from .util import (get_data, needs_docker, get_windows_safe_factory,
+        windows_needs_docker)
 
 sys.argv = ['']
 
@@ -135,10 +136,11 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs), "true true")
         self.assertEqual(expr.interpolate("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
 
-
 class TestFactory(unittest.TestCase):
+
+    @windows_needs_docker
     def test_factory(self):
-        f = cwltool.factory.Factory()
+        f = get_windows_safe_factory()
         echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
