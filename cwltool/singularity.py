@@ -192,7 +192,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             docker_windows_path_adjust(vol.resolved),
                             docker_windows_path_adjust(containertgt)))
                     else:
-                        shutil.copytree(vol.resolved, vol.target)
+                        shutil.copytree(vol.resolved, host_outdir_tgt)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
                 with open(createtmp, "wb") as tmp:
