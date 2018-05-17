@@ -26,8 +26,6 @@ environment:
 
 install:
   - "%PYTHON%\\python.exe -m pip install -U wheel pytest mock"
-  - "%PYTHON%\\python.exe -m pip show pip"
-  - "%PYTHON%\\python.exe -m pip install -U 'pip>=7.0.2'"
     #- "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
 
 build_script:
