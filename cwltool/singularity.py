@@ -79,7 +79,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         targets = [os.getcwd()]
         for env in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER"):
             if env in os.environ:
-                targets.append(os.environ[eng])
+                targets.append(os.environ[env])
         for target in targets:
             for candidate in candidates:
                 path = os.path.join(target, candidate)
