@@ -76,16 +76,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             candidates.append(_normalizeImageId(dockerRequirement['dockerImageId']))
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
-        for target in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER",
-                os.getcwd()):
-            if target in os.environ:
-                for candidate in candidates:
-                    path = os.path.join(os.environ[target], candidate)
-                    if os.path.isfile(path):
-                        _logger.info("Using local copy of Singularity image "
-                                     "found in {}".format(target))
-                        dockerRequirement["dockerImageId"] = path
-                        found = True
+        targets = [os.getcwd()]
+        for env in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER"):
+            if env in os.environ:
+                targets.append(os.environ[eng])
+        for target in targets:
+            for candidate in candidates:
+                path = os.path.join(target, candidate)
+                if os.path.isfile(path):
+                    _logger.info("Using local copy of Singularity image "
+                                 "found in {}".format(target))
+                    dockerRequirement["dockerImageId"] = path
+                    found = True
 
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
