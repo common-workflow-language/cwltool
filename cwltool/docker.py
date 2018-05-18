@@ -18,11 +18,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .pathmapper import PathMapper, ensure_writable
 from .secrets import SecretStore
-from .utils import docker_windows_path_adjust, onWindows
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
-else:
-    import subprocess  # type: ignore
+from .utils import docker_windows_path_adjust, onWindows, subprocess
 
 _logger = logging.getLogger("cwltool")
 
