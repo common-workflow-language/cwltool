@@ -11,16 +11,12 @@ from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 import six
 from pkg_resources import resource_stream
-from .utils import onWindows
+from .utils import onWindows, subprocess
 
 try:
     import queue  # type: ignore
 except ImportError:
     import Queue as queue  # type: ignore
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
-else:
-    import subprocess  # type: ignore
 
 
 class JavascriptException(Exception):

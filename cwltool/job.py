@@ -25,13 +25,8 @@ from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .secrets import SecretStore
-from .utils import bytes2str_in_dicts
-from .utils import copytree_with_merge, onWindows
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
-else:
-    import subprocess  # type: ignore
-
+from .utils import (bytes2str_in_dicts, copytree_with_merge, onWindows,
+                    subprocess)
 
 _logger = logging.getLogger("cwltool")
 
@@ -49,7 +44,7 @@ PYTHON_RUN_SCRIPT = """
 import json
 import os
 import sys
-if os.name == 'posix' and sys.version_info[0] < 3:
+if os.name == 'posix':
     try:
         import subprocess32 as subprocess  # type: ignore
     except Exception:

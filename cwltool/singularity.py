@@ -13,14 +13,10 @@ from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
 from schema_salad.sourceline import SourceLine
-if os.name == 'posix' and sys.version_info[0] < 3:
+if os.name == 'posix':
     from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
                               CalledProcessError, DEVNULL, PIPE, Popen,
                               TimeoutExpired)
-elif os.name == 'posix':
-    from subprocess import (check_call, check_output,  # type: ignore
-                            CalledProcessError, DEVNULL, PIPE, Popen,
-                            TimeoutExpired)
 else:  # we're not on Unix, so none of this matters
     pass
 
