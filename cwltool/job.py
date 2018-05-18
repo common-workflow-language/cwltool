@@ -49,7 +49,13 @@ PYTHON_RUN_SCRIPT = """
 import json
 import os
 import sys
-import subprocess
+if os.name == 'posix' and sys.version_info[0] < 3:
+    try:
+        import subprocess32 as subprocess  # type: ignore
+    except Exception:
+        import subprocess
+else:
+    import subprocess  # type: ignore
 
 with open(sys.argv[1], "r") as f:
     popen_description = json.load(f)

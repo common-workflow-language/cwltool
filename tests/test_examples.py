@@ -1,15 +1,19 @@
 from __future__ import absolute_import
 import unittest
 import pytest
-import subprocess
+import os
 from os import path
 import sys
 import json
 import logging
 import tempfile
 import shutil
-
 from io import StringIO, BytesIO
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess  # type: ignore
+else:
+    import subprocess  # type: ignore
+
 
 from cwltool.errors import WorkflowException
 
