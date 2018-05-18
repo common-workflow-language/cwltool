@@ -276,6 +276,7 @@ class CommandLineTool(Process):
 
             if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
+                # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
 
             if "stdout" in self.tool:

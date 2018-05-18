@@ -25,7 +25,11 @@ environment:
       PYTHON_ARCH: "64"
 
 install:
+  - ps: 'Install-Product node 0.12 x64'
   - "%PYTHON%\\python.exe -m pip install -U wheel pytest mock"
+  - "%PYTHON%\\python.exe -m pip show setuptools"
+  - "%PYTHON%\\python.exe -m pip install -U setuptools^>=20.3"
+    # Note the use of a `^` to escape the `>`
     #- "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
 
 build_script:

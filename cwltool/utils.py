@@ -7,6 +7,10 @@ import platform
 import shutil
 import stat
 from typing import Any, Callable, Dict, List, Text, Tuple, Union
+if os.name == 'posix':
+    import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
+else:
+    import subprocess  # type: ignore # pylint: disable=unused-import
 
 import six
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
