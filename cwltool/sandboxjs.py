@@ -71,13 +71,8 @@ def new_js_proc(js_text, force_docker_pull=False):
 
                 required_node_version = check_js_threshold_version(n)
                 break
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, OSError):
             pass
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                pass
-            else:
-                raise
 
     if nodejs is None or nodejs is not None and required_node_version is False:
         try:
