@@ -33,7 +33,7 @@ from six import iteritems, itervalues, string_types
 
 from . import expression
 from .validate_js import validate_js_expressions
-from .utils import cmp_like_py2
+from .utils import cmp_like_py2, add_sizes
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
@@ -363,6 +363,7 @@ def fillInDefaults(inputs, job):
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
+    add_sizes(job)
 
 
 def avroize_type(field_type, name_prefix=""):
