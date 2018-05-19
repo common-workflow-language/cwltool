@@ -350,7 +350,7 @@ class CommandLineTool(Process):
         j.stdin = None
         j.stderr = None
         j.stdout = None
-        j.provObj=self.provObj
+        j.provObj=provObj
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
         j.permanentFailCodes = self.tool.get("permanentFailCodes")

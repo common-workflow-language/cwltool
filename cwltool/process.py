@@ -517,7 +517,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         debug: enable debugging output
         js_console: enable javascript console output
         """
-        self.provObj=provObj
+
         builder = Builder()
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
                                             Text]], copy.deepcopy(joborder))

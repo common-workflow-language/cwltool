@@ -162,10 +162,11 @@ class JobBase(object):
         self.stagedir = None  # type: Text
         self.inplace_update = None  # type: bool
         self.provObj=None
+        self.parent_wf=None
     def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
-
+    
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
             if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
@@ -336,7 +337,7 @@ class CommandLineJob(JobBase):
             move_outputs="move",       # type: Text
             **kwargs                   # type: Any
             ):  # type: (...) -> None
-
+    
         self._setup(kwargs)
         env = self.environment
         if not os.path.exists(self.tmpdir):

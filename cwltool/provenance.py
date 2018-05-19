@@ -373,36 +373,34 @@ class create_ProvProfile():
             customised_job=research_obj.copy_job_order(r, job_order_object)
             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
             self.declare_artefact(relativised_input_object, job_order_object)
-            ProcessRunID = self.startProcess(r, self.document, self.engineUUID)
+            ProcessRunID = self.startProcess(r)
         elif hasattr(r, "workflow"): #record provenance for the workflow execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)
             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
             self.declare_artefact(relativised_input_object, job_order_object)
         else: #in case of commandline tool execution as part of workflow
-            ProcessRunID = self.startProcess(r, self.document, self.engineUUID, self.workflowRunURI)
+            ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
+            ProcessRunID = self.startProcess(ProcessName)
         return ProcessRunID, reference_locations
 
-    def startProcess(self, r, document, engineUUID, WorkflowRunID=None):
+    def startProcess(self, ProcessName, ProcessRunID=None):
             # type: (Any, ProvDocument, str, str) -> None
-            ## FIXME: What is the real name and type of r?
-            ## process.py/workflow.py just says "Any" or "Generator"..
             '''
             record start of each Process
             '''
-            ProcessRunID=uuid.uuid4().urn
-            ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
-            if WorkflowRunID:
+            if ProcessRunID == None:
+                ProcessRunID=uuid.uuid4().urn
+            if self.workflowRunURI:
                 provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-                document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-            #if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-                document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+                self.document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                self.document.wasAssociatedWith(ProcessRunID, self.engineUUID, str("wf:main/"+ProcessName))
+                self.document.wasStartedBy(ProcessRunID, None, self.workflowRunURI, datetime.datetime.now(), None, None)
             else:
                 provLabel="Run of CommandLineTool/packed.cwl#main/"
-                document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-                document.wasStartedBy(ProcessRunID, None, engineUUID, datetime.datetime.now(), None, None)
+                self.document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                self.document.wasAssociatedWith(ProcessRunID, self.engineUUID, str("wf:main/"+ProcessName))
+                self.document.wasStartedBy(ProcessRunID, None, self.engineUUID, datetime.datetime.now(), None, None)
             return ProcessRunID
     
     def used_artefacts(self, job_order, ProcessRunID, reference_locations, name):

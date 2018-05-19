@@ -249,9 +249,10 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
             raise WorkflowException(u"Value for %s not specified" % (inp["id"]))
     return inputobj
 
-import ipdb
+
 class WorkflowJobStep(object):
-    def __init__(self, step, provObj):  # type: (Any) -> None
+    def __init__(self, step, provObj, parent_wf):  # type: (Any) -> None
+        
         self.step = step
         self.tool = step.tool
         self.id = step.id
@@ -259,16 +260,15 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
-        self.provObj=provObj
-
+        self.provObj=step.provObj
+        self.parent_wf=step.parent_wf
     def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         _logger.info(u"[%s] start", self.name)
-
-        for j in self.step.job(joborder, output_callback, self.provObj, **kwargs):
+        for j in self.step.job(joborder, output_callback, self.provObj,  **kwargs):
             yield j
 
 
@@ -277,14 +277,16 @@ class WorkflowJob(object):
         # type: (Workflow, **Any) -> None
         self.workflow = workflow
         self.provObj=None
+        self.parent_wf=None
         self.tool = workflow.tool
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
         self.did_callback = False
         if kwargs["research_obj"]:
             self.provObj=workflow.provenanceObject
-        self.steps = [WorkflowJobStep(s, self.provObj) for s in workflow.steps]
-
+            self.parent_wf=workflow.parent_wf
+            
+        self.steps = [WorkflowJobStep(s, self.provObj, self.parent_wf) for s in workflow.steps]
         if "outdir" in kwargs:
             self.outdir = kwargs["outdir"]
         elif "tmp_outdir_prefix" in kwargs:
@@ -568,12 +570,12 @@ class Workflow(Process):
         validation_errors = []
         for n, step in enumerate(self.tool.get("steps", [])):
             try: 
-                self.steps.append(WorkflowStep(step, n, self.parent_wf, **kwargs))
+                self.steps.append(WorkflowStep(step, n, self.provenanceObject, **kwargs))
             except validate.ValidationException as v:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
                 validation_errors.append(v)
-
+        
         if validation_errors:
             raise validate.ValidationException("\n".join(str(v) for v in validation_errors))
 
@@ -601,13 +603,14 @@ class Workflow(Process):
             ):
         # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, **kwargs)
+        
         wj = WorkflowJob(self, **kwargs)
         yield wj
 
         kwargs["part_of"] = u"workflow %s" % wj.name
         kwargs["toplevel"] = False
 
-        for w in wj.job(builder.job, output_callbacks, **kwargs):
+        for w in wj.job(builder.job, output_callbacks, provObj, **kwargs):
             yield w
 
     def visit(self, op):
@@ -718,7 +721,7 @@ class WorkflowStep(Process):
             self.id = toolpath_object["id"]
         else:
             self.id = "#step" + Text(pos)
-        self.provObj=parentworkflowProv
+
         kwargs["requirements"] = (kwargs.get("requirements", []) +
                                   toolpath_object.get("requirements", []) +
                                   get_overrides(kwargs.get("overrides", []), self.id).get("requirements", []))
@@ -840,6 +843,12 @@ class WorkflowStep(Process):
                     op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
+        if kwargs["research_obj"]:
+            self.provObj=parentworkflowProv
+            if self.embedded_tool.tool["class"] == "Workflow":
+                self.parent_wf= self.embedded_tool.parent_wf
+            else: 
+                self.parent_wf=self.provObj
 
     def receive_output(self, output_callback, jobout, processStatus):
         # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
@@ -859,6 +868,10 @@ class WorkflowStep(Process):
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]
+        if self.embedded_tool.tool["class"] == "Workflow":
+            self.embedded_tool.parent_wf=provObj
+            ProcessName= self.tool["id"].split("#")[1]
+            self.embedded_tool.parent_wf.startProcess(ProcessName, self.embedded_tool.provenanceObject.workflowRunURI)
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
