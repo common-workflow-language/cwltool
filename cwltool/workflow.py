@@ -6,7 +6,8 @@ import logging
 import random
 import tempfile
 from collections import namedtuple
-from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
+from typing import (Any, Callable, Dict, Generator, Iterable, List, Optional,
+                    Text, Union, cast)
 
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -111,8 +112,7 @@ def check_source(src,        # type: Text
                  inputobj,   # type: Dict[Text, Any]
                  incomplete, # type: bool
                  linkMerge   # type: Optional[Text]
-):
-    # type: (...) -> Dict[Text, Any]
+                ):  # type: (...) -> bool
     if src in state and state[src] is not None and (state[src].success == "success" or incomplete):
         if not match_types(
                 inp["type"], state[src], iid, inputobj,
