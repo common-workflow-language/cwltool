@@ -203,14 +203,8 @@ class WorkflowJob(object):
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
         self.did_callback = False
-
-        if "outdir" in kwargs:
-            self.outdir = kwargs["outdir"]
-        elif "tmp_outdir_prefix" in kwargs:
-            self.outdir = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"])
-        else:
-            # tmp_outdir_prefix defaults to tmp, so this is unlikely to be used
-            self.outdir = tempfile.mkdtemp()
+        self.outdir = kwargs.get("outdir")
+        self.outdir = tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix"))
 
         self.name = uniquename(u"workflow %s" % kwargs.get("name", shortname(self.workflow.tool.get("id", "embedded"))))
 

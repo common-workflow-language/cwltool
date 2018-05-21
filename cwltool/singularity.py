@@ -13,14 +13,10 @@ from .pathmapper import PathMapper, ensure_writable
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
 from schema_salad.sourceline import SourceLine
-if os.name == 'posix' and sys.version_info[0] < 3:
+if os.name == 'posix':
     from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
                               CalledProcessError, DEVNULL, PIPE, Popen,
                               TimeoutExpired)
-elif os.name == 'posix':
-    from subprocess import (check_call, check_output,  # type: ignore
-                            CalledProcessError, DEVNULL, PIPE, Popen,
-                            TimeoutExpired)
 else:  # we're not on Unix, so none of this matters
     pass
 
@@ -50,7 +46,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     @staticmethod
     def get_image(dockerRequirement,  # type: Dict[Text, Text]
                   pull_image,         # type: bool
-                  dry_run=False,      # type: bool
                   force_pull=False    # type: bool
                  ):
         # type: (...) -> bool
@@ -77,16 +72,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             candidates.append(_normalizeImageId(dockerRequirement['dockerImageId']))
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
-        for target in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER",
-                os.getcwd()):
-            if target in os.environ:
-                for candidate in candidates:
-                    path = os.path.join(os.environ[target], candidate)
-                    if os.path.isfile(path):
-                        _logger.info("Using local copy of Singularity image "
-                                     "found in {}".format(target))
-                        dockerRequirement["dockerImageId"] = path
-                        found = True
+        targets = [os.getcwd()]
+        for env in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER"):
+            if env in os.environ:
+                targets.append(os.environ[env])
+        for target in targets:
+            for candidate in candidates:
+                path = os.path.join(target, candidate)
+                if os.path.isfile(path):
+                    _logger.info("Using local copy of Singularity image "
+                                 "found in {}".format(target))
+                    dockerRequirement["dockerImageId"] = path
+                    found = True
 
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
@@ -95,9 +92,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        str(dockerRequirement["dockerImageId"]),
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
-                if not dry_run:
-                    check_call(cmd, stdout=sys.stderr)
-                    found = True
+                check_call(cmd, stdout=sys.stderr)
+                found = True
             elif "dockerFile" in dockerRequirement:
                 raise WorkflowException(SourceLine(
                     dockerRequirement, 'dockerFile').makeError(
@@ -117,13 +113,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         return found
 
     def get_from_requirements(self,
-                              r,                # type: Optional[Dict[Text, Text]]
-                              req,              # type: bool
-                              pull_image,       # type: bool
-                              dry_run=False,    # type: bool
-                              force_pull=False  # type: bool
-                             ):
-        # type: (...) -> Text
+                              r,                      # type: Optional[Dict[Text, Text]]
+                              req,                    # type: bool
+                              pull_image,             # type: bool
+                              force_pull=False,       # type: bool
+                              tmp_outdir_prefix=None  # type: Text
+                             ):  # type: (...) -> Text
         """
         Returns the filename of the Singularity image (e.g.
         hello-world-latest.img).
@@ -144,7 +139,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 else:
                     return None
 
-            if self.get_image(r, pull_image, dry_run, force_pull):
+            if self.get_image(r, pull_image, force_pull):
                 return os.path.abspath(r["dockerImageId"])
             else:
                 if req:
@@ -195,7 +190,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             docker_windows_path_adjust(vol.resolved),
                             docker_windows_path_adjust(containertgt)))
                     else:
-                        shutil.copytree(vol.resolved, vol.target)
+                        shutil.copytree(vol.resolved, host_outdir_tgt)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
                 with open(createtmp, "wb") as tmp:
