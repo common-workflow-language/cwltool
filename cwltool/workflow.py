@@ -446,12 +446,15 @@ class Workflow(Process):
 
         step_inputs = []  # type: List[Any]
         step_outputs = []  # type: List[Any]
+        param_to_step = {}
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
+            for s in step.tool["inputs"]:
+                param_to_step[s["id"]] = step.tool
 
         if kwargs.get("do_validate", True):
-            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
+            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
 
 
     def job(self,
