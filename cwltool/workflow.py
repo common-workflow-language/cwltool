@@ -539,6 +539,7 @@ class WorkflowStep(Process):
                 if not found:
                     if stepfield == "in":
                         param["type"] = "Any"
+                        param["not_connected"] = True
                     else:
                         validation_errors.append(
                             SourceLine(self.tool["out"], n).makeError(
@@ -629,7 +630,8 @@ class WorkflowStep(Process):
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
-            job_order[field] = job_order[i["id"]]
+            if not i.get("not_connected"):
+                job_order[field] = job_order[i["id"]]
             del job_order[i["id"]]
 
         try:
