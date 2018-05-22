@@ -446,12 +446,15 @@ class Workflow(Process):
 
         step_inputs = []  # type: List[Any]
         step_outputs = []  # type: List[Any]
+        param_to_step = {}  # type: Dict[Text, Dict[Text, Any]]
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
+            for s in step.tool["inputs"]:
+                param_to_step[s["id"]] = step.tool
 
         if kwargs.get("do_validate", True):
-            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
+            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
 
 
     def job(self,
@@ -539,6 +542,7 @@ class WorkflowStep(Process):
                 if not found:
                     if stepfield == "in":
                         param["type"] = "Any"
+                        param["not_connected"] = True
                     else:
                         validation_errors.append(
                             SourceLine(self.tool["out"], n).makeError(
@@ -629,7 +633,8 @@ class WorkflowStep(Process):
         for i in self.tool["inputs"]:
             p = i["id"]
             field = shortname(p)
-            job_order[field] = job_order[i["id"]]
+            if not i.get("not_connected"):
+                job_order[field] = job_order[i["id"]]
             del job_order[i["id"]]
 
         try:
