@@ -11,7 +11,7 @@ import cwltool.process
 import cwltool.workflow
 from cwltool.main import main
 from cwltool.utils import onWindows
-from .util import get_data, needs_docker
+from .util import get_data, needs_docker, windows_needs_docker
 
 
 @needs_docker
@@ -159,6 +159,7 @@ class TestV1_1backports(unittest.TestCase):
         self.assertEquals(main([get_data('tests/wf/workreuse.cwl')]), 1)
         self.assertEquals(main(["--enable-ext", get_data('tests/wf/workreuse-fail.cwl')]), 1)
 
+    @windows_needs_docker
     def test_require_prefix_timelimit(self):
         self.assertEquals(main(["--enable-ext", get_data('tests/wf/timelimit.cwl')]), 0)
         self.assertEquals(main([get_data('tests/wf/timelimit.cwl')]), 1)
