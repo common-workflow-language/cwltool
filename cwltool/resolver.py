@@ -14,12 +14,15 @@ _logger = logging.getLogger("cwltool")
 
 
 def resolve_local(document_loader, uri):
-    if uri.startswith("/") and os.path.exists(uri):
-        return Path(uri).as_uri()
-    if os.path.exists(urllib.parse.urlparse(
-            urllib.parse.urldefrag(
-                "{}/{}".format(Path.cwd().as_uri(), uri))[0])[2]):
-        return "{}/{}".format(Path.cwd().as_uri(), uri)
+    pathpart, frag = urllib.parse.urldefrag(uri)
+    pathobj = Path(pathpart).resolve()
+
+    if pathobj.is_file():
+        if frag:
+            return "{}#{}".format(pathobj.as_uri(), frag)
+        else:
+            return pathobj.as_uri()
+
     sharepaths = [os.environ.get("XDG_DATA_HOME", os.path.join(
         os.path.expanduser('~'), ".local", "share"))]
     sharepaths.extend(os.environ.get(

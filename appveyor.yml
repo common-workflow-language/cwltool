@@ -1,15 +1,13 @@
 version: .{build}-{branch}
 
+cache:
+ - '%LOCALAPPDATA%\pip\Cache'
+
 environment:
-  nodejs_version: "8"
 
   SYSTEMROOT: "C:\\WINDOWS"
 
   matrix:
-    - PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7.x"
-      PYTHON_ARCH: "32"
-
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
@@ -22,20 +20,29 @@ environment:
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "64"
 
 install:
-  # Get the latest stable version of Node.js or io.js
-  - ps: Install-Product node $env:nodejs_version
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - ps: 'Install-Product node 0.12 x64'
+  - "%PYTHON%\\python.exe -m pip install -U wheel pytest mock"
+  - "%PYTHON%\\python.exe -m pip show setuptools"
+  - "%PYTHON%\\python.exe -m pip install -U setuptools^>=20.3"
+    # Note the use of a `^` to escape the `>`
+    #- "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
 
 build_script:
-  - "%CMD_IN_ENV% python -m pip install -U setuptools pip"
-  - "%CMD_IN_ENV% pip install pytest mock"
-  - "%CMD_IN_ENV% pip install ."
-
+  - "%PYTHON%\\python.exe -m pip install ."
 
 test_script:
-  - "%CMD_IN_ENV% py.test --verbose -p no:cacheprovider"
+  - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml"
+    #- "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml -n2"
+
+on_finish:
+  - ps: |
+      $wc = New-Object 'System.Net.WebClient'
+      $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($Env:APPVEYOR_JOB_ID)", (Resolve-Path .\tests.xml))
 
 branches:
   only:

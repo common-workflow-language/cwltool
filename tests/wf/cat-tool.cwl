@@ -3,6 +3,10 @@
 class: CommandLineTool
 cwlVersion: v1.0
 
+hints:
+  DockerRequirement:
+    dockerPull: frolvlad/alpine-bash
+
 inputs:
   file1: File
 

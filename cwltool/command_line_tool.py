@@ -277,6 +277,7 @@ class CommandLineTool(Process):
 
             if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
+                # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
 
             if "stdout" in self.tool:
@@ -297,7 +298,7 @@ class CommandLineTool(Process):
                            "EnvVarRequirement",
                            "CreateFileRequirement",
                            "ShellCommandRequirement"}
-            for rh in (self.requirements, self.hints):
+            for rh in (self.original_requirements, self.original_hints):
                 for r in reversed(rh):
                     if r["class"] in interesting and r["class"] not in keydict:
                         keydict[r["class"]] = r
