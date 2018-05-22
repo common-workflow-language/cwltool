@@ -368,9 +368,9 @@ class CommandLineJob(JobBase):
                       WorkflowRunID, 
                       ProcessProvActivity,
                       reference_locations, 
-                      rm_tmpdir=rm_tmpdir, 
-                      move_outputs=move_outputs, 
-                      secret_store=kwargs.get("secret_store"), 
+                      rm_tmpdir, 
+                      move_outputs, 
+                      kwargs.get("secret_store"), 
                       kwargs.get("tmp_outdir_prefix"))
 
 
@@ -461,7 +461,7 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
         research_obj=kwargs.get("research_obj")
-        self._execute(runtime, env, research_obj, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"), kwargs.get("tmp_outdir_prefix"))  
+        self._execute(runtime, env, research_obj, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir, move_outputs, kwargs.get("secret_store"), kwargs.get("tmp_outdir_prefix"))  
 
 
 def _job_popen(
