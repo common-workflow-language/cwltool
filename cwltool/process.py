@@ -31,8 +31,9 @@ from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 from six import iteritems, itervalues, string_types
 
+from . import expression
 from .validate_js import validate_js_expressions
-from .utils import cmp_like_py2
+from .utils import cmp_like_py2, add_sizes
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
@@ -40,7 +41,8 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          ensure_writable)
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature, copytree_with_merge, onWindows
+from .utils import (aslist, get_feature, copytree_with_merge, onWindows,
+                    add_sizes)
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -361,6 +363,7 @@ def fillInDefaults(inputs, job):
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
+    add_sizes(job)
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -414,6 +417,12 @@ To fix, replace /var/spool/cwl with $(runtime.outdir) or
         for key, value in enumerate(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
     return r
+
+def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
+        if expression.needs_parsing(resource_req):
+            visit_class(builder.job, ("File",), add_sizes)
+            return builder.do_eval(resource_req)
+        return resource_req
 
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
@@ -566,6 +575,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         select_resources: callback to select compute resources
         debug: enable debugging output
         js_console: enable javascript console output
+        tmp_outdir_prefix: Path prefix for intermediate output directories
         """
 
         builder = Builder()
@@ -622,7 +632,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
+            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir")
+                    or tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]))
             if self.tool[u"class"] != 'Workflow':
                 builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
                 builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
@@ -696,9 +707,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             mn = None
             mx = None
             if resourceReq.get(a + "Min"):
-                mn = builder.do_eval(resourceReq[a + "Min"])
+                mn = eval_resource(builder, resourceReq[a + "Min"])
             if resourceReq.get(a + "Max"):
-                mx = builder.do_eval(resourceReq[a + "Max"])
+                mx = eval_resource(builder, resourceReq[a + "Max"])
             if mn is None:
                 mn = mx
             elif mx is None:

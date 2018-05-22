@@ -222,6 +222,9 @@ def interpolate(scan, rootvars,
     parts.append(scan)
     return ''.join(parts)
 
+def needs_parsing(snippet):  # type: (Any) -> bool
+    return isinstance(snippet, (str, Text)) \
+        and ("$(" in snippet or "${" in snippet)
 
 def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
             context=None, pull_image=True, timeout=None, force_docker_pull=False,
@@ -237,7 +240,8 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         u"self": context,
         u"runtime": runtime}
 
-    if isinstance(ex, (str, Text)) and ("$(" in ex or "${" in ex):
+    if needs_parsing(ex):
+        assert isinstance(ex, (str, Text))
         fullJS = False
         jslib = u""
         for r in reversed(requirements):

@@ -11,16 +11,12 @@ from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 import six
 from pkg_resources import resource_stream
-from .utils import onWindows
+from .utils import onWindows, subprocess
 
 try:
     import queue  # type: ignore
 except ImportError:
     import Queue as queue  # type: ignore
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
-else:
-    import subprocess  # type: ignore
 
 
 class JavascriptException(Exception):
@@ -75,13 +71,8 @@ def new_js_proc(js_text, force_docker_pull=False):
 
                 required_node_version = check_js_threshold_version(n)
                 break
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, OSError):
             pass
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                pass
-            else:
-                raise
 
     if nodejs is None or nodejs is not None and required_node_version is False:
         try:

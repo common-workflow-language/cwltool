@@ -1,21 +1,19 @@
 from __future__ import absolute_import
 import unittest
-import pytest
-import subprocess
 from os import path
 import sys
 import json
 import logging
 import tempfile
 import shutil
-
 from io import StringIO, BytesIO
+import schema_salad.validate
 
 from cwltool.errors import WorkflowException
 
 try:
     reload
-except:
+except:  # pylint: disable=bare-except
     try:
         from imp import reload
     except:
@@ -26,12 +24,12 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-import schema_salad.validate
 from cwltool.main import main
-from cwltool.utils import onWindows
+from cwltool.utils import onWindows, subprocess
 
 from .util import (get_data, needs_docker, get_windows_safe_factory,
         windows_needs_docker)
+
 
 sys.argv = ['']
 
