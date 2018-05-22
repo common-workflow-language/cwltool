@@ -440,7 +440,7 @@ def _job_popen(
         cwd,                       # type: Text
         job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
-        timeout=None,              # type: int
+        timelimit=None,            # type: int
         name=None                  # type: Text
        ):  # type: (...) -> int
 
