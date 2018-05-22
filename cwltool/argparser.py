@@ -208,12 +208,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")
     parser.add_argument("--no-match-user", action="store_true",
                         help="Disable passing the current uid to `docker run --user`")
-    parser.add_argument("--disable-net", action="store_true",
-                        help="Use docker's default networking for containers;"
-                             " the default is to enable networking.")
     parser.add_argument("--custom-net", type=Text,
-                        help="Will be passed to `docker run` as the '--net' "
-                             "parameter. Implies '--enable-net'.")
+                        help="Passed to `docker run` as the '--net' "
+                             "parameter when NetworkAccess is true.")
     parser.add_argument("--disable-validate", dest="do_validate",
                         action="store_false", default=True,
                         help=argparse.SUPPRESS)

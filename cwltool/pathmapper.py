@@ -17,7 +17,7 @@ from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
-from .utils import convert_pathsep_to_unix
+from .utils import convert_pathsep_to_unix, visit_class
 
 from .stdfsaccess import StdFsAccess, abspath
 
@@ -38,17 +38,6 @@ def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]
         for d in rec:
             adjustFiles(d, op)
 
-def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
-    """Apply a function to with "class" in cls."""
-
-    if isinstance(rec, dict):
-        if "class" in rec and rec.get("class") in cls:
-            op(rec)
-        for d in rec:
-            visit_class(rec[d], cls, op)
-    if isinstance(rec, list):
-        for d in rec:
-            visit_class(d, cls, op)
 
 def adjustFileObjs(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each File object in the object `rec`."""
