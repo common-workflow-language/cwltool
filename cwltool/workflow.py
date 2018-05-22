@@ -538,6 +538,7 @@ class WorkflowJob(object):
             #depends which one comes first. All steps are completed or all outputs have beend produced.
 
 import uuid
+
 def versionstring():
     # type: () -> Text
     '''
@@ -556,7 +557,9 @@ class Workflow(Process):
         self.parent_wf=None
         if kwargs["research_obj"]:
             cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-            engineUUID=uuid.uuid4().urn #UUID should be replaced with something else so that we don't have different UUIDs for the same engine.
+            #FIXME UUID should be replaced with something else so that we don't
+            # have different UUIDs for the same engine.
+            engineUUID=uuid.uuid4().urn
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
             self.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
@@ -868,6 +871,7 @@ class WorkflowStep(Process):
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]
+        #initialize sub-workflow as a step in the parent profile
         if self.embedded_tool.tool["class"] == "Workflow":
             self.embedded_tool.parent_wf=provObj
             ProcessName= self.tool["id"].split("#")[1]
