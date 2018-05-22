@@ -312,7 +312,7 @@ class WorkflowJob(object):
             _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
             wo = {}
             self.processStatus = "permanentFail"
-        if "functools" in str(type(final_output_callback)) and self.provObj:
+        if  self.provObj and self.provObj.workflowRunURI != self.parent_wf.workflowRunURI:
             ProcessRunID=None
             self.provObj.generate_outputProv(wo, ProcessRunID)
             self.provObj.document.wasEndedBy(self.provObj.workflowRunURI, None, self.provObj.engineUUID, datetime.datetime.now())
