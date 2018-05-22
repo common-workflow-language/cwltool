@@ -464,7 +464,7 @@ class WorkflowJob(object):
             self.processStatus = "permanentFail"
             step.completed = True
 
-    def run(self, document=None, WorkflowRunID=None, ProcessRunID=None,reference_locations=None, **kwargs):
+    def run(self, ProcessRunID=None,reference_locations=None, **kwargs):
         _logger.info(u"[%s] start", self.name)
 
 

@@ -124,7 +124,7 @@ class SingleJobExecutor(JobExecutor):
                     if kwargs["research_obj"]:
                         provObj=r.provObj
                         ProcessRunID, reference_locations = provObj._evaluate(t, r, job_order_object, make_fs_access, kwargs)
-                        r.run(provObj, ProcessRunID, reference_locations, **kwargs)
+                        r.run(ProcessRunID, reference_locations, **kwargs)
                     else:
                         r.run(**kwargs)
                 else:

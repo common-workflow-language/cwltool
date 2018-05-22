@@ -328,7 +328,6 @@ class JobBase(object):
 class CommandLineJob(JobBase):
 
     def run(self,
-            provObj=None,
             ProcessRunID=None,         # type: ProvEntity
             reference_locations=None,  # type: Dict[Text, Any]
             pull_image=True,           # type: bool
@@ -385,7 +384,7 @@ class ContainerCommandLineJob(JobBase):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
         pass
 
-    def run(self, ProvObj=None, ProcessRunID=None,
+    def run(self, ProcessRunID=None,
             reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
