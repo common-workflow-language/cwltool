@@ -16,8 +16,7 @@ from collections import Iterable
 from io import open
 from functools import cmp_to_key
 from typing import (Any, Callable, Dict, Generator, List, Set, Text,
-                    Tuple, Union, cast, Optional)
-import copy
+                    Tuple, Union, cast)
 
 import schema_salad.schema as schema
 import schema_salad.validate as validate
@@ -29,11 +28,9 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
-from six import iteritems, itervalues, string_types
 
-from . import expression
 from .validate_js import validate_js_expressions
-from .utils import cmp_like_py2, add_sizes
+from .utils import cmp_like_py2
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
 from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
@@ -41,8 +38,7 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          ensure_writable)
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .utils import (aslist, get_feature, copytree_with_merge, onWindows,
-                    add_sizes)
+from .utils import aslist, get_feature, copytree_with_merge, onWindows
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -363,7 +359,6 @@ def fillInDefaults(inputs, job):
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
-    add_sizes(job)
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -392,38 +387,6 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
         if ov["overrideTarget"] == toolid:
             req.update(ov)
     return req
-
-
-def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
-                           item=None,     # type: Optional[Any]
-                           obj_key=None,  # type: Optional[Any]
-                          ):              # type: (...)->bool
-    """ Detects any textual reference to /var/spool/cwl. """
-    r = False
-    if isinstance(obj, string_types):
-        if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
-            _logger.warn(SourceLine(
-                item=item, key=obj_key, raise_type=Text).makeError(
-"""Non-portable reference to /var/spool/cwl detected:
-  '{}'
-To fix, replace /var/spool/cwl with $(runtime.outdir) or
-  add DockerRequirement to the 'requirements' section and
-  declare 'dockerOutputDirectory: /var/spool/cwl'.""".format(obj)))
-            r = True
-    elif isinstance(obj, dict):
-        for key, value in iteritems(obj):
-            r = var_spool_cwl_detector(value, obj, key) or r
-    elif isinstance(obj, list):
-        for key, value in enumerate(obj):
-            r = var_spool_cwl_detector(value, obj, key) or r
-    return r
-
-def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
-        if expression.needs_parsing(resource_req):
-            visit_class(builder.job, ("File",), add_sizes)
-            return builder.do_eval(resource_req)
-        return resource_req
-
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, toolpath_object, **kwargs):
@@ -463,9 +426,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                              self.tool.get("requirements", []) +
                              get_overrides(kwargs.get("overrides", []), self.tool["id"]).get("requirements", []))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
-        # Versions of requirements and hints which aren't mutated.
-        self.original_requirements = copy.deepcopy(self.requirements)
-        self.original_hints = copy.deepcopy(self.hints)
         self.formatgraph = None  # type: Graph
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
@@ -538,25 +498,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 validate_js_options = None
             validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
-        dockerReq, is_req = self.get_requirement("DockerRequirement")
-
-        if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
-            _logger.warn(SourceLine(
-                item=dockerReq, raise_type=Text).makeError(
-"""When 'dockerOutputDirectory' is declared, DockerRequirement
-  should go in the 'requirements' section, not 'hints'."""))
-
-        if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
-            if is_req:
-                # In this specific case, it is legal to have /var/spool/cwl, so skip the check.
-                pass
-            else:
-                # Must be a requirement
-                var_spool_cwl_detector(self.tool)
-        else:
-            var_spool_cwl_detector(self.tool)
-
-    def _init_job(self, joborder, **kwargs):
+    def _init_job(self, joborder, provObj=None, **kwargs):
         # type: (Dict[Text, Text], **Any) -> Builder
         """
         kwargs:
@@ -574,7 +516,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         select_resources: callback to select compute resources
         debug: enable debugging output
         js_console: enable javascript console output
-        tmp_outdir_prefix: Path prefix for intermediate output directories
         """
 
         builder = Builder()
@@ -631,8 +572,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
             builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir")
-                    or tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]))
+            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir") or tempfile.mkdtemp())
             if self.tool[u"class"] != 'Workflow':
                 builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
                 builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
@@ -706,9 +646,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             mn = None
             mx = None
             if resourceReq.get(a + "Min"):
-                mn = eval_resource(builder, resourceReq[a + "Min"])
+                mn = builder.do_eval(resourceReq[a + "Min"])
             if resourceReq.get(a + "Max"):
-                mx = eval_resource(builder, resourceReq[a + "Max"])
+                mx = builder.do_eval(resourceReq[a + "Max"])
             if mn is None:
                 mn = mx
             elif mx is None:
@@ -820,11 +760,8 @@ def mergedirs(listing):
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
-        elif e["class"] == "Directory":
-            if e.get("listing"):
-                ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-            if ents[e["basename"]]["location"].startswith("_:"):
-                ents[e["basename"]]["location"] = e["location"]
+        elif e["class"] == "Directory" and e.get("listing"):
+            ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
     for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])

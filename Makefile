@@ -114,7 +114,7 @@ pylint_report.txt: ${PYSOURCES}
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
 
-.coverage: testcov
+.coverage: tests
 
 coverage: .coverage
 	coverage report
@@ -135,11 +135,7 @@ diff-cover.html: coverage-gcovr.xml coverage.xml
 		--html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
-test: $(pysources)
-	python setup.py test
-
-## testcov     : run the ${MODULE} test suite and collect coverage
-testcov: $(pysources)
+test: $(PYSOURCES)
 	python setup.py test --addopts "--cov cwltool"
 
 sloccount.sc: ${PYSOURCES} Makefile

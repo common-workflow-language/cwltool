@@ -3,8 +3,8 @@ import unittest
 import pytest
 from tempfile import NamedTemporaryFile
 
-from .util import needs_docker
 from cwltool.main import main
+from cwltool.utils import onWindows
 
 
 class ToolArgparse(unittest.TestCase):
@@ -26,7 +26,8 @@ stdout: test.txt
 baseCommand: [cat]
 '''
 
-    @needs_docker
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
     def test_spaces_in_input_files(self):
         with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script)

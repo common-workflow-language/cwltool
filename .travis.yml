@@ -1,6 +1,4 @@
-sudo: true
-services:
-  - docker
+sudo: false
 language: python
 cache: pip
 python:

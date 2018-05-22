@@ -47,7 +47,7 @@ from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, adjustFileObjs, get_listing,
                          trim_listing, visit_class)
-from .provenance import create_researchObject
+from .provenance import create_researchObject, create_ProvProfile
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
 from .process import (Process, normalizeFilesDirs,
                       scandeps, shortname, use_custom_schema,
@@ -58,7 +58,7 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import onWindows, windows_default_container_id, add_sizes
+from .utils import onWindows, windows_default_container_id
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
@@ -70,14 +70,13 @@ engineUUID=uuid.uuid4().urn
 
 def single_job_executor(t,                 # type: Process
                         job_order_object,  # type: Dict[Text, Any]
-                        provDoc=None,  # type: ProvDocument
                         **kwargs           # type: Any
                         ):
     # type: (...) -> Tuple[Dict[Text, Any], Text]
     warnings.warn("Use of single_job_executor function is deprecated. "
                   "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
     executor = SingleJobExecutor()
-    return executor(t, job_order_object, provDoc, **kwargs)
+    return executor(t, job_order_object, **kwargs)
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -250,7 +249,17 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             p["location"] = p["path"]
             del p["path"]
 
-  
+    def addSizes(p):
+        if 'location' in p:
+            try:
+                p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
+            except OSError:
+                pass
+        elif 'contents' in p:
+                p["size"] = len(p['contents'])
+        else:
+            return  # best effort
+
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
@@ -260,7 +269,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             p["format"] = ld.expand_url(p["format"], "")
 
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
-    visit_class(job_order_object, ("File",), add_sizes)
+    visit_class(job_order_object, ("File",), addSizes)
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
@@ -369,9 +378,9 @@ def main(argsl=None,  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
+    # pre-declared for finally block
     workflowobj = None
-    document=None
-    workflow_run_id=None
+    inputforProv = None
     try:
         if args is None:
             if argsl is None:
@@ -477,15 +486,9 @@ def main(argsl=None,  # type: List[str]
                 # Optionals, might be None
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)
-            # Ensure version starts with 'cwltool'
-            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-            workflow_run_id, document = args.research_obj.generate_provDoc(cwltoolVersion, engineUUID)
-            # Note: Record host info, if enabled
-            if (args.host_provenance):
-                args.research_obj.host_provenance(document)
-            # .. so user provenance may link to account@hostname
-            if (args.user_provenance):
-                args.research_obj.user_provenance(document)
+
+            
+
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
@@ -499,10 +502,14 @@ def main(argsl=None,  # type: List[str]
                                                                         fetcher_constructor,
                                                                         overrides,
                                                                         tool_file_uri)
+        except Exception as e:
+            _logger.error(Text(e), exc_info=args.debug)
+            return 1
 
-            if args.overrides:
-                overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
+        if args.overrides:
+            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
+        try:
             document_loader, workflowobj, uri = fetch_document(uri, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
 
@@ -616,8 +623,6 @@ def main(argsl=None,  # type: List[str]
             setattr(args, "tmp_outdir_prefix", args.cachedir)
 
         secret_store = SecretStore()
-        # pre-declared for finally block
-        inputforProv = None
 
         try:
             job_order_object, inputforProv = init_job_order(job_order_object, args, tool,
@@ -646,12 +651,9 @@ def main(argsl=None,  # type: List[str]
             del args.workflow
             del args.job_order
             (out, status) = executor(tool, job_order_object,
-                                     engineUUID=engineUUID,
                                      logger=_logger,
                                      makeTool=makeTool,
                                      select_resources=selectResources,
-                                     provDoc=document,
-                                     WorkflowID=workflow_run_id,
                                      make_fs_access=make_fs_access,
                                      secret_store=secret_store,
                                      **vars(args))
@@ -705,7 +707,6 @@ def main(argsl=None,  # type: List[str]
 
     finally:
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
-            document.wasEndedBy(workflow_run_id, None, engineUUID, datetime.datetime.now())
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
             args.research_obj.snapshot_generation(ProvDependencies[1])
@@ -715,8 +716,6 @@ def main(argsl=None,  # type: List[str]
             if job_order_object:
                 args.research_obj.snapshot_generation(job_order_object)
 
-            #adding prov profile and graphs to RO
-            args.research_obj.finalize_provProfile(document)
             args.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)

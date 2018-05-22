@@ -4,8 +4,9 @@ import pytest
 from tempfile import NamedTemporaryFile
 
 from cwltool.main import main
+from cwltool.utils import onWindows
 
-from .util import get_data, needs_docker
+from .util import get_data
 
 class ToolArgparse(unittest.TestCase):
     script = '''
@@ -65,7 +66,8 @@ expression: $(inputs.foo.two)
 outputs: []
 '''
 
-    @needs_docker
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
     def test_help(self):
         with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script)
@@ -73,8 +75,12 @@ outputs: []
             f.close()
             self.assertEquals(main(["--debug", f.name, '--input',
                 get_data('tests/echo.cwl')]), 0)
+            self.assertEquals(main(["--debug", f.name, '--input',
+                get_data('tests/echo.cwl')]), 0)
 
-    @needs_docker
+
+    @pytest.mark.skipif(onWindows(),
+                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
     def test_bool(self):
         with NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(self.script2)

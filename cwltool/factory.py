@@ -38,8 +38,7 @@ class Factory(object):
                  makeTool=workflow.defaultMakeTool,  # type: tCallable[[Any], Process]
                  # should be tCallable[[Dict[Text, Any], Any], Process] ?
                  executor=None,  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
-                 makekwargs={},  # type: Dict[Any, Any]
-                 **execkwargs    # type: Dict[Any, Any]
+                 **execkwargs  # type: Any
                  ):
         # type: (...) -> None
         self.makeTool = makeTool
@@ -47,19 +46,17 @@ class Factory(object):
             executor = SingleJobExecutor()
         self.executor = executor
 
-        newExecKwargs = get_default_args()
-        newExecKwargs.pop("job_order")
-        newExecKwargs.pop("workflow")
-        newExecKwargs.pop("outdir")
-        newExecKwargs.update(execkwargs)
-        self.execkwargs = newExecKwargs
-        self.makekwargs = makekwargs
+        kwargs = get_default_args()
+        kwargs.pop("job_order")
+        kwargs.pop("workflow")
+        kwargs.pop("outdir")
+        kwargs.update(execkwargs)
+        self.execkwargs = kwargs
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.makeTool,
-                                   strict=self.execkwargs.get("strict", True),
-                                   kwargs=self.makekwargs)
+                                   strict=self.execkwargs.get("strict", True))
         if isinstance(load, int):
             raise Exception("Error loading tool")
         return Callable(load, self)

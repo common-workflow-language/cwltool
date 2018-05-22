@@ -1,19 +1,18 @@
 from __future__ import absolute_import
 import unittest
+import pytest
+import subprocess
 from os import path
 import sys
-import json
-import logging
-import tempfile
-import shutil
-from io import StringIO, BytesIO
-import schema_salad.validate
+
+from io import StringIO
 
 from cwltool.errors import WorkflowException
+from cwltool.utils import onWindows
 
 try:
     reload
-except:  # pylint: disable=bare-except
+except:
     try:
         from imp import reload
     except:
@@ -24,12 +23,10 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
+import schema_salad.validate
 from cwltool.main import main
-from cwltool.utils import onWindows, subprocess
 
-from .util import (get_data, needs_docker, get_windows_safe_factory,
-        windows_needs_docker)
-
+from .util import get_data
 
 sys.argv = ['']
 
@@ -134,11 +131,10 @@ class TestParamMatching(unittest.TestCase):
         self.assertEqual(expr.interpolate("$(foo[\"b\\'ar\"].baz) $(foo[\"b\\'ar\"].baz)", inputs), "true true")
         self.assertEqual(expr.interpolate("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", inputs), "null null")
 
-class TestFactory(unittest.TestCase):
 
-    @windows_needs_docker
+class TestFactory(unittest.TestCase):
     def test_factory(self):
-        f = get_windows_safe_factory()
+        f = cwltool.factory.Factory()
         echo = f.make(get_data("tests/echo.cwl"))
         self.assertEqual(echo(inp="foo"), {"out": "foo\n"})
 
@@ -298,14 +294,6 @@ class TestScanDeps(unittest.TestCase):
             "nameext": ".cwl",
             "location": "file:///example/bar.cwl"
         }], sc)
-
-    def test_trick_scandeps(self):
-        if sys.version_info[0] < 3:
-            stream = BytesIO()
-        else:
-            stream = StringIO()
-        main(["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")], stdout=stream)
-        self.assertNotEquals(json.loads(stream.getvalue())["secondaryFiles"][0]["location"][:2], "_:")
 
 
 class TestDedup(unittest.TestCase):
@@ -568,49 +556,13 @@ class TestTypeCompare(unittest.TestCase):
             f = cwltool.factory.Factory()
             f.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
-    def test_var_spool_cwl_checker1(self):
+    def test_var_spool_cwl_checker(self):
         """ Confirm that references to /var/spool/cwl are caught."""
-
-        stream = StringIO()
-        streamhandler = logging.StreamHandler(stream)
-        _logger = logging.getLogger("cwltool")
-        _logger.addHandler(streamhandler)
-
-        try:
+        with self.assertRaises(schema_salad.validate.ValidationException):
             f = cwltool.factory.Factory()
             f.make(get_data("tests/non_portable.cwl"))
-            self.assertIn("non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected", stream.getvalue())
-        finally:
-            _logger.removeHandler(streamhandler)
-
-    def test_var_spool_cwl_checker2(self):
-        """ Confirm that references to /var/spool/cwl are caught."""
-
-        stream = StringIO()
-        streamhandler = logging.StreamHandler(stream)
-        _logger = logging.getLogger("cwltool")
-        _logger.addHandler(streamhandler)
-
-        try:
-            f = cwltool.factory.Factory()
-            f.make(get_data("tests/non_portable2.cwl"))
-            self.assertIn("non_portable2.cwl:19:4: Non-portable reference to /var/spool/cwl detected", stream.getvalue())
-        finally:
-            _logger.removeHandler(streamhandler)
-
-    def test_var_spool_cwl_checker3(self):
-        """ Confirm that references to /var/spool/cwl are caught."""
-
-        stream = StringIO()
-        streamhandler = logging.StreamHandler(stream)
-        _logger = logging.getLogger("cwltool")
-        _logger.addHandler(streamhandler)
-        try:
-            f = cwltool.factory.Factory()
-            f.make(get_data("tests/portable.cwl"))
-            self.assertNotIn("Non-portable reference to /var/spool/cwl detected", stream.getvalue())
-        finally:
-            _logger.removeHandler(streamhandler)
+        f = cwltool.factory.Factory(strict=False)
+        f.make(get_data("tests/non_portable.cwl"))
 
 class TestPrintDot(unittest.TestCase):
     def test_print_dot(self):
@@ -651,38 +603,24 @@ class TestJsConsole(TestCmdLine):
             self.assertNotIn("[err] Error message", stderr)
 
 
-@needs_docker
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
 class TestCache(TestCmdLine):
-    def setUp(self):
-        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
-
-    def tearDown(self):
-        shutil.rmtree(self.cache_dir)
-
     def test_wf_without_container(self):
         test_file = "hello-workflow.cwl"
-        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir,
+        error_code, stdout, stderr = self.get_main_output(["--cachedir", "cache",
                                                    get_data("tests/wf/" + test_file), "--usermessage", "hello"])
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
 
-    def test_issue_740_fixed(self):
-        test_file = "cache_test_workflow.cwl"
-        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir, get_data("tests/wf/" + test_file)])
-        self.assertIn("completed success", stderr)
-        self.assertEquals(error_code, 0)
-
-        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir, get_data("tests/wf/" + test_file)])
-        self.assertNotIn("Output of job will be cached in", stderr)
-        self.assertEquals(error_code, 0)
-
-
-@needs_docker
+@pytest.mark.skipif(onWindows(),
+                    reason="Instance of cwltool is used, on Windows it invokes a default docker container"
+                           "which is not supported on AppVeyor")
 class TestChecksum(TestCmdLine):
 
     def test_compute_checksum(self):
-        f = cwltool.factory.Factory(compute_checksum=True,
-                use_container=onWindows())
+        f = cwltool.factory.Factory(compute_checksum=True, use_container=False)
         echo = f.make(get_data("tests/wf/cat-tool.cwl"))
         output = echo(file1={
                 "class": "File",

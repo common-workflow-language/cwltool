@@ -13,7 +13,7 @@ from cwltool.sandboxjs import (check_js_threshold_version,
                                exec_js_process)
 import cwltool.sandboxjs
 from cwltool.utils import onWindows
-from .util import get_data, get_windows_safe_factory, windows_needs_docker
+from .util import get_data
 import pytest
 
 
@@ -47,9 +47,8 @@ class Javascript_Sanity_Checks(unittest.TestCase):
 
 class TestValueFrom(unittest.TestCase):
 
-    @windows_needs_docker
     def test_value_from_two_concatenated_expressions(self):
-        f = get_windows_safe_factory()
+        f = cwltool.factory.Factory()
         echo = f.make(get_data("tests/wf/vf-concat.cwl"))
         self.assertEqual(echo(), {u"out": u"a sting\n"})
 
