@@ -3,22 +3,16 @@ import tempfile
 import threading
 
 import os
-import copy
-import uuid
-import datetime
-import time
 from abc import ABCMeta, abstractmethod
-import prov.model as prov
 from typing import Dict, Text, Any, Tuple, Set, List
 from schema_salad.validate import ValidationException
-
+from schema_salad.sourceline import SourceLine
 from .builder import Builder
 from .errors import WorkflowException
 from .mutation import MutationManager
 from .job import JobBase
 from .process import relocateOutputs, cleanIntermediate, Process, shortname, uniquename, get_overrides
 from . import loghandler
-from schema_salad.sourceline import SourceLine
 
 
 _logger = logging.getLogger("cwltool")
@@ -45,7 +39,7 @@ class JobExecutor(object):
                  job_order_object,  # type: Dict[Text, Any]
                  engUUID,
                  document,
-                 WorkflowRunID,
+                 workflow_run_id,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any
@@ -106,13 +100,13 @@ class SingleJobExecutor(JobExecutor):
                  job_order_object,  # type: Dict[Text, Any]
                  engUUID,
                  document,
-                 WorkflowRunID,
+                 workflow_run_id,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any
                  ):
         reference_locations={} # type: Dict[Text, Any]
-        ProcessProvActivity=None
+        process_prov_activity=None
         jobiter = t.job(job_order_object,
                         self.output_callback,
                         **kwargs)
@@ -132,19 +126,19 @@ class SingleJobExecutor(JobExecutor):
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object)
-                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID)
+                            process_prov_activity = research_obj.startProcess(r, document, engUUID)
                         elif hasattr(r, "workflow"): #record provenance for the workflow execution
                             research_obj.prospective_prov(document, r)
                             customised_job=research_obj.copy_job_order(r, job_order_object)
                             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs) 
                             research_obj.declare_artefact(relativised_input_object, document, job_order_object)
                         else: #in case of commandline tool execution as part of workflow
-                            ProcessProvActivity = research_obj.startProcess(r, document, engUUID, WorkflowRunID)
-                        r.run(document, WorkflowRunID, ProcessProvActivity, reference_locations, **kwargs)
+                            process_prov_activity = research_obj.startProcess(r, document, engUUID, workflow_run_id)
+                        r.run(document, workflow_run_id, process_prov_activity, reference_locations, **kwargs)
                         #capture workflow level outputs in the prov doc
                         if self.final_output:
-                            ProcessRunID=None
-                            research_obj.generate_outputProv(self.final_output[0], document, WorkflowRunID, ProcessRunID)
+                            process_run_id=None
+                            research_obj.generate_outputProv(self.final_output[0], document, workflow_run_id, process_run_id)
                     else:
                         r.run(**kwargs)
                 else:
@@ -192,7 +186,7 @@ class MultithreadedJobExecutor(JobExecutor):
                  job_order_object,  # type: Dict[Text, Any]
                  engUUID,
                  document,
-                 WorkflowRunID,
+                 workflow_run_id,
                  logger,
                  make_fs_access,
                  **kwargs  # type: Any

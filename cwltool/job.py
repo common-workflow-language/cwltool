@@ -12,17 +12,14 @@ import stat
 import sys
 import tempfile
 import uuid
-import prov.model as prov
-from prov.model import ProvEntity, ProvDocument, PROV
+import datetime
+from prov.model import PROV
 from abc import ABCMeta, abstractmethod
 from io import open
 from threading import Lock
 
 import shellescape
-from .provenance import ResearchObject
-import time
-import datetime
-from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
+from .utils import copytree_with_merge, onWindows
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Union, cast)
 
@@ -189,8 +186,8 @@ class JobBase(object):
                  env,                       # type: MutableMapping[Text, Text]
                  research_obj,              # type: Any
                  document=None,             # type: ProvDocument
-                 WorkflowRunID=None,        # type: Text
-                 ProcessProvActivity=None,  # type: ProvEntity
+                 workflow_run_id=None,        # type: Text
+                 process_prov_activity=None,  # type: ProvEntity
                  reference_locations=None,  # type: Dict[Text, Any]
                  rm_tmpdir=True,            # type: bool
                  move_outputs="move",       # type: Text
@@ -215,7 +212,7 @@ class JobBase(object):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if hasattr(self, "joborder") and research_obj:
             job_order=self.joborder
-            research_obj.used_artefacts(job_order, ProcessProvActivity, document, reference_locations, str(self.name))
+            research_obj.used_artefacts(job_order, process_prov_activity, document, reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
@@ -273,9 +270,8 @@ class JobBase(object):
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
             #creating entities for the outputs produced by each step (in the provenance document)
             if research_obj:
-                ProcessRunID=str(ProcessProvActivity.identifier)
-                research_obj.generate_outputProv(outputs, document, WorkflowRunID, ProcessRunID, str(self.name))
-                
+                process_run_id = str(process_prov_activity.identifier)
+                research_obj.generate_outputProv(outputs, document, workflow_run_id, process_run_id, str(self.name))
         except OSError as e:
             if e.errno == 2:
                 if runtime:
@@ -292,7 +288,7 @@ class JobBase(object):
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         if research_obj:
-            document.wasEndedBy(str(ProcessProvActivity.identifier), None, WorkflowRunID, datetime.datetime.now())
+            document.wasEndedBy(str(process_prov_activity.identifier), None, workflow_run_id, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
@@ -330,8 +326,8 @@ class CommandLineJob(JobBase):
 
     def run(self,
             document=None,             # type: ProvDocument
-            WorkflowRunID=None,        # type: Text
-            ProcessProvActivity=None,  # type: ProvEntity
+            workflow_run_id=None,        # type: Text
+            process_prov_activity=None,  # type: ProvEntity
             reference_locations=None,  # type: Dict[Text, Any]
             pull_image=True,           # type: bool
             rm_container=True,         # type: bool
@@ -365,16 +361,19 @@ class CommandLineJob(JobBase):
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
         research_obj=kwargs.get("research_obj")
         self._execute([], env, research_obj, document, 
-                      WorkflowRunID, 
-                      ProcessProvActivity,
-                      reference_locations, 
-                      rm_tmpdir, 
-                      move_outputs, 
-                      kwargs.get("secret_store"), 
+                      workflow_run_id, 
+                      process_prov_activity,
+                      reference_locations,
+                      rm_tmpdir,
+                      move_outputs,
+                      kwargs.get("secret_store"),
                       kwargs.get("tmp_outdir_prefix"))
 
 
 class ContainerCommandLineJob(JobBase):
+    '''
+    Commandline job using containers
+    '''
     __metaclass__ = ABCMeta
 
     @abstractmethod
@@ -393,11 +392,15 @@ class ContainerCommandLineJob(JobBase):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
         pass
 
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,
+    def run(self, document=None, workflow_run_id=None, process_prov_activity=None,
             reference_locations=None, pull_image=True, rm_container=True,
             record_container_id=False, cidfile_dir="",
             cidfile_prefix="", rm_tmpdir=True, move_outputs="move", **kwargs):
         # type: (ProvDocument, Text, ProvEntity, Dict[Text, Any], bool, bool, bool, Text, Text, bool, Text, **Any) -> None 
+        '''
+        set up arguments for containerised
+        commandline tool execution
+        '''
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         img_id = None
@@ -431,7 +434,7 @@ class ContainerCommandLineJob(JobBase):
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
 
-                if document and img_id and ProcessProvActivity:
+                if document and img_id and process_prov_activity:
                     # TODO: Integrate with record_container_id 
                     container_agent = document.agent(uuid.uuid4().urn, 
                         {"prov:type": PROV["SoftwareAgent"],
@@ -441,8 +444,8 @@ class ContainerCommandLineJob(JobBase):
                     #img_entity = document.entity("nih:sha-256;%s" % img_id,
                     #                  {"prov:label": "Container image %s" % img_id} )                    
                     # The image is the plan for this activity-agent association
-                    #document.wasAssociatedWith(ProcessProvActivity, container_agent, img_entity)
-                    document.wasAssociatedWith(ProcessProvActivity, container_agent)
+                    #document.wasAssociatedWith(process_prov_activity, container_agent, img_entity)
+                    document.wasAssociatedWith(process_prov_activity, container_agent)
 
             except Exception as e:
                 container = "Singularity" if kwargs.get("singularity") else "Docker"
@@ -461,7 +464,7 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
         research_obj=kwargs.get("research_obj")
-        self._execute(runtime, env, research_obj, document, WorkflowRunID, ProcessProvActivity, reference_locations, rm_tmpdir, move_outputs, kwargs.get("secret_store"), kwargs.get("tmp_outdir_prefix"))  
+        self._execute(runtime, env, research_obj, document, workflow_run_id, process_prov_activity, reference_locations, rm_tmpdir, move_outputs, kwargs.get("secret_store"), kwargs.get("tmp_outdir_prefix"))  
 
 
 def _job_popen(

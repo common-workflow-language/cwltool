@@ -345,7 +345,10 @@ class WorkflowJob(object):
             self.processStatus = "permanentFail"
             step.completed = True
 
-    def run(self, document=None, WorkflowRunID=None, ProcessProvActivity=None,reference_locations=None, **kwargs):
+    def run(self, document = None, workflow_run_id = None, process_prov_activity = None,reference_locations = None, **kwargs):
+        '''
+        logs the start of each workflow
+        '''
         _logger.info(u"[%s] start", self.name)
 
 

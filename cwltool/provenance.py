@@ -972,27 +972,27 @@ class ResearchObject():
 
         _logger.info("[provenance] added all tag files")
 
-    def startProcess(self, r, document, engineUUID, WorkflowRunID=None):
+    def startProcess(self, r, document, engineUUID, workflow_run_id=None):
             # type: (Any, ProvDocument, str, str) -> None
             ## FIXME: What is the real name and type of r?
             ## process.py/workflow.py just says "Any" or "Generator"..
             '''
             record start of each Process
             '''
-            ProcessRunID=uuid.uuid4().urn
+            process_run_id=uuid.uuid4().urn
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
-            if WorkflowRunID:
+            if workflow_run_id:
                 provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                process_prov_activity = document.activity(process_run_id, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
             #if hasattr(r, 'name') and ".cwl" not in getattr(r, "name") and "workflow main" not in getattr(r, "name"):
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-                document.wasStartedBy(ProcessRunID, None, WorkflowRunID, datetime.datetime.now(), None, None)
+                document.wasAssociatedWith(process_run_id, engineUUID, str("wf:main/"+ProcessName))
+                document.wasStartedBy(process_run_id, None, workflow_run_id, datetime.datetime.now(), None, None)
             else:
                 provLabel="Run of CommandLineTool/packed.cwl#main/"
-                ProcessProvActivity = document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-                document.wasAssociatedWith(ProcessRunID, engineUUID, str("wf:main/"+ProcessName))
-                document.wasStartedBy(ProcessRunID, None, engineUUID, datetime.datetime.now(), None, None)
-            return ProcessProvActivity
+                process_prov_activity = document.activity(process_run_id, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+                document.wasAssociatedWith(process_run_id, engineUUID, str("wf:main/"+ProcessName))
+                document.wasStartedBy(process_run_id, None, engineUUID, datetime.datetime.now(), None, None)
+            return process_prov_activity
 
     def declare_artefact(self, relativised_input_object, document, job_order_object):
         # type: (Any, ProvDocument, Dict) -> None
@@ -1023,7 +1023,7 @@ class ResearchObject():
             pass
 
 
-    def generate_outputProv(self, final_output, document, WorkflowRunID=None, ProcessRunID=None, name=None):
+    def generate_outputProv(self, final_output, document, workflow_run_id=None, process_run_id=None, name=None):
         # type: (Dict, ProvDocument, str, str, str) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
@@ -1045,16 +1045,16 @@ class ResearchObject():
             # FIXME: What are these magic array[][] positions???
             output_checksum="data:"+str(tuple_entry[1][5:])
 
-            if ProcessRunID:
+            if process_run_id:
                 name = urllib.parse.quote(name, safe=":/,#")
                 stepProv = self.wf_ns["main"+"/"+name+"/"+str(tuple_entry[0])]
 
                 document.entity(output_checksum, {provM.PROV_TYPE: WFPROV["Artifact"]})
-                document.wasGeneratedBy(output_checksum, ProcessRunID, when, None, {"prov:role":stepProv})
+                document.wasGeneratedBy(output_checksum, process_run_id, when, None, {"prov:role":stepProv})
             else:
                 outputProvRole = self.wf_ns["main"+"/"+str(tuple_entry[0])]
                 document.entity(output_checksum, {provM.PROV_TYPE:WFPROV["Artifact"]})
-                document.wasGeneratedBy(output_checksum, WorkflowRunID, when, None, {"prov:role":outputProvRole })
+                document.wasGeneratedBy(output_checksum, workflow_run_id, when, None, {"prov:role":outputProvRole })
                 # FIXME: What are these magic array positions???
                 with open(tuple_entry[2][7:], "rb") as fp:
                     rel_path = self.add_data_file(fp, when)
@@ -1084,14 +1084,14 @@ class ResearchObject():
             new_d.append((key, current_dict['checksum'], current_dict['location']))
         return new_d
 
-    def used_artefacts(self, job_order, ProcessProvActivity, document, reference_locations, name):
+    def used_artefacts(self, job_order, process_prov_activity, document, reference_locations, name):
         # type: (Dict, Any, ProvDocument, ProvActivity, str) -> None
         '''
         adds used() for each data artefact
         '''
         for key, value in job_order.items():
             provRole = self.wf_ns["main/%s/%s" % (name, key)]
-            ProcessRunID=str(ProcessProvActivity.identifier)
+            process_run_id=str(process_prov_activity.identifier)
             if isinstance(value, dict) and 'location' in value:
                 location=str(value['location'])
                 #filename=location.split("/")[-1]
@@ -1102,7 +1102,7 @@ class ResearchObject():
                     _logger.info("[provenance] Used data w/ checksum %s", c)
                     (method, checksum) = value['checksum'].split("$", 1)
                     if (method == "sha1"):
-                        document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
+                        document.used(process_run_id, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
                         return # successfully logged
                     else:
                         _logger.warn("[provenance] Unknown checksum algorithm %s", method)
@@ -1121,7 +1121,7 @@ class ResearchObject():
                 with fsaccess.open(location, "rb") as f:
                     relative_path=self.add_data_file(f)
                     checksum = posixpath.basename(relative_path)
-                    document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
+                    document.used(process_run_id, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
 
             else:  # add the actual data value in the prov document
                 # Convert to bytes so we can get a hash (and add to RO)
@@ -1130,7 +1130,7 @@ class ResearchObject():
                 # FIXME: Don't naively assume add_data_file uses hash in filename!
                 data_id="data:%s" % posixpath.split(data_file)[1]
                 document.entity(data_id, {provM.PROV_TYPE:WFPROV["Artifact"], provM.PROV_VALUE:str(value)})
-                document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
+                document.used(process_run_id, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
     def copy_job_order(self, r, job_order_object):
         # type: (Any,Any) -> Any
