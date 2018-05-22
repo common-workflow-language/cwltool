@@ -260,7 +260,7 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
-        if provObj:
+        if provObj: 
             self.provObj=step.provObj
             self.parent_wf=step.parent_wf
     def job(self, joborder, output_callback, provObj=None, **kwargs):
