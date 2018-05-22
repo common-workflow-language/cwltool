@@ -446,7 +446,7 @@ class Workflow(Process):
 
         step_inputs = []  # type: List[Any]
         step_outputs = []  # type: List[Any]
-        param_to_step = {}
+        param_to_step = {}  # type: Dict[Text, Dict[Text, Any]]
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])

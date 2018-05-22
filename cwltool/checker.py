@@ -130,7 +130,7 @@ def _compare_records(src, sink, strict=False):
     return True
 
 def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step):
-    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]]) -> None
+    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], Dict[Text, Dict[Text, Any]]) -> None
     """Check if all source and sink types of a workflow are compatible before run time.
     """
 
