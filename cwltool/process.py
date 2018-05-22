@@ -74,6 +74,9 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "TimeLimit",
                                 "WorkReuse",
                                 "NetworkAccess",
+                                "http://commonwl.org/cwltool#TimeLimit",
+                                "http://commonwl.org/cwltool#WorkReuse",
+                                "http://commonwl.org/cwltool#NetworkAccess",
                                 "http://commonwl.org/cwltool#LoadListingRequirement",
                                 "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
 

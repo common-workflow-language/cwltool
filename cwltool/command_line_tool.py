@@ -250,7 +250,11 @@ class CommandLineTool(Process):
             ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
-        workReuse = self.get_requirement("WorkReuse")[0]
+        require_prefix = ""
+        if self.metadata["cwlVersion"] == "v1.0":
+            require_prefix = "http://commonwl.org/cwltool#"
+
+        workReuse = self.get_requirement(require_prefix+"WorkReuse")[0]
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
@@ -490,7 +494,7 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit = self.get_requirement("TimeLimit")[0]
+        timelimit = self.get_requirement(require_prefix+"TimeLimit")[0]
         if timelimit:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
@@ -499,7 +503,7 @@ class CommandLineTool(Process):
 
         if self.metadata["cwlVersion"] == "v1.0":
             j.networkaccess = True
-        networkaccess = self.get_requirement("NetworkAccess")[0]
+        networkaccess = self.get_requirement(require_prefix+"NetworkAccess")[0]
         if networkaccess:
             with SourceLine(networkaccess, "networkAccess", validate.ValidationException, debug):
                 j.networkaccess = builder.do_eval(networkaccess["networkAccess"])
