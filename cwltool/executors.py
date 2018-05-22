@@ -56,7 +56,6 @@ class JobExecutor(object):
                 t,                 # type: Process
                 job_order_object,  # type: Dict[Text, Any]
                 engineID=None,
-                logger=None,
                 makeTool=None,
                 select_resources=None,
                 provDoc=None,
