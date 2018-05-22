@@ -499,7 +499,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
     def _init_job(self, joborder, provObj=None, **kwargs):
-        # type: (Dict[Text, Text], **Any) -> Builder
+        # type: (Dict[Text, Text], ProvenanceObject, **Any) -> Builder
         """
         kwargs:
 

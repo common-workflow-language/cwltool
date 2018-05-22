@@ -251,7 +251,8 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
 
 
 class WorkflowJobStep(object):
-    def __init__(self, step, provObj=None, parent_wf=None):  # type: (Any) -> None
+    def __init__(self, step, provObj=None, parent_wf=None):
+        # type: (Any, Any, str, str) -> None
         
         self.step = step
         self.tool = step.tool
@@ -264,7 +265,7 @@ class WorkflowJobStep(object):
             self.provObj=step.provObj
             self.parent_wf=step.parent_wf
     def job(self, joborder, output_callback, provObj=None, **kwargs):
-        # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
+        # type: (Dict[Text, Text], functools.partial[None], str, **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
@@ -475,7 +476,7 @@ class WorkflowJob(object):
 
 
     def job(self, joborder, output_callback, provObj=None, **kwargs):
-        # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator
+        # type: (Dict[Text, Any], Callable[[Any, Any], Any], str, **Any) -> Generator
         self.state = {}
         self.processStatus = "success"
 
@@ -727,7 +728,7 @@ def check_all_types(src_dict, sinks, sourceField):
 
 class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, parentworkflowProv=None, **kwargs):
-        # type: (Dict[Text, Any], int, **Any) -> None
+        # type: (Dict[Text, Any], int, str, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
