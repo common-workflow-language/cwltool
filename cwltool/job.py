@@ -13,7 +13,7 @@ import sys
 import tempfile
 import uuid
 import datetime
-from prov.model import PROV
+from prov.model import PROV, ProvEntity, ProvDocument
 from abc import ABCMeta, abstractmethod
 from io import open
 from threading import Lock
