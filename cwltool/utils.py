@@ -5,7 +5,13 @@ from __future__ import absolute_import
 import os
 import shutil
 import stat
-from typing import Any, Callable, Dict, List, Text, Tuple, Union
+from functools import partial
+
+from typing import Any, Callable, Dict, List, Text, Tuple, Union, Iterable
+if os.name == 'posix':
+    import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
+else:
+    import subprocess  # type: ignore # pylint: disable=unused-import
 
 import six
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
@@ -175,3 +181,28 @@ def bytes2str_in_dicts(a):
 
     # simply return elements itself
     return a
+
+
+def add_sizes(obj):  # type: (Dict[Text, Any]) -> None
+       if 'location' in obj:
+           try:
+               obj["size"] = os.stat(obj["location"][7:]).st_size  # strip off file://
+           except OSError:
+               pass
+       elif 'contents' in obj:
+               obj["size"] = len(obj['contents'])
+       else:
+           return  # best effort
+
+
+def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to with "class" in cls."""
+
+    if isinstance(rec, dict):
+        if "class" in rec and rec.get("class") in cls:
+            op(rec)
+        for d in rec:
+            visit_class(rec[d], cls, op)
+    if isinstance(rec, list):
+        for d in rec:
+            visit_class(d, cls, op)

@@ -11,7 +11,7 @@ import cwltool.process
 import cwltool.workflow
 from cwltool.main import main
 from cwltool.utils import onWindows
-from .util import get_data
+from .util import get_data, needs_docker, windows_needs_docker
 
 
 @pytest.mark.skipif(onWindows(),
@@ -146,3 +146,22 @@ class TestInplaceUpdate(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
             shutil.rmtree(out)
+
+class TestV1_1backports(unittest.TestCase):
+    @needs_docker
+    def test_require_prefix_networkaccess(self):
+        self.assertEquals(main(["--enable-ext", get_data('tests/wf/networkaccess.cwl')]), 0)
+        self.assertEquals(main([get_data('tests/wf/networkaccess.cwl')]), 1)
+        self.assertEquals(main(["--enable-ext", get_data('tests/wf/networkaccess-fail.cwl')]), 1)
+
+    @needs_docker
+    def test_require_prefix_workreuse(self):
+        self.assertEquals(main(["--enable-ext", get_data('tests/wf/workreuse.cwl')]), 0)
+        self.assertEquals(main([get_data('tests/wf/workreuse.cwl')]), 1)
+        self.assertEquals(main(["--enable-ext", get_data('tests/wf/workreuse-fail.cwl')]), 1)
+
+    @windows_needs_docker
+    def test_require_prefix_timelimit(self):
+        self.assertEquals(main(["--enable-ext", get_data('tests/wf/timelimit.cwl')]), 0)
+        self.assertEquals(main([get_data('tests/wf/timelimit.cwl')]), 1)
+        self.assertEquals(main(["--enable-ext", get_data('tests/wf/timelimit-fail.cwl')]), 1)

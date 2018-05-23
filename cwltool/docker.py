@@ -230,9 +230,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if not kwargs.get("no_read_only"):
                 runtime.append(u"--read-only=true")
 
-            if kwargs.get("custom_net", None) is not None:
-                runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
-            elif kwargs.get("disable_net", None):
+            if self.networkaccess:
+                if kwargs.get("custom_net"):
+                    runtime.append(u"--net={0}".format(kwargs["custom_net"]))
+            else:
                 runtime.append(u"--net=none")
 
             if self.stdout:

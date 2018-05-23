@@ -251,8 +251,15 @@ class CommandLineTool(Process):
             ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
+        require_prefix = ""
+        if self.metadata["cwlVersion"] == "v1.0":
+            require_prefix = "http://commonwl.org/cwltool#"
+
+        workReuse = self.get_requirement(require_prefix+"WorkReuse")[0]
+        enableReuse = workReuse.get("enableReuse", True) if workReuse else True
+
         jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
-        if kwargs.get("cachedir"):
+        if kwargs.get("cachedir") and enableReuse:
             cacheargs = kwargs.copy()
             cacheargs["outdir"] = "/out"
             cacheargs["tmpdir"] = "/tmp"
@@ -487,6 +494,22 @@ class CommandLineTool(Process):
             adjustFileObjs(builder.bindings, register_reader)
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
+
+        timelimit = self.get_requirement(require_prefix+"TimeLimit")[0]
+        if timelimit:
+            with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
+                j.timelimit = builder.do_eval(timelimit["timelimit"])
+                if not isinstance(j.timelimit, int) or j.timelimit < 0:
+                    raise Exception("timelimit must be an integer >= 0, got: %s" % j.timelimit)
+
+        if self.metadata["cwlVersion"] == "v1.0":
+            j.networkaccess = True
+        networkaccess = self.get_requirement(require_prefix+"NetworkAccess")[0]
+        if networkaccess:
+            with SourceLine(networkaccess, "networkAccess", validate.ValidationException, debug):
+                j.networkaccess = builder.do_eval(networkaccess["networkAccess"])
+                if not isinstance(j.networkaccess, bool):
+                    raise Exception("networkAccess must be a boolean, got: %s" % j.networkaccess)
 
         j.environment = {}
         evr = self.get_requirement("EnvVarRequirement")[0]
