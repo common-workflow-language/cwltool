@@ -577,8 +577,11 @@ class Workflow(Process):
         self.steps = []  # type: List[WorkflowStep]
         validation_errors = []
         for n, step in enumerate(self.tool.get("steps", [])):
-            try: 
-                self.steps.append(WorkflowStep(step, n, self.provenanceObject, **kwargs))
+            try:
+                if kwargs["research_obj"]:
+                    self.steps.append(WorkflowStep(step, n, self.provenanceObject, **kwargs))
+                else:
+                    self.steps.append(WorkflowStep(step, n, **kwargs))
             except validate.ValidationException as v:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
