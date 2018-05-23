@@ -348,6 +348,10 @@ class CommandLineTool(Process):
                             jobcachepending))
 
         builder = self._init_job(job_order, provObj, **kwargs)
+        if kwargs["research_obj"]:
+            builder = self._init_job(job_order, provObj, **kwargs)
+        else:
+            builder = self._init_job(job_order, **kwargs)
 
         reffiles = copy.deepcopy(builder.files)
 

@@ -151,7 +151,8 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
 
 
 class WorkflowJobStep(object):
-    def __init__(self, step, provObj=None, parent_wf=None):  # type: (Any) -> None
+    def __init__(self, step, provObj=None, parent_wf=None):
+        # type: (Any, Any, str, str) -> None
         
         self.step = step
         self.tool = step.tool
@@ -160,11 +161,11 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
-        if provObj:
+        if provObj: 
             self.provObj=step.provObj
             self.parent_wf=step.parent_wf
     def job(self, joborder, output_callback, provObj=None, **kwargs):
-        # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
+        # type: (Dict[Text, Text], functools.partial[None], str, **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
@@ -175,7 +176,6 @@ class WorkflowJobStep(object):
         else:
             for j in self.step.job(joborder, output_callback,  **kwargs):
                 yield j      
-
 
 class WorkflowJob(object):
     def __init__(self, workflow, **kwargs):
@@ -190,6 +190,8 @@ class WorkflowJob(object):
         if kwargs["research_obj"]:
             self.provObj=workflow.provenanceObject
             self.parent_wf=workflow.parent_wf
+            
+            
         self.steps = [WorkflowJobStep(s, self.provObj, self.parent_wf) for s in workflow.steps]
         self.outdir = kwargs.get("outdir")
         self.outdir = tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix"))
@@ -364,12 +366,17 @@ class WorkflowJob(object):
             step.completed = True
 
     def run(self, ProcessRunID=None,reference_locations=None, **kwargs):
+        '''
+        logs the start of each workflow
+        '''
+
         _logger.info(u"[%s] start", self.name)
 
 
 
     def job(self, joborder, output_callback, provObj=None, **kwargs):
-        # type: (Dict[Text, Any], Callable[[Any, Any], Any], **Any) -> Generator
+        # type: (Dict[Text, Any], Callable[[Any, Any], Any], str, **Any) -> Generator
+
         self.state = {}
         self.processStatus = "success"
 
@@ -530,7 +537,7 @@ class Workflow(Process):
 
 class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, parentworkflowProv=None, **kwargs):
-        # type: (Dict[Text, Any], int, **Any) -> None
+        # type: (Dict[Text, Any], int, str, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -695,7 +702,6 @@ class WorkflowStep(Process):
             if not i.get("not_connected"):
                 job_order[field] = job_order[i["id"]]
             del job_order[i["id"]]
-
         try:
             if kwargs["research_obj"]:
                 for t in self.embedded_tool.job(job_order,

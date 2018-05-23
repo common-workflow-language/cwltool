@@ -13,14 +13,15 @@ import sys
 import tempfile
 import uuid
 import prov.model as prov
-from prov.model import ProvEntity, ProvDocument, PROV
+import datetime
+from prov.model import PROV, ProvEntity, ProvDocument
 import threading
 from abc import ABCMeta, abstractmethod
 from io import open
 from threading import Lock
 
 import shellescape
-from .provenance import ResearchObject
+from .provenance import ResearchObject  
 import time
 import datetime
 from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
@@ -198,8 +199,9 @@ class JobBase(object):
                  rm_tmpdir=True,            # type: bool
                  move_outputs="move",       # type: Text
                  secret_store=None,         # type: SecretStore
-                 tmp_outdir_prefix=None  # type: Text
-                ):  # type: (...) -> None
+                 tmp_outdir_prefix=None     # type: Text
+                 ):  # type (...) ->  None
+                 
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
         shouldquote = None  # type: Callable[[Any], Any]
@@ -259,11 +261,15 @@ class JobBase(object):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
+                job_dir=tempfile.mkdtemp(prefix=str(tmp_outdir_prefix)),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name
             )
+
+
+
+
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
             elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
@@ -280,7 +286,6 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
-
         except OSError as e:
             if e.errno == 2:
                 if runtime:
@@ -376,6 +381,9 @@ class CommandLineJob(JobBase):
 
 
 class ContainerCommandLineJob(JobBase):
+    '''
+    Commandline job using containers
+    '''
     __metaclass__ = ABCMeta
 
     @abstractmethod

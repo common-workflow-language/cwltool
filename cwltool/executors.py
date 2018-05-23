@@ -10,7 +10,7 @@ from abc import ABCMeta, abstractmethod
 import prov.model as prov
 from typing import Dict, Text, Any, Tuple, Set, List
 from schema_salad.validate import ValidationException
-
+from schema_salad.sourceline import SourceLine
 from .builder import Builder
 from .errors import WorkflowException
 from .mutation import MutationManager
@@ -18,6 +18,7 @@ from .job import JobBase
 from .process import relocateOutputs, cleanIntermediate, Process, shortname, uniquename, get_overrides
 from . import loghandler
 from schema_salad.sourceline import SourceLine
+import datetime
 
 
 _logger = logging.getLogger("cwltool")
@@ -52,9 +53,14 @@ class JobExecutor(object):
                 t,                 # type: Process
                 job_order_object,  # type: Dict[Text, Any]
                 make_fs_access=None,
+                makeTool=None,
+                select_resources=None,
+                make_fs_access=None,
+                secret_store=None,
                 logger=_logger,
                 **kwargs           # type: Any
                 ):  # type: (...) -> Tuple[Dict[Text, Any], Text]
+
 
         if "basedir" not in kwargs:
             raise WorkflowException("Must provide 'basedir' in kwargs")

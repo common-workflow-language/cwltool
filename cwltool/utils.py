@@ -192,7 +192,6 @@ def bytes2str_in_dicts(a):
     # simply return elements itself
     return a
 
-
 def add_sizes(obj):  # type: (Dict[Text, Any]) -> None
        if 'location' in obj:
            try:

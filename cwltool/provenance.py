@@ -385,7 +385,7 @@ class create_ProvProfile():
         return ProcessRunID, reference_locations
 
     def startProcess(self, ProcessName, ProcessRunID=None):
-            # type: (Any, ProvDocument, str, str) -> None
+            # type: (Any, str, str) -> None
             '''
             record start of each Process
             '''
@@ -561,7 +561,7 @@ class create_ProvProfile():
         # TODO: Declare roles/parameters as well
 
     def finalize_provProfile(self, name):
-            # type: () -> None
+            # type: (str) -> None
             '''
             Transfer the provenance related files to RO
             '''

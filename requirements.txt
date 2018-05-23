@@ -11,4 +11,9 @@ graphviz==0.8.2
 # for testing only
 bagit==1.6.4
 subprocess32 >= 3.5.0; os.name=="posix"
+prov==1.5.1
+graphviz==0.8.2
+# for testing only
+bagit==1.6.4
+subprocess32 >= 3.5.0; os.name=="posix"
 

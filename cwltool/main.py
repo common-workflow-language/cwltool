@@ -61,11 +61,14 @@ from .update import ALLUPDATES, UPDATES
 
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 from .utils import onWindows, windows_default_container_id, add_sizes
+from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
 _logger.setLevel(logging.INFO)
 
 engineUUID=uuid.uuid4().urn
+
+
 
 
 
@@ -250,7 +253,17 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             p["location"] = p["path"]
             del p["path"]
 
-  
+    def addSizes(p):
+        if 'location' in p:
+            try:
+                p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
+            except OSError:
+                pass
+        elif 'contents' in p:
+                p["size"] = len(p['contents'])
+        else:
+            return  # best effort
+
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
@@ -260,7 +273,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             p["format"] = ld.expand_url(p["format"], "")
 
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
-    visit_class(job_order_object, ("File",), add_sizes)
+    visit_class(job_order_object, ("File",), addSizes)
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
@@ -478,7 +491,6 @@ def main(argsl=None,  # type: List[str]
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)
 
-            
 
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
@@ -493,10 +505,13 @@ def main(argsl=None,  # type: List[str]
                                                                         fetcher_constructor,
                                                                         overrides,
                                                                         tool_file_uri)
+        except Exception as e:
+            _logger.error(Text(e), exc_info=args.debug)
+            return 1
 
-            if args.overrides:
-                overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
-
+        if args.overrides:
+            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
+        try:
             document_loader, workflowobj, uri = fetch_document(uri, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
 
