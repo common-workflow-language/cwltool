@@ -161,16 +161,16 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
-        if provObj: 
-            self.provObj=step.provObj
-            self.parent_wf=step.parent_wf
+        self.provObj=step.provObj
+        self.parent_wf=step.parent_wf
+
     def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], str, **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         _logger.info(u"[%s] start", self.name)
-        if kwargs["research_obj"]:
+        if "research_obj" in kwargs:
             for j in self.step.job(joborder, output_callback, self.provObj,  **kwargs):
                 yield j
         else:
@@ -187,7 +187,7 @@ class WorkflowJob(object):
         self.state = None  # type: Dict[Text, WorkflowStateItem]
         self.processStatus = None  # type: Text
         self.did_callback = False
-        if kwargs["research_obj"]:
+        if "research_obj" in kwargs:
             self.provObj=workflow.provenanceObject
             self.parent_wf=workflow.parent_wf
             
@@ -461,7 +461,8 @@ class Workflow(Process):
         # type: (Dict[Text, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
         self.parent_wf=None
-        if kwargs["research_obj"]:
+        self.provenanceObject=None
+        if "research_obj" in kwargs and kwargs["research_obj"]:
             cwltoolVersion="cwltool %s" % versionstring().split()[-1]
             #FIXME UUID should be replaced with something else so that we don't
             # have different UUIDs for the same engine.
@@ -479,10 +480,7 @@ class Workflow(Process):
         validation_errors = []
         for n, step in enumerate(self.tool.get("steps", [])):
             try:
-                if kwargs["research_obj"]:
-                    self.steps.append(WorkflowStep(step, n, self.provenanceObject, **kwargs))
-                else:
-                    self.steps.append(WorkflowStep(step, n, **kwargs))
+                self.steps.append(WorkflowStep(step, n, self.provenanceObject, **kwargs))
             except validate.ValidationException as v:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -666,7 +664,7 @@ class WorkflowStep(Process):
                     op["type"] = {"type": "array", "items": op["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        if kwargs["research_obj"]:
+        if "research_obj" in kwargs:
             self.provObj=parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
                 self.parent_wf= self.embedded_tool.parent_wf
@@ -692,7 +690,8 @@ class WorkflowStep(Process):
             ):
         # type: (...) -> Generator[Any, None, None]
         #initialize sub-workflow as a step in the parent profile
-        if self.embedded_tool.tool["class"] == "Workflow" and kwargs["research_obj"]:
+        if self.embedded_tool.tool["class"] == "Workflow" \
+                and "research_obj" in kwargs:
             self.embedded_tool.parent_wf=provObj
             ProcessName= self.tool["id"].split("#")[1]
             self.embedded_tool.parent_wf.startProcess(ProcessName, self.embedded_tool.provenanceObject.workflowRunURI)
@@ -703,7 +702,7 @@ class WorkflowStep(Process):
                 job_order[field] = job_order[i["id"]]
             del job_order[i["id"]]
         try:
-            if kwargs["research_obj"]:
+            if "research_obj" in kwargs:
                 for t in self.embedded_tool.job(job_order,
                                                 functools.partial(
                                                     self.receive_output,

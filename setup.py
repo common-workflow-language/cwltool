@@ -59,7 +59,6 @@ setup(name='cwltool',
           'prov == 1.5.1',
           'graphviz == 0.8.2',
           'bagit >= 1.6.4',
-          'future'
       ],
       extras_require={
           ':os.name=="posix"': ['subprocess32 >= 3.5.0'],

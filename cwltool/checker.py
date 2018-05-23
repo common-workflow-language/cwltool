@@ -67,6 +67,8 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
     if src == "Any" or sink == "Any":
         return True
     if isinstance(src, dict) and isinstance(sink, dict):
+        if sink.get("not_connected") and strict:
+            return False
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(src["items"], sink["items"], strict)
         elif src["type"] == "record" and sink["type"] == "record":
@@ -165,6 +167,13 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
                     "source '%s' does not include secondaryFiles." % (shortname(src["id"])))
             msg4 = SourceLine(src, "id").makeError("To fix, add secondaryFiles: %s to definition of '%s'." % (sink.get("secondaryFiles"), shortname(src["id"])))
             msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg2, msg3, msg4], "  ")))
+        elif sink.get("not_connected"):
+            msg = SourceLine(sink, "type").makeError(
+                "'%s' is not an input parameter of %s, expected %s"
+                % (shortname(sink["id"]), param_to_step[sink["id"]]["run"],
+                   ", ".join(shortname(s["id"])
+                             for s in param_to_step[sink["id"]]["inputs"]
+                             if not s.get("not_connected"))))
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"

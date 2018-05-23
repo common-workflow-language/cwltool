@@ -88,12 +88,15 @@ class JobExecutor(object):
         if kwargs.get("rm_tmpdir"):
             cleanIntermediate(self.output_dirs)
         
-        if self.final_output and self.final_status:
-            if kwargs["research_obj"]:
+        if self.final_output and self.final_status \
+                and hasattr(t, 'parent_wf') and t.parent_wf:
+            if "research_obj" in kwargs and kwargs["research_obj"]:
                 ProcessRunID=None
                 name="primary"
                 t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
-                t.parent_wf.document.wasEndedBy(t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID, datetime.datetime.now())
+                t.parent_wf.document.wasEndedBy(
+                    t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID,
+                    datetime.datetime.now())
                 t.parent_wf.finalize_provProfile(name)
             return (self.final_output[0], self.final_status[0])
         else:
@@ -121,7 +124,7 @@ class SingleJobExecutor(JobExecutor):
                         r.builder = builder
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
-                    if kwargs["research_obj"]:
+                    if "research_obj" in kwargs and kwargs["research_obj"]:
                         provObj=r.provObj
                         ProcessRunID, reference_locations = provObj._evaluate(t, r, job_order_object, make_fs_access, kwargs)
                         r.run(ProcessRunID, reference_locations, **kwargs)

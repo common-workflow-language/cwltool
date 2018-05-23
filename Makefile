@@ -32,6 +32,13 @@ DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+UNAME_S=$(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	nproc=$(shell nproc)
+endif
+ifeq ($(UNAME_S),Darwin)
+	nproc=$(sysctl -n hw.physicalcpu)
+endif
 
 ## all         : default task
 all:
@@ -105,11 +112,11 @@ format: autopep8
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-                $^ || true
+                $^ -j$(nproc)|| true
 
 pylint_report.txt: ${PYSOURCES}
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ > pylint_report.txt || true
+		$^ -j$(nproc)> pylint_report.txt || true
 
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt

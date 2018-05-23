@@ -47,10 +47,6 @@ from typing import Any, Dict, Set, List, Tuple, Text, Optional, IO, Callable, ca
 from subprocess import check_call
 from schema_salad.sourceline import SourceLine
 
-
-# This will need "pip install future" on Python 2 (!)
-from past.builtins import basestring
-
 from socket import getfqdn
 from getpass import getuser
 try:
@@ -524,7 +520,7 @@ class create_ProvProfile():
                 self.declare_artefact(o, job_order_object)
             return
 
-        if isinstance(relativised_input_object, basestring):
+        if isinstance(relativised_input_object, (str, Text)):
             # Just a string value, no need to iterate further
             # FIXME: Should these be added as PROV entities as well?
             return
@@ -1179,7 +1175,7 @@ class ResearchObject():
                 self._relativise_files(o, kwargs, relativised_input_objecttemp2)
             return
 
-        if isinstance(structure, basestring):
+        if isinstance(structure, (str, Text)):
             # Just a string value, no need to iterate further
             return
         try:
