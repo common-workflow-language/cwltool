@@ -691,7 +691,7 @@ class WorkflowStep(Process):
         # type: (...) -> Generator[Any, None, None]
         #initialize sub-workflow as a step in the parent profile
         if self.embedded_tool.tool["class"] == "Workflow" \
-                and "research_obj" in kwargs:
+                and "research_obj" in kwargs and kwargs["research_obj"]:
             self.embedded_tool.parent_wf=provObj
             ProcessName= self.tool["id"].split("#")[1]
             self.embedded_tool.parent_wf.startProcess(ProcessName, self.embedded_tool.provenanceObject.workflowRunURI)
