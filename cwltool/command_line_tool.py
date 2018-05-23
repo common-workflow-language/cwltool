@@ -347,7 +347,6 @@ class CommandLineTool(Process):
                     partial(rm_pending_output_callback, output_callbacks,
                             jobcachepending))
 
-        builder = self._init_job(job_order, provObj, **kwargs)
         if kwargs["research_obj"]:
             builder = self._init_job(job_order, provObj, **kwargs)
         else:
