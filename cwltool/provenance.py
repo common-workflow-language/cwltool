@@ -177,8 +177,10 @@ class WritableBagFile(io.FileIO):
     # the current hash, then having to recalculate at close()
     def seekable(self):
         return False
+
     def readable(self):
         return False
+
     def truncate(self, size=None):
         # type: (Optional[int]) -> None
         # FIXME: This breaks contract io.IOBase,
@@ -213,7 +215,7 @@ def _check_mod_11_2(numeric_string):
     # Compare against last digit or X
     return nums[-1].upper() == checkdigit
 
-def _valid_orcid(orcid): # type: (Text) -> Text
+def _valid_orcid(orcid):  # type: (Text) -> Text
     """Ensure orcid is a valid ORCID identifier.
 
     If the string is None or empty, None is returned.
@@ -236,19 +238,19 @@ def _valid_orcid(orcid): # type: (Text) -> Text
     # Liberal in what we consume, e.g. ORCID.org/0000-0002-1825-009x
     orcid = orcid.lower()
     match = re.match(
-            # Note: concatinated r"" r"" below so we can add comments to pattern
+        # Note: concatinated r"" r"" below so we can add comments to pattern
 
-            # Optional hostname, with or without protocol
-            r"(http://orcid\.org/|https://orcid\.org/|orcid\.org/)?"
-            ## alternative pattern, but probably messier
-            ## r"^((https?://)?orcid.org/)?"
+        # Optional hostname, with or without protocol
+        r"(http://orcid\.org/|https://orcid\.org/|orcid\.org/)?"
+        ## alternative pattern, but probably messier
+        ## r"^((https?://)?orcid.org/)?"
 
-            # ORCID number is always 4x4 numerical digits,
-            # but last digit (modulus 11 checksum)
-            # can also be X (but we made it lowercase above).
-            # e.g. 0000-0002-1825-0097
-            # or   0000-0002-1694-233x
-            r"(?P<orcid>(\d{4}-\d{4}-\d{4}-\d{3}[0-9x]))$",
+        # ORCID number is always 4x4 numerical digits,
+        # but last digit (modulus 11 checksum)
+        # can also be X (but we made it lowercase above).
+        # e.g. 0000-0002-1825-0097
+        # or   0000-0002-1694-233x
+        r"(?P<orcid>(\d{4}-\d{4}-\d{4}-\d{3}[0-9x]))$",
         orcid)
 
     help_url=u"https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier"
@@ -283,7 +285,7 @@ class create_ProvProfile():
             _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
         self.full_name = full_name or None
         if self.full_name:
-            _logger.info(u"[provenance] Creator Full name: %s", self.full_name) 
+            _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
 
     def generate_provDoc(self, cwltoolVersion, engineUUID):
         # type: (str, str) -> Tuple[str, ProvDocument]
@@ -361,44 +363,44 @@ class create_ProvProfile():
         evaluate the nature of r and 
         initialize the activity start
         '''
-        reference_locations={} # type: Dict[Text, Any]
+        reference_locations={}  # type: Dict[Text, Any]
         ProcessRunID=None
         research_obj=kwargs["research_obj"]
-        if not hasattr(t, "steps"): #record provenance of an independent commandline tool execution
+        if not hasattr(t, "steps"):  # record provenance of an independent commandline tool execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)
             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
             self.declare_artefact(relativised_input_object, job_order_object)
             ProcessRunID = self.startProcess(r)
-        elif hasattr(r, "workflow"): #record provenance for the workflow execution
+        elif hasattr(r, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)
             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
             self.declare_artefact(relativised_input_object, job_order_object)
-        else: #in case of commandline tool execution as part of workflow
+        else:  # in case of commandline tool execution as part of workflow
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
             ProcessRunID = self.startProcess(ProcessName)
         return ProcessRunID, reference_locations
 
     def startProcess(self, ProcessName, ProcessRunID=None):
             # type: (Any, str, str) -> None
-            '''
-            record start of each Process
-            '''
-            if ProcessRunID == None:
-                ProcessRunID=uuid.uuid4().urn
-            if self.workflowRunURI:
-                provLabel="Run of workflow/packed.cwl#main/"+ProcessName
-                self.document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-                self.document.wasAssociatedWith(ProcessRunID, self.engineUUID, str("wf:main/"+ProcessName))
-                self.document.wasStartedBy(ProcessRunID, None, self.workflowRunURI, datetime.datetime.now(), None, None)
-            else:
-                provLabel="Run of CommandLineTool/packed.cwl#main/"
-                self.document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
-                self.document.wasAssociatedWith(ProcessRunID, self.engineUUID, str("wf:main/"+ProcessName))
-                self.document.wasStartedBy(ProcessRunID, None, self.engineUUID, datetime.datetime.now(), None, None)
-            return ProcessRunID
-    
+        '''
+        record start of each Process
+        '''
+        if ProcessRunID == None:
+            ProcessRunID=uuid.uuid4().urn
+        if self.workflowRunURI:
+            provLabel="Run of workflow/packed.cwl#main/"+ProcessName
+            self.document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+            self.document.wasAssociatedWith(ProcessRunID, self.engineUUID, str("wf:main/"+ProcessName))
+            self.document.wasStartedBy(ProcessRunID, None, self.workflowRunURI, datetime.datetime.now(), None, None)
+        else:
+            provLabel="Run of CommandLineTool/packed.cwl#main/"
+            self.document.activity(ProcessRunID, None, None, {provM.PROV_TYPE: WFPROV["ProcessRun"], "prov:label": provLabel})
+            self.document.wasAssociatedWith(ProcessRunID, self.engineUUID, str("wf:main/"+ProcessName))
+            self.document.wasStartedBy(ProcessRunID, None, self.engineUUID, datetime.datetime.now(), None, None)
+        return ProcessRunID
+
     def used_artefacts(self, job_order, ProcessRunID, reference_locations, name):
         # type: (Dict, ProvActivity, str, str) -> None
         '''
@@ -415,7 +417,7 @@ class create_ProvProfile():
                     (method, checksum) = value['checksum'].split("$", 1)
                     if (method == "sha1"):
                         self.document.used(ProcessRunID, "data:%s" % checksum, datetime.datetime.now(),None, {"prov:role":provRole })
-                        return # successfully logged
+                        return  # successfully logged
                     else:
                         _logger.warn("[provenance] Unknown checksum algorithm %s", method)
                         pass
@@ -451,12 +453,12 @@ class create_ProvProfile():
         '''
         ## A bit too late, but we don't know the "inner" when
         when = datetime.datetime.now()
-        key_files=[] # type: List[List[Any]]
+        key_files=[]  # type: List[List[Any]]
         for key, value in final_output.items():
 
             if isinstance(value, list):
                 key_files.append(self.array_output(key, value))
-            elif isinstance (value, dict):
+            elif isinstance(value, dict):
                 key_files.append(self.dict_output(key, value))
 
         merged_total= list(itertools.chain.from_iterable(key_files))
@@ -558,50 +560,50 @@ class create_ProvProfile():
 
     def finalize_provProfile(self, name):
             # type: (str) -> None
-            '''
-            Transfer the provenance related files to RO
-            '''
-            #self.prov_document = document
-            # TODO: Generate filename per workflow run also for nested workflows
-            # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
-            # NOTE: Relative posix path
-            wf_name=urllib.parse.quote(str(name), safe=":/,#")
-            filename=wf_name+".cwlprov"
-            basename = posixpath.join(_posix_path(PROVENANCE), filename)
-            # TODO: Also support other profiles than CWLProv, e.g. ProvOne
+        '''
+        Transfer the provenance related files to RO
+        '''
+        #self.prov_document = document
+        # TODO: Generate filename per workflow run also for nested workflows
+        # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
+        # NOTE: Relative posix path
+        wf_name=urllib.parse.quote(str(name), safe=":/,#")
+        filename=wf_name+".cwlprov"
+        basename = posixpath.join(_posix_path(PROVENANCE), filename)
+        # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
-            # https://www.w3.org/TR/prov-xml/
-            with self.ro.write_bag_file(basename + ".xml") as fp:
-                self.document.serialize(fp, format="xml", indent=4)
+        # https://www.w3.org/TR/prov-xml/
+        with self.ro.write_bag_file(basename + ".xml") as fp:
+            self.document.serialize(fp, format="xml", indent=4)
 
-            # https://www.w3.org/TR/prov-n/
-            with self.ro.write_bag_file(basename + ".provn") as fp:
-                self.document.serialize(fp, format="provn", indent=2)
+        # https://www.w3.org/TR/prov-n/
+        with self.ro.write_bag_file(basename + ".provn") as fp:
+            self.document.serialize(fp, format="provn", indent=2)
 
 
-            # https://www.w3.org/Submission/prov-json/
-            with self.ro.write_bag_file(basename + ".json") as fp:
-                self.document.serialize(fp, format="json", indent=2)
+        # https://www.w3.org/Submission/prov-json/
+        with self.ro.write_bag_file(basename + ".json") as fp:
+            self.document.serialize(fp, format="json", indent=2)
 
-            # "rdf" aka https://www.w3.org/TR/prov-o/
-            # which can be serialized to ttl/nt/jsonld (and more!)
+        # "rdf" aka https://www.w3.org/TR/prov-o/
+        # which can be serialized to ttl/nt/jsonld (and more!)
 
-            # https://www.w3.org/TR/turtle/
-            with self.ro.write_bag_file(basename + ".ttl") as fp:
-                self.document.serialize(fp, format="rdf", rdf_format="turtle")
+        # https://www.w3.org/TR/turtle/
+        with self.ro.write_bag_file(basename + ".ttl") as fp:
+            self.document.serialize(fp, format="rdf", rdf_format="turtle")
 
-            # https://www.w3.org/TR/n-triples/
-            with self.ro.write_bag_file(basename + ".nt") as fp:
-                self.document.serialize(fp, format="rdf", rdf_format="ntriples")
+        # https://www.w3.org/TR/n-triples/
+        with self.ro.write_bag_file(basename + ".nt") as fp:
+            self.document.serialize(fp, format="rdf", rdf_format="ntriples")
 
-            # https://www.w3.org/TR/json-ld/
-            # TODO: Use a nice JSON-LD context
-            # see also https://eprints.soton.ac.uk/395985/
-            # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
-            with self.ro.write_bag_file(basename + ".jsonld") as fp:
-                self.document.serialize(fp, format="rdf", rdf_format="json-ld")
+        # https://www.w3.org/TR/json-ld/
+        # TODO: Use a nice JSON-LD context
+        # see also https://eprints.soton.ac.uk/395985/
+        # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
+        with self.ro.write_bag_file(basename + ".jsonld") as fp:
+            self.document.serialize(fp, format="rdf", rdf_format="json-ld")
 
-            _logger.info("[provenance] added all tag files")
+        _logger.info("[provenance] added all tag files")
 
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
@@ -616,9 +618,9 @@ class ResearchObject():
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
         self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))
         # map of filename "data/de/alsdklkas": 12398123 bytes
-        self.bagged_size = {} #type: Dict
-        self.tagfiles = set() #type: Set
-        self._file_provenance = {} #type: Dict
+        self.bagged_size = {}  # type: Dict
+        self.tagfiles = set()  # type: Set
+        self._file_provenance = {}  # type: Dict
 
         # These should be replaced by generate_provDoc when workflow/run IDs are known:
         self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
@@ -647,7 +649,7 @@ class ResearchObject():
         bagit = os.path.join(self.folder, "bagit.txt")
         # encoding: always UTF-8 (although ASCII would suffice here)
         # newline: ensure LF also on Windows
-        with open(bagit, "w", encoding = ENCODING, newline='\n') as bagitFile:
+        with open(bagit, "w", encoding=ENCODING, newline='\n') as bagitFile:
             # TODO: \n or \r\n ?
             bagitFile.write(u"BagIt-Version: 0.97\n")
             bagitFile.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
@@ -700,7 +702,7 @@ class ResearchObject():
         # acting in behalf of that user (even if we might
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
-        
+
     def write_bag_file(self, path, encoding=ENCODING):
         # type: (str, str) -> IO
 
@@ -739,7 +741,7 @@ class ResearchObject():
         self.tagfiles.add(rel_path)
         self.add_to_manifest(rel_path, checksums)
         if when:
-            self._file_provenance[rel_path] = {"createdOn" : when.isoformat()}
+            self._file_provenance[rel_path] = {"createdOn": when.isoformat()}
 
     def _ro_aggregates(self):
         # type: () -> List[Dict[str,Any]]
@@ -806,31 +808,31 @@ class ResearchObject():
             # Adapted from
             # https://w3id.org/bundle/2014-11-05/#media-types
 
-            "txt":    'text/plain; charset="UTF-8"',
-            "ttl":    'text/turtle; charset="UTF-8"',
-            "rdf":    'application/rdf+xml',
-            "json":   'application/json',
+            "txt": 'text/plain; charset="UTF-8"',
+            "ttl": 'text/turtle; charset="UTF-8"',
+            "rdf": 'application/rdf+xml',
+            "json": 'application/json',
             "jsonld": 'application/ld+json',
-            "xml":    'application/xml',
+            "xml": 'application/xml',
             ##
-            "cwl":    'text/x+yaml; charset="UTF-8"',
-            "provn":  'text/provenance-notation; charset="UTF-8"',
-            "nt":     'application/n-triples',
+            "cwl": 'text/x+yaml; charset="UTF-8"',
+            "provn": 'text/provenance-notation; charset="UTF-8"',
+            "nt": 'application/n-triples',
         }
         CONFORMS_TO = {
-            "provn":  'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
-            "cwl":    'https://w3id.org/cwl/',
+            "provn": 'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
+            "cwl": 'https://w3id.org/cwl/',
         }
 
         PROV_CONFORMS_TO = {
-            "provn":  'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
-            "rdf":    'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
-            "ttl":    'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
-            "nt":     'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            "provn": 'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
+            "rdf": 'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            "ttl": 'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
+            "nt": 'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
             "jsonld": 'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
 
-            "xml":    'http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/',
-            "json":   'http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/',
+            "xml": 'http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/',
+            "json": 'http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/',
         }
 
 
@@ -839,7 +841,7 @@ class ResearchObject():
             # No ".", no extension
             extension = None
 
-        a = {} # type: Dict[str, Any]
+        a = {}  # type: Dict[str, Any]
         if extension in MEDIA_TYPES:
             a["mediatype"] = MEDIA_TYPES[extension]
 
@@ -920,11 +922,11 @@ class ResearchObject():
         # type: () -> None
 
         # Does not have to be this order, but it's nice to be consistent
-        manifest = OrderedDict() # type: Dict[str,Any]
+        manifest = OrderedDict()  # type: Dict[str,Any]
         manifest["@context"] = [
-                {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA)) },
-                "https://w3id.org/bundle/context"
-            ]
+            {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA)) },
+            "https://w3id.org/bundle/context"
+        ]
         manifest["id"] = "/"
         filename = "manifest.json"
         manifest["manifest"] = filename
@@ -1061,11 +1063,11 @@ class ResearchObject():
         if when is None:
             when = datetime.datetime.now()
         return {
-                "createdOn": when.isoformat(),
-                "createdBy": { "uri": self.engineUUID,
-                               "name": self.cwltoolVersion
+            "createdOn": when.isoformat(),
+            "createdBy": { "uri": self.engineUUID,
+                           "name": self.cwltoolVersion
                              }
-                }
+        }
 
     def add_to_manifest(self, rel_path, checksums):
         # type: (str, Dict[str,str]) -> None
@@ -1127,7 +1129,7 @@ class ResearchObject():
         cwl document
         '''
         self.make_fs_access = make_fs_access
-        relativised_input_objecttemp2={} # type: Dict[Any,Any]
+        relativised_input_objecttemp2={}  # type: Dict[Any,Any]
         relativised_input_objecttemp={}  # type: Dict[Any,Any]
         self._relativise_files(job, kwargs, relativised_input_objecttemp2)
 
@@ -1193,14 +1195,14 @@ class ResearchObject():
         if not hasattr(r, "tool"):
             # direct command line tool execution
             return job_order_object
-        customised_job={} #new job object for RO
+        customised_job={}  # new job object for RO
         for e, i in enumerate(r.tool["inputs"]):
             with SourceLine(r.tool["inputs"], e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 iid = shortname(i["id"])
                 if iid in job_order_object:
-                    customised_job[iid]= copy.deepcopy(job_order_object[iid]) #add the input element in dictionary for provenance
+                    customised_job[iid]= copy.deepcopy(job_order_object[iid])  # add the input element in dictionary for provenance
                 elif "default" in i:
-                    customised_job[iid]= copy.deepcopy(i["default"]) #add the defualt elements in the dictionary for provenance
+                    customised_job[iid]= copy.deepcopy(i["default"])  # add the defualt elements in the dictionary for provenance
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a default value." % (i["id"]))
@@ -1209,6 +1211,7 @@ class ResearchObject():
 
 
 #**************************************
+
 
     def close(self, saveTo=None):
         # type: (Optional[str]) -> None
