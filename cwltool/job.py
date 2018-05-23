@@ -259,7 +259,7 @@ class JobBase(object):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
+                job_dir=tempfile.mkdtemp(prefix=str(tmp_outdir_prefix)),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name
