@@ -20,10 +20,7 @@ from io import open
 from threading import Lock
 
 import shellescape
-from .provenance import ResearchObject
-import time
-import datetime
-from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
+from .utils import copytree_with_merge, onWindows
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Union, cast)
 
@@ -34,13 +31,8 @@ from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .secrets import SecretStore
-from .utils import bytes2str_in_dicts
-from .utils import copytree_with_merge, onWindows
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore
-else:
-    import subprocess  # type: ignore
-
+from .utils import (bytes2str_in_dicts, copytree_with_merge, onWindows,
+                    subprocess)
 
 _logger = logging.getLogger("cwltool")
 
@@ -58,7 +50,13 @@ PYTHON_RUN_SCRIPT = """
 import json
 import os
 import sys
-import subprocess
+if os.name == 'posix':
+    try:
+        import subprocess32 as subprocess  # type: ignore
+    except Exception:
+        import subprocess
+else:
+    import subprocess  # type: ignore
 
 with open(sys.argv[1], "r") as f:
     popen_description = json.load(f)
@@ -282,7 +280,6 @@ class JobBase(object):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
-
         except OSError as e:
             if e.errno == 2:
                 if runtime:
@@ -374,18 +371,27 @@ class CommandLineJob(JobBase):
         self._execute([], env, research_obj,
                       ProcessRunID,
                       reference_locations, 
-                      rm_tmpdir=rm_tmpdir, 
-                      move_outputs=move_outputs, 
-                      secret_store=kwargs.get("secret_store"))
+                      rm_tmpdir, 
+                      move_outputs, 
+                      kwargs.get("secret_store"), 
+                      kwargs.get("tmp_outdir_prefix"))
 
 
 
 class ContainerCommandLineJob(JobBase):
+    '''
+    Commandline job using containers
+    '''
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def get_from_requirements(self, r, req, pull_image, dry_run=False, force_pull=False):
-        # type: (Dict[Text, Text], bool, bool, bool, bool) -> Text
+    def get_from_requirements(self,
+                              r,                      # type: Dict[Text, Text]
+                              req,                    # type: bool
+                              pull_image,             # type: bool
+                              force_pull=False,       # type: bool
+                              tmp_outdir_prefix=None  # type: Text
+                             ):  # type: (...) -> Text
         pass
 
     @abstractmethod
@@ -418,7 +424,9 @@ class ContainerCommandLineJob(JobBase):
             try:
                 env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = str(self.get_from_requirements(docker_req, True, pull_image, force_pull=kwargs.get("force_docker_pull")))
+                    img_id = str(self.get_from_requirements(docker_req, True,
+                        pull_image, kwargs.get("force_docker_pull"),
+                        kwargs.get('tmp_outdir_prefix')))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
@@ -458,17 +466,17 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
         research_obj=kwargs.get("research_obj")
-        self._execute(runtime, env, research_obj, ProcessRunID, reference_locations, rm_tmpdir=rm_tmpdir, move_outputs=move_outputs, secret_store=kwargs.get("secret_store"))  
+        self._execute(runtime, env, research_obj, ProcessRunID, reference_locations, rm_tmpdir, move_outputs, kwargs.get("secret_store"), kwargs.get("tmp_outdir_prefix"))  
 
 
 def _job_popen(
-        commands,  # type: List[Text]
-        stdin_path,  # type: Text
-        stdout_path,  # type: Text
-        stderr_path,  # type: Text
+        commands,                  # type: List[Text]
+        stdin_path,                # type: Text
+        stdout_path,               # type: Text
+        stderr_path,               # type: Text
         env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
-        cwd,  # type: Text
-        job_dir=None,  # type: Text
+        cwd,                       # type: Text
+        job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
         timelimit=None,            # type: int
         name=None                  # type: Text
@@ -534,9 +542,6 @@ def _job_popen(
 
         return rcode
     else:
-        if job_dir is None:
-            job_dir = tempfile.mkdtemp(prefix="cwltooljob")
-
         if not job_script_contents:
             job_script_contents = SHELL_COMMAND_TEMPLATE
 

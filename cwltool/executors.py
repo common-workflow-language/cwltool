@@ -2,22 +2,17 @@ import logging
 import tempfile
 import threading
 import os
-import copy
-import uuid
-import datetime
-import time
 from abc import ABCMeta, abstractmethod
-import prov.model as prov
 from typing import Dict, Text, Any, Tuple, Set, List
 from schema_salad.validate import ValidationException
-
+from schema_salad.sourceline import SourceLine
 from .builder import Builder
 from .errors import WorkflowException
 from .mutation import MutationManager
 from .job import JobBase
 from .process import relocateOutputs, cleanIntermediate, Process, shortname, uniquename, get_overrides
 from . import loghandler
-from schema_salad.sourceline import SourceLine
+import datetime
 
 
 _logger = logging.getLogger("cwltool")
@@ -48,22 +43,22 @@ class JobExecutor(object):
                  ):
         pass
 
-    def execute(self, t,  # type: Process
+    def execute(self,
+                t,                 # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                logger=None,
                 makeTool=None,
                 select_resources=None,
                 make_fs_access=None,
                 secret_store=None,
-                **kwargs  # type: Any
-                ):
-        # type: (...) -> Tuple[Dict[Text, Any], Text]
+                logger=_logger,
+                **kwargs           # type: Any
+                ):  # type: (...) -> Tuple[Dict[Text, Any], Text]
+
 
         if "basedir" not in kwargs:
             raise WorkflowException("Must provide 'basedir' in kwargs")
         finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
-        kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
-            "tmp_outdir_prefix") else tempfile.mkdtemp()
+        kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix"))
         self.output_dirs.add(kwargs["outdir"])
         kwargs["mutation_manager"] = MutationManager()
         kwargs["toplevel"] = True

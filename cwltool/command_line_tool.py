@@ -284,6 +284,7 @@ class CommandLineTool(Process):
 
             if dockerimg:
                 cmdline = ["docker", "run", dockerimg] + cmdline
+                # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
 
             if "stdout" in self.tool:
@@ -304,7 +305,7 @@ class CommandLineTool(Process):
                            "EnvVarRequirement",
                            "CreateFileRequirement",
                            "ShellCommandRequirement"}
-            for rh in (self.requirements, self.hints):
+            for rh in (self.original_requirements, self.original_hints):
                 for r in reversed(rh):
                     if r["class"] in interesting and r["class"] not in keydict:
                         keydict[r["class"]] = r
@@ -345,8 +346,10 @@ class CommandLineTool(Process):
                     # https://github.com/python/mypy/issues/797
                     partial(rm_pending_output_callback, output_callbacks,
                             jobcachepending))
-
-        builder = self._init_job(job_order, provObj, **kwargs)
+        if kwargs["research_obj"]:
+            builder = self._init_job(job_order, provObj, **kwargs)
+        else:
+            builder = self._init_job(job_order, **kwargs)
 
         reffiles = copy.deepcopy(builder.files)
 

@@ -58,7 +58,7 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import onWindows, windows_default_container_id
+from .utils import onWindows, windows_default_container_id, add_sizes
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
@@ -487,9 +487,6 @@ def main(argsl=None,  # type: List[str]
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)
 
-            
-
-
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,
                                               fetcher_constructor=fetcher_constructor)
@@ -508,7 +505,6 @@ def main(argsl=None,  # type: List[str]
 
         if args.overrides:
             overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
-
         try:
             document_loader, workflowobj, uri = fetch_document(uri, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
