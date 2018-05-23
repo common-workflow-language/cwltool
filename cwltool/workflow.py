@@ -251,7 +251,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
 
 
 class WorkflowJobStep(object):
-    def __init__(self, step, provObj, parent_wf):  # type: (Any) -> None
+    def __init__(self, step, provObj=None, parent_wf=None):  # type: (Any) -> None
         
         self.step = step
         self.tool = step.tool
@@ -260,16 +260,21 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
-        self.provObj=step.provObj
-        self.parent_wf=step.parent_wf
+        if provObj:
+            self.provObj=step.provObj
+            self.parent_wf=step.parent_wf
     def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], **Any) -> Generator
         ## FIXME: Generator[of what?]
         kwargs["part_of"] = self.name
         kwargs["name"] = shortname(self.id)
         _logger.info(u"[%s] start", self.name)
-        for j in self.step.job(joborder, output_callback, self.provObj,  **kwargs):
-            yield j
+        if kwargs["research_obj"]:
+            for j in self.step.job(joborder, output_callback, self.provObj,  **kwargs):
+                yield j
+        else:
+            for j in self.step.job(joborder, output_callback,  **kwargs):
+                yield j      
 
 
 class WorkflowJob(object):
@@ -718,7 +723,7 @@ def check_all_types(src_dict, sinks, sourceField):
 
 
 class WorkflowStep(Process):
-    def __init__(self, toolpath_object, pos, parentworkflowProv, **kwargs):
+    def __init__(self, toolpath_object, pos, parentworkflowProv=None, **kwargs):
         # type: (Dict[Text, Any], int, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -872,7 +877,7 @@ class WorkflowStep(Process):
             ):
         # type: (...) -> Generator[Any, None, None]
         #initialize sub-workflow as a step in the parent profile
-        if self.embedded_tool.tool["class"] == "Workflow":
+        if self.embedded_tool.tool["class"] == "Workflow" and kwargs["research_obj"]:
             self.embedded_tool.parent_wf=provObj
             ProcessName= self.tool["id"].split("#")[1]
             self.embedded_tool.parent_wf.startProcess(ProcessName, self.embedded_tool.provenanceObject.workflowRunURI)
@@ -883,13 +888,21 @@ class WorkflowStep(Process):
             del job_order[i["id"]]
 
         try:
-            for t in self.embedded_tool.job(job_order,
-                                            functools.partial(
-                                                self.receive_output,
-                                                output_callbacks),
-                                                self.provObj,
-                                                **kwargs):
-                yield t
+            if kwargs["research_obj"]:
+                for t in self.embedded_tool.job(job_order,
+                                                functools.partial(
+                                                    self.receive_output,
+                                                    output_callbacks),
+                                                    self.provObj,
+                                                    **kwargs):
+                    yield t
+            else:
+                for t in self.embedded_tool.job(job_order,
+                                                functools.partial(
+                                                    self.receive_output,
+                                                    output_callbacks),
+                                                    **kwargs):
+                    yield t
         except WorkflowException:
             _logger.error(u"Exception on step '%s'", kwargs.get("name"))
             raise
