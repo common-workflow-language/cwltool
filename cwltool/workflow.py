@@ -161,8 +161,8 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Iterable
         self.name = uniquename(u"step %s" % shortname(self.id))
-        self.provObj=step.provObj
-        self.parent_wf=step.parent_wf
+        self.provObj=step.provObj if hasattr(step, 'provObj') else None
+        self.parent_wf=step.parent_wf if hasattr(step, 'parent_wf') else None
 
     def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Text], functools.partial[None], str, **Any) -> Generator

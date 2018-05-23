@@ -88,9 +88,9 @@ class JobExecutor(object):
         if kwargs.get("rm_tmpdir"):
             cleanIntermediate(self.output_dirs)
         
-        if self.final_output and self.final_status \
-                and hasattr(t, 'parent_wf') and t.parent_wf:
-            if "research_obj" in kwargs and kwargs["research_obj"]:
+        if self.final_output and self.final_status:
+            if "research_obj" in kwargs and kwargs["research_obj"] \
+                    and hasattr(t, 'parent_wf') and t.parent_wf:
                 ProcessRunID=None
                 name="primary"
                 t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
@@ -124,7 +124,8 @@ class SingleJobExecutor(JobExecutor):
                         r.builder = builder
                     if r.outdir:
                         self.output_dirs.add(r.outdir)
-                    if "research_obj" in kwargs and kwargs["research_obj"]:
+                    if "research_obj" in kwargs and kwargs["research_obj"] \
+                        and hasattr(r, 'provObj') and r.provObj:
                         provObj=r.provObj
                         ProcessRunID, reference_locations = provObj._evaluate(t, r, job_order_object, make_fs_access, kwargs)
                         r.run(ProcessRunID, reference_locations, **kwargs)

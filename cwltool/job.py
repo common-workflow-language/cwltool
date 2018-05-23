@@ -218,7 +218,7 @@ class JobBase(object):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-        if hasattr(self, "joborder") and research_obj:
+        if self.joborder and research_obj and self.provObj:
             job_order=self.joborder
             self.provObj.used_artefacts(job_order, ProcessRunID, reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
@@ -301,7 +301,7 @@ class JobBase(object):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if research_obj:
+        if research_obj and self.provObj:
             #creating entities for the outputs produced by each step (in the provenance document)
             self.provObj.generate_outputProv(outputs, ProcessRunID, str(self.name))
             self.provObj.document.wasEndedBy(ProcessRunID, None, self.provObj.workflowRunURI, datetime.datetime.now())

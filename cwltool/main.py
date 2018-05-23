@@ -235,10 +235,10 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
 
     if not job_order_object and len(t.tool["inputs"]) > 0:
         if toolparser:
+            print(u"\nOptions for {} ".format(args.workflow))
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
-        #return 1
         exit(1)
     if provArgs:
         inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "", provArgs,
@@ -253,17 +253,6 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             p["location"] = p["path"]
             del p["path"]
 
-    def addSizes(p):
-        if 'location' in p:
-            try:
-                p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
-            except OSError:
-                pass
-        elif 'contents' in p:
-                p["size"] = len(p['contents'])
-        else:
-            return  # best effort
-
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
@@ -273,7 +262,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
             p["format"] = ld.expand_url(p["format"], "")
 
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
-    visit_class(job_order_object, ("File",), addSizes)
+    visit_class(job_order_object, ("File",), add_sizes)
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
@@ -505,17 +494,11 @@ def main(argsl=None,  # type: List[str]
                                                                         fetcher_constructor,
                                                                         overrides,
                                                                         tool_file_uri)
-        except Exception as e:
-            _logger.error(Text(e), exc_info=args.debug)
-            return 1
 
-        if args.overrides:
-            overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
-        try:
+            if args.overrides:
+                overrides.extend(load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri))
             document_loader, workflowobj, uri = fetch_document(uri, resolver=resolver,
                                                                fetcher_constructor=fetcher_constructor)
-
-
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -567,10 +550,6 @@ def main(argsl=None,  # type: List[str]
 
             if args.validate:
                 _logger.info("Tool definition is valid")
-                return 0
-
-            if args.pack:
-                stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
 
             if args.print_rdf:
