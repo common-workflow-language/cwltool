@@ -1,7 +1,6 @@
 import logging
 import tempfile
 import threading
-import ipdb
 import os
 import copy
 import uuid
@@ -49,22 +48,18 @@ class JobExecutor(object):
                  ):
         pass
 
-    def execute(self, t,  # type: Process
+    def execute(self,
+                t,                 # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                logger=None,
-                makeTool=None,
-                select_resources=None,
                 make_fs_access=None,
-                secret_store=None,
-                **kwargs  # type: Any
-                ):
-        # type: (...) -> Tuple[Dict[Text, Any], Text]
+                logger=_logger,
+                **kwargs           # type: Any
+                ):  # type: (...) -> Tuple[Dict[Text, Any], Text]
 
         if "basedir" not in kwargs:
             raise WorkflowException("Must provide 'basedir' in kwargs")
         finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
-        kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]) if kwargs.get(
-            "tmp_outdir_prefix") else tempfile.mkdtemp()
+        kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix"))
         self.output_dirs.add(kwargs["outdir"])
         kwargs["mutation_manager"] = MutationManager()
         kwargs["toplevel"] = True

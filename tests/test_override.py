@@ -8,15 +8,13 @@ import cwltool.workflow
 import pytest
 import json
 from cwltool.main import main
-from cwltool.utils import onWindows
 from six import StringIO
 
-from .util import get_data
+from .util import get_data, needs_docker
 
 
 class TestOverride(unittest.TestCase):
-    @pytest.mark.skipif(onWindows(),
-                        reason="Instance of Cwltool is used, On windows that invoke a default docker Container")
+    @needs_docker
     def test_overrides(self):
         sio = StringIO()
 

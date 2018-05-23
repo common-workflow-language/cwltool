@@ -105,16 +105,16 @@ format: autopep8
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-                $^ || true
+                $^ -j$(shell nproc)|| true
 
 pylint_report.txt: ${PYSOURCES}
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ > pylint_report.txt || true
+		$^ -j$(shell nproc)> pylint_report.txt || true
 
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
 
-.coverage: tests
+.coverage: testcov
 
 coverage: .coverage
 	coverage report
@@ -135,7 +135,11 @@ diff-cover.html: coverage-gcovr.xml coverage.xml
 		--html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
-test: $(PYSOURCES)
+test: $(pysources)
+	python setup.py test
+
+## testcov     : run the ${MODULE} test suite and collect coverage
+testcov: $(pysources)
 	python setup.py test --addopts "--cov cwltool"
 
 sloccount.sc: ${PYSOURCES} Makefile
