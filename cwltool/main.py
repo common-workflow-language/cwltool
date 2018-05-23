@@ -58,6 +58,8 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
+
+from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 from .utils import onWindows, windows_default_container_id, add_sizes
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
@@ -65,6 +67,8 @@ _logger = logging.getLogger("cwltool")
 _logger.setLevel(logging.INFO)
 
 engineUUID=uuid.uuid4().urn
+
+
 
 
 
@@ -486,6 +490,8 @@ def main(argsl=None,  # type: List[str]
                 # Optionals, might be None
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)
+
+
 
         uri, tool_file_uri = resolve_tool_uri(args.workflow,
                                               resolver=resolver,

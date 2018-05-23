@@ -346,6 +346,7 @@ class CommandLineTool(Process):
                     # https://github.com/python/mypy/issues/797
                     partial(rm_pending_output_callback, output_callbacks,
                             jobcachepending))
+
         if kwargs["research_obj"]:
             builder = self._init_job(job_order, provObj, **kwargs)
         else:

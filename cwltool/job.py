@@ -12,6 +12,7 @@ import stat
 import sys
 import tempfile
 import uuid
+import prov.model as prov
 import datetime
 from prov.model import PROV, ProvEntity, ProvDocument
 import threading
@@ -20,7 +21,10 @@ from io import open
 from threading import Lock
 
 import shellescape
-from .utils import copytree_with_merge, onWindows
+from .provenance import ResearchObject  
+import time
+import datetime
+from .utils import copytree_with_merge, docker_windows_path_adjust, onWindows
 from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
                     Union, cast)
 
@@ -264,6 +268,8 @@ class JobBase(object):
             )
 
 
+
+
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
             elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
@@ -368,14 +374,10 @@ class CommandLineJob(JobBase):
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
             relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
         research_obj=kwargs.get("research_obj")
-        self._execute([], env, research_obj,
-                      ProcessRunID,
-                      reference_locations, 
-                      rm_tmpdir, 
-                      move_outputs, 
-                      kwargs.get("secret_store"), 
-                      kwargs.get("tmp_outdir_prefix"))
-
+        self._execute(
+            [], env, research_obj, ProcessRunID, reference_locations, 
+            rm_tmpdir, move_outputs, kwargs.get("secret_store"),
+            kwargs.get("tmp_outdir_prefix"))
 
 
 class ContainerCommandLineJob(JobBase):
@@ -466,7 +468,10 @@ class ContainerCommandLineJob(JobBase):
         runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
         research_obj=kwargs.get("research_obj")
-        self._execute(runtime, env, research_obj, ProcessRunID, reference_locations, rm_tmpdir, move_outputs, kwargs.get("secret_store"), kwargs.get("tmp_outdir_prefix"))  
+        self._execute(
+            runtime, env, research_obj, ProcessRunID, reference_locations, 
+            rm_tmpdir, move_outputs, kwargs.get("secret_store"),
+            kwargs.get("tmp_outdir_prefix"))
 
 
 def _job_popen(

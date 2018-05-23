@@ -385,7 +385,7 @@ class create_ProvProfile():
         return ProcessRunID, reference_locations
 
     def startProcess(self, ProcessName, ProcessRunID=None):
-            # type: (Any, ProvDocument, str) -> None
+            # type: (Any, str, str) -> None
             '''
             record start of each Process
             '''

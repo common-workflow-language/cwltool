@@ -174,9 +174,8 @@ class WorkflowJobStep(object):
             for j in self.step.job(joborder, output_callback, self.provObj,  **kwargs):
                 yield j
         else:
-            for j in self.step.job(joborder, output_callback, **kwargs):
-                yield j
-
+            for j in self.step.job(joborder, output_callback,  **kwargs):
+                yield j      
 
 class WorkflowJob(object):
     def __init__(self, workflow, **kwargs):
@@ -191,6 +190,7 @@ class WorkflowJob(object):
         if kwargs["research_obj"]:
             self.provObj=workflow.provenanceObject
             self.parent_wf=workflow.parent_wf
+            
             
         self.steps = [WorkflowJobStep(s, self.provObj, self.parent_wf) for s in workflow.steps]
         self.outdir = kwargs.get("outdir")
@@ -369,12 +369,14 @@ class WorkflowJob(object):
         '''
         logs the start of each workflow
         '''
+
         _logger.info(u"[%s] start", self.name)
 
 
 
     def job(self, joborder, output_callback, provObj=None, **kwargs):
         # type: (Dict[Text, Any], Callable[[Any, Any], Any], str, **Any) -> Generator
+
         self.state = {}
         self.processStatus = "success"
 
