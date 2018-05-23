@@ -196,7 +196,8 @@ class JobBase(object):
                  reference_locations=None,  # type: Dict[Text, Any]
                  rm_tmpdir=True,            # type: bool
                  move_outputs="move",       # type: Text
-                 secret_store=None          # type: SecretStore
+                 secret_store=None,         # type: SecretStore
+                 tmp_outdir_prefix=None     # type: Text
                  ):  # type (...) ->  None
                  
 
