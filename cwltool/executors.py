@@ -55,7 +55,6 @@ class JobExecutor(object):
                 make_fs_access=None,
                 makeTool=None,
                 select_resources=None,
-                make_fs_access=None,
                 secret_store=None,
                 logger=_logger,
                 **kwargs           # type: Any
