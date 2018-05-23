@@ -72,7 +72,12 @@ def normalizeFilesDirs(job):
             d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
 
         if "basename" not in d:
-            d["basename"] = os.path.basename(urllib.request.url2pathname(path))
+            if parse.scheme and parse.scheme != "file":
+                d["basename"] = urllib.parse.quote(parse.netloc + parse.path, safe="")
+                if parse.query:
+                    d["basename"] += urllib.parse.quote("?"+parse.query, safe="")
+            else:
+                d["basename"] = os.path.basename(urllib.request.url2pathname(path))
 
         if d["class"] == "File":
             d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
