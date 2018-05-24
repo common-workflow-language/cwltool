@@ -54,3 +54,42 @@ class TestPathMapper(unittest.TestCase):
             normalizeFilesDirs(file)
             self.assertEqual(file, expected)
 
+    def test_normalizeFilesDirs(self):
+        n = {
+            "class": "File",
+            "location": "file1.txt"
+        }
+        normalizeFilesDirs(n)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "file1.txt",
+            'basename': 'file1.txt',
+            'nameext': '.txt',
+            'nameroot': 'file1'
+        })
+
+        n = {
+            "class": "File",
+            "location": "file:///foo/file1.txt"
+        }
+        normalizeFilesDirs(n)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "file:///foo/file1.txt",
+            'basename': 'file1.txt',
+            'nameext': '.txt',
+            'nameroot': 'file1'
+        })
+
+        n = {
+            "class": "File",
+            "location": "http://example.com/file1.txt"
+        }
+        normalizeFilesDirs(n)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "http://example.com/file1.txt",
+            'basename': 'file1.txt',
+            'nameext': '.txt',
+            'nameroot': 'file1'
+        })
