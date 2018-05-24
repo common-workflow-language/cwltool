@@ -822,6 +822,7 @@ def mergedirs(listing):
     # type: (List[Dict[Text, Any]]) -> List[Dict[Text, Any]]
     r = []  # type: List[Dict[Text, Any]]
     ents = {}  # type: Dict[Text, Any]
+    collided = set()  # type: Set[Text]
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
@@ -830,6 +831,23 @@ def mergedirs(listing):
                 ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
             if ents[e["basename"]]["location"].startswith("_:"):
                 ents[e["basename"]]["location"] = e["location"]
+        elif e["location"] != ents[e["basename"]]["location"]:
+            # same basename, different location, collision,
+            # rename both.
+            collided.add(e["basename"])
+            e2 = ents[e["basename"]]
+
+            e["basename"] = urllib.parse.quote(e["location"], safe="")
+            e2["basename"] = urllib.parse.quote(e2["location"], safe="")
+
+            e["nameroot"], e["nameext"] = os.path.splitext(e["basename"])
+            e2["nameroot"], e2["nameext"] = os.path.splitext(e2["basename"])
+
+            ents[e["basename"]] = e
+            ents[e2["basename"]] = e2
+    for c in collided:
+        print(ents)
+        del ents[c]
     for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
@@ -905,18 +923,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
             r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
 
     if r:
-        # Call normalizeFilesDirs() to fill in "basename" fields, then
-        # call mergedirs to eliminate any redundant files or
-        # subdirectories (because they were mentioned as a dependency
-        # more than once.)
-        #
-        # Problem is, sometimes http urls link to a web application
-        # that has a generic path like "download" and the specific
-        # file is in the query portion, so simply taking the last path
-        # component would result in a name collision on the generic
-        # name, so for non-file urls, use the whole (quoted) url as
-        # the basename.
-        normalizeFilesDirs(r, whole_url_basename=True)
+        normalizeFilesDirs(r)
         r = mergedirs(r)
 
     return r

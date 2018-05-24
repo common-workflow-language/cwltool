@@ -48,7 +48,7 @@ def adjustDirObjs(rec, op):
     """Apply an update function to each Directory object in the object `rec`."""
     visit_class(rec, ("Directory",), op)
 
-def normalizeFilesDirs(job, whole_url_basename=False):
+def normalizeFilesDirs(job):
     # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]], bool) -> None
     def addLocation(d):
         if "location" not in d:
@@ -72,10 +72,7 @@ def normalizeFilesDirs(job, whole_url_basename=False):
             d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
 
         if "basename" not in d:
-            if whole_url_basename and parse.scheme and parse.scheme != "file":
-                d["basename"] = urllib.parse.quote(d["location"], safe="")
-            else:
-                d["basename"] = os.path.basename(urllib.request.url2pathname(path))
+            d["basename"] = os.path.basename(urllib.request.url2pathname(path))
 
         if d["class"] == "File":
             d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
