@@ -93,16 +93,3 @@ class TestPathMapper(unittest.TestCase):
             'nameext': '.txt',
             'nameroot': 'file1'
         })
-
-        n = {
-            "class": "File",
-            "location": "http://example.com/file1.txt"
-        }
-        normalizeFilesDirs(n, whole_url_basename=True)
-        self.assertEqual(n, {
-            "class": "File",
-            "location": "http://example.com/file1.txt",
-            'basename': 'http%3A%2F%2Fexample.com%2Ffile1.txt',
-            'nameext': '.txt',
-            'nameroot': 'http%3A%2F%2Fexample.com%2Ffile1'
-        })
