@@ -54,3 +54,55 @@ class TestPathMapper(unittest.TestCase):
             normalizeFilesDirs(file)
             self.assertEqual(file, expected)
 
+    def test_normalizeFilesDirs(self):
+        n = {
+            "class": "File",
+            "location": "file1.txt"
+        }
+        normalizeFilesDirs(n)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "file1.txt",
+            'basename': 'file1.txt',
+            'nameext': '.txt',
+            'nameroot': 'file1'
+        })
+
+        n = {
+            "class": "File",
+            "location": "file:///foo/file1.txt"
+        }
+        normalizeFilesDirs(n)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "file:///foo/file1.txt",
+            'basename': 'file1.txt',
+            'nameext': '.txt',
+            'nameroot': 'file1'
+        })
+
+        n = {
+            "class": "File",
+            "location": "http://example.com/file1.txt"
+        }
+        normalizeFilesDirs(n)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "http://example.com/file1.txt",
+            'basename': 'file1.txt',
+            'nameext': '.txt',
+            'nameroot': 'file1'
+        })
+
+        n = {
+            "class": "File",
+            "location": "http://example.com/file1.txt"
+        }
+        normalizeFilesDirs(n, whole_url_basename=True)
+        self.assertEqual(n, {
+            "class": "File",
+            "location": "http://example.com/file1.txt",
+            'basename': 'http%3A%2F%2Fexample.com%2Ffile1.txt',
+            'nameext': '.txt',
+            'nameroot': 'http%3A%2F%2Fexample.com%2Ffile1'
+        })

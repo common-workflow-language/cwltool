@@ -859,6 +859,8 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                     "class": doc["class"],
                     "location": urljoin(base, u)
                 }
+                if "basename" in doc:
+                    deps["basename"] = doc["basename"]
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
@@ -903,6 +905,17 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
             r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
 
     if r:
+        # Call normalizeFilesDirs() to fill in "basename" fields, then
+        # call mergedirs to eliminate any redundant files or
+        # subdirectories (because they were mentioned as a dependency
+        # more than once.)
+        #
+        # Problem is, sometimes http urls link to a web application
+        # that has a generic path like "download" and the specific
+        # file is in the query portion, so simply taking the last path
+        # component would result in a name collision on the generic
+        # name, so for non-file urls, use the whole (quoted) url as
+        # the basename.
         normalizeFilesDirs(r, whole_url_basename=True)
         r = mergedirs(r)
 
