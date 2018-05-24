@@ -903,7 +903,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
             r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
 
     if r:
-        normalizeFilesDirs(r)
+        normalizeFilesDirs(r, whole_url_basename=True)
         r = mergedirs(r)
 
     return r
