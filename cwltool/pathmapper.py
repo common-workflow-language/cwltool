@@ -49,7 +49,7 @@ def adjustDirObjs(rec, op):
     visit_class(rec, ("Directory",), op)
 
 def normalizeFilesDirs(job):
-    # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]], bool) -> None
+    # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]]) -> None
     def addLocation(d):
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
