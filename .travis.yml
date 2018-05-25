@@ -34,7 +34,7 @@ install:
 jobs:
   include:
     - stage: release-test
-      script: RELEASE_SKIP=head ./release-test.sh
+      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 script: tox
 branches:
   only:
