@@ -7,7 +7,7 @@ env:
   - SINGVER=2.5.1
 
 before_install:
-- apt install -y libarchive-dev squashfs-tools
+- sudo apt install -y libarchive-dev squashfs-tools
 - wget https://github.com/singularityware/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
 - tar xvf singularity-$SINGVER.tar.gz
 - cd singularity-$SINGVER
