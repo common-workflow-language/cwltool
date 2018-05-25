@@ -7,17 +7,18 @@ import re
 import shutil
 import sys
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Dict, List, Text, Optional, MutableMapping)
+from typing import (Dict, List, Text, Optional,  # pylint: disable=unused-import
+                    MutableMapping)
+from schema_salad.sourceline import SourceLine
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable
+from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
-from schema_salad.sourceline import SourceLine
 if os.name == 'posix':
-    from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
-                              CalledProcessError, DEVNULL, PIPE, Popen,
-                              TimeoutExpired)
+    from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
+        check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
+        TimeoutExpired)
 else:  # we're not on Unix, so none of this matters
     pass
 
