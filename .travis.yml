@@ -6,6 +6,10 @@ services:
 env:
   - SINGVER=2.5.1
 
+addons:
+  apt:
+    update: true
+
 before_install:
 - sudo apt install -y libarchive-dev squashfs-tools
 - wget https://github.com/singularityware/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
