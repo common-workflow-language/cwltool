@@ -7,7 +7,7 @@ import datetime
 import random
 import tempfile
 from collections import namedtuple
-from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
+from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast, Optional
 import schema_salad.validate as validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.sourceline import SourceLine, cmap
@@ -17,10 +17,11 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, versionstring
 from .provenance import create_researchObject, create_ProvProfile
 from .checker import static_checker, can_assign_src_to_sink, check_types
 
+import uuid
 import six
 import pkg_resources  # part of setuptools
 import sys
@@ -152,7 +153,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
 
 class WorkflowJobStep(object):
     def __init__(self, step, provObj=None, parent_wf=None):
-        # type: (Any, Any, str, str) -> None
+        # type: (WorkflowJobStep, WorkflowStep, create_ProvProfile, create_ProvProfile) -> None
         
         self.step = step
         self.tool = step.tool
@@ -217,7 +218,7 @@ class WorkflowJob(object):
             ProcessRunID=None
             self.provObj.generate_outputProv(wo, ProcessRunID)
             self.provObj.document.wasEndedBy(self.provObj.workflowRunURI, None, self.provObj.engineUUID, datetime.datetime.now())
-            self.provObj.finalize_provProfile(self.name)
+            self.provObj.finalize_provProfile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
 
         self.did_callback = True
@@ -443,18 +444,9 @@ class WorkflowJob(object):
             self.do_output_callback(output_callback) #could have called earlier on line 336;
             #depends which one comes first. All steps are completed or all outputs have beend produced.
 
-import uuid
 
-def versionstring():
-    # type: () -> Text
-    '''
-    version of CWLtool used to execute the workflow.
-    '''
-    pkg = pkg_resources.require("cwltool")
-    if pkg:
-        return u"%s %s" % (sys.argv[0], pkg[0].version)
-    else:
-        return u"%s %s" % (sys.argv[0], "unknown version")
+
+
 
 class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
@@ -535,7 +527,7 @@ class Workflow(Process):
 
 class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, parentworkflowProv=None, **kwargs):
-        # type: (Dict[Text, Any], int, str, **Any) -> None
+        # type: (Dict[Text, Any], int, create_ProvProfile, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:

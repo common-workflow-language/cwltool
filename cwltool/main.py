@@ -60,7 +60,7 @@ from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
-from .utils import onWindows, windows_default_container_id, add_sizes
+from .utils import onWindows, windows_default_container_id, add_sizes, versionstring
 from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 
 _logger = logging.getLogger("cwltool")
@@ -327,16 +327,6 @@ def print_pack(document_loader, processobj, uri, metadata):
     else:
         return json.dumps(packed["$graph"][0], indent=4)
 
-def versionstring():
-    # type: () -> Text
-    '''
-    version of CWLtool used to execute the workflow.
-    '''
-    pkg = pkg_resources.require("cwltool")
-    if pkg:
-        return u"%s %s" % (sys.argv[0], pkg[0].version)
-    else:
-        return u"%s %s" % (sys.argv[0], "unknown version")
 
 def supportedCWLversions(enable_dev):
     # type: (bool) -> List[Text]

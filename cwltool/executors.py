@@ -16,6 +16,7 @@ from .errors import WorkflowException
 from .mutation import MutationManager
 from .job import JobBase
 from .process import relocateOutputs, cleanIntermediate, Process, shortname, uniquename, get_overrides
+from .workflow import Workflow
 from . import loghandler
 from schema_salad.sourceline import SourceLine
 import datetime
@@ -89,15 +90,16 @@ class JobExecutor(object):
             cleanIntermediate(self.output_dirs)
         
         if self.final_output and self.final_status:
-            if "research_obj" in kwargs and kwargs["research_obj"] \
+            if isinstance(t, Workflow):
+                if "research_obj" in kwargs and kwargs["research_obj"] \
                     and hasattr(t, 'parent_wf') and t.parent_wf:
-                ProcessRunID=None
-                name="primary"
-                t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
-                t.parent_wf.document.wasEndedBy(
-                    t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID,
-                    datetime.datetime.now())
-                t.parent_wf.finalize_provProfile(name)
+                    ProcessRunID=None
+                    name="primary"
+                    t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
+                    t.parent_wf.document.wasEndedBy(
+                        t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID,
+                        datetime.datetime.now())
+                    t.parent_wf.finalize_provProfile(name)
             return (self.final_output[0], self.final_status[0])
         else:
             return (None, "permanentFail")

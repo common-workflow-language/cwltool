@@ -563,7 +563,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, provObj=None, **kwargs):
-        # type: (Dict[Text, Text], **Any) -> Builder
+        # type: (Dict[Text, Text], str, **Any) -> Builder
         """
         kwargs:
 
@@ -586,7 +586,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         builder = Builder()
         builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
                                             Text]], copy.deepcopy(joborder))
-
+                                            
         # Validate job order
         try:
             fillInDefaults(self.tool[u"inputs"], builder.job)

@@ -3,6 +3,7 @@ from __future__ import absolute_import
 # no imports from cwltool allowed
 
 import os
+import sys
 import platform
 import shutil
 import stat
@@ -15,12 +16,24 @@ else:
     import subprocess  # type: ignore # pylint: disable=unused-import
 
 import six
+import pkg_resources  
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
 
 from six.moves import urllib, zip_longest
 
 windows_default_container_id = "frolvlad/alpine-bash"
+
+def versionstring():
+    # type: () -> Text
+    '''
+    version of CWLtool used to execute the workflow.
+    '''
+    pkg = pkg_resources.require("cwltool")
+    if pkg:
+        return u"%s %s" % (sys.argv[0], pkg[0].version)
+    else:
+        return u"%s %s" % (sys.argv[0], "unknown version")
 
 def aslist(l):  # type: (Any) -> List[Any]
     if isinstance(l, list):
