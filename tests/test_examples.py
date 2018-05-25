@@ -712,9 +712,9 @@ class TestChecksumSingularity(TestCmdLine):
         shutil.rmtree(self.cache_dir)
 
     def test_singularity_workflow(self):
-        test_file = "hello-workflow.cwl"
-        error_code, stdout, stderr = self.get_main_output(["--cachedir", self.cache_dir, '--singularity',
-                                                   get_data("tests/wf/" + test_file), "--usermessage", "hello"])
+        error_code, stdout, stderr = self.get_main_output(
+            ['--singularity', '--default-container', 'debian',
+             get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
 
