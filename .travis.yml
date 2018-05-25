@@ -6,19 +6,11 @@ services:
 env:
   - SINGVER=2.5.1
 
-addons:
-  apt:
-    update: true
-
 before_install:
-- sudo apt install -y libarchive-dev squashfs-tools
-- wget https://github.com/singularityware/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
-- tar xvf singularity-$SINGVER.tar.gz
-- cd singularity-$SINGVER
-- ./configure --prefix=/usr/local --sysconfdir=/etc
-- make
-- sudo make install
-- singularity --version
+- sudo wget -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+- sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
+- sudo apt-get update
+- sudo apt-get install -y singularity-container
 
 language: python
 cache: pip
