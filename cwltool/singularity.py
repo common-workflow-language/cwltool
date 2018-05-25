@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import logging
 import os
+import os.path
 import re
 import shutil
 import sys
@@ -27,8 +28,9 @@ def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
+            hello_image = os.path.join(os.path.dirname(__file__), 'hello.simg')
             result = Popen(
-                [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
+                [u"singularity", u"exec", u"--userns", hello_image, u"true"],
                 stderr=PIPE, stdout=DEVNULL,
                 universal_newlines=True).communicate(timeout=60)[1]
             _USERNS = "No valid /bin/sh" in result
