@@ -58,15 +58,15 @@ do
 	# shellcheck disable=SC2086
 	LC_ALL=C ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
 		RUNNER=${CWLTOOL_WITH_COV} \
-		"-j$(nproc)" DRAFT="${version}" "${EXTRA}" \
+		DRAFT="${version}" "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
+	codecov
 	deactivate
 	popd
 done
 done
-codecov
 # build new docker container
 if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
