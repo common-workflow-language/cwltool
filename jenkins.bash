@@ -41,6 +41,7 @@ do
 	pip${PYTHON_VERSION} install .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
 	pushd common-workflow-language-master
+	rm -f .coverage*
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
 	then
@@ -63,6 +64,7 @@ do
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
+	coverage combine --append $(find . -name '.coverage.*')
 	codecov
 	deactivate
 	popd
