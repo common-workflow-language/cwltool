@@ -13,9 +13,9 @@ venv() {
         source "$1"/bin/activate
 }
 
-rm master.zip
-wget https://github.com/common-workflow-language/common-workflow-language/archive/master.zip
-unzip master.zip
+rm master.tar.gz
+wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
+tar xzf master.tar.gz
 docker pull node:slim
 # clean both the repos before the loop
 git clean --force -d -x || /bin/true
