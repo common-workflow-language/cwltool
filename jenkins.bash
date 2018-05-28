@@ -20,6 +20,7 @@ docker pull node:slim
 # clean both the repos before the loop
 
 cat > cwltool_with_cov <<EOF
+#!/bin/bash
 coverage run --parallel-mode --branch "\$(which cwltool)" "\$@"
 EOF
 chmod a+x cwltool_with_cov
