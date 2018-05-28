@@ -27,7 +27,7 @@ import cwltool.workflow
 from cwltool.main import main
 from cwltool.utils import onWindows, subprocess
 
-from .util import (get_data, needs_docker, get_windows_safe_factory,
+from .util import (get_data, needs_docker, needs_singularity, get_windows_safe_factory,
         windows_needs_docker)
 
 
@@ -701,6 +701,22 @@ class TestChecksum(TestCmdLine):
         self.assertEquals(error_code, 0)
         self.assertNotIn("checksum", stdout)
 
+
+@needs_singularity
+class TestChecksumSingularity(TestCmdLine):
+
+    def setUp(self):
+        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
+
+    def tearDown(self):
+        shutil.rmtree(self.cache_dir)
+
+    def test_singularity_workflow(self):
+        error_code, stdout, stderr = self.get_main_output(
+            ['--singularity', '--default-container', 'debian',
+             get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
+        self.assertIn("completed success", stderr)
+        self.assertEquals(error_code, 0)
 
 if __name__ == '__main__':
     unittest.main()
