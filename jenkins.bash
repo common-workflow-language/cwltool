@@ -13,12 +13,11 @@ venv() {
         source "$1"/bin/activate
 }
 
-rm master.tar.gz
+git clean --force -d -x || /bin/true
 wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
 tar xzf master.tar.gz
 docker pull node:slim
 # clean both the repos before the loop
-git clean --force -d -x || /bin/true
 
 cat > cwltool_with_cov <<EOF
 coverage run --parallel-mode --branch "\$(which cwltool)" "\$@"
