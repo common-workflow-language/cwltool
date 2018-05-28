@@ -58,7 +58,7 @@ do
 	fi
 	# shellcheck disable=SC2086
 	LC_ALL=C ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
-		RUNNER=${CWLTOOL_WITH_COV} \
+		RUNNER=${CWLTOOL_WITH_COV} -j$(nproC)\
 		DRAFT="${version}" "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
