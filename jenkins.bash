@@ -5,13 +5,6 @@ then
 	echo "due to use of git clean -fdx command."
 	exit 1
 fi
-cloneorpull() {
-        if test -d "$1" ; then
-                (cd "$1" && git pull)
-        else
-                git clone "$2"
-        fi
-}
 venv() {
         if ! test -d "$1" ; then
                 virtualenv -p python"${PYTHON_VERSION}" "$1"
@@ -20,11 +13,18 @@ venv() {
         source "$1"/bin/activate
 }
 
-cloneorpull common-workflow-language https://github.com/common-workflow-language/common-workflow-language.git
+rm master.zip
+wget https://github.com/common-workflow-language/common-workflow-language/archive/master.zip
+unzip master.zip
 docker pull node:slim
 # clean both the repos before the loop
 git clean --force -d -x || /bin/true
-git -C common-workflow-language clean --force -d -x || /bin/true
+
+cat > cwltool_with_cov <<EOF
+coverage run --parallel-mode --branch "\$(which cwltool)" "\$@"
+EOF
+chmod a+x cwltool_with_cov
+CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov
 
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2 3
@@ -40,7 +40,7 @@ do
 	pip${PYTHON_VERSION} uninstall -y cwltool
 	pip${PYTHON_VERSION} install .
 	pip${PYTHON_VERSION} install -U "cwltest>=1.0.20180518074130"
-	pushd common-workflow-language
+	pushd common-workflow-language-master
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
 	then
@@ -57,8 +57,9 @@ do
 		EXTRA="EXTRA=${EXTRA}"
 	fi
 	# shellcheck disable=SC2086
-	LC_ALL=C ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml RUNNER=cwltool \
-		-j$(nproc) DRAFT="${version}" "${EXTRA}" \
+	LC_ALL=C ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
+		RUNNER=CWLTOOL_WITH_COV \
+		"-j$(nproc)" DRAFT="${version}" "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
@@ -66,7 +67,7 @@ do
 	popd
 done
 done
-
+codecov
 # build new docker container
 if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
