@@ -214,8 +214,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         # type: (...) -> List
         """ Returns the Singularity runtime list of commands and options."""
 
-        runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
-                   u"--ipc"]
+        runtime = [u"singularity", u"--quiet", u"exec", u"--pid", u"--ipc"]
         if _singularity_supports_userns():
             runtime.append(u"--userns")
         runtime.append(u"--bind")
