@@ -478,9 +478,9 @@ class create_ProvProfile():
                 self.document.entity(output_checksum, {provM.PROV_TYPE:WFPROV["Artifact"]})
                 self.document.wasGeneratedBy(output_checksum, self.workflowRunURI, when, None, {"prov:role":outputProvRole })
                 # FIXME: What are these magic array positions???
-                with open(tuple_entry[2][7:], "rb") as fp:
-                    rel_path = self.ro.add_data_file(fp, when)
-                    _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
+            with open(tuple_entry[2][7:], "rb") as fp:
+                rel_path = self.ro.add_data_file(fp, when)
+                _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
     def array_output(self, key, current_l):
         # type: (Any, List) -> List
@@ -1204,8 +1204,7 @@ class ResearchObject():
                 elif "default" in i:
                     customised_job[iid]= copy.deepcopy(i["default"])  # add the defualt elements in the dictionary for provenance
                 else:
-                    raise WorkflowException(
-                        u"Input '%s' not in input object and does not have a default value." % (i["id"]))
+                    pass
         return customised_job
 
 
