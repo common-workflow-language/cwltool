@@ -2,21 +2,23 @@
 from __future__ import absolute_import
 import logging
 import os
+import os.path
 import re
 import shutil
 import sys
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Dict, List, Text, Optional, MutableMapping)
+from typing import (Dict, List, Text, Optional,  # pylint: disable=unused-import
+                    MutableMapping)
+from schema_salad.sourceline import SourceLine
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable
+from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
-from schema_salad.sourceline import SourceLine
 if os.name == 'posix':
-    from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
-                              CalledProcessError, DEVNULL, PIPE, Popen,
-                              TimeoutExpired)
+    from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
+        check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
+        TimeoutExpired)
 else:  # we're not on Unix, so none of this matters
     pass
 
@@ -27,8 +29,9 @@ def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
+            hello_image = os.path.join(os.path.dirname(__file__), 'hello.simg')
             result = Popen(
-                [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
+                [u"singularity", u"exec", u"--userns", hello_image, u"true"],
                 stderr=PIPE, stdout=DEVNULL,
                 universal_newlines=True).communicate(timeout=60)[1]
             _USERNS = "No valid /bin/sh" in result

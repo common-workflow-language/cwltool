@@ -5,13 +5,6 @@ then
 	echo "due to use of git clean -fdx command."
 	exit 1
 fi
-cloneorpull() {
-        if test -d "$1" ; then
-                (cd "$1" && git pull)
-        else
-                git clone "$2"
-        fi
-}
 venv() {
         if ! test -d "$1" ; then
                 virtualenv -p python"${PYTHON_VERSION}" "$1"
@@ -20,11 +13,18 @@ venv() {
         source "$1"/bin/activate
 }
 
-cloneorpull common-workflow-language https://github.com/common-workflow-language/common-workflow-language.git
+git clean --force -d -x || /bin/true
+wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
+tar xzf master.tar.gz
 docker pull node:slim
 # clean both the repos before the loop
-git clean --force -d -x || /bin/true
-git -C common-workflow-language clean --force -d -x || /bin/true
+
+cat > cwltool_with_cov <<EOF
+#!/bin/bash
+coverage run --parallel-mode --branch "\$(which cwltool)" "\$@"
+EOF
+chmod a+x cwltool_with_cov
+CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov
 
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2 3
@@ -39,8 +39,9 @@ do
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
 	pip${PYTHON_VERSION} uninstall -y cwltool
 	pip${PYTHON_VERSION} install .
-	pip${PYTHON_VERSION} install -U "cwltest>=1.0.20180518074130"
-	pushd common-workflow-language
+	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
+	pushd common-workflow-language-master
+	rm -f .coverage*
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
 	then
@@ -57,16 +58,18 @@ do
 		EXTRA="EXTRA=${EXTRA}"
 	fi
 	# shellcheck disable=SC2086
-	LC_ALL=C ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml RUNNER=cwltool \
-		-j4 DRAFT="${version}" "${EXTRA}" \
+	LC_ALL=C ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
+		RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)"\
+		DRAFT="${version}" "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
+	coverage combine --append $(find . -name '.coverage.*')
+	codecov
 	deactivate
 	popd
 done
 done
-
 # build new docker container
 if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
