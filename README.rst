@@ -208,7 +208,7 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
   import cwltool.factory
   fac = cwltool.factory.Factory()
 
-  echo = f.make("echo.cwl")
+  echo = fac.make("echo.cwl")
   result = echo(inp="foo")
 
   # result["out"] == "foo"
