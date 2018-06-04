@@ -19,7 +19,9 @@ from .process import relocateOutputs, cleanIntermediate, Process, shortname, uni
 from .workflow import Workflow
 from . import loghandler
 from schema_salad.sourceline import SourceLine
+from .utils import versionstring
 import datetime
+from .provenance import create_ProvProfile
 
 
 _logger = logging.getLogger("cwltool")
@@ -90,16 +92,16 @@ class JobExecutor(object):
             cleanIntermediate(self.output_dirs)
         
         if self.final_output and self.final_status:
-            if isinstance(t, Workflow):
-                if "research_obj" in kwargs and kwargs["research_obj"] \
-                    and hasattr(t, 'parent_wf') and t.parent_wf:
-                    ProcessRunID=None
-                    name="primary"
-                    t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
-                    t.parent_wf.document.wasEndedBy(
-                        t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID,
-                        datetime.datetime.now())
-                    t.parent_wf.finalize_provProfile(name)
+
+            if "research_obj" in kwargs and kwargs["research_obj"] \
+                and hasattr(t, 'parent_wf') and t.parent_wf:
+                ProcessRunID=None
+                name="primary"
+                t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
+                t.parent_wf.document.wasEndedBy(
+                    t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID,
+                    datetime.datetime.now())
+                t.parent_wf.finalize_provProfile(name)
             return (self.final_output[0], self.final_status[0])
         else:
             return (None, "permanentFail")
@@ -113,9 +115,25 @@ class SingleJobExecutor(JobExecutor):
                  make_fs_access=None,
                   **kwargs   
                  ):
+        provObj=None # type: Any
+        ProcessRunID=None #type: str
+        reference_locations={} #type: Dict[Text,Text]
+
+        # define provenance profile for single commandline tool
+        if not isinstance(t, Workflow) and "research_obj" in kwargs\
+            and kwargs["research_obj"]:
+            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+            engineUUID=uuid.uuid4().urn
+            orcid=kwargs["orcid"]
+            full_name=kwargs["cwl_full_name"]
+            t.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
+            t.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
+            t.parent_wf= t.provenanceObject
+            provObj=t.provenanceObject
 
         jobiter = t.job(job_order_object,
                         self.output_callback,
+                        provObj,
                         **kwargs)
         try:
             for r in jobiter:
@@ -128,7 +146,10 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(r.outdir)
                     if "research_obj" in kwargs and kwargs["research_obj"] \
                         and hasattr(r, 'provObj') and r.provObj:
-                        provObj=r.provObj
+                        if not isinstance(t, Workflow):
+                            provObj=t.provenanceObject
+                        else:
+                            provObj=r.provObj
                         ProcessRunID, reference_locations = provObj._evaluate(t, r, job_order_object, make_fs_access, kwargs)
                         r.run(ProcessRunID, reference_locations, **kwargs)
                     else:

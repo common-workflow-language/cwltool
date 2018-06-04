@@ -153,7 +153,7 @@ def object_from_state(state, parms, frag_only, supportsMultipleInput, sourceFiel
 
 class WorkflowJobStep(object):
     def __init__(self, step, provObj=None, parent_wf=None):
-        # type: (WorkflowJobStep, WorkflowStep, create_ProvProfile, create_ProvProfile) -> None
+        # type: (WorkflowJobStep, WorkflowStep, Any, Any) -> None
         
         self.step = step
         self.tool = step.tool
@@ -452,8 +452,8 @@ class Workflow(Process):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         super(Workflow, self).__init__(toolpath_object, **kwargs)
-        self.parent_wf=None
-        self.provenanceObject=None
+        self.parent_wf=None #type: create_ProvProfile
+        self.provenanceObject=None #type: create_ProvProfile
         if "research_obj" in kwargs and kwargs["research_obj"]:
             cwltoolVersion="cwltool %s" % versionstring().split()[-1]
             #FIXME UUID should be replaced with something else so that we don't
@@ -462,7 +462,8 @@ class Workflow(Process):
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
             self.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
-            self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
+            if self.provenanceObject:
+                self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             self.parent_wf= self.provenanceObject
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints
@@ -527,7 +528,7 @@ class Workflow(Process):
 
 class WorkflowStep(Process):
     def __init__(self, toolpath_object, pos, parentworkflowProv=None, **kwargs):
-        # type: (Dict[Text, Any], int, create_ProvProfile, **Any) -> None
+        # type: (Dict[Text, Any], int, Any, **Any) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -660,7 +661,7 @@ class WorkflowStep(Process):
             self.provObj=parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
                 self.parent_wf= self.embedded_tool.parent_wf
-            else: 
+            else:
                 self.parent_wf=self.provObj
 
     def receive_output(self, output_callback, jobout, processStatus):
@@ -677,7 +678,7 @@ class WorkflowStep(Process):
     def job(self,
             job_order,  # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            provObj=None,
+            provObj=None,   # type: Any
             **kwargs  # type: Any
             ):
         # type: (...) -> Generator[Any, None, None]

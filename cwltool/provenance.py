@@ -56,7 +56,7 @@ except:
     getpwnam = None
 
 from .errors import WorkflowException
-from .process import shortname
+from .process import shortname, Process
 from .stdfsaccess import StdFsAccess
 
 
@@ -359,6 +359,7 @@ class create_ProvProfile():
         return (self.workflowRunURI, self.document)
 
     def _evaluate(self, t, r, job_order_object, make_fs_access, kwargs):
+        # type: (Process, Any, Dict[Text, Text], Callable[[Text], StdFsAccess], **Any) -> Tuple[str, Dict[Text, Text]]
         '''
         evaluate the nature of r and 
         initialize the activity start
@@ -371,7 +372,8 @@ class create_ProvProfile():
             customised_job=research_obj.copy_job_order(r, job_order_object)
             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
             self.declare_artefact(relativised_input_object, job_order_object)
-            ProcessRunID = self.startProcess(r)
+            ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
+            ProcessRunID = self.startProcess(ProcessName)
         elif hasattr(r, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)

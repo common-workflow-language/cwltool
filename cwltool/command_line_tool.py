@@ -34,6 +34,7 @@ from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix, windows_default_container_id, onWindows
 from six.moves import map
+from .provenance import create_ProvProfile
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -195,8 +196,9 @@ def check_valid_locations(fs_access, ob):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
 class CommandLineTool(Process):
-    def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[Text, Any], **Any) -> None
+    def __init__(self, toolpath_object, provObj=None, **kwargs):
+        # type: (Dict[Text, Any], create_ProvProfile, **Any) -> None
+        self.provObj=provObj
         super(CommandLineTool, self).__init__(toolpath_object, **kwargs)
         self.find_default_container = kwargs.get("find_default_container", None)
 

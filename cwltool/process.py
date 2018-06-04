@@ -447,7 +447,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
         self.names = None  # type: schema.Names
-
+        self.provenanceObject=None #type: Any
+        self.parent_wf=None #type: Any
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None:
             get_schema("v1.0")
