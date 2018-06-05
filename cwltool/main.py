@@ -7,11 +7,14 @@ import collections
 import functools
 import json
 import logging
+import io
 import os
 import codecs
+from codecs import StreamWriter  # pylint: disable=unused-import
 import sys
 import warnings
-from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
+from typing import (IO, Any, Callable, Dict, # pylint: disable=unused-import
+                    List, Text, TextIO, Tuple,
                     Union, cast, Mapping, MutableMapping, Iterable)
 
 import pkg_resources  # part of setuptools
@@ -151,7 +154,7 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
                    t,     # type: Process
                    print_input_deps=False,  # type: bool
                    relative_deps=False,     # type: bool
-                   stdout=sys.stdout,       # type: IO[Any]
+                   stdout=None,             # type: Union[TextIO, StreamWriter]
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    loader=None,             # type: Loader
                    input_basedir="",        # type: Text
@@ -261,8 +264,13 @@ def makeRelative(base, ob):
             ob["location"] = os.path.relpath(u, base)
 
 
-def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
-    # type: (Mapping[Text, Any], Loader, IO[Any], bool, Text, Text) -> None
+def printdeps(obj,              # type: Mapping[Text, Any]
+              document_loader,  # type: Loader
+              stdout,           # type: Union[TextIO, StreamWriter]
+              relative_deps,    # type: bool
+              uri,              # type: Text
+              basedir=None      # type: Text
+             ):  # type: (...) -> None
     deps = {"class": "File",
             "location": uri}  # type: Dict[Text, Any]
 
@@ -322,7 +330,7 @@ def main(argsl=None,  # type: List[str]
          makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
          selectResources=None,  # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,  # type: IO[Any]
-         stdout=sys.stdout,  # type: IO[Any]
+         stdout=None,  # type: Union[TextIO, codecs.StreamWriter]
          stderr=sys.stderr,  # type: IO[Any]
          versionfunc=versionstring,  # type: Callable[[], Text]
          job_order_object=None,  # type: MutableMapping[Text, Any]
@@ -333,8 +341,15 @@ def main(argsl=None,  # type: List[str]
          custom_schema_callback=None  # type: Callable[[], None]
          ):
     # type: (...) -> int
-    if hasattr(stdout, "encoding") and stdout.encoding != 'utf-8':
-        stdout = codecs.getwriter('utf-8')(stdout)
+    if not stdout:  # force UTF-8 even if the console is configured differently
+        if (hasattr(sys.stdout, "encoding")  # type: ignore
+                and sys.stdout.encoding != 'UTF-8'):  # type: ignore
+            if six.PY3 and hasattr(sys.stdout, "detach"):
+                stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+            else:
+                stdout = codecs.getwriter('utf-8')(sys.stdout)  # type: ignore
+        else:
+            stdout = cast(TextIO, sys.stdout)  # type: ignore
 
     _logger.removeHandler(defaultStreamHandler)
     if logger_handler:
@@ -614,9 +629,14 @@ def main(argsl=None,  # type: List[str]
                 if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
-                    stdout.write(json.dumps(out, indent=4))
+                    json_opts = {}  # type: Dict[Text, Text]
+                    if six.PY2:
+                        json_opts['encoding'] = 'utf-8'
+                    stdout.write(json.dumps(out, indent=4,  # type: ignore
+                                            ensure_ascii=False, **json_opts))
                 stdout.write("\n")
-                stdout.flush()
+                if hasattr(stdout, "flush"):
+                    stdout.flush()  # type: ignore
 
             if status != "success":
                 _logger.warning(u"Final process status is %s", status)

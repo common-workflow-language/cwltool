@@ -21,6 +21,6 @@ class RDFPrint(unittest.TestCase):
         os.environ["LC_ALL"] = "C"
         self.assertEquals(subprocess.check_call(
             [sys.executable, "-m", "cwltool", '--print-rdf',
-             get_data('tests/utf_doc_example')]), 0)
+             get_data('tests/utf_doc_example.cwl')]), 0)
         if lc_all:
             os.environ["LC_ALL"] = lc_all
