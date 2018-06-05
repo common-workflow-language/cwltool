@@ -351,8 +351,6 @@ class create_ProvProfile():
         self.document.activity(self.workflowRunURI, datetime.datetime.now(), None, {
             provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
-        # FIXME: Below assumes main workflow always called "#main",
-        # is this always true after packing?
         mainWorkflow = "wf:main"
         self.document.wasAssociatedWith(self.workflowRunURI, engineUUID, mainWorkflow)
         self.document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
@@ -546,12 +544,10 @@ class create_ProvProfile():
             self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
             return
 
-        # FIXME: Workflow is always called "#main"?
         self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Workflow"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
 
         steps=[]
         for s in r.steps:
-            # FIXME: Use URI fragment identifier for step name, e.g. for spaces
             stepnametemp="wf:main/"+str(s.name)[5:]
             stepname=urllib.parse.quote(stepnametemp, safe=":/,#")
             steps.append(stepname)
@@ -962,7 +958,7 @@ class ResearchObject():
             infoFile.write(u"Payload-Oxum: %d.%d\n" % (totalSize, numFiles))
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
-    def snapshot_generation(self, ProvDep):
+    def generate_snapshot(self, ProvDep):
         # type: (Dict[str,str]) -> None
         '''
         Copies all the cwl files involved in this workflow run to snapshot
@@ -987,7 +983,7 @@ class ResearchObject():
             elif key == "secondaryFiles" or key == "listing":
                 for files in value:
                     if isinstance(files, dict):
-                        self.snapshot_generation(files)
+                        self.generate_snapshot(files)
             else:
                 pass
 

@@ -680,12 +680,12 @@ def main(argsl=None,  # type: List[str]
         if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
-            args.research_obj.snapshot_generation(ProvDependencies[1])
+            args.research_obj.generate_snapshot(ProvDependencies[1])
             #for input file dependencies
             if inputforProv:
-                args.research_obj.snapshot_generation(inputforProv)
+                args.research_obj.generate_snapshot(inputforProv)
             if job_order_object:
-                args.research_obj.snapshot_generation(job_order_object)
+                args.research_obj.generate_snapshot(job_order_object)
 
             args.research_obj.close(args.provenance)
 
