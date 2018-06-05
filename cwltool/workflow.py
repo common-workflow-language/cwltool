@@ -461,7 +461,7 @@ class Workflow(Process):
             engineUUID=uuid.uuid4().urn
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
-            self.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
+            self.provenanceObject=create_ProvProfile(kwargs['research_obj'], full_name, orcid)
             if self.provenanceObject:
                 self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             self.parent_wf= self.provenanceObject
