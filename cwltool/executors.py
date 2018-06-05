@@ -122,12 +122,9 @@ class SingleJobExecutor(JobExecutor):
         # define provenance profile for single commandline tool
         if not isinstance(t, Workflow) and "research_obj" in kwargs\
             and kwargs["research_obj"]:
-            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-            engineUUID=uuid.uuid4().urn
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
             t.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
-            t.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
             t.parent_wf= t.provenanceObject
             provObj=t.provenanceObject
 

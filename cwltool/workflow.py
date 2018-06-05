@@ -455,15 +455,10 @@ class Workflow(Process):
         self.parent_wf=None #type: create_ProvProfile
         self.provenanceObject=None #type: create_ProvProfile
         if "research_obj" in kwargs and kwargs["research_obj"]:
-            cwltoolVersion="cwltool %s" % versionstring().split()[-1]
-            #FIXME UUID should be replaced with something else so that we don't
-            # have different UUIDs for the same engine.
-            engineUUID=uuid.uuid4().urn
             orcid=kwargs["orcid"]
             full_name=kwargs["cwl_full_name"]
-            self.provenanceObject=create_ProvProfile(kwargs['research_obj'], full_name, orcid)
-            if self.provenanceObject:
-                self.provenanceObject.generate_provDoc(cwltoolVersion, engineUUID)
+            self.provenanceObject=create_ProvProfile(kwargs['research_obj'], full_name,
+                orcid, kwargs["host_provenance"], kwargs["user_provenance"])
             self.parent_wf= self.provenanceObject
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints

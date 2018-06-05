@@ -58,7 +58,7 @@ except:
 from .errors import WorkflowException
 from .process import shortname, Process
 from .stdfsaccess import StdFsAccess
-
+from .utils import versionstring
 
 
 relativised_input_object={}  # type: Dict[str, Any]
@@ -90,6 +90,9 @@ __citation__="https://doi.org/10.5281/zenodo.1208477"
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
 hashmethod = hashlib.sha1
+
+#variable to distinguish main profile from sub workflow profiles
+PARENT_PROFILE = False
 
 # TODO: Better identifiers for user, at least
 # these should be preserved in ~/.config/cwl for every execution
@@ -268,34 +271,35 @@ def _valid_orcid(orcid):  # type: (Text) -> Text
     return u"https://orcid.org/%s" % orcid_num
 
 class create_ProvProfile():
-    def __init__(self, ro, full_name=None, orcid=None):
+    def __init__(self, ro, full_name=None, orcid=None, host_provenance=False, user_provenance=False):
         # type: (ResearchObject, str, str) -> None
 
         self.orcid=orcid
         self.ro=ro
-        #self.orcid = _valid_orcid(orcid)
         self.folder = self.ro.folder
         self.document = ProvDocument()
-        # These should be replaced by generate_provDoc when workflow/run IDs are known:
         u = uuid.uuid4()
         self.workflowRunURI = u.urn
-        self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
+        self.host_provenance = host_provenance
+        self.user_provenance = user_provenance
+        self.engineUUID = ro.engineUUID
         self.add_to_manifest=self.ro.add_to_manifest
         if self.orcid:
             _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
         self.full_name = full_name or None
         if self.full_name:
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
+        self.generate_provDoc()
 
-    def generate_provDoc(self, cwltoolVersion, engineUUID):
-        # type: (str, str) -> Tuple[str, ProvDocument]
+    def generate_provDoc(self):
+        # type: () -> Tuple[str, ProvDocument]
         '''
         add basic namespaces
         '''
 
         workflowRunUUID = uuid.uuid4()
 
-        self.cwltoolVersion = cwltoolVersion
+        self.cwltoolVersion="cwltool %s" % versionstring().split()[-1]
         self.document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         self.document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
@@ -321,29 +325,36 @@ class create_ProvProfile():
         self.wf_ns = self.document.add_namespace("wf", roIdentifierWorkflow)
         roIdentifierInput=self.base_uri + "workflow/primary-job.json#"
         self.document.add_namespace("input", roIdentifierInput)
-        self.engineUUID = engineUUID
 
         # More info about the account (e.g. username, fullname)
         # may or may not have been previously logged by user_provenance()
         # .. but we always know cwltool was launched (directly or indirectly)
         # by a user account, as cwltool is a command line tool
         account = self.document.agent(accountUUID)
-        if self.orcid or self.full_name:
-            person = {provM.PROV_TYPE: PROV["Person"], "prov:type": SCHEMA["Person"]}
-            if self.full_name:
-                person["prov:label"] = self.full_name
-                person["foaf:name"] = self.full_name
-                person["schema:name"] = self.full_name
+        global PARENT_PROFILE
+        if not PARENT_PROFILE:
+            if self.orcid or self.full_name:
+                person = {provM.PROV_TYPE: PROV["Person"], "prov:type": SCHEMA["Person"]}
+                if self.full_name:
+                    person["prov:label"] = self.full_name
+                    person["foaf:name"] = self.full_name
+                    person["schema:name"] = self.full_name
+                else:
+                    # TODO: Look up name from ORCID API?
+                    pass
+                a = self.document.agent(self.orcid or uuid.uuid4().urn,
+                                person)
+                self.document.actedOnBehalfOf(account, a)
             else:
-                # TODO: Look up name from ORCID API?
-                pass
-            a = self.document.agent(self.orcid or uuid.uuid4().urn,
-                               person)
-            self.document.actedOnBehalfOf(account, a)
+                if self.host_provenance:
+                    self.ro.host_provenance(self.document)
+                if self.user_provenance:
+                    self.ro.user_provenance(self.document)
+            PARENT_PROFILE = True
         # The execution of cwltool
-        wfengine = self.document.agent(engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"],
+        wfengine = self.document.agent(self.engineUUID, {provM.PROV_TYPE: PROV["SoftwareAgent"],
             "prov:type": WFPROV["WorkflowEngine"],
-            "prov:label": cwltoolVersion})
+            "prov:label": self.cwltoolVersion})
         # FIXME: This datetime will be a bit too delayed, we should
         # capture when cwltool.py earliest started?
         self.document.wasStartedBy(wfengine, None, account, datetime.datetime.now())
@@ -352,8 +363,8 @@ class create_ProvProfile():
             provM.PROV_TYPE: WFPROV["WorkflowRun"], "prov:label": "Run of workflow/packed.cwl#main"})
         #association between SoftwareAgent and WorkflowRun
         mainWorkflow = "wf:main"
-        self.document.wasAssociatedWith(self.workflowRunURI, engineUUID, mainWorkflow)
-        self.document.wasStartedBy(self.workflowRunURI, None, engineUUID, datetime.datetime.now())
+        self.document.wasAssociatedWith(self.workflowRunURI, self.engineUUID, mainWorkflow)
+        self.document.wasStartedBy(self.workflowRunURI, None, self.engineUUID, datetime.datetime.now())
         return (self.workflowRunURI, self.document)
 
     def _evaluate(self, t, r, job_order_object, make_fs_access, kwargs):
@@ -606,11 +617,7 @@ class ResearchObject():
 
         self.tmpPrefix = tmpPrefix
         self.orcid = _valid_orcid(orcid)
-        if self.orcid:
-            _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
         self.full_name = full_name or None
-        if self.full_name:
-            _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
         self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict

@@ -66,7 +66,6 @@ from ruamel.yaml.comments import Comment, CommentedSeq, CommentedMap
 _logger = logging.getLogger("cwltool")
 _logger.setLevel(logging.INFO)
 
-engineUUID=uuid.uuid4().urn
 
 
 
