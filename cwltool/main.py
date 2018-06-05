@@ -29,7 +29,7 @@ from .executors import SingleJobExecutor, MultithreadedJobExecutor
 from .load_tool import (FetcherConstructorType, resolve_tool_uri,
                         fetch_document, make_tool, validate_document, jobloaderctx,
                         resolve_overrides, load_overrides)
-from .loghandler import defaultStreamHandler
+from .loghandler import defaultStreamHandler, _logger
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class)
@@ -43,8 +43,6 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import onWindows, windows_default_container_id, add_sizes
-
-_logger = logging.getLogger("cwltool")
 
 
 def single_job_executor(t,  # type: Process
@@ -227,7 +225,6 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
             p["location"] = p["path"]
             del p["path"]
 
-  
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
@@ -392,10 +389,14 @@ def main(argsl=None,  # type: List[str]
             if not hasattr(args, k):
                 setattr(args, k, v)
 
+        rdflib_logger = logging.getLogger("rdflib.term")
+        rdflib_logger.addHandler(stderr_handler)
+        rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
             _logger.setLevel(logging.WARN)
         if args.debug:
             _logger.setLevel(logging.DEBUG)
+            rdflib_logger.setLevel(logging.DEBUG)
         if args.timestamps:
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
