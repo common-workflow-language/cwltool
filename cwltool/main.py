@@ -8,6 +8,7 @@ import functools
 import json
 import logging
 import os
+import codecs
 import sys
 import warnings
 from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
@@ -314,6 +315,7 @@ def supportedCWLversions(enable_dev):
     versions.sort()
     return versions
 
+
 def main(argsl=None,  # type: List[str]
          args=None,  # type: argparse.Namespace
          executor=None,  # type: Callable[..., Tuple[Dict[Text, Any], Text]]
@@ -331,6 +333,8 @@ def main(argsl=None,  # type: List[str]
          custom_schema_callback=None  # type: Callable[[], None]
          ):
     # type: (...) -> int
+    if hasattr(stdout, "encoding") and stdout.encoding != 'utf-8':
+        stdout = codecs.getwriter('utf-8')(stdout)
 
     _logger.removeHandler(defaultStreamHandler)
     if logger_handler:
