@@ -373,7 +373,7 @@ class create_ProvProfile():
             relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
             self.declare_artefact(relativised_input_object, job_order_object)
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
-            ProcessRunID = self.startProcess(ProcessName)
+            ProcessRunID=self.workflowRunURI
         elif hasattr(r, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)
@@ -565,9 +565,6 @@ class create_ProvProfile():
         '''
         Transfer the provenance related files to RO
         '''
-        #self.prov_document = document
-        # TODO: Generate filename per workflow run also for nested workflows
-        # nested-47b74496-9ffd-42e4-b1ad-9a10fc93b9ce-cwlprov.provn
         # NOTE: Relative posix path
         wf_name=urllib.parse.quote(str(name), safe=":/,#")
         filename=wf_name+".cwlprov"
@@ -634,7 +631,6 @@ class ResearchObject():
         ##
         # This function will be added by create_job()
         self.make_fs_access = None  # type: Callable[[Text], StdFsAccess]
-        ##
 
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
@@ -1123,7 +1119,6 @@ class ResearchObject():
     def create_job(self, job, make_fs_access, kwargs):
         # type: (Dict, Callable[[Text], StdFsAccess], Dict[str,Any]) -> Tuple[Dict,Dict]
 
-        #TODO handle nested workflow at level 2 provenance
         #TODO customise the file
         '''
         This function takes the dictionary input object and generates
