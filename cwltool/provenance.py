@@ -272,7 +272,7 @@ def _valid_orcid(orcid):  # type: (Text) -> Text
 
 class create_ProvProfile():
     def __init__(self, ro, full_name=None, orcid=None, host_provenance=False, user_provenance=False):
-        # type: (ResearchObject, str, str) -> None
+        # type: (ResearchObject, str, str, bool, bool) -> None
 
         self.orcid=orcid
         self.ro=ro
