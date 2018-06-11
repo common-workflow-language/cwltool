@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import copy
 import functools
-import json
 import logging
 import random
 import tempfile
@@ -18,7 +17,7 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
-from .utils import aslist
+from .utils import aslist, json_dumps
 from .checker import static_checker, can_assign_src_to_sink, check_types
 
 import six
@@ -218,7 +217,8 @@ class WorkflowJob(object):
                     processStatus = "permanentFail"
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[%s] produced output %s", step.name, json.dumps(jobout, indent=4))
+            _logger.debug(u"[%s] produced output %s", step.name,
+                          json_dumps(jobout, indent=4))
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -328,12 +328,15 @@ class WorkflowJob(object):
                                                                callback), 0, **kwargs))
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
-                    _logger.debug(u"[job %s] job input %s", step.name, json.dumps(inputobj, indent=4))
+                    _logger.debug(u"[job %s] job input %s", step.name,
+                                  json_dumps(inputobj, indent=4))
 
                 inputobj = postScatterEval(inputobj)
 
                 if _logger.isEnabledFor(logging.DEBUG):
-                    _logger.debug(u"[job %s] evaluated job input to %s", step.name, json.dumps(inputobj, indent=4))
+                    _logger.debug(
+                        u"[job %s] evaluated job input to %s", step.name,
+                        json_dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, callback, **kwargs)
 
             step.submitted = True

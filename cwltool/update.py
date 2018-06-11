@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import copy
-import json
 import re
 import traceback
 from typing import (Any, Callable, Dict, Text,  # pylint: disable=unused-import

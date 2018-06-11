@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import copy
-import json
 import logging
 import re
 from typing import Any, AnyStr, Dict, List, Text, Union
@@ -10,7 +9,7 @@ from six import u
 
 from . import sandboxjs
 from .errors import WorkflowException
-from .utils import bytes2str_in_dicts
+from .utils import bytes2str_in_dicts, json_dumps
 
 _logger = logging.getLogger("cwltool")
 
@@ -25,7 +24,9 @@ def jshead(engineConfig, rootvars):
     if six.PY3:
         rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
-    return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
+    return u"\n".join(engineConfig + [
+        u"var %s = %s;" % (k, json_dumps(v, indent=4))
+        for k, v in rootvars.items()])
 
 
 # decode all raw strings to unicode
@@ -209,7 +210,7 @@ def interpolate(scan, rootvars,
                           debug=debug, js_console=js_console)
             if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
-            leaf = json.dumps(e, sort_keys=True)
+            leaf = json_dumps(e, sort_keys=True)
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
             parts.append(leaf)
