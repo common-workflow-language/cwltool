@@ -405,6 +405,15 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
     return req
 
 
+_VAR_SPOOL_ERROR=textwrap.dedent(
+    """
+    Non-portable reference to /var/spool/cwl detected: '{}'.
+    To fix, replace /var/spool/cwl with $(runtime.outdir) or add
+    DockerRequirement to the 'requirements' section and declare
+    'dockerOutputDirectory: /var/spool/cwl'.
+    """)
+
+
 def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
@@ -413,13 +422,9 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
     r = False
     if isinstance(obj, string_types):
         if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
-            _logger.warn(SourceLine(
-                item=item, key=obj_key, raise_type=Text).makeError(
-"""Non-portable reference to /var/spool/cwl detected:
-  '{}'
-To fix, replace /var/spool/cwl with $(runtime.outdir) or
-  add DockerRequirement to the 'requirements' section and
-  declare 'dockerOutputDirectory: /var/spool/cwl'.""".format(obj)))
+            _logger.warn(
+                SourceLine(item=item, key=obj_key, raise_type=Text).makeError(
+                    _VAR_SPOOL_ERROR.format(obj)))
             r = True
     elif isinstance(obj, dict):
         for key, value in iteritems(obj):
@@ -567,8 +572,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
             _logger.warn(SourceLine(
                 item=dockerReq, raise_type=Text).makeError(
-"""When 'dockerOutputDirectory' is declared, DockerRequirement
-  should go in the 'requirements' section, not 'hints'."""))
+                "When 'dockerOutputDirectory' is declared, DockerRequirement "
+                "should go in the 'requirements' section, not 'hints'."""))
 
         if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
             if is_req:
@@ -646,7 +651,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             stagedir = fs_access.docker_compatible_realpath(
                 kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            outdir = fs_access.realpath(kwargs.get("outdir") or \
+            outdir = fs_access.realpath(kwargs.get("outdir") or
                 tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix",
                     DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
@@ -892,9 +897,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = doc.get("location", doc.get("path"))
             if u and not u.startswith("_:"):
-                deps = {
-                        "class": doc["class"],
-                        "location": urljoin(base, u)
+                deps = {"class": doc["class"],"location": urljoin(base, u)
                        }  # type: Dict[Text, Any]
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]

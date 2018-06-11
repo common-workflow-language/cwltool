@@ -9,6 +9,7 @@ from .util import needs_docker
 
 
 class ToolArgparse(unittest.TestCase):
+    """Tests for generating --help dynamically."""
     script = '''
 #!/usr/bin/env cwl-runner
 cwlVersion: v1.0
