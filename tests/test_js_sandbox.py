@@ -50,7 +50,10 @@ class TestValueFrom(unittest.TestCase):
     def test_value_from_two_concatenated_expressions(self):
         f = get_windows_safe_factory()
         echo = f.make(get_data("tests/wf/vf-concat.cwl"))
-        self.assertEqual(echo(), {u"out": u"a sting\n"})
+        self.assertEqual(echo(file1={
+            "class": "File",
+            "location": get_data("tests/wf/whale.txt")}),
+            {u"out": u"a string\n"})
 
 
 class ExecJsProcessTest(unittest.TestCase):
