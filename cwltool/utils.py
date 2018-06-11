@@ -1,27 +1,27 @@
 from __future__ import absolute_import
 
-# no imports from cwltool allowed
-
 import json
 import os
 import platform
 import shutil
 import stat
-from functools import partial
-
-from typing import (Any, AnyStr, Callable,  # pylint: disable=unused-import
-                    Dict, Iterable, IO, List, Optional, Text, Tuple, TypeVar,
+from functools import partial  # pylint: disable=unused-import
+from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
+                    Dict, Iterable, List, Optional, Text, Tuple, TypeVar,
                     Union)
+
+import six
+from six.moves import urllib, zip_longest
 from mypy_extensions import TypedDict
+
+# no imports from cwltool allowed
+
+
 if os.name == 'posix':
     import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
 else:
     import subprocess  # type: ignore # pylint: disable=unused-import
 
-from pkg_resources import (Requirement, ResolutionError,  # type: ignore
-                           resource_filename)
-import six
-from six.moves import urllib, zip_longest
 
 windows_default_container_id = "frolvlad/alpine-bash"
 

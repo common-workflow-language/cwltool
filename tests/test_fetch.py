@@ -1,22 +1,24 @@
 from __future__ import absolute_import
-import unittest
-import sys
-import os
 
-from six.moves import urllib
+import os
+import unittest
 
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
+from six.moves import urllib
+
 from cwltool.load_tool import load_tool
 from cwltool.main import main
-from cwltool.workflow import defaultMakeTool
-from cwltool.resolver import resolve_local, Path
+from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
+from cwltool.workflow import defaultMakeTool
 
 from .util import get_data
 
+
 class FetcherTest(unittest.TestCase):
+    """Test using custom schema_salad.ref_resolver.Fetcher."""
     def test_fetcher(self):
         class TestFetcher(schema_salad.ref_resolver.Fetcher):
             def __init__(self, a, b):

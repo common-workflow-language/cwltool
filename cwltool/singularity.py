@@ -1,5 +1,6 @@
 """Support for executing Docker containers using Singularity."""
 from __future__ import absolute_import
+
 import logging
 import os
 import os.path
@@ -7,14 +8,18 @@ import re
 import shutil
 import sys
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Dict, List, Text, Optional,  # pylint: disable=unused-import
-                    MutableMapping)
+from typing import (Dict, List,  # pylint: disable=unused-import
+                    MutableMapping, Optional, Text)
+
 from schema_salad.sourceline import SourceLine
+
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
-from .process import (UnsupportedRequirement)
+from .pathmapper import (PathMapper,  # pylint: disable=unused-import
+                         ensure_writable)
+from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
+
 if os.name == 'posix':
     from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
         check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,

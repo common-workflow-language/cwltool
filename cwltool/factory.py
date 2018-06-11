@@ -1,14 +1,17 @@
 from __future__ import absolute_import
+
 import os
-from typing import Callable as tCallable
-from typing import (Any, Dict, Optional, Text,  # pylint: disable=unused-import
-                    Tuple, Union)
+from typing import Callable as tCallable # pylint: disable=unused-import
+from typing import (Any, # pylint: disable=unused-import
+                    Dict, Optional, Text, Tuple, Union)
 
 from . import load_tool, workflow
 from .argparser import get_default_args
 from .executors import SingleJobExecutor
 from .process import Process
-from .software_requirements import DependenciesConfiguration  # pylint: disable=unused-import
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
+
 
 class WorkflowStatus(Exception):
     def __init__(self, out, status):

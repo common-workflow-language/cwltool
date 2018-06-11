@@ -1,32 +1,33 @@
 """Loads a CWL document."""
 from __future__ import absolute_import
-# pylint: disable=unused-import
 
+import hashlib
 import logging
 import os
 import re
 import uuid
-import hashlib
-import copy
-from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
-                    Text, Tuple, Union, cast)
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Iterable, List, Mapping, Optional, Text, Tuple, Union, cast)
 
 import requests.sessions
-from six import iteritems, itervalues, string_types
-from six.moves import urllib
-
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from six import itervalues, string_types
+from six.moves import urllib
 import schema_salad.schema as schema
-from schema_salad.ref_resolver import ContextType, Fetcher, Loader, file_uri
-from schema_salad.sourceline import cmap, SourceLine
+from schema_salad.ref_resolver import (  # pylint: disable=unused-import
+    ContextType, Fetcher, Loader, file_uri)
+from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.validate import ValidationException
 
 from . import process, update
 from .errors import WorkflowException
-from .process import Process, shortname, get_schema
+from .process import (  # pylint: disable=unused-import
+    Process, get_schema, shortname)
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
 from .update import ALLUPDATES
-from .software_requirements import DependenciesConfiguration
 from .utils import json_dumps
+
 
 _logger = logging.getLogger("cwltool")
 jobloaderctx = {

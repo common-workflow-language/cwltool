@@ -1,6 +1,9 @@
 import uuid
+from typing import (Any, Dict, List,  # pylint: disable=unused-import
+                    MutableMapping, Text)
+
 from six import string_types
-from typing import (List, Dict, Any, Text, MutableMapping)
+
 
 class SecretStore(object):
     def __init__(self):

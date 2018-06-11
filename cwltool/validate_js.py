@@ -1,27 +1,23 @@
-import functools
+import copy
 import itertools
 import json
 import logging
-from io import open
 from collections import namedtuple
-from os import path
-from typing import Any, Dict, List, Optional, Text, Tuple, Union
+from typing import (Any, Dict, List,  # pylint: disable=unused-import
+                    Optional, Text, Tuple, Union)
 
-import copy
-import schema_salad
-from six import string_types
-from schema_salad.sourceline import SourceLine
-from schema_salad.validate import Schema, ValidationException, validate_ex
 import avro.schema  # always import after schema_salad, never before
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from pkg_resources import resource_stream
+from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
+from schema_salad.sourceline import SourceLine
+from schema_salad.validate import (Schema,  # pylint: disable=unused-import
+                                   ValidationException, validate_ex)
+from six import string_types
 
 from .expression import scanner as scan_expression
-from .sandboxjs import (JavascriptException, code_fragment_to_js,
-                        exec_js_process, execjs)
+from .loghandler import _logger
+from .sandboxjs import code_fragment_to_js, exec_js_process
 from .utils import json_dumps
-from pkg_resources import resource_stream
-
-_logger = logging.getLogger("cwltool")
 
 def is_expression(tool, schema):
     # type: (Union[CommentedMap, Any], Schema) -> bool

@@ -1,30 +1,32 @@
 from __future__ import absolute_import
+
 import copy
 import hashlib
+import json
 import locale
 import logging
-import json
 import os
 import re
 import shutil
 import tempfile
-from functools import partial, cmp_to_key
-from typing import (Any, Callable, Dict, Generator,  # pylint: disable=unused-import
-                    List, Optional, Set, Text, Type, Union, cast)
-from six import string_types
-from six.moves import urllib, map
+from functools import cmp_to_key, partial
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, List, Optional, Set, Text, Type, Union, cast)
 
-import shellescape
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
+import shellescape
+from six import string_types
+from six.moves import map, urllib
 
-from .loghandler import _logger
-from .builder import CONTENT_LIMIT, Builder, substitute  # pylint: disable=unused-import
+from .builder import (CONTENT_LIMIT, Builder,  # pylint: disable=unused-import
+                      substitute)
 from .docker import DockerCommandLineJob
 from .errors import WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase  # pylint: disable=unused-import
+from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, adjustFileObjs,
                          get_listing, trim_listing, visit_class)
@@ -32,11 +34,12 @@ from .process import (Process, UnsupportedRequirement,
                       _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .singularity import SingularityCommandLineJob
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, docker_windows_path_adjust,
-                    convert_pathsep_to_unix, json_dumps,
-                    windows_default_container_id, onWindows)
-from .software_requirements import DependenciesConfiguration  # pylint: disable=unused-import
+from .utils import (aslist, convert_pathsep_to_unix,
+                    docker_windows_path_adjust, json_dumps, onWindows,
+                    windows_default_container_id)
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything

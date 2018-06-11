@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-from __future__ import absolute_import
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import argparse
+import codecs
+from codecs import StreamWriter  # pylint: disable=unused-import
 import collections
 import copy
 import functools
-import logging
 import io
+import logging
 import os
-import codecs
-from codecs import StreamWriter  # pylint: disable=unused-import
 import sys
 import warnings
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
-                    List, Text, TextIO, Tuple,
-                    Union, Optional, Mapping, MutableMapping, Iterable, cast)
+                    Iterable, List, Mapping, MutableMapping, Optional, Text,
+                    TextIO, Tuple, Union, cast)
 
 import pkg_resources  # part of setuptools
 import ruamel.yaml as yaml
@@ -29,25 +28,26 @@ from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .executors import SingleJobExecutor, MultithreadedJobExecutor
-from .load_tool import (FetcherConstructorType, resolve_tool_uri,
-                        fetch_document, make_tool, validate_document, jobloaderctx,
-                        resolve_overrides, load_overrides)
-from .loghandler import defaultStreamHandler, _logger
+from .executors import MultithreadedJobExecutor, SingleJobExecutor
+from .load_tool import (  # pylint: disable=unused-import
+    FetcherConstructorType, fetch_document, jobloaderctx,
+    load_overrides, make_tool, resolve_overrides, resolve_tool_uri,
+    validate_document)
+from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
-from .pathmapper import (adjustDirObjs, trim_listing, visit_class,
-                         normalizeFilesDirs)
-from .process import (Process, scandeps, shortname, use_custom_schema,
-                      use_standard_schema)
-from .secrets import SecretStore
+from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
+                         visit_class)
+from .process import (Process, scandeps,   # pylint: disable=unused-import
+                      shortname, use_custom_schema, use_standard_schema)
 from .resolver import ga4gh_tool_registries, tool_resolver
+from .secrets import SecretStore
 from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import (add_sizes, onWindows, json_dumps,
-                    windows_default_container_id, DEFAULT_TMP_PREFIX)
+from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
+                    windows_default_container_id)
 
 
 def single_job_executor(t,  # type: Process

@@ -1,13 +1,15 @@
 from __future__ import absolute_import
+
 import logging
 import os
 import sys
+
+from six.moves import urllib
 
 if sys.version_info < (3, 4):
     from pathlib2 import Path
 else:
     from pathlib import Path
-from six.moves import urllib
 
 
 _logger = logging.getLogger("cwltool")

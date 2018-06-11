@@ -1,16 +1,18 @@
 from __future__ import absolute_import
+
 import copy
 import re
-from typing import (Any, Callable, Dict, Optional, Text,  # pylint: disable=unused-import
-                    Tuple, Union)
-from six import string_types
-from six.moves import urllib
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Optional, Text, Tuple, Union)
+
 import schema_salad.validate
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Loader
+from six import string_types
+from six.moves import urllib
 
-from .utils import aslist, visit_class
+from .utils import visit_class
+
 
 def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
     if isinstance(doc, dict):

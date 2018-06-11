@@ -1,21 +1,22 @@
 import logging
+import os
 import tempfile
 import threading
-import os
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List, Optional, Set, Text, Tuple  # pylint: disable=unused-import
+from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
+                    Set, Text, Tuple)
 
+from schema_salad.validate import ValidationException
 import six
 from six import string_types
-from schema_salad.validate import ValidationException
 
-from .utils import DEFAULT_TMP_PREFIX
 from .builder import Builder  # pylint: disable=unused-import
 from .errors import WorkflowException
-from .mutation import MutationManager
 from .job import JobBase  # pylint: disable=unused-import
-from .process import (relocateOutputs, cleanIntermediate,  # pylint: disable=unused-import
-                      Process)
+from .mutation import MutationManager
+from .process import (Process,  # pylint: disable=unused-import
+                      cleanIntermediate, relocateOutputs)
+from .utils import DEFAULT_TMP_PREFIX
 
 _logger = logging.getLogger("cwltool")
 

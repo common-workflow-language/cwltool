@@ -1,18 +1,17 @@
-from __future__ import absolute_import
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import argparse
 import os
-from typing import (Any, AnyStr, Dict, List, Optional,  # pylint: disable=unused-import
-                    Sequence, Text, Union, cast)
+from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
+                    Optional, Sequence, Text, Union, cast)
 
 from schema_salad.ref_resolver import file_uri
-from .utils import DEFAULT_TMP_PREFIX
+
 from .loghandler import _logger
 from .process import Process, shortname  # pylint: disable=unused-import
 from .resolver import ga4gh_tool_registries
 from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
-
+from .utils import DEFAULT_TMP_PREFIX
 
 
 def arg_parser():  # type: () -> argparse.ArgumentParser

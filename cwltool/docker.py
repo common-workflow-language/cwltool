@@ -1,26 +1,27 @@
 from __future__ import absolute_import
 
+import datetime
 import os
 import re
 import shutil
 import sys
 import tempfile
-from io import open  # pylint: disable=redefined-builtin
-import datetime
 import threading
+from io import open  # pylint: disable=redefined-builtin
+from typing import (Any, Dict, List,  # pylint: disable=unused-import
+                    MutableMapping, Optional, Set, Text)
 
-from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
-                    MutableMapping, Set, Text)
 import requests
 
-from .loghandler import _logger
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
+from .loghandler import _logger
+from .pathmapper import (PathMapper,  # pylint: disable=unused-import
+                         ensure_writable)
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import (docker_windows_path_adjust, onWindows, subprocess,
-                    DEFAULT_TMP_PREFIX)
+from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
+                    subprocess)
 
 found_images = set()  # type: Set[Text]
 found_images_lock = threading.Lock()

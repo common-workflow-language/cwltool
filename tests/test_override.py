@@ -1,14 +1,11 @@
 from __future__ import absolute_import
+
+import json
 import unittest
 
-import cwltool.expression as expr
-import cwltool.pathmapper
-import cwltool.process
-import cwltool.workflow
-import pytest
-import json
-from cwltool.main import main
 from six import StringIO
+
+from cwltool.main import main
 
 from .util import get_data, needs_docker
 

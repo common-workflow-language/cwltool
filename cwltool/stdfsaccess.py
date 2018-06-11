@@ -1,14 +1,17 @@
 from __future__ import absolute_import
+
 import glob
 import os
 from io import open
-from typing import BinaryIO, List, Union, Text, IO, overload
-
-from .utils import onWindows
+from typing import (IO, BinaryIO, List,  # pylint: disable=unused-import
+                    Text, Union, overload)
 
 import six
 from six.moves import urllib
 from schema_salad.ref_resolver import file_uri, uri_file_path
+
+from .utils import onWindows
+
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):

@@ -1,7 +1,8 @@
 from __future__ import absolute_import
-import unittest
+
 import os
 import sys
+import unittest
 
 from cwltool.main import main
 from cwltool.utils import subprocess

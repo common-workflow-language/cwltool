@@ -1,8 +1,11 @@
 from __future__ import absolute_import
+
 import unittest
+
 from mock import mock
-from cwltool.utils import windows_default_container_id
+
 from cwltool.command_line_tool import DEFAULT_CONTAINER_MSG, CommandLineTool
+from cwltool.utils import windows_default_container_id
 
 
 class TestDefaultDockerWarning(unittest.TestCase):

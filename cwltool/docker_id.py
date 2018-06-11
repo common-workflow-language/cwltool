@@ -1,9 +1,11 @@
-from __future__ import print_function
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
+
 import os
 import sys
-from typing import List, Text, Optional, Tuple  # pylint: disable=unused-import
+from typing import List, Optional, Text, Tuple  # pylint: disable=unused-import
+
 from .utils import subprocess
+
 
 def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
     """

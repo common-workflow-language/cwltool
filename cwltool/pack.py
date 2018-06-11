@@ -1,13 +1,16 @@
 from __future__ import absolute_import
-import copy
-from typing import Any, Callable, Dict, List, Optional, Set, Text, Union, cast
 
-from schema_salad.ref_resolver import Loader, SubLoader
+import copy
+from typing import (Any, Callable, Dict, List, # pylint: disable=unused-import
+                    Optional, Set, Text, Union, cast)
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from six import string_types, iteritems
 from six.moves import urllib
-from ruamel.yaml.comments import CommentedSeq, CommentedMap
+from schema_salad.ref_resolver import (Loader, # pylint: disable=unused-import
+                                       SubLoader)
 
 from .process import shortname, uniquename
-import six
 
 
 def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
@@ -33,7 +36,7 @@ def find_run(d,        # type: Any
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], six.string_types):
+        if "run" in d and isinstance(d["run"], string_types):
             if d["run"] not in runs:
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
@@ -47,7 +50,7 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
             find_ids(s, ids)
     elif isinstance(d, dict):
         for i in ("id", "name"):
-            if i in d and isinstance(d[i], six.string_types):
+            if i in d and isinstance(d[i], string_types):
                 ids.add(d[i])
         for s in d.values():
             find_ids(s, ids)
@@ -57,7 +60,7 @@ def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s, v in enumerate(d):
-            if isinstance(v, six.string_types):
+            if isinstance(v, string_types):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -67,7 +70,7 @@ def replace_refs(d, rewrite, stem, newstem):
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
         for s, v in d.items():
-            if isinstance(v, six.string_types):
+            if isinstance(v, string_types):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -111,14 +114,14 @@ def pack(document_loader,  # type: Loader
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
     if isinstance(processobj, dict):
-        document_loader.idx[processobj["id"]] = CommentedMap(six.iteritems(processobj))
+        document_loader.idx[processobj["id"]] = CommentedMap(iteritems(processobj))
     elif isinstance(processobj, list):
         _, frag = urllib.parse.urldefrag(uri)
         for po in processobj:
             if not frag:
                 if po["id"].endswith("#main"):
                     uri = po["id"]
-            document_loader.idx[po["id"]] = CommentedMap(six.iteritems(po))
+            document_loader.idx[po["id"]] = CommentedMap(iteritems(po))
 
     def loadref(base, uri):
         # type: (Optional[Text], Text) -> Union[Dict, List, Text, None]

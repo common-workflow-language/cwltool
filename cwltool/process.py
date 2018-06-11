@@ -4,6 +4,7 @@ import abc
 import copy
 import errno
 import functools
+from functools import cmp_to_key
 import hashlib
 import json
 import logging
@@ -11,40 +12,37 @@ import os
 import shutil
 import stat
 import tempfile
+import textwrap
 import uuid
-from collections import Iterable
+from collections import Iterable  # pylint: disable=unused-import
 from io import open
-from functools import cmp_to_key
-from typing import (Any, Callable, Dict, Generator, List, Set, Text,
-                    Tuple, Union, cast, Optional)
-import copy
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, List, Optional, Set, Text, Tuple, Union, cast)
 
+from pkg_resources import resource_stream
+from rdflib import Graph  # pylint: disable=unused-import
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 import schema_salad.schema as schema
 import schema_salad.validate as validate
-import six
-from pkg_resources import resource_stream
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
-from six.moves import urllib
+import six
 from six import iteritems, itervalues, string_types
+from six.moves import urllib
 
 from . import expression
-from .validate_js import validate_js_expressions
-from .utils import cmp_like_py2, add_sizes
 from .builder import Builder
-from .mutation import MutationManager  # pylint: disable=unused-import
 from .errors import UnsupportedRequirement, WorkflowException
-from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class, trim_listing,
-                         ensure_writable)
-from .secrets import SecretStore
+from .mutation import MutationManager  # pylint: disable=unused-import
+from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
+                         get_listing, normalizeFilesDirs, visit_class)
+from .secrets import SecretStore  # pylint: disable=unused-import
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .utils import (add_sizes, aslist, copytree_with_merge, get_feature,
-                    onWindows, DEFAULT_TMP_PREFIX)
-from .software_requirements import DependenciesConfiguration
+from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
+                    copytree_with_merge, get_feature, onWindows)
+from .validate_js import validate_js_expressions
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -870,10 +868,10 @@ def mergedirs(listing):
     for c in collided:
         print(ents)
         del ents[c]
-    for e in six.itervalues(ents):
+    for e in itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(six.itervalues(ents))
+    r.extend(itervalues(ents))
     return r
 
 
@@ -912,7 +910,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in six.iteritems(doc):
+        for k, v in iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):

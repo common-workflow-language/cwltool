@@ -1,32 +1,34 @@
 from __future__ import absolute_import
+
 import copy
 import functools
 import logging
 import random
 import tempfile
 from collections import namedtuple
-from typing import (Any, Callable, Dict, Generator, Iterable, List, Optional,
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, Iterable, List, Optional,
                     Text, Tuple, Union, cast)
 
+from ruamel.yaml.comments import CommentedMap
 import schema_salad.validate as validate
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.sourceline import SourceLine, cmap
-
-from . import command_line_tool, expression
-from .builder import CONTENT_LIMIT
-from .errors import WorkflowException
-from .load_tool import load_tool
-from .mutation import MutationManager  # pylint: disable=unused-import
-from .process import Process, shortname, uniquename, get_overrides
-from .stdfsaccess import StdFsAccess
-from .utils import aslist, json_dumps, DEFAULT_TMP_PREFIX
-from .checker import static_checker, can_assign_src_to_sink, check_types
-from .software_requirements import DependenciesConfiguration
+from schema_salad.sourceline import SourceLine
 import six
 from six import string_types
 from six.moves import range
 
-_logger = logging.getLogger("cwltool")
+from . import command_line_tool, expression
+from .builder import CONTENT_LIMIT
+from .checker import can_assign_src_to_sink, static_checker
+from .errors import WorkflowException
+from .load_tool import load_tool
+from .loghandler import _logger
+from .mutation import MutationManager  # pylint: disable=unused-import
+from .process import Process, get_overrides, shortname, uniquename
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
+from .stdfsaccess import StdFsAccess
+from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
@@ -37,7 +39,7 @@ def defaultMakeTool(toolpath_object,      # type: Dict[Text, Any]
                     js_console,           # type: bool
                     force_docker_pull,    # type: bool
                     job_script_provider,  # type: Optional[DependenciesConfiguration]
-                    makeTool,             # type: Callable[..., Process]
+                    make_tool,             # type: Callable[..., Process]
                     **kwargs              # type: Any
                    ):
     # type: (...) -> Process
@@ -55,7 +57,7 @@ def defaultMakeTool(toolpath_object,      # type: Dict[Text, Any]
         elif toolpath_object["class"] == "Workflow":
             return Workflow(
                 toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, makeTool, **kwargs)
+                force_docker_pull, job_script_provider, make_tool, **kwargs)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
@@ -471,7 +473,7 @@ class Workflow(Process):
                  js_console,           # type: bool
                  force_docker_pull,    # type: bool
                  job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 makeTool,             # type: Callable[..., Process]
+                 make_tool,             # type: Callable[..., Process]
                  **kwargs              # type: Any
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
@@ -487,7 +489,7 @@ class Workflow(Process):
             try:
                 self.steps.append(WorkflowStep(
                     step, index, eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, makeTool, **kwargs))
+                    force_docker_pull, job_script_provider, make_tool, **kwargs))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -542,15 +544,15 @@ class Workflow(Process):
 
 class WorkflowStep(Process):
     def __init__(self,
-                 toolpath_object,    # type: Dict[Text, Any]
-                 pos,                # type: int
-                 eval_timeout,       # type: float
-                 debug,              # type: bool
-                 js_console,         # type: bool
-                 force_docker_pull,  # type: bool
+                 toolpath_object,      # type: Dict[Text, Any]
+                 pos,                  # type: int
+                 eval_timeout,         # type: float
+                 debug,                # type: bool
+                 js_console,           # type: bool
+                 force_docker_pull,    # type: bool
                  job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 makeTool,           # type: Callable[..., Process]
-                 **kwargs            # type: Any
+                 make_tool,            # type: Callable[..., Process]
+                 **kwargs              # type: Any
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -565,12 +567,12 @@ class WorkflowStep(Process):
 
         try:
             if isinstance(toolpath_object["run"], dict):
-                self.embedded_tool = makeTool(
+                self.embedded_tool = make_tool(
                     toolpath_object["run"], eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, makeTool, **kwargs)
+                    force_docker_pull, job_script_provider, make_tool, **kwargs)
             else:
                 self.embedded_tool = load_tool(
-                    toolpath_object["run"], makeTool,
+                    toolpath_object["run"], make_tool,
                     eval_timeout, debug, js_console, force_docker_pull,
                     job_script_provider, kwargs,
                     kwargs.get("enable_dev", False),

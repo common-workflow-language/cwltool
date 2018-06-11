@@ -1,9 +1,11 @@
 from __future__ import absolute_import
+
 import unittest
 
 from cwltool.main import main
 
 from .util import get_data
+
 
 class CWL_Version_Checks(unittest.TestCase):
     # no cwlVersion in the workflow

@@ -1,15 +1,26 @@
 from __future__ import absolute_import
-import unittest
-from os import path
-import sys
+
 import json
 import logging
-import tempfile
 import shutil
-from io import StringIO, BytesIO
+import sys
+import tempfile
+import unittest
+from io import BytesIO, StringIO
+
 import schema_salad.validate
 
+import cwltool.expression as expr
+import cwltool.factory
+import cwltool.pathmapper
+import cwltool.process
+import cwltool.workflow
 from cwltool.errors import WorkflowException
+from cwltool.main import main
+from cwltool.utils import onWindows, subprocess
+
+from .util import (get_data, get_windows_safe_factory, needs_docker,
+                   needs_singularity, windows_needs_docker)
 
 try:
     reload
@@ -19,16 +30,7 @@ except:  # pylint: disable=bare-except
     except:
         from importlib import reload
 
-import cwltool.expression as expr
-import cwltool.factory
-import cwltool.pathmapper
-import cwltool.process
-import cwltool.workflow
-from cwltool.main import main
-from cwltool.utils import onWindows, subprocess
 
-from .util import (get_data, needs_docker, needs_singularity, get_windows_safe_factory,
-        windows_needs_docker)
 
 
 sys.argv = ['']

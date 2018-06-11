@@ -1,14 +1,16 @@
 from __future__ import absolute_import
+
 import collections
 import logging
 import os
 import stat
 import uuid
-from functools import partial
+from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
-from typing import (Any, Callable, Dict, Iterable, List,  # pylint: disable=unused-import
-                    MutableMapping, Optional, Set, Text,
-                    Tuple, Union)
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Iterable, List, MutableMapping, Optional, Set, Text, Tuple,
+                    Union)
+
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
@@ -17,8 +19,9 @@ from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
-from .utils import convert_pathsep_to_unix, visit_class, Directory
-from .stdfsaccess import StdFsAccess, abspath
+from .stdfsaccess import StdFsAccess, abspath  # pylint: disable=unused-import
+from .utils import (Directory,  # pylint: disable=unused-import
+                    convert_pathsep_to_unix, visit_class)
 
 _logger = logging.getLogger("cwltool")
 

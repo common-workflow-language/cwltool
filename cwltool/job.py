@@ -1,9 +1,6 @@
 from __future__ import absolute_import
 
-import codecs
 import functools  # pylint: disable=unused-import
-import io
-from io import open  # pylint: disable=redefined-builtin
 import logging
 import os
 import re
@@ -11,27 +8,27 @@ import shutil
 import stat
 import sys
 import tempfile
-import threading
+from threading import Lock, Timer
 from abc import ABCMeta, abstractmethod
-from threading import Lock
+from io import IOBase, open  # pylint: disable=redefined-builtin
+from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
+                    Dict, Iterable, List, MutableMapping, Optional, Text,
+                    Union, cast)
 
-from typing import (IO, Any, AnyStr, Callable, Dict, Iterable,  # pylint: disable=unused-import
-                    List, Optional, MutableMapping, Text, Union, cast)
-from six import with_metaclass
 import shellescape
 from schema_salad.sourceline import SourceLine
+from six import with_metaclass
+
 from .builder import Builder  # pylint: disable=unused-import
 from .errors import WorkflowException
+from .loghandler import _logger
 from .pathmapper import PathMapper
-from .process import (UnsupportedRequirement, get_feature,
-                      stageFiles)
+from .process import UnsupportedRequirement, get_feature, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import (bytes2str_in_dicts,  # pylint: disable=unused-import
-                    copytree_with_merge, json_dump, json_dumps, onWindows,
-                    subprocess, Directory, DEFAULT_TMP_PREFIX)
-
-
-_logger = logging.getLogger("cwltool")
+from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
+    DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
+    onWindows, subprocess)
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
@@ -512,7 +509,7 @@ def _job_popen(
                     sproc.terminate()
                 except OSError:
                     pass
-            tm = threading.Timer(timelimit, terminate)
+            tm = Timer(timelimit, terminate)
             tm.start()
 
         rcode = sproc.wait()
@@ -520,7 +517,7 @@ def _job_popen(
         if tm:
             tm.cancel()
 
-        if isinstance(stdin, io.IOBase):
+        if isinstance(stdin, IOBase):
             stdin.close()
 
         if stdout is not sys.stderr:

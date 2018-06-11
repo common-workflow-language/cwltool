@@ -1,17 +1,20 @@
 from __future__ import absolute_import
+
 import errno
 import json
 import logging
 import os
 import re
 import select
-import threading
 import sys
+import threading
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
+
 import six
 from pkg_resources import resource_stream
-from .utils import onWindows, json_dumps, subprocess
+
+from .utils import json_dumps, onWindows, subprocess
 
 try:
     import queue  # type: ignore

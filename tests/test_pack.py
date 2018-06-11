@@ -1,22 +1,22 @@
 from __future__ import absolute_import
 
 import json
-import unittest
-
 import os
-from functools import partial
 import tempfile
+import unittest
+from functools import partial
 
 import pytest
 from six import StringIO
 
 import cwltool.pack
 import cwltool.workflow
-from cwltool.resolver import tool_resolver
 from cwltool import load_tool
 from cwltool.load_tool import fetch_document, validate_document
-from cwltool.main import make_relative, main, print_pack
+from cwltool.main import main, make_relative, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
+from cwltool.resolver import tool_resolver
+
 from .util import get_data, needs_docker
 
 

@@ -2,19 +2,18 @@ from __future__ import absolute_import
 
 import unittest
 
+import pytest
 from mock import Mock, patch
-from mock import MagicMock
 
 import cwltool
 import cwltool.factory
-# we should modify the subprocess imported from cwltool.sandboxjs
-from cwltool.sandboxjs import (check_js_threshold_version,
-                               subprocess,
-                               exec_js_process)
 import cwltool.sandboxjs
+# we should modify the subprocess imported from cwltool.sandboxjs
+from cwltool.sandboxjs import (check_js_threshold_version, exec_js_process,
+                               subprocess)
 from cwltool.utils import onWindows
+
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
-import pytest
 
 
 class Javascript_Sanity_Checks(unittest.TestCase):

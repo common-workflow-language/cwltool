@@ -1,16 +1,17 @@
-from collections import namedtuple
 import logging
+from collections import namedtuple
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, Iterable, List, Optional, Text, Union, cast)
 
-from typing import (Any, Callable, Dict, Generator, # pylint: disable=unused-import
-                    Iterable, List, Optional, Text, Union, cast)
+import schema_salad.validate as validate
+from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 import six
 
-from schema_salad.sourceline import SourceLine, strip_dup_lineno, bullets
-import schema_salad.validate as validate
+from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
-from .errors import WorkflowException
 from .utils import json_dumps
+
 
 def _get_type(tp):
     # type: (Any) -> Any

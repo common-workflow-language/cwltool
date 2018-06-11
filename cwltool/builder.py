@@ -1,26 +1,26 @@
 from __future__ import absolute_import
+
 import copy
 import logging
-from typing import (Any, Callable, Dict, List, Optional,  # pylint: disable=unused-import
-                    Set, Text, Type, Union)
+from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
+                    Optional, Set, Text, Type, Union)
 
-from six import iteritems, string_types
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
-
-import schema_salad.validate as validate
-from schema_salad.sourceline import SourceLine
-from schema_salad.schema import AvroSchemaFromJSONData
 import schema_salad.schema  # pylint: disable=unused-import
+import schema_salad.validate as validate
+from schema_salad.schema import AvroSchemaFromJSONData
+from schema_salad.sourceline import SourceLine
+from six import iteritems, string_types
 
 from . import expression
-from .loghandler import _logger
 from .errors import WorkflowException
+from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
-from .pathmapper import (PathMapper, get_listing,  # pylint: disable=unused-import
-                         normalizeFilesDirs, visit_class)
+from .pathmapper import (PathMapper,  # pylint: disable=unused-import
+                         get_listing, normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, get_feature, docker_windows_path_adjust,
+from .utils import (aslist, docker_windows_path_adjust, get_feature,
                     json_dumps, onWindows)
 
 CONTENT_LIMIT = 64 * 1024

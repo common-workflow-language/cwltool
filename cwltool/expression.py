@@ -1,15 +1,17 @@
 from __future__ import absolute_import
+
 import copy
 import logging
 import re
 from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
                     Mapping, Optional, Text, Union)
+
 import six
-from six import u, string_types
-from .utils import docker_windows_path_adjust
+from six import string_types, u
+
 from . import sandboxjs
 from .errors import WorkflowException
-from .utils import bytes2str_in_dicts, json_dumps
+from .utils import bytes2str_in_dicts, docker_windows_path_adjust, json_dumps
 
 
 def jshead(engine_config, rootvars):

@@ -1,10 +1,11 @@
 from __future__ import absolute_import
+
 import unittest
-import pytest
 from tempfile import NamedTemporaryFile
 
-from .util import needs_docker
 from cwltool.main import main
+
+from .util import needs_docker
 
 
 class ToolArgparse(unittest.TestCase):
