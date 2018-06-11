@@ -830,6 +830,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
             sjobo, functools.partial(rc.receive_scatter_output, index),
             mutation_manager, basedir, **kwargs))
 
+    rc.setTotal(jobl)
     return parallel_steps(steps, rc, kwargs)
 
 
@@ -860,6 +861,7 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
                 functools.partial(rc.receive_scatter_output, index),
                 mutation_manager, basedir, **kwargs))
 
+    rc.setTotal(jobl)
     return parallel_steps(steps, rc, kwargs)
 
 
