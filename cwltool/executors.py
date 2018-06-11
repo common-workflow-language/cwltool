@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, List, Optional, Set, Text, Tuple  # pylint: disable=unused-import
 
 import six
+from six import string_types
 from schema_salad.validate import ValidationException
 
 from .utils import DEFAULT_TMP_PREFIX
@@ -59,7 +60,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
 
         finaloutdir = None  # Type: Optional[Text]
         original_outdir = kwargs.get('outdir')
-        if isinstance(original_outdir, Text):
+        if isinstance(original_outdir, string_types):
             finaloutdir = os.path.abspath(original_outdir)
         kwargs["outdir"] = tempfile.mkdtemp(
             prefix=kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))

@@ -3,6 +3,7 @@ import copy
 import re
 from typing import (Any, Callable, Dict, Optional, Text,  # pylint: disable=unused-import
                     Tuple, Union)
+from six import string_types
 from six.moves import urllib
 import schema_salad.validate
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
@@ -34,7 +35,7 @@ def fixType(doc):  # type: (Any) -> Any
             doc[i] = fixType(f)
         return doc
 
-    if isinstance(doc, (str, Text)):
+    if isinstance(doc, string_types):
         if doc not in (
                 "null", "boolean", "int", "long", "float", "double", "string",
                 "File", "record", "enum", "array", "Any") and "#" not in doc:

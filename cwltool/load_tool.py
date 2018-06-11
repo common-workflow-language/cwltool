@@ -238,7 +238,7 @@ def validate_document(document_loader,  # type: Loader
                 "Note: if this is a CWL draft-2 (pre v1.0) document then it "
                 "will need to be upgraded first.")
 
-    if not isinstance(workflowobj["cwlVersion"], (str, Text)):
+    if not isinstance(workflowobj["cwlVersion"], string_types):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException("'cwlVersion' must be a string, "
                                       "got {}".format(

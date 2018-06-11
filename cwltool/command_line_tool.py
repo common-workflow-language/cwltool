@@ -404,7 +404,7 @@ class CommandLineTool(Process):
         initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
         if initialWorkdir:
             ls = []  # type: List[Dict[Text, Any]]
-            if isinstance(initialWorkdir["listing"], (str, Text)):
+            if isinstance(initialWorkdir["listing"], string_types):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in initialWorkdir["listing"]:

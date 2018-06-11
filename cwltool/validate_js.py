@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Text, Tuple, Union
 
 import copy
 import schema_salad
+from six import string_types
 from schema_salad.sourceline import SourceLine
 from schema_salad.validate import Schema, ValidationException, validate_ex
 import avro.schema  # always import after schema_salad, never before
@@ -24,7 +25,8 @@ _logger = logging.getLogger("cwltool")
 
 def is_expression(tool, schema):
     # type: (Union[CommentedMap, Any], Schema) -> bool
-    return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, (str, Text))
+    return isinstance(schema, avro.schema.EnumSchema) \
+        and schema.name == "Expression" and isinstance(tool, string_types)
 
 class SuppressLog(logging.Filter):
     def __init__(self, name):  # type: (Text) -> None

@@ -23,6 +23,7 @@ from .utils import aslist, json_dumps, DEFAULT_TMP_PREFIX
 from .checker import static_checker, can_assign_src_to_sink, check_types
 from .software_requirements import DependenciesConfiguration
 import six
+from six import string_types
 from six.moves import range
 
 _logger = logging.getLogger("cwltool")
@@ -588,7 +589,7 @@ class WorkflowStep(Process):
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for index, step_entry in enumerate(toolpath_object[stepfield]):
-                if isinstance(step_entry, six.string_types):
+                if isinstance(step_entry, string_types):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:

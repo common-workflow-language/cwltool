@@ -4,7 +4,7 @@ import logging
 from typing import (Any, Callable, Dict, List, Optional,  # pylint: disable=unused-import
                     Set, Text, Type, Union)
 
-from six import iteritems
+from six import iteritems, string_types
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
 
@@ -174,7 +174,7 @@ class Builder(object):
         if isinstance(schema["type"], list):
             bound_input = False
             for t in schema["type"]:
-                if isinstance(t, (str, Text)) and self.names.has_name(t, ""):
+                if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
@@ -363,7 +363,7 @@ class Builder(object):
             if isinstance(ex, list):
                 return [self.do_eval(v, context, recursive)
                         for v in ex]
-        if context is None and type(ex) is str and "self" in ex:
+        if context is None and isinstance(ex, string_types) and "self" in ex:
             return None
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,

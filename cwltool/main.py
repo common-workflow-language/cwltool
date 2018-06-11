@@ -23,6 +23,7 @@ import schema_salad.validate as validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 import six
+from six import string_types
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser
@@ -73,7 +74,7 @@ def generate_example_input(inptype):
                          'path': 'default/file/path'},
                 'Directory': {'class': 'Directory',
                               'path': 'default/directory/path'}}
-    if (not isinstance(inptype, str) and
+    if (not isinstance(inptype, string_types) and
             not isinstance(inptype, collections.Mapping)
             and isinstance(inptype, collections.MutableSet)):
         if len(inptype) == 2 and 'null' in inptype:
@@ -96,7 +97,7 @@ def generate_example_input(inptype):
                 record[shortname(field['name'])] = generate_example_input(
                     field['type'])
             return record
-    elif isinstance(inptype, str):
+    elif isinstance(inptype, string_types):
         return defaults.get(inptype, 'custom_type')
         # TODO: support custom types, complex arrays
 
@@ -644,7 +645,7 @@ def main(argsl=None,                  # type: List[str]
                 # Unsetting the Generation fron final output object
                 visit_class(out, ("File", ), MutationManager().unset_generation)
 
-                if isinstance(out, six.string_types):
+                if isinstance(out, string_types):
                     stdout.write(out)
                 else:
                     stdout.write(json_dumps(out, indent=4,  # type: ignore

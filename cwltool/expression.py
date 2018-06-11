@@ -5,7 +5,7 @@ import re
 from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
                     Mapping, Optional, Text, Union)
 import six
-from six import u
+from six import u, string_types
 from .utils import docker_windows_path_adjust
 from . import sandboxjs
 from .errors import WorkflowException
@@ -243,7 +243,7 @@ def interpolate(scan,                     # type: Text
     return ''.join(parts)
 
 def needs_parsing(snippet):  # type: (Any) -> bool
-    return isinstance(snippet, (str, Text)) \
+    return isinstance(snippet, string_types) \
         and ("$(" in snippet or "${" in snippet)
 
 def do_eval(ex,                       # type: Union[Text, Dict]
@@ -270,7 +270,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
         u"runtime": runtime}
 
     if needs_parsing(ex):
-        assert isinstance(ex, (str, Text))
+        assert isinstance(ex, string_types)
         fullJS = False
         jslib = u""
         for r in reversed(requirements):

@@ -1,5 +1,5 @@
 import uuid
-import six
+from six import string_types
 from typing import (List, Dict, Any, Text, MutableMapping)
 
 class SecretStore(object):
@@ -9,7 +9,7 @@ class SecretStore(object):
 
     def add(self, value):
         # type: (Text) -> Text
-        if not isinstance(value, six.string_types):
+        if not isinstance(value, string_types):
             raise Exception("Secret store only accepts strings")
 
         if value not in self.secrets:
@@ -27,7 +27,7 @@ class SecretStore(object):
 
     def has_secret(self, value):
         # type: (Any) -> bool
-        if isinstance(value, six.string_types):
+        if isinstance(value, string_types):
             for k in self.secrets:
                 if k in value:
                     return True
@@ -43,7 +43,7 @@ class SecretStore(object):
 
     def retrieve(self, value):
         # type: (Any) -> Any
-        if isinstance(value, six.string_types):
+        if isinstance(value, string_types):
             for k,v in self.secrets.items():
                 value = value.replace(k, v)
         elif isinstance(value, dict):
