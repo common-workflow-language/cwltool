@@ -334,7 +334,7 @@ def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
 def main(argsl=None,                  # type: List[str]
          args=None,                   # type: argparse.Namespace
          executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
+         maker_tool=workflow.default_make_tool,  # type: Callable[..., Process]
          selectResources=None,        # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,             # type: IO[Any]
          stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
@@ -521,7 +521,7 @@ def main(argsl=None,                  # type: List[str]
             del make_tool_kwds["force_docker_pull"]
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                             makeTool, args.eval_timeout, args.debug,
+                             maker_tool, args.eval_timeout, args.debug,
                              args.js_console, args.force_docker_pull,
                              job_script_provider, make_tool_kwds)
             if args.make_template:
@@ -624,7 +624,7 @@ def main(argsl=None,                  # type: List[str]
             del args.job_order
             (out, status) = executor(tool, job_order_object2,
                                      logger=_logger,
-                                     makeTool=makeTool,
+                                     make_tool=make_tool,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
                                      secret_store=secret_store,

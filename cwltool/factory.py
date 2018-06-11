@@ -5,12 +5,13 @@ from typing import Callable as tCallable # pylint: disable=unused-import
 from typing import (Any, # pylint: disable=unused-import
                     Dict, Optional, Text, Tuple, Union)
 
-from . import load_tool, workflow
+from . import load_tool
 from .argparser import get_default_args
 from .executors import SingleJobExecutor
 from .process import Process
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
+from .workflow import default_make_tool
 
 
 class WorkflowStatus(Exception):
@@ -38,7 +39,7 @@ class Callable(object):
 
 class Factory(object):
     def __init__(self,
-                 makeTool=workflow.defaultMakeTool,  # type: ignore
+                 make_tool=default_make_tool,  # type: ignore
                  executor=None,            # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
                  eval_timeout=20,          # type: float
                  debug=False,              # type: bool
@@ -48,7 +49,7 @@ class Factory(object):
                  makekwargs=None,          # type: Dict[Any, Any]
                  **execkwargs              # type: Dict[Any, Any]
                 ):  # type: (...) -> None
-        self.makeTool = makeTool
+        self.make_tool = make_tool
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
@@ -68,7 +69,7 @@ class Factory(object):
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
-        load = load_tool.load_tool(cwl, self.makeTool, self.eval_timeout,
+        load = load_tool.load_tool(cwl, self.make_tool, self.eval_timeout,
                                    self.debug, self.js_console,
                                    self.force_docker_pull,
                                    self.job_script_provider,

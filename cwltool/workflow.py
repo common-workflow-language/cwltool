@@ -33,16 +33,15 @@ from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
 
-def defaultMakeTool(toolpath_object,      # type: Dict[Text, Any]
-                    eval_timeout,         # type: float
-                    debug,                # type: bool
-                    js_console,           # type: bool
-                    force_docker_pull,    # type: bool
-                    job_script_provider,  # type: Optional[DependenciesConfiguration]
-                    make_tool,             # type: Callable[..., Process]
-                    **kwargs              # type: Any
-                   ):
-    # type: (...) -> Process
+def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
+                      eval_timeout,         # type: float
+                      debug,                # type: bool
+                      js_console,           # type: bool
+                      force_docker_pull,    # type: bool
+                      job_script_provider,  # type: Optional[DependenciesConfiguration]
+                      make_tool,            # type: Callable[..., Process]
+                      **kwargs              # type: Any
+                     ):  # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
         raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:

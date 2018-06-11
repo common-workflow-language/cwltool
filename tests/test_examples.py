@@ -10,6 +10,7 @@ from io import BytesIO, StringIO
 
 import schema_salad.validate
 
+import cwltool.checker
 import cwltool.expression as expr
 import cwltool.factory
 import cwltool.pathmapper
@@ -413,124 +414,124 @@ class TestTypeCompare(unittest.TestCase):
         self.assertFalse(cwltool.workflow.can_assign_src_to_sink(src, {'items': 'string', 'type': 'array'}))
 
     def test_typecheck(self):
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'], ['string', 'int', 'null'], linkMerge=None, valueFrom=None),
             "pass")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'], ['string', 'null'], linkMerge=None, valueFrom=None),
             "warning")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['File', 'int'], ['string', 'null'], linkMerge=None, valueFrom=None),
             "exception")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['string', 'int'], 'type': 'array'},
             {'items': ['string', 'int', 'null'], 'type': 'array'},
             linkMerge=None, valueFrom=None),
             "pass")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['string', 'int'], 'type': 'array'},
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge=None, valueFrom=None),
             "warning")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['File', 'int'], 'type': 'array'},
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge=None, valueFrom=None),
             "exception")
 
         # check linkMerge when sinktype is not an array
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'], ['string', 'int', 'null'],
             linkMerge="merge_nested", valueFrom=None),
             "exception")
 
         # check linkMerge: merge_nested
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'],
             {'items': ['string', 'int', 'null'], 'type': 'array'},
             linkMerge="merge_nested", valueFrom=None),
             "pass")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'],
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_nested", valueFrom=None),
             "warning")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['File', 'int'],
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_nested", valueFrom=None),
             "exception")
 
         # check linkMerge: merge_nested and sinktype is "Any"
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'], "Any",
             linkMerge="merge_nested", valueFrom=None),
             "pass")
 
         # check linkMerge: merge_flattened
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'],
             {'items': ['string', 'int', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "pass")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'],
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "warning")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['File', 'int'],
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "exception")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['string', 'int'], 'type': 'array'},
             {'items': ['string', 'int', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "pass")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['string', 'int'], 'type': 'array'},
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "warning")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['File', 'int'], 'type': 'array'},
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "exception")
 
         # check linkMerge: merge_flattened and sinktype is "Any"
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             ['string', 'int'], "Any",
             linkMerge="merge_flattened", valueFrom=None),
             "pass")
 
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['string', 'int'], 'type': 'array'}, "Any",
             linkMerge="merge_flattened", valueFrom=None),
             "pass")
 
         # check linkMerge: merge_flattened when srctype is a list
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             [{'items': 'string', 'type': 'array'}],
             {'items': 'string', 'type': 'array'},
             linkMerge="merge_flattened", valueFrom=None),
             "pass")
 
         # check valueFrom
-        self.assertEquals(cwltool.workflow.check_types(
+        self.assertEquals(cwltool.checker.check_types(
             {'items': ['File', 'int'], 'type': 'array'},
             {'items': ['string', 'null'], 'type': 'array'},
             linkMerge="merge_flattened", valueFrom="special value"),

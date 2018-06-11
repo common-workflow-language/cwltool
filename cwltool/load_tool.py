@@ -54,8 +54,8 @@ overrides_ctx = {
 }  # type: ContextType
 
 
-FetcherConstructorType = Callable[[Dict[Text, Union[Text, bool]],
-    requests.sessions.Session], Fetcher]
+FetcherConstructorType = Callable[
+    [Dict[Text, Union[Text, bool]], requests.sessions.Session], Fetcher]
 ResolverType = Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
 
 loaders = {}  # type: Dict[Optional[FetcherConstructorType], Loader]
@@ -311,7 +311,7 @@ def make_tool(document_loader,    # type: Loader
               avsc_names,         # type: schema.Names
               metadata,           # type: Dict[Text, Any]
               uri,                # type: Text
-              makeTool,           # type: Callable[..., Process]
+              make_tool,          # type: Callable[..., Process]
               eval_timeout,       # type: float
               debug,              # type: bool
               js_console,         # type: bool
@@ -341,14 +341,14 @@ def make_tool(document_loader,    # type: Loader
 
     kwargs = kwargs.copy()
     kwargs.update({
-        "makeTool": makeTool,
+        "make_tool": make_tool,
         "loader": document_loader,
         "avsc_names": avsc_names,
         "metadata": metadata
     })
-    tool = makeTool(processobj, debug=debug, eval_timeout=eval_timeout,
-                    js_console=js_console, force_docker_pull=force_docker_pull,
-                    job_script_provider=job_script_provider, **kwargs)
+    tool = make_tool(processobj, debug=debug, eval_timeout=eval_timeout,
+                     js_console=js_console, force_docker_pull=force_docker_pull,
+                     job_script_provider=job_script_provider, **kwargs)
 
     if "cwl:defaults" in metadata:
         jobobj = metadata["cwl:defaults"]
@@ -360,7 +360,7 @@ def make_tool(document_loader,    # type: Loader
 
 
 def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
-              makeTool,                  # type: Callable[..., Process]
+              maker_tool,                # type: Callable[..., Process]
               eval_timeout,              # type: float
               debug,                     # type: bool
               js_console,                # type: bool
@@ -381,7 +381,7 @@ def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
         strict=strict, fetcher_constructor=fetcher_constructor,
         overrides=overrides, metadata=kwargs.get('metadata', None)
         if kwargs else None)
-    return make_tool(document_loader, avsc_names, metadata, uri, makeTool,
+    return make_tool(document_loader, avsc_names, metadata, uri, maker_tool,
                      eval_timeout, debug, js_console, force_docker_pull,
                      job_script_provider, kwargs if kwargs else {})
 

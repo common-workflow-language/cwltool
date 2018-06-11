@@ -12,7 +12,7 @@ from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
-from cwltool.workflow import defaultMakeTool
+from cwltool.workflow import default_make_tool
 
 from .util import get_data
 
@@ -59,7 +59,7 @@ outputs: []
                 return "baz:bar/" + a
 
 
-        load_tool("foo.cwl", defaultMakeTool, 20, False, False, False, None,
+        load_tool("foo.cwl", default_make_tool, 20, False, False, False, None,
                   resolver=test_resolver, fetcher_constructor=TestFetcher,)
 
         self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,
@@ -70,6 +70,7 @@ class ResolverTest(unittest.TestCase):
     def test_resolve_local(self):
         origpath = os.getcwd()
         os.chdir(os.path.join(get_data("")))
+
         def norm(uri):
             if onWindows():
                 return uri.lower()
