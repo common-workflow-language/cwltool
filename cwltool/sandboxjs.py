@@ -1,17 +1,20 @@
 from __future__ import absolute_import
+
 import errno
 import json
 import logging
 import os
 import re
 import select
-import threading
 import sys
+import threading
 from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
+
 import six
 from pkg_resources import resource_stream
-from .utils import onWindows, json_dumps, subprocess
+
+from .utils import json_dumps, onWindows, subprocess
 
 try:
     import queue  # type: ignore
@@ -117,8 +120,14 @@ def new_js_proc(js_text, force_docker_pull=False):
     return nodejs
 
 
-def exec_js_process(js_text, timeout=None, js_console=False, context=None, force_docker_pull=False, debug=False):
-    # type: (Text, int, bool, Text, bool, bool) -> Tuple[int, Text, Text]
+def exec_js_process(js_text,                  # type: Text
+                    timeout=None,             # type: float
+                    js_console=False,         # type: bool
+                    context=None,             # type: Text
+                    force_docker_pull=False,  # type: bool
+                    debug=False               # type: bool
+                   ):
+    # type: (...) -> Tuple[int, Text, Text]
 
     if not hasattr(localdata, "procs"):
         localdata.procs = {}
@@ -311,8 +320,13 @@ def code_fragment_to_js(js, jslib=""):
 
     return u"\"use strict\";\n%s\n(function()%s)()" % (jslib, inner_js)
 
-def execjs(js, jslib, timeout=None, force_docker_pull=False, debug=False, js_console=False):
-    # type: (Text, Text, int, bool, bool, bool) -> JSON
+def execjs(js,                       # type: Text
+           jslib,                    # type: Text
+           timeout=None,             # type: float
+           force_docker_pull=False,  # type: bool
+           debug=False,              # type: bool
+           js_console=False          # type: bool
+          ):  # type: (...) -> JSON
 
     fn = code_fragment_to_js(js, jslib)
 

@@ -4,6 +4,7 @@ import abc
 import copy
 import errno
 import functools
+from functools import cmp_to_key
 import hashlib
 import json
 import logging
@@ -11,38 +12,37 @@ import os
 import shutil
 import stat
 import tempfile
+import textwrap
 import uuid
-from collections import Iterable
+from collections import Iterable  # pylint: disable=unused-import
 from io import open
-from functools import cmp_to_key
-from typing import (Any, Callable, Dict, Generator, List, Set, Text,
-                    Tuple, Union, cast, Optional)
-import copy
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, List, Optional, Set, Text, Tuple, Union, cast)
 
+from pkg_resources import resource_stream
+from rdflib import Graph  # pylint: disable=unused-import
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 import schema_salad.schema as schema
 import schema_salad.validate as validate
-import six
-from pkg_resources import resource_stream
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
-from six.moves import urllib
+import six
 from six import iteritems, itervalues, string_types
+from six.moves import urllib
 
 from . import expression
-from .validate_js import validate_js_expressions
-from .utils import cmp_like_py2, add_sizes
 from .builder import Builder
 from .errors import UnsupportedRequirement, WorkflowException
-from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class, trim_listing,
-                         ensure_writable)
-from .secrets import SecretStore
+from .mutation import MutationManager  # pylint: disable=unused-import
+from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
+                         get_listing, normalizeFilesDirs, visit_class)
+from .secrets import SecretStore  # pylint: disable=unused-import
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .utils import (aslist, get_feature, copytree_with_merge, onWindows,
-                    add_sizes)
+from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
+                    copytree_with_merge, get_feature, onWindows)
+from .validate_js import validate_js_expressions
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -113,9 +113,9 @@ salad_files = ('metaschema.yml',
                'vocab_res_proc.yml')
 
 SCHEMA_CACHE = {}  # type: Dict[Text, Tuple[Loader, Union[schema.Names, schema.SchemaParseException], Dict[Text, Any], Loader]]
-SCHEMA_FILE = None  # type: Dict[Text, Any]
-SCHEMA_DIR = None  # type: Dict[Text, Any]
-SCHEMA_ANY = None  # type: Dict[Text, Any]
+SCHEMA_FILE = None  # type: Optional[Dict[Text, Any]]
+SCHEMA_DIR = None  # type: Optional[Dict[Text, Any]]
+SCHEMA_ANY = None  # type: Optional[Dict[Text, Any]]
 
 custom_schemas = {}  # type: Dict[Text, Tuple[Text, Text]]
 
@@ -127,8 +127,12 @@ def use_standard_schema(version):
         del SCHEMA_CACHE[version]
 
 def use_custom_schema(version, name, text):
-    # type: (Text, Text, Text) -> None
-    custom_schemas[version] = (name, text)
+    # type: (Text, Text, Union[Text, bytes]) -> None
+    if isinstance(text, bytes):
+        text2 = text.decode()
+    else:
+        text2 = text
+    custom_schemas[version] = (name, text2)
     if version in SCHEMA_CACHE:
         del SCHEMA_CACHE[version]
 
@@ -356,8 +360,9 @@ def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
             shutil.rmtree(a, True)
 
 
-def fillInDefaults(inputs, job):
-    # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
+def fillInDefaults(inputs,  # type: List[Dict[Text, Text]]
+                   job      # Dict[Text, Union[Dict[Text, Any], Any, None]]
+                  ):  # type: (...) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
             fieldname = shortname(inp[u"id"])
@@ -400,6 +405,15 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
     return req
 
 
+_VAR_SPOOL_ERROR=textwrap.dedent(
+    """
+    Non-portable reference to /var/spool/cwl detected: '{}'.
+    To fix, replace /var/spool/cwl with $(runtime.outdir) or add
+    DockerRequirement to the 'requirements' section and declare
+    'dockerOutputDirectory: /var/spool/cwl'.
+    """)
+
+
 def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
@@ -408,13 +422,9 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
     r = False
     if isinstance(obj, string_types):
         if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
-            _logger.warn(SourceLine(
-                item=item, key=obj_key, raise_type=Text).makeError(
-"""Non-portable reference to /var/spool/cwl detected:
-  '{}'
-To fix, replace /var/spool/cwl with $(runtime.outdir) or
-  add DockerRequirement to the 'requirements' section and
-  declare 'dockerOutputDirectory: /var/spool/cwl'.""".format(obj)))
+            _logger.warn(
+                SourceLine(item=item, key=obj_key, raise_type=Text).makeError(
+                    _VAR_SPOOL_ERROR.format(obj)))
             r = True
     elif isinstance(obj, dict):
         for key, value in iteritems(obj):
@@ -432,8 +442,15 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
 
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
-    def __init__(self, toolpath_object, **kwargs):
-        # type: (Dict[Text, Any], **Any) -> None
+    def __init__(self,
+                 toolpath_object,      # type: Dict[Text, Any]
+                 eval_timeout,         # type: float
+                 debug,                # type: bool
+                 js_console,           # type: bool
+                 force_docker_pull,    # type: bool
+                 job_script_provider,  # type: Optional[DependenciesConfiguration]
+                 **kwargs              # type: Any
+                ):  # type: (...) -> None
         """
         kwargs:
 
@@ -445,11 +462,15 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         strict: flag to determine strict validation (fail on unrecognized fields)
         """
 
+        self.eval_timeout = eval_timeout
+        self.debug = debug
+        self.js_console = js_console
+        self.force_docker_pull = force_docker_pull
+        self.job_script_provider = job_script_provider
         self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
-        self.names = None  # type: schema.Names
 
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
-        if SCHEMA_FILE is None:
+        if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")
             SCHEMA_ANY = cast(Dict[Text, Any],
                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/salad#Any"])
@@ -467,12 +488,13 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         self.tool = toolpath_object
         self.requirements = (kwargs.get("requirements", []) +
                              self.tool.get("requirements", []) +
-                             get_overrides(kwargs.get("overrides", []), self.tool["id"]).get("requirements", []))
+                             get_overrides(kwargs.get("overrides", []),
+                                           self.tool["id"]).get("requirements", []))
         self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)
-        self.formatgraph = None  # type: Graph
+        self.formatgraph = None  # type: Optional[Graph]
         if "loader" in kwargs:
             self.formatgraph = kwargs["loader"].graph
 
@@ -481,7 +503,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []),
-                            strict=kwargs.get("strict"))
+                            strict=kwargs.get("strict", False))
 
         self.schemaDefs = {}  # type: Dict[Text,Dict[Text, Any]]
 
@@ -550,8 +572,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
             _logger.warn(SourceLine(
                 item=dockerReq, raise_type=Text).makeError(
-"""When 'dockerOutputDirectory' is declared, DockerRequirement
-  should go in the 'requirements' section, not 'hints'."""))
+                "When 'dockerOutputDirectory' is declared, DockerRequirement "
+                "should go in the 'requirements' section, not 'hints'."""))
 
         if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
             if is_req:
@@ -563,15 +585,13 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:
             var_spool_cwl_detector(self.tool)
 
-    def _init_job(self, joborder, **kwargs):
-        # type: (Dict[Text, Text], **Any) -> Builder
+    def _init_job(self, joborder, mutation_manager, basedir, **kwargs):
+        # type: (Dict[Text, Text], MutationManager, Text, **Any) -> Builder
         """
         kwargs:
 
-        eval_timeout: javascript evaluation timeout
         use_container: do/don't use Docker when DockerRequirement hint provided
         make_fs_access: make an FsAccess() object with given basedir
-        basedir: basedir for FsAccess
         docker_outdir: output directory inside docker for this job
         docker_tmpdir: tmpdir inside docker for this job
         docker_stagedir: stagedir inside docker for this job
@@ -579,46 +599,35 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         tmpdir: tmpdir on host for this job
         stagedir: stagedir on host for this job
         select_resources: callback to select compute resources
-        debug: enable debugging output
-        js_console: enable javascript console output
         tmp_outdir_prefix: Path prefix for intermediate output directories
         """
 
-        builder = Builder()
-        builder.job = cast(Dict[Text, Union[Dict[Text, Any], List,
-                                            Text]], copy.deepcopy(joborder))
+        job = cast(Dict[Text, Union[Dict[Text, Any], List,
+                                    Text]], copy.deepcopy(joborder))
 
         # Validate job order
         try:
-            fillInDefaults(self.tool[u"inputs"], builder.job)
-            normalizeFilesDirs(builder.job)
-            validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job,
-                                 strict=False, logger=_logger_validation_warnings)
+            fillInDefaults(self.tool[u"inputs"], job)
+            normalizeFilesDirs(job)
+            validate.validate_ex(self.names.get_name("input_record_schema", ""),
+                                 job, strict=False, logger=_logger_validation_warnings)
         except (validate.ValidationException, WorkflowException) as e:
             raise WorkflowException("Invalid job input record:\n" + Text(e))
 
-        builder.files = []
-        builder.bindings = CommentedSeq()
-        builder.schemaDefs = self.schemaDefs
-        builder.names = self.names
-        builder.requirements = self.requirements
-        builder.hints = self.hints
-        builder.resources = {}
-        builder.timeout = kwargs.get("eval_timeout")
-        builder.debug = kwargs.get("debug")
-        builder.js_console = kwargs.get("js_console")
-        builder.mutation_manager = kwargs.get("mutation_manager")
-        builder.formatgraph = self.formatgraph
-
-        builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
-        builder.fs_access = builder.make_fs_access(kwargs["basedir"])
-        builder.force_docker_pull = kwargs.get("force_docker_pull")
+        files = []  # type: List[Dict[Text, Text]]
+        bindings = CommentedSeq()
+        make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
+        fs_access = make_fs_access(basedir)
+        tmpdir = u""
+        stagedir = u""
 
         loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
         if loadListingReq:
-            builder.loadListing = loadListingReq.get("loadListing")
+            loadListing = loadListingReq.get("loadListing")
+        else:
+            loadListing = "deep_listing"   # will default to "no_listing" in CWL v1.1
 
-        dockerReq, is_req = self.get_requirement("DockerRequirement")
+        dockerReq, _ = self.get_requirement("DockerRequirement")
         defaultDocker = None
 
         if dockerReq is None and "default_container" in kwargs:
@@ -627,28 +636,42 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         if (dockerReq or defaultDocker) and kwargs.get("use_container"):
             if dockerReq:
                 # Check if docker output directory is absolute
-                if dockerReq.get("dockerOutputDirectory") and dockerReq.get("dockerOutputDirectory").startswith('/'):
-                    builder.outdir = dockerReq.get("dockerOutputDirectory")
+                if dockerReq.get("dockerOutputDirectory") and \
+                        dockerReq.get("dockerOutputDirectory").startswith('/'):
+                    outdir = dockerReq.get("dockerOutputDirectory")
                 else:
-                    builder.outdir = builder.fs_access.docker_compatible_realpath(
-                        dockerReq.get("dockerOutputDirectory") or kwargs.get("docker_outdir") or "/var/spool/cwl")
+                    outdir = fs_access.docker_compatible_realpath(
+                        dockerReq.get("dockerOutputDirectory") or
+                        kwargs.get("docker_outdir") or "/var/spool/cwl")
             elif defaultDocker:
-                builder.outdir = builder.fs_access.docker_compatible_realpath(
+                outdir = fs_access.docker_compatible_realpath(
                     kwargs.get("docker_outdir") or "/var/spool/cwl")
-            builder.tmpdir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_tmpdir") or "/tmp")
-            builder.stagedir = builder.fs_access.docker_compatible_realpath(kwargs.get("docker_stagedir") or "/var/lib/cwl")
+            tmpdir = fs_access.docker_compatible_realpath(
+                kwargs.get("docker_tmpdir") or "/tmp")
+            stagedir = fs_access.docker_compatible_realpath(
+                kwargs.get("docker_stagedir") or "/var/lib/cwl")
         else:
-            builder.outdir = builder.fs_access.realpath(kwargs.get("outdir")
-                    or tempfile.mkdtemp(prefix=kwargs["tmp_outdir_prefix"]))
+            outdir = fs_access.realpath(kwargs.get("outdir") or
+                tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix",
+                    DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
-                builder.tmpdir = builder.fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-                builder.stagedir = builder.fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+                tmpdir = fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
+                stagedir = fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
-        builder.bindings.extend(builder.bind_input(self.inputs_record_schema, builder.job, discover_secondaryFiles=kwargs.get("toplevel")))
+        builder = Builder(job, files, bindings, self.schemaDefs, self.names,
+                          self.requirements, self.hints, self.eval_timeout,
+                          self.debug, {}, self.js_console, mutation_manager,
+                          self.formatgraph, make_fs_access, fs_access,
+                          self.force_docker_pull, loadListing, outdir, tmpdir,
+                          stagedir, self.job_script_provider)
+
+        bindings.extend(builder.bind_input(
+            self.inputs_record_schema, job,
+            discover_secondaryFiles=kwargs.get("toplevel", False)))
 
         if self.tool.get("baseCommand"):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):
-                builder.bindings.append({
+                bindings.append({
                     "position": [-1000000, n],
                     "datum": b
                 })
@@ -657,14 +680,14 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             for i, a in enumerate(self.tool["arguments"]):
                 lc = self.tool["arguments"].lc.data[i]
                 fn = self.tool["arguments"].lc.filename
-                builder.bindings.lc.add_kv_line_col(len(builder.bindings), lc)
+                bindings.lc.add_kv_line_col(len(bindings), lc)
                 if isinstance(a, dict):
                     a = copy.copy(a)
                     if a.get("position"):
                         a["position"] = [a["position"], i]
                     else:
                         a["position"] = [0, i]
-                    builder.bindings.append(a)
+                    bindings.append(a)
                 elif ("$(" in a) or ("${" in a):
                     cm = CommentedMap((
                         ("position", [0, i]),
@@ -672,7 +695,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                     ))
                     cm.lc.add_kv_line_col("valueFrom", lc)
                     cm.lc.filename = fn
-                    builder.bindings.append(cm)
+                    bindings.append(cm)
                 else:
                     cm = CommentedMap((
                         ("position", [0, i]),
@@ -680,7 +703,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                     ))
                     cm.lc.add_kv_line_col("datum", lc)
                     cm.lc.filename = fn
-                    builder.bindings.append(cm)
+                    bindings.append(cm)
 
         # use python2 like sorting of heterogeneous lists
         # (containing str and int types),
@@ -689,13 +712,12 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             key = cmp_to_key(cmp_like_py2)
         else:  # PY2
             key = lambda dict: dict["position"]
-        builder.bindings.sort(key=key)
+        bindings.sort(key=key)
         builder.resources = self.evalResources(builder, kwargs)
-        builder.job_script_provider = kwargs.get("job_script_provider", None)
         return builder
 
     def evalResources(self, builder, kwargs):
-        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text]]
+        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text, None]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -708,7 +730,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024
-        }
+        }  # type: Dict[Text, Union[int, None]]
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = None
             mx = None
@@ -749,7 +771,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 else:
                     _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
 
-    def get_requirement(self, feature):  # type: (Any) -> Tuple[Any, bool]
+    def get_requirement(self,
+                        feature  # type: Any
+                       ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
         return get_feature(self, feature)
 
     def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
@@ -757,12 +781,13 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
     def job(self,
-            job_order,  # type: Dict[Text, Text]
+            job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            **kwargs  # type: Any
-            ):
-        # type: (...) -> Generator[Any, None, None]
-        return None
+            mutation_manager,  # type: MutationManager
+            basedir,           # type: Text
+            **kwargs           # type: Any
+           ):  # type: (...) -> Generator[Any, None, None]
+        pass
 
 
 def empty_subtree(dirpath):  # type: (Text) -> bool
@@ -848,17 +873,16 @@ def mergedirs(listing):
     for c in collided:
         print(ents)
         del ents[c]
-    for e in six.itervalues(ents):
+    for e in itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(six.itervalues(ents))
+    r.extend(itervalues(ents))
     return r
 
 
 def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
-    deps = None  # type: Dict[Text, Any]
     if isinstance(doc, dict):
         if "id" in doc:
             if doc["id"].startswith("file://"):
@@ -873,10 +897,8 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = doc.get("location", doc.get("path"))
             if u and not u.startswith("_:"):
-                deps = {
-                    "class": doc["class"],
-                    "location": urljoin(base, u)
-                }
+                deps = {"class": doc["class"],"location": urljoin(base, u)
+                       }  # type: Dict[Text, Any]
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]
                 if doc["class"] == "Directory" and "listing" in doc:
@@ -891,7 +913,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in six.iteritems(doc):
+        for k, v in iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):

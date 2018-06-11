@@ -1,6 +1,8 @@
 from __future__ import absolute_import
+
 from collections import namedtuple
-from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, Iterable, List, Text, Union, cast)
 
 from .errors import WorkflowException
 

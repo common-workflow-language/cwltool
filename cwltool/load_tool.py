@@ -1,31 +1,33 @@
 """Loads a CWL document."""
 from __future__ import absolute_import
-# pylint: disable=unused-import
 
+import hashlib
 import logging
 import os
 import re
 import uuid
-import hashlib
-import copy
-from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
-                    Text, Tuple, Union, cast)
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Iterable, List, Mapping, Optional, Text, Tuple, Union, cast)
 
 import requests.sessions
-from six import iteritems, itervalues, string_types
-from six.moves import urllib
-
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from six import itervalues, string_types
+from six.moves import urllib
 import schema_salad.schema as schema
-from schema_salad.ref_resolver import ContextType, Fetcher, Loader, file_uri
-from schema_salad.sourceline import cmap, SourceLine
+from schema_salad.ref_resolver import (  # pylint: disable=unused-import
+    ContextType, Fetcher, Loader, file_uri)
+from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.validate import ValidationException
 
 from . import process, update
 from .errors import WorkflowException
-from .process import Process, shortname, get_schema
+from .process import (  # pylint: disable=unused-import
+    Process, get_schema, shortname)
+from .software_requirements import (  # pylint: disable=unused-import
+    DependenciesConfiguration)
 from .update import ALLUPDATES
 from .utils import json_dumps
+
 
 _logger = logging.getLogger("cwltool")
 jobloaderctx = {
@@ -52,11 +54,11 @@ overrides_ctx = {
 }  # type: ContextType
 
 
-FetcherConstructorType = Callable[[Dict[Text, Union[Text, bool]],
-    requests.sessions.Session], Fetcher]
+FetcherConstructorType = Callable[
+    [Dict[Text, Union[Text, bool]], requests.sessions.Session], Fetcher]
 ResolverType = Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
 
-loaders = {}  # type: Dict[FetcherConstructorType, Loader]
+loaders = {}  # type: Dict[Optional[FetcherConstructorType], Loader]
 
 def default_loader(fetcher_constructor):
     # type: (Optional[FetcherConstructorType]) -> Loader
@@ -72,7 +74,7 @@ def resolve_tool_uri(argsworkflow,  # type: Text
                      document_loader=None  # type: Loader
                     ):  # type: (...) -> Tuple[Text, Text]
 
-    uri = None  # type: Text
+    uri = None  # type: Optional[Text]
     split = urllib.parse.urlsplit(argsworkflow)
     # In case of Windows path, urlsplit misjudge Drive letters as scheme, here we are skipping that
     if split.scheme and split.scheme in [u'http', u'https', u'file']:
@@ -102,8 +104,8 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
 
     document_loader = default_loader(fetcher_constructor)  # type: ignore
 
-    uri = None  # type: Text
-    workflowobj = None  # type: CommentedMap
+    uri = None  # type: Optional[Text]
+    workflowobj = None  # type: Optional[CommentedMap]
     if isinstance(argsworkflow, string_types):
         uri, fileuri = resolve_tool_uri(argsworkflow, resolver=resolver,
                                         document_loader=document_loader)
@@ -113,6 +115,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
         workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
     else:
         raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
+    assert workflowobj is not None
 
     return document_loader, workflowobj, uri
 
@@ -236,7 +239,7 @@ def validate_document(document_loader,  # type: Loader
                 "Note: if this is a CWL draft-2 (pre v1.0) document then it "
                 "will need to be upgraded first.")
 
-    if not isinstance(workflowobj["cwlVersion"], (str, Text)):
+    if not isinstance(workflowobj["cwlVersion"], string_types):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException("'cwlVersion' must be a string, "
                                       "got {}".format(
@@ -304,12 +307,17 @@ def validate_document(document_loader,  # type: Loader
     return document_loader, avsc_names, processobj, new_metadata, uri
 
 
-def make_tool(document_loader,  # type: Loader
-              avsc_names,       # type: schema.Names
-              metadata,         # type: Dict[Text, Any]
-              uri,              # type: Text
-              makeTool,         # type: Callable[..., Process]
-              kwargs            # type: Dict
+def make_tool(document_loader,    # type: Loader
+              avsc_names,         # type: schema.Names
+              metadata,           # type: Dict[Text, Any]
+              uri,                # type: Text
+              make_tool,          # type: Callable[..., Process]
+              eval_timeout,       # type: float
+              debug,              # type: bool
+              js_console,         # type: bool
+              force_docker_pull,  # type: bool
+              job_script_provider,  # type: Optional[DependenciesConfiguration]
+              kwargs              # type: Dict
              ):  # type: (...) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
@@ -333,12 +341,14 @@ def make_tool(document_loader,  # type: Loader
 
     kwargs = kwargs.copy()
     kwargs.update({
-        "makeTool": makeTool,
+        "make_tool": make_tool,
         "loader": document_loader,
         "avsc_names": avsc_names,
         "metadata": metadata
     })
-    tool = makeTool(processobj, **kwargs)
+    tool = make_tool(processobj, debug=debug, eval_timeout=eval_timeout,
+                     js_console=js_console, force_docker_pull=force_docker_pull,
+                     job_script_provider=job_script_provider, **kwargs)
 
     if "cwl:defaults" in metadata:
         jobobj = metadata["cwl:defaults"]
@@ -350,13 +360,18 @@ def make_tool(document_loader,  # type: Loader
 
 
 def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
-              makeTool,                  # type: Callable[..., Process]
+              maker_tool,                # type: Callable[..., Process]
+              eval_timeout,              # type: float
+              debug,                     # type: bool
+              js_console,                # type: bool
+              force_docker_pull,         # type: bool
+              job_script_provider,       # type: Optional[DependenciesConfiguration]
               kwargs=None,               # type: Dict
               enable_dev=False,          # type: bool
               strict=True,               # type: bool
               resolver=None,             # type: ResolverType
               fetcher_constructor=None,  # type: FetcherConstructorType
-              overrides=None
+              overrides=None,
              ):  # type: (...) -> Process
 
     document_loader, workflowobj, uri = fetch_document(
@@ -366,8 +381,9 @@ def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
         strict=strict, fetcher_constructor=fetcher_constructor,
         overrides=overrides, metadata=kwargs.get('metadata', None)
         if kwargs else None)
-    return make_tool(document_loader, avsc_names, metadata, uri,
-                     makeTool, kwargs if kwargs else {})
+    return make_tool(document_loader, avsc_names, metadata, uri, maker_tool,
+                     eval_timeout, debug, js_console, force_docker_pull,
+                     job_script_provider, kwargs if kwargs else {})
 
 def resolve_overrides(ov,      # Type: CommentedMap
                       ov_uri,  # Type: Text

@@ -1,8 +1,8 @@
 from __future__ import absolute_import
+
 from typing import IO, Any, Dict, Text
 
 from rdflib import Graph
-
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 from six.moves import urllib
@@ -22,8 +22,11 @@ def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
 
 def printrdf(wflow, ctx, style):  # type: (Process, ContextType, Text) -> Text
     """Serialize the CWL document into a string, ready for printing."""
-    return gather(wflow, ctx).serialize(format=style,
-                                        encoding='utf-8').decode('utf-8')
+    rdf = gather(wflow, ctx).serialize(format=style, encoding='utf-8')
+    if not rdf:
+        return u""
+    assert rdf is not None
+    return rdf.decode('utf-8')
 
 
 def lastpart(uri):  # type: (Any) -> Text

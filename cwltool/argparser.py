@@ -1,21 +1,17 @@
-from __future__ import absolute_import
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import argparse
-import logging
 import os
+from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
+                    Optional, Sequence, Text, Union, cast)
 
-from typing import (Any, AnyStr, Dict, List, Sequence, Text, Union, cast)
-
-from . import loghandler
 from schema_salad.ref_resolver import file_uri
-from .process import (Process, shortname)
+
+from .loghandler import _logger
+from .process import Process, shortname  # pylint: disable=unused-import
 from .resolver import ga4gh_tool_registries
-from .software_requirements import (SOFTWARE_REQUIREMENTS_ENABLED)
-
-_logger = logging.getLogger("cwltool")
-
-DEFAULT_TMP_PREFIX = "tmp"
+from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
+from .utils import DEFAULT_TMP_PREFIX
 
 
 def arg_parser():  # type: () -> argparse.ArgumentParser
@@ -351,7 +347,7 @@ def add_argument(toolparser, name, inptype, records, description="",
                 return None
 
     ahelp = description.replace("%", "%%")
-    action = None  # type: Union[argparse.Action, Text]
+    action = None  # type: Optional[Union[argparse.Action, Text]]
     atype = None  # type: Any
 
     if inptype == "File":

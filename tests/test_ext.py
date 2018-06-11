@@ -1,8 +1,10 @@
 from __future__ import absolute_import
+
 import os
 import shutil
 import tempfile
 import unittest
+
 import pytest
 
 import cwltool.expression as expr
@@ -11,6 +13,7 @@ import cwltool.process
 import cwltool.workflow
 from cwltool.main import main
 from cwltool.utils import onWindows
+
 from .util import get_data, needs_docker, windows_needs_docker
 
 

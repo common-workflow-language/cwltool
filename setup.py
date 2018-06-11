@@ -56,6 +56,7 @@ setup(name='cwltool',
           'shellescape >= 3.4.1, < 3.5',
           'schema-salad >= 2.6.20170927145003, < 3',
           'typing >= 3.5.3',
+          'mypy-extensions',
           'six >= 1.8.0',
       ],
       extras_require={

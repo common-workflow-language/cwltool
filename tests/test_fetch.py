@@ -1,22 +1,24 @@
 from __future__ import absolute_import
-import unittest
-import sys
-import os
 
-from six.moves import urllib
+import os
+import unittest
 
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
+from six.moves import urllib
+
 from cwltool.load_tool import load_tool
 from cwltool.main import main
-from cwltool.workflow import defaultMakeTool
-from cwltool.resolver import resolve_local, Path
+from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
+from cwltool.workflow import default_make_tool
 
 from .util import get_data
 
+
 class FetcherTest(unittest.TestCase):
+    """Test using custom schema_salad.ref_resolver.Fetcher."""
     def test_fetcher(self):
         class TestFetcher(schema_salad.ref_resolver.Fetcher):
             def __init__(self, a, b):
@@ -57,7 +59,8 @@ outputs: []
                 return "baz:bar/" + a
 
 
-        load_tool("foo.cwl", defaultMakeTool, resolver=test_resolver, fetcher_constructor=TestFetcher)
+        load_tool("foo.cwl", default_make_tool, 20, False, False, False, None,
+                  resolver=test_resolver, fetcher_constructor=TestFetcher,)
 
         self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,
                                   fetcher_constructor=TestFetcher))
@@ -67,6 +70,7 @@ class ResolverTest(unittest.TestCase):
     def test_resolve_local(self):
         origpath = os.getcwd()
         os.chdir(os.path.join(get_data("")))
+
         def norm(uri):
             if onWindows():
                 return uri.lower()

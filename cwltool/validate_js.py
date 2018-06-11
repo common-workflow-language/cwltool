@@ -1,30 +1,28 @@
-import functools
+import copy
 import itertools
 import json
 import logging
-from io import open
 from collections import namedtuple
-from os import path
-from typing import Any, Dict, List, Text, Tuple, Union
+from typing import (Any, Dict, List,  # pylint: disable=unused-import
+                    Optional, Text, Tuple, Union)
 
-import copy
-import schema_salad
-from schema_salad.sourceline import SourceLine
-from schema_salad.validate import Schema, ValidationException, validate_ex
 import avro.schema  # always import after schema_salad, never before
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from pkg_resources import resource_stream
+from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
+from schema_salad.sourceline import SourceLine
+from schema_salad.validate import (Schema,  # pylint: disable=unused-import
+                                   ValidationException, validate_ex)
+from six import string_types
 
 from .expression import scanner as scan_expression
-from .sandboxjs import (JavascriptException, code_fragment_to_js,
-                        exec_js_process, execjs)
+from .loghandler import _logger
+from .sandboxjs import code_fragment_to_js, exec_js_process
 from .utils import json_dumps
-from pkg_resources import resource_stream
-
-_logger = logging.getLogger("cwltool")
 
 def is_expression(tool, schema):
     # type: (Union[CommentedMap, Any], Schema) -> bool
-    return isinstance(schema, avro.schema.EnumSchema) and schema.name == "Expression" and isinstance(tool, (str, Text))
+    return isinstance(schema, avro.schema.EnumSchema) \
+        and schema.name == "Expression" and isinstance(tool, string_types)
 
 class SuppressLog(logging.Filter):
     def __init__(self, name):  # type: (Text) -> None
@@ -38,8 +36,10 @@ class SuppressLog(logging.Filter):
 _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
 _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings"))
 
-def get_expressions(tool, schema, source_line=None):
-    # type: (Union[CommentedMap, Any], avro.schema.Schema, SourceLine) -> List[Tuple[Text, SourceLine]]
+def get_expressions(tool,             # type: Union[CommentedMap, Any]
+                    schema,           # type: avro.schema.Schema
+                    source_line=None  # type: Optional[SourceLine]
+                   ):  # type: (...) -> List[Tuple[Text, Optional[SourceLine]]]
     if is_expression(tool, schema):
         return [(tool, source_line)]
     elif isinstance(schema, avro.schema.UnionSchema):
@@ -48,9 +48,11 @@ def get_expressions(tool, schema, source_line=None):
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
                 return [(tool, source_line)]
-            elif validate_ex(possible_schema, tool, raise_ex=False, logger=_logger_validation_warnings):
+            elif validate_ex(possible_schema, tool, strict=True, raise_ex=False,
+                             logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 
+        assert valid_schema is not None
         return get_expressions(tool, valid_schema, source_line)
     elif isinstance(schema, avro.schema.ArraySchema):
         if not isinstance(tool, list):
@@ -147,9 +149,10 @@ def jshint_js(js_text, globals=None, options=None):
 
 
 def print_js_hint_messages(js_hint_messages, source_line):
-    # type: (List[Text], SourceLine) -> None
-    for js_hint_message in js_hint_messages:
-        _logger.warn(source_line.makeError(js_hint_message))
+    # type: (List[Text], Optional[SourceLine]) -> None
+    if source_line:
+        for js_hint_message in js_hint_messages:
+            _logger.warn(source_line.makeError(js_hint_message))
 
 def validate_js_expressions(tool, schema, jshint_options=None):
     # type: (CommentedMap, Schema, Dict) -> None

@@ -1,8 +1,6 @@
 from __future__ import absolute_import
 
-import codecs
-import functools
-import io
+import functools  # pylint: disable=unused-import
 import logging
 import os
 import re
@@ -10,25 +8,27 @@ import shutil
 import stat
 import sys
 import tempfile
-import threading
+from threading import Lock, Timer
 from abc import ABCMeta, abstractmethod
-from io import open
-from threading import Lock
-
-import shellescape
-from typing import (IO, Any, Callable, Dict, Iterable, List, MutableMapping, Text,
+from io import IOBase, open  # pylint: disable=redefined-builtin
+from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
+                    Dict, Iterable, List, MutableMapping, Optional, Text,
                     Union, cast)
 
-from .builder import Builder
-from .errors import WorkflowException
-from .pathmapper import PathMapper
-from .process import (UnsupportedRequirement, get_feature,
-                      stageFiles)
-from .secrets import SecretStore
-from .utils import (bytes2str_in_dicts, copytree_with_merge, json_dump,
-                    json_dumps, onWindows, subprocess)
+import shellescape
+from schema_salad.sourceline import SourceLine
+from six import with_metaclass
 
-_logger = logging.getLogger("cwltool")
+from .builder import Builder  # pylint: disable=unused-import
+from .errors import WorkflowException
+from .loghandler import _logger
+from .pathmapper import PathMapper
+from .process import UnsupportedRequirement, get_feature, stageFiles
+from .secrets import SecretStore  # pylint: disable=unused-import
+from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
+    DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
+    onWindows, subprocess)
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
@@ -105,12 +105,12 @@ def deref_links(outputs):  # type: (Any) -> None
             for v in outputs.values():
                 deref_links(v)
     if isinstance(outputs, list):
-        for v in outputs:
-            deref_links(v)
+        for output in outputs:
+            deref_links(output)
 
 def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_update=False):
     # type: (PathMapper, Text, Text, bool) -> None
-    for src, vol in pathmapper.items():
+    for _, vol in pathmapper.items():
         if not vol.staged:
             continue
 
@@ -129,33 +129,53 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
             elif not vol.resolved.startswith("_:"):
                 os.symlink(vol.resolved, host_outdir_tgt)
 
-class JobBase(object):
-    def __init__(self):  # type: () -> None
-        self.builder = None  # type: Builder
-        self.joborder = None  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
-        self.stdin = None  # type: Text
-        self.stderr = None  # type: Text
-        self.stdout = None  # type: Text
-        self.successCodes = None  # type: Iterable[int]
-        self.temporaryFailCodes = None  # type: Iterable[int]
-        self.permanentFailCodes = None  # type: Iterable[int]
-        self.requirements = None  # type: List[Dict[Text, Text]]
-        self.hints = None  # type: Dict[Text,Text]
-        self.name = None  # type: Text
-        self.command_line = None  # type: List[Text]
-        self.pathmapper = None  # type: PathMapper
-        self.make_pathmapper = None  # type: Callable[..., PathMapper]
-        self.generatemapper = None  # type: PathMapper
-        self.collect_outputs = None  # type: Union[Callable[[Any], Any], functools.partial[Any]]
-        self.output_callback = None  # type: Callable[[Any, Any], Any]
-        self.outdir = None  # type: Text
-        self.tmpdir = None  # type: Text
-        self.environment = None  # type: MutableMapping[Text, Text]
-        self.generatefiles = None  # type: Dict[Text, Union[List[Dict[Text, Text]], Dict[Text, Text], Text]]
-        self.stagedir = None  # type: Text
-        self.inplace_update = None  # type: bool
-        self.timelimit = None  # type: int
+class JobBase(with_metaclass(ABCMeta, object)):
+    def __init__(self,
+                 builder,   # type: Builder
+                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 make_path_mapper,  # type: Callable[..., PathMapper]
+                 requirements,  # type: List[Dict[Text, Text]]
+                 hints,  # type: List[Dict[Text, Text]]
+                 name,   # type: Text
+                ):  # type: (...) -> None
+        self.builder = builder
+        self.joborder = joborder
+        self.stdin = None  # type: Optional[Text]
+        self.stderr = None  # type: Optional[Text]
+        self.stdout = None  # type: Optional[Text]
+        self.successCodes = None  # type: Optional[Iterable[int]]
+        self.temporaryFailCodes = None  # type: Optional[Iterable[int]]
+        self.permanentFailCodes = None  # type: Optional[Iterable[int]]
+        self.requirements = requirements
+        self.hints = hints
+        self.name = name
+        self.command_line = []  # type: List[Text]
+        self.pathmapper = PathMapper([], u"", u"")
+        self.make_path_mapper = make_path_mapper
+        self.generatemapper = None  # type: Optional[PathMapper]
+
+        # set in CommandLineTool.job(i)
+        self.collect_outputs = cast(Callable[[Any], Any], None)  # type: Union[Callable[[Any], Any], functools.partial[Any]]
+        self.output_callback = cast(Callable[[Any, Any], Any], None)
+        self.outdir = u""
+        self.tmpdir = u""
+
+        self.environment = {}  # type: MutableMapping[Text, Text]
+        self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
+        self.stagedir = None  # type: Optional[Text]
+        self.inplace_update = False
+        self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
+
+    @abstractmethod
+    def run(self,
+            pull_image=True,      # type: bool
+            rm_container=True,    # type: bool
+            rm_tmpdir=True,       # type: bool
+            move_outputs="move",  # type: Text
+            **kwargs              # type: Any
+           ):  # type: (...) -> None
+        pass
 
     def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
@@ -169,12 +189,9 @@ class JobBase(object):
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         if self.generatefiles["listing"]:
-            make_path_mapper_kwargs = kwargs
-            if "basedir" in make_path_mapper_kwargs:
-                make_path_mapper_kwargs = make_path_mapper_kwargs.copy()
-                del make_path_mapper_kwargs["basedir"]
-            self.generatemapper = self.make_pathmapper(cast(List[Any], self.generatefiles["listing"]),
-                                                       self.builder.outdir, basedir=self.outdir, separateDirs=False, **make_path_mapper_kwargs)
+            self.generatemapper = self.make_path_mapper(
+                cast(List[Any], self.generatefiles["listing"]),
+                self.builder.outdir, self.outdir, separateDirs=False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json_dumps({p: self.generatemapper.mapper(p)
                                       for p in self.generatemapper.files()},
@@ -186,16 +203,14 @@ class JobBase(object):
                  rm_tmpdir=True,         # type: bool
                  move_outputs="move",    # type: Text
                  secret_store=None,      # type: SecretStore
-                 tmp_outdir_prefix=None  # type: Text
+                 tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
                 ):  # type: (...) -> None
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
 
-        shouldquote = None  # type: Callable[[Any], Any]
+        shouldquote = needs_shell_quoting_re.search   # type: Callable[[Any], Any]
         if scr:
             shouldquote = lambda x: False
-        else:
-            shouldquote = needs_shell_quoting_re.search
 
         _logger.info(u"[job %s] %s$ %s%s%s%s",
                      self.name,
@@ -211,7 +226,13 @@ class JobBase(object):
         try:
             stdin_path = None
             if self.stdin:
-                stdin_path = self.pathmapper.reversemap(self.stdin)[1]
+                rmap = self.pathmapper.reversemap(self.stdin)
+                if not rmap:
+                    raise WorkflowException(
+                        "{} missing from pathmapper".format(self.stdin))
+                else:
+                    stdin_path = rmap[1]
+
 
             stderr_path = None
             if self.stderr:
@@ -234,7 +255,7 @@ class JobBase(object):
                 commands = secret_store.retrieve(commands)
                 env = secret_store.retrieve(env)
 
-            job_script_contents = None  # type: Text
+            job_script_contents = None  # type: Optional[Text]
             builder = getattr(self, "builder", None)  # type: Builder
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
@@ -263,7 +284,10 @@ class JobBase(object):
                 processStatus = "permanentFail"
 
             if self.generatefiles["listing"]:
-                relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
+                assert self.generatemapper is not None
+                relink_initialworkdir(
+                    self.generatemapper, self.outdir, self.builder.outdir,
+                    inplace_update=self.inplace_update)
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
@@ -320,9 +344,13 @@ class JobBase(object):
 
 class CommandLineJob(JobBase):
 
-    def run(self, pull_image=True, rm_container=True,
-            rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, **Any) -> None
+    def run(self,
+            pull_image=True,      # type: bool
+            rm_container=True,    # type: bool
+            rm_tmpdir=True,       # type: bool
+            move_outputs="move",  # type: Text
+            **kwargs              # type: Any
+           ):  # type: (...) -> None
 
         self._setup(kwargs)
 
@@ -351,11 +379,10 @@ class CommandLineJob(JobBase):
 
         self._execute(
             [], env, rm_tmpdir, move_outputs, kwargs.get("secret_store"),
-            kwargs.get("tmp_outdir_prefix"))
+            kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
 
 
-class ContainerCommandLineJob(JobBase):
-    __metaclass__ = ABCMeta
+class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     @abstractmethod
     def get_from_requirements(self,
@@ -363,26 +390,26 @@ class ContainerCommandLineJob(JobBase):
                               req,                    # type: bool
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
-                              tmp_outdir_prefix=None  # type: Text
-                             ):  # type: (...) -> Text
+                              tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
+                             ):  # type: (...) -> Optional[Text]
         pass
 
     @abstractmethod
     def create_runtime(self, env, rm_container, record_container_id, cidfile_dir,
                        cidfile_prefix, **kwargs):
         # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
+        """ Return the list of commands to run the selected container engine."""
         pass
 
-    def run(self, pull_image=True, rm_container=True,
-            record_container_id=False, cidfile_dir="",
-            cidfile_prefix="",
-            rm_tmpdir=True, move_outputs="move", **kwargs):
-        # type: (bool, bool, bool, Text, Text, bool, Text, **Any) -> None
+    def run(self, pull_image=True, rm_container=True, rm_tmpdir=True,
+            move_outputs="move", record_container_id=False, cidfile_dir="",
+            cidfile_prefix="", **kwargs):
+        # type: (bool, bool, bool, Text, bool, Text, Text, **Any) -> None
 
         (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
 
         img_id = None
-        env = None  # type: MutableMapping[Text, Text]
+        env = cast(MutableMapping[Text, Text], os.environ)
         user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
         if docker_req and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
@@ -392,53 +419,55 @@ class ContainerCommandLineJob(JobBase):
             elif 'dockerPull' in docker_req:
                 img_id = str(docker_req["dockerPull"])
             else:
-                raise Exception("Docker image must be specified as "
-                        "'dockerImageId' or 'dockerPull' when using user "
-                        "space implementations of Docker")
+                raise WorkflowException(SourceLine(docker_req).makeError(
+                    "Docker image must be specified as 'dockerImageId' or "
+                    "'dockerPull' when using user space implementations of "
+                    "Docker"))
         else:
             try:
-                env = cast(MutableMapping[Text, Text], os.environ)
                 if docker_req and kwargs.get("use_container"):
-                    img_id = str(self.get_from_requirements(docker_req, True,
-                        pull_image, kwargs.get("force_docker_pull"),
-                        kwargs.get('tmp_outdir_prefix')))
+                    img_id = str(
+                        self.get_from_requirements(
+                            docker_req, True, pull_image,
+                            kwargs.get("force_docker_pull", False),
+                            kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX)))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
                         if default_container:
                             img_id = str(default_container)
-                            env = cast(MutableMapping[Text, Text], os.environ)
 
                 if docker_req and img_id is None and kwargs.get("use_container"):
                     raise Exception("Docker image not available")
-            except Exception as e:
+            except Exception as err:
                 container = "Singularity" if kwargs.get("singularity") else "Docker"
-                _logger.debug("%s error" % container, exc_info=True)
+                _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "%s is required to run this tool: %s" % (container, e))
+                        "%s is required to run this tool: %s" % (container, err))
                 else:
                     raise WorkflowException(
                         "{0} is not available for this tool, try "
                         "--no-container to disable {0}, or install "
                         "a user space Docker replacement like uDocker with "
-                        "--user-space-docker-cmd.: {1}".format(container, e))
+                        "--user-space-docker-cmd.: {1}".format(container, err))
 
         self._setup(kwargs)
-        runtime = self.create_runtime(env, rm_container, record_container_id, cidfile_dir, cidfile_prefix, **kwargs)
+        runtime = self.create_runtime(env, rm_container, record_container_id,
+                                      cidfile_dir, cidfile_prefix, **kwargs)
         runtime.append(img_id)
 
         self._execute(
             runtime, env, rm_tmpdir, move_outputs, kwargs.get("secret_store"),
-            kwargs.get("tmp_outdir_prefix"))
+            kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
 
 
 def _job_popen(
         commands,                  # type: List[Text]
-        stdin_path,                # type: Text
-        stdout_path,               # type: Text
-        stderr_path,               # type: Text
-        env,  # type: Union[MutableMapping[Text, Text], MutableMapping[str, str]]
+        stdin_path,                # type: Optional[Text]
+        stdout_path,               # type: Optional[Text]
+        stderr_path,               # type: Optional[Text]
+        env,                       # type: MutableMapping[AnyStr, AnyStr]
         cwd,                       # type: Text
         job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
@@ -448,54 +477,47 @@ def _job_popen(
 
     if not job_script_contents and not FORCE_SHELLED_POPEN:
 
-        stdin = None  # type: Union[IO[Any], int]
-        stderr = None  # type: IO[Any]
-        stdout = None  # type: IO[Any]
-
+        stdin = subprocess.PIPE  # type: Union[IO[Any], int]
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
-        else:
-            stdin = subprocess.PIPE
 
+        stdout = sys.stderr  # type: IO[Any]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
-        else:
-            stdout = sys.stderr
 
+        stderr = sys.stderr  # type: IO[Any]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
-        else:
-            stderr = sys.stderr
 
-        sp = subprocess.Popen(commands,
-                              shell=False,
-                              close_fds=not onWindows(),
-                              stdin=stdin,
-                              stdout=stdout,
-                              stderr=stderr,
-                              env=env,
-                              cwd=cwd)
+        sproc = subprocess.Popen(commands,
+                                 shell=False,
+                                 close_fds=not onWindows(),
+                                 stdin=stdin,
+                                 stdout=stdout,
+                                 stderr=stderr,
+                                 env=env,
+                                 cwd=cwd)
 
-        if sp.stdin:
-            sp.stdin.close()
+        if sproc.stdin:
+            sproc.stdin.close()
 
         tm = None
         if timelimit:
             def terminate():
                 try:
                     _logger.warn(u"[job %s] exceeded time limit of %d seconds and will be terminated", name, timelimit)
-                    sp.terminate()
+                    sproc.terminate()
                 except OSError:
                     pass
-            tm = threading.Timer(timelimit, terminate)
+            tm = Timer(timelimit, terminate)
             tm.start()
 
-        rcode = sp.wait()
+        rcode = sproc.wait()
 
         if tm:
             tm.cancel()
 
-        if isinstance(stdin, io.IOBase):
+        if isinstance(stdin, IOBase):
             stdin.close()
 
         if stdout is not sys.stderr:
@@ -522,28 +544,30 @@ def _job_popen(
             stderr_path=stderr_path,
             stdin_path=stdin_path,
         )
-        with io.open(os.path.join(job_dir, "job.json"), encoding='utf-8',
+        with open(os.path.join(job_dir, "job.json"), encoding='utf-8',
                      mode="wb") as job_file:
             json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "wb") as f:
-                f.write(job_script_contents.encode('utf-8'))
+            with open(job_script, "wb") as _:
+                _.write(job_script_contents.encode('utf-8'))
             job_run = os.path.join(job_dir, "run_job.py")
-            with open(job_run, "wb") as f:
-                f.write(PYTHON_RUN_SCRIPT.encode('utf-8'))
-            sp = subprocess.Popen(
+            with open(job_run, "wb") as _:
+                _.write(PYTHON_RUN_SCRIPT.encode('utf-8'))
+            sproc = subprocess.Popen(
                 ["bash", job_script.encode("utf-8")],
                 shell=False,
                 cwd=job_dir,
-                stdout=sys.stderr,  # The nested script will output the paths to the correct files if they need
-                stderr=sys.stderr,  # to be captured. Else just write everything to stderr (same as above).
+                # The nested script will output the paths to the correct files if they need
+                # to be captured. Else just write everything to stderr (same as above).
+                stdout=sys.stderr,
+                stderr=sys.stderr,
                 stdin=subprocess.PIPE,
             )
-            if sp.stdin:
-                sp.stdin.close()
+            if sproc.stdin:
+                sproc.stdin.close()
 
-            rcode = sp.wait()
+            rcode = sproc.wait()
 
             return rcode
         finally:

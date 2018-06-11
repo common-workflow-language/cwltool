@@ -7,6 +7,7 @@ import cwltool
 import cwltool.factory
 from cwltool.executors import MultithreadedJobExecutor
 from cwltool.utils import onWindows
+
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 

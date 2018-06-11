@@ -1,7 +1,11 @@
 import unittest
-from cwltool.load_tool import fetch_document, validate_document
-from .util import get_data
+
 from schema_salad.ref_resolver import Loader
+
+from cwltool.load_tool import fetch_document, validate_document
+
+from .util import get_data
+
 
 class TestDefaultPath(unittest.TestCase):
     # Testing that error is not raised when default path is not present

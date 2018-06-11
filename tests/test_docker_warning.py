@@ -1,8 +1,11 @@
 from __future__ import absolute_import
+
 import unittest
+
 from mock import mock
-from cwltool.utils import windows_default_container_id
+
 from cwltool.command_line_tool import DEFAULT_CONTAINER_MSG, CommandLineTool
+from cwltool.utils import windows_default_container_id
 
 
 class TestDefaultDockerWarning(unittest.TestCase):
@@ -21,5 +24,5 @@ class TestDefaultDockerWarning(unittest.TestCase):
                 return windows_default_container_id
 
         TestObject = TestCommandLineTool()
-        TestObject.makeJobRunner()
+        TestObject.make_job_runner()
         mock_logger.warning.assert_called_with(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))

@@ -7,10 +7,14 @@ Homebrew, Conda, custom scripts, environment modules. We'd be happy to find
 ways to adapt new packages managers and such as well.
 """
 from __future__ import absolute_import
-import argparse
+
+import argparse  # pylint: disable=unused-import
 import os
 import string
-from typing import (Any, Dict, List, Text)
+from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
+                    Text)
+
+from .utils import get_feature
 
 try:
     from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
@@ -18,9 +22,8 @@ try:
 except ImportError:
     ToolRequirement = None  # type: ignore
     ToolRequirements = None  # type: ignore
-    deps = None
+    deps = None  # type: ignore
 
-from .utils import get_feature
 
 SOFTWARE_REQUIREMENTS_ENABLED = deps is not None
 

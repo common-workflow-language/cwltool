@@ -1,5 +1,6 @@
 """Support for executing Docker containers using Singularity."""
 from __future__ import absolute_import
+
 import logging
 import os
 import os.path
@@ -7,14 +8,18 @@ import re
 import shutil
 import sys
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Dict, List, Text, Optional,  # pylint: disable=unused-import
-                    MutableMapping)
+from typing import (Dict, List,  # pylint: disable=unused-import
+                    MutableMapping, Optional, Text)
+
 from schema_salad.sourceline import SourceLine
+
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
-from .process import (UnsupportedRequirement)
+from .pathmapper import (PathMapper,  # pylint: disable=unused-import
+                         ensure_writable)
+from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
+
 if os.name == 'posix':
     from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
         check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
@@ -121,7 +126,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=None  # type: Text
-                             ):  # type: (...) -> Text
+                             ):
+        # type: (...) -> Optional[Text]
         """
         Returns the filename of the Singularity image (e.g.
         hello-world-latest.img).
@@ -155,6 +161,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         # type: (PathMapper, List[Text], bool) -> None
 
         host_outdir = self.outdir
+        host_outdir_tgt = None  # type: Optional[Text]
         container_outdir = self.builder.outdir
         for _, vol in pathmapper.items():
             if not vol.staged:
@@ -166,9 +173,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
                     host_outdir, vol.target[len(container_outdir) + 1:])
-            else:
-                host_outdir_tgt = None
             if vol.type in ("File", "Directory"):
+
                 if not vol.resolved.startswith("_:"):
                     runtime.append(u"--bind")
                     runtime.append("{}:{}:ro".format(
@@ -180,11 +186,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     runtime.append(u"{}:{}:rw".format(
                         docker_windows_path_adjust(vol.resolved),
                         docker_windows_path_adjust(containertgt)))
-                else:
+                elif host_outdir_tgt:
                     shutil.copy(vol.resolved, host_outdir_tgt)
                     ensure_writable(host_outdir_tgt)
             elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
+                if vol.resolved.startswith("_:") and host_outdir_tgt:
                     os.makedirs(host_outdir_tgt, 0o0755)
                 else:
                     if self.inplace_update:
@@ -192,7 +198,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         runtime.append(u"{}:{}:rw".format(
                             docker_windows_path_adjust(vol.resolved),
                             docker_windows_path_adjust(containertgt)))
-                    else:
+                    elif host_outdir_tgt:
                         shutil.copytree(vol.resolved, host_outdir_tgt)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
