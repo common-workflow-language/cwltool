@@ -7,7 +7,6 @@ import os
 import re
 import uuid
 import hashlib
-import json
 import copy
 from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
                     Text, Tuple, Union, cast)
@@ -26,6 +25,7 @@ from . import process, update
 from .errors import WorkflowException
 from .process import Process, shortname, get_schema
 from .update import ALLUPDATES
+from .utils import json_dumps
 
 _logger = logging.getLogger("cwltool")
 jobloaderctx = {
@@ -143,7 +143,7 @@ def _convert_stdstreams_to_files(workflowobj):
                                 filename = workflowobj[streamtype]
                             else:
                                 filename = Text(
-                                    hashlib.sha1(json.dumps(workflowobj,
+                                    hashlib.sha1(json_dumps(workflowobj,
                                                             sort_keys=True
                                                            ).encode('utf-8')
                                                 ).hexdigest())

@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import codecs
 import functools
 import io
-import json
 import logging
 import os
 import re
@@ -26,8 +25,8 @@ from .pathmapper import PathMapper
 from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .secrets import SecretStore
-from .utils import (bytes2str_in_dicts, copytree_with_merge, onWindows,
-                    subprocess)
+from .utils import (bytes2str_in_dicts, copytree_with_merge, json_dump,
+                    json_dumps, onWindows, subprocess)
 
 _logger = logging.getLogger("cwltool")
 
@@ -177,7 +176,9 @@ class JobBase(object):
             self.generatemapper = self.make_pathmapper(cast(List[Any], self.generatefiles["listing"]),
                                                        self.builder.outdir, basedir=self.outdir, separateDirs=False, **make_path_mapper_kwargs)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
-                          json.dumps({p: self.generatemapper.mapper(p) for p in self.generatemapper.files()}, indent=4))
+                          json_dumps({p: self.generatemapper.mapper(p)
+                                      for p in self.generatemapper.files()},
+                                     indent=4))
 
     def _execute(self,
                  runtime,                # type:List[Text]
@@ -289,7 +290,8 @@ class JobBase(object):
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
+            _logger.debug(u"[job %s] %s", self.name,
+                          json_dumps(outputs, indent=4))
 
         if self.generatemapper and secret_store:
             # Delete any runtime-generated files containing secrets.
@@ -520,8 +522,9 @@ def _job_popen(
             stderr_path=stderr_path,
             stdin_path=stdin_path,
         )
-        with open(os.path.join(job_dir, "job.json"), "wb") as f:
-            json.dump(job_description, codecs.getwriter('utf-8')(f), ensure_ascii=False)  # type: ignore
+        with io.open(os.path.join(job_dir, "job.json"), encoding='utf-8',
+                     mode="wb") as job_file:
+            json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as f:

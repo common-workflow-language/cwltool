@@ -17,6 +17,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from .expression import scanner as scan_expression
 from .sandboxjs import (JavascriptException, code_fragment_to_js,
                         exec_js_process, execjs)
+from .utils import json_dumps
 from pkg_resources import resource_stream
 
 _logger = logging.getLogger("cwltool")
@@ -104,7 +105,7 @@ def jshint_js(js_text, globals=None, options=None):
         jshint_functions_text += "\n" + file.read().decode('utf-8') + "\nvar ob = {validateJS: validateJS}; ob"
 
     returncode, stdout, stderr = exec_js_process(
-        "validateJS(%s)" % json.dumps({
+        "validateJS(%s)" % json_dumps({
             "code": js_text,
             "options": options,
             "globals": globals

@@ -11,7 +11,7 @@ from io import BytesIO
 from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 import six
 from pkg_resources import resource_stream
-from .utils import onWindows, subprocess
+from .utils import onWindows, json_dumps, subprocess
 
 try:
     import queue  # type: ignore
@@ -174,10 +174,10 @@ def exec_js_process(js_text, timeout=None, js_console=False, context=None, force
     tm = threading.Timer(timeout, terminate)
     tm.start()
 
-    stdin_text = ""
+    stdin_text = u""
     if created_new_process and context is not None:
-        stdin_text = json.dumps(context) + "\n"
-    stdin_text += json.dumps(js_text) + "\n"
+        stdin_text = json_dumps(context) + "\n"
+    stdin_text += json_dumps(js_text) + "\n"
 
     stdin_buf = BytesIO(stdin_text.encode('utf-8'))
     stdout_buf = BytesIO()

@@ -2,8 +2,8 @@ from __future__ import absolute_import
 import copy
 import hashlib
 import locale
-import json
 import logging
+import json
 import os
 import re
 import shutil
@@ -32,7 +32,9 @@ from .process import (Process, UnsupportedRequirement,
                       normalizeFilesDirs, shortname, uniquename)
 from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, convert_pathsep_to_unix, windows_default_container_id, onWindows
+from .utils import (aslist, docker_windows_path_adjust,
+                    convert_pathsep_to_unix, json_dumps,
+                    windows_default_container_id, onWindows)
 from six.moves import map
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
@@ -309,7 +311,8 @@ class CommandLineTool(Process):
                     if r["class"] in interesting and r["class"] not in keydict:
                         keydict[r["class"]] = r
 
-            keydictstr = json.dumps(keydict, separators=(',', ':'), sort_keys=True)
+            keydictstr = json_dumps(keydict, separators=(',', ':'),
+                                    sort_keys=True)
             cachekey = hashlib.md5(keydictstr.encode('utf-8')).hexdigest()
 
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
@@ -370,8 +373,10 @@ class CommandLineTool(Process):
             _logger.debug(u"[job %s] initializing from %s%s",
                           j.name,
                           self.tool.get("id", ""),
-                          u" as part of %s" % kwargs["part_of"] if "part_of" in kwargs else "")
-            _logger.debug(u"[job %s] %s", j.name, json.dumps(job_order, indent=4))
+                          u" as part of %s" % kwargs["part_of"]
+                          if "part_of" in kwargs else "")
+            _logger.debug(u"[job %s] %s", j.name, json_dumps(job_order,
+                                                             indent=4))
 
         builder.pathmapper = None
         make_path_mapper_kwargs = kwargs
@@ -427,7 +432,9 @@ class CommandLineTool(Process):
 
         if debug:
             _logger.debug(u"[job %s] path mappings is %s", j.name,
-                          json.dumps({p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()}, indent=4))
+                          json_dumps({p: builder.pathmapper.mapper(p)
+                                      for p in builder.pathmapper.files()},
+                                     indent=4))
 
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", validate.ValidationException, debug):
@@ -447,7 +454,8 @@ class CommandLineTool(Process):
                     raise validate.ValidationException("stdout must be a relative path, got '%s'" % j.stdout)
 
         if debug:
-            _logger.debug(u"[job %s] command line bindings is %s", j.name, json.dumps(builder.bindings, indent=4))
+            _logger.debug(u"[job %s] command line bindings is %s", j.name,
+                          json_dumps(builder.bindings, indent=4))
 
         dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and kwargs.get("use_container"):
@@ -549,7 +557,8 @@ class CommandLineTool(Process):
                 with fs_access.open(custom_output, "r") as f:
                     ret = json.load(f)
                 if debug:
-                    _logger.debug(u"Raw output from %s: %s", custom_output, json.dumps(ret, indent=4))
+                    _logger.debug(u"Raw output from %s: %s", custom_output,
+                                  json_dumps(ret, indent=4))
             else:
                 for i, port in enumerate(ports):
                     def makeWorkflowException(msg):
@@ -571,13 +580,16 @@ class CommandLineTool(Process):
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
 
-            validate.validate_ex(self.names.get_name("outputs_record_schema", ""), ret,
-                                 strict=False, logger=_logger_validation_warnings)
+            validate.validate_ex(
+                self.names.get_name("outputs_record_schema", ""), ret,
+                strict=False, logger=_logger_validation_warnings)
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
-            raise WorkflowException("Error validating output record. " + Text(e) + "\n in " + json.dumps(ret, indent=4))
+            raise WorkflowException(
+                "Error validating output record. " + Text(e) + "\n in " +
+                json_dumps(ret, indent=4))
         finally:
             if builder.mutation_manager and readers:
                 for r in readers.values():

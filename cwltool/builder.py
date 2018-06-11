@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import copy
 import os
 import logging
-import json
 from typing import Any, Callable, Dict, List, Text, Type, Union, Set
 
 import six
@@ -22,7 +21,8 @@ from .mutation import MutationManager
 from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
                          visit_class)
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
+from .utils import (aslist, get_feature, docker_windows_path_adjust,
+                    json_dumps, onWindows)
 
 _logger = logging.getLogger("cwltool")
 
@@ -75,12 +75,13 @@ def checkFormat(actualFile, inputFormats, ontology):
         if not af:
             continue
         if "format" not in af:
-            raise validate.ValidationException(u"File has no 'format' defined: %s" % json.dumps(af, indent=4))
+            raise validate.ValidationException(
+                u"File has no 'format' defined: %s" % json_dumps(af, indent=4))
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-            u"File has an incompatible format: %s" % json.dumps(af, indent=4))
+            u"File has an incompatible format: %s" % json_dumps(af, indent=4))
 
 class Builder(object):
     def __init__(self):  # type: () -> None
@@ -231,7 +232,7 @@ class Builder(object):
                                         "class": "File"})
                                 else:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
-                                        sfname, json.dumps(datum, indent=4)))
+                                        sfname, json_dumps(datum, indent=4)))
 
                     normalizeFilesDirs(datum["secondaryFiles"])
 
