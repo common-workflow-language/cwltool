@@ -2,13 +2,15 @@ from __future__ import absolute_import
 
 # no imports from cwltool allowed
 
+import json
 import os
 import platform
 import shutil
 import stat
 from functools import partial
 
-from typing import Any, Callable, Dict, List, Text, Tuple, Union, Iterable
+from typing import (Any, AnyStr, Callable,  # pylint: disable=unused-import
+                    Dict, Iterable, IO, List, Text, Tuple, Union)
 if os.name == 'posix':
     import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
 else:
@@ -194,15 +196,15 @@ def bytes2str_in_dicts(a):
 
 
 def add_sizes(obj):  # type: (Dict[Text, Any]) -> None
-       if 'location' in obj:
-           try:
-               obj["size"] = os.stat(obj["location"][7:]).st_size  # strip off file://
-           except OSError:
-               pass
-       elif 'contents' in obj:
-               obj["size"] = len(obj['contents'])
-       else:
-           return  # best effort
+    if 'location' in obj:
+        try:
+            obj["size"] = os.stat(obj["location"][7:]).st_size  # strip off file://
+        except OSError:
+            pass
+    elif 'contents' in obj:
+        obj["size"] = len(obj['contents'])
+    else:
+        return  # best effort
 
 
 def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
@@ -216,3 +218,22 @@ def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any]
     if isinstance(rec, list):
         for d in rec:
             visit_class(d, cls, op)
+
+
+def json_dump(obj,       # type: Any
+              fp,        # type: IO[str]
+              **kwargs   # type: Any
+             ):  # type: (...) -> None
+    """ Force use of unicode. """
+    if six.PY2:
+        kwargs['encoding'] = 'utf-8'
+    json.dump(obj, fp, **kwargs)
+
+
+def json_dumps(obj,       # type: Any
+               **kwargs   # type: Any
+              ):  # type: (...) -> Union[Text, AnyStr]
+    """ Force use of unicode. """
+    if six.PY2:
+        kwargs['encoding'] = 'utf-8'
+    return json.dumps(obj, **kwargs)

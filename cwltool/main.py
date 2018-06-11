@@ -5,7 +5,6 @@ from __future__ import print_function
 import argparse
 import collections
 import functools
-import json
 import logging
 import io
 import os
@@ -13,7 +12,7 @@ import codecs
 from codecs import StreamWriter  # pylint: disable=unused-import
 import sys
 import warnings
-from typing import (IO, Any, Callable, Dict, # pylint: disable=unused-import
+from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
                     List, Text, TextIO, Tuple,
                     Union, cast, Mapping, MutableMapping, Iterable)
 
@@ -46,7 +45,8 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import onWindows, windows_default_container_id, add_sizes
+from .utils import (add_sizes, onWindows, json_dumps,
+                    windows_default_container_id)
 
 
 def single_job_executor(t,  # type: Process
@@ -201,7 +201,8 @@ def init_job_order(job_order_object,  # type: MutableMapping[Text, Any]
                 secret_store.store([shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
 
             if _logger.isEnabledFor(logging.DEBUG):
-                _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
+                _logger.debug(u"Parsed job order from command line: %s",
+                              json_dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
@@ -271,8 +272,8 @@ def printdeps(obj,              # type: Mapping[Text, Any]
               uri,              # type: Text
               basedir=None      # type: Text
              ):  # type: (...) -> None
-    deps = {"class": "File",
-            "location": uri}  # type: Dict[Text, Any]
+    """Print a JSON representation of the dependencies of the CWL document."""
+    deps = {"class": "File", "location": uri}  # type: Dict[Text, Any]
 
     def loadref(b, u):
         return document_loader.fetch(document_loader.fetcher.urljoin(b, u))
@@ -293,16 +294,20 @@ def printdeps(obj,              # type: Mapping[Text, Any]
 
         visit_class(deps, ("File", "Directory"), functools.partial(makeRelative, base))
 
-    stdout.write(json.dumps(deps, indent=4))
+    stdout.write(json_dumps(deps, indent=4))
 
 
-def print_pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
+def print_pack(document_loader,  # type: Loader
+               processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+               uri,              # type: Text
+               metadata          # type: Dict[Text, Any]
+              ):  # type (...) -> Text
+    """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(document_loader, processobj, uri, metadata)
     if len(packed["$graph"]) > 1:
-        return json.dumps(packed, indent=4)
+        return json_dumps(packed, indent=4)
     else:
-        return json.dumps(packed["$graph"][0], indent=4)
+        return json_dumps(packed["$graph"][0], indent=4)
 
 
 def versionstring():
@@ -339,8 +344,7 @@ def main(argsl=None,  # type: List[str]
          resolver=tool_resolver,
          logger_handler=None,
          custom_schema_callback=None  # type: Callable[[], None]
-         ):
-    # type: (...) -> int
+        ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")  # type: ignore
                 and sys.stdout.encoding != 'UTF-8'):  # type: ignore
@@ -489,7 +493,7 @@ def main(argsl=None,  # type: List[str]
                                     do_validate=args.do_validate)
 
             if args.print_pre:
-                stdout.write(json.dumps(processobj, indent=4))
+                stdout.write(json_dumps(processobj, indent=4))
                 return 0
 
             overrides.extend(metadata.get("cwltool:overrides", []))
@@ -629,11 +633,8 @@ def main(argsl=None,  # type: List[str]
                 if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
-                    json_opts = {}  # type: Dict[Text, Text]
-                    if six.PY2:
-                        json_opts['encoding'] = 'utf-8'
-                    stdout.write(json.dumps(out, indent=4,  # type: ignore
-                                            ensure_ascii=False, **json_opts))
+                    stdout.write(json_dumps(out, indent=4,  # type: ignore
+                                            ensure_ascii=False))
                 stdout.write("\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()  # type: ignore

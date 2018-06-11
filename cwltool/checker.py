@@ -1,4 +1,3 @@
-import json
 from collections import namedtuple
 import logging
 
@@ -9,6 +8,7 @@ from schema_salad.sourceline import SourceLine, cmap, strip_dup_lineno, indent, 
 import schema_salad.validate as validate
 from .process import shortname
 from .errors import WorkflowException
+from .utils import json_dumps
 
 _logger = logging.getLogger("cwltool")
 
@@ -177,10 +177,10 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"
-                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+                % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
                 SourceLine(sink, "type").makeError(
-                "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json.dumps(sink["type"])))
+                    "  with sink '%s' of type %s"
+                    % (shortname(sink["id"]), json_dumps(sink["type"])))
             if linkMerge:
                 msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
 
@@ -191,10 +191,10 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         linkMerge = exception.linkMerge
         msg = SourceLine(src, "type").makeError(
             "Source '%s' of type %s is incompatible"
-            % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+            % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
             SourceLine(sink, "type").makeError(
-            "  with sink '%s' of type %s"
-            % (shortname(sink["id"]), json.dumps(sink["type"])))
+                "  with sink '%s' of type %s"
+                % (shortname(sink["id"]), json_dumps(sink["type"])))
         if linkMerge:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
