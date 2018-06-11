@@ -62,18 +62,19 @@ def single_job_executor(t,  # type: Process
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
-    defaults = {'null': 'null',
-                'Any': 'null',
-                'boolean': False,
-                'int': 0,
-                'long': 0,
-                'float': 0.1,
-                'double': 0.1,
-                'string': 'default_string',
-                'File': {'class': 'File',
-                         'path': 'default/file/path'},
-                'Directory': {'class': 'Directory',
-                              'path': 'default/directory/path'}}
+    defaults = {u'null': 'null',
+                u'Any': 'null',
+                u'boolean': False,
+                u'int': 0,
+                u'long': 0,
+                u'float': 0.1,
+                u'double': 0.1,
+                u'string': 'default_string',
+                u'File': {'class': 'File',
+                          'path': 'default/file/path'},
+                u'Directory': {'class': 'Directory',
+                               'path': 'default/directory/path'}
+               }  # type: Dict[Text, Any]
     if (not isinstance(inptype, string_types) and
             not isinstance(inptype, collections.Mapping)
             and isinstance(inptype, collections.MutableSet)):
@@ -98,7 +99,7 @@ def generate_example_input(inptype):
                     field['type'])
             return record
     elif isinstance(inptype, string_types):
-        return defaults.get(inptype, 'custom_type')
+        return defaults.get(Text(inptype), 'custom_type')
         # TODO: support custom types, complex arrays
 
 
