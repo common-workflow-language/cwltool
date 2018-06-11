@@ -2,25 +2,23 @@
 from __future__ import absolute_import
 import logging
 import os
+import os.path
 import re
 import shutil
 import sys
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Dict, List, Text, Optional, MutableMapping)
+from typing import (Dict, List, Text, Optional,  # pylint: disable=unused-import
+                    MutableMapping)
+from schema_salad.sourceline import SourceLine
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
-from .pathmapper import PathMapper, ensure_writable
+from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
 from .process import (UnsupportedRequirement)
 from .utils import docker_windows_path_adjust
-from schema_salad.sourceline import SourceLine
-if os.name == 'posix' and sys.version_info[0] < 3:
-    from subprocess32 import (check_call, check_output,  # pylint: disable=import-error
-                              CalledProcessError, DEVNULL, PIPE, Popen,
-                              TimeoutExpired)
-elif os.name == 'posix':
-    from subprocess import (check_call, check_output,  # type: ignore
-                            CalledProcessError, DEVNULL, PIPE, Popen,
-                            TimeoutExpired)
+if os.name == 'posix':
+    from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
+        check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
+        TimeoutExpired)
 else:  # we're not on Unix, so none of this matters
     pass
 
@@ -31,8 +29,9 @@ def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
+            hello_image = os.path.join(os.path.dirname(__file__), 'hello.simg')
             result = Popen(
-                [u"singularity", u"exec", u"--userns", u"/etc", u"true"],
+                [u"singularity", u"exec", u"--userns", hello_image, u"true"],
                 stderr=PIPE, stdout=DEVNULL,
                 universal_newlines=True).communicate(timeout=60)[1]
             _USERNS = "No valid /bin/sh" in result
@@ -76,16 +75,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             candidates.append(_normalizeImageId(dockerRequirement['dockerImageId']))
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
-        for target in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER",
-                os.getcwd()):
-            if target in os.environ:
-                for candidate in candidates:
-                    path = os.path.join(os.environ[target], candidate)
-                    if os.path.isfile(path):
-                        _logger.info("Using local copy of Singularity image "
-                                     "found in {}".format(target))
-                        dockerRequirement["dockerImageId"] = path
-                        found = True
+        targets = [os.getcwd()]
+        for env in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER"):
+            if env in os.environ:
+                targets.append(os.environ[env])
+        for target in targets:
+            for candidate in candidates:
+                path = os.path.join(target, candidate)
+                if os.path.isfile(path):
+                    _logger.info("Using local copy of Singularity image "
+                                 "found in {}".format(target))
+                    dockerRequirement["dockerImageId"] = path
+                    found = True
 
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
@@ -192,8 +193,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         runtime.append(u"{}:{}:rw".format(
                             docker_windows_path_adjust(vol.resolved),
                             docker_windows_path_adjust(containertgt)))
-                    else:
-                        shutil.copytree(vol.resolved, vol.target)
+                    elif host_outdir_tgt:
+                        shutil.copytree(vol.resolved, host_outdir_tgt)
             elif vol.type == "CreateFile":
                 createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
                 with open(createtmp, "wb") as tmp:

@@ -4,7 +4,6 @@ import codecs
 import functools  # pylint: disable=unused-import
 import io
 from io import open  # pylint: disable=redefined-builtin
-import json
 import logging
 import os
 import re
@@ -12,6 +11,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import threading
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 
@@ -27,12 +27,8 @@ from .process import (UnsupportedRequirement, get_feature,
                       stageFiles)
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (bytes2str_in_dicts,  # pylint: disable=unused-import
-                    copytree_with_merge, onWindows, Directory,
-                    DEFAULT_TMP_PREFIX)
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error
-else:
-    import subprocess  # type: ignore
+                    copytree_with_merge, json_dump, json_dumps, onWindows,
+                    subprocess, Directory, DEFAULT_TMP_PREFIX)
 
 
 _logger = logging.getLogger("cwltool")
@@ -51,7 +47,13 @@ PYTHON_RUN_SCRIPT = """
 import json
 import os
 import sys
-import subprocess
+if os.name == 'posix':
+    try:
+        import subprocess32 as subprocess  # type: ignore
+    except Exception:
+        import subprocess
+else:
+    import subprocess  # type: ignore
 
 with open(sys.argv[1], "r") as f:
     popen_description = json.load(f)
@@ -165,6 +167,8 @@ class JobBase(with_metaclass(ABCMeta, object)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
+        self.timelimit = None  # type: Optional[int]
+        self.networkaccess = False  # type: bool
 
     @abstractmethod
     def run(self,
@@ -175,7 +179,6 @@ class JobBase(with_metaclass(ABCMeta, object)):
             **kwargs              # type: Any
            ):  # type: (...) -> None
         pass
-
 
     def _setup(self, kwargs):  # type: (Dict) -> None
         if not os.path.exists(self.outdir):
@@ -193,8 +196,9 @@ class JobBase(with_metaclass(ABCMeta, object)):
                 cast(List[Any], self.generatefiles["listing"]),
                 self.builder.outdir, self.outdir, separateDirs=False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
-                          json.dumps({p: self.generatemapper.mapper(p)
-                              for p in self.generatemapper.files()}, indent=4))
+                          json_dumps({p: self.generatemapper.mapper(p)
+                                      for p in self.generatemapper.files()},
+                                     indent=4))
 
     def _execute(self,
                  runtime,                # type:List[Text]
@@ -259,9 +263,17 @@ class JobBase(with_metaclass(ABCMeta, object)):
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
-                commands, stdin_path, stdout_path, stderr_path, env,
-                self.outdir, tempfile.mkdtemp(prefix=tmp_outdir_prefix),
-                job_script_contents)
+                commands,
+                stdin_path=stdin_path,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                env=env,
+                cwd=self.outdir,
+                job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
+                job_script_contents=job_script_contents,
+                timelimit=self.timelimit,
+                name=self.name
+            )
 
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
@@ -305,7 +317,8 @@ class JobBase(with_metaclass(ABCMeta, object)):
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] %s", self.name, json.dumps(outputs, indent=4))
+            _logger.debug(u"[job %s] %s", self.name,
+                          json_dumps(outputs, indent=4))
 
         if self.generatemapper and secret_store:
             # Delete any runtime-generated files containing secrets.
@@ -461,6 +474,8 @@ def _job_popen(
         cwd,                       # type: Text
         job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
+        timelimit=None,            # type: int
+        name=None                  # type: Text
        ):  # type: (...) -> int
 
     if not job_script_contents and not FORCE_SHELLED_POPEN:
@@ -489,7 +504,21 @@ def _job_popen(
         if sproc.stdin:
             sproc.stdin.close()
 
+        tm = None
+        if timelimit:
+            def terminate():
+                try:
+                    _logger.warn(u"[job %s] exceeded time limit of %d seconds and will be terminated", name, timelimit)
+                    sproc.terminate()
+                except OSError:
+                    pass
+            tm = threading.Timer(timelimit, terminate)
+            tm.start()
+
         rcode = sproc.wait()
+
+        if tm:
+            tm.cancel()
 
         if isinstance(stdin, io.IOBase):
             stdin.close()
@@ -518,9 +547,9 @@ def _job_popen(
             stderr_path=stderr_path,
             stdin_path=stdin_path,
         )
-        with open(os.path.join(job_dir, "job.json"), "wb") as _:
-            json.dump(job_description, codecs.getwriter('utf-8')(_),  # type: ignore
-                      ensure_ascii=False)
+        with open(os.path.join(job_dir, "job.json"), encoding='utf-8',
+                     mode="wb") as job_file:
+            json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as _:

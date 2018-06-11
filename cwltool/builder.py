@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import copy
 import logging
-import json
 from typing import (Any, Callable, Dict, List, Optional,  # pylint: disable=unused-import
                     Set, Text, Type, Union)
 
@@ -21,7 +20,8 @@ from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, get_listing,  # pylint: disable=unused-import
                          normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
+from .utils import (aslist, get_feature, docker_windows_path_adjust,
+                    json_dumps, onWindows)
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -75,13 +75,15 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
             continue
         if "format" not in afile:
             raise validate.ValidationException(
-                u"File has no 'format' defined: %s" % json.dumps(afile, indent=4))
+                u"File has no 'format' defined: {}".format(
+                    json_dumps(afile, indent=4)))
         for inpf in aslist(input_formats):
             if afile["format"] == inpf or \
                     formatSubclassOf(afile["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-            u"File has an incompatible format: %s" % json.dumps(afile, indent=4))
+            u"File has an incompatible format: {}".format(
+                json_dumps(afile, indent=4)))
 
 class Builder(object):
     def __init__(self,
@@ -258,7 +260,7 @@ class Builder(object):
                                         "class": "File"})
                                 else:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
-                                        sfname, json.dumps(datum, indent=4)))
+                                        sfname, json_dumps(datum, indent=4)))
 
                     normalizeFilesDirs(datum["secondaryFiles"])
 
@@ -352,13 +354,14 @@ class Builder(object):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, recursive=False, strip_whitespace=True):
-        # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
+    def do_eval(self, ex, context=None, pull_image=True, recursive=False, strip_whitespace=True):
+        # type: (Union[Dict[Text, Text], Text], Any, bool, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
                 return {k: self.do_eval(v, context, recursive) for k, v in iteritems(ex)}
             if isinstance(ex, list):
-                return [self.do_eval(v, context, recursive) for v in ex]
+                return [self.do_eval(v, context, pull_image, recursive)
+                        for v in ex]
         if context is None and type(ex) is str and "self" in ex:
             return None
         return expression.do_eval(ex, self.job, self.requirements,

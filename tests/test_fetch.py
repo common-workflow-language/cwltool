@@ -11,13 +11,8 @@ import schema_salad.schema
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.workflow import defaultMakeTool
-from cwltool.resolver import resolve_local
+from cwltool.resolver import resolve_local, Path
 from cwltool.utils import onWindows
-
-if sys.version_info < (3, 4):
-    from pathlib2 import Path
-else:
-    from pathlib import Path
 
 from .util import get_data
 

@@ -31,8 +31,9 @@ from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 from six import iteritems, itervalues, string_types
 
+from . import expression
 from .validate_js import validate_js_expressions
-from .utils import cmp_like_py2
+from .utils import cmp_like_py2, add_sizes
 from .builder import Builder
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .errors import UnsupportedRequirement, WorkflowException
@@ -41,8 +42,8 @@ from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
                          ensure_writable)
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .utils import (aslist, get_feature, copytree_with_merge, onWindows,
-                    DEFAULT_TMP_PREFIX)
+from .utils import (add_sizes, aslist, copytree_with_merge, get_feature,
+                    onWindows, DEFAULT_TMP_PREFIX)
 from .software_requirements import DependenciesConfiguration
 
 
@@ -72,6 +73,12 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement",
+                                "TimeLimit",
+                                "WorkReuse",
+                                "NetworkAccess",
+                                "http://commonwl.org/cwltool#TimeLimit",
+                                "http://commonwl.org/cwltool#WorkReuse",
+                                "http://commonwl.org/cwltool#NetworkAccess",
                                 "http://commonwl.org/cwltool#LoadListingRequirement",
                                 "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
 
@@ -369,6 +376,7 @@ def fillInDefaults(inputs,  # type: List[Dict[Text, Text]]
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
+    add_sizes(job)
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -422,6 +430,12 @@ To fix, replace /var/spool/cwl with $(runtime.outdir) or
         for key, value in enumerate(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
     return r
+
+def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
+        if expression.needs_parsing(resource_req):
+            visit_class(builder.job, ("File",), add_sizes)
+            return builder.do_eval(resource_req)
+        return resource_req
 
 
 class Process(six.with_metaclass(abc.ABCMeta, object)):
@@ -718,9 +732,9 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             mn = None
             mx = None
             if resourceReq.get(a + "Min"):
-                mn = builder.do_eval(resourceReq[a + "Min"])
+                mn = eval_resource(builder, resourceReq[a + "Min"])
             if resourceReq.get(a + "Max"):
-                mx = builder.do_eval(resourceReq[a + "Max"])
+                mx = eval_resource(builder, resourceReq[a + "Max"])
             if mn is None:
                 mn = mx
             elif mx is None:
@@ -830,6 +844,7 @@ def mergedirs(listing):
     # type: (List[Dict[Text, Any]]) -> List[Dict[Text, Any]]
     r = []  # type: List[Dict[Text, Any]]
     ents = {}  # type: Dict[Text, Any]
+    collided = set()  # type: Set[Text]
     for e in listing:
         if e["basename"] not in ents:
             ents[e["basename"]] = e
@@ -838,6 +853,23 @@ def mergedirs(listing):
                 ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
             if ents[e["basename"]]["location"].startswith("_:"):
                 ents[e["basename"]]["location"] = e["location"]
+        elif e["location"] != ents[e["basename"]]["location"]:
+            # same basename, different location, collision,
+            # rename both.
+            collided.add(e["basename"])
+            e2 = ents[e["basename"]]
+
+            e["basename"] = urllib.parse.quote(e["location"], safe="")
+            e2["basename"] = urllib.parse.quote(e2["location"], safe="")
+
+            e["nameroot"], e["nameext"] = os.path.splitext(e["basename"])
+            e2["nameroot"], e2["nameext"] = os.path.splitext(e2["basename"])
+
+            ents[e["basename"]] = e
+            ents[e2["basename"]] = e2
+    for c in collided:
+        print(ents)
+        del ents[c]
     for e in six.itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
@@ -863,9 +895,11 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
             u = doc.get("location", doc.get("path"))
             if u and not u.startswith("_:"):
                 deps = {
-                    "class": doc["class"],
-                    "location": urljoin(base, u)
-                    }  # type: Dict[Text, Any]
+                        "class": doc["class"],
+                        "location": urljoin(base, u)
+                       }  # type: Dict[Text, Any]
+                if "basename" in doc:
+                    deps["basename"] = doc["basename"]
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:

@@ -20,9 +20,13 @@ def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     return g
 
 
-def printrdf(wf, ctx, sr):
-    # type: (Process, ContextType, Text) -> Text
-    return gather(wf, ctx).serialize(format=sr).decode('utf-8')  # type: ignore
+def printrdf(wflow, ctx, style):  # type: (Process, ContextType, Text) -> Text
+    """Serialize the CWL document into a string, ready for printing."""
+    rdf = gather(wflow, ctx).serialize(format=style, encoding='utf-8')
+    if not rdf:
+        return u""
+    assert rdf is not None
+    return rdf.decode('utf-8')
 
 
 def lastpart(uri):  # type: (Any) -> Text

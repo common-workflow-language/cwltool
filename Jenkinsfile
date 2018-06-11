@@ -5,6 +5,9 @@ pipeline {
     }
 
   }
+  options {
+    timeout(30)
+  }
   stages {
     stage('build') {
       steps {

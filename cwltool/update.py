@@ -7,6 +7,9 @@ from six.moves import urllib
 import schema_salad.validate
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad.ref_resolver import Loader
+
+from .utils import aslist, visit_class
 
 def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
     if isinstance(doc, dict):
@@ -105,6 +108,16 @@ def v1_0dev4to1_0(doc, loader, baseuri):  # pylint: disable=unused-argument
 def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0 to v1.1.0-dev1."""
+
+    def add_networkaccess(t):
+        t.setdefault("requirements", [])
+        t["requirements"].append({
+            "class": "NetworkAccess",
+            "networkAccess": True
+            })
+
+    visit_class(doc, ("CommandLineTool",), add_networkaccess)
+
     return (doc, "v1.1.0-dev1")
 
 

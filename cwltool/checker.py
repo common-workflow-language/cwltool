@@ -1,4 +1,3 @@
-import json
 from collections import namedtuple
 import logging
 
@@ -11,6 +10,7 @@ import schema_salad.validate as validate
 from .loghandler import _logger
 from .process import shortname
 from .errors import WorkflowException
+from .utils import json_dumps
 
 def _get_type(tp):
     # type: (Any) -> Any
@@ -67,6 +67,8 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
     if src == "Any" or sink == "Any":
         return True
     if isinstance(src, dict) and isinstance(sink, dict):
+        if sink.get("not_connected") and strict:
+            return False
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(src["items"], sink["items"], strict)
         elif src["type"] == "record" and sink["type"] == "record":
@@ -127,8 +129,8 @@ def _compare_records(src, sink, strict=False):
             return False
     return True
 
-def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs):
-    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]]) -> None
+def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step):
+    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], Dict[Text, Dict[Text, Any]]) -> None
     """Check if all source and sink types of a workflow are compatible before run time.
     """
 
@@ -165,13 +167,20 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
                     "source '%s' does not include secondaryFiles." % (shortname(src["id"])))
             msg4 = SourceLine(src, "id").makeError("To fix, add secondaryFiles: %s to definition of '%s'." % (sink.get("secondaryFiles"), shortname(src["id"])))
             msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg2, msg3, msg4], "  ")))
+        elif sink.get("not_connected"):
+            msg = SourceLine(sink, "type").makeError(
+                "'%s' is not an input parameter of %s, expected %s"
+                % (shortname(sink["id"]), param_to_step[sink["id"]]["run"],
+                   ", ".join(shortname(s["id"])
+                             for s in param_to_step[sink["id"]]["inputs"]
+                             if not s.get("not_connected"))))
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"
-                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+                % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
                 SourceLine(sink, "type").makeError(
-                "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json.dumps(sink["type"])))
+                    "  with sink '%s' of type %s"
+                    % (shortname(sink["id"]), json_dumps(sink["type"])))
             if linkMerge:
                 msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
 
@@ -182,10 +191,10 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
         linkMerge = exception.linkMerge
         msg = SourceLine(src, "type").makeError(
             "Source '%s' of type %s is incompatible"
-            % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+            % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
             SourceLine(sink, "type").makeError(
-            "  with sink '%s' of type %s"
-            % (shortname(sink["id"]), json.dumps(sink["type"])))
+                "  with sink '%s' of type %s"
+                % (shortname(sink["id"]), json_dumps(sink["type"])))
         if linkMerge:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)

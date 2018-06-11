@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import copy
-import json
 import logging
 import re
 from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
@@ -10,7 +9,7 @@ from six import u
 from .utils import docker_windows_path_adjust
 from . import sandboxjs
 from .errors import WorkflowException
-from .utils import bytes2str_in_dicts
+from .utils import bytes2str_in_dicts, json_dumps
 
 
 def jshead(engine_config, rootvars):
@@ -24,7 +23,7 @@ def jshead(engine_config, rootvars):
         rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     return u"\n".join(
-        engine_config + [u"var %s = %s;" % (k, json.dumps(v, indent=4))
+        engine_config + [u"var {} = {};".format(k, json_dumps(v, indent=4))
                          for k, v in rootvars.items()])
 
 
@@ -230,7 +229,7 @@ def interpolate(scan,                     # type: Text
                           debug=debug, js_console=js_console)
             if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
-            leaf = json.dumps(e, sort_keys=True)
+            leaf = json_dumps(e, sort_keys=True)
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
             parts.append(leaf)
@@ -243,6 +242,9 @@ def interpolate(scan,                     # type: Text
     parts.append(scan)
     return ''.join(parts)
 
+def needs_parsing(snippet):  # type: (Any) -> bool
+    return isinstance(snippet, (str, Text)) \
+        and ("$(" in snippet or "${" in snippet)
 
 def do_eval(ex,                       # type: Union[Text, Dict]
             jobinput,                 # type: Dict[Text, Union[Dict, List, Text]]
@@ -267,7 +269,8 @@ def do_eval(ex,                       # type: Union[Text, Dict]
         u"self": context,
         u"runtime": runtime}
 
-    if isinstance(ex, (str, Text)) and ("$(" in ex or "${" in ex):
+    if needs_parsing(ex):
+        assert isinstance(ex, (str, Text))
         fullJS = False
         jslib = u""
         for r in reversed(requirements):

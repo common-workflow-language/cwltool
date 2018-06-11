@@ -6,21 +6,23 @@ import argparse
 import collections
 import copy
 import functools
-import json
 import logging
+import io
 import os
+import codecs
+from codecs import StreamWriter  # pylint: disable=unused-import
 import sys
 import warnings
-from typing import (IO, Any, Callable, Dict, List, Text, Tuple,
-                    Union, cast, Optional, Mapping, MutableMapping, Iterable)
+from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
+                    List, Text, TextIO, Tuple,
+                    Union, Optional, Mapping, MutableMapping, Iterable, cast)
 
 import pkg_resources  # part of setuptools
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
-import six
-
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
+import six
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser
@@ -30,7 +32,7 @@ from .executors import SingleJobExecutor, MultithreadedJobExecutor
 from .load_tool import (FetcherConstructorType, resolve_tool_uri,
                         fetch_document, make_tool, validate_document, jobloaderctx,
                         resolve_overrides, load_overrides)
-from .loghandler import defaultStreamHandler
+from .loghandler import defaultStreamHandler, _logger
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, trim_listing, visit_class,
@@ -43,9 +45,8 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import onWindows, windows_default_container_id, DEFAULT_TMP_PREFIX
-
-_logger = logging.getLogger("cwltool")
+from .utils import (add_sizes, onWindows, json_dumps,
+                    windows_default_container_id, DEFAULT_TMP_PREFIX)
 
 
 def single_job_executor(t,  # type: Process
@@ -152,9 +153,10 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    args,                    # type: argparse.Namespace
                    t,                       # type: Process
                    loader,                  # type: Loader
+                   stdout,                  # type: Union[TextIO, StreamWriter]
                    print_input_deps=False,  # type: bool
                    relative_deps=False,     # type: bool
-                   stdout=sys.stdout,       # type: IO[Any]
+                   make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
                   ):  # type: (...) -> Union[MutableMapping[Text, Any], int]
@@ -199,9 +201,8 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                     [shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
 
             if _logger.isEnabledFor(logging.DEBUG):
-                _logger.debug(
-                    u"Parsed job order from command line: %s",
-                    json.dumps(job_order_object, indent=4))
+                _logger.debug(u"Parsed job order from command line: %s",
+                              json_dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
@@ -233,17 +234,6 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             p["location"] = p["path"]
             del p["path"]
 
-    def addSizes(p):
-        if 'location' in p:
-            try:
-                p["size"] = os.stat(p["location"][7:]).st_size  # strip off file://
-            except OSError:
-                pass
-        elif 'contents' in p:
-                p["size"] = len(p['contents'])
-        else:
-            return  # best effort
-
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
     ns.update(t.metadata.get("$namespaces", {}))
     ld = Loader(ns)
@@ -253,7 +243,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             p["format"] = ld.expand_url(p["format"], "")
 
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
-    visit_class(job_order_object, ("File",), addSizes)
+    visit_class(job_order_object, ("File",), add_sizes)
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
@@ -283,13 +273,13 @@ def make_relative(base, obj):
 
 def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
               document_loader,  # type: Loader
-              stdout,           # type: IO[Any]
+              stdout,           # type: Union[TextIO, StreamWriter]
               relative_deps,    # type: bool
               uri,              # type: Text
               basedir=None      # type: Text
              ):  # type: (...) -> None
-    deps = {"class": "File",
-            "location": uri}  # type: Dict[Text, Any]
+    """Print a JSON representation of the dependencies of the CWL document."""
+    deps = {"class": "File", "location": uri}  # type: Dict[Text, Any]
 
     def loadref(base, uri):
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
@@ -310,15 +300,19 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
 
         visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
 
-    stdout.write(json.dumps(deps, indent=4))
+    stdout.write(json_dumps(deps, indent=4))
 
 
-def print_pack(document_loader, processobj, uri, metadata):
-    # type: (Loader, Union[Dict[Text, Any], List[Dict[Text, Any]]], Text, Dict[Text, Any]) -> str
+def print_pack(document_loader,  # type: Loader
+               processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+               uri,              # type: Text
+               metadata          # type: Dict[Text, Any]
+              ):  # type (...) -> Text
+    """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(document_loader, processobj, uri, metadata)
     if len(packed["$graph"]) > 1:
-        return json.dumps(packed, indent=4)
-    return json.dumps(packed["$graph"][0], indent=4)
+        return json_dumps(packed, indent=4)
+    return json_dumps(packed["$graph"][0], indent=4)
 
 
 def versionstring():  # type: () -> Text
@@ -342,15 +336,25 @@ def main(argsl=None,                  # type: List[str]
          makeTool=workflow.defaultMakeTool,  # type: Callable[..., Process]
          selectResources=None,        # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,             # type: IO[Any]
-         stdout=sys.stdout,           # type: IO[Any]
+         stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
          stderr=sys.stderr,           # type: IO[Any]
          versionfunc=versionstring,   # type: Callable[[], Text]
+         job_order_object=None,  # type: MutableMapping[Text, Any]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
          fetcher_constructor=None,    # type: FetcherConstructorType
          resolver=tool_resolver,      #
          logger_handler=None,         #
          custom_schema_callback=None  # type: Callable[[], None]
         ):  # type: (...) -> int
+    if not stdout:  # force UTF-8 even if the console is configured differently
+        if (hasattr(sys.stdout, "encoding")  # type: ignore
+                and sys.stdout.encoding != 'UTF-8'):  # type: ignore
+            if six.PY3 and hasattr(sys.stdout, "detach"):
+                stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+            else:
+                stdout = codecs.getwriter('utf-8')(sys.stdout)  # type: ignore
+        else:
+            stdout = cast(TextIO, sys.stdout)  # type: ignore
 
     _logger.removeHandler(defaultStreamHandler)
     if logger_handler:
@@ -412,10 +416,14 @@ def main(argsl=None,                  # type: List[str]
             if not hasattr(args, key):
                 setattr(args, key, val)
 
+        rdflib_logger = logging.getLogger("rdflib.term")
+        rdflib_logger.addHandler(stderr_handler)
+        rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
             _logger.setLevel(logging.WARN)
         if args.debug:
             _logger.setLevel(logging.DEBUG)
+            rdflib_logger.setLevel(logging.DEBUG)
         if args.timestamps:
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
@@ -487,7 +495,7 @@ def main(argsl=None,                  # type: List[str]
                                     do_validate=args.do_validate)
 
             if args.print_pre:
-                stdout.write(json.dumps(processobj, indent=4))
+                stdout.write(json_dumps(processobj, indent=4))
                 return 0
 
             overrides.extend(metadata.get("cwltool:overrides", []))
@@ -591,9 +599,9 @@ def main(argsl=None,                  # type: List[str]
         job_order_object2 = 255  # type: Union[MutableMapping[Text, Any], int]
         try:
             job_order_object2 = init_job_order(job_order_object, args, tool,
+                                               jobloader, stdout,
                                                print_input_deps=args.print_input_deps,
                                                relative_deps=args.relative_deps,
-                                               stdout=stdout, loader=jobloader,
                                                input_basedir=input_basedir,
                                                secret_store=secret_store)
         except SystemExit as err:
@@ -639,9 +647,11 @@ def main(argsl=None,                  # type: List[str]
                 if isinstance(out, six.string_types):
                     stdout.write(out)
                 else:
-                    stdout.write(json.dumps(out, indent=4))
+                    stdout.write(json_dumps(out, indent=4,  # type: ignore
+                                            ensure_ascii=False))
                 stdout.write("\n")
-                stdout.flush()
+                if hasattr(stdout, "flush"):
+                    stdout.flush()  # type: ignore
 
             if status != "success":
                 _logger.warning(u"Final process status is %s", status)

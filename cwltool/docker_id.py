@@ -3,11 +3,7 @@ from __future__ import absolute_import
 import os
 import sys
 from typing import List, Text, Optional, Tuple  # pylint: disable=unused-import
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error
-else:
-    import subprocess  # type: ignore
-
+from .utils import subprocess
 
 def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
     """

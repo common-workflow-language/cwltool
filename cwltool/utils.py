@@ -2,17 +2,25 @@ from __future__ import absolute_import
 
 # no imports from cwltool allowed
 
+import json
 import os
 import platform
 import shutil
 import stat
-from typing import (Any, Callable, Dict, List, Optional, Text, Tuple, TypeVar,
+from functools import partial
+
+from typing import (Any, AnyStr, Callable,  # pylint: disable=unused-import
+                    Dict, Iterable, IO, List, Optional, Text, Tuple, TypeVar,
                     Union)
 from mypy_extensions import TypedDict
+if os.name == 'posix':
+    import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
+else:
+    import subprocess  # type: ignore # pylint: disable=unused-import
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
-
+import six
 from six.moves import urllib, zip_longest
 
 windows_default_container_id = "frolvlad/alpine-bash"
@@ -201,3 +209,46 @@ def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
 
     # simply return elements itself
     return inp
+
+def add_sizes(obj):  # type: (Dict[Text, Any]) -> None
+    if 'location' in obj:
+        try:
+            obj["size"] = os.stat(obj["location"][7:]).st_size  # strip off file://
+        except OSError:
+            pass
+    elif 'contents' in obj:
+        obj["size"] = len(obj['contents'])
+    else:
+        return  # best effort
+
+
+def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to with "class" in cls."""
+
+    if isinstance(rec, dict):
+        if "class" in rec and rec.get("class") in cls:
+            op(rec)
+        for d in rec:
+            visit_class(rec[d], cls, op)
+    if isinstance(rec, list):
+        for d in rec:
+            visit_class(d, cls, op)
+
+
+def json_dump(obj,       # type: Any
+              fp,        # type: IO[str]
+              **kwargs   # type: Any
+             ):  # type: (...) -> None
+    """ Force use of unicode. """
+    if six.PY2:
+        kwargs['encoding'] = 'utf-8'
+    json.dump(obj, fp, **kwargs)
+
+
+def json_dumps(obj,       # type: Any
+               **kwargs   # type: Any
+              ):  # type: (...) -> Union[Text, AnyStr]
+    """ Force use of unicode. """
+    if six.PY2:
+        kwargs['encoding'] = 'utf-8'
+    return json.dumps(obj, **kwargs)

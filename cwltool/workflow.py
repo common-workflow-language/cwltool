@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import copy
 import functools
-import json
 import logging
 import random
 import tempfile
@@ -20,7 +19,7 @@ from .load_tool import load_tool
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, DEFAULT_TMP_PREFIX
+from .utils import aslist, json_dumps, DEFAULT_TMP_PREFIX
 from .checker import static_checker, can_assign_src_to_sink, check_types
 from .software_requirements import DependenciesConfiguration
 import six
@@ -253,7 +252,8 @@ class WorkflowJob(object):
                     processStatus = "permanentFail"
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[%s] produced output %s", step.name, json.dumps(jobout, indent=4))
+            _logger.debug(u"[%s] produced output %s", step.name,
+                          json_dumps(jobout, indent=4))
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -365,13 +365,13 @@ class WorkflowJob(object):
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"[job %s] job input %s", step.name,
-                                  json.dumps(inputobj, indent=4))
+                                  json_dumps(inputobj, indent=4))
 
                 inputobj = postScatterEval(inputobj)
 
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"[job %s] evaluated job input to %s",
-                                  step.name, json.dumps(inputobj, indent=4))
+                                  step.name, json_dumps(inputobj, indent=4))
                 jobs = step.job(inputobj, callback, mutation_manager, basedir,
                                 **kwargs)
 
@@ -503,12 +503,15 @@ class Workflow(Process):
 
         step_inputs = []  # type: List[Any]
         step_outputs = []  # type: List[Any]
+        param_to_step = {}  # type: Dict[Text, Dict[Text, Any]]
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
+            for s in step.tool["inputs"]:
+                param_to_step[s["id"]] = step.tool
 
         if kwargs.get("do_validate", True):
-            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs)
+            static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
 
 
     def job(self,
@@ -612,6 +615,7 @@ class WorkflowStep(Process):
                 if not found:
                     if stepfield == "in":
                         param["type"] = "Any"
+                        param["not_connected"] = True
                     else:
                         validation_errors.append(
                             SourceLine(self.tool["out"], index).makeError(
@@ -712,7 +716,8 @@ class WorkflowStep(Process):
            ):  # type: (...) -> Generator[Any, None, None]
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
-            job_order[field] = job_order[inp["id"]]
+            if not inp.get("not_connected"):
+                job_order[field] = job_order[inp["id"]]
             del job_order[inp["id"]]
 
         try:

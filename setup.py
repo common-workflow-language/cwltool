@@ -45,7 +45,8 @@ setup(name='cwltool',
                                 'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
                                 'cwlNodeEngine.js',
                                 'cwlNodeEngineJSConsole.js',
-                                'extensions.yml']},
+                                'extensions.yml',
+                                'hello.simg']},
       include_package_data=True,
       install_requires=[
           'setuptools',
@@ -59,8 +60,7 @@ setup(name='cwltool',
           'six >= 1.8.0',
       ],
       extras_require={
-          ':python_version<"3" and platform_system=="Linux"':
-          ['subprocess32 == 3.5.0rc1'],
+          ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           'deps': ["galaxy-lib >= 17.09.3"]
       },

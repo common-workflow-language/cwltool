@@ -19,11 +19,8 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .pathmapper import PathMapper, ensure_writable  # pylint: disable=unused-import
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import docker_windows_path_adjust, onWindows, DEFAULT_TMP_PREFIX
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess  # type: ignore  # pylint: disable=import-error
-else:
-    import subprocess  # type: ignore
+from .utils import (docker_windows_path_adjust, onWindows, subprocess,
+                    DEFAULT_TMP_PREFIX)
 
 found_images = set()  # type: Set[Text]
 found_images_lock = threading.Lock()
@@ -290,9 +287,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if not kwargs.get("no_read_only"):
                 runtime.append(u"--read-only=true")
 
-            if kwargs.get("custom_net", None) is not None:
-                runtime.append(u"--net={0}".format(kwargs.get("custom_net")))
-            elif kwargs.get("disable_net", None):
+            if self.networkaccess:
+                if kwargs.get("custom_net"):
+                    runtime.append(u"--net={0}".format(kwargs["custom_net"]))
+            else:
                 runtime.append(u"--net=none")
 
             if self.stdout:
