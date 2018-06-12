@@ -39,7 +39,7 @@ class Callable(object):
 
 class Factory(object):
     def __init__(self,
-                 make_tool=default_make_tool,  # type: ignore
+                 construct_tool_object=default_make_tool,  # type: ignore
                  executor=None,            # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
                  eval_timeout=20,          # type: float
                  debug=False,              # type: bool
@@ -49,7 +49,7 @@ class Factory(object):
                  makekwargs=None,          # type: Dict[Any, Any]
                  **execkwargs              # type: Dict[Any, Any]
                 ):  # type: (...) -> None
-        self.make_tool = make_tool
+        self.construct_tool_object = construct_tool_object
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
@@ -69,10 +69,7 @@ class Factory(object):
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
-        load = load_tool.load_tool(cwl, self.make_tool, self.eval_timeout,
-                                   self.debug, self.js_console,
-                                   self.force_docker_pull,
-                                   self.job_script_provider,
+        load = load_tool.load_tool(cwl, self.construct_tool_object,
                                    strict=self.execkwargs.get("strict", True),
                                    kwargs=self.makekwargs)
         if isinstance(load, int):

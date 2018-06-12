@@ -335,7 +335,7 @@ def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
 def main(argsl=None,                  # type: List[str]
          args=None,                   # type: argparse.Namespace
          executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         maker_tool=workflow.default_make_tool,  # type: Callable[..., Process]
+         construct_tool_object=workflow.default_make_tool,  # type: Callable[..., Process]
          selectResources=None,        # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,             # type: IO[Any]
          stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
@@ -516,15 +516,9 @@ def main(argsl=None,                  # type: List[str]
             make_tool_kwds["overrides"] = overrides
             make_tool_kwds["disable_js_validation"] = \
                     args.disable_js_validation or (not args.do_validate)
-            del make_tool_kwds["eval_timeout"]
-            del make_tool_kwds["debug"]
-            del make_tool_kwds["js_console"]
-            del make_tool_kwds["force_docker_pull"]
 
             tool = make_tool(document_loader, avsc_names, metadata, uri,
-                             maker_tool, args.eval_timeout, args.debug,
-                             args.js_console, args.force_docker_pull,
-                             job_script_provider, make_tool_kwds)
+                             construct_tool_object, make_tool_kwds)
             if args.make_template:
                 yaml.safe_dump(generate_input_template(tool), sys.stdout,
                                default_flow_style=False, indent=4,
@@ -625,7 +619,7 @@ def main(argsl=None,                  # type: List[str]
             del args.job_order
             (out, status) = executor(tool, job_order_object2,
                                      logger=_logger,
-                                     make_tool=make_tool,
+                                     construct_tool_object=construct_tool_object,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
                                      secret_store=secret_store,

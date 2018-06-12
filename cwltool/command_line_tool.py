@@ -216,12 +216,10 @@ def make_path_mapper(reffiles, stagedir, basedir, separateDirs=True):
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
 class CommandLineTool(Process):
-    def __init__(self, toolpath_object, eval_timeout, debug, js_console,
-                 force_docker_pull, job_script_provider, **kwargs):
+    def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], float, bool, bool, bool, Optional[DependenciesConfiguration], **Any) -> None
         super(CommandLineTool, self).__init__(
-            toolpath_object, eval_timeout, debug, js_console,
-            force_docker_pull, job_script_provider, **kwargs)
+            toolpath_object, **kwargs)
         self.find_default_container = kwargs.get("find_default_container", None)
 
     def make_job_runner(self,

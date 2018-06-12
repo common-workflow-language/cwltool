@@ -34,29 +34,17 @@ WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'succ
 
 
 def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
-                      eval_timeout,         # type: float
-                      debug,                # type: bool
-                      js_console,           # type: bool
-                      force_docker_pull,    # type: bool
-                      job_script_provider,  # type: Optional[DependenciesConfiguration]
-                      make_tool,            # type: Callable[..., Process]
                       **kwargs              # type: Any
                      ):  # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
         raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
-            return command_line_tool.CommandLineTool(
-                toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, **kwargs)
+            return command_line_tool.CommandLineTool(toolpath_object, **kwargs)
         elif toolpath_object["class"] == "ExpressionTool":
-            return command_line_tool.ExpressionTool(
-                toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, **kwargs)
+            return command_line_tool.ExpressionTool(toolpath_object, **kwargs)
         elif toolpath_object["class"] == "Workflow":
-            return Workflow(
-                toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, make_tool, **kwargs)
+            return Workflow(toolpath_object, **kwargs)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
@@ -467,17 +455,10 @@ class WorkflowJob(object):
 class Workflow(Process):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
-                 eval_timeout,         # type: float
-                 debug,                # type: bool
-                 js_console,           # type: bool
-                 force_docker_pull,    # type: bool
-                 job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 make_tool,             # type: Callable[..., Process]
                  **kwargs              # type: Any
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
-            toolpath_object, eval_timeout, debug, js_console,
-            force_docker_pull, job_script_provider, **kwargs)
+            toolpath_object, **kwargs)
 
         kwargs["requirements"] = self.requirements
         kwargs["hints"] = self.hints
@@ -486,9 +467,7 @@ class Workflow(Process):
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(
-                    step, index, eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, make_tool, **kwargs))
+                self.steps.append(WorkflowStep(step, index, **kwargs))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -545,12 +524,6 @@ class WorkflowStep(Process):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
                  pos,                  # type: int
-                 eval_timeout,         # type: float
-                 debug,                # type: bool
-                 js_console,           # type: bool
-                 force_docker_pull,    # type: bool
-                 job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 make_tool,            # type: Callable[..., Process]
                  **kwargs              # type: Any
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
@@ -566,14 +539,11 @@ class WorkflowStep(Process):
 
         try:
             if isinstance(toolpath_object["run"], dict):
-                self.embedded_tool = make_tool(
-                    toolpath_object["run"], eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, make_tool, **kwargs)
+                self.embedded_tool = kwargs["construct_tool_object"](toolpath_object["run"], **kwargs)
             else:
                 self.embedded_tool = load_tool(
-                    toolpath_object["run"], make_tool,
-                    eval_timeout, debug, js_console, force_docker_pull,
-                    job_script_provider, kwargs,
+                    toolpath_object["run"], kwargs["construct_tool_object"],
+                    kwargs,
                     kwargs.get("enable_dev", False),
                     kwargs.get("strict", True),
                     kwargs.get("resolver"),
@@ -649,8 +619,7 @@ class WorkflowStep(Process):
             raise validate.ValidationException("\n".join(validation_errors))
 
         super(WorkflowStep, self).__init__(
-            toolpath_object, eval_timeout, debug, js_console,
-            force_docker_pull, job_script_provider, **kwargs)
+            toolpath_object, **kwargs)
 
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")

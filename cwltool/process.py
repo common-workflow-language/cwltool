@@ -444,11 +444,6 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
 class Process(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
-                 eval_timeout,         # type: float
-                 debug,                # type: bool
-                 js_console,           # type: bool
-                 force_docker_pull,    # type: bool
-                 job_script_provider,  # type: Optional[DependenciesConfiguration]
                  **kwargs              # type: Any
                 ):  # type: (...) -> None
         """
@@ -462,11 +457,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         strict: flag to determine strict validation (fail on unrecognized fields)
         """
 
-        self.eval_timeout = eval_timeout
-        self.debug = debug
-        self.js_console = js_console
-        self.force_docker_pull = force_docker_pull
-        self.job_script_provider = job_script_provider
         self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
 
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
@@ -659,11 +649,11 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 stagedir = fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
 
         builder = Builder(job, files, bindings, self.schemaDefs, self.names,
-                          self.requirements, self.hints, self.eval_timeout,
-                          self.debug, {}, self.js_console, mutation_manager,
+                          self.requirements, self.hints, kwargs.get("eval_timeout"),
+                          kwargs.get("debug"), {}, kwargs.get("js_console"), mutation_manager,
                           self.formatgraph, make_fs_access, fs_access,
-                          self.force_docker_pull, loadListing, outdir, tmpdir,
-                          stagedir, self.job_script_provider)
+                          kwargs.get("force_docker_pull"), loadListing, outdir, tmpdir,
+                          stagedir, kwargs.get("job_script_provider"))
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,

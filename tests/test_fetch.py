@@ -59,7 +59,7 @@ outputs: []
                 return "baz:bar/" + a
 
 
-        load_tool("foo.cwl", default_make_tool, 20, False, False, False, None,
+        load_tool("foo.cwl", default_make_tool,
                   resolver=test_resolver, fetcher_constructor=TestFetcher,)
 
         self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,
