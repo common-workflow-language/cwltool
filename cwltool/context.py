@@ -1,4 +1,5 @@
 import copy
+from .utils import DEFAULT_TMP_PREFIX
 from .stdfsaccess import StdFsAccess
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
                     Generator, Iterable, List, Optional, Text, Union, AnyStr)
@@ -54,50 +55,49 @@ class LoadingContext(ContextBase):
 class RuntimeContext(ContextBase):
     def __init__(self, kwargs=None):
         # type: (Optional[Dict[str, Any]]) -> None
-        self.user_space_docker_cmd = None
+        self.user_space_docker_cmd = "" # type: Text
         self.secret_store = None        # type: Optional[SecretStore]
-        self.no_read_only = None
-        self.custom_net = None
-        self.no_match_user = None
-        self.preserve_environment = None
-        self.preserve_entire_environment = None
-        self.user_space_docker_cmd = None
+        self.no_read_only = False       # type: bool
+        self.custom_net = ""            # type: Text
+        self.no_match_user = False      # type: bool
+        self.preserve_environment = ""  # type: Text
+        self.preserve_entire_environment = False  # type: bool
         self.use_container = True       # type: bool
         self.force_docker_pull = False  # type: bool
 
-        self.tmp_outdir_prefix = None
-        self.tmpdir_prefix = None
-        self.tmpdir = None
-        self.rm_tmpdir = None
+        self.tmp_outdir_prefix = DEFAULT_TMP_PREFIX  # type: Text
+        self.tmpdir_prefix = DEFAULT_TMP_PREFIX  # type: Text
+        self.tmpdir = ""                # type: Text
+        self.rm_tmpdir = True           # type: bool
         self.pull_image = True          # type: bool
-        self.rm_container = None
+        self.rm_container = True        # type: bool
         self.move_outputs = ""          # type: Text
 
-        self.singularity = None
+        self.singularity = False        # type: bool
         self.disable_net = None
         self.debug = False  # type: bool
-        self.compute_checksum = None
-        self.name = ""                # type: Text
+        self.compute_checksum = True    # type: bool
+        self.name = ""                  # type: Text
         self.default_container = None
         self.find_default_container = None  # type: Optional[Callable[[HasReqsHints], Optional[Text]]]
-        self.cachedir = None          # type: Optional[Text]
-        self.outdir = None            # type: Optional[Text]
-        self.stagedir = ""            # type: Text
-        self.part_of = ""             # type: Text
-        self.basedir = ""             # type: Text
-        self.toplevel = False         # type: bool
-        self.mutation_manager = None  # type: Optional[MutationManager]
+        self.cachedir = None            # type: Optional[Text]
+        self.outdir = None              # type: Optional[Text]
+        self.stagedir = ""              # type: Text
+        self.part_of = ""               # type: Text
+        self.basedir = ""               # type: Text
+        self.toplevel = False           # type: bool
+        self.mutation_manager = None    # type: Optional[MutationManager]
         self.make_fs_access = StdFsAccess  # type: Callable[[Text], StdFsAccess]
-        self.builder = None           # type: Optional[Builder]
-        self.docker_outdir = None
-        self.docker_tmpdir = None
-        self.docker_stagedir = None
-        self.js_console = False       # type: bool
+        self.builder = None             # type: Optional[Builder]
+        self.docker_outdir = ""         # type: Text
+        self.docker_tmpdir = ""         # type: Text
+        self.docker_stagedir = ""       # type: Text
+        self.js_console = False         # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
-        self.select_resources = None  # type: Optional[Callable[[Dict[Text, int]], Dict[Text, int]]]
-        self.eval_timeout = 20        # type: float
-        self.postScatterEval = None   # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
-        self.on_error = None
+        self.select_resources = None    # type: Optional[Callable[[Dict[Text, int]], Dict[Text, int]]]
+        self.eval_timeout = 20          # type: float
+        self.postScatterEval = None     # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
+        self.on_error = "stop"          # type: Text
 
         self.record_container_id = None
         self.cidfile_dir = None
