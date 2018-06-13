@@ -24,5 +24,6 @@ class TestDefaultDockerWarning(unittest.TestCase):
                 return windows_default_container_id
 
         TestObject = TestCommandLineTool()
-        TestObject.make_job_runner(RuntimeContext())
+        TestObject.make_job_runner(RuntimeContext({
+            "find_default_container": lambda x: "frolvlad/alpine-bash"}))
         mock_logger.warning.assert_called_with(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))

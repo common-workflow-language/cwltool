@@ -5,6 +5,8 @@ from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
 from schema_salad.ref_resolver import (  # pylint: disable=unused-import
     ContextType, Fetcher, Loader)
 import schema_salad.schema as schema
+from .builder import Builder
+from .mutation import MutationManager
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
@@ -53,7 +55,7 @@ class RuntimeContext(ContextBase):
         self.preserve_environment = None
         self.preserve_entire_environment = None
         self.user_space_docker_cmd = None
-        self.use_container = None
+        self.use_container = True       # type: bool
         self.force_docker_pull = False  # type: bool
 
         self.tmp_outdir_prefix = None
@@ -78,17 +80,17 @@ class RuntimeContext(ContextBase):
         self.separateDirs = None
         self.basedir = None
         self.toplevel = None
-        self.mutation_manager = None
+        self.mutation_manager = None  # type: Optional[MutationManager]
         self.make_fs_access = StdFsAccess
-        self.builder = None  # type: Builder
+        self.builder = None           # type: Builder
         self.docker_outdir = None
         self.docker_tmpdir = None
         self.docker_stagedir = None
-        self.js_console = False  # type: bool
+        self.js_console = False       # type: bool
         self.job_script_provider = None
         self.select_resources = None
         self.eval_timeout = None
-        self.postScatterEval = None  # type: Callable[[Dict[str, Any]], Dict[str, Any]]
+        self.postScatterEval = None   # type: Callable[[Dict[Text, Any]], Dict[Text, Any]]
         self.on_error = None
 
         self.record_container_id = None

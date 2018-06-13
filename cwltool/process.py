@@ -655,15 +655,20 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                           self.names,
                           self.requirements,
                           self.hints,
+                          runtimeContext.eval_timeout,
+                          runtimeContext.debug,
                           {},
+                          runtimeContext.js_console,
+                          runtimeContext.mutation_manager,
                           self.formatgraph,
                           make_fs_access,
                           fs_access,
+                          runtimeContext.force_docker_pull,
                           loadListing,
                           outdir,
                           tmpdir,
                           stagedir,
-                          runtimeContext)
+                          runtimeContext.job_script_provider)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,

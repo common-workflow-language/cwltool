@@ -60,8 +60,9 @@ outputs: []
                 return "baz:bar/" + a
 
 
-        load_tool("foo.cwl", default_make_tool,
-                  LoadingContext({"resolver": test_resolver,
+        load_tool("foo.cwl",
+                  LoadingContext({"construct_tool_object": default_make_tool,
+                                  "resolver": test_resolver,
                                   "fetcher_constructor": TestFetcher}))
 
         self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,

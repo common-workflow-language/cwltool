@@ -94,14 +94,20 @@ class Builder(object):
                  names,                # type: schema_salad.schema.Names
                  requirements,         # type: List[Dict[Text, Any]]
                  hints,                # type: List[Dict[Text, Any]]
+                 timeout,              # type: float
+                 debug,                # type: bool
                  resources,            # type: Dict[Text, Union[int, Text, None]]
+                 js_console,           # type: bool
+                 mutation_manager,     # type: MutationManager
                  formatgraph,          # type: Optional[Graph]
                  make_fs_access,       # type: Type[StdFsAccess]
                  fs_access,            # type: StdFsAccess
+                 force_docker_pull,    # type: bool
                  loadListing,          # type: Text
                  outdir,               # type: Text
                  tmpdir,               # type: Text
-                 stagedir             # type: Text
+                 stagedir,             # type: Text
+                 job_script_provider   # type: Optional[Any]
                 ):  # type: (...) -> None
         self.names = names
         self.schemaDefs = schemaDefs
@@ -114,21 +120,21 @@ class Builder(object):
         self.tmpdir = tmpdir
         self.resources = resources
         self.bindings = bindings
-        self.timeout = runtimeContext.eval_timeout
+        self.timeout = timeout
         self.pathmapper = None  # type: Optional[PathMapper]
         self.stagedir = stagedir
         self.make_fs_access = make_fs_access
-        self.debug = runtimeContext.debug
-        self.js_console = runtimeContext.js_console
-        self.mutation_manager = runtimeContext.mutation_manager
-        self.force_docker_pull = runtimeContext.force_docker_pull
+        self.debug = debug
+        self.js_console = js_console
+        self.mutation_manager = mutation_manager
+        self.force_docker_pull = force_docker_pull
         self.formatgraph = formatgraph
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
 
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
-        self.job_script_provider = runtimeContext.job_script_provider
+        self.job_script_provider = job_script_provider
 
     def build_job_script(self, commands):
         # type: (List[Text]) -> Text
