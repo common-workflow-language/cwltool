@@ -98,7 +98,7 @@ class Builder(object):
                  debug,                # type: bool
                  resources,            # type: Dict[Text, Union[int, Text, None]]
                  js_console,           # type: bool
-                 mutation_manager,     # type: MutationManager
+                 mutation_manager,     # type: Optional[MutationManager]
                  formatgraph,          # type: Optional[Graph]
                  make_fs_access,       # type: Type[StdFsAccess]
                  fs_access,            # type: StdFsAccess

@@ -82,15 +82,15 @@ class RuntimeContext(ContextBase):
         self.toplevel = None
         self.mutation_manager = None  # type: Optional[MutationManager]
         self.make_fs_access = StdFsAccess
-        self.builder = None           # type: Builder
+        self.builder = None           # type: Optional[Builder]
         self.docker_outdir = None
         self.docker_tmpdir = None
         self.docker_stagedir = None
         self.js_console = False       # type: bool
         self.job_script_provider = None
         self.select_resources = None
-        self.eval_timeout = None
-        self.postScatterEval = None   # type: Callable[[Dict[Text, Any]], Dict[Text, Any]]
+        self.eval_timeout = 20        # type: float
+        self.postScatterEval = None   # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
         self.on_error = None
 
         self.record_container_id = None
