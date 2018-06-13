@@ -24,7 +24,12 @@ class ContextBase(object):
                 if hasattr(self, k):
                     setattr(self, k, v)
 
-default_make_tool = None  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
+def make_tool_notimpl(toolpath_object,      # type: Dict[Text, Any]
+                      loadingContext        # type: LoadingContext
+                     ):  # type: (...) -> Process
+    raise NotImplementedError()
+
+default_make_tool = make_tool_notimpl  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
 
 class LoadingContext(ContextBase):
 
@@ -60,7 +65,7 @@ class RuntimeContext(ContextBase):
         self.no_read_only = False       # type: bool
         self.custom_net = ""            # type: Text
         self.no_match_user = False      # type: bool
-        self.preserve_environment = ""  # type: Text
+        self.preserve_environment = ""  # type: Optional[Iterable[str]]
         self.preserve_entire_environment = False  # type: bool
         self.use_container = True       # type: bool
         self.force_docker_pull = False  # type: bool
