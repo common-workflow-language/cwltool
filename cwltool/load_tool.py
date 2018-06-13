@@ -335,7 +335,7 @@ def make_tool(document_loader,    # type: Loader
         raise Exception("Must resolve to list or dict")
 
     loadingContext = loadingContext.copy()
-    loadingContext.document_loader = document_loader
+    loadingContext.loader = document_loader
     loadingContext.avsc_names = avsc_names
     loadingContext.metadata = metadata
 

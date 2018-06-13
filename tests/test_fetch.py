@@ -13,6 +13,7 @@ from cwltool.main import main
 from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
+from cwltool.context import LoadingContext
 
 from .util import get_data
 
@@ -60,7 +61,8 @@ outputs: []
 
 
         load_tool("foo.cwl", default_make_tool,
-                  resolver=test_resolver, fetcher_constructor=TestFetcher,)
+                  LoadingContext({"resolver": test_resolver,
+                                  "fetcher_constructor": TestFetcher}))
 
         self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,
                                   fetcher_constructor=TestFetcher))

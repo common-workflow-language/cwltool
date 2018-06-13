@@ -41,13 +41,15 @@ class Factory(object):
     def __init__(self,
                  executor=None,            # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
                  loadingContext=None,      # type: LoadingContext
-                 runtimeContext=None       # type: RuntimeContext
+                 runtimeContext=None,       # type: RuntimeContext
+                 **kwargs
                 ):  # type: (...) -> None
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
 
         new_exec_kwargs = get_default_args()
+        new_exec_kwargs.update(kwargs)
         new_exec_kwargs.pop("job_order")
         new_exec_kwargs.pop("workflow")
         new_exec_kwargs.pop("outdir")
