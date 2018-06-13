@@ -717,7 +717,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         return builder
 
     def evalResources(self, builder, runtimeContext):
-        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text, None]]
+        # type: (Builder, RuntimeContext) -> Dict[Text, Union[int, Text, None]]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}

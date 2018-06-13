@@ -259,7 +259,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_windows_path_adjust(vol.target)))
 
     def create_runtime(self, env, runtimeContext):
-        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, runtimeContext) -> List
+        # type: (MutableMapping[Text, Text], RuntimeContext) -> List
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
             runtime = [user_space_docker_cmd, u"run"]

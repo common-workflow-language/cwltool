@@ -22,7 +22,6 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, docker_windows_path_adjust, get_feature,
                     json_dumps, onWindows)
-from .context import LoadingContext, RuntimeContext, getdefault
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -102,8 +101,7 @@ class Builder(object):
                  loadListing,          # type: Text
                  outdir,               # type: Text
                  tmpdir,               # type: Text
-                 stagedir,             # type: Text
-                 runtimeContext        # type: RuntimeContext
+                 stagedir             # type: Text
                 ):  # type: (...) -> None
         self.names = names
         self.schemaDefs = schemaDefs

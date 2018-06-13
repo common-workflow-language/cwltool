@@ -482,8 +482,8 @@ class CommandLineTool(Process):
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
 
-        readers = {}
-        muts = set()
+        readers = {}  # type: Dict[Text, Any]
+        muts = set()  # type: Set[Text]
 
         if builder.mutation_manager:
             def register_mut(f):

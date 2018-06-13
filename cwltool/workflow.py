@@ -318,7 +318,7 @@ class WorkflowJob(object):
                             None, None, {}, context=v,
                             debug=runtimeContext.debug,
                             js_console=runtimeContext.js_console,
-                            timeout=runtimeContext.timeout)
+                            timeout=runtimeContext.eval_timeout)
                     else:
                         return v
 
@@ -729,7 +729,7 @@ class ReceiveScatterOutput(object):
 
 
 def parallel_steps(steps, rc, runtimeContext):
-    # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
+    # type: (List[Generator], ReceiveScatterOutput, RuntimeContext) -> Generator
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):

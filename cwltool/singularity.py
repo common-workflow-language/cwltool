@@ -19,6 +19,7 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
                          ensure_writable)
 from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
+from .context import RuntimeContext
 
 if os.name == 'posix':
     from subprocess32 import (  # pylint: disable=import-error,no-name-in-module

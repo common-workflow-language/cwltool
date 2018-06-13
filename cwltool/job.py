@@ -386,7 +386,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     @abstractmethod
     def create_runtime(self, env, runtimeContext):
-        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, RuntimeContext) -> List
+        # type: (MutableMapping[Text, Text], RuntimeContext) -> List
         """ Return the list of commands to run the selected container engine."""
         pass
 
