@@ -19,11 +19,11 @@ import shellescape
 from schema_salad.sourceline import SourceLine
 from six import with_metaclass
 
-from .builder import Builder  # pylint: disable=unused-import
+from .builder import Builder, HasReqsHints
 from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
-from .process import UnsupportedRequirement, get_feature, stageFiles
+from .process import UnsupportedRequirement, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
@@ -130,7 +130,7 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
             elif not vol.resolved.startswith("_:"):
                 os.symlink(vol.resolved, host_outdir_tgt)
 
-class JobBase(with_metaclass(ABCMeta, object)):
+class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,   # type: Builder
                  joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
@@ -200,7 +200,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
                  runtimeContext         # type: RuntimeContext
                 ):  # type: (...) -> None
 
-        scr, _ = get_feature(self, "ShellCommandRequirement")
+        scr, _ = self.get_feature("ShellCommandRequirement")
 
         shouldquote = needs_shell_quoting_re.search   # type: Callable[[Any], Any]
         if scr:
@@ -393,7 +393,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
 
-        (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+        (docker_req, docker_is_req) = self.get_feature("DockerRequirement")
 
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)

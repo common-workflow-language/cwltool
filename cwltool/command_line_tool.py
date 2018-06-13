@@ -385,7 +385,7 @@ class CommandLineTool(Process):
                                                              indent=4))
 
         builder.pathmapper = make_path_mapper(
-            reffiles, builder.stagedir, runtimeContext.basedir, getdefault(runtimeContext.separateDirs, True))
+            reffiles, builder.stagedir, runtimeContext.basedir, True)
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, builder)

@@ -41,7 +41,7 @@ class Factory(object):
     def __init__(self,
                  executor=None,            # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
                  loadingContext=None,      # type: LoadingContext
-                 runtimeContext=None,       # type: RuntimeContext
+                 runtimeContext=None,      # type: RuntimeContext
                  **kwargs
                 ):  # type: (...) -> None
         if executor is None:
@@ -54,14 +54,15 @@ class Factory(object):
         new_exec_kwargs.pop("workflow")
         new_exec_kwargs.pop("outdir")
 
-        self.loadingContext = loadingContext
-        if self.loadingContext is None:
+        if loadingContext is None:
             self.loadingContext = LoadingContext(new_exec_kwargs)
+        else:
+            self.loadingContext = loadingContext
 
-        self.runtimeContext = runtimeContext
-        if self.runtimeContext is None:
+        if runtimeContext is None:
             self.runtimeContext = RuntimeContext(new_exec_kwargs)
-
+        else:
+            self.runtimeContext = runtimeContext
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""

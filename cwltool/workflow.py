@@ -780,7 +780,8 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
-        sjobo = runtimeContext.postScatterEval(sjobo)
+        if runtimeContext.postScatterEval is not None:
+            sjobo = runtimeContext.postScatterEval(sjobo)
 
         steps.append(process.job(
             sjobo, functools.partial(rc.receive_scatter_output, index),
@@ -807,7 +808,8 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
-            sjob = runtimeContext.postScatterEval(sjob)
+            if runtimeContext.postScatterEval is not None:
+                sjob = runtimeContext.postScatterEval(sjob)
             steps.append(process.job(
                 sjob, functools.partial(rc.receive_scatter_output, index),
                 runtimeContext))
@@ -864,7 +866,8 @@ def _flat_crossproduct_scatter(process,           # type: WorkflowJobStep
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
-            sjob = runtimeContext.postScatterEval(sjob)
+            if runtimeContext.postScatterEval is not None:
+                sjob = runtimeContext.postScatterEval(sjob)
             steps.append(process.job(
                 sjob, functools.partial(callback.receive_scatter_output, put),
                 runtimeContext))

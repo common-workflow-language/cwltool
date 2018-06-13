@@ -109,9 +109,8 @@ class SingleJobExecutor(JobExecutor):
         try:
             for job in jobiter:
                 if job:
-                    builder = runtimeContext.builder  # type: Builder
-                    if builder is not None:
-                        job.builder = builder
+                    if runtimeContext.builder is not None:
+                        job.builder = runtimeContext.builder
                     if job.outdir:
                         self.output_dirs.add(job.outdir)
                     job.run(runtimeContext)
@@ -172,9 +171,8 @@ class MultithreadedJobExecutor(JobExecutor):
 
         for job in jobiter:
             if job:
-                builder = runtimeContext.builder  # type: Builder
-                if builder is not None:
-                    job.builder = builder
+                if runtimeContext.builder is not None:
+                    job.builder = runtimeContext.builder
                 if job.outdir:
                     self.output_dirs.add(job.outdir)
                 self.run_job(job, runtimeContext)

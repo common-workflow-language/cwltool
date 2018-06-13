@@ -1,16 +1,23 @@
 import copy
 from .stdfsaccess import StdFsAccess
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, Iterable, List, Optional, Text, Union)
+                    Generator, Iterable, List, Optional, Text, Union, AnyStr)
 from schema_salad.ref_resolver import (  # pylint: disable=unused-import
     ContextType, Fetcher, Loader)
 import schema_salad.schema as schema
-from .builder import Builder
+from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
+from .software_requirements import DependenciesConfiguration
+from .secrets import SecretStore
+import six
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .process import Process
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
-        # type: (Optional[Dict[Text, Any]]) -> None
+        # type: (Optional[Dict[str, Any]]) -> None
         if kwargs:
             for k, v in kwargs.items():
                 if hasattr(self, k):
@@ -18,18 +25,18 @@ class ContextBase(object):
 
 
 class LoadingContext(ContextBase):
-    default_make_tool = None
+    default_make_tool = None  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
 
     def __init__(self, kwargs=None):
-        # type: (Optional[Dict[Text, Any]]) -> None
-        self.debug = False                  # type: bool
-        self.metadata = {}                  # type: Dict[Text, Any]
+        # type: (Optional[Dict[str, Any]]) -> None
+        self.debug = False                 # type: bool
+        self.metadata = {}                 # type: Dict[Text, Any]
         self.requirements = None
         self.hints = None
-        self.overrides = None
+        self.overrides = []                # type: List[Dict[Text, Any]]
         self.loader = None                 # type: Optional[Loader]
         self.avsc_names = None             # type: Optional[schema.Names]
-        self.disable_js_validation = None
+        self.disable_js_validation = False # type: bool
         self.js_hint_options_file = None
         self.do_validate = None
         self.enable_dev = False            # type: bool
@@ -46,9 +53,9 @@ class LoadingContext(ContextBase):
 
 class RuntimeContext(ContextBase):
     def __init__(self, kwargs=None):
-        # type: (Optional[Dict[Text, Any]]) -> None
+        # type: (Optional[Dict[str, Any]]) -> None
         self.user_space_docker_cmd = None
-        self.secret_store = None
+        self.secret_store = None        # type: Optional[SecretStore]
         self.no_read_only = None
         self.custom_net = None
         self.no_match_user = None
@@ -62,33 +69,32 @@ class RuntimeContext(ContextBase):
         self.tmpdir_prefix = None
         self.tmpdir = None
         self.rm_tmpdir = None
-        self.pull_image = None
+        self.pull_image = True          # type: bool
         self.rm_container = None
-        self.move_outputs = None
+        self.move_outputs = ""          # type: Text
 
         self.singularity = None
         self.disable_net = None
         self.debug = False  # type: bool
         self.compute_checksum = None
-        self.name = None
+        self.name = ""                # type: Text
         self.default_container = None
-        self.find_default_container = None
-        self.cachedir = None
-        self.outdir = None
-        self.stagedir = None
-        self.part_of = None
-        self.separateDirs = None
-        self.basedir = None
-        self.toplevel = None
+        self.find_default_container = None  # type: Optional[Callable[[HasReqsHints], Optional[Text]]]
+        self.cachedir = None          # type: Optional[Text]
+        self.outdir = None            # type: Optional[Text]
+        self.stagedir = ""            # type: Text
+        self.part_of = ""             # type: Text
+        self.basedir = ""             # type: Text
+        self.toplevel = False         # type: bool
         self.mutation_manager = None  # type: Optional[MutationManager]
-        self.make_fs_access = StdFsAccess
+        self.make_fs_access = StdFsAccess  # type: Callable[[Text], StdFsAccess]
         self.builder = None           # type: Optional[Builder]
         self.docker_outdir = None
         self.docker_tmpdir = None
         self.docker_stagedir = None
         self.js_console = False       # type: bool
-        self.job_script_provider = None
-        self.select_resources = None
+        self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
+        self.select_resources = None  # type: Optional[Callable[[Dict[Text, int]], Dict[Text, int]]]
         self.eval_timeout = 20        # type: float
         self.postScatterEval = None   # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
         self.on_error = None

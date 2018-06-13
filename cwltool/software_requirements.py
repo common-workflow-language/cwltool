@@ -14,7 +14,7 @@ import string
 from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
                     Text)
 
-from .utils import get_feature
+from .builder import HasReqsHints, Builder
 
 try:
     from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
@@ -63,7 +63,7 @@ class DependenciesConfiguration(object):
         }
 
     def build_job_script(self, builder, command):
-        # type: (Any, List[str]) -> Text
+        # type: (Builder, List[str]) -> Text
         ensure_galaxy_lib_available()
         tool_dependency_manager = deps.build_dependency_manager(self)  # type: deps.DependencyManager
         dependencies = get_dependencies(builder)
@@ -77,8 +77,8 @@ class DependenciesConfiguration(object):
 
 
 def get_dependencies(builder):
-    # type: (Any) -> ToolRequirements
-    (software_requirement, _) = get_feature(builder, "SoftwareRequirement")
+    # type: (HasReqsHints) -> ToolRequirements
+    (software_requirement, _) = builder.get_feature("SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):
         packages = software_requirement.get("packages")
@@ -101,6 +101,7 @@ def get_dependencies(builder):
 
 
 def get_container_from_software_requirements(args, builder):
+    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
     if args.beta_use_biocontainers:
         ensure_galaxy_lib_available()
         from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
@@ -112,7 +113,7 @@ def get_container_from_software_requirements(args, builder):
         container_registry = ContainerRegistry(app_info)  # type: ContainerRegistry
         requirements = get_dependencies(builder)
         tool_info = ToolInfo(requirements=requirements)  # type: ToolInfo
-        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)
+        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)  # type: ignore
         if container_description:
             return container_description.identifier
 

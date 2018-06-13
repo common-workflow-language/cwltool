@@ -31,7 +31,7 @@ from six import iteritems, itervalues, string_types
 from six.moves import urllib
 
 from . import expression
-from .builder import Builder
+from .builder import Builder, HasReqsHints
 from .errors import UnsupportedRequirement, WorkflowException
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
@@ -41,7 +41,7 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
-                    copytree_with_merge, get_feature, onWindows)
+                    copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
 from .context import LoadingContext, RuntimeContext, getdefault
 
@@ -441,7 +441,7 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         return resource_req
 
 
-class Process(six.with_metaclass(abc.ABCMeta, object)):
+class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
                  loadingContext        # type: LoadingContext
@@ -489,7 +489,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         self.formatgraph = None  # type: Optional[Graph]
         if self.doc_loader:
-            self.formatgraph = loadingContext.loader.graph
+            self.formatgraph = self.doc_loader.graph
 
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(loadingContext.avsc_names, self.tool.get("hints", []),
@@ -555,7 +555,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             else:
                 validate_js_options = None
 
-            validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
+            if self.doc_schema is not None:
+                validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
@@ -722,7 +723,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         return builder
 
     def evalResources(self, builder, runtimeContext):
-        # type: (Builder, RuntimeContext) -> Dict[Text, Union[int, Text, None]]
+        # type: (Builder, RuntimeContext) -> Dict[Text, int]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -735,7 +736,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024
-        }  # type: Dict[Text, Union[int, None]]
+        }  # type: Dict[Text, int]
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = None
             mx = None
@@ -749,8 +750,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 mx = mn
 
             if mn:
-                request[a + "Min"] = mn
-                request[a + "Max"] = mx
+                request[a + "Min"] = cast(int, mn)
+                request[a + "Max"] = cast(int, mx)
 
         if runtimeContext.select_resources:
             return runtimeContext.select_resources(request)
@@ -767,7 +768,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         for i, r in enumerate(hints):
             sl = SourceLine(hints, i, validate.ValidationException)
             with sl:
-                if avsc_names.get_name(r["class"], "") is not None:
+                if avsc_names.get_name(r["class"], "") is not None and self.doc_loader is not None:
                     plain_hint = dict((key, r[key]) for key in r if key not in
                                       self.doc_loader.identifiers)  # strip identifiers
                     validate.validate_ex(
@@ -779,7 +780,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
     def get_requirement(self,
                         feature  # type: Any
                        ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
-        return get_feature(self, feature)
+        return self.get_feature(feature)
 
     def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
         op(self.tool)

@@ -49,6 +49,7 @@ from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
                     windows_default_container_id)
 from .context import LoadingContext, RuntimeContext, getdefault
+from .builder import HasReqsHints
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -459,8 +460,6 @@ def main(argsl=None,                  # type: List[str]
             overrides.extend(metadata.get("cwltool:overrides", []))
 
             loadingContext = LoadingContext(vars(args))
-            loadingContext.find_default_container = \
-                    functools.partial(find_default_container, args)
             loadingContext.overrides = overrides
             loadingContext.disable_js_validation = \
                     args.disable_js_validation or (not args.do_validate)
@@ -575,6 +574,8 @@ def main(argsl=None,                  # type: List[str]
             if conf_file or use_conda_dependencies:
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
 
+            runtimeContext.find_default_container = \
+                    functools.partial(find_default_container, args)
             runtimeContext.select_resources = selectResources
             runtimeContext.make_fs_access = make_fs_access
             runtimeContext.secret_store = secret_store
@@ -640,6 +641,7 @@ def main(argsl=None,                  # type: List[str]
 
 
 def find_default_container(args, builder):
+    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
     default_container = None
     if args.default_container:
         default_container = args.default_container

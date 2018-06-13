@@ -22,6 +22,7 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
                     subprocess)
+from .context import RuntimeContext
 
 found_images = set()  # type: Set[Text]
 found_images_lock = threading.Lock()
