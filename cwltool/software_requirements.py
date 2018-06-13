@@ -78,7 +78,7 @@ class DependenciesConfiguration(object):
 
 def get_dependencies(builder):
     # type: (HasReqsHints) -> ToolRequirements
-    (software_requirement, _) = builder.get_feature("SoftwareRequirement")
+    (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):
         packages = software_requirement.get("packages")

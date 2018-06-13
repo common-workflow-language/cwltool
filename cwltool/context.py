@@ -23,9 +23,9 @@ class ContextBase(object):
                 if hasattr(self, k):
                     setattr(self, k, v)
 
+default_make_tool = None  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
 
 class LoadingContext(ContextBase):
-    default_make_tool = None  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
 
     def __init__(self, kwargs=None):
         # type: (Optional[Dict[str, Any]]) -> None
@@ -43,7 +43,7 @@ class LoadingContext(ContextBase):
         self.strict = True                 # type: bool
         self.resolver = None
         self.fetcher_constructor = None
-        self.construct_tool_object = LoadingContext.default_make_tool
+        self.construct_tool_object = default_make_tool
 
         super(LoadingContext, self).__init__(kwargs)
 

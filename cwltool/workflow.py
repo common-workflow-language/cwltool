@@ -29,6 +29,7 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
+from . import context
 from .context import LoadingContext, RuntimeContext, getdefault
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
@@ -51,7 +52,7 @@ def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
         u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
         toolpath_object["id"])
 
-LoadingContext.default_make_tool = default_make_tool
+context.default_make_tool = default_make_tool
 
 def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
     if fn is None:

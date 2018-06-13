@@ -777,11 +777,6 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 else:
                     _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
 
-    def get_requirement(self,
-                        feature  # type: Any
-                       ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
-        return self.get_feature(feature)
-
     def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
         op(self.tool)
 

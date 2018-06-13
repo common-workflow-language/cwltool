@@ -200,7 +200,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                  runtimeContext         # type: RuntimeContext
                 ):  # type: (...) -> None
 
-        scr, _ = self.get_feature("ShellCommandRequirement")
+        scr, _ = self.get_requirement("ShellCommandRequirement")
 
         shouldquote = needs_shell_quoting_re.search   # type: Callable[[Any], Any]
         if scr:
@@ -393,7 +393,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
 
-        (docker_req, docker_is_req) = self.get_feature("DockerRequirement")
+        (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
 
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)

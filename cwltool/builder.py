@@ -90,7 +90,7 @@ class HasReqsHints(object):
         self.requirements = []  # List[Dict[Text, Any]]
         self.hints = []         # List[Dict[Text, Any]]
 
-    def get_feature(self,
+    def get_requirement(self,
                     feature  # type: Text
                    ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
         for item in reversed(self.requirements):
@@ -315,7 +315,7 @@ class Builder(HasReqsHints):
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
 
             # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = self.get_feature("DockerRequirement")
+            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if onWindows() and docker_req is not None:
                 # docker_req is none only when there is no dockerRequirement
                 # mentioned in hints and Requirement
