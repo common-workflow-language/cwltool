@@ -42,7 +42,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
                  logger,
-                 **kwargs           # type: Any
+                 runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
         """ Execute the jobs for the given Process. """
         pass
@@ -51,23 +51,24 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 process,           # type: Process
                 job_order_object,  # type: Dict[Text, Any]
                 move_outputs,      # type: Text
+                runtimeContext,    # type: RuntimeContext
                 logger=_logger,
-                **kwargs           # type: Any
                ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Text]
         """ Execute the process. """
 
-        if "basedir" not in kwargs:
-            raise WorkflowException("Must provide 'basedir' in kwargs")
+        if not runtimeContext.basedir:
+            raise WorkflowException("Must provide 'basedir' in runtimeContext")
 
         finaloutdir = None  # Type: Optional[Text]
-        original_outdir = kwargs.get('outdir')
+        original_outdir = runtimeContext.outdir
         if isinstance(original_outdir, string_types):
             finaloutdir = os.path.abspath(original_outdir)
-        kwargs["outdir"] = tempfile.mkdtemp(
-            prefix=kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
-        self.output_dirs.add(kwargs["outdir"])
-        kwargs["mutation_manager"] = MutationManager()
-        kwargs["toplevel"] = True
+        runtimeContext = copy.copy(runtimeContext)
+        runtimeContext.outdir = tempfile.mkdtemp(
+            prefix=runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
+        self.output_dirs.add(runtimeContext.outdir)
+        runtimeContext.mutation_manager = MutationManager()
+        runtimeContext.toplevel = True
 
         job_reqs = None
         if "cwl:requirements" in job_order_object:
@@ -79,15 +80,15 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
             for req in job_reqs:
                 process.requirements.append(req)
 
-        self.run_jobs(process, job_order_object, logger, **kwargs)
+        self.run_jobs(process, job_order_object, logger, runtimeContext)
 
         if self.final_output and self.final_output[0] and finaloutdir:
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
-                move_outputs, kwargs["make_fs_access"](""),
-                kwargs.get("compute_checksum", True))
+                move_outputs, runtimeContext.make_fs_access(""),
+                getdefault(runtimeContext.compute_checksum, True))
 
-        if kwargs.get("rm_tmpdir"):
+        if runtimeContext.rm_tmpdir:
             cleanIntermediate(self.output_dirs)
 
         if self.final_output and self.final_status:
@@ -101,19 +102,19 @@ class SingleJobExecutor(JobExecutor):
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
                  logger,
-                 **kwargs           # type: Any
+                 runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
-        jobiter = process.job(job_order_object, self.output_callback, **kwargs)
+        jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         try:
             for job in jobiter:
                 if job:
-                    builder = kwargs.get("builder", None)  # type: Builder
+                    builder = runtimeContext.builder  # type: Builder
                     if builder is not None:
                         job.builder = builder
                     if job.outdir:
                         self.output_dirs.add(job.outdir)
-                    job.run(**kwargs)
+                    job.run(runtimeContext)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
@@ -137,13 +138,13 @@ class MultithreadedJobExecutor(JobExecutor):
 
     def run_job(self,
                 job,      # type: JobBase
-                **kwargs  # type: Any
+                runtimeContext  # type: RuntimeContext
                ):  # type: (...) -> None
         """ Execute a single Job in a seperate thread. """
         def runner():
             """ Job running thread. """
             try:
-                job.run(**kwargs)
+                job.run(runtimeContext)
             except WorkflowException as err:
                 self.exceptions.append(err)
             except Exception as err:
@@ -164,19 +165,19 @@ class MultithreadedJobExecutor(JobExecutor):
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
                  logger,
-                 **kwargs           # type: Any
+                 runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
 
-        jobiter = process.job(job_order_object, self.output_callback, **kwargs)
+        jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         for job in jobiter:
             if job:
-                builder = kwargs.get("builder", None)  # type: Builder
+                builder = runtimeContext.builder  # type: Builder
                 if builder is not None:
                     job.builder = builder
                 if job.outdir:
                     self.output_dirs.add(job.outdir)
-                self.run_job(job, **kwargs)
+                self.run_job(job, runtimeContext)
             else:
                 if self.threads:
                     self.wait_for_next_completion()

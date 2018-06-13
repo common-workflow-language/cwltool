@@ -12,7 +12,7 @@ from .process import Process
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .workflow import default_make_tool
-
+from .context import LoadingContext, RuntimeContext, getdefault
 
 class WorkflowStatus(Exception):
     def __init__(self, out, status):
@@ -29,9 +29,9 @@ class Callable(object):
 
     def __call__(self, **kwargs):
         # type: (**Any) -> Union[Text, Dict[Text, Text]]
-        execkwargs = self.factory.execkwargs.copy()
-        execkwargs["basedir"] = os.getcwd()
-        out, status = self.factory.executor(self.t, kwargs, **execkwargs)
+        runtimeContext = copy.copy(self.factory.runtimeContext)
+        runtimeContext.basedir = os.getcwd()
+        out, status = self.factory.executor(self.t, kwargs, runtimeContext)
         if status != "success":
             raise WorkflowStatus(out, status)
         else:
@@ -39,39 +39,31 @@ class Callable(object):
 
 class Factory(object):
     def __init__(self,
-                 construct_tool_object=default_make_tool,  # type: ignore
                  executor=None,            # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
-                 eval_timeout=20,          # type: float
-                 debug=False,              # type: bool
-                 js_console=False,         # type: bool
-                 force_docker_pull=False,  # type: bool
-                 job_script_provider=None, # type: DependenciesConfiguration
-                 makekwargs=None,          # type: Dict[Any, Any]
-                 **execkwargs              # type: Dict[Any, Any]
+                 loadingContext=None,      # type: LoadingContext
+                 runtimeContext=None       # type: RuntimeContext
                 ):  # type: (...) -> None
-        self.construct_tool_object = construct_tool_object
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
-        self.eval_timeout = eval_timeout
-        self.debug = debug
-        self.js_console = js_console
-        self.force_docker_pull = force_docker_pull
-        self.job_script_provider = job_script_provider
 
         new_exec_kwargs = get_default_args()
         new_exec_kwargs.pop("job_order")
         new_exec_kwargs.pop("workflow")
         new_exec_kwargs.pop("outdir")
-        new_exec_kwargs.update(execkwargs)
-        self.execkwargs = new_exec_kwargs
-        self.makekwargs = makekwargs if makekwargs is not None else {}
+
+        self.loadingContext = loadingContext
+        if self.loadingContext is None:
+            self.loadingContext = LoadingContext(new_exec_kwargs)
+
+        self.runtimeContext = runtimeContext
+        if self.runtimeContext is None:
+            self.runtimeContext = RuntimeContext(new_exec_kwargs)
+
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
-        load = load_tool.load_tool(cwl, self.construct_tool_object,
-                                   strict=self.execkwargs.get("strict", True),
-                                   kwargs=self.makekwargs)
+        load = load_tool.load_tool(cwl, self.loadingContext)
         if isinstance(load, int):
             raise Exception("Error loading tool")
         return Callable(load, self)

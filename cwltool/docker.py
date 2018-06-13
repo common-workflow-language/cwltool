@@ -258,10 +258,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_windows_path_adjust(createtmp),
                         docker_windows_path_adjust(vol.target)))
 
-    def create_runtime(self, env, rm_container=True, record_container_id=False, cidfile_dir="",
-                       cidfile_prefix="", **kwargs):
-        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
-        user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
+    def create_runtime(self, env, runtimeContext):
+        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, runtimeContext) -> List
+        user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
             runtime = [user_space_docker_cmd, u"run"]
         else:
@@ -273,9 +272,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--volume=%s:%s:rw" % (
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-        self.add_volumes(self.pathmapper, runtime, secret_store=kwargs.get("secret_store"))
+        self.add_volumes(self.pathmapper, runtime, secret_store=runtimeContext.secret_store)
         if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime, secret_store=kwargs.get("secret_store"))
+            self.add_volumes(self.generatemapper, runtime, secret_store=runtimeContext.secret_store)
 
         if user_space_docker_cmd:
             runtime = [x.replace(":ro", "") for x in runtime]
@@ -285,12 +284,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             docker_windows_path_adjust(self.builder.outdir)))
         if not user_space_docker_cmd:
 
-            if not kwargs.get("no_read_only"):
+            if not runtimeContext.no_read_only:
                 runtime.append(u"--read-only=true")
 
             if self.networkaccess:
-                if kwargs.get("custom_net"):
-                    runtime.append(u"--net={0}".format(kwargs["custom_net"]))
+                if runtimeContext.custom_net:
+                    runtime.append(u"--net={0}".format(runtimeContext.custom_net))
             else:
                 runtime.append(u"--net=none")
 
@@ -302,11 +301,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # MS Windows does not have getuid() or geteuid() functions
                 euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-            if kwargs.get("no_match_user", None) is False \
+            if runtimeContext.no_match_user is False \
                     and (euid is not None and egid is not None):
                 runtime.append(u"--user=%d:%d" % (euid, egid))
 
-        if rm_container:
+        if runtimeContext.rm_container:
             runtime.append(u"--rm")
 
         runtime.append(u"--env=TMPDIR=/tmp")
@@ -317,23 +316,23 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-        if record_container_id:
-            if cidfile_dir != "":
-                if not os.path.isdir(cidfile_dir):
-                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                                  cidfile_dir + " is not a directory or "
+        if runtimeContext.record_container_id:
+            if runtimeContext.cidfile_dir != "":
+                if not os.path.isdir(runtimeContext.cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", runtimeContext.cidfile_dir,
+                                  runtimeContext.cidfile_dir + " is not a directory or "
                                                 "directory doesn't exist, please check it first")
                     exit(2)
-                if not os.path.exists(cidfile_dir):
-                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                if not os.path.exists(runtimeContext.cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", runtimeContext.cidfile_dir,
                                   "directory doesn't exist, please create it first")
                     exit(2)
             else:
                 cidfile_dir = os.getcwd()
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
-            if cidfile_prefix != "":
-                cidfile_name = str(cidfile_prefix + "-" + cidfile_name)
-            cidfile_path = os.path.join(cidfile_dir, cidfile_name)
+            if runtimeContext.cidfile_prefix != "":
+                cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
+            cidfile_path = os.path.join(runtimeContext.cidfile_dir, cidfile_name)
             runtime.append(u"--cidfile=%s" % cidfile_path)
 
         for t, v in self.environment.items():

@@ -40,6 +40,7 @@ from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     windows_default_container_id)
+from .context import LoadingContext, RuntimeContext, getdefault
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -80,14 +81,14 @@ class ExpressionTool(Process):
             self.tmpdir = tmpdir
             self.script = script
 
-        def run(self, **kwargs):  # type: (**Any) -> None
+        def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
                 ev = self.builder.do_eval(self.script)
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
             except Exception as e:
                 _logger.warning(u"Failed to evaluate expression:\n%s",
-                             e, exc_info=kwargs.get('debug'))
+                             e, exc_info=runtimeContext.debug)
                 self.output_callback({}, "permanentFail")
 
     def job(self,
@@ -95,10 +96,10 @@ class ExpressionTool(Process):
             output_callbacks,  # type: Callable[[Any, Any], Any]
             mutation_manager,  # type: MutationManager
             basedir,           # type: Text
-            **kwargs           # type: Any
+            runtimeContext     # type: RuntimeContext
            ):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
-        builder = self._init_job(job_order, mutation_manager, basedir, **kwargs)
+        builder = self._init_job(job_order, mutation_manager, basedir, runtimeContext)
 
         yield ExpressionTool.ExpressionJob(
             builder, self.tool["expression"], output_callbacks,
@@ -169,13 +170,13 @@ class CallbackJob(object):
         self.cachebuilder = cachebuilder
         self.outdir = jobcache
 
-    def run(self, **kwargs):
-        # type: (**Any) -> None
+    def run(self, runtimeContext):
+        # type: (RuntimeContext) -> None
         self.output_callback(self.job.collect_output_ports(
             self.job.tool["outputs"],
             self.cachebuilder,
             self.outdir,
-            kwargs.get("compute_checksum", True)), "success")
+            getdefault(runtimeContext.compute_checksum, True)), "success")
 
 
 def check_adjust(builder, file_o):
@@ -216,30 +217,29 @@ def make_path_mapper(reffiles, stagedir, basedir, separateDirs=True):
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
 class CommandLineTool(Process):
-    def __init__(self, toolpath_object, **kwargs):  # type: (Dict[Text, Any], **Any) -> None
+    def __init__(self, toolpath_object, loadingContext):
+        # type: (Dict[Text, Any], LoadingContext) -> None
         super(CommandLineTool, self).__init__(
-            toolpath_object, **kwargs)
-        self.find_default_container = kwargs.get("find_default_container", None)
+            toolpath_object, loadingContext)
 
     def make_job_runner(self,
-                        use_container=True,  # type: Optional[bool]
-                        **kwargs             # type: Any
+                        runtimeContext       # type: RuntimeContext
                        ):  # type: (...) -> Type[JobBase]
         dockerReq, _ = self.get_requirement("DockerRequirement")
-        if not dockerReq and use_container:
+        if not dockerReq and runtimeContext.use_container:
             if self.find_default_container:
-                default_container = self.find_default_container(self)
+                default_container = runtimeContext.find_default_container(self)
                 if default_container:
                     self.requirements.insert(0, {
                         "class": "DockerRequirement",
                         "dockerPull": default_container
                     })
                     dockerReq = self.requirements[0]
-                    if default_container == windows_default_container_id and use_container and onWindows():
+                    if default_container == windows_default_container_id and runtimeContext.use_container and onWindows():
                         _logger.warning(DEFAULT_CONTAINER_MSG % (windows_default_container_id, windows_default_container_id))
 
-        if dockerReq and use_container:
-            if kwargs.get('singularity'):
+        if dockerReq and runtimeContext.use_container:
+            if runtimeContext.singularity:
                 return SingularityCommandLineJob
             else:
                 return DockerCommandLineJob
@@ -265,9 +265,7 @@ class CommandLineTool(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            mutation_manager,  # type: MutationManager
-            basedir,           # type: Text
-            **kwargs           # type: Any
+            runtimeContext     # RuntimeContext
             ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
@@ -278,13 +276,13 @@ class CommandLineTool(Process):
         workReuse = self.get_requirement(require_prefix+"WorkReuse")[0]
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
-        jobname = uniquename(kwargs.get("name", shortname(self.tool.get("id", "job"))))
-        if kwargs.get("cachedir") and enableReuse:
-            cacheargs = kwargs.copy()
-            cacheargs["outdir"] = "/out"
-            cacheargs["tmpdir"] = "/tmp"
-            cacheargs["stagedir"] = "/stage"
-            cachebuilder = self._init_job(job_order, mutation_manager, basedir, **cacheargs)
+        jobname = uniquename(runtimeContext.name or shortname(self.tool.get("id", "job")))
+        if runtimeContext.cachedir and enableReuse:
+            cachecontext = copy.copy(runtimeContext)
+            cachecontext.outdir = "/out"
+            cachecontext.tmpdir = "/tmp"
+            cachecontext.stagedir = "/stage"
+            cachebuilder = self._init_job(job_order, cachecontext)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,
                                                  basedir,
                                                  cachebuilder.stagedir,
@@ -295,10 +293,10 @@ class CommandLineTool(Process):
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-            if docker_req and kwargs.get("use_container"):
+            if docker_req and runtimeContext.use_container:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
-            elif kwargs.get("default_container", None) is not None and kwargs.get("use_container"):
-                dockerimg = kwargs.get("default_container")
+            elif runtimeContext.default_container is not None and runtimeContext.use_container:
+                dockerimg = runtimeContext.default_container
             else:
                 dockerimg = None
 
@@ -337,12 +335,12 @@ class CommandLineTool(Process):
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
                           keydictstr, cachekey)
 
-            jobcache = os.path.join(kwargs["cachedir"], cachekey)
+            jobcache = os.path.join(runtimeContext.cachedir, cachekey)
             jobcachepending = jobcache + ".pending"
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
-                if docker_req and kwargs.get("use_container"):
-                    cachebuilder.outdir = kwargs.get("docker_outdir") or "/var/spool/cwl"
+                if docker_req and runtimeContext.use_container:
+                    cachebuilder.outdir = runtimeContext.docker_outdir or "/var/spool/cwl"
                 else:
                     cachebuilder.outdir = jobcache
 
@@ -353,7 +351,8 @@ class CommandLineTool(Process):
                 _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
                 shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)
-                kwargs["outdir"] = jobcache
+                runtimeContext = copy.copy(runtimeContext)
+                runtimeContext.outdir = jobcache
                 open(jobcachepending, "w").close()
 
                 def rm_pending_output_callback(output_callbacks, jobcachepending,
@@ -364,18 +363,12 @@ class CommandLineTool(Process):
 
                 output_callbacks = partial(
                     rm_pending_output_callback, output_callbacks, jobcachepending)
-                # output_callbacks = cast(
-                #     Callable[..., Any],  # known bug in mypy
-                #     # https://github.com/python/mypy/issues/797
-                #     partial(rm_pending_output_callback, output_callbacks,
-                #             jobcachepending))
 
-
-        builder = self._init_job(job_order, mutation_manager, basedir, **kwargs)
+        builder = self._init_job(job_order, runtimeContext)
 
         reffiles = copy.deepcopy(builder.files)
 
-        j = self.make_job_runner(**kwargs)(
+        j = self.make_job_runner(runtimeContext)(
             builder, builder.job, make_path_mapper, self.requirements,
             self.hints, jobname)
         j.successCodes = self.tool.get("successCodes")
@@ -388,13 +381,13 @@ class CommandLineTool(Process):
             _logger.debug(u"[job %s] initializing from %s%s",
                           j.name,
                           self.tool.get("id", ""),
-                          u" as part of %s" % kwargs["part_of"]
-                          if "part_of" in kwargs else "")
+                          u" as part of %s" % runtimeContext.part_of
+                          if runtimeContext.part_of else "")
             _logger.debug(u"[job %s] %s", j.name, json_dumps(job_order,
                                                              indent=4))
 
         builder.pathmapper = make_path_mapper(
-            reffiles, builder.stagedir, basedir, kwargs.get("separateDirs", True))
+            reffiles, builder.stagedir, basedir, getdefault(runtimeContext.separateDirs, True))
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, builder)
@@ -472,12 +465,12 @@ class CommandLineTool(Process):
                           json_dumps(builder.bindings, indent=4))
 
         dockerReq = self.get_requirement("DockerRequirement")[0]
-        if dockerReq and kwargs.get("use_container"):
-            out_prefix = kwargs.get("tmp_outdir_prefix", 'tmp')
-            j.outdir = kwargs.get("outdir") or \
+        if dockerReq and runtimeContext.use_container:
+            out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')
+            j.outdir = runtimeContext.outdir or \
                 tempfile.mkdtemp(prefix=out_prefix)  # type: ignore
-            tmpdir_prefix = kwargs.get('tmpdir_prefix', 'tmp')
-            j.tmpdir = kwargs.get("tmpdir") or \
+            tmpdir_prefix = getdefault(runtimeContext.tmpdir_prefix, 'tmp')
+            j.tmpdir = runtimeContext.tmpdir or \
                 tempfile.mkdtemp(prefix=tmpdir_prefix)  # type: ignore
             j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
         else:
@@ -555,7 +548,7 @@ class CommandLineTool(Process):
         j.pathmapper = builder.pathmapper
         j.collect_outputs = partial(
             self.collect_output_ports, self.tool["outputs"], builder,
-            compute_checksum=kwargs.get("compute_checksum", True),
+            compute_checksum=getdefault(runtimeContext.compute_checksum, True),
             jobname=jobname,
             readers=readers)
         j.output_callback = output_callbacks
