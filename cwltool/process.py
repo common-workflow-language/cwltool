@@ -493,7 +493,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(loadingContext.avsc_names, self.tool.get("hints", []),
-                            strict=getcontext(loadingContext.strict, False))
+                            strict=getdefault(loadingContext.strict, False))
 
         self.schemaDefs = {}  # type: Dict[Text,Dict[Text, Any]]
 
@@ -642,8 +642,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 runtimeContext.docker_stagedir or "/var/lib/cwl")
         else:
             outdir = fs_access.realpath(runtimeContext.outdir or
-                tempfile.mkdtemp(prefix=runtimeContext.tmp_outdir_prefix,
-                    DEFAULT_TMP_PREFIX)))
+                tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix,
+                                                   DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
                 tmpdir = fs_access.realpath(runtimeContext.tmpdir or tempfile.mkdtemp())
                 stagedir = fs_access.realpath(runtimeContext.stagedir or tempfile.mkdtemp())

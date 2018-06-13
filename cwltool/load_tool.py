@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import uuid
+import copy
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
                     Iterable, List, Mapping, Optional, Text, Tuple, Union, cast)
 
@@ -333,7 +334,7 @@ def make_tool(document_loader,    # type: Loader
     else:
         raise Exception("Must resolve to list or dict")
 
-    loadingContext = copy.copy(loadingContext)
+    loadingContext = loadingContext.copy()
     loadingContext.document_loader = document_loader
     loadingContext.avsc_names = avsc_names
     loadingContext.metadata = metadata

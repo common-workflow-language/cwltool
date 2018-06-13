@@ -94,12 +94,10 @@ class ExpressionTool(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            mutation_manager,  # type: MutationManager
-            basedir,           # type: Text
             runtimeContext     # type: RuntimeContext
            ):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
-        builder = self._init_job(job_order, mutation_manager, basedir, runtimeContext)
+        builder = self._init_job(job_order, runtimeContext)
 
         yield ExpressionTool.ExpressionJob(
             builder, self.tool["expression"], output_callbacks,
@@ -227,7 +225,7 @@ class CommandLineTool(Process):
                        ):  # type: (...) -> Type[JobBase]
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and runtimeContext.use_container:
-            if self.find_default_container:
+            if runtimeContext.find_default_container:
                 default_container = runtimeContext.find_default_container(self)
                 if default_container:
                     self.requirements.insert(0, {
@@ -278,13 +276,13 @@ class CommandLineTool(Process):
 
         jobname = uniquename(runtimeContext.name or shortname(self.tool.get("id", "job")))
         if runtimeContext.cachedir and enableReuse:
-            cachecontext = copy.copy(runtimeContext)
+            cachecontext = runtimeContext.copy()
             cachecontext.outdir = "/out"
             cachecontext.tmpdir = "/tmp"
             cachecontext.stagedir = "/stage"
             cachebuilder = self._init_job(job_order, cachecontext)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,
-                                                 basedir,
+                                                 runtimeContext.basedir,
                                                  cachebuilder.stagedir,
                                                  separateDirs=False)
             _check_adjust = partial(check_adjust, cachebuilder)
@@ -351,7 +349,7 @@ class CommandLineTool(Process):
                 _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
                 shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)
-                runtimeContext = copy.copy(runtimeContext)
+                runtimeContext = runtimeContext.copy()
                 runtimeContext.outdir = jobcache
                 open(jobcachepending, "w").close()
 
@@ -387,7 +385,7 @@ class CommandLineTool(Process):
                                                              indent=4))
 
         builder.pathmapper = make_path_mapper(
-            reffiles, builder.stagedir, basedir, getdefault(runtimeContext.separateDirs, True))
+            reffiles, builder.stagedir, runtimeContext.basedir, getdefault(runtimeContext.separateDirs, True))
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, builder)

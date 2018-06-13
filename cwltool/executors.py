@@ -17,6 +17,7 @@ from .mutation import MutationManager
 from .process import (Process,  # pylint: disable=unused-import
                       cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
+from .context import LoadingContext, RuntimeContext, getdefault
 
 _logger = logging.getLogger("cwltool")
 
@@ -50,7 +51,6 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
     def execute(self,
                 process,           # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                move_outputs,      # type: Text
                 runtimeContext,    # type: RuntimeContext
                 logger=_logger,
                ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Text]
@@ -63,9 +63,9 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
         original_outdir = runtimeContext.outdir
         if isinstance(original_outdir, string_types):
             finaloutdir = os.path.abspath(original_outdir)
-        runtimeContext = copy.copy(runtimeContext)
+        runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = tempfile.mkdtemp(
-            prefix=runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
+            prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
         self.output_dirs.add(runtimeContext.outdir)
         runtimeContext.mutation_manager = MutationManager()
         runtimeContext.toplevel = True
@@ -85,7 +85,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
         if self.final_output and self.final_output[0] and finaloutdir:
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
-                move_outputs, runtimeContext.make_fs_access(""),
+                runtimeContext.move_outputs, runtimeContext.make_fs_access(""),
                 getdefault(runtimeContext.compute_checksum, True))
 
         if runtimeContext.rm_tmpdir:

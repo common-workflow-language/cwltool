@@ -29,6 +29,7 @@ from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
     onWindows, subprocess)
+from .context import LoadingContext, RuntimeContext, getdefault
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
@@ -196,10 +197,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
     def _execute(self,
                  runtime,                # type:List[Text]
                  env,                    # type: MutableMapping[Text, Text]
-                 rm_tmpdir=True,         # type: bool
-                 move_outputs="move",    # type: Text
-                 secret_store=None,      # type: SecretStore
-                 tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
+                 runtimeContext         # type: RuntimeContext
                 ):  # type: (...) -> None
 
         scr, _ = get_feature(self, "ShellCommandRequirement")
@@ -247,9 +245,9 @@ class JobBase(with_metaclass(ABCMeta, object)):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
-            if secret_store:
-                commands = secret_store.retrieve(commands)
-                env = secret_store.retrieve(env)
+            if runtimeContext.secret_store:
+                commands = runtimeContext.secret_store.retrieve(commands)
+                env = runtimeContext.secret_store.retrieve(env)
 
             job_script_contents = None  # type: Optional[Text]
             builder = getattr(self, "builder", None)  # type: Builder
@@ -262,7 +260,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
+                job_dir=tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name
@@ -313,11 +311,11 @@ class JobBase(with_metaclass(ABCMeta, object)):
             _logger.debug(u"[job %s] %s", self.name,
                           json_dumps(outputs, indent=4))
 
-        if self.generatemapper and secret_store:
+        if self.generatemapper and runtimeContext.secret_store:
             # Delete any runtime-generated files containing secrets.
             for f, p in self.generatemapper.items():
                 if p.type == "CreateFile":
-                    if secret_store.has_secret(p.resolved):
+                    if runtimeContext.secret_store.has_secret(p.resolved):
                         host_outdir = self.outdir
                         container_outdir = self.builder.outdir
                         host_outdir_tgt = p.target
@@ -333,7 +331,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
 
-        if rm_tmpdir:
+        if runtimeContext.rm_tmpdir:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
@@ -371,9 +369,7 @@ class CommandLineJob(JobBase):
             relink_initialworkdir(self.generatemapper, self.outdir,
                                   self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute(
-            [], env, rm_tmpdir, move_outputs, runtimeContext.secret_store,
-            getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
+        self._execute([], env, runtimeContext)
 
 
 class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
@@ -447,9 +443,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         runtime = self.create_runtime(env, runtimeContext)
         runtime.append(img_id)
 
-        self._execute(
-            runtime, env, rm_tmpdir, move_outputs, runtimeContext.secret_store,
-            getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
+        self._execute(runtime, env, runtimeContext)
 
 
 def _job_popen(

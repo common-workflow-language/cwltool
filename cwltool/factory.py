@@ -29,7 +29,7 @@ class Callable(object):
 
     def __call__(self, **kwargs):
         # type: (**Any) -> Union[Text, Dict[Text, Text]]
-        runtimeContext = copy.copy(self.factory.runtimeContext)
+        runtimeContext = self.factory.runtimeContext.copy()
         runtimeContext.basedir = os.getcwd()
         out, status = self.factory.executor(self.t, kwargs, runtimeContext)
         if status != "success":

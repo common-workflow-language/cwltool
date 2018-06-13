@@ -51,6 +51,7 @@ def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
         u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
         toolpath_object["id"])
 
+LoadingContext.default_make_tool = default_make_tool
 
 def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
     if fn is None:
@@ -177,7 +178,7 @@ class WorkflowJobStep(object):
 
     def job(self, joborder, output_callback, runtimeContext):
         # type: (Dict[Text, Text], functools.partial[None], RuntimeContext) -> Generator
-        runtimeContext = copy.copy(runtimeContext)
+        runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = self.name
         runtimeContext.name = shortname(self.id)
 
@@ -328,7 +329,7 @@ class WorkflowJob(object):
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
-                runtimeContext = copy.copy(runtimeContext)
+                runtimeContext = runtimeContext.copy()
                 runtimeContext.postScatterEval = postScatterEval
 
                 tot = 1
@@ -379,7 +380,7 @@ class WorkflowJob(object):
         self.state = {}
         self.processStatus = "success"
 
-        runtimeContext = copy.copy(runtimeContext)
+        runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = None
 
         for index, inp in enumerate(self.tool["inputs"]):
@@ -454,7 +455,7 @@ class Workflow(Process):
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
 
-        loadingContext = copy.copy(loadingContext)
+        loadingContext = loadingContext.copy()
         loadingContext.requirements = self.requirements
         loadingContext.hints = self.hints
 
@@ -499,7 +500,7 @@ class Workflow(Process):
         job = WorkflowJob(self, runtimeContext)
         yield job
 
-        runtimeContext = copy.copy(runtimeContext)
+        runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = u"workflow %s" % job.name
         runtimeContext.toplevel = False
 
@@ -524,7 +525,7 @@ class WorkflowStep(Process):
         else:
             self.id = "#step" + Text(pos)
 
-        loadingContext = copy.copy(loadingContext)
+        loadingContext = loadingContext.copy()
 
         loadingContext.requirements = (getdefault(loadingContext.requirements, []) +
                                   toolpath_object.get("requirements", []) +

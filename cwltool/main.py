@@ -48,6 +48,7 @@ from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
                     windows_default_container_id)
+from .context import LoadingContext, RuntimeContext, getdefault
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
