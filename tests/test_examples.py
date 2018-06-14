@@ -152,13 +152,13 @@ class TestFactory(unittest.TestCase):
 
     def test_default_args(self):
         f = cwltool.factory.Factory()
-        assert f.execkwargs["use_container"] is True
-        assert f.execkwargs["on_error"] == "stop"
+        assert f.runtimeContext.use_container is True
+        assert f.runtimeContext.on_error == "stop"
 
     def test_redefined_args(self):
         f = cwltool.factory.Factory(use_container=False, on_error="continue")
-        assert f.execkwargs["use_container"] is False
-        assert f.execkwargs["on_error"] == "continue"
+        assert f.runtimeContext.use_container is False
+        assert f.runtimeContext.on_error == "continue"
 
     def test_partial_scatter(self):
         f = cwltool.factory.Factory(on_error="continue")

@@ -541,13 +541,13 @@ executor
   A toplevel workflow execution loop, should synchronously execute a process
   object and return an output object.
 
-makeTool
+construct_tool_object
   ::
 
-    makeTool(toolpath_object, **kwargs)
+    construct_tool_object(toolpath_object, **kwargs)
       (Dict[Text, Any], **Any) -> Process
 
-  Construct a Process object from a document.
+  Hook to construct a Process object (eg CommandLineTool) object from a document.
 
 selectResources
   ::

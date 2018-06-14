@@ -19,16 +19,17 @@ import shellescape
 from schema_salad.sourceline import SourceLine
 from six import with_metaclass
 
-from .builder import Builder  # pylint: disable=unused-import
+from .builder import Builder, HasReqsHints
 from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
-from .process import UnsupportedRequirement, get_feature, stageFiles
+from .process import UnsupportedRequirement, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
     onWindows, subprocess)
+from .context import LoadingContext, RuntimeContext, getdefault
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
@@ -129,7 +130,7 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
             elif not vol.resolved.startswith("_:"):
                 os.symlink(vol.resolved, host_outdir_tgt)
 
-class JobBase(with_metaclass(ABCMeta, object)):
+class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,   # type: Builder
                  joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
@@ -169,15 +170,11 @@ class JobBase(with_metaclass(ABCMeta, object)):
 
     @abstractmethod
     def run(self,
-            pull_image=True,      # type: bool
-            rm_container=True,    # type: bool
-            rm_tmpdir=True,       # type: bool
-            move_outputs="move",  # type: Text
-            **kwargs              # type: Any
+            runtimeContext  # type: RuntimeContext
            ):  # type: (...) -> None
         pass
 
-    def _setup(self, kwargs):  # type: (Dict) -> None
+    def _setup(self, runtimeContext):  # type: (RuntimeContext) -> None
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -200,13 +197,10 @@ class JobBase(with_metaclass(ABCMeta, object)):
     def _execute(self,
                  runtime,                # type:List[Text]
                  env,                    # type: MutableMapping[Text, Text]
-                 rm_tmpdir=True,         # type: bool
-                 move_outputs="move",    # type: Text
-                 secret_store=None,      # type: SecretStore
-                 tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
+                 runtimeContext         # type: RuntimeContext
                 ):  # type: (...) -> None
 
-        scr, _ = get_feature(self, "ShellCommandRequirement")
+        scr, _ = self.get_requirement("ShellCommandRequirement")
 
         shouldquote = needs_shell_quoting_re.search   # type: Callable[[Any], Any]
         if scr:
@@ -251,9 +245,9 @@ class JobBase(with_metaclass(ABCMeta, object)):
                 stdout_path = absout
 
             commands = [Text(x) for x in (runtime + self.command_line)]
-            if secret_store:
-                commands = secret_store.retrieve(commands)
-                env = secret_store.retrieve(env)
+            if runtimeContext.secret_store:
+                commands = runtimeContext.secret_store.retrieve(commands)
+                env = runtimeContext.secret_store.retrieve(env)
 
             job_script_contents = None  # type: Optional[Text]
             builder = getattr(self, "builder", None)  # type: Builder
@@ -266,7 +260,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=tempfile.mkdtemp(prefix=tmp_outdir_prefix),
+                job_dir=tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name
@@ -317,11 +311,11 @@ class JobBase(with_metaclass(ABCMeta, object)):
             _logger.debug(u"[job %s] %s", self.name,
                           json_dumps(outputs, indent=4))
 
-        if self.generatemapper and secret_store:
+        if self.generatemapper and runtimeContext.secret_store:
             # Delete any runtime-generated files containing secrets.
             for f, p in self.generatemapper.items():
                 if p.type == "CreateFile":
-                    if secret_store.has_secret(p.resolved):
+                    if runtimeContext.secret_store.has_secret(p.resolved):
                         host_outdir = self.outdir
                         container_outdir = self.builder.outdir
                         host_outdir_tgt = p.target
@@ -337,7 +331,7 @@ class JobBase(with_metaclass(ABCMeta, object)):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
 
-        if rm_tmpdir:
+        if runtimeContext.rm_tmpdir:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
@@ -345,20 +339,16 @@ class JobBase(with_metaclass(ABCMeta, object)):
 class CommandLineJob(JobBase):
 
     def run(self,
-            pull_image=True,      # type: bool
-            rm_container=True,    # type: bool
-            rm_tmpdir=True,       # type: bool
-            move_outputs="move",  # type: Text
-            **kwargs              # type: Any
+            runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> None
 
-        self._setup(kwargs)
+        self._setup(runtimeContext)
 
         env = self.environment
         if not os.path.exists(self.tmpdir):
             os.makedirs(self.tmpdir)
-        vars_to_preserve = kwargs.get("preserve_environment")
-        if kwargs.get("preserve_entire_environment"):
+        vars_to_preserve = runtimeContext.preserve_environment
+        if runtimeContext.preserve_entire_environment:
             vars_to_preserve = os.environ
         if vars_to_preserve is not None:
             for key, value in os.environ.items():
@@ -372,14 +362,14 @@ class CommandLineJob(JobBase):
         if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
             env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
 
-        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=kwargs.get("secret_store"))
+        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=runtimeContext.secret_store)
         if self.generatemapper:
-            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update, symLink=True, secret_store=kwargs.get("secret_store"))
-            relink_initialworkdir(self.generatemapper, self.outdir, self.builder.outdir, inplace_update=self.inplace_update)
+            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update,
+                       symLink=True, secret_store=runtimeContext.secret_store)
+            relink_initialworkdir(self.generatemapper, self.outdir,
+                                  self.builder.outdir, inplace_update=self.inplace_update)
 
-        self._execute(
-            [], env, rm_tmpdir, move_outputs, kwargs.get("secret_store"),
-            kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
+        self._execute([], env, runtimeContext)
 
 
 class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
@@ -395,22 +385,19 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         pass
 
     @abstractmethod
-    def create_runtime(self, env, rm_container, record_container_id, cidfile_dir,
-                       cidfile_prefix, **kwargs):
-        # type: (MutableMapping[Text, Text], bool, bool, Text, Text, **Any) -> List
+    def create_runtime(self, env, runtimeContext):
+        # type: (MutableMapping[Text, Text], RuntimeContext) -> List
         """ Return the list of commands to run the selected container engine."""
         pass
 
-    def run(self, pull_image=True, rm_container=True, rm_tmpdir=True,
-            move_outputs="move", record_container_id=False, cidfile_dir="",
-            cidfile_prefix="", **kwargs):
-        # type: (bool, bool, bool, Text, bool, Text, Text, **Any) -> None
+    def run(self, runtimeContext):
+        # type: (RuntimeContext) -> None
 
-        (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+        (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
 
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)
-        user_space_docker_cmd = kwargs.get("user_space_docker_cmd")
+        user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if docker_req and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
             # takes precedence over a network pull
@@ -425,22 +412,22 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     "Docker"))
         else:
             try:
-                if docker_req and kwargs.get("use_container"):
+                if docker_req and runtimeContext.use_container:
                     img_id = str(
                         self.get_from_requirements(
-                            docker_req, True, pull_image,
-                            kwargs.get("force_docker_pull", False),
-                            kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX)))
+                            docker_req, True, runtimeContext.pull_image,
+                            getdefault(runtimeContext.force_docker_pull, False),
+                            getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)))
                 if img_id is None:
                     if self.builder.find_default_container:
                         default_container = self.builder.find_default_container()
                         if default_container:
                             img_id = str(default_container)
 
-                if docker_req and img_id is None and kwargs.get("use_container"):
+                if docker_req and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
             except Exception as err:
-                container = "Singularity" if kwargs.get("singularity") else "Docker"
+                container = "Singularity" if runtimeContext.singularity else "Docker"
                 _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
@@ -452,14 +439,11 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         "a user space Docker replacement like uDocker with "
                         "--user-space-docker-cmd.: {1}".format(container, err))
 
-        self._setup(kwargs)
-        runtime = self.create_runtime(env, rm_container, record_container_id,
-                                      cidfile_dir, cidfile_prefix, **kwargs)
+        self._setup(runtimeContext)
+        runtime = self.create_runtime(env, runtimeContext)
         runtime.append(img_id)
 
-        self._execute(
-            runtime, env, rm_tmpdir, move_outputs, kwargs.get("secret_store"),
-            kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
+        self._execute(runtime, env, runtimeContext)
 
 
 def _job_popen(

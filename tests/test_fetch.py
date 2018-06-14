@@ -13,6 +13,7 @@ from cwltool.main import main
 from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
+from cwltool.context import LoadingContext
 
 from .util import get_data
 
@@ -59,8 +60,10 @@ outputs: []
                 return "baz:bar/" + a
 
 
-        load_tool("foo.cwl", default_make_tool, 20, False, False, False, None,
-                  resolver=test_resolver, fetcher_constructor=TestFetcher,)
+        load_tool("foo.cwl",
+                  LoadingContext({"construct_tool_object": default_make_tool,
+                                  "resolver": test_resolver,
+                                  "fetcher_constructor": TestFetcher}))
 
         self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,
                                   fetcher_constructor=TestFetcher))

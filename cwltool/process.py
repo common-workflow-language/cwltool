@@ -31,7 +31,7 @@ from six import iteritems, itervalues, string_types
 from six.moves import urllib
 
 from . import expression
-from .builder import Builder
+from .builder import Builder, HasReqsHints
 from .errors import UnsupportedRequirement, WorkflowException
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
@@ -41,9 +41,9 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
-                    copytree_with_merge, get_feature, onWindows)
+                    copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
-
+from .context import LoadingContext, RuntimeContext, getdefault
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
@@ -441,15 +441,10 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         return resource_req
 
 
-class Process(six.with_metaclass(abc.ABCMeta, object)):
+class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
-                 eval_timeout,         # type: float
-                 debug,                # type: bool
-                 js_console,           # type: bool
-                 force_docker_pull,    # type: bool
-                 job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 **kwargs              # type: Any
+                 loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         """
         kwargs:
@@ -462,12 +457,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         strict: flag to determine strict validation (fail on unrecognized fields)
         """
 
-        self.eval_timeout = eval_timeout
-        self.debug = debug
-        self.js_console = js_console
-        self.force_docker_pull = force_docker_pull
-        self.job_script_provider = job_script_provider
-        self.metadata = kwargs.get("metadata", {})  # type: Dict[Text,Any]
+        self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
 
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
@@ -486,24 +476,24 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:
             self.names = names
         self.tool = toolpath_object
-        self.requirements = (kwargs.get("requirements", []) +
+        self.requirements = (getdefault(loadingContext.requirements, []) +
                              self.tool.get("requirements", []) +
-                             get_overrides(kwargs.get("overrides", []),
+                             get_overrides(getdefault(loadingContext.overrides, []),
                                            self.tool["id"]).get("requirements", []))
-        self.hints = kwargs.get("hints", []) + self.tool.get("hints", [])
+        self.hints = getdefault(loadingContext.hints, []) + self.tool.get("hints", [])
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)
-        self.formatgraph = None  # type: Optional[Graph]
-        if "loader" in kwargs:
-            self.formatgraph = kwargs["loader"].graph
+        self.doc_loader = loadingContext.loader
+        self.doc_schema = loadingContext.avsc_names
 
-        self.doc_loader = kwargs["loader"]
-        self.doc_schema = kwargs["avsc_names"]
+        self.formatgraph = None  # type: Optional[Graph]
+        if self.doc_loader:
+            self.formatgraph = self.doc_loader.graph
 
         checkRequirements(self.tool, supportedProcessRequirements)
-        self.validate_hints(kwargs["avsc_names"], self.tool.get("hints", []),
-                            strict=kwargs.get("strict", False))
+        self.validate_hints(loadingContext.avsc_names, self.tool.get("hints", []),
+                            strict=getdefault(loadingContext.strict, False))
 
         self.schemaDefs = {}  # type: Dict[Text,Dict[Text, Any]]
 
@@ -554,18 +544,19 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                     schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             schema.AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
 
-        if toolpath_object.get("class") is not None and not kwargs.get("disable_js_validation", False):
-            if kwargs.get("js_hint_options_file") is not None:
+        if toolpath_object.get("class") is not None and not getdefault(loadingContext.disable_js_validation, False):
+            if loadingContext.js_hint_options_file is not None:
                 try:
-                    with open(kwargs["js_hint_options_file"]) as options_file:
+                    with open(loadingContext.js_hint_options_file) as options_file:
                         validate_js_options = json.load(options_file)
                 except (OSError, ValueError) as e:
-                    _logger.error("Failed to read options file %s" % kwargs["js_hint_options_file"])
+                    _logger.error("Failed to read options file %s" % loadingContext.js_hint_options_file)
                     raise e
             else:
                 validate_js_options = None
 
-            validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
+            if self.doc_schema is not None:
+                validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
@@ -585,8 +576,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:
             var_spool_cwl_detector(self.tool)
 
-    def _init_job(self, joborder, mutation_manager, basedir, **kwargs):
-        # type: (Dict[Text, Text], MutationManager, Text, **Any) -> Builder
+    def _init_job(self, joborder, runtimeContext):
+        # type: (Dict[Text, Text], RuntimeContext) -> Builder
         """
         kwargs:
 
@@ -616,8 +607,8 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()
-        make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
-        fs_access = make_fs_access(basedir)
+        make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
+        fs_access = make_fs_access(runtimeContext.basedir)
         tmpdir = u""
         stagedir = u""
 
@@ -630,10 +621,10 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         dockerReq, _ = self.get_requirement("DockerRequirement")
         defaultDocker = None
 
-        if dockerReq is None and "default_container" in kwargs:
-            defaultDocker = kwargs["default_container"]
+        if dockerReq is None and runtimeContext.default_container:
+            defaultDocker = runtimeContext.default_container
 
-        if (dockerReq or defaultDocker) and kwargs.get("use_container"):
+        if (dockerReq or defaultDocker) and runtimeContext.use_container:
             if dockerReq:
                 # Check if docker output directory is absolute
                 if dockerReq.get("dockerOutputDirectory") and \
@@ -642,32 +633,47 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 else:
                     outdir = fs_access.docker_compatible_realpath(
                         dockerReq.get("dockerOutputDirectory") or
-                        kwargs.get("docker_outdir") or "/var/spool/cwl")
+                        runtimeContext.docker_outdir or "/var/spool/cwl")
             elif defaultDocker:
                 outdir = fs_access.docker_compatible_realpath(
-                    kwargs.get("docker_outdir") or "/var/spool/cwl")
+                    runtimeContext.docker_outdir or "/var/spool/cwl")
             tmpdir = fs_access.docker_compatible_realpath(
-                kwargs.get("docker_tmpdir") or "/tmp")
+                runtimeContext.docker_tmpdir or "/tmp")
             stagedir = fs_access.docker_compatible_realpath(
-                kwargs.get("docker_stagedir") or "/var/lib/cwl")
+                runtimeContext.docker_stagedir or "/var/lib/cwl")
         else:
-            outdir = fs_access.realpath(kwargs.get("outdir") or
-                tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix",
-                    DEFAULT_TMP_PREFIX)))
+            outdir = fs_access.realpath(runtimeContext.outdir or
+                tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix,
+                                                   DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
-                tmpdir = fs_access.realpath(kwargs.get("tmpdir") or tempfile.mkdtemp())
-                stagedir = fs_access.realpath(kwargs.get("stagedir") or tempfile.mkdtemp())
+                tmpdir = fs_access.realpath(runtimeContext.tmpdir or tempfile.mkdtemp())
+                stagedir = fs_access.realpath(runtimeContext.stagedir or tempfile.mkdtemp())
 
-        builder = Builder(job, files, bindings, self.schemaDefs, self.names,
-                          self.requirements, self.hints, self.eval_timeout,
-                          self.debug, {}, self.js_console, mutation_manager,
-                          self.formatgraph, make_fs_access, fs_access,
-                          self.force_docker_pull, loadListing, outdir, tmpdir,
-                          stagedir, self.job_script_provider)
+        builder = Builder(job,
+                          files,
+                          bindings,
+                          self.schemaDefs,
+                          self.names,
+                          self.requirements,
+                          self.hints,
+                          runtimeContext.eval_timeout,
+                          runtimeContext.debug,
+                          {},
+                          runtimeContext.js_console,
+                          runtimeContext.mutation_manager,
+                          self.formatgraph,
+                          make_fs_access,
+                          fs_access,
+                          runtimeContext.force_docker_pull,
+                          loadListing,
+                          outdir,
+                          tmpdir,
+                          stagedir,
+                          runtimeContext.job_script_provider)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
-            discover_secondaryFiles=kwargs.get("toplevel", False)))
+            discover_secondaryFiles=getdefault(runtimeContext.toplevel, False)))
 
         if self.tool.get("baseCommand"):
             for n, b in enumerate(aslist(self.tool["baseCommand"])):
@@ -713,11 +719,11 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         else:  # PY2
             key = lambda dict: dict["position"]
         bindings.sort(key=key)
-        builder.resources = self.evalResources(builder, kwargs)
+        builder.resources = self.evalResources(builder, runtimeContext)
         return builder
 
-    def evalResources(self, builder, kwargs):
-        # type: (Builder, Dict[str, Any]) -> Dict[Text, Union[int, Text, None]]
+    def evalResources(self, builder, runtimeContext):
+        # type: (Builder, RuntimeContext) -> Dict[Text, int]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -730,7 +736,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024
-        }  # type: Dict[Text, Union[int, None]]
+        }  # type: Dict[Text, int]
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = None
             mx = None
@@ -744,11 +750,11 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 mx = mn
 
             if mn:
-                request[a + "Min"] = mn
-                request[a + "Max"] = mx
+                request[a + "Min"] = cast(int, mn)
+                request[a + "Max"] = cast(int, mx)
 
-        if kwargs.get("select_resources"):
-            return kwargs["select_resources"](request)
+        if runtimeContext.select_resources:
+            return runtimeContext.select_resources(request)
         else:
             return {
                 "cores": request["coresMin"],
@@ -762,7 +768,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
         for i, r in enumerate(hints):
             sl = SourceLine(hints, i, validate.ValidationException)
             with sl:
-                if avsc_names.get_name(r["class"], "") is not None:
+                if avsc_names.get_name(r["class"], "") is not None and self.doc_loader is not None:
                     plain_hint = dict((key, r[key]) for key in r if key not in
                                       self.doc_loader.identifiers)  # strip identifiers
                     validate.validate_ex(
@@ -771,11 +777,6 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
                 else:
                     _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
 
-    def get_requirement(self,
-                        feature  # type: Any
-                       ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
-        return get_feature(self, feature)
-
     def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
         op(self.tool)
 
@@ -783,9 +784,7 @@ class Process(six.with_metaclass(abc.ABCMeta, object)):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            mutation_manager,  # type: MutationManager
-            basedir,           # type: Text
-            **kwargs           # type: Any
+            runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         pass
 

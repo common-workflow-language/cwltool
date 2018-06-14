@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import copy
 import logging
 from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
-                    Optional, Set, Text, Type, Union)
+                    Optional, Set, Text, Type, Union, Tuple)
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
@@ -20,7 +20,7 @@ from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper,  # pylint: disable=unused-import
                          get_listing, normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, docker_windows_path_adjust, get_feature,
+from .utils import (aslist, docker_windows_path_adjust,
                     json_dumps, onWindows)
 
 CONTENT_LIMIT = 64 * 1024
@@ -85,7 +85,23 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
             u"File has an incompatible format: {}".format(
                 json_dumps(afile, indent=4)))
 
-class Builder(object):
+class HasReqsHints(object):
+    def __init__(self):
+        self.requirements = []  # List[Dict[Text, Any]]
+        self.hints = []         # List[Dict[Text, Any]]
+
+    def get_requirement(self,
+                    feature  # type: Text
+                   ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+        for item in reversed(self.requirements):
+            if item["class"] == feature:
+                return (item, True)
+        for item in reversed(self.hints):
+            if item["class"] == feature:
+                return (item, False)
+        return (None, None)
+
+class Builder(HasReqsHints):
     def __init__(self,
                  job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
                  files,                # type: List[Dict[Text, Text]]
@@ -96,9 +112,9 @@ class Builder(object):
                  hints,                # type: List[Dict[Text, Any]]
                  timeout,              # type: float
                  debug,                # type: bool
-                 resources,            # type: Dict[Text, Union[int, Text, None]]
+                 resources,            # type: Dict[Text, int]
                  js_console,           # type: bool
-                 mutation_manager,     # type: MutationManager
+                 mutation_manager,     # type: Optional[MutationManager]
                  formatgraph,          # type: Optional[Graph]
                  make_fs_access,       # type: Type[StdFsAccess]
                  fs_access,            # type: StdFsAccess
@@ -107,7 +123,7 @@ class Builder(object):
                  outdir,               # type: Text
                  tmpdir,               # type: Text
                  stagedir,             # type: Text
-                 job_script_provider,  # type: Optional[Any]
+                 job_script_provider   # type: Optional[Any]
                 ):  # type: (...) -> None
         self.names = names
         self.schemaDefs = schemaDefs
@@ -299,7 +315,7 @@ class Builder(object):
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
 
             # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if onWindows() and docker_req is not None:
                 # docker_req is none only when there is no dockerRequirement
                 # mentioned in hints and Requirement

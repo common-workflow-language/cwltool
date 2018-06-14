@@ -29,39 +29,30 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
+from . import context
+from .context import LoadingContext, RuntimeContext, getdefault
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
 
 def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
-                      eval_timeout,         # type: float
-                      debug,                # type: bool
-                      js_console,           # type: bool
-                      force_docker_pull,    # type: bool
-                      job_script_provider,  # type: Optional[DependenciesConfiguration]
-                      make_tool,            # type: Callable[..., Process]
-                      **kwargs              # type: Any
+                      loadingContext        # type: LoadingContext
                      ):  # type: (...) -> Process
     if not isinstance(toolpath_object, dict):
         raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
-            return command_line_tool.CommandLineTool(
-                toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, **kwargs)
+            return command_line_tool.CommandLineTool(toolpath_object, loadingContext)
         elif toolpath_object["class"] == "ExpressionTool":
-            return command_line_tool.ExpressionTool(
-                toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, **kwargs)
+            return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
         elif toolpath_object["class"] == "Workflow":
-            return Workflow(
-                toolpath_object, eval_timeout, debug, js_console,
-                force_docker_pull, job_script_provider, make_tool, **kwargs)
+            return Workflow(toolpath_object, loadingContext)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
         toolpath_object["id"])
 
+context.default_make_tool = default_make_tool
 
 def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
     if fn is None:
@@ -186,21 +177,21 @@ class WorkflowJobStep(object):
         self.iterable = None  # type: Optional[Iterable]
         self.name = uniquename(u"step %s" % shortname(self.id))
 
-    def job(self, joborder, output_callback, mutation_manager, basedir, **kwargs):
-        # type: (Dict[Text, Text], functools.partial[None], MutationManager, Text, **Any) -> Generator
-        kwargs["part_of"] = self.name
-        kwargs["name"] = shortname(self.id)
+    def job(self, joborder, output_callback, runtimeContext):
+        # type: (Dict[Text, Text], functools.partial[None], RuntimeContext) -> Generator
+        runtimeContext = runtimeContext.copy()
+        runtimeContext.part_of = self.name
+        runtimeContext.name = shortname(self.id)
 
         _logger.info(u"[%s] start", self.name)
 
-        for j in self.step.job(joborder, output_callback, mutation_manager,
-                               basedir, **kwargs):
+        for j in self.step.job(joborder, output_callback, runtimeContext):
             yield j
 
 
 class WorkflowJob(object):
-    def __init__(self, workflow, **kwargs):
-        # type: (Workflow, **Any) -> None
+    def __init__(self, workflow, runtimeContext):
+        # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
         self.tool = workflow.tool
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
@@ -209,19 +200,19 @@ class WorkflowJob(object):
         self.did_callback = False
         self.made_progress = None  # type: Optional[bool]
 
-        if "outdir" in kwargs:
-            self.outdir = kwargs["outdir"]
+        if runtimeContext.outdir:
+            self.outdir = runtimeContext.outdir
         else:
             self.outdir = tempfile.mkdtemp(
-                prefix=kwargs.get("tmp_outdir_prefix", DEFAULT_TMP_PREFIX))
+                prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
 
         self.name = uniquename(u"workflow {}".format(
-            kwargs.get("name",
+            getdefault(runtimeContext.name,
                        shortname(self.workflow.tool.get("id", "embedded")))))
 
         _logger.debug(
             u"[%s] initialized from %s", self.name,
-            self.tool.get("id", "workflow embedded in %s" % kwargs.get("part_of")))
+            self.tool.get("id", "workflow embedded in %s" % runtimeContext.part_of))
 
     def do_output_callback(self, final_output_callback):
         # type: (Callable[[Any, Any], Any]) -> None
@@ -275,14 +266,8 @@ class WorkflowJob(object):
     def try_make_job(self,
                      step,                   # type: WorkflowJobStep
                      final_output_callback,  # type: Callable[[Any, Any], Any]
-                     mutation_manager,       # type: MutationManager
-                     basedir,                # type: Text
-                     **kwargs                # type: Any
+                     runtimeContext          # type: RuntimeContext
                     ):  # type: (...) -> Generator
-
-        js_console = kwargs.get("js_console", False)
-        debug = kwargs.get("debug", False)
-        timeout = kwargs.get("eval_timeout")
 
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
@@ -321,7 +306,7 @@ class WorkflowJob(object):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
                 shortio = {shortname(k): v for k, v in six.iteritems(io)}
 
-                fs_access = (kwargs.get("make_fs_access") or StdFsAccess)("")
+                fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:
@@ -331,7 +316,10 @@ class WorkflowJob(object):
                     if k in valueFrom:
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
-                            None, None, {}, context=v, debug=debug, js_console=js_console, timeout=timeout)
+                            None, None, {}, context=v,
+                            debug=runtimeContext.debug,
+                            js_console=runtimeContext.js_console,
+                            timeout=runtimeContext.eval_timeout)
                     else:
                         return v
 
@@ -342,7 +330,8 @@ class WorkflowJob(object):
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException("Must specify scatterMethod when scattering over multiple inputs")
-                kwargs["postScatterEval"] = postScatterEval
+                runtimeContext = runtimeContext.copy()
+                runtimeContext.postScatterEval = postScatterEval
 
                 tot = 1
                 emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
@@ -354,16 +343,13 @@ class WorkflowJob(object):
 
                 if method == "dotproduct" or method is None:
                     jobs = dotproduct_scatter(
-                        step, inputobj, scatter, callback, mutation_manager,
-                        basedir, **kwargs)
+                        step, inputobj, scatter, callback, runtimeContext)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(
-                        step, inputobj, scatter, callback, mutation_manager,
-                        basedir, **kwargs)
+                        step, inputobj, scatter, callback, runtimeContext)
                 elif method == "flat_crossproduct":
                     jobs = flat_crossproduct_scatter(
-                        step, inputobj, scatter, callback, mutation_manager,
-                        basedir, **kwargs)
+                        step, inputobj, scatter, callback, runtimeContext)
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"[job %s] job input %s", step.name,
@@ -374,8 +360,7 @@ class WorkflowJob(object):
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(u"[job %s] evaluated job input to %s",
                                   step.name, json_dumps(inputobj, indent=4))
-                jobs = step.job(inputobj, callback, mutation_manager, basedir,
-                                **kwargs)
+                jobs = step.job(inputobj, callback, runtimeContext)
 
             step.submitted = True
 
@@ -388,16 +373,16 @@ class WorkflowJob(object):
             self.processStatus = "permanentFail"
             step.completed = True
 
-    def run(self, **kwargs):
+    def run(self, runtimeContext):
         _logger.info(u"[%s] start", self.name)
 
-    def job(self, joborder, output_callback, mutation_manager, basedir, **kwargs):
-        # type: (Dict[Text, Any], Callable[[Any, Any], Any], MutationManager, Text, **Any) -> Generator
+    def job(self, joborder, output_callback, runtimeContext):
+        # type: (Dict[Text, Any], Callable[[Any, Any], Any], RuntimeContext) -> Generator
         self.state = {}
         self.processStatus = "success"
 
-        if "outdir" in kwargs:
-            del kwargs["outdir"]
+        runtimeContext = runtimeContext.copy()
+        runtimeContext.outdir = None
 
         for index, inp in enumerate(self.tool["inputs"]):
             with SourceLine(self.tool["inputs"], index, WorkflowException,
@@ -423,14 +408,13 @@ class WorkflowJob(object):
             self.made_progress = False
 
             for step in self.steps:
-                if kwargs.get("on_error", "stop") == "stop" and self.processStatus != "success":
+                if getdefault(runtimeContext.on_error, "stop") == "stop" and self.processStatus != "success":
                     break
 
                 if not step.submitted:
                     try:
                         step.iterable = self.try_make_job(
-                            step, output_callback, mutation_manager, basedir,
-                            **kwargs)
+                            step, output_callback, runtimeContext)
                     except WorkflowException as exc:
                         _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
                         _logger.debug("", exc_info=True)
@@ -439,7 +423,7 @@ class WorkflowJob(object):
                 if step.iterable:
                     try:
                         for newjob in step.iterable:
-                            if kwargs.get("on_error", "stop") == "stop" \
+                            if getdefault(runtimeContext.on_error, "stop") == "stop" \
                                     and self.processStatus != "success":
                                 break
                             if newjob:
@@ -467,28 +451,20 @@ class WorkflowJob(object):
 class Workflow(Process):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
-                 eval_timeout,         # type: float
-                 debug,                # type: bool
-                 js_console,           # type: bool
-                 force_docker_pull,    # type: bool
-                 job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 make_tool,             # type: Callable[..., Process]
-                 **kwargs              # type: Any
+                 loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
-            toolpath_object, eval_timeout, debug, js_console,
-            force_docker_pull, job_script_provider, **kwargs)
+            toolpath_object, loadingContext)
 
-        kwargs["requirements"] = self.requirements
-        kwargs["hints"] = self.hints
+        loadingContext = loadingContext.copy()
+        loadingContext.requirements = self.requirements
+        loadingContext.hints = self.hints
 
         self.steps = []  # type: List[WorkflowStep]
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(
-                    step, index, eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, make_tool, **kwargs))
+                self.steps.append(WorkflowStep(step, index, loadingContext))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -512,26 +488,24 @@ class Workflow(Process):
             for s in step.tool["inputs"]:
                 param_to_step[s["id"]] = step.tool
 
-        if kwargs.get("do_validate", True):
+        if getdefault(loadingContext.do_validate, True):
             static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
 
 
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            mutation_manager,  # type: MutationManager
-            basedir,           # type: Text
-            **kwargs           # type: Any
+            runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
-        builder = self._init_job(job_order, mutation_manager, basedir, **kwargs)
-        job = WorkflowJob(self, **kwargs)
+        builder = self._init_job(job_order, runtimeContext)
+        job = WorkflowJob(self, runtimeContext)
         yield job
 
-        kwargs["part_of"] = u"workflow %s" % job.name
-        kwargs["toplevel"] = False
+        runtimeContext = runtimeContext.copy()
+        runtimeContext.part_of = u"workflow %s" % job.name
+        runtimeContext.toplevel = False
 
-        for wjob in job.job(builder.job, output_callbacks, mutation_manager,
-                            basedir, **kwargs):
+        for wjob in job.job(builder.job, output_callbacks, runtimeContext):
             yield wjob
 
     def visit(self, op):
@@ -545,40 +519,27 @@ class WorkflowStep(Process):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
                  pos,                  # type: int
-                 eval_timeout,         # type: float
-                 debug,                # type: bool
-                 js_console,           # type: bool
-                 force_docker_pull,    # type: bool
-                 job_script_provider,  # type: Optional[DependenciesConfiguration]
-                 make_tool,            # type: Callable[..., Process]
-                 **kwargs              # type: Any
+                 loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
             self.id = "#step" + Text(pos)
 
-        kwargs["requirements"] = (kwargs.get("requirements", []) +
+        loadingContext = loadingContext.copy()
+
+        loadingContext.requirements = (getdefault(loadingContext.requirements, []) +
                                   toolpath_object.get("requirements", []) +
-                                  get_overrides(kwargs.get("overrides", []),
+                                  get_overrides(getdefault(loadingContext.overrides, []),
                                                 self.id).get("requirements", []))
-        kwargs["hints"] = kwargs.get("hints", []) + toolpath_object.get("hints", [])
+        loadingContext.hints = getdefault(loadingContext.hints, []) + toolpath_object.get("hints", [])
 
         try:
             if isinstance(toolpath_object["run"], dict):
-                self.embedded_tool = make_tool(
-                    toolpath_object["run"], eval_timeout, debug, js_console,
-                    force_docker_pull, job_script_provider, make_tool, **kwargs)
+                self.embedded_tool = loadingContext.construct_tool_object(toolpath_object["run"], loadingContext)
             else:
                 self.embedded_tool = load_tool(
-                    toolpath_object["run"], make_tool,
-                    eval_timeout, debug, js_console, force_docker_pull,
-                    job_script_provider, kwargs,
-                    kwargs.get("enable_dev", False),
-                    kwargs.get("strict", True),
-                    kwargs.get("resolver"),
-                    kwargs.get("fetcher_constructor"),
-                    kwargs.get("overrides"))
+                    toolpath_object["run"], loadingContext)
         except validate.ValidationException as vexc:
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
@@ -649,8 +610,7 @@ class WorkflowStep(Process):
             raise validate.ValidationException("\n".join(validation_errors))
 
         super(WorkflowStep, self).__init__(
-            toolpath_object, eval_timeout, debug, js_console,
-            force_docker_pull, job_script_provider, **kwargs)
+            toolpath_object, loadingContext)
 
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
@@ -712,9 +672,7 @@ class WorkflowStep(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            mutation_manager,  # type: MutationManager
-            basedir,           # type: Text
-            **kwargs           # type: Any
+            runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
@@ -724,11 +682,12 @@ class WorkflowStep(Process):
 
         try:
             for tool in self.embedded_tool.job(
-                    job_order, functools.partial(self.receive_output, output_callbacks),
-                    mutation_manager, basedir, **kwargs):
+                    job_order,
+                    functools.partial(self.receive_output, output_callbacks),
+                    runtimeContext):
                 yield tool
         except WorkflowException:
-            _logger.error(u"Exception on step '%s'", kwargs.get("name"))
+            _logger.error(u"Exception on step '%s'", runtimeContext.name)
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")
@@ -770,16 +729,16 @@ class ReceiveScatterOutput(object):
             self.output_callback(self.dest, self.processStatus)
 
 
-def parallel_steps(steps, rc, kwargs):
-    # type: (List[Generator], ReceiveScatterOutput, Dict[str, Any]) -> Generator
+def parallel_steps(steps, rc, runtimeContext):
+    # type: (List[Generator], ReceiveScatterOutput, RuntimeContext) -> Generator
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
-            if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
+            if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
                 break
             try:
                 for j in step:
-                    if kwargs.get("on_error", "stop") == "stop" and rc.processStatus != "success":
+                    if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
                         break
                     if j:
                         made_progress = True
@@ -798,9 +757,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
                        joborder,          # type: Dict[Text, Any]
                        scatter_keys,      # type: List[Text]
                        output_callback,   # type: Callable[..., Any]
-                       mutation_manager,  # type: MutationManager
-                       basedir,           # type: Text
-                       **kwargs           # type: Any
+                       runtimeContext     # type: RuntimeContext
                       ):  # type: (...) -> Generator
     jobl = None  # type: Optional[int]
     for key in scatter_keys:
@@ -824,19 +781,20 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
-        sjobo = kwargs["postScatterEval"](sjobo)
+        if runtimeContext.postScatterEval is not None:
+            sjobo = runtimeContext.postScatterEval(sjobo)
 
         steps.append(process.job(
             sjobo, functools.partial(rc.receive_scatter_output, index),
-            mutation_manager, basedir, **kwargs))
+            runtimeContext))
 
     rc.setTotal(jobl)
-    return parallel_steps(steps, rc, kwargs)
+    return parallel_steps(steps, rc, runtimeContext)
 
 
 def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback,
-                                mutation_manager, basedir, **kwargs):
-    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], MutationManager, Text, **Any) -> Generator
+                                runtimeContext):
+    # type: (WorkflowJobStep, Dict[Text, Any], List[Text], Callable[..., Any], RuntimeContext) -> Generator
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
     output = {}  # type: Dict[Text, List[Optional[Text]]]
@@ -851,18 +809,19 @@ def nested_crossproduct_scatter(process, joborder, scatter_keys, output_callback
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
-            sjob = kwargs["postScatterEval"](sjob)
+            if runtimeContext.postScatterEval is not None:
+                sjob = runtimeContext.postScatterEval(sjob)
             steps.append(process.job(
                 sjob, functools.partial(rc.receive_scatter_output, index),
-                mutation_manager, basedir, **kwargs))
+                runtimeContext))
         else:
             steps.append(nested_crossproduct_scatter(
                 process, sjob, scatter_keys[1:],
                 functools.partial(rc.receive_scatter_output, index),
-                mutation_manager, basedir, **kwargs))
+                runtimeContext))
 
     rc.setTotal(jobl)
-    return parallel_steps(steps, rc, kwargs)
+    return parallel_steps(steps, rc, runtimeContext)
 
 
 def crossproduct_size(joborder, scatter_keys):
@@ -880,28 +839,23 @@ def flat_crossproduct_scatter(process,           # type: WorkflowJobStep
                               joborder,          # type: Dict[Text, Any]
                               scatter_keys,      # type: List[Text]
                               output_callback,   # type: Callable[..., Any]
-                              mutation_manager,  # type: MutationManager
-                              basedir,           # type: Text
-                              **kwargs           # type: Any
+                              runtimeContext     # type: RuntimeContext
                              ):  # type: (...) -> Generator
     output = {}  # type: Dict[Text, List[Optional[Text]]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
     callback = ReceiveScatterOutput(output_callback, output, 0)
     (steps, total) = _flat_crossproduct_scatter(
-        process, joborder, scatter_keys, callback, mutation_manager, basedir,
-        0, **kwargs)
+        process, joborder, scatter_keys, callback, 0, runtimeContext)
     callback.setTotal(total)
-    return parallel_steps(steps, callback, kwargs)
+    return parallel_steps(steps, callback, runtimeContext)
 
 def _flat_crossproduct_scatter(process,           # type: WorkflowJobStep
                                joborder,          # type: Dict[Text, Any]
                                scatter_keys,      # type: List[Text]
                                callback,          # type: ReceiveScatterOutput
-                               mutation_manager,  # type: MutationManager
-                               basedir,           # type: Text
                                startindex,        # type: int
-                               **kwargs           # type: Any
+                               runtimeContext     # type: RuntimeContext
                               ):  # type: (...) -> Tuple[List[Generator], int]
     """ Inner loop. """
     scatter_key = scatter_keys[0]
@@ -913,15 +867,15 @@ def _flat_crossproduct_scatter(process,           # type: WorkflowJobStep
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
-            sjob = kwargs["postScatterEval"](sjob)
+            if runtimeContext.postScatterEval is not None:
+                sjob = runtimeContext.postScatterEval(sjob)
             steps.append(process.job(
                 sjob, functools.partial(callback.receive_scatter_output, put),
-                mutation_manager, basedir, **kwargs))
+                runtimeContext))
             put += 1
         else:
             (add, _) = _flat_crossproduct_scatter(
-                process, sjob, scatter_keys[1:], callback, mutation_manager,
-                basedir, put, **kwargs)
+                process, sjob, scatter_keys[1:], callback, put, runtimeContext)
             put += len(add)
             steps.extend(add)
 

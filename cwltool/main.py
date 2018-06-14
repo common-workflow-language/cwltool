@@ -25,7 +25,7 @@ import six
 from six import string_types
 
 from . import command_line_tool, workflow
-from .argparser import arg_parser, generate_parser
+from .argparser import arg_parser, generate_parser, get_default_args
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import MultithreadedJobExecutor, SingleJobExecutor
@@ -48,17 +48,8 @@ from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
                     windows_default_container_id)
-
-
-def single_job_executor(t,  # type: Process
-                        job_order_object,  # type: Dict[Text, Any]
-                        **kwargs  # type: Any
-                       ):  # type: (...) -> Tuple[Dict[Text, Any], Text]
-    warnings.warn("Use of single_job_executor function is deprecated. "
-                  "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
-    executor = SingleJobExecutor()
-    return executor(t, job_order_object, **kwargs)
-
+from .context import LoadingContext, RuntimeContext, getdefault
+from .builder import HasReqsHints
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -335,13 +326,13 @@ def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
 def main(argsl=None,                  # type: List[str]
          args=None,                   # type: argparse.Namespace
          executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         maker_tool=workflow.default_make_tool,  # type: Callable[..., Process]
+         construct_tool_object=workflow.default_make_tool,  # type: Callable[..., Process]
          selectResources=None,        # type: Callable[[Dict[Text, int]], Dict[Text, int]]
          stdin=sys.stdin,             # type: IO[Any]
          stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
          stderr=sys.stderr,           # type: IO[Any]
          versionfunc=versionstring,   # type: Callable[[], Text]
-         job_order_object=None,  # type: MutableMapping[Text, Any]
+         job_order_object=None,       # type: MutableMapping[Text, Any]
          make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
          fetcher_constructor=None,    # type: FetcherConstructorType
          resolver=tool_resolver,      #
@@ -377,44 +368,10 @@ def main(argsl=None,                  # type: List[str]
             # (size 6 mb). source: https://github.com/frol/docker-alpine-bash
             args.default_container = windows_default_container_id
 
-        # If caller provided custom arguments, it may be not every expected
-        # option is set, so fill in no-op defaults to avoid crashing when
+        # If caller parsed its own arguments, it may include every
+        # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.
-        for key, val in six.iteritems(
-                {'print_deps': False,
-                 'print_pre': False,
-                 'print_rdf': False,
-                 'print_dot': False,
-                 'relative_deps': False,
-                 'tmp_outdir_prefix': 'tmp',
-                 'tmpdir_prefix': 'tmp',
-                 'print_input_deps': False,
-                 'cachedir': None,
-                 'quiet': False,
-                 'debug': False,
-                 'timestamps': False,
-                 'js_console': False,
-                 'version': False,
-                 'enable_dev': False,
-                 'enable_ext': False,
-                 'strict': True,
-                 'skip_schemas': False,
-                 'rdf_serializer': None,
-                 'basedir': None,
-                 'tool_help': False,
-                 'workflow': None,
-                 'job_order': None,
-                 'pack': False,
-                 'on_error': 'continue',
-                 'relax_path_checks': False,
-                 'validate': False,
-                 'enable_ga4gh_tool_registry': False,
-                 'ga4gh_tool_registries': [],
-                 'find_default_container': None,
-                 'make_template': False,
-                 'overrides': None,
-                 'do_validate': True
-                }):
+        for key, val in six.iteritems(get_default_args()):
             if not hasattr(args, key):
                 setattr(args, key, val)
 
@@ -502,29 +459,14 @@ def main(argsl=None,                  # type: List[str]
 
             overrides.extend(metadata.get("cwltool:overrides", []))
 
-            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
-            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
-
-            make_tool_kwds = copy.deepcopy(vars(args))
-
-            job_script_provider = None  # type: Optional[DependenciesConfiguration]
-            if conf_file or use_conda_dependencies:
-                job_script_provider = DependenciesConfiguration(args)
-
-            make_tool_kwds["find_default_container"] = \
-                    functools.partial(find_default_container, args)
-            make_tool_kwds["overrides"] = overrides
-            make_tool_kwds["disable_js_validation"] = \
+            loadingContext = LoadingContext(vars(args))
+            loadingContext.overrides = overrides
+            loadingContext.disable_js_validation = \
                     args.disable_js_validation or (not args.do_validate)
-            del make_tool_kwds["eval_timeout"]
-            del make_tool_kwds["debug"]
-            del make_tool_kwds["js_console"]
-            del make_tool_kwds["force_docker_pull"]
+            loadingContext.construct_tool_object = construct_tool_object
 
-            tool = make_tool(document_loader, avsc_names, metadata, uri,
-                             maker_tool, args.eval_timeout, args.debug,
-                             args.js_console, args.force_docker_pull,
-                             job_script_provider, make_tool_kwds)
+            tool = make_tool(document_loader, avsc_names,
+                             metadata, uri, loadingContext)
             if args.make_template:
                 yaml.safe_dump(generate_input_template(tool), sys.stdout,
                                default_flow_style=False, indent=4,
@@ -598,9 +540,9 @@ def main(argsl=None,                  # type: List[str]
         if secrets_req:
             secret_store = SecretStore()
 
-        job_order_object2 = 255  # type: Union[MutableMapping[Text, Any], int]
+        initialized_job_order_object = 255  # type: Union[MutableMapping[Text, Any], int]
         try:
-            job_order_object2 = init_job_order(job_order_object, args, tool,
+            initialized_job_order_object = init_job_order(job_order_object, args, tool,
                                                jobloader, stdout,
                                                print_input_deps=args.print_input_deps,
                                                relative_deps=args.relative_deps,
@@ -616,20 +558,32 @@ def main(argsl=None,                  # type: List[str]
                 executor = SingleJobExecutor()
         assert executor is not None
 
-        if isinstance(job_order_object2, int):
-            return job_order_object2
+        if isinstance(initialized_job_order_object, int):
+            return initialized_job_order_object
 
         try:
             setattr(args, 'basedir', input_basedir)
             del args.workflow
             del args.job_order
-            (out, status) = executor(tool, job_order_object2,
-                                     logger=_logger,
-                                     make_tool=make_tool,
-                                     select_resources=selectResources,
-                                     make_fs_access=make_fs_access,
-                                     secret_store=secret_store,
-                                     **vars(args))
+            runtimeContext = RuntimeContext(vars(args))
+
+            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
+            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
+
+            job_script_provider = None  # type: Optional[DependenciesConfiguration]
+            if conf_file or use_conda_dependencies:
+                runtimeContext.job_script_provider = DependenciesConfiguration(args)
+
+            runtimeContext.find_default_container = \
+                    functools.partial(find_default_container, args)
+            runtimeContext.select_resources = selectResources
+            runtimeContext.make_fs_access = make_fs_access
+            runtimeContext.secret_store = secret_store
+
+            (out, status) = executor(tool,
+                                     initialized_job_order_object,
+                                     runtimeContext,
+                                     logger=_logger)
 
             # This is the workflow output, it needs to be written
             if out is not None:
@@ -687,6 +641,7 @@ def main(argsl=None,                  # type: List[str]
 
 
 def find_default_container(args, builder):
+    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
     default_container = None
     if args.default_container:
         default_container = args.default_container
