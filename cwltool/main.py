@@ -539,7 +539,7 @@ def main(argsl=None,                  # type: List[str]
 
         if args.cachedir:
             if args.move_outputs == "move":
-                runtimeContext.move_outputs = copy
+                runtimeContext.move_outputs = "copy"
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
         secret_store = None

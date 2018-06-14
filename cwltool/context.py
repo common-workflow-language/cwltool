@@ -83,7 +83,7 @@ class RuntimeContext(ContextBase):
         self.debug = False              # type: bool
         self.compute_checksum = True    # type: bool
         self.name = ""                  # type: Text
-        self.default_container = None
+        self.default_container = ""     # type: Text
         self.find_default_container = None  # type: Optional[Callable[[HasReqsHints], Optional[Text]]]
         self.cachedir = None            # type: Optional[Text]
         self.outdir = None              # type: Optional[Text]
