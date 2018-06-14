@@ -107,7 +107,7 @@ def generate_input_template(tool):
 def load_job_order(args,                 # type: argparse.Namespace
                    stdin,                # type: IO[Any]
                    fetcher_constructor,  # Fetcher
-                   overrides,            # type: List[Dict[Text, Any]]
+                   overrides_list,       # type: List[Dict[Text, Any]]
                    tool_file_uri         # type: Text
                   ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Text, Loader]
 
@@ -132,7 +132,7 @@ def load_job_order(args,                 # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
-        overrides.extend(
+        overrides_list.extend(
             resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]
 
@@ -325,19 +325,16 @@ def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
 
 def main(argsl=None,                  # type: List[str]
          args=None,                   # type: argparse.Namespace
-         executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         construct_tool_object=workflow.default_make_tool,  # type: Callable[..., Process]
-         selectResources=None,        # type: Callable[[Dict[Text, int]], Dict[Text, int]]
+         job_order_object=None,       # type: MutableMapping[Text, Any]
          stdin=sys.stdin,             # type: IO[Any]
          stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
          stderr=sys.stderr,           # type: IO[Any]
          versionfunc=versionstring,   # type: Callable[[], Text]
-         job_order_object=None,       # type: MutableMapping[Text, Any]
-         make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=None,    # type: FetcherConstructorType
-         resolver=tool_resolver,      #
          logger_handler=None,         #
-         custom_schema_callback=None  # type: Callable[[], None]
+         custom_schema_callback=None, # type: Callable[[], None]
+         executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
+         loadingContext=None,         # type: LoadingContext
+         runtimeContext=None          # type: RuntimeContext
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")  # type: ignore
@@ -361,14 +358,19 @@ def main(argsl=None,                  # type: List[str]
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
 
+        if runtimeContext is None:
+            runtimeContext = RuntimeContext(vars(args))
+        else:
+            runtimeContext = runtimeContext.copy()
+
         # If on Windows platform, a default Docker Container is used if not
         # explicitely provided by user
-        if onWindows() and not args.default_container:
+        if onWindows() and not runtimeContext.default_container:
             # This docker image is a minimal alpine image with bash installed
             # (size 6 mb). source: https://github.com/frol/docker-alpine-bash
-            args.default_container = windows_default_container_id
+            runtimeContext.default_container = windows_default_container_id
 
-        # If caller parsed its own arguments, it may include every
+        # If caller parsed its own arguments, it may not include every
         # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.
         for key, val in six.iteritems(get_default_args()):
@@ -380,7 +382,7 @@ def main(argsl=None,                  # type: List[str]
         rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
             _logger.setLevel(logging.WARN)
-        if args.debug:
+        if runtimeContext.debug:
             _logger.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         if args.timestamps:
@@ -423,22 +425,32 @@ def main(argsl=None,                  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
-        uri, tool_file_uri = resolve_tool_uri(args.workflow,
-                                              resolver=resolver,
-                                              fetcher_constructor=fetcher_constructor)
+        if loadingContext is None:
+            loadingContext = LoadingContext(vars(args))
+        else:
+            loadingContext = loadingContext.copy()
 
-        overrides = []  # type: List[Dict[Text, Any]]
+        loadingContext.disable_js_validation = \
+                args.disable_js_validation or (not args.do_validate)
+        loadingContext.construct_tool_object = getdefault(loadingContext.construct_tool_object, workflow.default_make_tool)
+        loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
+
+        uri, tool_file_uri = resolve_tool_uri(args.workflow,
+                                              resolver=loadingContext.resolver,
+                                              fetcher_constructor=loadingContext.fetcher_constructor)
 
         try:
             job_order_object, input_basedir, jobloader = load_job_order(
-                args, stdin, fetcher_constructor, overrides, tool_file_uri)
+                args, stdin, loadingContext.fetcher_constructor,
+                loadingContext.overrides_list, tool_file_uri)
 
             if args.overrides:
-                overrides.extend(load_overrides(
+                loadingContext.overrides_list.extend(load_overrides(
                     file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
             document_loader, workflowobj, uri = fetch_document(
-                uri, resolver=resolver, fetcher_constructor=fetcher_constructor)
+                uri, resolver=loadingContext.resolver,
+                fetcher_constructor=loadingContext.fetcher_constructor)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -446,24 +458,19 @@ def main(argsl=None,                  # type: List[str]
 
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
-                                    enable_dev=args.enable_dev, strict=args.strict,
-                                    preprocess_only=args.print_pre or args.pack,
-                                    fetcher_constructor=fetcher_constructor,
+                                    enable_dev=loadingContext.enable_dev,
+                                    strict=loadingContext.strict,
+                                    preprocess_only=(args.print_pre or args.pack),
+                                    fetcher_constructor=loadingContext.fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=overrides,
-                                    do_validate=args.do_validate)
+                                    overrides=loadingContext.overrides_list,
+                                    do_validate=loadingContext.do_validate)
 
             if args.print_pre:
                 stdout.write(json_dumps(processobj, indent=4))
                 return 0
 
-            overrides.extend(metadata.get("cwltool:overrides", []))
-
-            loadingContext = LoadingContext(vars(args))
-            loadingContext.overrides = overrides
-            loadingContext.disable_js_validation = \
-                    args.disable_js_validation or (not args.do_validate)
-            loadingContext.construct_tool_object = construct_tool_object
+            loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
 
             tool = make_tool(document_loader, avsc_names,
                              metadata, uri, loadingContext)
@@ -532,8 +539,8 @@ def main(argsl=None,                  # type: List[str]
 
         if args.cachedir:
             if args.move_outputs == "move":
-                setattr(args, 'move_outputs', "copy")
-            setattr(args, "tmp_outdir_prefix", args.cachedir)
+                runtimeContext.move_outputs = copy
+            runtimeContext.tmp_outdir_prefix = args.cachedir
 
         secret_store = None
         secrets_req, _ = tool.get_requirement("http://commonwl.org/cwltool#Secrets")
@@ -562,10 +569,9 @@ def main(argsl=None,                  # type: List[str]
             return initialized_job_order_object
 
         try:
-            setattr(args, 'basedir', input_basedir)
+            runtimeContext.basedir = input_basedir
             del args.workflow
             del args.job_order
-            runtimeContext = RuntimeContext(vars(args))
 
             conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
             use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
@@ -576,8 +582,7 @@ def main(argsl=None,                  # type: List[str]
 
             runtimeContext.find_default_container = \
                     functools.partial(find_default_container, args)
-            runtimeContext.select_resources = selectResources
-            runtimeContext.make_fs_access = make_fs_access
+            runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
             runtimeContext.secret_store = secret_store
 
             (out, status) = executor(tool,

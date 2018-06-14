@@ -39,7 +39,7 @@ class LoadingContext(ContextBase):
         self.metadata = {}                 # type: Dict[Text, Any]
         self.requirements = None
         self.hints = None
-        self.overrides = []                # type: List[Dict[Text, Any]]
+        self.overrides_list = []           # type: List[Dict[Text, Any]]
         self.loader = None                 # type: Optional[Loader]
         self.avsc_names = None             # type: Optional[schema.Names]
         self.disable_js_validation = False # type: bool

@@ -530,7 +530,7 @@ class WorkflowStep(Process):
 
         loadingContext.requirements = (getdefault(loadingContext.requirements, []) +
                                   toolpath_object.get("requirements", []) +
-                                  get_overrides(getdefault(loadingContext.overrides, []),
+                                  get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
         loadingContext.hints = getdefault(loadingContext.hints, []) + toolpath_object.get("hints", [])
 

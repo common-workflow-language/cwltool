@@ -478,7 +478,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         self.tool = toolpath_object
         self.requirements = (getdefault(loadingContext.requirements, []) +
                              self.tool.get("requirements", []) +
-                             get_overrides(getdefault(loadingContext.overrides, []),
+                             get_overrides(getdefault(loadingContext.overrides_list, []),
                                            self.tool["id"]).get("requirements", []))
         self.hints = getdefault(loadingContext.hints, []) + self.tool.get("hints", [])
         # Versions of requirements and hints which aren't mutated.
