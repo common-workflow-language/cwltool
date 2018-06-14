@@ -44,7 +44,7 @@ class LoadingContext(ContextBase):
         self.avsc_names = None             # type: Optional[schema.Names]
         self.disable_js_validation = False # type: bool
         self.js_hint_options_file = None
-        self.do_validate = None
+        self.do_validate = True            # type: bool
         self.enable_dev = False            # type: bool
         self.strict = True                 # type: bool
         self.resolver = None
@@ -80,7 +80,7 @@ class RuntimeContext(ContextBase):
 
         self.singularity = False        # type: bool
         self.disable_net = None
-        self.debug = False  # type: bool
+        self.debug = False              # type: bool
         self.compute_checksum = True    # type: bool
         self.name = ""                  # type: Text
         self.default_container = None
