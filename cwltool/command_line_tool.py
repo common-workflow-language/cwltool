@@ -245,9 +245,9 @@ class CommandLineTool(Process):
                         "DockerRequirement under 'requirements'.")
             return CommandLineJob
 
-    def make_path_mapper(self, reffiles, stagedir, runtimeContext):
-        # type: (List[Any], Text, RuntimeContext) -> PathMapper
-        return PathMapper(reffiles, runtimeContext.basedir, stagedir, True)
+    def make_path_mapper(self, reffiles, stagedir, runtimeContext, separateDirs):
+        # type: (List[Any], Text, RuntimeContext, bool) -> PathMapper
+        return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
     def updatePathmap(self, outdir, pathmap, fn):
         # type: (Text, PathMapper, Dict) -> None
@@ -385,7 +385,7 @@ class CommandLineTool(Process):
                                                              indent=4))
 
         builder.pathmapper = self.make_path_mapper(
-            reffiles, builder.stagedir, runtimeContext)
+            reffiles, builder.stagedir, runtimeContext, True)
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, builder)
