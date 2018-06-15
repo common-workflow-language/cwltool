@@ -207,10 +207,6 @@ def check_valid_locations(fs_access, ob):
     if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
-def make_path_mapper(reffiles, stagedir, basedir, separateDirs=True):
-    # type: (List[Any], Text, Text, bool) -> PathMapper
-    return PathMapper(reffiles, basedir, stagedir, separateDirs)
-
 
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
@@ -248,6 +244,10 @@ class CommandLineTool(Process):
                         "--no-container, but this CommandLineTool has "
                         "DockerRequirement under 'requirements'.")
             return CommandLineJob
+
+    def make_path_mapper(self, reffiles, stagedir, runtimeContext):
+        # type: (List[Any], Text, RuntimeContext) -> PathMapper
+        return PathMapper(reffiles, runtimeContext.basedir, stagedir, True)
 
     def updatePathmap(self, outdir, pathmap, fn):
         # type: (Text, PathMapper, Dict) -> None
@@ -367,7 +367,7 @@ class CommandLineTool(Process):
         reffiles = copy.deepcopy(builder.files)
 
         j = self.make_job_runner(runtimeContext)(
-            builder, builder.job, make_path_mapper, self.requirements,
+            builder, builder.job, self.make_path_mapper, self.requirements,
             self.hints, jobname)
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
@@ -384,8 +384,8 @@ class CommandLineTool(Process):
             _logger.debug(u"[job %s] %s", j.name, json_dumps(job_order,
                                                              indent=4))
 
-        builder.pathmapper = make_path_mapper(
-            reffiles, builder.stagedir, runtimeContext.basedir, True)
+        builder.pathmapper = self.make_path_mapper(
+            reffiles, builder.stagedir, runtimeContext)
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, builder)

@@ -104,26 +104,26 @@ class HasReqsHints(object):
 class Builder(HasReqsHints):
     def __init__(self,
                  job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
-                 files,                # type: List[Dict[Text, Text]]
-                 bindings,             # type: List[Dict[Text, Any]]
-                 schemaDefs,           # type: Dict[Text, Dict[Text, Any]]
-                 names,                # type: schema_salad.schema.Names
-                 requirements,         # type: List[Dict[Text, Any]]
-                 hints,                # type: List[Dict[Text, Any]]
-                 timeout,              # type: float
-                 debug,                # type: bool
-                 resources,            # type: Dict[Text, int]
-                 js_console,           # type: bool
-                 mutation_manager,     # type: Optional[MutationManager]
-                 formatgraph,          # type: Optional[Graph]
-                 make_fs_access,       # type: Type[StdFsAccess]
-                 fs_access,            # type: StdFsAccess
-                 force_docker_pull,    # type: bool
-                 loadListing,          # type: Text
-                 outdir,               # type: Text
-                 tmpdir,               # type: Text
-                 stagedir,             # type: Text
-                 job_script_provider   # type: Optional[Any]
+                 files=None,                # type: List[Dict[Text, Text]]
+                 bindings=None,             # type: List[Dict[Text, Any]]
+                 schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
+                 names=None,                # type: schema_salad.schema.Names
+                 requirements=None,         # type: List[Dict[Text, Any]]
+                 hints=None,                # type: List[Dict[Text, Any]]
+                 timeout=None,              # type: float
+                 debug=None,                # type: bool
+                 resources=None,            # type: Dict[Text, int]
+                 js_console=None,           # type: bool
+                 mutation_manager=None,     # type: Optional[MutationManager]
+                 formatgraph=None,          # type: Optional[Graph]
+                 make_fs_access=None,       # type: Type[StdFsAccess]
+                 fs_access=None,            # type: StdFsAccess
+                 force_docker_pull=None,    # type: bool
+                 loadListing=None,          # type: Text
+                 outdir=None,               # type: Text
+                 tmpdir=None,               # type: Text
+                 stagedir=None,             # type: Text
+                 job_script_provider=None   # type: Optional[Any]
                 ):  # type: (...) -> None
         self.names = names
         self.schemaDefs = schemaDefs

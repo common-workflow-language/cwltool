@@ -542,10 +542,7 @@ def main(argsl=None,                  # type: List[str]
                 runtimeContext.move_outputs = "copy"
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
-        secret_store = None
-        secrets_req, _ = tool.get_requirement("http://commonwl.org/cwltool#Secrets")
-        if secrets_req:
-            secret_store = SecretStore()
+        runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
 
         initialized_job_order_object = 255  # type: Union[MutableMapping[Text, Any], int]
         try:
@@ -554,7 +551,7 @@ def main(argsl=None,                  # type: List[str]
                                                print_input_deps=args.print_input_deps,
                                                relative_deps=args.relative_deps,
                                                input_basedir=input_basedir,
-                                               secret_store=secret_store)
+                                               secret_store=runtimeContext.secret_store)
         except SystemExit as err:
             return err.code
 
@@ -583,7 +580,6 @@ def main(argsl=None,                  # type: List[str]
             runtimeContext.find_default_container = \
                     functools.partial(find_default_container, args)
             runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-            runtimeContext.secret_store = secret_store
 
             (out, status) = executor(tool,
                                      initialized_job_order_object,
