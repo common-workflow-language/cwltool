@@ -186,9 +186,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
         if self.generatefiles["listing"]:
+            runtimeContext = runtimeContext.copy()
+            runtimeContext.outdir = self.outdir
             self.generatemapper = self.make_path_mapper(
                 cast(List[Any], self.generatefiles["listing"]),
-                self.builder.outdir, self.outdir, separateDirs=False)
+                self.builder.outdir, runtimeContext, False)
             _logger.debug(u"[job %s] initial work dir %s", self.name,
                           json_dumps({p: self.generatemapper.mapper(p)
                                       for p in self.generatemapper.files()},

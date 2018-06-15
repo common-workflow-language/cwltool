@@ -530,7 +530,7 @@ class WorkflowStep(Process):
 
         loadingContext.requirements = (getdefault(loadingContext.requirements, []) +
                                   toolpath_object.get("requirements", []) +
-                                  get_overrides(getdefault(loadingContext.overrides, []),
+                                  get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
         loadingContext.hints = getdefault(loadingContext.hints, []) + toolpath_object.get("hints", [])
 
@@ -541,6 +541,8 @@ class WorkflowStep(Process):
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
         except validate.ValidationException as vexc:
+            if loadingContext.debug:
+               _logger.exception("Validation exception")
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
                 (toolpath_object["run"], validate.indent(str(vexc))))

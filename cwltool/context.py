@@ -39,7 +39,7 @@ class LoadingContext(ContextBase):
         self.metadata = {}                 # type: Dict[Text, Any]
         self.requirements = None
         self.hints = None
-        self.overrides = []                # type: List[Dict[Text, Any]]
+        self.overrides_list = []           # type: List[Dict[Text, Any]]
         self.loader = None                 # type: Optional[Loader]
         self.avsc_names = None             # type: Optional[schema.Names]
         self.disable_js_validation = False # type: bool
@@ -83,7 +83,7 @@ class RuntimeContext(ContextBase):
         self.debug = False              # type: bool
         self.compute_checksum = True    # type: bool
         self.name = ""                  # type: Text
-        self.default_container = None
+        self.default_container = ""     # type: Text
         self.find_default_container = None  # type: Optional[Callable[[HasReqsHints], Optional[Text]]]
         self.cachedir = None            # type: Optional[Text]
         self.outdir = None              # type: Optional[Text]

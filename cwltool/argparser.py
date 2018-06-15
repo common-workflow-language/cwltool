@@ -267,7 +267,7 @@ def get_default_args():
     Get default values of cwltool's command line options
     """
     ap = arg_parser()
-    args = ap.parse_args()
+    args = ap.parse_args([])
     return vars(args)
 
 

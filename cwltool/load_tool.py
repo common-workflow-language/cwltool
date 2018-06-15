@@ -364,7 +364,7 @@ def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
         enable_dev=loadingContext.enable_dev,
         strict=loadingContext.strict,
         fetcher_constructor=loadingContext.fetcher_constructor,
-        overrides=loadingContext.overrides,
+        overrides=loadingContext.overrides_list,
         metadata=loadingContext.metadata)
 
     return make_tool(document_loader,
