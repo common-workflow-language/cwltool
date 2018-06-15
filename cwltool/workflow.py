@@ -541,6 +541,8 @@ class WorkflowStep(Process):
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
         except validate.ValidationException as vexc:
+            if loadingContext.debug:
+               _logger.exception("Validation exception")
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
                 (toolpath_object["run"], validate.indent(str(vexc))))

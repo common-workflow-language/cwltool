@@ -439,6 +439,8 @@ def main(argsl=None,                  # type: List[str]
                                               resolver=loadingContext.resolver,
                                               fetcher_constructor=loadingContext.fetcher_constructor)
 
+        try_again_msg = "" if args.debug else ", try again with --debug for more information"
+
         try:
             job_order_object, input_basedir, jobloader = load_job_order(
                 args, stdin, loadingContext.fetcher_constructor,
@@ -506,9 +508,9 @@ def main(argsl=None,                  # type: List[str]
             return 1
         except Exception as exc:
             _logger.error(
-                u"I'm sorry, I couldn't load this CWL file%s",
-                ", try again with --debug for more information.\nThe error was: "
-                "%s" % exc if not args.debug else ".  The error was:",
+                u"I'm sorry, I couldn't load this CWL file%s.\nThe error was: %s",
+                try_again_msg,
+                exc if not args.debug else "",
                 exc_info=args.debug)
             return 1
 
@@ -627,13 +629,12 @@ def main(argsl=None,                  # type: List[str]
             return 33
         except WorkflowException as exc:
             _logger.error(
-                u"Workflow error, try again with --debug for more "
-                "information:\n%s", strip_dup_lineno(six.text_type(exc)), exc_info=args.debug)
+                u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(six.text_type(exc)),
+                exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
-                u"Unhandled error, try again with --debug for more information:\n"
-                "  %s", exc, exc_info=args.debug)
+                u"Unhandled error%s:\n  %s", try_again_msg, exc, exc_info=args.debug)
             return 1
 
     finally:
