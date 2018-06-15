@@ -25,7 +25,7 @@ import six
 from six import string_types
 
 from . import command_line_tool, workflow
-from .argparser import arg_parser, generate_parser
+from .argparser import arg_parser, generate_parser, get_default_args
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import MultithreadedJobExecutor, SingleJobExecutor
@@ -48,17 +48,8 @@ from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
                     windows_default_container_id)
-
-
-def single_job_executor(t,  # type: Process
-                        job_order_object,  # type: Dict[Text, Any]
-                        **kwargs  # type: Any
-                       ):  # type: (...) -> Tuple[Dict[Text, Any], Text]
-    warnings.warn("Use of single_job_executor function is deprecated. "
-                  "Use cwltool.executors.SingleJobExecutor class instead", DeprecationWarning)
-    executor = SingleJobExecutor()
-    return executor(t, job_order_object, **kwargs)
-
+from .context import LoadingContext, RuntimeContext, getdefault
+from .builder import HasReqsHints
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -116,7 +107,7 @@ def generate_input_template(tool):
 def load_job_order(args,                 # type: argparse.Namespace
                    stdin,                # type: IO[Any]
                    fetcher_constructor,  # Fetcher
-                   overrides,            # type: List[Dict[Text, Any]]
+                   overrides_list,       # type: List[Dict[Text, Any]]
                    tool_file_uri         # type: Text
                   ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Text, Loader]
 
@@ -141,7 +132,7 @@ def load_job_order(args,                 # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
-        overrides.extend(
+        overrides_list.extend(
             resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]
 
@@ -334,19 +325,16 @@ def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
 
 def main(argsl=None,                  # type: List[str]
          args=None,                   # type: argparse.Namespace
-         executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         maker_tool=workflow.default_make_tool,  # type: Callable[..., Process]
-         selectResources=None,        # type: Callable[[Dict[Text, int]], Dict[Text, int]]
+         job_order_object=None,       # type: MutableMapping[Text, Any]
          stdin=sys.stdin,             # type: IO[Any]
          stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
          stderr=sys.stderr,           # type: IO[Any]
          versionfunc=versionstring,   # type: Callable[[], Text]
-         job_order_object=None,  # type: MutableMapping[Text, Any]
-         make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
-         fetcher_constructor=None,    # type: FetcherConstructorType
-         resolver=tool_resolver,      #
          logger_handler=None,         #
-         custom_schema_callback=None  # type: Callable[[], None]
+         custom_schema_callback=None, # type: Callable[[], None]
+         executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
+         loadingContext=None,         # type: LoadingContext
+         runtimeContext=None          # type: RuntimeContext
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")  # type: ignore
@@ -370,51 +358,22 @@ def main(argsl=None,                  # type: List[str]
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
 
+        if runtimeContext is None:
+            runtimeContext = RuntimeContext(vars(args))
+        else:
+            runtimeContext = runtimeContext.copy()
+
         # If on Windows platform, a default Docker Container is used if not
         # explicitely provided by user
-        if onWindows() and not args.default_container:
+        if onWindows() and not runtimeContext.default_container:
             # This docker image is a minimal alpine image with bash installed
             # (size 6 mb). source: https://github.com/frol/docker-alpine-bash
-            args.default_container = windows_default_container_id
+            runtimeContext.default_container = windows_default_container_id
 
-        # If caller provided custom arguments, it may be not every expected
-        # option is set, so fill in no-op defaults to avoid crashing when
+        # If caller parsed its own arguments, it may not include every
+        # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.
-        for key, val in six.iteritems(
-                {'print_deps': False,
-                 'print_pre': False,
-                 'print_rdf': False,
-                 'print_dot': False,
-                 'relative_deps': False,
-                 'tmp_outdir_prefix': 'tmp',
-                 'tmpdir_prefix': 'tmp',
-                 'print_input_deps': False,
-                 'cachedir': None,
-                 'quiet': False,
-                 'debug': False,
-                 'timestamps': False,
-                 'js_console': False,
-                 'version': False,
-                 'enable_dev': False,
-                 'enable_ext': False,
-                 'strict': True,
-                 'skip_schemas': False,
-                 'rdf_serializer': None,
-                 'basedir': None,
-                 'tool_help': False,
-                 'workflow': None,
-                 'job_order': None,
-                 'pack': False,
-                 'on_error': 'continue',
-                 'relax_path_checks': False,
-                 'validate': False,
-                 'enable_ga4gh_tool_registry': False,
-                 'ga4gh_tool_registries': [],
-                 'find_default_container': None,
-                 'make_template': False,
-                 'overrides': None,
-                 'do_validate': True
-                }):
+        for key, val in six.iteritems(get_default_args()):
             if not hasattr(args, key):
                 setattr(args, key, val)
 
@@ -423,7 +382,7 @@ def main(argsl=None,                  # type: List[str]
         rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
             _logger.setLevel(logging.WARN)
-        if args.debug:
+        if runtimeContext.debug:
             _logger.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         if args.timestamps:
@@ -466,22 +425,34 @@ def main(argsl=None,                  # type: List[str]
         else:
             use_standard_schema("v1.0")
 
-        uri, tool_file_uri = resolve_tool_uri(args.workflow,
-                                              resolver=resolver,
-                                              fetcher_constructor=fetcher_constructor)
+        if loadingContext is None:
+            loadingContext = LoadingContext(vars(args))
+        else:
+            loadingContext = loadingContext.copy()
 
-        overrides = []  # type: List[Dict[Text, Any]]
+        loadingContext.disable_js_validation = \
+                args.disable_js_validation or (not args.do_validate)
+        loadingContext.construct_tool_object = getdefault(loadingContext.construct_tool_object, workflow.default_make_tool)
+        loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
+
+        uri, tool_file_uri = resolve_tool_uri(args.workflow,
+                                              resolver=loadingContext.resolver,
+                                              fetcher_constructor=loadingContext.fetcher_constructor)
+
+        try_again_msg = "" if args.debug else ", try again with --debug for more information"
 
         try:
             job_order_object, input_basedir, jobloader = load_job_order(
-                args, stdin, fetcher_constructor, overrides, tool_file_uri)
+                args, stdin, loadingContext.fetcher_constructor,
+                loadingContext.overrides_list, tool_file_uri)
 
             if args.overrides:
-                overrides.extend(load_overrides(
+                loadingContext.overrides_list.extend(load_overrides(
                     file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
             document_loader, workflowobj, uri = fetch_document(
-                uri, resolver=resolver, fetcher_constructor=fetcher_constructor)
+                uri, resolver=loadingContext.resolver,
+                fetcher_constructor=loadingContext.fetcher_constructor)
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
@@ -489,42 +460,22 @@ def main(argsl=None,                  # type: List[str]
 
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
-                                    enable_dev=args.enable_dev, strict=args.strict,
-                                    preprocess_only=args.print_pre or args.pack,
-                                    fetcher_constructor=fetcher_constructor,
+                                    enable_dev=loadingContext.enable_dev,
+                                    strict=loadingContext.strict,
+                                    preprocess_only=(args.print_pre or args.pack),
+                                    fetcher_constructor=loadingContext.fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=overrides,
-                                    do_validate=args.do_validate)
+                                    overrides=loadingContext.overrides_list,
+                                    do_validate=loadingContext.do_validate)
 
             if args.print_pre:
                 stdout.write(json_dumps(processobj, indent=4))
                 return 0
 
-            overrides.extend(metadata.get("cwltool:overrides", []))
+            loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
 
-            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
-            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
-
-            make_tool_kwds = copy.deepcopy(vars(args))
-
-            job_script_provider = None  # type: Optional[DependenciesConfiguration]
-            if conf_file or use_conda_dependencies:
-                job_script_provider = DependenciesConfiguration(args)
-
-            make_tool_kwds["find_default_container"] = \
-                    functools.partial(find_default_container, args)
-            make_tool_kwds["overrides"] = overrides
-            make_tool_kwds["disable_js_validation"] = \
-                    args.disable_js_validation or (not args.do_validate)
-            del make_tool_kwds["eval_timeout"]
-            del make_tool_kwds["debug"]
-            del make_tool_kwds["js_console"]
-            del make_tool_kwds["force_docker_pull"]
-
-            tool = make_tool(document_loader, avsc_names, metadata, uri,
-                             maker_tool, args.eval_timeout, args.debug,
-                             args.js_console, args.force_docker_pull,
-                             job_script_provider, make_tool_kwds)
+            tool = make_tool(document_loader, avsc_names,
+                             metadata, uri, loadingContext)
             if args.make_template:
                 yaml.safe_dump(generate_input_template(tool), sys.stdout,
                                default_flow_style=False, indent=4,
@@ -557,9 +508,9 @@ def main(argsl=None,                  # type: List[str]
             return 1
         except Exception as exc:
             _logger.error(
-                u"I'm sorry, I couldn't load this CWL file%s",
-                ", try again with --debug for more information.\nThe error was: "
-                "%s" % exc if not args.debug else ".  The error was:",
+                u"I'm sorry, I couldn't load this CWL file%s.\nThe error was: %s",
+                try_again_msg,
+                exc if not args.debug else "",
                 exc_info=args.debug)
             return 1
 
@@ -590,22 +541,19 @@ def main(argsl=None,                  # type: List[str]
 
         if args.cachedir:
             if args.move_outputs == "move":
-                setattr(args, 'move_outputs', "copy")
-            setattr(args, "tmp_outdir_prefix", args.cachedir)
+                runtimeContext.move_outputs = "copy"
+            runtimeContext.tmp_outdir_prefix = args.cachedir
 
-        secret_store = None
-        secrets_req, _ = tool.get_requirement("http://commonwl.org/cwltool#Secrets")
-        if secrets_req:
-            secret_store = SecretStore()
+        runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
 
-        job_order_object2 = 255  # type: Union[MutableMapping[Text, Any], int]
+        initialized_job_order_object = 255  # type: Union[MutableMapping[Text, Any], int]
         try:
-            job_order_object2 = init_job_order(job_order_object, args, tool,
+            initialized_job_order_object = init_job_order(job_order_object, args, tool,
                                                jobloader, stdout,
                                                print_input_deps=args.print_input_deps,
                                                relative_deps=args.relative_deps,
                                                input_basedir=input_basedir,
-                                               secret_store=secret_store)
+                                               secret_store=runtimeContext.secret_store)
         except SystemExit as err:
             return err.code
 
@@ -616,20 +564,29 @@ def main(argsl=None,                  # type: List[str]
                 executor = SingleJobExecutor()
         assert executor is not None
 
-        if isinstance(job_order_object2, int):
-            return job_order_object2
+        if isinstance(initialized_job_order_object, int):
+            return initialized_job_order_object
 
         try:
-            setattr(args, 'basedir', input_basedir)
+            runtimeContext.basedir = input_basedir
             del args.workflow
             del args.job_order
-            (out, status) = executor(tool, job_order_object2,
-                                     logger=_logger,
-                                     make_tool=make_tool,
-                                     select_resources=selectResources,
-                                     make_fs_access=make_fs_access,
-                                     secret_store=secret_store,
-                                     **vars(args))
+
+            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
+            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
+
+            job_script_provider = None  # type: Optional[DependenciesConfiguration]
+            if conf_file or use_conda_dependencies:
+                runtimeContext.job_script_provider = DependenciesConfiguration(args)
+
+            runtimeContext.find_default_container = \
+                    functools.partial(find_default_container, args)
+            runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
+
+            (out, status) = executor(tool,
+                                     initialized_job_order_object,
+                                     runtimeContext,
+                                     logger=_logger)
 
             # This is the workflow output, it needs to be written
             if out is not None:
@@ -672,13 +629,12 @@ def main(argsl=None,                  # type: List[str]
             return 33
         except WorkflowException as exc:
             _logger.error(
-                u"Workflow error, try again with --debug for more "
-                "information:\n%s", strip_dup_lineno(six.text_type(exc)), exc_info=args.debug)
+                u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(six.text_type(exc)),
+                exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
-                u"Unhandled error, try again with --debug for more information:\n"
-                "  %s", exc, exc_info=args.debug)
+                u"Unhandled error%s:\n  %s", try_again_msg, exc, exc_info=args.debug)
             return 1
 
     finally:
@@ -687,6 +643,7 @@ def main(argsl=None,                  # type: List[str]
 
 
 def find_default_container(args, builder):
+    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
     default_container = None
     if args.default_container:
         default_container = args.default_container

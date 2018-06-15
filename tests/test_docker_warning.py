@@ -6,7 +6,7 @@ from mock import mock
 
 from cwltool.command_line_tool import DEFAULT_CONTAINER_MSG, CommandLineTool
 from cwltool.utils import windows_default_container_id
-
+from cwltool.context import RuntimeContext
 
 class TestDefaultDockerWarning(unittest.TestCase):
 
@@ -24,5 +24,6 @@ class TestDefaultDockerWarning(unittest.TestCase):
                 return windows_default_container_id
 
         TestObject = TestCommandLineTool()
-        TestObject.make_job_runner()
+        TestObject.make_job_runner(RuntimeContext({
+            "find_default_container": lambda x: "frolvlad/alpine-bash"}))
         mock_logger.warning.assert_called_with(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))

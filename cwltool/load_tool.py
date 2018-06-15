@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import uuid
+import copy
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
                     Iterable, List, Mapping, Optional, Text, Tuple, Union, cast)
 
@@ -27,7 +28,7 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .update import ALLUPDATES
 from .utils import json_dumps
-
+from .context import LoadingContext, RuntimeContext, getdefault
 
 _logger = logging.getLogger("cwltool")
 jobloaderctx = {
@@ -311,13 +312,7 @@ def make_tool(document_loader,    # type: Loader
               avsc_names,         # type: schema.Names
               metadata,           # type: Dict[Text, Any]
               uri,                # type: Text
-              make_tool,          # type: Callable[..., Process]
-              eval_timeout,       # type: float
-              debug,              # type: bool
-              js_console,         # type: bool
-              force_docker_pull,  # type: bool
-              job_script_provider,  # type: Optional[DependenciesConfiguration]
-              kwargs              # type: Dict
+              loadingContext      # type: LoadingContext
              ):  # type: (...) -> Process
     """Make a Python CWL object."""
     resolveduri = document_loader.resolve_ref(uri)[0]
@@ -339,16 +334,12 @@ def make_tool(document_loader,    # type: Loader
     else:
         raise Exception("Must resolve to list or dict")
 
-    kwargs = kwargs.copy()
-    kwargs.update({
-        "make_tool": make_tool,
-        "loader": document_loader,
-        "avsc_names": avsc_names,
-        "metadata": metadata
-    })
-    tool = make_tool(processobj, debug=debug, eval_timeout=eval_timeout,
-                     js_console=js_console, force_docker_pull=force_docker_pull,
-                     job_script_provider=job_script_provider, **kwargs)
+    loadingContext = loadingContext.copy()
+    loadingContext.loader = document_loader
+    loadingContext.avsc_names = avsc_names
+    loadingContext.metadata = metadata
+
+    tool = loadingContext.construct_tool_object(processobj, loadingContext)
 
     if "cwl:defaults" in metadata:
         jobobj = metadata["cwl:defaults"]
@@ -360,30 +351,27 @@ def make_tool(document_loader,    # type: Loader
 
 
 def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
-              maker_tool,                # type: Callable[..., Process]
-              eval_timeout,              # type: float
-              debug,                     # type: bool
-              js_console,                # type: bool
-              force_docker_pull,         # type: bool
-              job_script_provider,       # type: Optional[DependenciesConfiguration]
-              kwargs=None,               # type: Dict
-              enable_dev=False,          # type: bool
-              strict=True,               # type: bool
-              resolver=None,             # type: ResolverType
-              fetcher_constructor=None,  # type: FetcherConstructorType
-              overrides=None,
+              loadingContext             # type: LoadingContext
              ):  # type: (...) -> Process
 
     document_loader, workflowobj, uri = fetch_document(
-        argsworkflow, resolver=resolver, fetcher_constructor=fetcher_constructor)
+        argsworkflow,
+        resolver=loadingContext.resolver,
+        fetcher_constructor=loadingContext.fetcher_constructor)
+
     document_loader, avsc_names, _, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, enable_dev=enable_dev,
-        strict=strict, fetcher_constructor=fetcher_constructor,
-        overrides=overrides, metadata=kwargs.get('metadata', None)
-        if kwargs else None)
-    return make_tool(document_loader, avsc_names, metadata, uri, maker_tool,
-                     eval_timeout, debug, js_console, force_docker_pull,
-                     job_script_provider, kwargs if kwargs else {})
+        document_loader, workflowobj, uri,
+        enable_dev=loadingContext.enable_dev,
+        strict=loadingContext.strict,
+        fetcher_constructor=loadingContext.fetcher_constructor,
+        overrides=loadingContext.overrides_list,
+        metadata=loadingContext.metadata)
+
+    return make_tool(document_loader,
+                     avsc_names,
+                     metadata,
+                     uri,
+                     loadingContext)
 
 def resolve_overrides(ov,      # Type: CommentedMap
                       ov_uri,  # Type: Text

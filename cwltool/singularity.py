@@ -19,6 +19,7 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
                          ensure_writable)
 from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
+from .context import RuntimeContext
 
 if os.name == 'posix':
     from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
@@ -211,11 +212,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def create_runtime(self,
                        env,                        # type: MutableMapping[Text, Text]
-                       rm_container=True,          # type: bool
-                       record_container_id=False,  # type: bool
-                       cidfile_dir="",             # type: Text
-                       cidfile_prefix="",          # type: Text
-                       **kwargs
+                       runtimeContext              # type: RuntimeContext
                       ):
         # type: (...) -> List
         """ Returns the Singularity runtime list of commands and options."""
@@ -239,10 +236,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--pwd")
         runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
 
-        if kwargs.get("custom_net", None) is not None:
+        if runtimeContext.custom_net is not None:
             raise UnsupportedRequirement(
                 "Singularity implementation does not support custom networking")
-        elif kwargs.get("disable_net", None):
+        elif runtimeContext.disable_net:
             runtime.append(u"--net")
 
         env["SINGULARITYENV_TMPDIR"] = "/tmp"

@@ -36,19 +36,6 @@ def aslist(l):  # type: (Any) -> List[Any]
         return l
     return [l]
 
-
-def get_feature(self,    # type: Any
-                feature  # type: Any
-               ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
-    for item in reversed(self.requirements):
-        if item["class"] == feature:
-            return (item, True)
-    for item in reversed(self.hints):
-        if item["class"] == feature:
-            return (item, False)
-    return (None, None)
-
-
 def copytree_with_merge(src, dst, symlinks=False, ignore=None):
     # type: (Text, Text, bool, Callable[..., Any]) -> None
     if not os.path.exists(dst):

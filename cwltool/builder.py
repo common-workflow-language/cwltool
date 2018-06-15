@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import copy
 import logging
 from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
-                    Optional, Set, Text, Type, Union)
+                    Optional, Set, Text, Type, Union, Tuple)
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
@@ -20,7 +20,7 @@ from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper,  # pylint: disable=unused-import
                          get_listing, normalizeFilesDirs, visit_class)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, docker_windows_path_adjust, get_feature,
+from .utils import (aslist, docker_windows_path_adjust,
                     json_dumps, onWindows)
 
 CONTENT_LIMIT = 64 * 1024
@@ -85,45 +85,91 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
             u"File has an incompatible format: {}".format(
                 json_dumps(afile, indent=4)))
 
-class Builder(object):
+class HasReqsHints(object):
+    def __init__(self):
+        self.requirements = []  # List[Dict[Text, Any]]
+        self.hints = []         # List[Dict[Text, Any]]
+
+    def get_requirement(self,
+                    feature  # type: Text
+                   ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+        for item in reversed(self.requirements):
+            if item["class"] == feature:
+                return (item, True)
+        for item in reversed(self.hints):
+            if item["class"] == feature:
+                return (item, False)
+        return (None, None)
+
+class Builder(HasReqsHints):
     def __init__(self,
-                 job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
-                 files,                # type: List[Dict[Text, Text]]
-                 bindings,             # type: List[Dict[Text, Any]]
-                 schemaDefs,           # type: Dict[Text, Dict[Text, Any]]
-                 names,                # type: schema_salad.schema.Names
-                 requirements,         # type: List[Dict[Text, Any]]
-                 hints,                # type: List[Dict[Text, Any]]
-                 timeout,              # type: float
-                 debug,                # type: bool
-                 resources,            # type: Dict[Text, Union[int, Text, None]]
-                 js_console,           # type: bool
-                 mutation_manager,     # type: MutationManager
-                 formatgraph,          # type: Optional[Graph]
-                 make_fs_access,       # type: Type[StdFsAccess]
-                 fs_access,            # type: StdFsAccess
-                 force_docker_pull,    # type: bool
-                 loadListing,          # type: Text
-                 outdir,               # type: Text
-                 tmpdir,               # type: Text
-                 stagedir,             # type: Text
-                 job_script_provider,  # type: Optional[Any]
+                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 files=None,                # type: List[Dict[Text, Text]]
+                 bindings=None,             # type: List[Dict[Text, Any]]
+                 schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
+                 names=None,                # type: schema_salad.schema.Names
+                 requirements=None,         # type: List[Dict[Text, Any]]
+                 hints=None,                # type: List[Dict[Text, Any]]
+                 timeout=None,              # type: float
+                 debug=False,               # type: bool
+                 resources=None,            # type: Dict[Text, int]
+                 js_console=False,          # type: bool
+                 mutation_manager=None,     # type: Optional[MutationManager]
+                 formatgraph=None,          # type: Optional[Graph]
+                 make_fs_access=None,       # type: Type[StdFsAccess]
+                 fs_access=None,            # type: StdFsAccess
+                 force_docker_pull=False,   # type: bool
+                 loadListing=u"",           # type: Text
+                 outdir=u"",                # type: Text
+                 tmpdir=u"",                # type: Text
+                 stagedir=u"",              # type: Text
+                 job_script_provider=None   # type: Optional[Any]
                 ):  # type: (...) -> None
-        self.names = names
-        self.schemaDefs = schemaDefs
-        self.files = files
-        self.fs_access = fs_access
+
+        if names is None:
+            self.names = schema_salad.schema.Names()
+        else:
+            self.names = names
+
+        if schemaDefs is None:
+            self.schemaDefs = {}  # type: Dict[Text, Dict[Text, Any]]
+        else:
+            self.schemaDefs = schemaDefs
+
+        if files is None:
+            self.files = []  # type: List[Dict[Text, Text]]
+        else:
+            self.files = files
+
+        if fs_access is None:
+            self.fs_access = StdFsAccess("")
+        else:
+            self.fs_access = fs_access
+
         self.job = job
         self.requirements = requirements
         self.hints = hints
         self.outdir = outdir
         self.tmpdir = tmpdir
-        self.resources = resources
-        self.bindings = bindings
+
+        if resources is None:
+            self.resources = {}  # type: Dict[Text, int]
+        else:
+            self.resources = resources
+
+        if bindings is None:
+            self.bindings = []  # type: List[Dict[Text, Any]]
+        else:
+            self.bindings = bindings
         self.timeout = timeout
         self.pathmapper = None  # type: Optional[PathMapper]
         self.stagedir = stagedir
-        self.make_fs_access = make_fs_access
+
+        if make_fs_access is None:
+            self.make_fs_access = StdFsAccess
+        else:
+            self.make_fs_access = make_fs_access
+
         self.debug = debug
         self.js_console = js_console
         self.mutation_manager = mutation_manager
@@ -151,6 +197,7 @@ class Builder(object):
                    lead_pos=None,            # type: Optional[Union[int, List[int]]]
                    tail_pos=None,            # type: Optional[List[int]]
                   ):  # type: (...) -> List[Dict[Text, Any]]
+
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
@@ -299,7 +346,7 @@ class Builder(object):
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
 
             # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
+            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
             if onWindows() and docker_req is not None:
                 # docker_req is none only when there is no dockerRequirement
                 # mentioned in hints and Requirement
@@ -363,8 +410,7 @@ class Builder(object):
             if isinstance(ex, list):
                 return [self.do_eval(v, context, recursive)
                         for v in ex]
-        if context is None and isinstance(ex, string_types) and "self" in ex:
-            return None
+
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
