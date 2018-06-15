@@ -103,7 +103,7 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
                  files=None,                # type: List[Dict[Text, Text]]
                  bindings=None,             # type: List[Dict[Text, Any]]
                  schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
@@ -111,35 +111,65 @@ class Builder(HasReqsHints):
                  requirements=None,         # type: List[Dict[Text, Any]]
                  hints=None,                # type: List[Dict[Text, Any]]
                  timeout=None,              # type: float
-                 debug=None,                # type: bool
+                 debug=False,               # type: bool
                  resources=None,            # type: Dict[Text, int]
-                 js_console=None,           # type: bool
+                 js_console=False,          # type: bool
                  mutation_manager=None,     # type: Optional[MutationManager]
                  formatgraph=None,          # type: Optional[Graph]
                  make_fs_access=None,       # type: Type[StdFsAccess]
                  fs_access=None,            # type: StdFsAccess
-                 force_docker_pull=None,    # type: bool
-                 loadListing=None,          # type: Text
-                 outdir=None,               # type: Text
-                 tmpdir=None,               # type: Text
-                 stagedir=None,             # type: Text
+                 force_docker_pull=False,   # type: bool
+                 loadListing=u"",           # type: Text
+                 outdir=u"",                # type: Text
+                 tmpdir=u"",                # type: Text
+                 stagedir=u"",              # type: Text
                  job_script_provider=None   # type: Optional[Any]
                 ):  # type: (...) -> None
-        self.names = names
-        self.schemaDefs = schemaDefs
-        self.files = files
-        self.fs_access = fs_access
+
+        if names is None:
+            self.names = schema_salad.schema.Names()
+        else:
+            self.names = names
+
+        if schemaDefs is None:
+            self.schemaDefs = {}  # type: Dict[Text, Dict[Text, Any]]
+        else:
+            self.schemaDefs = schemaDefs
+
+        if files is None:
+            self.files = []  # type: List[Dict[Text, Text]]
+        else:
+            self.files = files
+
+        if fs_access is None:
+            self.fs_access = StdFsAccess("")
+        else:
+            self.fs_access = fs_access
+
         self.job = job
         self.requirements = requirements
         self.hints = hints
         self.outdir = outdir
         self.tmpdir = tmpdir
-        self.resources = resources
-        self.bindings = bindings
+
+        if resources is None:
+            self.resources = {}  # type: Dict[Text, int]
+        else:
+            self.resources = resources
+
+        if bindings is None:
+            self.bindings = []  # type: List[Dict[Text, Any]]
+        else:
+            self.bindings = bindings
         self.timeout = timeout
         self.pathmapper = None  # type: Optional[PathMapper]
         self.stagedir = stagedir
-        self.make_fs_access = make_fs_access
+
+        if make_fs_access is None:
+            self.make_fs_access = StdFsAccess
+        else:
+            self.make_fs_access = make_fs_access
+
         self.debug = debug
         self.js_console = js_console
         self.mutation_manager = mutation_manager
@@ -167,6 +197,7 @@ class Builder(HasReqsHints):
                    lead_pos=None,            # type: Optional[Union[int, List[int]]]
                    tail_pos=None,            # type: Optional[List[int]]
                   ):  # type: (...) -> List[Dict[Text, Any]]
+
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
@@ -379,8 +410,7 @@ class Builder(HasReqsHints):
             if isinstance(ex, list):
                 return [self.do_eval(v, context, recursive)
                         for v in ex]
-        if context is None and isinstance(ex, string_types) and "self" in ex:
-            return None
+
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
