@@ -99,7 +99,8 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
             if runtimeContext.research_obj is not None and hasattr(process, 'parent_wf') and process.parent_wf:
                 ProcessRunID=None
                 name="primary"
-                process.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
+                process.parent_wf.generate_outputProv(self.final_output[0],
+                        ProcessRunID, name)
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflowRunURI, None, process.parent_wf.engineUUID,
                     datetime.datetime.now())
@@ -117,17 +118,18 @@ class SingleJobExecutor(JobExecutor):
                  runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
         provObj=None  # type: Any
-        ProcessRunID=None  # type: str
+        ProcessRunID=None  # type: Optional[str]
         reference_locations={}  # type: Dict[Text,Text]
 
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
                 and runtimeContext.research_obj is not None:
-            orcid=runtimeContext.orcid
-            full_name=runtimeContext.cwl_full_name
-            process.provenanceObject=create_ProvProfile(runtimeContext.research_obj, orcid, full_name)
-            proces.parent_wf=process.provenanceObject
-            provObj=process.provenanceObject
+            orcid = runtimeContext.orcid
+            full_name = runtimeContext.cwl_full_name
+            process.provenanceObject = create_ProvProfile(
+                runtimeContext.research_obj, orcid, full_name)
+            process.parent_wf = process.provenanceObject
+            provObj = process.provenanceObject
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         try:
@@ -141,14 +143,17 @@ class SingleJobExecutor(JobExecutor):
                             and runtimeContext.research_obj \
                             and hasattr(job, 'provObj') and job.provObj:
                         if not isinstance(process, Workflow):
-                            provObj=t.provenanceObject
+                            provObj=process.provenanceObject
                         else:
-                            provObj=r.provObj
+                            provObj=process.provObj
                         ProcessRunID, reference_locations = provObj._evaluate(
-                            proces, job, job_order_object, make_fs_access,
-                            runtimeContext)
+                            process, job, job_order_object,
+                            runtimeContext.make_fs_access, runtimeContext)
                         runtimeContext=runtimeContext.copy()
-                        job.run(ProcessRunID, reference_locations, **kwargs)
+                        runtimeContext.process_run_ID = ProcessRunID
+                        runtimeContext.reference_locations = \
+                            reference_locations
+                        job.run(runtimeContext)
                     else:
                         job.run(runtimeContext)
                 else:

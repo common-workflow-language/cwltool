@@ -214,9 +214,8 @@ OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], D
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, loadingContext, provObj=None):
-        # type: (Dict[Text, Any], create_ProvProfile, LoadingContext) -> None
-        super(CommandLineTool, self).__init__(
-            toolpath_object, loadingContext)
+        # type: (Dict[Text, Any], LoadingContext, create_ProvProfile) -> None
+        super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
         self.provObj=provObj
 
     def make_job_runner(self,

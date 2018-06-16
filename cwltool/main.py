@@ -40,7 +40,8 @@ from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
 from .process import (Process, scandeps,   # pylint: disable=unused-import
                       shortname, use_custom_schema, use_standard_schema)
-from .provenance import create_researchObject, create_ProvProfile
+from .provenance import (create_researchObject, create_ProvProfile,
+                         ResearchObject)
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (DependenciesConfiguration,
@@ -142,19 +143,18 @@ def load_job_order(args,                 # type: argparse.Namespace
     return (job_order_object, input_basedir, loader)
 
 
-def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
+def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text, Any]]
                    args,                    # type: argparse.Namespace
                    t,                       # type: Process
                    loader,                  # type: Loader
                    stdout,                  # type: Union[TextIO, StreamWriter]
                    print_input_deps=False,  # type: bool
-                   provArgs=None,           # type: Text
+                   provArgs=None,           # type: ResearchObject
                    relative_deps=False,     # type: bool
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
-                  ):  # type: (...) -> Union[MutableMapping[Text, Any], int]
-
+                  ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Optional[MutableMapping[Text, Any]]]
     secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
@@ -182,7 +182,7 @@ def init_job_order(job_order_object,        # type: MutableMapping[Text, Any]
                         MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
                 except Exception as e:
                     _logger.error(Text(e), exc_info=args.debug)
-                    return 1
+                    exit(1)
             else:
                 job_order_object = {"id": args.workflow}
 
@@ -278,7 +278,7 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
               uri,              # type: Text
               provArgs=None,    # type: Any
               basedir=None      # type: Text
-             ):  # type: (...) -> Tuple[Dict[Text, Any], Dict[Text, Any]]
+             ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Optional[Dict[Text, Any]]]
     """Print a JSON representation of the dependencies of the CWL document."""
     deps = {"class": "File", "location": uri}  # type: Dict[Text, Any]
 
@@ -432,6 +432,7 @@ def main(argsl=None,                   # type: List[str]
         else:
             use_standard_schema("v1.0")
         #call function from provenance.py if the provenance flag is enabled.
+        args.research_obj = None
         if args.provenance:
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
@@ -490,7 +491,7 @@ def main(argsl=None,                   # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
-            if args.provenance:  # Can't really be combined with args.pack at same time
+            if args.provenance and args.research_obj:  # Can't really be combined with args.pack at same time
                 args.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
@@ -566,9 +567,8 @@ def main(argsl=None,                   # type: List[str]
 
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
 
-        initialized_job_order_object = 255  # type: Union[MutableMapping[Text, Any], int]
         try:
-            initialized_job_order_object = init_job_order(job_order_object, args, tool,
+            initialized_job_order_object, input_for_prov = init_job_order(job_order_object, args, tool,
                                                jobloader, stdout,
                                                print_input_deps=args.print_input_deps,
                                                provArgs=args.research_obj,
@@ -584,9 +584,6 @@ def main(argsl=None,                   # type: List[str]
             else:
                 executor = SingleJobExecutor()
         assert executor is not None
-
-        if isinstance(initialized_job_order_object, int):
-            return initialized_job_order_object
 
         try:
             runtimeContext.basedir = input_basedir
@@ -657,7 +654,8 @@ def main(argsl=None,                   # type: List[str]
             return 1
 
     finally:
-        if hasattr(args, "research_obj") and args.provenance and args.rm_tmpdir and workflowobj:
+        if args and hasattr(args, "research_obj") and hasattr(args, "provenance") \
+                and args.provenance and args.rm_tmpdir and workflowobj:
             #adding all related cwl files to RO
             ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
             args.research_obj.generate_snapshot(ProvDependencies[1])

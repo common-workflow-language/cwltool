@@ -172,7 +172,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
 
 class WorkflowJobStep(object):
     def __init__(self, step, provObj=None, parent_wf=None):
-        # type: (WorkflowJobStep, WorkflowStep, Any, Any) -> None
+        # type: (WorkflowStep, Optional[create_ProvProfile], Any) -> None
         self.step = step
         self.tool = step.tool
         self.id = step.id
@@ -180,11 +180,16 @@ class WorkflowJobStep(object):
         self.completed = False
         self.iterable = None  # type: Optional[Iterable]
         self.name = uniquename(u"step %s" % shortname(self.id))
-        self.provObj=step.provObj if hasattr(step, 'provObj') else None
-        self.parent_wf=step.parent_wf if hasattr(step, 'parent_wf') else None
+        self.provObj = step.provObj
+        self.parent_wf=step.parent_wf
 
-    def job(self, joborder, output_callback, runtimeContext, provObj=None):
-        # type: (Dict[Text, Text], functools.partial[None], RuntimeContext, str) -> Generator
+    def job(self,
+            joborder,         # type: Dict[Text, Text]
+            output_callback,  # type: functools.partial[None]
+            runtimeContext,   # type: RuntimeContext
+            provObj=None      # type: create_ProvProfile
+           ):
+        # type: (...) -> Generator
         # FIXME: Generator[of what?]
         runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = self.name
@@ -199,7 +204,7 @@ class WorkflowJob(object):
     def __init__(self, workflow, runtimeContext):
         # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
-        self.provObj=None
+        self.provObj=None  # type: Optional[create_ProvProfile]
         self.parent_wf=None
         self.tool = workflow.tool
         if runtimeContext.research_obj:
@@ -237,7 +242,8 @@ class WorkflowJob(object):
             _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
             wo = {}
             self.processStatus = "permanentFail"
-        if  self.provObj and self.provObj.workflowRunURI != self.parent_wf.workflowRunURI:
+        if self.provObj and self.parent_wf \
+                and self.provObj.workflowRunURI != self.parent_wf.workflowRunURI:
             ProcessRunID=None
             self.provObj.generate_outputProv(wo, ProcessRunID)
             self.provObj.document.wasEndedBy(self.provObj.workflowRunURI, None, self.provObj.engineUUID, datetime.datetime.now())
@@ -395,8 +401,12 @@ class WorkflowJob(object):
         '''
         _logger.info(u"[%s] start", self.name)
 
-    def job(self, joborder, output_callback, runtimeContext, provObj=None):
-        # type: (Dict[Text, Any], Callable[[Any, Any], Any], RuntimeContext, str) -> Generator
+    def job(self,
+            joborder,         # type: Dict[Text, Any]
+            output_callback,  # type: Callable[[Any, Any], Any]
+            runtimeContext,   # type: RuntimeContext
+            provObj=None      # type: create_ProvProfile
+           ):  # type: (...) -> Generator
         self.state = {}
         self.processStatus = "success"
 
@@ -475,8 +485,8 @@ class Workflow(Process):
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
-        self.parent_wf=None  # type: create_ProvProfile
-        self.provenanceObject=None  # type: create_ProvProfile
+        self.parent_wf=None  # type: Optional[create_ProvProfile]
+        self.provenanceObject=None  # type: Optional[create_ProvProfile]
         if loadingContext.research_obj and loadingContext.research_obj:
             orcid=loadingContext.orcid
             full_name=loadingContext.cwl_full_name
@@ -552,7 +562,7 @@ class WorkflowStep(Process):
                  toolpath_object,      # type: Dict[Text, Any]
                  pos,                  # type: int
                  loadingContext,       # type: LoadingContext
-                 parentworkflowProv=None  # type: Any
+                 parentworkflowProv=None  # type: Optional[create_ProvProfile]
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -644,8 +654,7 @@ class WorkflowStep(Process):
         if validation_errors:
             raise validate.ValidationException("\n".join(validation_errors))
 
-        super(WorkflowStep, self).__init__(
-            toolpath_object, loadingContext)
+        super(WorkflowStep, self).__init__(toolpath_object, loadingContext)
 
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
@@ -692,7 +701,8 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        if "research_obj" in kwargs:
+        self.provObj = None  # type: Optional[create_ProvProfile]
+        if loadingContext.research_obj:
             self.provObj=parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
                 self.parent_wf= self.embedded_tool.parent_wf
@@ -714,7 +724,7 @@ class WorkflowStep(Process):
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext,    # type: RuntimeContext
-            provObj=None,      # type: Any
+            provObj=None,      # type: Optional[create_ProvProfile]
            ):  # type: (...) -> Generator[Any, None, None]
         #initialize sub-workflow as a step in the parent profile
         if self.embedded_tool.tool["class"] == "Workflow" \

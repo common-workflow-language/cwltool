@@ -446,19 +446,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                  toolpath_object,      # type: Dict[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
-        """
-        kwargs:
-
-        metadata: tool document metadata
-        requirements: inherited requirements
-        hints: inherited hints
-        loader: schema_salad.ref_resolver.Loader used to load tool document
-        avsc_names: CWL Avro schema object used to validate document
-        strict: flag to determine strict validation (fail on unrecognized fields)
-        """
-
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
-        self.names = None  # type: schema.Names
         self.provenanceObject=None  # type: Any
         self.parent_wf=None  # type: Any
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
