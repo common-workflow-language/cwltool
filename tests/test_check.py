@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+
 import unittest
 
 import cwltool.expression as expr
@@ -6,7 +7,6 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-import pytest
 from cwltool.main import main
 
 from .util import get_data, needs_docker

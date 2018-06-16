@@ -1,33 +1,31 @@
 import logging
+import os
 import tempfile
 import threading
-import os
-import copy
-import uuid
-import datetime
-import time
 from abc import ABCMeta, abstractmethod
-import prov.model as prov
-from typing import Dict, Text, Any, Tuple, Set, List
-from schema_salad.validate import ValidationException
-from schema_salad.sourceline import SourceLine
-from .builder import Builder
-from .errors import WorkflowException
-from .mutation import MutationManager
-from .job import JobBase
-from .process import relocateOutputs, cleanIntermediate, Process, shortname, uniquename, get_overrides
-from .workflow import Workflow
-from . import loghandler
-from schema_salad.sourceline import SourceLine
-from .utils import versionstring
 import datetime
-from .provenance import create_ProvProfile
+from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
+                    Set, Text, Tuple)
 
+from schema_salad.validate import ValidationException
+import six
+from six import string_types
+
+from .builder import Builder  # pylint: disable=unused-import
+from .errors import WorkflowException
+from .job import JobBase  # pylint: disable=unused-import
+from .mutation import MutationManager
+from .provenance import create_ProvProfile
+from .process import (Process,  # pylint: disable=unused-import
+                      cleanIntermediate, relocateOutputs)
+from .utils import DEFAULT_TMP_PREFIX
+from .context import LoadingContext, RuntimeContext, getdefault
+from .workflow import Workflow
 
 _logger = logging.getLogger("cwltool")
 
-class JobExecutor(object):
-    __metaclass__ = ABCMeta
+class JobExecutor(six.with_metaclass(ABCMeta, object)):
+    """ Abstract base job executor. """
 
     def __init__(self):
         # type: (...) -> None
@@ -38,119 +36,121 @@ class JobExecutor(object):
     def __call__(self, *args, **kwargs):
         return self.execute(*args, **kwargs)
 
-    def output_callback(self, out, processStatus):
-        self.final_status.append(processStatus)
+    def output_callback(self, out, process_status):
+        """ Collect the final status and outputs. """
+        self.final_status.append(process_status)
         self.final_output.append(out)
 
     @abstractmethod
     def run_jobs(self,
-                 t,  # type: Process
+                 process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
                  logger,
-                 make_fs_access,
-                 **kwargs  # type: Any
-                 ):
+                 runtimeContext     # type: RuntimeContext
+                ):  # type: (...) -> None
+        """ Execute the jobs for the given Process. """
         pass
 
     def execute(self,
-                t,                 # type: Process
+                process,           # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                make_fs_access=None,
-                makeTool=None,
-                select_resources=None,
-                secret_store=None,
+                runtimeContext,    # type: RuntimeContext
                 logger=_logger,
-                **kwargs           # type: Any
-                ):  # type: (...) -> Tuple[Dict[Text, Any], Text]
+               ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Text]
+        """ Execute the process. """
 
+        if not runtimeContext.basedir:
+            raise WorkflowException("Must provide 'basedir' in runtimeContext")
 
-        if "basedir" not in kwargs:
-            raise WorkflowException("Must provide 'basedir' in kwargs")
-        finaloutdir = os.path.abspath(kwargs.get("outdir")) if kwargs.get("outdir") else None
-        kwargs["outdir"] = tempfile.mkdtemp(prefix=kwargs.get("tmp_outdir_prefix"))
-        self.output_dirs.add(kwargs["outdir"])
-        kwargs["mutation_manager"] = MutationManager()
-        kwargs["toplevel"] = True
+        finaloutdir = None  # Type: Optional[Text]
+        original_outdir = runtimeContext.outdir
+        if isinstance(original_outdir, string_types):
+            finaloutdir = os.path.abspath(original_outdir)
+        runtimeContext = runtimeContext.copy()
+        runtimeContext.outdir = tempfile.mkdtemp(
+            prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
+        self.output_dirs.add(runtimeContext.outdir)
+        runtimeContext.mutation_manager = MutationManager()
+        runtimeContext.toplevel = True
 
-        jobReqs = None
+        job_reqs = None
         if "cwl:requirements" in job_order_object:
-            jobReqs = job_order_object["cwl:requirements"]
-        elif ("cwl:defaults" in t.metadata and "cwl:requirements" in t.metadata["cwl:defaults"]):
-            jobReqs = t.metadata["cwl:defaults"]["cwl:requirements"]
-        if jobReqs:
-            for req in jobReqs:
-                t.requirements.append(req)
-        self.run_jobs(t, job_order_object, logger, make_fs_access, **kwargs)
+            job_reqs = job_order_object["cwl:requirements"]
+        elif ("cwl:defaults" in process.metadata
+              and "cwl:requirements" in process.metadata["cwl:defaults"]):
+            job_reqs = process.metadata["cwl:defaults"]["cwl:requirements"]
+        if job_reqs:
+            for req in job_reqs:
+                process.requirements.append(req)
+
+        self.run_jobs(process, job_order_object, logger, runtimeContext)
 
         if self.final_output and self.final_output[0] and finaloutdir:
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
-                kwargs.get("move_outputs"), make_fs_access(""),
-                kwargs.get("compute_checksum", True))
+                runtimeContext.move_outputs, runtimeContext.make_fs_access(""),
+                getdefault(runtimeContext.compute_checksum, True))
 
-        if kwargs.get("rm_tmpdir"):
+        if runtimeContext.rm_tmpdir:
             cleanIntermediate(self.output_dirs)
-        
+
         if self.final_output and self.final_status:
 
-            if "research_obj" in kwargs and kwargs["research_obj"] \
-                and hasattr(t, 'parent_wf') and t.parent_wf:
+            if runtimeContext.research_obj is not None and hasattr(process, 'parent_wf') and process.parent_wf:
                 ProcessRunID=None
                 name="primary"
-                t.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
-                t.parent_wf.document.wasEndedBy(
-                    t.parent_wf.workflowRunURI, None, t.parent_wf.engineUUID,
+                process.parent_wf.generate_outputProv(self.final_output[0], ProcessRunID)
+                process.parent_wf.document.wasEndedBy(
+                    process.parent_wf.workflowRunURI, None, process.parent_wf.engineUUID,
                     datetime.datetime.now())
-                t.parent_wf.finalize_provProfile(name)
+                process.parent_wf.finalize_provProfile(name)
             return (self.final_output[0], self.final_status[0])
-        else:
-            return (None, "permanentFail")
+        return (None, "permanentFail")
 
 
 class SingleJobExecutor(JobExecutor):
+    """ Default single-threaded CWL reference executor. """
     def run_jobs(self,
-                 t,                      # type: Process
-                 job_order_object=None,  # type: Dict[Text, Any]
-                 logger=None,
-                 make_fs_access=None,
-                  **kwargs   
-                 ):
-        provObj=None # type: Any
-        ProcessRunID=None #type: str
-        reference_locations={} #type: Dict[Text,Text]
+                 process,           # type: Process
+                 job_order_object,  # type: Dict[Text, Any]
+                 logger,
+                 runtimeContext     # type: RuntimeContext
+                ):  # type: (...) -> None
+        provObj=None  # type: Any
+        ProcessRunID=None  # type: str
+        reference_locations={}  # type: Dict[Text,Text]
 
         # define provenance profile for single commandline tool
-        if not isinstance(t, Workflow) and "research_obj" in kwargs\
-            and kwargs["research_obj"]:
-            orcid=kwargs["orcid"]
-            full_name=kwargs["cwl_full_name"]
-            t.provenanceObject=create_ProvProfile(kwargs['research_obj'], orcid, full_name)
-            t.parent_wf= t.provenanceObject
-            provObj=t.provenanceObject
+        if not isinstance(process, Workflow) \
+                and runtimeContext.research_obj is not None:
+            orcid=runtimeContext.orcid
+            full_name=runtimeContext.cwl_full_name
+            process.provenanceObject=create_ProvProfile(runtimeContext.research_obj, orcid, full_name)
+            proces.parent_wf=process.provenanceObject
+            provObj=process.provenanceObject
+        jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
-        jobiter = t.job(job_order_object,
-                        self.output_callback,
-                        provObj,
-                        **kwargs)
         try:
-            for r in jobiter:
-                if r:
-                    builder = kwargs.get("builder", None)  # type: Builder
-
-                    if builder is not None:
-                        r.builder = builder
-                    if r.outdir:
-                        self.output_dirs.add(r.outdir)
-                    if "research_obj" in kwargs and kwargs["research_obj"] \
-                        and hasattr(r, 'provObj') and r.provObj:
-                        if not isinstance(t, Workflow):
+            for job in jobiter:
+                if job:
+                    if runtimeContext.builder is not None:
+                        job.builder = runtimeContext.builder
+                    if job.outdir:
+                        self.output_dirs.add(job.outdir)
+                    if runtimeContext.research_obj is not None \
+                            and runtimeContext.research_obj \
+                            and hasattr(job, 'provObj') and job.provObj:
+                        if not isinstance(process, Workflow):
                             provObj=t.provenanceObject
                         else:
                             provObj=r.provObj
-                        ProcessRunID, reference_locations = provObj._evaluate(t, r, job_order_object, make_fs_access, kwargs)
-                        r.run(ProcessRunID, reference_locations, **kwargs)
+                        ProcessRunID, reference_locations = provObj._evaluate(
+                            proces, job, job_order_object, make_fs_access,
+                            runtimeContext)
+                        runtimeContext=runtimeContext.copy()
+                        job.run(ProcessRunID, reference_locations, **kwargs)
                     else:
-                        r.run(**kwargs)
+                        job.run(runtimeContext)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
@@ -162,24 +162,29 @@ class SingleJobExecutor(JobExecutor):
 
 
 class MultithreadedJobExecutor(JobExecutor):
-    def __init__(self):
+    """
+    Experimental multi-threaded CWL executor.
+
+    Can easily overload a system as it does not do resource accounting.
+    """
+    def __init__(self):  # type: () -> None
         super(MultithreadedJobExecutor, self).__init__()
-        self.threads = set()
-        self.exceptions = []
+        self.threads = set()  # type: Set[threading.Thread]
+        self.exceptions = []  # type: List[WorkflowException]
 
     def run_job(self,
                 job,      # type: JobBase
-                **kwargs  # type: Any
-                ):
-        # type: (...) -> None
+                runtimeContext  # type: RuntimeContext
+               ):  # type: (...) -> None
+        """ Execute a single Job in a seperate thread. """
         def runner():
+            """ Job running thread. """
             try:
-                job.run(**kwargs)
-            except WorkflowException as e:
-                self.exceptions.append(e)
-            except Exception as e:
-                self.exceptions.append(WorkflowException(Text(e)))
-
+                job.run(runtimeContext)
+            except WorkflowException as err:
+                self.exceptions.append(err)
+            except Exception as err:
+                self.exceptions.append(WorkflowException(Text(err)))
             self.threads.remove(thread)
 
         thread = threading.Thread(target=runner)
@@ -188,33 +193,32 @@ class MultithreadedJobExecutor(JobExecutor):
         thread.start()
 
     def wait_for_next_completion(self):  # type: () -> None
+        """ Check for exceptions while waiting for the jobs to finish. """
         if self.exceptions:
             raise self.exceptions[0]
 
     def run_jobs(self,
-                 t,  # type: Process
+                 process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
                  logger,
-                 make_fs_access,
-                 **kwargs  # type: Any
-                 ):
+                 runtimeContext     # type: RuntimeContext
+                ):  # type: (...) -> None
 
-        jobiter = t.job(job_order_object, self.output_callback, **kwargs)
+        jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
-        for r in jobiter:
-            if r:
-                builder = kwargs.get("builder", None)  # type: Builder
-                if builder is not None:
-                    r.builder = builder
-                if r.outdir:
-                    self.output_dirs.add(r.outdir)
-                self.run_job(r, **kwargs)
+        for job in jobiter:
+            if job:
+                if runtimeContext.builder is not None:
+                    job.builder = runtimeContext.builder
+                if job.outdir:
+                    self.output_dirs.add(job.outdir)
+                self.run_job(job, runtimeContext)
             else:
-                if len(self.threads):
+                if self.threads:
                     self.wait_for_next_completion()
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
 
-        while len(self.threads) > 0:
+        while self.threads:
             self.wait_for_next_completion()

@@ -1,14 +1,13 @@
 import unittest
-import mock
 
+import mock
 from ruamel import yaml
 from schema_salad.schema import get_metaschema
 
 from cwltool import process
+from cwltool.sandboxjs import code_fragment_to_js
 from cwltool.validate_js import (get_expressions, jshint_js,
                                  validate_js_expressions)
-from cwltool.sandboxjs import code_fragment_to_js
-
 
 TEST_CWL = """
 cwlVersion: v1.0

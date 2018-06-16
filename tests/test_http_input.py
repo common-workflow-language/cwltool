@@ -1,7 +1,9 @@
 from __future__ import absolute_import
-import unittest
+
 import os
 import tempfile
+import unittest
+
 from cwltool.pathmapper import PathMapper
 
 
