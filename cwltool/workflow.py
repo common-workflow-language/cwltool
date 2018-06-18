@@ -5,6 +5,7 @@ import functools
 import logging
 import random
 import tempfile
+import time
 from collections import namedtuple
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
                     Generator, Iterable, List, Optional,
@@ -443,6 +444,9 @@ class WorkflowJob(object):
                     break
                 else:
                     yield None
+
+            time.sleep(runtimeContext.poll_interval)
+            # Don't let CWLtool hammer the CPU
 
         if not self.did_callback:
             self.do_output_callback(output_callback)

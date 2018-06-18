@@ -25,6 +25,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="[experimental] Run jobs in parallel. "
                              "Does not currently keep track of ResourceRequirements like the number of cores"
                              "or memory and can overload this system")
+
+    parser.add_argument("--poll-interval", type=float, default=0,
+                        help="Delay polling of nodes to avoid hammering CPU in parallel workflows")
+
     envgroup = parser.add_mutually_exclusive_group()
     envgroup.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when "

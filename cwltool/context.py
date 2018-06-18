@@ -70,6 +70,8 @@ class RuntimeContext(ContextBase):
         self.use_container = True       # type: bool
         self.force_docker_pull = False  # type: bool
 
+        self.poll_interval = 0          # type: float
+
         self.tmp_outdir_prefix = DEFAULT_TMP_PREFIX  # type: Text
         self.tmpdir_prefix = DEFAULT_TMP_PREFIX  # type: Text
         self.tmpdir = ""                # type: Text
