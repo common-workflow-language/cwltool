@@ -521,20 +521,19 @@ def main(argsl=None,                  # type: List[str]
         # shared volumes in Docker for Mac
         # More info: https://dockstore.org/docs/faq
         if sys.platform == "darwin":
-            tmp_prefix = "tmp_outdir_prefix"
             default_mac_path = "/private/tmp/docker_tmp"
-            if getattr(args, tmp_prefix) and getattr(args, tmp_prefix) == DEFAULT_TMP_PREFIX:
-                setattr(args, tmp_prefix, default_mac_path)
+            if runtimeContext.tmp_outdir_prefix == DEFAULT_TMP_PREFIX:
+                runtimeContext.tmp_outdir_prefix = default_mac_path
 
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
-            if getattr(args, dirprefix) and getattr(args, dirprefix) != DEFAULT_TMP_PREFIX:
-                sl = "/" if getattr(args, dirprefix).endswith("/") or dirprefix == "cachedir" \
+            if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
+                sl = "/" if getattr(runtimeContext, dirprefix).endswith("/") or dirprefix == "cachedir" \
                         else ""
-                setattr(args, dirprefix,
-                        os.path.abspath(getattr(args, dirprefix)) + sl)
-                if not os.path.exists(os.path.dirname(getattr(args, dirprefix))):
+                setattr(runtimeContext, dirprefix,
+                        os.path.abspath(getattr(runtimeContext, dirprefix)) + sl)
+                if not os.path.exists(os.path.dirname(getattr(runtimeContext, dirprefix))):
                     try:
-                        os.makedirs(os.path.dirname(getattr(args, dirprefix)))
+                        os.makedirs(os.path.dirname(getattr(runtimeContext, dirprefix)))
                     except Exception as e:
                         _logger.error("Failed to create directory: %s", e)
                         return 1
