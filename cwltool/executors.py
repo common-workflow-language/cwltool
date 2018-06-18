@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
@@ -182,6 +183,9 @@ class MultithreadedJobExecutor(JobExecutor):
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
+
+                time.sleep(runtimeContext.poll_interval)
+                # Don't let CWLtool hammer the CPU
 
         while self.threads:
             self.wait_for_next_completion()
