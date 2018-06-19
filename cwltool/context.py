@@ -1,4 +1,6 @@
 import copy
+import threading
+
 from .utils import DEFAULT_TMP_PREFIX
 from .stdfsaccess import StdFsAccess
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
@@ -107,6 +109,8 @@ class RuntimeContext(ContextBase):
         self.record_container_id = None
         self.cidfile_dir = None
         self.cidfile_prefix = None
+
+        self.workflow_eval_lock = None  # type: threading.Condition
 
         super(RuntimeContext, self).__init__(kwargs)
 

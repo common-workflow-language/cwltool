@@ -33,8 +33,6 @@ from .context import LoadingContext, RuntimeContext, getdefault
 
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
-job_output_lock = Lock()
-
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
 SHELL_COMMAND_TEMPLATE = """#!/bin/bash
@@ -326,7 +324,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 host_outdir, p.target[len(container_outdir)+1:])
                         os.remove(host_outdir_tgt)
 
-        with job_output_lock:
+        with runtimeContext.workflow_eval_lock:
             self.output_callback(outputs, processStatus)
 
         if self.stagedir and os.path.exists(self.stagedir):

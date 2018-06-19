@@ -69,6 +69,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
         self.output_dirs.add(runtimeContext.outdir)
         runtimeContext.mutation_manager = MutationManager()
         runtimeContext.toplevel = True
+        runtimeContext.workflow_eval_lock = threading.Condition(threading.RLock())
 
         job_reqs = None
         if "cwl:requirements" in job_order_object:
@@ -148,15 +149,19 @@ class MultithreadedJobExecutor(JobExecutor):
                 self.exceptions.append(err)
             except Exception as err:
                 self.exceptions.append(WorkflowException(Text(err)))
-            self.threads.remove(thread)
+            finally:
+                with runtimeContext.workflow_eval_lock:
+                    self.threads.remove(thread)
+                    runtimeContext.notifyAll()
 
         thread = threading.Thread(target=runner)
         thread.daemon = True
         self.threads.add(thread)
         thread.start()
 
-    def wait_for_next_completion(self):  # type: () -> None
-        """ Check for exceptions while waiting for the jobs to finish. """
+    def wait_for_next_completion(self, runtimeContext):  # type: () -> None
+        """ Wait for jobs to finish. """
+        runtimeContext.workflow_eval_lock.wait()
         if self.exceptions:
             raise self.exceptions[0]
 
@@ -169,8 +174,9 @@ class MultithreadedJobExecutor(JobExecutor):
 
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
+        runtimeContext.workflow_eval_lock.acquire()
         for job in jobiter:
-            if job:
+            if job is not None:
                 if runtimeContext.builder is not None:
                     job.builder = runtimeContext.builder
                 if job.outdir:
@@ -178,10 +184,10 @@ class MultithreadedJobExecutor(JobExecutor):
                 self.run_job(job, runtimeContext)
             else:
                 if self.threads:
-                    self.wait_for_next_completion()
+                    self.wait_for_next_completion(runtimeContext)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
 
         while self.threads:
-            self.wait_for_next_completion()
+            self.wait_for_next_completion(runtimeContext)
