@@ -324,6 +324,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 host_outdir, p.target[len(container_outdir)+1:])
                         os.remove(host_outdir_tgt)
 
+        if runtimeContext.workflow_eval_lock is None:
+            raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
+
         with runtimeContext.workflow_eval_lock:
             self.output_callback(outputs, processStatus)
 

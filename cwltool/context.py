@@ -101,7 +101,7 @@ class RuntimeContext(ContextBase):
         self.docker_stagedir = ""       # type: Text
         self.js_console = False         # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
-        self.select_resources = None    # type: Optional[Callable[[Dict[Text, int]], Dict[Text, int]]]
+        self.select_resources = None    # type: Optional[Callable[[Dict[Text, int], RuntimeContext], Dict[Text, int]]]
         self.eval_timeout = 20          # type: float
         self.postScatterEval = None     # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
         self.on_error = "stop"          # type: Text
@@ -110,7 +110,7 @@ class RuntimeContext(ContextBase):
         self.cidfile_dir = None
         self.cidfile_prefix = None
 
-        self.workflow_eval_lock = None  # type: threading.Condition
+        self.workflow_eval_lock = None  # type: Optional[threading.Condition]
 
         super(RuntimeContext, self).__init__(kwargs)
 

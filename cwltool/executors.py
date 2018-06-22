@@ -140,7 +140,7 @@ class MultithreadedJobExecutor(JobExecutor):
         super(MultithreadedJobExecutor, self).__init__()
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
-        self.pending_jobs = []
+        self.pending_jobs = []  # type: List[JobBase]
 
         self.max_ram = psutil.virtual_memory().total / 2**20
         self.max_cores = psutil.cpu_count()
@@ -207,9 +207,10 @@ class MultithreadedJobExecutor(JobExecutor):
                 self.allocated_cores += job.builder.resources["cores"]
             thread.start()
 
-    def wait_for_next_completion(self, runtimeContext):  # type: () -> None
+    def wait_for_next_completion(self, runtimeContext):  # type: (RuntimeContext) -> None
         """ Wait for jobs to finish. """
-        runtimeContext.workflow_eval_lock.wait()
+        if runtimeContext.workflow_eval_lock is not None:
+            runtimeContext.workflow_eval_lock.wait()
         if self.exceptions:
             raise self.exceptions[0]
 
@@ -221,6 +222,9 @@ class MultithreadedJobExecutor(JobExecutor):
                 ):  # type: (...) -> None
 
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
+
+        if runtimeContext.workflow_eval_lock is None:
+            raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
 
         runtimeContext.workflow_eval_lock.acquire()
         for job in jobiter:
