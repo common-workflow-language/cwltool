@@ -719,7 +719,9 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         else:  # PY2
             key = lambda dict: dict["position"]
         bindings.sort(key=key)
-        builder.resources = self.evalResources(builder, runtimeContext)
+
+        if self.tool[u"class"] != 'Workflow':
+            builder.resources = self.evalResources(builder, runtimeContext)
         return builder
 
     def evalResources(self, builder, runtimeContext):
@@ -754,7 +756,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 request[a + "Max"] = cast(int, mx)
 
         if runtimeContext.select_resources:
-            return runtimeContext.select_resources(request)
+            return runtimeContext.select_resources(request, builder)
         else:
             return {
                 "cores": request["coresMin"],

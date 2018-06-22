@@ -10,6 +10,8 @@ from schema_salad.validate import ValidationException
 import six
 from six import string_types
 
+import psutil
+
 from .builder import Builder  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .job import JobBase  # pylint: disable=unused-import
@@ -129,35 +131,82 @@ class MultithreadedJobExecutor(JobExecutor):
     """
     Experimental multi-threaded CWL executor.
 
-    Can easily overload a system as it does not do resource accounting.
+    Does simple resource accounting, will not start a job unless it
+    has cores / ram available, but does not make any attempt to
+    optimize usage.
     """
+
     def __init__(self):  # type: () -> None
         super(MultithreadedJobExecutor, self).__init__()
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
+        self.pending_jobs = []
+
+        self.max_ram = psutil.virtual_memory().total / 2**20
+        self.max_cores = psutil.cpu_count()
+        self.allocated_ram = 0
+        self.allocated_cores = 0
+
+    def select_resources(self, request, builder):
+        result = {}
+        maxrsc = {
+            "cores": self.max_cores,
+            "ram": self.max_ram,
+            "tmpdir": psutil.disk_usage(builder.tmpdir).free / 2**20,
+            "outdir": psutil.disk_usage(builder.outdir).free / 2**20
+        }
+        for rsc in ("cores", "ram", "tmpdir", "outdir"):
+            key = rsc + "Size" if rsc.endswith("dir") else rsc
+            if request[rsc+"Min"] > maxrsc[rsc]:
+                raise WorkflowException("Requested at least %d %s but only %d available", request[rsc+"Min"], rsc, maxrsc[rsc])
+            if request[rsc+"Max"] < maxrsc[rsc]:
+                result[key] = request[rsc+"Max"]
+            else:
+                result[key] = maxrsc[rsc]
+
+        return result
 
     def run_job(self,
                 job,      # type: JobBase
                 runtimeContext  # type: RuntimeContext
                ):  # type: (...) -> None
         """ Execute a single Job in a seperate thread. """
-        def runner():
-            """ Job running thread. """
-            try:
-                job.run(runtimeContext)
-            except WorkflowException as err:
-                self.exceptions.append(err)
-            except Exception as err:
-                self.exceptions.append(WorkflowException(Text(err)))
-            finally:
-                with runtimeContext.workflow_eval_lock:
-                    self.threads.remove(thread)
-                    runtimeContext.notifyAll()
 
-        thread = threading.Thread(target=runner)
-        thread.daemon = True
-        self.threads.add(thread)
-        thread.start()
+        if job is not None:
+            self.pending_jobs.append(job)
+
+        while self.pending_jobs:
+            job = self.pending_jobs[0]
+            if isinstance(job, JobBase):
+                if ((self.allocated_ram + job.builder.resources["ram"]) > self.max_ram or
+                    (self.allocated_cores + job.builder.resources["cores"]) > self.max_cores):
+                    return
+
+            self.pending_jobs.pop(0)
+
+            def runner():
+                """ Job running thread. """
+                try:
+                    job.run(runtimeContext)
+                except WorkflowException as err:
+                    self.exceptions.append(err)
+                except Exception as err:
+                    self.exceptions.append(WorkflowException(Text(err)))
+                finally:
+                    with runtimeContext.workflow_eval_lock:
+                        self.threads.remove(thread)
+                        if isinstance(job, JobBase):
+                            self.allocated_ram -= job.builder.resources["ram"]
+                            self.allocated_cores -= job.builder.resources["cores"]
+                        runtimeContext.workflow_eval_lock.notifyAll()
+
+            thread = threading.Thread(target=runner)
+            thread.daemon = True
+            self.threads.add(thread)
+            if isinstance(job, JobBase):
+                self.allocated_ram += job.builder.resources["ram"]
+                self.allocated_cores += job.builder.resources["cores"]
+            thread.start()
 
     def wait_for_next_completion(self, runtimeContext):  # type: () -> None
         """ Wait for jobs to finish. """
@@ -181,8 +230,10 @@ class MultithreadedJobExecutor(JobExecutor):
                     job.builder = runtimeContext.builder
                 if job.outdir:
                     self.output_dirs.add(job.outdir)
-                self.run_job(job, runtimeContext)
-            else:
+
+            self.run_job(job, runtimeContext)
+
+            if job is None:
                 if self.threads:
                     self.wait_for_next_completion(runtimeContext)
                 else:

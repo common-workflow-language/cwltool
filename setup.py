@@ -58,6 +58,7 @@ setup(name='cwltool',
           'typing >= 3.5.3',
           'mypy-extensions',
           'six >= 1.8.0',
+          'psutil'
       ],
       extras_require={
           ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
