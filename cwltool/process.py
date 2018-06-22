@@ -756,7 +756,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 request[a + "Max"] = cast(int, mx)
 
         if runtimeContext.select_resources:
-            return runtimeContext.select_resources(request, builder)
+            return runtimeContext.select_resources(request, runtimeContext)
         else:
             return {
                 "cores": request["coresMin"],

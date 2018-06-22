@@ -147,22 +147,19 @@ class MultithreadedJobExecutor(JobExecutor):
         self.allocated_ram = 0
         self.allocated_cores = 0
 
-    def select_resources(self, request, builder):
+    def select_resources(self, request, runtimeContext):
         result = {}
         maxrsc = {
             "cores": self.max_cores,
-            "ram": self.max_ram,
-            "tmpdir": psutil.disk_usage(builder.tmpdir).free / 2**20,
-            "outdir": psutil.disk_usage(builder.outdir).free / 2**20
+            "ram": self.max_ram
         }
-        for rsc in ("cores", "ram", "tmpdir", "outdir"):
-            key = rsc + "Size" if rsc.endswith("dir") else rsc
+        for rsc in ("cores", "ram"):
             if request[rsc+"Min"] > maxrsc[rsc]:
                 raise WorkflowException("Requested at least %d %s but only %d available", request[rsc+"Min"], rsc, maxrsc[rsc])
             if request[rsc+"Max"] < maxrsc[rsc]:
-                result[key] = request[rsc+"Max"]
+                result[rsc] = request[rsc+"Max"]
             else:
-                result[key] = maxrsc[rsc]
+                result[rsc] = maxrsc[rsc]
 
         return result
 
@@ -189,8 +186,10 @@ class MultithreadedJobExecutor(JobExecutor):
                 try:
                     job.run(runtimeContext)
                 except WorkflowException as err:
+                    _logger.exception("Got workflow error")
                     self.exceptions.append(err)
                 except Exception as err:
+                    _logger.exception("Got workflow error")
                     self.exceptions.append(WorkflowException(Text(err)))
                 finally:
                     with runtimeContext.workflow_eval_lock:
