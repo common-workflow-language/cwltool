@@ -20,7 +20,7 @@ from .sandboxjs import code_fragment_to_js, exec_js_process
 from .utils import json_dumps
 
 def is_expression(tool, schema):
-    # type: (Union[CommentedMap, Any], Schema) -> bool
+    # type: (Union[CommentedMap, Any], Optional[Schema]) -> bool
     return isinstance(schema, avro.schema.EnumSchema) \
         and schema.name == "Expression" and isinstance(tool, string_types)
 
@@ -37,7 +37,7 @@ _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
 _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings"))
 
 def get_expressions(tool,             # type: Union[CommentedMap, Any]
-                    schema,           # type: avro.schema.Schema
+                    schema,           # type: Optional[avro.schema.Schema]
                     source_line=None  # type: Optional[SourceLine]
                    ):  # type: (...) -> List[Tuple[Text, Optional[SourceLine]]]
     if is_expression(tool, schema):
@@ -52,7 +52,6 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
                              logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 
-        assert valid_schema is not None
         return get_expressions(tool, valid_schema, source_line)
     elif isinstance(schema, avro.schema.ArraySchema):
         if not isinstance(tool, list):
