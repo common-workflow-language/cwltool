@@ -51,6 +51,10 @@ class LoadingContext(ContextBase):
         self.fetcher_constructor = None
         self.construct_tool_object = default_make_tool
         self.research_obj = None
+        self.orcid = None
+        self.cwl_full_name = None
+        self.host_provenance = None
+        self.user_provenance = None
 
         super(LoadingContext, self).__init__(kwargs)
 
