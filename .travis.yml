@@ -13,7 +13,10 @@ before_install:
 - sudo apt-get install -y singularity-container
 
 language: python
-cache: pip
+cache:
+  pip: true
+  directories:
+    - .mypy_cache
 python:
   - 2.7
   - 3.4

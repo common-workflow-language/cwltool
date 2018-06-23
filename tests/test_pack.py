@@ -1,22 +1,22 @@
 from __future__ import absolute_import
 
 import json
-import unittest
-
 import os
-from functools import partial
 import tempfile
+import unittest
+from functools import partial
 
 import pytest
 from six import StringIO
 
 import cwltool.pack
 import cwltool.workflow
-from cwltool.resolver import tool_resolver
 from cwltool import load_tool
 from cwltool.load_tool import fetch_document, validate_document
-from cwltool.main import makeRelative, main, print_pack
+from cwltool.main import main, make_relative, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
+from cwltool.resolver import tool_resolver
+
 from .util import get_data, needs_docker
 
 
@@ -33,9 +33,9 @@ class TestPack(unittest.TestCase):
         packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
         with open(get_data("tests/wf/expect_packed.cwl")) as f:
             expect_packed = json.load(f)
-        adjustFileObjs(packed, partial(makeRelative,
+        adjustFileObjs(packed, partial(make_relative,
             os.path.abspath(get_data("tests/wf"))))
-        adjustDirObjs(packed, partial(makeRelative,
+        adjustDirObjs(packed, partial(make_relative,
             os.path.abspath(get_data("tests/wf"))))
         self.assertIn("$schemas", packed)
         del packed["$schemas"]

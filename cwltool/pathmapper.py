@@ -1,25 +1,27 @@
 from __future__ import absolute_import
+
 import collections
 import logging
 import os
 import stat
 import uuid
-from functools import partial
+from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Iterable, List, MutableMapping, Optional, Set, Text, Tuple,
+                    Union)
 
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from typing import Any, Callable, Dict, Iterable, List, Set, Text, Tuple, Union, MutableMapping
-
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
-from .utils import convert_pathsep_to_unix, visit_class
-
-from .stdfsaccess import StdFsAccess, abspath
+from .stdfsaccess import StdFsAccess, abspath  # pylint: disable=unused-import
+from .utils import (Directory,  # pylint: disable=unused-import
+                    convert_pathsep_to_unix, visit_class)
 
 _logger = logging.getLogger("cwltool")
 
@@ -49,7 +51,7 @@ def adjustDirObjs(rec, op):
     visit_class(rec, ("Directory",), op)
 
 def normalizeFilesDirs(job):
-    # type: (Union[List[Dict[Text, Any]], MutableMapping[Text, Any]]) -> None
+    # type: (Optional[Union[List[Dict[Text, Any]], MutableMapping[Text, Any], Directory]]) -> None
     def addLocation(d):
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
@@ -284,7 +286,9 @@ class PathMapper(object):
     def items(self):  # type: () -> List[Tuple[Text, MapperEnt]]
         return list(self._pathmap.items())
 
-    def reversemap(self, target):  # type: (Text) -> Tuple[Text, Text]
+    def reversemap(self,
+                   target  # type: Text
+                  ):  # type: (...) -> Optional[Tuple[Text, Text]]
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])

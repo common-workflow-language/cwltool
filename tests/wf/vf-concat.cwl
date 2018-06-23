@@ -5,10 +5,10 @@ requirements:
 
 baseCommand: echo
 inputs:
-  - id: parameter
-    type: string?
+  file1:
+    type: File?
     inputBinding:
-      valueFrom: $("a ")$("sting")
+      valueFrom: $("a ")$("string")
 outputs:
   out:
     type: string

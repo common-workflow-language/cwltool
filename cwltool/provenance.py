@@ -12,15 +12,8 @@ import itertools
 import logging
 
 import hashlib
-# Old Python2 might not have these
-try:
-    from hashlib import sha256
-except:
-    sha256 = None
-try:
-    from hashlib import sha512
-except:
-    sha512 = None
+from hashlib import sha256
+from hashlib import sha512
 
 from shutil import copyfile
 import time
@@ -50,11 +43,18 @@ from schema_salad.sourceline import SourceLine
 from socket import getfqdn
 from getpass import getuser
 try:
+    from pwd import struct_passwd
+except ImportError:
+    pass
+getpwnam = None  # type: Optional[Callable[[str], struct_passwd]]
+try:
     # pwd is only available on Unix
+    from pwd import struct_passwd
     from pwd import getpwnam
-except:
-    getpwnam = None
+except ImportError:
+    pass
 
+from .context import RuntimeContext
 from .errors import WorkflowException
 from .process import shortname, Process
 from .stdfsaccess import StdFsAccess
@@ -101,7 +101,7 @@ userUUID = uuid.uuid4().urn
 accountUUID = uuid.uuid4().urn
 
 def _convert_path(path, from_path=os.path, to_path=posixpath):
-    # type: (str,Any,Any) -> str
+    # type: (Text, Any, Any) -> Text
     if from_path == to_path:
         return path
     if (from_path.isabs(path)):
@@ -114,11 +114,11 @@ def _convert_path(path, from_path=os.path, to_path=posixpath):
     return converted
 
 def _posix_path(local_path):
-    # type: (str) -> str
+    # type: (Text) -> Text
     return _convert_path(local_path, os.path, posixpath)
 
 def _local_path(posix_path):
-    # type: (str) -> str
+    # type: (Text) -> Text
     return _convert_path(posix_path, posixpath, os.path)
 
 def _whoami():
@@ -137,25 +137,32 @@ def _whoami():
 
 class WritableBagFile(io.FileIO):
     def __init__(self, ro, rel_path):
-        # type: (ResearchObject, str) -> None
+        # type: (ResearchObject, Text) -> None
         self.ro = ro
-        if (posixpath.isabs(rel_path)):
+        if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         self.rel_path = rel_path
         self.hashes = {"sha1": hashlib.sha1(),
                        "sha256": hashlib.sha256(),
                        "sha512": hashlib.sha512()}
         # Open file in RO folder
-        path = os.path.abspath(os.path.join(ro.folder, _local_path(rel_path)))
-        if not path.startswith(os.path.abspath(ro.folder)):
+        if ro.folder:
+            path = os.path.abspath(os.path.join(ro.folder, _local_path(rel_path)))
+        if not ro.folder or not path.startswith(os.path.abspath(ro.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
-        super(WritableBagFile, self).__init__(path, mode="w")
+        super(WritableBagFile, self).__init__(path, mode="w")  # type: ignore
 
     def write(self, b):
-        # type: (bytes) -> None
-        super(WritableBagFile, self).write(b)
-        for h in self.hashes.values():
-            h.update(b)
+        # type: (bytes) -> int
+        total = 0
+        length = len(b)
+        while total < length:
+            ret = super(WritableBagFile, self).write(b)
+            if isinstance(ret, int):
+                total += ret
+        for _ in self.hashes.values():
+            _.update(b)
+        return total
 
     def close(self):
         # FIXME: Convert below block to a ResearchObject method?
@@ -185,11 +192,12 @@ class WritableBagFile(io.FileIO):
         return False
 
     def truncate(self, size=None):
-        # type: (Optional[int]) -> None
+        # type: (Optional[int]) -> int
         # FIXME: This breaks contract io.IOBase,
         # as it means we would have to recalculate the hash
         if size is not None:
             raise IOError("WritableBagFile can't truncate")
+        return self.tell()
 
 def _check_mod_11_2(numeric_string):
     # type: (Text) -> bool
@@ -218,7 +226,7 @@ def _check_mod_11_2(numeric_string):
     # Compare against last digit or X
     return nums[-1].upper() == checkdigit
 
-def _valid_orcid(orcid):  # type: (Text) -> Text
+def _valid_orcid(orcid):  # type: (Optional[Text]) -> Optional[Text]
     """Ensure orcid is a valid ORCID identifier.
 
     If the string is None or empty, None is returned.
@@ -245,8 +253,8 @@ def _valid_orcid(orcid):  # type: (Text) -> Text
 
         # Optional hostname, with or without protocol
         r"(http://orcid\.org/|https://orcid\.org/|orcid\.org/)?"
-        ## alternative pattern, but probably messier
-        ## r"^((https?://)?orcid.org/)?"
+        # alternative pattern, but probably messier
+        # r"^((https?://)?orcid.org/)?"
 
         # ORCID number is always 4x4 numerical digits,
         # but last digit (modulus 11 checksum)
@@ -319,7 +327,7 @@ class create_ProvProfile():
         self.workflowRunURI = workflowRunUUID.urn
         # https://tools.ietf.org/id/draft-soilandreyes-arcp
         self.base_uri = "arcp://uuid,%s/" % workflowRunUUID
-        ## info only, won't really be used by prov as sub-resources use /
+        # info only, won't really be used by prov as sub-resources use /
         self.document.add_namespace('researchobject', self.base_uri)
         roIdentifierWorkflow= self.base_uri + "workflow/packed.cwl#"
         self.wf_ns = self.document.add_namespace("wf", roIdentifierWorkflow)
@@ -367,26 +375,36 @@ class create_ProvProfile():
         self.document.wasStartedBy(self.workflowRunURI, None, self.engineUUID, datetime.datetime.now())
         return (self.workflowRunURI, self.document)
 
-    def _evaluate(self, t, r, job_order_object, make_fs_access, kwargs):
-        # type: (Process, Any, Dict[Text, Text], Callable[[Text], StdFsAccess], **Any) -> Tuple[str, Dict[Text, Text]]
+    def _evaluate(self,
+                  t,                 # type: Process
+                  r,                 # type: Any
+                  job_order_object,  # type: Dict[Text, Text]
+                  make_fs_access,    # type: Callable[[Text], StdFsAccess]
+                  runtimeContext     # type: RuntimeContext
+                  ):  # type: (...) -> Tuple[str, Dict[Text, Text]]
         '''
-        evaluate the nature of r and 
+        evaluate the nature of r and
         initialize the activity start
         '''
         reference_locations={}  # type: Dict[Text, Any]
         ProcessRunID=None
-        research_obj=kwargs["research_obj"]
+        research_obj=runtimeContext.research_obj
+        assert research_obj is not None
         if not hasattr(t, "steps"):  # record provenance of an independent commandline tool execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)
-            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
+            relativised_input_object, reference_locations = \
+                research_obj.create_job(
+                    customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object, job_order_object)
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
             ProcessRunID=self.workflowRunURI
         elif hasattr(r, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(r)
             customised_job=research_obj.copy_job_order(r, job_order_object)
-            relativised_input_object, reference_locations =research_obj.create_job(customised_job, make_fs_access, kwargs)
+            relativised_input_object, reference_locations = \
+                research_obj.create_job(
+                    customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object, job_order_object)
         else:  # in case of commandline tool execution as part of workflow
             ProcessName= urllib.parse.quote(str(r.name), safe=":/,#")
@@ -398,7 +416,7 @@ class create_ProvProfile():
         '''
         record start of each Process
         '''
-        if ProcessRunID == None:
+        if ProcessRunID is None:
             ProcessRunID=uuid.uuid4().urn
         if self.workflowRunURI:
             provLabel="Run of workflow/packed.cwl#main/"+ProcessName
@@ -442,6 +460,7 @@ class create_ProvProfile():
                 # TODO: Avoid duplication of code here and in
                 # _relativise_files()
                 # TODO: check we don't double-hash everything now
+                assert self.ro.make_fs_access
                 fsaccess = self.ro.make_fs_access("")
                 with fsaccess.open(location, "rb") as f:
                     relative_path=self.ro.add_data_file(f)
@@ -457,12 +476,12 @@ class create_ProvProfile():
                 self.document.entity(data_id, {provM.PROV_TYPE:WFPROV["Artifact"], provM.PROV_VALUE:str(value)})
                 self.document.used(ProcessRunID, data_id, datetime.datetime.now(),None, {"prov:role":provRole })
 
-    def generate_outputProv(self, final_output, ProcessRunID=None, name=None):
+    def generate_outputProv(self, final_output, ProcessRunID, name):
         # type: (Dict, str, str) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
-        ## A bit too late, but we don't know the "inner" when
+        # A bit too late, but we don't know the "inner" when
         when = datetime.datetime.now()
         key_files=[]  # type: List[List[Any]]
         for key, value in final_output.items():
@@ -613,12 +632,12 @@ class create_ProvProfile():
 
 class ResearchObject():
     def __init__(self, tmpPrefix="tmp", orcid=None, full_name=None):
-        # type: (str, str, str) -> None
+        # type: (str, Text, str) -> None
 
         self.tmpPrefix = tmpPrefix
         self.orcid = _valid_orcid(orcid)
         self.full_name = full_name or None
-        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))
+        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmpPrefix))  # type: Optional[Text]
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
@@ -633,13 +652,14 @@ class ResearchObject():
         self.cwltoolVersion = "cwltool (unknown version)"
         ##
         # This function will be added by create_job()
-        self.make_fs_access = None  # type: Callable[[Text], StdFsAccess]
+        self.make_fs_access = None  # type: Optional[Callable[[Text], StdFsAccess]]
 
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
 
     def _initialize(self):
         # type: (...) -> None
+        assert self.folder
         for f in (METADATA, DATA, WORKFLOW, SNAPSHOT, PROVENANCE):
             os.makedirs(os.path.join(self.folder, f))
         self._initialize_bagit()
@@ -647,6 +667,7 @@ class ResearchObject():
     def _initialize_bagit(self):
         # type: (...) -> None
         # Write fixed bagit header
+        assert self.folder
         bagit = os.path.join(self.folder, "bagit.txt")
         # encoding: always UTF-8 (although ASCII would suffice here)
         # newline: ensure LF also on Windows
@@ -705,7 +726,7 @@ class ResearchObject():
         document.actedOnBehalfOf(account, user)
 
     def write_bag_file(self, path, encoding=ENCODING):
-        # type: (str, str) -> IO
+        # type: (Text, Optional[str]) -> IO
 
         # For some reason below throws BlockingIOError
         #fp = io.BufferedWriter(WritableBagFile(self, path))
@@ -719,7 +740,7 @@ class ResearchObject():
             return fp
 
     def add_tagfile(self, path, when=None):
-        # type: (str, datetime.datetime) -> None
+        # type: (Text, datetime.datetime) -> None
         checksums = {}
         # Read file to calculate its checksum
         with open(path, "rb") as fp:
@@ -738,6 +759,7 @@ class ResearchObject():
             if sha512:
                 fp.seek(0)
                 checksums["sha512"]= self._checksum_copy(fp, hashmethod=sha512)
+        assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
         self.add_to_manifest(rel_path, checksums)
@@ -804,7 +826,7 @@ class ResearchObject():
         return aggregates
 
     def _guess_mediatype(self, rel_path):
-        # type: (str) -> Optional[Dict[str,str]]
+        # type: (str) -> Dict[str,str]
         MEDIA_TYPES = {
             # Adapted from
             # https://w3id.org/bundle/2014-11-05/#media-types
@@ -837,7 +859,7 @@ class ResearchObject():
         }
 
 
-        extension = rel_path.rsplit(".", 1)[-1].lower()
+        extension = rel_path.rsplit(".", 1)[-1].lower()  # type: Optional[str]
         if extension == rel_path:
             # No ".", no extension
             extension = None
@@ -971,7 +993,7 @@ class ResearchObject():
         Copies all the cwl files involved in this workflow run to snapshot
         directory
         '''
-
+        assert self.folder
         for key, value in ProvDep.items():
             if key == "location" and value.split("/")[-1]:
                 filename= value.split("/")[-1]
@@ -994,7 +1016,7 @@ class ResearchObject():
             else:
                 pass
 
-    def packed_workflow(self, packed):
+    def packed_workflow(self, packed):  # type: (Text) -> None
         '''
         packs workflow and commandline tools to generate re-runnable workflow object in RO
         '''
@@ -1024,7 +1046,7 @@ class ResearchObject():
 
 
     def add_data_file(self, from_fp, when=None):
-        # type: (IO, Optional[datetime.datetime]) -> str
+        # type: (IO, Optional[datetime.datetime]) -> Text
         '''
         copies inputs to Data
         '''
@@ -1033,6 +1055,7 @@ class ResearchObject():
             checksum = self._checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
+        assert self.folder
         folder = os.path.join(self.folder, DATA, checksum[0:2])
         path = os.path.join(folder, checksum)
         # os.rename assumed safe, as our temp file should
@@ -1071,7 +1094,7 @@ class ResearchObject():
         }
 
     def add_to_manifest(self, rel_path, checksums):
-        # type: (str, Dict[str,str]) -> None
+        # type: (Text, Dict[str,str]) -> None
 
         if (posixpath.isabs(rel_path)):
             raise ValueError("rel_path must be relative: %s" % rel_path)
@@ -1083,6 +1106,7 @@ class ResearchObject():
             # metadata file, go to tag manifest
             manifest = "tagmanifest"
 
+        assert self.folder
         # Add checksums to corresponding manifest files
         for (method,hash) in checksums.items():
             # File not in manifest because we bailed out on
@@ -1098,9 +1122,10 @@ class ResearchObject():
 
 
     def _add_to_bagit(self, rel_path, **checksums):
-        # type: (str, Any) -> None
+        # type: (Text, Any) -> None
         if (posixpath.isabs(rel_path)):
             raise ValueError("rel_path must be relative: %s" % rel_path)
+        assert self.folder
         local_path = os.path.join(self.folder, _local_path(rel_path))
         if not os.path.exists(local_path):
             raise IOError("File %s does not exist within RO: %s" % (rel_path, local_path))
@@ -1119,9 +1144,11 @@ class ResearchObject():
 
         self.add_to_manifest(rel_path, checksums)
 
-    def create_job(self, job, make_fs_access, kwargs):
-        # type: (Dict, Callable[[Text], StdFsAccess], Dict[str,Any]) -> Tuple[Dict,Dict]
-
+    def create_job(self,
+                   job,             # type: Dict
+                   make_fs_access,  # type: Callable[[Text], StdFsAccess]
+                   runtimeContext   # type: RuntimeContext
+                  ):  # type: (...) -> Tuple[Dict,Dict]
         #TODO customise the file
         '''
         This function takes the dictionary input object and generates
@@ -1131,7 +1158,7 @@ class ResearchObject():
         self.make_fs_access = make_fs_access
         relativised_input_objecttemp2={}  # type: Dict[Any,Any]
         relativised_input_objecttemp={}  # type: Dict[Any,Any]
-        self._relativise_files(job, kwargs, relativised_input_objecttemp2)
+        self._relativise_files(job, relativised_input_objecttemp2)
 
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(job, indent=4, ensure_ascii=False)
@@ -1152,8 +1179,8 @@ class ResearchObject():
         relativised_input_object.update({k: v for k, v in relativised_input_objecttemp.items() if v})
         return relativised_input_object, relativised_input_objecttemp2
 
-    def _relativise_files(self, structure, kwargs, relativised_input_objecttemp2):
-        # type: (Any, Dict, Dict) -> None
+    def _relativise_files(self, structure, relativised_input_objecttemp2):
+        # type: (Any, Dict) -> None
         '''
         save any file objects into RO and update the local paths
         '''
@@ -1162,19 +1189,20 @@ class ResearchObject():
         if isinstance(structure, dict):
             if structure.get("class") == "File":
                 #standardised fs access object creation
+                assert self.make_fs_access
                 fsaccess = self.make_fs_access("")
                 # TODO: Replace location/path with new add_data_file() paths
                 with fsaccess.open(structure["location"], "rb") as f:
                     relative_path=self.add_data_file(f)
                     ref_location=structure["location"]
                     structure["location"]= "../"+relative_path
-                    if not "checksum" in structure:
+                    if "checksum" not in structure:
                         # FIXME: This naively relies on add_data_file setting hash as filename
                         structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
                     relativised_input_objecttemp2[ref_location] = structure["location"]
 
             for o in structure.values():
-                self._relativise_files(o, kwargs, relativised_input_objecttemp2)
+                self._relativise_files(o, relativised_input_objecttemp2)
             return
 
         if isinstance(structure, (str, Text)):
@@ -1183,7 +1211,7 @@ class ResearchObject():
         try:
             for o in iter(structure):
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(o, kwargs, relativised_input_objecttemp2)
+                self._relativise_files(o, relativised_input_objecttemp2)
         except TypeError:
             pass
 
@@ -1239,7 +1267,7 @@ class ResearchObject():
             if os.path.isdir(saveTo):
                 _logger.info(u"[provenance] Deleting existing %s", saveTo)
                 shutil.rmtree(saveTo)
-
+            assert self.folder
             shutil.move(self.folder, saveTo)
             _logger.info(u"[provenance] Research Object saved to %s", saveTo)
         # Forget our temporary folder, which should no longer exists
