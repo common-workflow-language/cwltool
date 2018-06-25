@@ -17,7 +17,7 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .process import Process, shortname, uniquename, get_overrides
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, versionstring
+from .utils import aslist
 from .provenance import create_researchObject, create_ProvProfile
 from .checker import static_checker, can_assign_src_to_sink, check_types
 
