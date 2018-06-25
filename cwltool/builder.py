@@ -1,30 +1,27 @@
 from __future__ import absolute_import
+
 import copy
-import os
 import logging
-import json
-from typing import Any, Callable, Dict, List, Text, Type, Union, Set
+from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
+                    Optional, Set, Text, Type, Union, Tuple)
 
-import six
-from six import iteritems, string_types
-
-import schema_salad.validate as validate
-import schema_salad.schema as schema
-from schema_salad.sourceline import SourceLine
-from schema_salad.schema import AvroSchemaFromJSONData
-
-from rdflib import Graph, URIRef
+from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
+import schema_salad.schema  # pylint: disable=unused-import
+import schema_salad.validate as validate
+from schema_salad.schema import AvroSchemaFromJSONData
+from schema_salad.sourceline import SourceLine
+from six import iteritems, string_types
 
 from . import expression
 from .errors import WorkflowException
-from .mutation import MutationManager
-from .pathmapper import (PathMapper, get_listing, normalizeFilesDirs,
-                         visit_class)
-from .stdfsaccess import StdFsAccess
-from .utils import aslist, get_feature, docker_windows_path_adjust, onWindows
-
-_logger = logging.getLogger("cwltool")
+from .loghandler import _logger
+from .mutation import MutationManager  # pylint: disable=unused-import
+from .pathmapper import (PathMapper,  # pylint: disable=unused-import
+                         get_listing, normalizeFilesDirs, visit_class)
+from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
+from .utils import (aslist, docker_windows_path_adjust,
+                    json_dumps, onWindows)
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -32,11 +29,10 @@ CONTENT_LIMIT = 64 * 1024
 def substitute(value, replace):  # type: (Text, Text) -> Text
     if replace[0] == "^":
         return substitute(value[0:value.rindex('.')], replace[1:])
-    else:
-        return value + replace
+    return value + replace
 
 def formatSubclassOf(fmt, cls, ontology, visited):
-    # type: (Text, Text, Graph, Set[Text]) -> bool
+    # type: (Text, Text, Optional[Graph], Set[Text]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
 
     if URIRef(fmt) == URIRef(cls):
@@ -69,48 +65,124 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     return False
 
-def checkFormat(actualFile, inputFormats, ontology):
-    # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
-    for af in aslist(actualFile):
-        if not af:
+def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
+                 input_formats,  # type: Union[List[Text], Text]
+                 ontology        # type: Optional[Graph]
+                ):  # type: (...) -> None
+    """ Confirms that the format present is valid for the allowed formats."""
+    for afile in aslist(actual_file):
+        if not afile:
             continue
-        if "format" not in af:
-            raise validate.ValidationException(u"File has no 'format' defined: %s" % json.dumps(af, indent=4))
-        for inpf in aslist(inputFormats):
-            if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
+        if "format" not in afile:
+            raise validate.ValidationException(
+                u"File has no 'format' defined: {}".format(
+                    json_dumps(afile, indent=4)))
+        for inpf in aslist(input_formats):
+            if afile["format"] == inpf or \
+                    formatSubclassOf(afile["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-            u"File has an incompatible format: %s" % json.dumps(af, indent=4))
+            u"File has an incompatible format: {}".format(
+                json_dumps(afile, indent=4)))
 
-class Builder(object):
-    def __init__(self):  # type: () -> None
-        self.names = None  # type: schema.Names
-        self.schemaDefs = None  # type: Dict[Text, Dict[Text, Any]]
-        self.files = None  # type: List[Dict[Text, Text]]
-        self.fs_access = None  # type: StdFsAccess
-        self.job = None  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
-        self.requirements = None  # type: List[Dict[Text, Any]]
-        self.hints = None  # type: List[Dict[Text, Any]]
-        self.outdir = None  # type: Text
-        self.tmpdir = None  # type: Text
-        self.resources = None  # type: Dict[Text, Union[int, Text]]
-        self.bindings = []  # type: List[Dict[Text, Any]]
-        self.timeout = None  # type: int
-        self.pathmapper = None  # type: PathMapper
-        self.stagedir = None  # type: Text
-        self.make_fs_access = None  # type: Type[StdFsAccess]
-        self.debug = False  # type: bool
-        self.js_console = False  # type: bool
-        self.mutation_manager = None  # type: MutationManager
-        self.force_docker_pull = False  # type: bool
-        self.formatgraph = None  # type: Graph
+class HasReqsHints(object):
+    def __init__(self):
+        self.requirements = []  # List[Dict[Text, Any]]
+        self.hints = []         # List[Dict[Text, Any]]
+
+    def get_requirement(self,
+                    feature  # type: Text
+                   ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+        for item in reversed(self.requirements):
+            if item["class"] == feature:
+                return (item, True)
+        for item in reversed(self.hints):
+            if item["class"] == feature:
+                return (item, False)
+        return (None, None)
+
+class Builder(HasReqsHints):
+    def __init__(self,
+                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 files=None,                # type: List[Dict[Text, Text]]
+                 bindings=None,             # type: List[Dict[Text, Any]]
+                 schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
+                 names=None,                # type: schema_salad.schema.Names
+                 requirements=None,         # type: List[Dict[Text, Any]]
+                 hints=None,                # type: List[Dict[Text, Any]]
+                 timeout=None,              # type: float
+                 debug=False,               # type: bool
+                 resources=None,            # type: Dict[Text, int]
+                 js_console=False,          # type: bool
+                 mutation_manager=None,     # type: Optional[MutationManager]
+                 formatgraph=None,          # type: Optional[Graph]
+                 make_fs_access=None,       # type: Type[StdFsAccess]
+                 fs_access=None,            # type: StdFsAccess
+                 force_docker_pull=False,   # type: bool
+                 loadListing=u"",           # type: Text
+                 outdir=u"",                # type: Text
+                 tmpdir=u"",                # type: Text
+                 stagedir=u"",              # type: Text
+                 job_script_provider=None   # type: Optional[Any]
+                ):  # type: (...) -> None
+
+        if names is None:
+            self.names = schema_salad.schema.Names()
+        else:
+            self.names = names
+
+        if schemaDefs is None:
+            self.schemaDefs = {}  # type: Dict[Text, Dict[Text, Any]]
+        else:
+            self.schemaDefs = schemaDefs
+
+        if files is None:
+            self.files = []  # type: List[Dict[Text, Text]]
+        else:
+            self.files = files
+
+        if fs_access is None:
+            self.fs_access = StdFsAccess("")
+        else:
+            self.fs_access = fs_access
+
+        self.job = job
+        self.requirements = requirements
+        self.hints = hints
+        self.outdir = outdir
+        self.tmpdir = tmpdir
+
+        if resources is None:
+            self.resources = {}  # type: Dict[Text, int]
+        else:
+            self.resources = resources
+
+        if bindings is None:
+            self.bindings = []  # type: List[Dict[Text, Any]]
+        else:
+            self.bindings = bindings
+        self.timeout = timeout
+        self.pathmapper = None  # type: Optional[PathMapper]
+        self.stagedir = stagedir
+
+        if make_fs_access is None:
+            self.make_fs_access = StdFsAccess
+        else:
+            self.make_fs_access = make_fs_access
+
+        self.debug = debug
+        self.js_console = js_console
+        self.mutation_manager = mutation_manager
+        self.force_docker_pull = force_docker_pull
+        self.formatgraph = formatgraph
+
         # One of "no_listing", "shallow_listing", "deep_listing"
-        # Will be default "no_listing" for CWL v1.1
-        self.loadListing = "deep_listing"  # type: Union[None, str]
+        self.loadListing = loadListing
         self.provObj=None
 
-        self.find_default_container = None  # type: Callable[[], Text]
-        self.job_script_provider = None  # type: Any
+        self.find_default_container = None  # type: Optional[Callable[[], Text]]
+        self.job_script_provider = job_script_provider
+
     def build_job_script(self, commands):
         # type: (List[Text]) -> Text
         build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
@@ -119,14 +191,20 @@ class Builder(object):
         else:
             return None
 
-    def bind_input(self, schema, datum, lead_pos=None, tail_pos=None, discover_secondaryFiles=False):
-        # type: (Dict[Text, Any], Any, Union[int, List[int]], List[int], bool) -> List[Dict[Text, Any]]
+    def bind_input(self,
+                   schema,                   # type: Dict[Text, Any]
+                   datum,                    # type: Any
+                   discover_secondaryFiles,  # type: bool
+                   lead_pos=None,            # type: Optional[Union[int, List[int]]]
+                   tail_pos=None,            # type: Optional[List[int]]
+                  ):  # type: (...) -> List[Dict[Text, Any]]
+
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
             lead_pos = []
         bindings = []  # type: List[Dict[Text,Text]]
-        binding = None  # type: Dict[Text,Any]
+        binding = None  # type: Optional[Dict[Text,Any]]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
             binding = copy.copy(schema["inputBinding"])
@@ -144,7 +222,7 @@ class Builder(object):
         if isinstance(schema["type"], list):
             bound_input = False
             for t in schema["type"]:
-                if isinstance(t, (str, Text)) and self.names.has_name(t, ""):
+                if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
                 elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
@@ -177,7 +255,7 @@ class Builder(object):
 
             if schema["type"] == "record":
                 for f in schema["fields"]:
-                    if f["name"] in datum:
+                    if f["name"] in datum and datum[f["name"]] is not None:
                         bindings.extend(self.bind_input(f, datum[f["name"]], lead_pos=lead_pos, tail_pos=f["name"], discover_secondaryFiles=discover_secondaryFiles))
                     else:
                         datum[f["name"]] = f.get("default")
@@ -230,15 +308,18 @@ class Builder(object):
                                         "class": "File"})
                                 else:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
-                                        sfname, json.dumps(datum, indent=4)))
+                                        sfname, json_dumps(datum, indent=4)))
 
                     normalizeFilesDirs(datum["secondaryFiles"])
 
                 if "format" in schema:
                     try:
-                        checkFormat(datum, self.do_eval(schema["format"]), self.formatgraph)
+                        check_format(datum, self.do_eval(schema["format"]),
+                                     self.formatgraph)
                     except validate.ValidationException as ve:
-                        raise WorkflowException("Expected value of '%s' to have format %s but\n  %s" % (schema["name"], schema["format"], ve))
+                        raise WorkflowException(
+                            "Expected value of '%s' to have format %s but\n "
+                            " %s" % (schema["name"], schema["format"], ve))
 
                 def _capture_files(f):
                     self.files.append(f)
@@ -266,29 +347,33 @@ class Builder(object):
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
 
             # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = get_feature(self, "DockerRequirement")
-            if onWindows() and docker_req is not None:  # docker_req is none only when there is no dockerRequirement mentioned in hints and Requirement
-                return docker_windows_path_adjust(value["path"])
+            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
+            if onWindows() and docker_req is not None:
+                # docker_req is none only when there is no dockerRequirement
+                # mentioned in hints and Requirement
+                path = docker_windows_path_adjust(value["path"])
+                assert path is not None
+                return path
             return value["path"]
         else:
             return Text(value)
 
-    def generate_arg(self, binding):  # type: (Dict[Text,Any]) -> List[Text]
+    def generate_arg(self, binding):  # type: (Dict[Text, Any]) -> List[Text]
         value = binding.get("datum")
         if "valueFrom" in binding:
             with SourceLine(binding, "valueFrom", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 value = self.do_eval(binding["valueFrom"], context=value)
 
-        prefix = binding.get("prefix")
+        prefix = binding.get("prefix")  # type: Optional[Text]
         sep = binding.get("separate", True)
         if prefix is None and not sep:
             with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
-        l = []  # type: List[Dict[Text,Text]]
+        argl = []  # type: List[Dict[Text,Text]]
         if isinstance(value, list):
             if binding.get("itemSeparator") and value:
-                l = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
+                argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
                 return ([prefix] if prefix else []) + value
@@ -297,7 +382,7 @@ class Builder(object):
             else:
                 return []
         elif isinstance(value, dict) and value.get("class") in ("File", "Directory"):
-            l = [value]
+            argl = [value]
         elif isinstance(value, dict):
             return [prefix] if prefix else []
         elif value is True and prefix:
@@ -305,28 +390,32 @@ class Builder(object):
         elif value is False or value is None or (value is True and not prefix):
             return []
         else:
-            l = [value]
+            argl = [value]
 
         args = []
-        for j in l:
+        for j in argl:
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
+                assert prefix is not None
                 args.append(prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, pull_image=True, recursive=False, strip_whitespace=True):
-        # type: (Union[Dict[Text, Text], Text], Any, bool, bool, bool) -> Any
+    def do_eval(self, ex, context=None, recursive=False, strip_whitespace=True):
+        # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
         if recursive:
             if isinstance(ex, dict):
-                return {k: self.do_eval(v, context, pull_image, recursive) for k, v in iteritems(ex)}
+                return {k: self.do_eval(v, context, recursive)
+                        for k, v in iteritems(ex)}
             if isinstance(ex, list):
-                return [self.do_eval(v, context, pull_image, recursive) for v in ex]
+                return [self.do_eval(v, context, recursive)
+                        for v in ex]
+
         return expression.do_eval(ex, self.job, self.requirements,
                                   self.outdir, self.tmpdir,
                                   self.resources,
-                                  context=context, pull_image=pull_image,
+                                  context=context,
                                   timeout=self.timeout,
                                   debug=self.debug,
                                   js_console=self.js_console,

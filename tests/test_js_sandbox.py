@@ -2,19 +2,18 @@ from __future__ import absolute_import
 
 import unittest
 
+import pytest
 from mock import Mock, patch
-from mock import MagicMock
 
 import cwltool
 import cwltool.factory
-# we should modify the subprocess imported from cwltool.sandboxjs
-from cwltool.sandboxjs import (check_js_threshold_version,
-                               subprocess,
-                               exec_js_process)
 import cwltool.sandboxjs
+# we should modify the subprocess imported from cwltool.sandboxjs
+from cwltool.sandboxjs import (check_js_threshold_version, exec_js_process,
+                               subprocess)
 from cwltool.utils import onWindows
+
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
-import pytest
 
 
 class Javascript_Sanity_Checks(unittest.TestCase):
@@ -51,7 +50,10 @@ class TestValueFrom(unittest.TestCase):
     def test_value_from_two_concatenated_expressions(self):
         f = get_windows_safe_factory()
         echo = f.make(get_data("tests/wf/vf-concat.cwl"))
-        self.assertEqual(echo(), {u"out": u"a sting\n"})
+        self.assertEqual(echo(file1={
+            "class": "File",
+            "location": get_data("tests/wf/whale.txt")}),
+            {u"out": u"a string\n"})
 
 
 class ExecJsProcessTest(unittest.TestCase):

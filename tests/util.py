@@ -1,14 +1,16 @@
 from __future__ import absolute_import
-import os
-import functools
 
+import distutils.spawn  # pylint: disable=no-name-in-module,import-error
+import functools
+import os
+
+import pytest
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
-import distutils.spawn
-import pytest
 
-from cwltool.utils import onWindows, windows_default_container_id
 from cwltool.factory import Factory
+from cwltool.utils import onWindows, windows_default_container_id
+
 
 def get_windows_safe_factory(**execkwargs):
     if onWindows():

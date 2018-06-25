@@ -1,21 +1,20 @@
 from __future__ import absolute_import
+
 import copy
-import json
 import logging
 import re
-from typing import Any, AnyStr, Dict, List, Text, Union
-from .utils import docker_windows_path_adjust
+from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
+                    Mapping, Optional, Text, Union)
+
 import six
-from six import u
+from six import string_types, u
 
 from . import sandboxjs
 from .errors import WorkflowException
-from .utils import bytes2str_in_dicts
-
-_logger = logging.getLogger("cwltool")
+from .utils import bytes2str_in_dicts, docker_windows_path_adjust, json_dumps
 
 
-def jshead(engineConfig, rootvars):
+def jshead(engine_config, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
 
     # make sure all the byte strings are converted
@@ -25,7 +24,9 @@ def jshead(engineConfig, rootvars):
     if six.PY3:
         rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
-    return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
+    return u"\n".join(
+        engine_config + [u"var {} = {};".format(k, json_dumps(v, indent=4))
+                         for k, v in rootvars.items()])
 
 
 # decode all raw strings to unicode
@@ -45,7 +46,7 @@ class SubstitutionError(Exception):
     pass
 
 
-def scanner(scan):  # type: (Text) -> List[int]
+def scanner(scan):  # type: (Text) -> Optional[List[int]]
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -123,9 +124,11 @@ def scanner(scan):  # type: (Text) -> List[int]
 def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, Any) -> Any
     if remaining_string:
         m = segment_re.match(remaining_string)
+        if not m:
+            return current_value
         next_segment_str = m.group(0)
 
-        key = None  # type: Union[Text, int]
+        key = None  # type: Optional[Union[Text, int]]
         if next_segment_str[0] == '.':
             key = next_segment_str[1:]
         elif next_segment_str[1] in ("'", '"'):
@@ -156,16 +159,24 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
         return current_value
 
 
-def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=False, debug=False, js_console=False):
-    # type: (Text, Text, Dict[Text, Any], bool, int, bool, bool, bool) -> JSON
-    m = param_re.match(ex)
+def evaluator(ex,                       # type: Text
+              jslib,                    # type: Text
+              obj,                      # type: Dict[Text, Any]
+              fullJS=False,             # type: bool
+              timeout=None,             # type: float
+              force_docker_pull=False,  # type: bool
+              debug=False,              # type: bool
+              js_console=False          # type: bool
+             ):
+    # type: (...) -> JSON
+    match = param_re.match(ex)
 
     expression_parse_exception = None
     expression_parse_succeeded = False
 
-    if m:
-        first_symbol = m.group(1)
-        first_symbol_end = m.end(1)
+    if match:
+        first_symbol = match.group(1)
+        first_symbol_end = match.end(1)
 
         if first_symbol_end + 1 == len(ex) and first_symbol == "null":
             return None
@@ -174,28 +185,39 @@ def evaluator(ex, jslib, obj, fullJS=False, timeout=None, force_docker_pull=Fals
                 raise WorkflowException("%s is not defined" % first_symbol)
 
             return next_seg(first_symbol, ex[first_symbol_end:-1], obj[first_symbol])
-        except WorkflowException as w:
-            expression_parse_exception = w
+        except WorkflowException as werr:
+            expression_parse_exception = werr
         else:
             expression_parse_succeeded = True
 
     if fullJS and not expression_parse_succeeded:
-        return sandboxjs.execjs(ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull, debug=debug, js_console=js_console)
+        return sandboxjs.execjs(
+            ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull,
+            debug=debug, js_console=js_console)
     else:
         if expression_parse_exception is not None:
             raise sandboxjs.JavascriptException(
-                "Syntax error in parameter reference '%s': %s. This could be due to using Javascript code without specifying InlineJavascriptRequirement." % \
+                "Syntax error in parameter reference '%s': %s. This could be "
+                "due to using Javascript code without specifying "
+                "InlineJavascriptRequirement." % \
                     (ex[1:-1], expression_parse_exception))
         else:
             raise sandboxjs.JavascriptException(
-                "Syntax error in parameter reference '%s'. This could be due to using Javascript code without specifying InlineJavascriptRequirement." % \
-                    ex)
+                "Syntax error in parameter reference '%s'. This could be due "
+                "to using Javascript code without specifying "
+                "InlineJavascriptRequirement." % ex)
 
 
-def interpolate(scan, rootvars,
-                timeout=None, fullJS=None, jslib="", force_docker_pull=False,
-                debug=False, js_console=False, strip_whitespace=True):
-    # type: (Text, Dict[Text, Any], int, bool, Union[str, Text], bool, bool, bool, bool) -> JSON
+def interpolate(scan,                     # type: Text
+                rootvars,                 # type: Dict[Text, Any]
+                timeout=None,             # type: float
+                fullJS=False,             # type: bool
+                jslib="",                 # type: Text
+                force_docker_pull=False,  # type: bool
+                debug=False,              # type: bool
+                js_console=False,         # type: bool
+                strip_whitespace=True     # type: bool
+               ):  # type: (...) -> JSON
     if strip_whitespace:
         scan = scan.strip()
     parts = []
@@ -209,7 +231,7 @@ def interpolate(scan, rootvars,
                           debug=debug, js_console=js_console)
             if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
-            leaf = json.dumps(e, sort_keys=True)
+            leaf = json_dumps(e, sort_keys=True)
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
             parts.append(leaf)
@@ -223,15 +245,24 @@ def interpolate(scan, rootvars,
     return ''.join(parts)
 
 def needs_parsing(snippet):  # type: (Any) -> bool
-    return isinstance(snippet, (str, Text)) \
+    return isinstance(snippet, string_types) \
         and ("$(" in snippet or "${" in snippet)
 
-def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
-            context=None, pull_image=True, timeout=None, force_docker_pull=False,
-            debug=False, js_console=False, strip_whitespace=True):
-    # type: (Union[dict, AnyStr], Dict[Text, Union[Dict, List, Text]], List[Dict[Text, Any]], Text, Text, Dict[Text, Union[int, Text]], Any, bool, int, bool, bool, bool, bool) -> Any
+def do_eval(ex,                       # type: Union[Text, Dict]
+            jobinput,                 # type: Dict[Text, Union[Dict, List, Text]]
+            requirements,             # type: List[Dict[Text, Any]]
+            outdir,                   # type: Optional[Text]
+            tmpdir,                   # type: Optional[Text]
+            resources,                # type: Dict[Text, int]
+            context=None,             # type: Any
+            timeout=None,             # type: float
+            force_docker_pull=False,  # type: bool
+            debug=False,              # type: bool
+            js_console=False,         # type: bool
+            strip_whitespace=True     # type: bool
+           ):  # type: (...) -> Any
 
-    runtime = copy.copy(resources)
+    runtime = copy.copy(resources)  # type: Dict[Text, Any]
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
     runtime["outdir"] = docker_windows_path_adjust(outdir)
 
@@ -241,7 +272,7 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
         u"runtime": runtime}
 
     if needs_parsing(ex):
-        assert isinstance(ex, (str, Text))
+        assert isinstance(ex, string_types)
         fullJS = False
         jslib = u""
         for r in reversed(requirements):

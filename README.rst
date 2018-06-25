@@ -18,7 +18,7 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
   :target: https://codecov.io/gh/common-workflow-language/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
-intended to feature complete and provide comprehensive validation of CWL
+intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for `Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 4, 5, 6}``
@@ -113,7 +113,7 @@ the default cwl-runner use::
 
 Use with boot2docker
 --------------------
-boot2docker is running docker inside a virtual machine and it only mounts ``Users``
+boot2docker runs Docker inside a virtual machine and it only mounts ``Users``
 on it. The default behavior of CWL is to create temporary directories under e.g.
 ``/Var`` which is not accessible to Docker containers.
 
@@ -126,7 +126,7 @@ Using user-space replacements for Docker
 ----------------------------------------
 
 Some shared computing environments don't support Docker software containers for technical or policy reasons.
-As a work around, the CWL reference runner supports using a alternative ``docker`` implementations on Linux
+As a work around, the CWL reference runner supports using alternative ``docker`` implementations on Linux
 with the ``--user-space-docker-cmd`` option.
 
 One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
@@ -176,7 +176,7 @@ Use with GA4GH Tool Registry API
 
 Cwltool can launch tools directly from `GA4GH Tool Registry API`_ endpoints.
 
-By default, cwltool searches https://dockstore.org/ .  Use --add-tool-registry to add other registries to the search path.
+By default, cwltool searches https://dockstore.org/ .  Use ``--add-tool-registry`` to add other registries to the search path.
 
 For example ::
 
@@ -229,7 +229,7 @@ installing cwltool. For instance::
 
 Installing cwltool in this fashion enables several new command line options.
 The most general of these options is ``--beta-dependency-resolvers-configuration``.
-This option allows one to specify a dependency resolvers configuration file.
+This option allows one to specify a dependency resolver's configuration file.
 This file may be specified as either XML or YAML and very simply describes various
 plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
 
@@ -871,7 +871,7 @@ Technical outline of how cwltool works internally, for maintainers.
 
 #. ``CommandLineTool`` job() objects yield a single runnable object.
 
-   #. The CommandLineTool ``job()`` method calls ``makeJobRunner()`` to create a
+   #. The CommandLineTool ``job()`` method calls ``make_job_runner()`` to create a
       ``CommandLineJob`` object
    #. The job method configures the CommandLineJob object by setting public
       attributes
@@ -903,13 +903,13 @@ executor
   A toplevel workflow execution loop, should synchronously execute a process
   object and return an output object.
 
-makeTool
+construct_tool_object
   ::
 
-    makeTool(toolpath_object, **kwargs)
+    construct_tool_object(toolpath_object, **kwargs)
       (Dict[Text, Any], **Any) -> Process
 
-  Construct a Process object from a document.
+  Hook to construct a Process object (eg CommandLineTool) object from a document.
 
 selectResources
   ::

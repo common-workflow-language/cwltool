@@ -2,6 +2,7 @@ import unittest
 
 import cwltool
 import cwltool.factory
+
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 

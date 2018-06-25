@@ -1,16 +1,17 @@
-import json
-from collections import namedtuple
 import logging
+from collections import namedtuple
+from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
+                    Generator, Iterable, List, Optional, Text, Union, cast)
 
-from typing import Any, Callable, Dict, Generator, Iterable, List, Text, Union, cast
+import schema_salad.validate as validate
+from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 import six
 
-from schema_salad.sourceline import SourceLine, cmap, strip_dup_lineno, indent, bullets
-import schema_salad.validate as validate
-from .process import shortname
 from .errors import WorkflowException
+from .loghandler import _logger
+from .process import shortname
+from .utils import json_dumps
 
-_logger = logging.getLogger("cwltool")
 
 def _get_type(tp):
     # type: (Any) -> Any
@@ -20,7 +21,7 @@ def _get_type(tp):
     return tp
 
 def check_types(srctype, sinktype, linkMerge, valueFrom):
-    # type: (Any, Any, Text, Text) -> Text
+    # type: (Any, Any, Optional[Text], Optional[Text]) -> Text
     """Check if the source and sink types are "pass", "warning", or "exception".
     """
 
@@ -177,10 +178,10 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"
-                % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+                % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
                 SourceLine(sink, "type").makeError(
-                "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json.dumps(sink["type"])))
+                    "  with sink '%s' of type %s"
+                    % (shortname(sink["id"]), json_dumps(sink["type"])))
             if linkMerge:
                 msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
 
@@ -191,10 +192,10 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         linkMerge = exception.linkMerge
         msg = SourceLine(src, "type").makeError(
             "Source '%s' of type %s is incompatible"
-            % (shortname(src["id"]), json.dumps(src["type"]))) + "\n" + \
+            % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
             SourceLine(sink, "type").makeError(
-            "  with sink '%s' of type %s"
-            % (shortname(sink["id"]), json.dumps(sink["type"])))
+                "  with sink '%s' of type %s"
+                % (shortname(sink["id"]), json_dumps(sink["type"])))
         if linkMerge:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
