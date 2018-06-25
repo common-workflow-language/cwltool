@@ -408,7 +408,11 @@ class CommandLineTool(Process):
                         et["writable"] = t.get("writable", False)
                         ls.append(et)
                     else:
-                        ls.append(builder.do_eval(t))
+                        initwd_item = builder.do_eval(t)
+                        if isinstance(initwd_item, list):
+                            ls.extend(initwd_item)
+                        else:
+                            ls.append(initwd_item)
             for i, t in enumerate(ls):
                 if "entry" in t:
                     if isinstance(t["entry"], string_types):
