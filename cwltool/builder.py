@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import copy
 import logging
+import os
 from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
                     Optional, Set, Text, Type, Union, Tuple)
 
@@ -11,6 +12,7 @@ import schema_salad.schema  # pylint: disable=unused-import
 import schema_salad.validate as validate
 from schema_salad.schema import AvroSchemaFromJSONData
 from schema_salad.sourceline import SourceLine
+from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
 
 from . import expression
@@ -286,6 +288,12 @@ class Builder(HasReqsHints):
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
+                        if isinstance(sf, dict) and 'pattern' in sf:
+                            if 'required' in sf:
+                                sf_required = sf['required']
+                            else:
+                                sf_required = True
+                            sf = sf['pattern']
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             sfpath = self.do_eval(sf, context=datum)
                         else:
@@ -298,14 +306,15 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
+                                sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
                                 if isinstance(sfname, dict):
                                     datum["secondaryFiles"].append(sfname)
-                                elif discover_secondaryFiles:
+                                elif discover_secondaryFiles and os.path.exists(uri_file_path(sf_location)):
                                     datum["secondaryFiles"].append({
-                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "location": sf_location,
                                         "basename": sfname,
                                         "class": "File"})
-                                else:
+                                elif sf_required:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
                                         sfname, json_dumps(datum, indent=4)))
 
