@@ -117,7 +117,7 @@ class SingleJobExecutor(JobExecutor):
                  logger,
                  runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
-        provObj=None  # type: Any
+        prov_obj=None  # type: Any
         ProcessRunID=None  # type: Optional[str]
         reference_locations={}  # type: Dict[Text,Text]
 
@@ -129,7 +129,7 @@ class SingleJobExecutor(JobExecutor):
             process.provenanceObject = create_ProvProfile(
                 runtimeContext.research_obj, orcid, full_name)
             process.parent_wf = process.provenanceObject
-            provObj = process.provenanceObject
+            prov_obj = process.provenanceObject
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         try:
@@ -141,12 +141,12 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(job.outdir)
                     if runtimeContext.research_obj is not None \
                             and runtimeContext.research_obj \
-                            and hasattr(job, 'provObj') and job.provObj:
+                            and hasattr(job, 'prov_obj') and job.prov_obj:
                         if not isinstance(process, Workflow):
-                            provObj=process.provenanceObject
+                            prov_obj=process.provenanceObject
                         else:
-                            provObj=process.provObj
-                        ProcessRunID, reference_locations = provObj._evaluate(
+                            prov_obj=process.prov_obj
+                        ProcessRunID, reference_locations = prov_obj._evaluate(
                             process, job, job_order_object,
                             runtimeContext.make_fs_access, runtimeContext)
                         runtimeContext=runtimeContext.copy()

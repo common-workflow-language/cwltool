@@ -55,6 +55,7 @@ class LoadingContext(ContextBase):
         self.cwl_full_name = None
         self.host_provenance = None
         self.user_provenance = None
+        self.prov_obj = None
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -116,6 +117,7 @@ class RuntimeContext(ContextBase):
         self.research_obj = None
         self.orcid = None
         self.cwl_full_name = None
+        self.prov_obj = None
         super(RuntimeContext, self).__init__(kwargs)
 
 
