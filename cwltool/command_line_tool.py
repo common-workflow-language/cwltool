@@ -95,8 +95,7 @@ class ExpressionTool(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext,    # type: RuntimeContext
-            prov_obj=None,
+            runtimeContext     # type: RuntimeContext
            ):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(job_order, runtimeContext)

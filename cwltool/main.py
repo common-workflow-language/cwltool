@@ -11,7 +11,6 @@ import io
 import logging
 import os
 import sys
-import warnings
 
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
                     Iterable, List, Mapping, MutableMapping, Optional, Text,
@@ -40,8 +39,7 @@ from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
 from .process import (Process, scandeps,   # pylint: disable=unused-import
                       shortname, use_custom_schema, use_standard_schema)
-from .provenance import (create_researchObject, create_ProvProfile,
-                         ResearchObject)
+from .provenance import (create_ProvProfile, ResearchObject)
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (DependenciesConfiguration,
@@ -438,7 +436,7 @@ def main(argsl=None,                   # type: List[str]
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
 
-            args.research_obj = create_researchObject(
+            args.research_obj = ResearchObject(
                 tmpPrefix=args.tmpdir_prefix,
                 # Optionals, might be None
                 orcid=args.orcid,
@@ -656,8 +654,10 @@ def main(argsl=None,                   # type: List[str]
         if args and hasattr(args, "research_obj") and hasattr(args, "provenance") \
                 and args.provenance and args.rm_tmpdir and workflowobj:
             #adding all related cwl files to RO
-            ProvDependencies=printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri, args.provenance)
-            args.research_obj.generate_snapshot(ProvDependencies[1])
+            prov_dependencies = printdeps(
+                workflowobj, document_loader, stdout, args.relative_deps, uri,
+                args.provenance)
+            args.research_obj.generate_snapshot(prov_dependencies[1])
             #for input file dependencies
             if inputforProv:
                 args.research_obj.generate_snapshot(inputforProv)

@@ -29,7 +29,7 @@ from .process import Process, get_overrides, shortname, uniquename
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .provenance import create_researchObject, create_ProvProfile
+from .provenance import create_ProvProfile
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 from . import context
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -242,10 +242,10 @@ class WorkflowJob(object):
             wo = {}
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
-                and self.prov_obj.workflowRunURI != self.parent_wf.workflowRunURI:
+                and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
             ProcessRunID=None
             self.prov_obj.generate_outputProv(wo, ProcessRunID)
-            self.prov_obj.document.wasEndedBy(self.prov_obj.workflowRunURI, None, self.prov_obj.engineUUID, datetime.datetime.now())
+            self.prov_obj.document.wasEndedBy(self.prov_obj.workflow_run_uri, None, self.prov_obj.engineUUID, datetime.datetime.now())
             self.prov_obj.finalize_provProfile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
 
@@ -483,7 +483,6 @@ class Workflow(Process):
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
-        self.parent_wf=None  # type: Optional[create_ProvProfile]
         self.provenanceObject=None  # type: Optional[create_ProvProfile]
         if loadingContext.research_obj and loadingContext.research_obj:
             orcid=loadingContext.orcid
@@ -698,11 +697,11 @@ class WorkflowStep(Process):
             self.tool["outputs"] = outputparms
         self.prov_obj = None  # type: Optional[create_ProvProfile]
         if loadingContext.research_obj:
-            self.prov_obj=parentworkflowProv
+            self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
-                self.parent_wf= self.embedded_tool.parent_wf
+                self.parent_wf = self.embedded_tool.parent_wf
             else:
-                self.parent_wf=self.prov_obj
+                self.parent_wf = self.prov_obj
 
     def receive_output(self, output_callback, jobout, processStatus):
         # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
@@ -725,8 +724,8 @@ class WorkflowStep(Process):
                 and runtimeContext.research_obj:
             self.embedded_tool.parent_wf = runtimeContext.prov_obj
             process_name = self.tool["id"].split("#")[1]
-            self.embedded_tool.parent_wf.startProcess(
-                process_name, self.embedded_tool.provenanceObject.workflowRunURI)
+            self.embedded_tool.parent_wf.start_process(
+                process_name, self.embedded_tool.provenanceObject.workflow_run_uri)
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
             if not inp.get("not_connected"):

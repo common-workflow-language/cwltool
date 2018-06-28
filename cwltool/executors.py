@@ -1,4 +1,3 @@
-import logging
 import os
 import tempfile
 import threading
@@ -13,16 +12,15 @@ from six import string_types
 
 from .builder import Builder  # pylint: disable=unused-import
 from .errors import WorkflowException
+from .loghandler import _logger
 from .job import JobBase  # pylint: disable=unused-import
 from .mutation import MutationManager
 from .provenance import create_ProvProfile
 from .process import (Process,  # pylint: disable=unused-import
                       cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
-from .context import LoadingContext, RuntimeContext, getdefault
-from .workflow import Workflow
-
-_logger = logging.getLogger("cwltool")
+from .context import RuntimeContext, getdefault  # pylint: disable=unused-import
+from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
 class JobExecutor(six.with_metaclass(ABCMeta, object)):
     """ Abstract base job executor. """
@@ -96,13 +94,15 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
 
         if self.final_output and self.final_status:
 
-            if runtimeContext.research_obj is not None and hasattr(process, 'parent_wf') and process.parent_wf:
-                ProcessRunID=None
-                name="primary"
+            if runtimeContext.research_obj is not None and \
+                    isinstance(process, (JobBase, Process, WorkflowJobStep,
+                                         WorkflowJob)) and process.parent_wf:
+                process_run_id = None
+                name = "primary"
                 process.parent_wf.generate_outputProv(self.final_output[0],
-                        ProcessRunID, name)
+                                                      process_run_id, name)
                 process.parent_wf.document.wasEndedBy(
-                    process.parent_wf.workflowRunURI, None, process.parent_wf.engineUUID,
+                    process.parent_wf.workflow_run_uri, None, process.parent_wf.engineUUID,
                     datetime.datetime.now())
                 process.parent_wf.finalize_provProfile(name)
             return (self.final_output[0], self.final_status[0])
@@ -117,9 +117,9 @@ class SingleJobExecutor(JobExecutor):
                  logger,
                  runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
-        prov_obj=None  # type: Any
-        ProcessRunID=None  # type: Optional[str]
-        reference_locations={}  # type: Dict[Text,Text]
+        prov_obj = None  # type: Any
+        process_run_id = None  # type: Optional[str]
+        reference_locations = {}  # type: Dict[Text,Text]
 
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
@@ -140,17 +140,16 @@ class SingleJobExecutor(JobExecutor):
                     if job.outdir:
                         self.output_dirs.add(job.outdir)
                     if runtimeContext.research_obj is not None \
-                            and runtimeContext.research_obj \
-                            and hasattr(job, 'prov_obj') and job.prov_obj:
+                            and job.prov_obj:
                         if not isinstance(process, Workflow):
-                            prov_obj=process.provenanceObject
+                            prov_obj = process.provenanceObject
                         else:
-                            prov_obj=process.prov_obj
-                        ProcessRunID, reference_locations = prov_obj._evaluate(
+                            prov_obj = process.prov_obj
+                        process_run_id, reference_locations = prov_obj._evaluate(
                             process, job, job_order_object,
                             runtimeContext.make_fs_access, runtimeContext)
-                        runtimeContext=runtimeContext.copy()
-                        runtimeContext.process_run_ID = ProcessRunID
+                        runtimeContext = runtimeContext.copy()
+                        runtimeContext.process_run_ID = process_run_id
                         runtimeContext.reference_locations = \
                             reference_locations
                         job.run(runtimeContext)

@@ -29,7 +29,6 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
 from .process import UnsupportedRequirement, stageFiles
-from .provenance import ResearchObject
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
@@ -321,7 +320,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             self.prov_obj.generate_outputProv(
                 outputs, runtimeContext.ProcessRunID, str(self.name))
             self.prov_obj.document.wasEndedBy(
-                runtimeContext.ProcessRunID, None, self.prov_obj.workflowRunURI,
+                runtimeContext.ProcessRunID, None, self.prov_obj.workflow_run_uri,
                 datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
