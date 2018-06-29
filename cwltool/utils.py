@@ -26,8 +26,6 @@ import pkg_resources
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
-windows_default_container_id = "frolvlad/alpine-bash"
-
 Directory = TypedDict('Directory',
                       {'class': Text, 'listing': List[Dict[Text, Text]],
                        'basename': Text})

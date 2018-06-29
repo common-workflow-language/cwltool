@@ -565,8 +565,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         else:
             var_spool_cwl_detector(self.tool)
 
-    def _init_job(self, joborder, runtimeContext, provObj=None):
-        # type: (Dict[Text, Text], RuntimeContext, str) -> Builder
+    def _init_job(self, joborder, runtimeContext):
+        # type: (Dict[Text, Text], RuntimeContext) -> Builder
         """
         kwargs:
 
@@ -772,8 +772,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext,    # type: RuntimeContext
-            provObj=None       #
+            runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         # FIXME: Declare base type for what Generator yields
         pass

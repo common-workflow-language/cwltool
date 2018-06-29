@@ -95,8 +95,7 @@ class ExpressionTool(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext,    # type: RuntimeContext
-            provObj=None,
+            runtimeContext     # type: RuntimeContext
            ):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(job_order, runtimeContext)
@@ -213,10 +212,10 @@ def check_valid_locations(fs_access, ob):
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
 class CommandLineTool(Process):
-    def __init__(self, toolpath_object, loadingContext, provObj=None):
-        # type: (Dict[Text, Any], LoadingContext, create_ProvProfile) -> None
+    def __init__(self, toolpath_object, loadingContext):
+        # type: (Dict[Text, Any], LoadingContext) -> None
         super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
-        self.provObj=provObj
+        self.prov_obj = loadingContext.prov_obj
 
     def make_job_runner(self,
                         runtimeContext       # type: RuntimeContext
@@ -265,9 +264,8 @@ class CommandLineTool(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext,    # RuntimeContext
-            provObj=None
-            ):
+            runtimeContext     # RuntimeContext
+           ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
         require_prefix = ""
@@ -365,14 +363,14 @@ class CommandLineTool(Process):
                 output_callbacks = partial(
                     rm_pending_output_callback, output_callbacks, jobcachepending)
 
-        builder = self._init_job(job_order, runtimeContext, provObj)
+        builder = self._init_job(job_order, runtimeContext)
 
         reffiles = copy.deepcopy(builder.files)
 
         j = self.make_job_runner(runtimeContext)(
             builder, builder.job, self.make_path_mapper, self.requirements,
             self.hints, jobname)
-        j.provObj=provObj
+        j.prov_obj = runtimeContext.prov_obj
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
         j.permanentFailCodes = self.tool.get("permanentFailCodes")

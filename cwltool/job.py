@@ -29,7 +29,6 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
 from .process import UnsupportedRequirement, stageFiles
-from .provenance import ResearchObject
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
@@ -171,7 +170,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
-        self.provObj=None
+        self.prov_obj=None
         self.parent_wf=None
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
@@ -224,9 +223,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-        if self.joborder and runtimeContext.research_obj and self.provObj:
+        if self.joborder and runtimeContext.research_obj and self.prov_obj:
             job_order = self.joborder
-            self.provObj.used_artefacts(
+            self.prov_obj.used_artefacts(
                 job_order, runtimeContext.ProcessRunID,
                 runtimeContext.reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
@@ -316,12 +315,12 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if runtimeContext.research_obj and self.provObj:
+        if runtimeContext.research_obj and self.prov_obj:
             #creating entities for the outputs produced by each step (in the provenance document)
-            self.provObj.generate_outputProv(
+            self.prov_obj.generate_outputProv(
                 outputs, runtimeContext.ProcessRunID, str(self.name))
-            self.provObj.document.wasEndedBy(
-                runtimeContext.ProcessRunID, None, self.provObj.workflowRunURI,
+            self.prov_obj.document.wasEndedBy(
+                runtimeContext.ProcessRunID, None, self.prov_obj.workflow_run_uri,
                 datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
@@ -451,9 +450,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 if docker_req and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
-                if self.provObj and img_id and runtimeContext.ProcessRunID:
+                if self.prov_obj and img_id and runtimeContext.ProcessRunID:
                     # TODO: Integrate with record_container_id
-                    container_agent = self.provObj.document.agent(uuid.uuid4().urn,
+                    container_agent = self.prov_obj.document.agent(uuid.uuid4().urn,
                         {"prov:type": PROV["SoftwareAgent"],
                          "cwlprov:image": img_id,
                          "prov:label": "Container execution of image %s" % img_id})
@@ -462,7 +461,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     #                  {"prov:label": "Container image %s" % img_id} )
                     # The image is the plan for this activity-agent association
                     #document.wasAssociatedWith(ProcessRunID, container_agent, img_entity)
-                    self.provObj.document.wasAssociatedWith(
+                    self.prov_obj.document.wasAssociatedWith(
                         runtimeContext.ProcessRunID, container_agent)
             except Exception as err:
                 container = "Singularity" if runtimeContext.singularity else "Docker"
