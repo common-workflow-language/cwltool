@@ -116,6 +116,7 @@ class RuntimeContext(ContextBase):
         self.research_obj = None
         self.orcid = None
         self.cwl_full_name = None
+        self.ProcessRunID = None
         super(RuntimeContext, self).__init__(kwargs)
 
 
