@@ -153,7 +153,8 @@ class WritableBagFile(io.FileIO):
         length = len(b)
         while total < length:
             ret = super(WritableBagFile, self).write(b)
-            total += cast(int, ret)
+            if ret:
+                total += ret
         for _ in self.hashes.values():
             _.update(b)
         return total
