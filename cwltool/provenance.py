@@ -261,7 +261,7 @@ def _valid_orcid(orcid):  # type: (Optional[Text]) -> Optional[Text]
         orcid)
 
     help_url = u"https://support.orcid.org/knowledgebase/articles/"\
-                "116780-structure-of-the-orcid-identifier"
+               "116780-structure-of-the-orcid-identifier"
     if not match:
         raise ValueError(u"Invalid ORCID: %s\n%s" % (orcid, help_url))
 
@@ -292,15 +292,15 @@ class create_ProvProfile():
         self.host_provenance = host_provenance
         self.user_provenance = user_provenance
         self.engineUUID = ro.engineUUID
-        self.add_to_manifest=self.ro.add_to_manifest
+        self.add_to_manifest = self.ro.add_to_manifest
         if self.orcid:
             _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
         self.full_name = full_name or None
         if self.full_name:
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
-        self.generate_provDoc()
+        self.generate_prov_doc()
 
-    def generate_provDoc(self):
+    def generate_prov_doc(self):
         # type: () -> Tuple[str, ProvDocument]
         '''
         add basic namespaces
@@ -308,7 +308,7 @@ class create_ProvProfile():
 
         workflow_run_uuid = uuid.uuid4()
 
-        self.cwltoolVersion="cwltool %s" % versionstring().split()[-1]
+        self.cwltoolVersion = "cwltool %s" % versionstring().split()[-1]
         self.document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         self.document.add_namespace('wfdesc', 'http://purl.org/wf4ever/wfdesc#')
@@ -388,7 +388,7 @@ class create_ProvProfile():
                   job_order_object,  # type: Dict[Text, Text]
                   make_fs_access,    # type: Callable[[Text], StdFsAccess]
                   runtimeContext     # type: RuntimeContext
-                 ):  # type: (...) -> Tuple[str, Dict[Text, Text]]
+                 ):  # type: (...) -> Tuple[Optional[str], Dict[Text, Text]]
         '''
         evaluate the nature of r and
         initialize the activity start
@@ -398,7 +398,6 @@ class create_ProvProfile():
         research_obj = runtimeContext.research_obj
         assert research_obj is not None
         if not hasattr(process, "steps"):
-        #if isinstance(t, (CommandLineTool, ExpressionTool)):
             # record provenance of an independent commandline tool execution
             self.prospective_prov(job)
             customised_job = research_obj.copy_job_order(job, job_order_object)
@@ -454,7 +453,7 @@ class create_ProvProfile():
     def used_artefacts(self,
                        job_order,            # type: Dict
                        process_run_id,       # type: Optional[str]
-                       reference_locations,  # type: Dict[Text,Text]
+                       reference_locations,  # type: Dict[Text, Text]
                        name                  # type: str
                       ):  # type: (...) -> None
         '''
@@ -477,11 +476,9 @@ class create_ProvProfile():
                         return  # successfully logged
                     else:
                         _logger.warn("[provenance] Unknown checksum algorithm %s", method)
-                        pass
                 else:
                     _logger.info("[provenance] Used data w/o checksum %s", location)
                     # FIXME: Store manually
-                    pass
 
                 # If we made it here, then we didn't log it correctly with checksum above,
                 # we'll have to hash it again (and potentially add it to RO)
@@ -510,28 +507,32 @@ class create_ProvProfile():
                     process_run_id, data_id, datetime.datetime.now(), None,
                     {"prov:role": prov_role})
 
-    def generate_output_prov(self, final_output, process_run_id, name):
-        # type: (Dict[Any, Any], str, Text) -> None
+    def generate_output_prov(self,
+                             final_output,    # type: Optional[Dict[Text, Any]]
+                             process_run_id,  # type: Optional[str]
+                             name             # type: Optional[Text]
+                            ):   # type: (...) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
         # A bit too late, but we don't know the "inner" when
         when = datetime.datetime.now()
         key_files = []  # type: List[List[Any]]
-        for key, value in final_output.items():
+        if final_output:
+            for key, value in final_output.items():
 
-            if isinstance(value, list):
-                key_files.append(self.array_output(key, value))
-            elif isinstance(value, dict):
-                key_files.append(self.dict_output(key, value))
+                if isinstance(value, list):
+                    key_files.append(self.array_output(key, value))
+                elif isinstance(value, dict):
+                    key_files.append(self.dict_output(key, value))
 
-        merged_total= list(itertools.chain.from_iterable(key_files))
+        merged_total = list(itertools.chain.from_iterable(key_files))
         #generate data artefacts at workflow level
         for tuple_entry in merged_total:
             # FIXME: What are these magic array[][] positions???
-            output_checksum="data:"+str(tuple_entry[1][5:])
+            output_checksum = "data:"+str(tuple_entry[1][5:])
 
-            if process_run_id:
+            if process_run_id and name:
                 name = urllib.parse.quote(str(name), safe=":/,#")
                 step_prov = self.ro.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
 
@@ -558,7 +559,7 @@ class create_ProvProfile():
         helper function for generate_output_prov()
         for the case when we have an array of files as output
         '''
-        new_l=[]
+        new_l = []
         for y in current_l:
             if isinstance(y, dict):
                 new_l.append((key, y['checksum'], y['location']))
@@ -585,7 +586,7 @@ class create_ProvProfile():
             # Base case - we found a File we need to update
             if relativised_input_object.get("class") == "File":
                 #create an artefact
-                shahash="data:"+relativised_input_object["location"].split("/")[-1]
+                shahash = "data:"+relativised_input_object["location"].split("/")[-1]
                 self.document.entity(shahash, {provM.PROV_TYPE:WFPROV["Artifact"]})
 
             for o in relativised_input_object.values():
@@ -611,22 +612,32 @@ class create_ProvProfile():
         '''
         if not hasattr(job, "steps"):
             # direct command line tool execution
-            self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+            self.document.entity(
+                "wf:main", {provM.PROV_TYPE: WFDESC["Process"],
+                            "prov:type": PROV["Plan"],
+                            "prov:label":"Prospective provenance"})
             return
 
-        self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Workflow"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
+        self.document.entity(
+            "wf:main", {provM.PROV_TYPE: WFDESC["Workflow"],
+                        "prov:type": PROV["Plan"],
+                        "prov:label":"Prospective provenance"})
 
-        steps=[]
-        for s in job.steps:
-            stepnametemp="wf:main/"+str(s.name)[5:]
-            stepname=urllib.parse.quote(stepnametemp, safe=":/,#")
+        steps = []
+        for step in job.steps:
+            stepnametemp = "wf:main/"+str(step.name)[5:]
+            stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
             steps.append(stepname)
-            step = self.document.entity(stepname, {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]})
-            self.document.entity("wf:main", {"wfdesc:hasSubProcess":step, "prov:label":"Prospective provenance"})
+            step = self.document.entity(
+                stepname, {provM.PROV_TYPE: WFDESC["Process"],
+                           "prov:type": PROV["Plan"]})
+            self.document.entity(
+                "wf:main", {"wfdesc:hasSubProcess": step,
+                            "prov:label": "Prospective provenance"})
 
         # TODO: Declare roles/parameters as well
 
-    def finalize_provProfile(self, name):
+    def finalize_prov_profile(self, name):
             # type: (str) -> None
         '''
         Transfer the provenance related files to RO
@@ -652,7 +663,7 @@ class create_ProvProfile():
 
         # "rdf" aka https://www.w3.org/TR/prov-o/
         # which can be serialized to ttl/nt/jsonld (and more!)
-        
+
         # https://www.w3.org/TR/turtle/
         with self.ro.write_bag_file(basename + ".ttl") as fp:
             self.document.serialize(fp, format="rdf", rdf_format="turtle")
@@ -683,7 +694,7 @@ class ResearchObject():
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
 
-        # These should be replaced by generate_provDoc when workflow/run IDs are known:
+        # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engineUUID = "urn:uuid:%s" % uuid.uuid4()
         u = uuid.uuid4()
         self.workflow_run_uri = u.urn
@@ -775,9 +786,8 @@ class ResearchObject():
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
             return cast(IO,
-                io.TextIOWrapper(fp, encoding=encoding, newline="\n"))
-        else:
-            return fp
+                        io.TextIOWrapper(fp, encoding=encoding, newline="\n"))
+        return fp
 
     def add_tagfile(self, path, when=None):
         # type: (Text, datetime.datetime) -> None
@@ -790,15 +800,15 @@ class ResearchObject():
             # Below probably OK for now as metadata files
             # are not too large..?
 
-            checksums["sha1"]= self._checksum_copy(fp, hashmethod=hashlib.sha1)
+            checksums["sha1"] = self._checksum_copy(fp, hashmethod=hashlib.sha1)
             fp.seek(0)
             # Older Python's might not have all checksums
             if sha256:
                 fp.seek(0)
-                checksums["sha256"]= self._checksum_copy(fp, hashmethod=sha256)
+                checksums["sha256"] = self._checksum_copy(fp, hashmethod=sha256)
             if sha512:
                 fp.seek(0)
-                checksums["sha512"]= self._checksum_copy(fp, hashmethod=sha512)
+                checksums["sha512"] = self._checksum_copy(fp, hashmethod=sha512)
         assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -812,7 +822,7 @@ class ResearchObject():
         for path in self.bagged_size.keys():
             a = {}  # type: Dict[str,Any]
 
-            (folder,f) = posixpath.split(path)
+            (folder, f) = posixpath.split(path)
 
             # NOTE: Here we end up aggregating the abstract
             # data items by their sha1 hash, so that it matches
@@ -839,7 +849,7 @@ class ResearchObject():
 
         for path in self.tagfiles:
             if (not (path.startswith(METADATA) or path.startswith(WORKFLOW) or
-                path.startswith(SNAPSHOT))):
+                     path.startswith(SNAPSHOT))):
                 # probably a bagit file
                 continue
             if path == posixpath.join(METADATA, "manifest.json"):
@@ -935,8 +945,8 @@ class ResearchObject():
         })
 
         # How was it run?
-        prov_files = [posixpath.relpath(p, METADATA)
-            for p in self.tagfiles if p.startswith(_posix_path(PROVENANCE))]
+        prov_files = [posixpath.relpath(p, METADATA) for p in self.tagfiles
+                      if p.startswith(_posix_path(PROVENANCE))]
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
@@ -1025,7 +1035,7 @@ class ResearchObject():
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_snapshot(self, prov_dep):
-        # type: (Optional[Dict[Text, Any]]) -> None
+        # type: (MutableMapping[Text, Any]) -> None
         '''
         Copies all the cwl files involved in this workflow run to snapshot
         directory
@@ -1182,8 +1192,8 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   job,            # type: Dict
-                   make_fs_access, # type: Callable[[Text], StdFsAccess]
+                   job,             # type: Dict
+                   make_fs_access,  # type: Callable[[Text], StdFsAccess]
                    runtimeContext
                   ):  # type: (...) -> Tuple[Dict,Dict]
         #TODO customise the file

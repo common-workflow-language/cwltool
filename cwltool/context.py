@@ -118,9 +118,9 @@ class RuntimeContext(ContextBase):
         self.research_obj = None        # type: Optional[ResearchObject]
         self.orcid = None
         self.cwl_full_name = None
-        self.process_run_ID = None      # type: Optional[str]
+        self.process_run_id = None      # type: Optional[str]
         self.prov_obj = None            # type: Optional[create_ProvProfile]
-        self.reference_locations = None # type: Dict[Text,Text]
+        self.reference_locations = {}   # type: Dict[Text, Text]
         super(RuntimeContext, self).__init__(kwargs)
 
 

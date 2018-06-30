@@ -207,7 +207,7 @@ class WorkflowJob(object):
         self.parent_wf=None # type: Optional[create_ProvProfile]
         self.tool = workflow.tool
         if runtimeContext.research_obj:
-            self.prov_obj=workflow.provenanceObject
+            self.prov_obj=workflow.provenance_object
             self.parent_wf=workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.state = {}  # type: Dict[Text, Optional[WorkflowStateItem]]
@@ -234,19 +234,24 @@ class WorkflowJob(object):
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
+        wo = {}  # type: Optional[Dict[Text, Text]]
         try:
-            wo = object_from_state(self.state, self.tool["outputs"], True, supportsMultipleInput, "outputSource",
-                                   incomplete=True)
-        except WorkflowException as e:
-            _logger.error(u"[%s] Cannot collect workflow output: %s", self.name, e)
+            wo = object_from_state(
+                self.state, self.tool["outputs"], True, supportsMultipleInput,
+                "outputSource", incomplete=True)
+        except WorkflowException as err:
+            _logger.error(
+                u"[%s] Cannot collect workflow output: %s", self.name, err)
             wo = {}
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
-            ProcessRunID=None
-            self.prov_obj.generate_output_prov(wo, ProcessRunID, self.name)
-            self.prov_obj.document.wasEndedBy(self.prov_obj.workflow_run_uri, None, self.prov_obj.engineUUID, datetime.datetime.now())
-            self.prov_obj.finalize_provProfile(str(self.name))
+            process_run_id = None
+            self.prov_obj.generate_output_prov(wo, process_run_id, self.name)
+            self.prov_obj.document.wasEndedBy(
+                self.prov_obj.workflow_run_uri, None, self.prov_obj.engineUUID,
+                datetime.datetime.now())
+            self.prov_obj.finalize_prov_profile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
 
         self.did_callback = True
@@ -482,15 +487,15 @@ class Workflow(Process):
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
-        self.provenanceObject=None  # type: Optional[create_ProvProfile]
-        if loadingContext.research_obj:# and loadingContext.research_obj:
-            orcid=loadingContext.orcid
-            full_name=loadingContext.cwl_full_name
-            self.provenanceObject=create_ProvProfile(
+        self.provenance_object = None  # type: Optional[create_ProvProfile]
+        if loadingContext.research_obj:
+            orcid = loadingContext.orcid
+            full_name = loadingContext.cwl_full_name
+            self.provenance_object = create_ProvProfile(
                 loadingContext.research_obj, full_name, orcid,
                 loadingContext.host_provenance, loadingContext.user_provenance)
-            self.parent_wf=self.provenanceObject
-        loadingContext.prov_obj=self.provenanceObject
+            self.parent_wf = self.provenance_object
+        loadingContext.prov_obj = self.provenance_object
         loadingContext = loadingContext.copy()
         loadingContext.requirements = self.requirements
         loadingContext.hints = self.hints
@@ -499,7 +504,8 @@ class Workflow(Process):
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(step, index, loadingContext, loadingContext.prov_obj))
+                self.steps.append(WorkflowStep(step, index, loadingContext,
+                                  loadingContext.prov_obj))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -721,11 +727,12 @@ class WorkflowStep(Process):
         #initialize sub-workflow as a step in the parent profile
 
         if self.embedded_tool.tool["class"] == "Workflow" \
-                and runtimeContext.research_obj:
+                and runtimeContext.research_obj and self.prov_obj \
+                and self.embedded_tool.provenance_object:
             self.embedded_tool.parent_wf = self.prov_obj
             process_name = self.tool["id"].split("#")[1]
-            self.embedded_tool.parent_wf.start_process(
-                process_name, self.embedded_tool.provenanceObject.workflow_run_uri)
+            self.prov_obj.start_process(
+                process_name, self.embedded_tool.provenance_object.workflow_run_uri)
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
             if not inp.get("not_connected"):

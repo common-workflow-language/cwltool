@@ -9,10 +9,7 @@ import stat
 import sys
 import tempfile
 import uuid
-import prov.model as prov
 import datetime
-from prov.model import PROV, ProvEntity, ProvDocument
-import threading
 from threading import Lock, Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
@@ -23,8 +20,9 @@ from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
 import shellescape
 from schema_salad.sourceline import SourceLine
 from six import with_metaclass
+from prov.model import PROV
 
-from .builder import Builder, HasReqsHints
+from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
@@ -34,7 +32,8 @@ from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
     onWindows, subprocess)
-from .context import LoadingContext, RuntimeContext, getdefault
+from .context import (RuntimeContext,  # pylint: disable=unused-import
+                      getdefault)
 if TYPE_CHECKING:
     from .provenance import create_ProvProfile
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
@@ -171,8 +170,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
-        self.prov_obj=None  #type: Optional[create_ProvProfile]
-        self.parent_wf=None #type: Optional[create_ProvProfile]
+        self.prov_obj = None   # type: Optional[create_ProvProfile]
+        self.parent_wf = None  # type: Optional[create_ProvProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
@@ -226,8 +225,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if self.joborder and runtimeContext.research_obj:
             job_order = self.joborder
+            assert runtimeContext.prov_obj
             runtimeContext.prov_obj.used_artefacts(
-                job_order, runtimeContext.process_run_ID,
+                job_order, runtimeContext.process_run_id,
                 runtimeContext.reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
@@ -316,12 +316,13 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if runtimeContext.research_obj and self.prov_obj:
+        if runtimeContext.research_obj and self.prov_obj and \
+                runtimeContext.process_run_id:
             #creating entities for the outputs produced by each step (in the provenance document)
             self.prov_obj.generate_output_prov(
-                outputs, runtimeContext.process_run_ID, str(self.name))
+                outputs, runtimeContext.process_run_id, str(self.name))
             self.prov_obj.document.wasEndedBy(
-                runtimeContext.process_run_ID, None, self.prov_obj.workflow_run_uri,
+                runtimeContext.process_run_id, None, self.prov_obj.workflow_run_uri,
                 datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
@@ -451,9 +452,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 if docker_req and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
-                if self.prov_obj and img_id and runtimeContext.process_run_ID:
+                if self.prov_obj and img_id and runtimeContext.process_run_id:
                     # TODO: Integrate with record_container_id
-                    container_agent = self.prov_obj.document.agent(uuid.uuid4().urn,
+                    container_agent = self.prov_obj.document.agent(
+                        uuid.uuid4().urn,
                         {"prov:type": PROV["SoftwareAgent"],
                          "cwlprov:image": img_id,
                          "prov:label": "Container execution of image %s" % img_id})
@@ -463,7 +465,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     # The image is the plan for this activity-agent association
                     #document.wasAssociatedWith(process_run_ID, container_agent, img_entity)
                     self.prov_obj.document.wasAssociatedWith(
-                        runtimeContext.process_run_ID, container_agent)
+                        runtimeContext.process_run_id, container_agent)
             except Exception as err:
                 container = "Singularity" if runtimeContext.singularity else "Docker"
                 _logger.debug("%s error", container, exc_info=True)
@@ -566,7 +568,7 @@ def _job_popen(
             stdin_path=stdin_path,
         )
         with open(os.path.join(job_dir, "job.json"), encoding='utf-8',
-                mode="wb") as job_file:
+                  mode="wb") as job_file:
             json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")

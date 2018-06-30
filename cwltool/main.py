@@ -39,7 +39,7 @@ from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
 from .process import (Process, scandeps,   # pylint: disable=unused-import
                       shortname, use_custom_schema, use_standard_schema)
-from .provenance import (create_ProvProfile, ResearchObject)
+from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (DependenciesConfiguration,
@@ -216,8 +216,9 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         else:
             job_order_object = {}
     if provArgs:
-        inputforProv=printdeps(job_order_object, loader, stdout, relative_deps, "", provArgs,
-                              basedir=file_uri(str(input_basedir) + "/"))
+        input_for_prov = printdeps(
+            job_order_object, loader, stdout, relative_deps, "", provArgs,
+            basedir=file_uri(str(input_basedir) + "/"))
 
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
@@ -252,9 +253,8 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
     if "id" in job_order_object:
         del job_order_object["id"]
     if provArgs:
-        return (job_order_object, inputforProv[1])
-    else:
-        return (job_order_object, None)
+        return (job_order_object, input_for_prov[1])
+    return (job_order_object, None)
 
 
 
@@ -296,13 +296,12 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
             base = os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
-        absdeps=copy.deepcopy(deps)
+        absdeps = copy.deepcopy(deps)
         visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
     if provArgs:
         return (deps, absdeps)
-    else:
-        stdout.write(json_dumps(deps, indent=4))
-        return (None, None)
+    stdout.write(json_dumps(deps, indent=4))
+    return (None, None)
 
 def print_pack(document_loader,  # type: Loader
                processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -356,7 +355,7 @@ def main(argsl=None,                   # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
-    inputforProv = None
+    input_for_prov = None
     try:
         if args is None:
             if argsl is None:
@@ -488,8 +487,10 @@ def main(argsl=None,                   # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
-            if args.provenance and runtimeContext.research_obj:  # Can't really be combined with args.pack at same time
-                runtimeContext.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
+            if args.provenance and runtimeContext.research_obj:
+                # Can't really be combined with args.pack at same time
+                runtimeContext.research_obj.packed_workflow(
+                    print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json_dumps(processobj, indent=4))
@@ -563,13 +564,13 @@ def main(argsl=None,                   # type: List[str]
 
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
         try:
-            initialized_job_order_object, input_for_prov = init_job_order(job_order_object, args, tool,
-                                               jobloader, stdout,
-                                               print_input_deps=args.print_input_deps,
-                                               provArgs=runtimeContext.research_obj,
-                                               relative_deps=args.relative_deps,
-                                               input_basedir=input_basedir,
-                                               secret_store=runtimeContext.secret_store)
+            initialized_job_order_object, input_for_prov = init_job_order(
+                job_order_object, args, tool, jobloader, stdout,
+                print_input_deps=args.print_input_deps,
+                provArgs=runtimeContext.research_obj,
+                relative_deps=args.relative_deps,
+                input_basedir=input_basedir,
+                secret_store=runtimeContext.secret_store)
         except SystemExit as err:
             return err.code
 
@@ -648,15 +649,18 @@ def main(argsl=None,                   # type: List[str]
             return 1
 
     finally:
-        if args and runtimeContext.research_obj and args.rm_tmpdir and workflowobj:
+        if args and runtimeContext and runtimeContext.research_obj \
+                and args.rm_tmpdir and workflowobj:
             #adding all related cwl files to RO
             prov_dependencies = printdeps(
                 workflowobj, document_loader, stdout, args.relative_deps, uri,
                 runtimeContext.research_obj)
-            runtimeContext.research_obj.generate_snapshot(prov_dependencies[1])
+            prov_dep = prov_dependencies[1]
+            assert prov_dep
+            runtimeContext.research_obj.generate_snapshot(prov_dep)
             #for input file dependencies
-            if inputforProv:
-                runtimeContext.research_obj.generate_snapshot(inputforProv)
+            if input_for_prov:
+                runtimeContext.research_obj.generate_snapshot(input_for_prov)
             #NOTE: keep these commented out lines to evaluate tests later
             #if job_order_object:
                 #runtimeContext.research_obj.generate_snapshot(job_order_object)

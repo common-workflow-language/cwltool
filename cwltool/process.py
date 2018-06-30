@@ -451,8 +451,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
-        self.provenanceObject=None  # type: Optional[create_ProvProfile]
-        self.parent_wf=None  # type: Optional[create_ProvProfile]
+        self.provenance_object = None  # type: Optional[create_ProvProfile]
+        self.parent_wf = None          # type: Optional[create_ProvProfile]
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")

@@ -104,7 +104,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri, None, process.parent_wf.engineUUID,
                     datetime.datetime.now())
-                process.parent_wf.finalize_provProfile(name)
+                process.parent_wf.finalize_prov_profile(name)
             return (self.final_output[0], self.final_status[0])
         return (None, "permanentFail")
 
@@ -126,10 +126,10 @@ class SingleJobExecutor(JobExecutor):
                 and runtimeContext.research_obj is not None:
             orcid = runtimeContext.orcid
             full_name = runtimeContext.cwl_full_name
-            process.provenanceObject = create_ProvProfile(
+            process.provenance_object = create_ProvProfile(
                 runtimeContext.research_obj, orcid, full_name)
-            process.parent_wf = process.provenanceObject
-            prov_obj = process.provenanceObject
+            process.parent_wf = process.provenance_object
+            prov_obj = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         try:
@@ -141,14 +141,15 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(job.outdir)
                     if runtimeContext.research_obj is not None:
                         if not isinstance(process, Workflow):
-                            runtimeContext.prov_obj = process.provenanceObject
+                            runtimeContext.prov_obj = process.provenance_object
                         else:
                             runtimeContext.prov_obj = job.prov_obj
+                        assert runtimeContext.prov_obj
                         process_run_id, reference_locations = runtimeContext.prov_obj._evaluate(
                             process, job, job_order_object,
                             runtimeContext.make_fs_access, runtimeContext)
                         runtimeContext = runtimeContext.copy()
-                        runtimeContext.process_run_ID = process_run_id
+                        runtimeContext.process_run_id = process_run_id
                         runtimeContext.reference_locations = \
                             reference_locations
                     job.run(runtimeContext)

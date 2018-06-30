@@ -179,7 +179,7 @@ class Builder(HasReqsHints):
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
-        self.prov_obj=None # type: Optional[create_ProvProfile]
+        self.prov_obj = None  # type: Optional[create_ProvProfile]
 
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
         self.job_script_provider = job_script_provider
