@@ -317,7 +317,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             processStatus = "permanentFail"
         if runtimeContext.research_obj and self.prov_obj:
             #creating entities for the outputs produced by each step (in the provenance document)
-            self.prov_obj.generate_outputProv(
+            self.prov_obj.generate_output_prov(
                 outputs, runtimeContext.ProcessRunID, str(self.name))
             self.prov_obj.document.wasEndedBy(
                 runtimeContext.ProcessRunID, None, self.prov_obj.workflow_run_uri,

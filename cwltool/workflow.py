@@ -244,7 +244,7 @@ class WorkflowJob(object):
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
             ProcessRunID=None
-            self.prov_obj.generate_outputProv(wo, ProcessRunID)
+            self.prov_obj.generate_output_prov(wo, ProcessRunID, self.name)
             self.prov_obj.document.wasEndedBy(self.prov_obj.workflow_run_uri, None, self.prov_obj.engineUUID, datetime.datetime.now())
             self.prov_obj.finalize_provProfile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
@@ -474,7 +474,7 @@ class WorkflowJob(object):
         if not self.did_callback:
             self.do_output_callback(output_callback)  # could have called earlier on line 336;
             #depends which one comes first. All steps are completed or all outputs have beend produced.
-
+#import ipdb
 
 class Workflow(Process):
     def __init__(self,
@@ -500,7 +500,7 @@ class Workflow(Process):
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(step, index, loadingContext))
+                self.steps.append(WorkflowStep(step, index, loadingContext, self.provenanceObject))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -720,9 +720,13 @@ class WorkflowStep(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         #initialize sub-workflow as a step in the parent profile
+
         if self.embedded_tool.tool["class"] == "Workflow" \
                 and runtimeContext.research_obj:
-            self.embedded_tool.parent_wf = runtimeContext.prov_obj
+            print ("what is parent_wf: ", self.embedded_tool.parent_wf.workflow_run_uri)
+            print ("what is runtimeContext.prov_obj:", runtimeContext.prov_obj)
+            print ("waht is provObj of self", self.prov_obj.workflow_run_uri)
+            self.embedded_tool.parent_wf = self.prov_obj
             process_name = self.tool["id"].split("#")[1]
             self.embedded_tool.parent_wf.start_process(
                 process_name, self.embedded_tool.provenanceObject.workflow_run_uri)

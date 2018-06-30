@@ -44,7 +44,8 @@ from .loghandler import _logger
 from .process import shortname, Process  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import versionstring
-
+from .command_line_tool import CommandLineTool, ExpressionTool
+#from .workflow import Workflow
 getpwnam = None  # type: Optional[Callable[[str], struct_passwd]]
 try:
     # pwd is only available on Unix
@@ -381,8 +382,8 @@ class create_ProvProfile():
         return (self.workflow_run_uri, self.document)
 
     def _evaluate(self,
-                  t,                 # type: Process
-                  r,                 # type: Any
+                  process,                 # type: Process
+                  job,                 # type: Any
                   job_order_object,  # type: Dict[Text, Text]
                   make_fs_access,    # type: Callable[[Text], StdFsAccess]
                   runtimeContext     # type: RuntimeContext
@@ -395,25 +396,26 @@ class create_ProvProfile():
         process_run_id = None
         research_obj = runtimeContext.research_obj
         assert research_obj is not None
-        if isinstance(t, (CommandLineTool, ExpressionTool)):
+        if not hasattr(process, "steps"):
+        #if isinstance(t, (CommandLineTool, ExpressionTool)):
             # record provenance of an independent commandline tool execution
-            self.prospective_prov(r)
-            customised_job = research_obj.copy_job_order(r, job_order_object)
+            self.prospective_prov(job)
+            customised_job = research_obj.copy_job_order(job, job_order_object)
             relativised_input_object2, reference_locations = \
                 research_obj.create_job(
                     customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object2, job_order_object)
-            process_name = urllib.parse.quote(str(r.name), safe=":/,#")
+            process_name = urllib.parse.quote(str(job.name), safe=":/,#")
             process_run_id = self.workflow_run_uri
-        elif isinstance(r, Workflow):  # record provenance for the workflow execution
-            self.prospective_prov(r)
-            customised_job = research_obj.copy_job_order(r, job_order_object)
+        elif hasattr(job, "workflow"):  # record provenance for the workflow execution
+            self.prospective_prov(job)
+            customised_job = research_obj.copy_job_order(job, job_order_object)
             relativised_input_object2, reference_locations = \
                 research_obj.create_job(
                     customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object2, job_order_object)
         else:  # in case of commandline tool execution as part of workflow
-            process_name = urllib.parse.quote(str(r.name), safe=":/,#")
+            process_name = urllib.parse.quote(str(job.name), safe=":/,#")
             process_run_id = self.start_process(process_name)
         return process_run_id, reference_locations
 
@@ -508,7 +510,7 @@ class create_ProvProfile():
                     {"prov:role": prov_role})
 
     def generate_output_prov(self, final_output, process_run_id, name):
-        # type: (Dict, str, str) -> None
+        # type: (Dict[Any, Any], str, str) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
@@ -552,7 +554,7 @@ class create_ProvProfile():
     def array_output(self, key, current_l):
         # type: (Any, List) -> List
         '''
-        helper function for generate_outputProv()
+        helper function for generate_output_prov()
         for the case when we have an array of files as output
         '''
         new_l=[]
@@ -565,7 +567,7 @@ class create_ProvProfile():
     def dict_output(self, key, current_dict):
         # type: (Any, Dict) -> List
         '''
-        helper function for generate_outputProv()
+        helper function for generate_output_prov()
         for the case when the output is key:value where value is a file item
         '''
         new_d = []
@@ -1180,7 +1182,8 @@ class ResearchObject():
 
     def create_job(self,
                    job,            # type: Dict
-                   make_fs_access  # type: Callable[[Text], StdFsAccess]
+                   make_fs_access, # type: Callable[[Text], StdFsAccess]
+                   runtimeContext
                   ):  # type: (...) -> Tuple[Dict,Dict]
         #TODO customise the file
         '''

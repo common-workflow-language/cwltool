@@ -41,7 +41,7 @@ from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     windows_default_container_id)
 from .context import LoadingContext, RuntimeContext, getdefault
-from .provenance import create_ProvProfile
+#from .provenance import create_ProvProfile
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything

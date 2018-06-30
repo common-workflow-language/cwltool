@@ -99,7 +99,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                                          WorkflowJob)) and process.parent_wf:
                 process_run_id = None
                 name = "primary"
-                process.parent_wf.generate_outputProv(self.final_output[0],
+                process.parent_wf.generate_output_prov(self.final_output[0],
                                                       process_run_id, name)
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri, None, process.parent_wf.engineUUID,
@@ -144,7 +144,7 @@ class SingleJobExecutor(JobExecutor):
                         if not isinstance(process, Workflow):
                             prov_obj = process.provenanceObject
                         else:
-                            prov_obj = process.prov_obj
+                            prov_obj = job.prov_obj
                         process_run_id, reference_locations = prov_obj._evaluate(
                             process, job, job_order_object,
                             runtimeContext.make_fs_access, runtimeContext)

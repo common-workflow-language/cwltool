@@ -15,6 +15,7 @@ import six
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .process import Process
+    from .provenance import ResearchObject
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
@@ -50,11 +51,11 @@ class LoadingContext(ContextBase):
         self.resolver = None
         self.fetcher_constructor = None
         self.construct_tool_object = default_make_tool
-        self.research_obj = None
+        self.research_obj = None           # type: Optional[ResearchObject]
         self.orcid = None
         self.cwl_full_name = None
-        self.host_provenance = None
-        self.user_provenance = None
+        self.host_provenance = False       # type: bool
+        self.user_provenance = False        # type: bool
         self.prov_obj = None
 
         super(LoadingContext, self).__init__(kwargs)
@@ -114,11 +115,12 @@ class RuntimeContext(ContextBase):
         self.cidfile_dir = None
         self.cidfile_prefix = None
 
-        self.research_obj = None
+        self.research_obj = None        # type: Optional[ResearchObject]
         self.orcid = None
         self.cwl_full_name = None
-        self.ProcessRunID = None
+        self.process_run_ID = None
         self.prov_obj = None
+        self.reference_locations = None
         super(RuntimeContext, self).__init__(kwargs)
 
 

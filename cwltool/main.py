@@ -11,7 +11,7 @@ import io
 import logging
 import os
 import sys
-
+#import ipdb
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
                     Iterable, List, Mapping, MutableMapping, Optional, Text,
                     TextIO, Tuple, Union, cast)
@@ -430,13 +430,12 @@ def main(argsl=None,                   # type: List[str]
         else:
             use_standard_schema("v1.0")
         #call function from provenance.py if the provenance flag is enabled.
-        args.research_obj = None
         if args.provenance:
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
 
-            args.research_obj = ResearchObject(
+            runtimeContext.research_obj = ResearchObject(
                 tmpPrefix=args.tmpdir_prefix,
                 # Optionals, might be None
                 orcid=args.orcid,
@@ -489,15 +488,15 @@ def main(argsl=None,                   # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
-            if args.provenance and args.research_obj:  # Can't really be combined with args.pack at same time
-                args.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
+            if args.provenance and runtimeContext.research_obj:  # Can't really be combined with args.pack at same time
+                runtimeContext.research_obj.packed_workflow(print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json_dumps(processobj, indent=4))
                 return 0
 
             loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
-
+          
             tool = make_tool(document_loader, avsc_names,
                              metadata, uri, loadingContext)
             if args.make_template:
@@ -563,12 +562,11 @@ def main(argsl=None,                   # type: List[str]
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
-
         try:
             initialized_job_order_object, input_for_prov = init_job_order(job_order_object, args, tool,
                                                jobloader, stdout,
                                                print_input_deps=args.print_input_deps,
-                                               provArgs=args.research_obj,
+                                               provArgs=runtimeContext.research_obj,
                                                relative_deps=args.relative_deps,
                                                input_basedir=input_basedir,
                                                secret_store=runtimeContext.secret_store)
@@ -597,7 +595,6 @@ def main(argsl=None,                   # type: List[str]
             runtimeContext.find_default_container = \
                 functools.partial(find_default_container, args)
             runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-
             (out, status) = executor(tool,
                                      initialized_job_order_object,
                                      runtimeContext,
@@ -657,14 +654,14 @@ def main(argsl=None,                   # type: List[str]
             prov_dependencies = printdeps(
                 workflowobj, document_loader, stdout, args.relative_deps, uri,
                 args.provenance)
-            args.research_obj.generate_snapshot(prov_dependencies[1])
+            runtimeContext.research_obj.generate_snapshot(prov_dependencies[1])
             #for input file dependencies
             if inputforProv:
-                args.research_obj.generate_snapshot(inputforProv)
+                runtimeContext.research_obj.generate_snapshot(inputforProv)
             if job_order_object:
-                args.research_obj.generate_snapshot(job_order_object)
+                runtimeContext.research_obj.generate_snapshot(job_order_object)
 
-            args.research_obj.close(args.provenance)
+            runtimeContext.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
