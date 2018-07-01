@@ -23,7 +23,7 @@ from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, docker_windows_path_adjust,
                     json_dumps, onWindows)
 if TYPE_CHECKING:
-    from .provenance import create_ProvProfile
+    from .provenance import create_ProvProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
 
 

@@ -46,7 +46,7 @@ from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
 from .validate_js import validate_js_expressions
 from .context import LoadingContext, RuntimeContext, getdefault
 if TYPE_CHECKING:
-    from .provenance import create_ProvProfile
+    from .provenance import create_ProvProfile  # pylint: disable=unused-import
 
 
 class LogAsDebugFilter(logging.Filter):

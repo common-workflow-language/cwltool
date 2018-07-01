@@ -446,15 +446,16 @@ def main(argsl=None,                   # type: List[str]
             loadingContext = LoadingContext(vars(args))
         else:
             loadingContext = loadingContext.copy()
-        loadingContext.research_obj=runtimeContext.research_obj
+        loadingContext.research_obj = runtimeContext.research_obj
         loadingContext.disable_js_validation = \
             args.disable_js_validation or (not args.do_validate)
-        loadingContext.construct_tool_object = getdefault(loadingContext.construct_tool_object, workflow.default_make_tool)
+        loadingContext.construct_tool_object = getdefault(
+            loadingContext.construct_tool_object, workflow.default_make_tool)
         loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
 
-        uri, tool_file_uri = resolve_tool_uri(args.workflow,
-                                              resolver=loadingContext.resolver,
-                                              fetcher_constructor=loadingContext.fetcher_constructor)
+        uri, tool_file_uri = resolve_tool_uri(
+            args.workflow, resolver=loadingContext.resolver,
+            fetcher_constructor=loadingContext.fetcher_constructor)
 
         try_again_msg = "" if args.debug else ", try again with --debug for more information"
 
@@ -497,7 +498,7 @@ def main(argsl=None,                   # type: List[str]
                 return 0
 
             loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
-          
+
             tool = make_tool(document_loader, avsc_names,
                              metadata, uri, loadingContext)
             if args.make_template:

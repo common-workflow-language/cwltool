@@ -11,7 +11,8 @@ import shutil
 import tempfile
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, List, Optional, Set, Text, Type, Union, cast)
+                    Generator, List, Optional, Set, Text, Type, TYPE_CHECKING,
+                    Union, cast)
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -42,6 +43,8 @@ from .utils import (aslist, convert_pathsep_to_unix,
                     windows_default_container_id)
 from .context import (LoadingContext,  # pylint: disable=unused-import
                       RuntimeContext, getdefault)
+if TYPE_CHECKING:
+    from .provenance import create_ProvProfile
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -81,7 +84,7 @@ class ExpressionTool(Process):
             self.outdir = outdir
             self.tmpdir = tmpdir
             self.script = script
-            self.prov_obj = None
+            self.prov_obj = None  # type: Optional[create_ProvProfile]
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:

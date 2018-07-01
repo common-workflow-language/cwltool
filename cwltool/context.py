@@ -15,7 +15,8 @@ import six
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .process import Process
-    from .provenance import ResearchObject, create_ProvProfile
+    from .provenance import (ResearchObject,  # pylint: disable=unused-import
+                             create_ProvProfile)
 
 class ContextBase(object):
     def __init__(self, kwargs=None):

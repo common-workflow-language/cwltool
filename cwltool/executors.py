@@ -100,7 +100,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 process_run_id = None
                 name = "primary"
                 process.parent_wf.generate_output_prov(self.final_output[0],
-                                                      process_run_id, name)
+                                                       process_run_id, name)
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri, None, process.parent_wf.engineUUID,
                     datetime.datetime.now())
@@ -129,7 +129,6 @@ class SingleJobExecutor(JobExecutor):
             process.provenance_object = create_ProvProfile(
                 runtimeContext.research_obj, orcid, full_name)
             process.parent_wf = process.provenance_object
-            prov_obj = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         try:

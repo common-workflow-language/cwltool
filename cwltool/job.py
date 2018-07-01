@@ -35,7 +35,7 @@ from .utils import (  # pylint: disable=unused-import
 from .context import (RuntimeContext,  # pylint: disable=unused-import
                       getdefault)
 if TYPE_CHECKING:
-    from .provenance import create_ProvProfile
+    from .provenance import create_ProvProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 job_output_lock = Lock()
@@ -419,7 +419,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         # type: (RuntimeContext) -> None
 
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-        self.prov_obj=runtimeContext.prov_obj
+        self.prov_obj = runtimeContext.prov_obj
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
