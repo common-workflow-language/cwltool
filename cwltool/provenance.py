@@ -405,7 +405,8 @@ class create_ProvProfile():
                 research_obj.create_job(
                     customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object2, job_order_object)
-            process_name = urllib.parse.quote(str(job.name), safe=":/,#")
+            if hasattr(job, "name"):
+                process_name = urllib.parse.quote(str(job.name), safe=":/,#")
             process_run_id = self.workflow_run_uri
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
