@@ -370,7 +370,7 @@ class CommandLineTool(Process):
         j = self.make_job_runner(runtimeContext)(
             builder, builder.job, self.make_path_mapper, self.requirements,
             self.hints, jobname)
-        j.prov_obj = runtimeContext.prov_obj
+        j.prov_obj = self.prov_obj
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
         j.permanentFailCodes = self.tool.get("permanentFailCodes")

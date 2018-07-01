@@ -223,10 +223,10 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-        if self.joborder and runtimeContext.research_obj and self.prov_obj:
+        if self.joborder and runtimeContext.research_obj:
             job_order = self.joborder
             self.prov_obj.used_artefacts(
-                job_order, runtimeContext.ProcessRunID,
+                job_order, runtimeContext.process_run_ID,
                 runtimeContext.reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
@@ -318,9 +318,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if runtimeContext.research_obj and self.prov_obj:
             #creating entities for the outputs produced by each step (in the provenance document)
             self.prov_obj.generate_output_prov(
-                outputs, runtimeContext.ProcessRunID, str(self.name))
+                outputs, runtimeContext.process_run_ID, str(self.name))
             self.prov_obj.document.wasEndedBy(
-                runtimeContext.ProcessRunID, None, self.prov_obj.workflow_run_uri,
+                runtimeContext.process_run_ID, None, self.prov_obj.workflow_run_uri,
                 datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
@@ -417,7 +417,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         # type: (RuntimeContext) -> None
 
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-
+        self.prov_obj=runtimeContext.prov_obj
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
@@ -450,7 +450,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 if docker_req and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
-                if self.prov_obj and img_id and runtimeContext.ProcessRunID:
+                if self.prov_obj and img_id and runtimeContext.process_run_ID:
                     # TODO: Integrate with record_container_id
                     container_agent = self.prov_obj.document.agent(uuid.uuid4().urn,
                         {"prov:type": PROV["SoftwareAgent"],
@@ -460,9 +460,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     #img_entity = document.entity("nih:sha-256;%s" % img_id,
                     #                  {"prov:label": "Container image %s" % img_id} )
                     # The image is the plan for this activity-agent association
-                    #document.wasAssociatedWith(ProcessRunID, container_agent, img_entity)
+                    #document.wasAssociatedWith(process_run_ID, container_agent, img_entity)
                     self.prov_obj.document.wasAssociatedWith(
-                        runtimeContext.ProcessRunID, container_agent)
+                        runtimeContext.process_run_ID, container_agent)
             except Exception as err:
                 container = "Singularity" if runtimeContext.singularity else "Docker"
                 _logger.debug("%s error", container, exc_info=True)

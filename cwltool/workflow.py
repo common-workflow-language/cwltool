@@ -204,7 +204,7 @@ class WorkflowJob(object):
         # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
         self.prov_obj=None  # type: Optional[create_ProvProfile]
-        self.parent_wf=None
+        self.parent_wf=None # type: Optional[create_ProvProfile]
         self.tool = workflow.tool
         if runtimeContext.research_obj:
             self.prov_obj=workflow.provenanceObject
@@ -474,7 +474,6 @@ class WorkflowJob(object):
         if not self.did_callback:
             self.do_output_callback(output_callback)  # could have called earlier on line 336;
             #depends which one comes first. All steps are completed or all outputs have beend produced.
-#import ipdb
 
 class Workflow(Process):
     def __init__(self,
@@ -484,14 +483,14 @@ class Workflow(Process):
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
         self.provenanceObject=None  # type: Optional[create_ProvProfile]
-        if loadingContext.research_obj and loadingContext.research_obj:
+        if loadingContext.research_obj:# and loadingContext.research_obj:
             orcid=loadingContext.orcid
             full_name=loadingContext.cwl_full_name
             self.provenanceObject=create_ProvProfile(
                 loadingContext.research_obj, full_name, orcid,
                 loadingContext.host_provenance, loadingContext.user_provenance)
             self.parent_wf=self.provenanceObject
-
+        loadingContext.prov_obj=self.provenanceObject
         loadingContext = loadingContext.copy()
         loadingContext.requirements = self.requirements
         loadingContext.hints = self.hints
@@ -500,7 +499,7 @@ class Workflow(Process):
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(step, index, loadingContext, self.provenanceObject))
+                self.steps.append(WorkflowStep(step, index, loadingContext, loadingContext.prov_obj))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -690,7 +689,7 @@ class WorkflowStep(Process):
             else:
                 nesting = 1
 
-            for _ in range(0, nesting):
+            for index in range(0, nesting):
                 for oparam in outputparms:
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
@@ -717,15 +716,12 @@ class WorkflowStep(Process):
     def job(self,
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext     # type: RuntimeContext
+            runtimeContext,    # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         #initialize sub-workflow as a step in the parent profile
 
         if self.embedded_tool.tool["class"] == "Workflow" \
                 and runtimeContext.research_obj:
-            print ("what is parent_wf: ", self.embedded_tool.parent_wf.workflow_run_uri)
-            print ("what is runtimeContext.prov_obj:", runtimeContext.prov_obj)
-            print ("waht is provObj of self", self.prov_obj.workflow_run_uri)
             self.embedded_tool.parent_wf = self.prov_obj
             process_name = self.tool["id"].split("#")[1]
             self.embedded_tool.parent_wf.start_process(

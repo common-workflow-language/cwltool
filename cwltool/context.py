@@ -55,7 +55,7 @@ class LoadingContext(ContextBase):
         self.orcid = None
         self.cwl_full_name = None
         self.host_provenance = False       # type: bool
-        self.user_provenance = False        # type: bool
+        self.user_provenance = False       # type: bool
         self.prov_obj = None
 
         super(LoadingContext, self).__init__(kwargs)

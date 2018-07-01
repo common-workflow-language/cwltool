@@ -11,7 +11,7 @@ import io
 import logging
 import os
 import sys
-#import ipdb
+
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
                     Iterable, List, Mapping, MutableMapping, Optional, Text,
                     TextIO, Tuple, Union, cast)
@@ -447,7 +447,7 @@ def main(argsl=None,                   # type: List[str]
             loadingContext = LoadingContext(vars(args))
         else:
             loadingContext = loadingContext.copy()
-
+        loadingContext.research_obj=runtimeContext.research_obj
         loadingContext.disable_js_validation = \
             args.disable_js_validation or (not args.do_validate)
         loadingContext.construct_tool_object = getdefault(loadingContext.construct_tool_object, workflow.default_make_tool)
@@ -648,12 +648,11 @@ def main(argsl=None,                   # type: List[str]
             return 1
 
     finally:
-        if args and hasattr(args, "research_obj") and hasattr(args, "provenance") \
-                and args.provenance and args.rm_tmpdir and workflowobj:
+        if args and runtimeContext.research_obj and args.rm_tmpdir and workflowobj:
             #adding all related cwl files to RO
             prov_dependencies = printdeps(
                 workflowobj, document_loader, stdout, args.relative_deps, uri,
-                args.provenance)
+                runtimeContext.research_obj)
             runtimeContext.research_obj.generate_snapshot(prov_dependencies[1])
             #for input file dependencies
             if inputforProv:

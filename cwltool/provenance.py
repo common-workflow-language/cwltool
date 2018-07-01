@@ -604,12 +604,12 @@ class create_ProvProfile():
         except TypeError:
             pass
 
-    def prospective_prov(self, r):
+    def prospective_prov(self, job):
         # type: (Any) -> None
         '''
         create prospective provenance recording for the workflow as wfdesc prov:Plan
         '''
-        if not hasattr(r, "steps"):
+        if not hasattr(job, "steps"):
             # direct command line tool execution
             self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
             return
@@ -617,7 +617,7 @@ class create_ProvProfile():
         self.document.entity("wf:main", {provM.PROV_TYPE: WFDESC["Workflow"], "prov:type": PROV["Plan"], "prov:label":"Prospective provenance"})
 
         steps=[]
-        for s in r.steps:
+        for s in job.steps:
             stepnametemp="wf:main/"+str(s.name)[5:]
             stepname=urllib.parse.quote(stepnametemp, safe=":/,#")
             steps.append(stepname)
@@ -652,7 +652,7 @@ class create_ProvProfile():
 
         # "rdf" aka https://www.w3.org/TR/prov-o/
         # which can be serialized to ttl/nt/jsonld (and more!)
-
+        
         # https://www.w3.org/TR/turtle/
         with self.ro.write_bag_file(basename + ".ttl") as fp:
             self.document.serialize(fp, format="rdf", rdf_format="turtle")

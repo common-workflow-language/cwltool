@@ -117,7 +117,7 @@ class SingleJobExecutor(JobExecutor):
                  logger,
                  runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
-        prov_obj = None  # type: Any
+
         process_run_id = None  # type: Optional[str]
         reference_locations = {}  # type: Dict[Text,Text]
 
@@ -139,22 +139,16 @@ class SingleJobExecutor(JobExecutor):
                         job.builder = runtimeContext.builder
                     if job.outdir:
                         self.output_dirs.add(job.outdir)
-                    if runtimeContext.research_obj is not None \
-                            and job.prov_obj:
-                        if not isinstance(process, Workflow):
-                            prov_obj = process.provenanceObject
-                        else:
-                            prov_obj = job.prov_obj
-                        process_run_id, reference_locations = prov_obj._evaluate(
+                    if runtimeContext.research_obj is not None:
+                        runtimeContext.prov_obj = job.prov_obj
+                        process_run_id, reference_locations = runtimeContext.prov_obj._evaluate(
                             process, job, job_order_object,
                             runtimeContext.make_fs_access, runtimeContext)
                         runtimeContext = runtimeContext.copy()
                         runtimeContext.process_run_ID = process_run_id
                         runtimeContext.reference_locations = \
                             reference_locations
-                        job.run(runtimeContext)
-                    else:
-                        job.run(runtimeContext)
+                    job.run(runtimeContext)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
