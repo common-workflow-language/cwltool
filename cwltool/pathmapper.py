@@ -272,7 +272,7 @@ class PathMapper(object):
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
             self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
 
-        targets = {}
+        targets = {}  # type: Dict[Text, Text]
         for k,v in self._pathmap.items():
             if v.target in targets:
                 raise validate.ValidationException("Name conflict: both %s and %s have been assigned to target %s" % (k, targets[v.target], v.target))
