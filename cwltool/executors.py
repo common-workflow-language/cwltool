@@ -140,7 +140,10 @@ class SingleJobExecutor(JobExecutor):
                     if job.outdir:
                         self.output_dirs.add(job.outdir)
                     if runtimeContext.research_obj is not None:
-                        runtimeContext.prov_obj = job.prov_obj
+                        if not isinstance(process, Workflow):
+                            runtimeContext.prov_obj = process.provenanceObject
+                        else:
+                            runtimeContext.prov_obj = job.prov_obj
                         process_run_id, reference_locations = runtimeContext.prov_obj._evaluate(
                             process, job, job_order_object,
                             runtimeContext.make_fs_access, runtimeContext)

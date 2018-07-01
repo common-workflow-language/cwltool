@@ -225,7 +225,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if self.joborder and runtimeContext.research_obj:
             job_order = self.joborder
-            self.prov_obj.used_artefacts(
+            runtimeContext.prov_obj.used_artefacts(
                 job_order, runtimeContext.process_run_ID,
                 runtimeContext.reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
