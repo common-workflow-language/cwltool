@@ -405,8 +405,10 @@ class create_ProvProfile():
                 research_obj.create_job(
                     customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object2, job_order_object)
+            name = ""
             if hasattr(job, "name"):
-                process_name = urllib.parse.quote(str(job.name), safe=":/,#")
+                name = str(job.name)
+            process_name = urllib.parse.quote(name, safe=":/,#")
             process_run_id = self.workflow_run_uri
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
@@ -416,7 +418,10 @@ class create_ProvProfile():
                     customised_job, make_fs_access, runtimeContext)
             self.declare_artefact(relativised_input_object2, job_order_object)
         else:  # in case of commandline tool execution as part of workflow
-            process_name = urllib.parse.quote(str(job.name), safe=":/,#")
+            name = ""
+            if hasattr(job, "name"):
+                name = str(job.name)
+            process_name = urllib.parse.quote(name, safe=":/,#")
             process_run_id = self.start_process(process_name)
         return process_run_id, reference_locations
 

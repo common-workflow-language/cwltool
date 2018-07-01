@@ -81,6 +81,7 @@ class ExpressionTool(Process):
             self.outdir = outdir
             self.tmpdir = tmpdir
             self.script = script
+            self.prov_obj = None
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
@@ -100,9 +101,11 @@ class ExpressionTool(Process):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(job_order, runtimeContext)
 
-        yield ExpressionTool.ExpressionJob(
+        job = ExpressionTool.ExpressionJob(
             builder, self.tool["expression"], output_callbacks,
             self.requirements, self.hints)
+        job.prov_obj = runtimeContext.prov_obj
+        yield job
 
 
 def remove_path(f):  # type: (Dict[Text, Any]) -> None
