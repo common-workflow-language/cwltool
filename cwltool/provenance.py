@@ -21,7 +21,7 @@ import uuid
 from collections import OrderedDict
 from typing import (Any, Dict, Set, List,  # pylint: disable=unused-import
                     Tuple, Text, Optional, IO, Callable, cast, Union,
-                    TYPE_CHECKING)
+                    TYPE_CHECKING, MutableMapping)
 from socket import getfqdn
 from getpass import getuser
 
@@ -453,8 +453,8 @@ class create_ProvProfile():
 
     def used_artefacts(self,
                        job_order,            # type: Dict
-                       process_run_id,       # type: ProvActivity
-                       reference_locations,  # type: str
+                       process_run_id,       # type: Optional[str]
+                       reference_locations,  # type: Dict[Text,Text]
                        name                  # type: str
                       ):  # type: (...) -> None
         '''
@@ -511,7 +511,7 @@ class create_ProvProfile():
                     {"prov:role": prov_role})
 
     def generate_output_prov(self, final_output, process_run_id, name):
-        # type: (Dict[Any, Any], str, str) -> None
+        # type: (Dict[Any, Any], str, Text) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
@@ -532,7 +532,7 @@ class create_ProvProfile():
             output_checksum="data:"+str(tuple_entry[1][5:])
 
             if process_run_id:
-                name = urllib.parse.quote(name, safe=":/,#")
+                name = urllib.parse.quote(str(name), safe=":/,#")
                 step_prov = self.ro.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
 
                 self.document.entity(output_checksum,
@@ -1025,7 +1025,7 @@ class ResearchObject():
         _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_snapshot(self, prov_dep):
-        # type: (Dict[str,str]) -> None
+        # type: (Optional[Dict[Text, Any]]) -> None
         '''
         Copies all the cwl files involved in this workflow run to snapshot
         directory

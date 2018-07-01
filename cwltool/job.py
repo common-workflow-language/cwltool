@@ -18,7 +18,7 @@ from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
                     Dict, Iterable, List, MutableMapping, Optional, Text,
-                    Union, cast)
+                    Union, cast, TYPE_CHECKING)
 
 import shellescape
 from schema_salad.sourceline import SourceLine
@@ -35,7 +35,8 @@ from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
     onWindows, subprocess)
 from .context import LoadingContext, RuntimeContext, getdefault
-
+if TYPE_CHECKING:
+    from .provenance import create_ProvProfile
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 job_output_lock = Lock()
@@ -170,8 +171,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
-        self.prov_obj=None
-        self.parent_wf=None
+        self.prov_obj=None  #type: Optional[create_ProvProfile]
+        self.parent_wf=None #type: Optional[create_ProvProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
@@ -206,7 +207,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def _execute(self,
                  runtime,                # type: List[Text]
                  env,                    # type: MutableMapping[Text, Text]
-                 runtimeContext         # type: RuntimeContext
+                 runtimeContext          # type: RuntimeContext
                 ):  # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")

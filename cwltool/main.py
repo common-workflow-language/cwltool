@@ -657,8 +657,9 @@ def main(argsl=None,                   # type: List[str]
             #for input file dependencies
             if inputforProv:
                 runtimeContext.research_obj.generate_snapshot(inputforProv)
-            if job_order_object:
-                runtimeContext.research_obj.generate_snapshot(job_order_object)
+            #NOTE: keep these commented out lines to evaluate tests later
+            #if job_order_object:
+                #runtimeContext.research_obj.generate_snapshot(job_order_object)
 
             runtimeContext.research_obj.close(args.provenance)
 

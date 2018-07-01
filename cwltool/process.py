@@ -17,7 +17,8 @@ import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, List, Optional, Set, Text, Tuple, Union, cast)
+                    Generator, List, Optional, Set, Text, Tuple, Union, cast,
+                    TYPE_CHECKING)
 
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
@@ -44,6 +45,9 @@ from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
 from .context import LoadingContext, RuntimeContext, getdefault
+if TYPE_CHECKING:
+    from .provenance import create_ProvProfile
+
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
@@ -447,8 +451,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
-        self.provenanceObject=None  # type: Any
-        self.parent_wf=None  # type: Any
+        self.provenanceObject=None  # type: Optional[create_ProvProfile]
+        self.parent_wf=None  # type: Optional[create_ProvProfile]
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")

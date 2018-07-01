@@ -15,7 +15,7 @@ import six
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .process import Process
-    from .provenance import ResearchObject
+    from .provenance import ResearchObject, create_ProvProfile
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
@@ -56,7 +56,7 @@ class LoadingContext(ContextBase):
         self.cwl_full_name = None
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
-        self.prov_obj = None
+        self.prov_obj = None               # type: Optional[create_ProvProfile]
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -118,9 +118,9 @@ class RuntimeContext(ContextBase):
         self.research_obj = None        # type: Optional[ResearchObject]
         self.orcid = None
         self.cwl_full_name = None
-        self.process_run_ID = None
-        self.prov_obj = None
-        self.reference_locations = None
+        self.process_run_ID = None      # type: Optional[str]
+        self.prov_obj = None            # type: Optional[create_ProvProfile]
+        self.reference_locations = None # type: Dict[Text,Text]
         super(RuntimeContext, self).__init__(kwargs)
 
 
