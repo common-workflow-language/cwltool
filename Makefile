@@ -37,7 +37,7 @@ ifeq ($(UNAME_S),Linux)
 	nproc=$(shell nproc)
 endif
 ifeq ($(UNAME_S),Darwin)
-	nproc=$(sysctl -n hw.physicalcpu)
+	nproc=$(shell sysctl -n hw.physicalcpu)
 endif
 
 ## all         : default task
