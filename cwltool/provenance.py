@@ -1,4 +1,17 @@
 from __future__ import absolute_import
+
+__citation__ = "https://doi.org/10.5281/zenodo.1208477"
+
+# NOTE: Semantic versioning of the CWLProv Research Object
+# **and** the cwlprov files
+#
+# Rough guide (major.minor.patch):
+# 1. Bump minor number if adding resources or PROV statements
+# 2. Bump major number if removing/"breaking" resources or PROV statements
+# 3. Bump patch number for non-breaking non-adding changes, 
+#    e.g. fixing broken relative paths
+CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.3.0"
+
 import io
 from io import open
 import json
@@ -79,8 +92,6 @@ UUID = Namespace("id", "urn:uuid:")
 # BagIt and YAML always use UTF-8
 ENCODING = "UTF-8"
 
-# Citation for conformsTo
-__citation__ = "https://doi.org/10.5281/zenodo.1208477"
 
 # sha1, compatible with the File type's "checksum" field
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
@@ -941,7 +952,7 @@ class ResearchObject():
             and extension in PROV_CONFORMS_TO):
             if ".cwlprov" in rel_path:
                 # Our own!
-                a["conformsTo"] = [PROV_CONFORMS_TO[extension], __citation__]
+                a["conformsTo"] = [PROV_CONFORMS_TO[extension], CWLPROV_VERSION]
             else:
                 # Some other PROV
                 # TODO: Recognize ProvOne etc.
@@ -1013,6 +1024,7 @@ class ResearchObject():
             "https://w3id.org/bundle/context"
         ]
         manifest["id"] = "/"
+        manifest["conformsTo"] = CWLPROV_VERSION
         filename = "manifest.json"
         manifest["manifest"] = filename
         manifest.update(self._self_made())
