@@ -467,7 +467,10 @@ class create_ProvProfile():
         '''
         for key, value in job_order.items():
             prov_role = self.ro.wf_ns["main/%s/%s" % (name, key)]
-            if isinstance(value, dict) and 'location' in value:
+            if isinstance(value, dict) and 'class' in value and value['class'] == 'File' and 'location' in value \
+                    and "contents" not in value:
+                #FIXME: cope with file literals.
+                # FIXME: process Directory.listing 
                 location = str(value['location'])
 
                 if 'checksum' in value:
@@ -555,7 +558,10 @@ class create_ProvProfile():
                     output_checksum, self.workflow_run_uri, when, None,
                     {"prov:role": output_prov_role})
                 # FIXME: What are these magic array positions???
-            with open(tuple_entry[2][7:], "rb") as fp:
+            path = tuple_entry[2]
+            if path.startswith("file://"):
+                path = path[7:]
+            with open(path, "rb") as fp:
                 rel_path = self.ro.add_data_file(fp, when)
                 _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
@@ -799,6 +805,9 @@ class ResearchObject():
         # type: (Text, datetime.datetime) -> None
         checksums = {}
         # Read file to calculate its checksum
+        if os.path.isdir(path):
+            return
+            # FIXME: do the right thing for directories
         with open(path, "rb") as fp:
             # FIXME: Should have more efficient open_tagfile() that
             # does all checksums in one go while writing through,
@@ -1059,7 +1068,10 @@ class ResearchObject():
 
                 # FIXME: What if destination path already exists?
                 if os.path.exists(filepath):
-                    shutil.copy(filepath, path)
+                    if os.path.isdir(filepath):
+                        shutil.copytree(filepath, path)
+                    else:
+                        shutil.copy(filepath, path)
                     when = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
                     self.add_tagfile(path, when)
             elif key == "secondaryFiles" or key == "listing":
@@ -1241,11 +1253,12 @@ class ResearchObject():
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
         if isinstance(structure, dict):
-            if structure.get("class") == "File":
+            if structure.get("class") == "File" and "contents" not in structure:
                 #standardised fs access object creation
                 assert self.make_fs_access
                 fsaccess = self.make_fs_access("")
                 # TODO: Replace location/path with new add_data_file() paths
+                # FIXME: check if the contents are given
                 with fsaccess.open(structure["location"], "rb") as f:
                     relative_path = self.add_data_file(f)
                     ref_location = structure["location"]
