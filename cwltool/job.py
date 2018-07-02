@@ -35,7 +35,7 @@ from .utils import (  # pylint: disable=unused-import
 from .context import (RuntimeContext,  # pylint: disable=unused-import
                       getdefault)
 if TYPE_CHECKING:
-    from .provenance import create_ProvProfile  # pylint: disable=unused-import
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 job_output_lock = Lock()
@@ -170,8 +170,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
-        self.prov_obj = None   # type: Optional[create_ProvProfile]
-        self.parent_wf = None  # type: Optional[create_ProvProfile]
+        self.prov_obj = None   # type: Optional[CreateProvProfile]
+        self.parent_wf = None  # type: Optional[CreateProvProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .process import Process
     from .provenance import (ResearchObject,  # pylint: disable=unused-import
-                             create_ProvProfile)
+                             CreateProvProfile)
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
@@ -57,7 +57,7 @@ class LoadingContext(ContextBase):
         self.cwl_full_name = None
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
-        self.prov_obj = None               # type: Optional[create_ProvProfile]
+        self.prov_obj = None               # type: Optional[CreateProvProfile]
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -120,7 +120,7 @@ class RuntimeContext(ContextBase):
         self.orcid = None
         self.cwl_full_name = None
         self.process_run_id = None      # type: Optional[str]
-        self.prov_obj = None            # type: Optional[create_ProvProfile]
+        self.prov_obj = None            # type: Optional[CreateProvProfile]
         self.reference_locations = {}   # type: Dict[Text, Text]
         super(RuntimeContext, self).__init__(kwargs)
 

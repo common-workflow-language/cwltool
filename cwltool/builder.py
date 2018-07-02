@@ -23,7 +23,7 @@ from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, docker_windows_path_adjust,
                     json_dumps, onWindows)
 if TYPE_CHECKING:
-    from .provenance import create_ProvProfile  # pylint: disable=unused-import
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
 
 
@@ -179,7 +179,7 @@ class Builder(HasReqsHints):
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
-        self.prov_obj = None  # type: Optional[create_ProvProfile]
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
         self.job_script_provider = job_script_provider

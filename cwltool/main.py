@@ -216,9 +216,9 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         else:
             job_order_object = {}
     if provArgs:
-        jobObj_for_prov=copy.deepcopy(job_order_object)
+        jobobj_for_prov = copy.deepcopy(job_order_object)
         input_for_prov = printdeps(
-            jobObj_for_prov, loader, stdout, relative_deps, "", provArgs,
+            jobobj_for_prov, loader, stdout, relative_deps, "", provArgs,
             basedir=file_uri(str(input_basedir) + "/"))
 
     if print_input_deps:
@@ -436,7 +436,7 @@ def main(argsl=None,                   # type: List[str]
                 return 1
 
             runtimeContext.research_obj = ResearchObject(
-                tmpPrefix=args.tmpdir_prefix,
+                temp_prefix_ro=args.tmpdir_prefix,
                 # Optionals, might be None
                 orcid=args.orcid,
                 full_name=args.cwl_full_name)

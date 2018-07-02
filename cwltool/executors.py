@@ -15,7 +15,7 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .job import JobBase  # pylint: disable=unused-import
 from .mutation import MutationManager
-from .provenance import create_ProvProfile
+from .provenance import CreateProvProfile
 from .process import (Process,  # pylint: disable=unused-import
                       cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
@@ -102,7 +102,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 process.parent_wf.generate_output_prov(self.final_output[0],
                                                        process_run_id, name)
                 process.parent_wf.document.wasEndedBy(
-                    process.parent_wf.workflow_run_uri, None, process.parent_wf.engineUUID,
+                    process.parent_wf.workflow_run_uri, None, process.parent_wf.engine_uuid,
                     datetime.datetime.now())
                 process.parent_wf.finalize_prov_profile(name)
             return (self.final_output[0], self.final_status[0])
@@ -126,7 +126,7 @@ class SingleJobExecutor(JobExecutor):
                 and runtimeContext.research_obj is not None:
             orcid = runtimeContext.orcid
             full_name = runtimeContext.cwl_full_name
-            process.provenance_object = create_ProvProfile(
+            process.provenance_object = CreateProvProfile(
                 runtimeContext.research_obj, orcid, full_name)
             process.parent_wf = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)

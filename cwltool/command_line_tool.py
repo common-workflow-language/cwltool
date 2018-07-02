@@ -44,7 +44,7 @@ from .utils import (aslist, convert_pathsep_to_unix,
 from .context import (LoadingContext,  # pylint: disable=unused-import
                       RuntimeContext, getdefault)
 if TYPE_CHECKING:
-    from .provenance import create_ProvProfile
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -84,7 +84,7 @@ class ExpressionTool(Process):
             self.outdir = outdir
             self.tmpdir = tmpdir
             self.script = script
-            self.prov_obj = None  # type: Optional[create_ProvProfile]
+            self.prov_obj = None  # type: Optional[CreateProvProfile]
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
@@ -174,7 +174,7 @@ class CallbackJob(object):
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
         self.outdir = jobcache
-        self.prov_obj = None  # type: Optional[create_ProvProfile]
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None

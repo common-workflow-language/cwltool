@@ -29,7 +29,7 @@ from .process import Process, get_overrides, shortname, uniquename
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .provenance import create_ProvProfile
+from .provenance import CreateProvProfile
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 from . import context
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -171,8 +171,8 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
 
 
 class WorkflowJobStep(object):
-    def __init__(self, step, prov_obj=None, parent_wf=None):
-        # type: (WorkflowStep, Optional[create_ProvProfile], Any) -> None
+    def __init__(self, step):
+        # type: (WorkflowStep) -> None
         self.step = step
         self.tool = step.tool
         self.id = step.id
@@ -181,7 +181,7 @@ class WorkflowJobStep(object):
         self.iterable = None  # type: Optional[Iterable]
         self.name = uniquename(u"step %s" % shortname(self.id))
         self.prov_obj = step.prov_obj
-        self.parent_wf=step.parent_wf
+        self.parent_wf = step.parent_wf
 
     def job(self,
             joborder,         # type: Dict[Text, Text]
@@ -203,12 +203,12 @@ class WorkflowJob(object):
     def __init__(self, workflow, runtimeContext):
         # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
-        self.prov_obj=None  # type: Optional[create_ProvProfile]
-        self.parent_wf=None # type: Optional[create_ProvProfile]
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
+        self.parent_wf = None # type: Optional[CreateProvProfile]
         self.tool = workflow.tool
         if runtimeContext.research_obj:
-            self.prov_obj=workflow.provenance_object
-            self.parent_wf=workflow.parent_wf
+            self.prov_obj = workflow.provenance_object
+            self.parent_wf = workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
         self.state = {}  # type: Dict[Text, Optional[WorkflowStateItem]]
         self.processStatus = u""
@@ -249,7 +249,7 @@ class WorkflowJob(object):
             process_run_id = None
             self.prov_obj.generate_output_prov(wo, process_run_id, self.name)
             self.prov_obj.document.wasEndedBy(
-                self.prov_obj.workflow_run_uri, None, self.prov_obj.engineUUID,
+                self.prov_obj.workflow_run_uri, None, self.prov_obj.engine_uuid,
                 datetime.datetime.now())
             self.prov_obj.finalize_prov_profile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
@@ -478,7 +478,8 @@ class WorkflowJob(object):
 
         if not self.did_callback:
             self.do_output_callback(output_callback)  # could have called earlier on line 336;
-            #depends which one comes first. All steps are completed or all outputs have beend produced.
+            #depends which one comes first. All steps are completed 
+            #or all outputs have beend produced.
 
 class Workflow(Process):
     def __init__(self,
@@ -487,11 +488,11 @@ class Workflow(Process):
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
-        self.provenance_object = None  # type: Optional[create_ProvProfile]
+        self.provenance_object = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
             orcid = loadingContext.orcid
             full_name = loadingContext.cwl_full_name
-            self.provenance_object = create_ProvProfile(
+            self.provenance_object = CreateProvProfile(
                 loadingContext.research_obj, full_name, orcid,
                 loadingContext.host_provenance, loadingContext.user_provenance)
             self.parent_wf = self.provenance_object
@@ -561,7 +562,7 @@ class WorkflowStep(Process):
                  toolpath_object,      # type: Dict[Text, Any]
                  pos,                  # type: int
                  loadingContext,       # type: LoadingContext
-                 parentworkflowProv=None  # type: Optional[create_ProvProfile]
+                 parentworkflowProv=None  # type: Optional[CreateProvProfile]
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -700,7 +701,7 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj = None  # type: Optional[create_ProvProfile]
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
