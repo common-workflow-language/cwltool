@@ -174,6 +174,7 @@ class CallbackJob(object):
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
         self.outdir = jobcache
+        self.prov_obj = None  # type: Optional[create_ProvProfile]
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
