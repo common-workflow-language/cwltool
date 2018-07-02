@@ -216,8 +216,9 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         else:
             job_order_object = {}
     if provArgs:
+        jobObj_for_prov=copy.deepcopy(job_order_object)
         input_for_prov = printdeps(
-            job_order_object, loader, stdout, relative_deps, "", provArgs,
+            jobObj_for_prov, loader, stdout, relative_deps, "", provArgs,
             basedir=file_uri(str(input_basedir) + "/"))
 
     if print_input_deps:
