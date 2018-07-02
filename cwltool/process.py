@@ -863,7 +863,6 @@ def mergedirs(listing):
             ents[e["basename"]] = e
             ents[e2["basename"]] = e2
     for c in collided:
-        print(ents)
         del ents[c]
     for e in itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:
