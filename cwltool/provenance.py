@@ -1068,12 +1068,15 @@ class ResearchObject():
 
                 # FIXME: What if destination path already exists?
                 if os.path.exists(filepath):
-                    if os.path.isdir(filepath):
-                        shutil.copytree(filepath, path)
-                    else:
-                        shutil.copy(filepath, path)
-                    when = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
-                    self.add_tagfile(path, when)
+                    try:
+                        if os.path.isdir(filepath):
+                            shutil.copytree(filepath, path)
+                        else:
+                            shutil.copy(filepath, path)
+                        when = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
+                        self.add_tagfile(path, when)
+                    except PermissionError:
+                        pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key == "secondaryFiles" or key == "listing":
                 for files in value:
                     if isinstance(files, dict):
