@@ -144,9 +144,11 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             runtimeContext.prov_obj = job.prov_obj
                         assert runtimeContext.prov_obj
-                        process_run_id, reference_locations = runtimeContext.prov_obj._evaluate(
-                            process, job, job_order_object,
-                            runtimeContext.make_fs_access, runtimeContext)
+                        process_run_id, reference_locations = \
+                                runtimeContext.prov_obj.evaluate(
+                                        process, job, job_order_object,
+                                        runtimeContext.make_fs_access,
+                                        runtimeContext)
                         runtimeContext = runtimeContext.copy()
                         runtimeContext.process_run_id = process_run_id
                         runtimeContext.reference_locations = \

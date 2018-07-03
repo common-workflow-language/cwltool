@@ -422,13 +422,13 @@ class CreateProvProfile():
             self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now())
         return (self.workflow_run_uri, self.document)
 
-    def _evaluate(self,
-                  process,                 # type: Process
-                  job,                 # type: Any
-                  job_order_object,  # type: Dict[Text, Text]
-                  make_fs_access,    # type: Callable[[Text], StdFsAccess]
-                  runtimeContext     # type: RuntimeContext
-                 ):  # type: (...) -> Tuple[Optional[str], Dict[Text, Text]]
+    def evaluate(self,
+                 process,           # type: Process
+                 job,               # type: Any
+                 job_order_object,  # type: Dict[Text, Text]
+                 make_fs_access,    # type: Callable[[Text], StdFsAccess]
+                 runtimeContext     # type: RuntimeContext
+                ):  # type: (...) -> Tuple[Optional[str], Dict[Text, Text]]
         '''
         evaluate the nature of r and
         initialize the activity start

@@ -6,6 +6,7 @@ import sys
 import platform
 import shutil
 import stat
+import pkg_resources
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
                     Dict, Iterable, List, Optional, Text, Tuple, TypeVar,
@@ -22,7 +23,6 @@ if os.name == 'posix':
     import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
 else:
     import subprocess  # type: ignore # pylint: disable=unused-import
-import pkg_resources
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -40,8 +40,7 @@ def versionstring():
     pkg = pkg_resources.require("cwltool")
     if pkg:
         return u"%s %s" % (sys.argv[0], pkg[0].version)
-    else:
-        return u"%s %s" % (sys.argv[0], "unknown version")
+    return u"%s %s" % (sys.argv[0], "unknown version")
 
 def aslist(l):  # type: (Any) -> List[Any]
     if isinstance(l, list):

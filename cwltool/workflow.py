@@ -478,8 +478,8 @@ class WorkflowJob(object):
 
         if not self.did_callback:
             self.do_output_callback(output_callback)  # could have called earlier on line 336;
-            #depends which one comes first. All steps are completed 
-            #or all outputs have beend produced.
+            #depends which one comes first. All steps are completed
+            #or all outputs have been produced.
 
 class Workflow(Process):
     def __init__(self,
@@ -506,7 +506,7 @@ class Workflow(Process):
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
                 self.steps.append(WorkflowStep(step, index, loadingContext,
-                                  loadingContext.prov_obj))
+                                               loadingContext.prov_obj))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
