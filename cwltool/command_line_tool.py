@@ -11,7 +11,8 @@ import shutil
 import tempfile
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, List, Optional, Set, Text, Type, Union, cast)
+                    Generator, List, Optional, Set, Text, Type, TYPE_CHECKING,
+                    Union, cast)
 
 import schema_salad.validate as validate
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -40,7 +41,10 @@ from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     windows_default_container_id)
-from .context import LoadingContext, RuntimeContext, getdefault
+from .context import (LoadingContext,  # pylint: disable=unused-import
+                      RuntimeContext, getdefault)
+if TYPE_CHECKING:
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -80,6 +84,7 @@ class ExpressionTool(Process):
             self.outdir = outdir
             self.tmpdir = tmpdir
             self.script = script
+            self.prov_obj = None  # type: Optional[CreateProvProfile]
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
@@ -99,9 +104,11 @@ class ExpressionTool(Process):
         # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         builder = self._init_job(job_order, runtimeContext)
 
-        yield ExpressionTool.ExpressionJob(
+        job = ExpressionTool.ExpressionJob(
             builder, self.tool["expression"], output_callbacks,
             self.requirements, self.hints)
+        job.prov_obj = runtimeContext.prov_obj
+        yield job
 
 
 def remove_path(f):  # type: (Dict[Text, Any]) -> None
@@ -167,6 +174,7 @@ class CallbackJob(object):
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
         self.outdir = jobcache
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
@@ -213,8 +221,8 @@ OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], D
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, loadingContext):
         # type: (Dict[Text, Any], LoadingContext) -> None
-        super(CommandLineTool, self).__init__(
-            toolpath_object, loadingContext)
+        super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
+        self.prov_obj = loadingContext.prov_obj
 
     def make_job_runner(self,
                         runtimeContext       # type: RuntimeContext
@@ -264,7 +272,7 @@ class CommandLineTool(Process):
             job_order,         # type: Dict[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # RuntimeContext
-            ):
+           ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
         require_prefix = ""
@@ -369,6 +377,7 @@ class CommandLineTool(Process):
         j = self.make_job_runner(runtimeContext)(
             builder, builder.job, self.make_path_mapper, self.requirements,
             self.hints, jobname)
+        j.prov_obj = self.prov_obj
         j.successCodes = self.tool.get("successCodes")
         j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
         j.permanentFailCodes = self.tool.get("permanentFailCodes")

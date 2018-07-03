@@ -17,7 +17,8 @@ import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, List, Optional, Set, Text, Tuple, Union, cast)
+                    Generator, List, Optional, Set, Text, Tuple, Union, cast,
+                    TYPE_CHECKING)
 
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
@@ -44,6 +45,9 @@ from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
 from .context import LoadingContext, RuntimeContext, getdefault
+if TYPE_CHECKING:
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
@@ -446,19 +450,9 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                  toolpath_object,      # type: Dict[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
-        """
-        kwargs:
-
-        metadata: tool document metadata
-        requirements: inherited requirements
-        hints: inherited hints
-        loader: schema_salad.ref_resolver.Loader used to load tool document
-        avsc_names: CWL Avro schema object used to validate document
-        strict: flag to determine strict validation (fail on unrecognized fields)
-        """
-
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
-
+        self.provenance_object = None  # type: Optional[CreateProvProfile]
+        self.parent_wf = None          # type: Optional[CreateProvProfile]
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")
@@ -554,7 +548,6 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                     raise e
             else:
                 validate_js_options = None
-
             if self.doc_schema is not None:
                 validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
 
@@ -595,7 +588,6 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List,
                                     Text]], copy.deepcopy(joborder))
-
         # Validate job order
         try:
             fillInDefaults(self.tool[u"inputs"], job)
@@ -786,6 +778,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
+        # FIXME: Declare base type for what Generator yields
         pass
 
 
@@ -870,7 +863,6 @@ def mergedirs(listing):
             ents[e["basename"]] = e
             ents[e2["basename"]] = e2
     for c in collided:
-        print(ents)
         del ents[c]
     for e in itervalues(ents):
         if e["class"] == "Directory" and "listing" in e:

@@ -1,8 +1,8 @@
-import logging
 import os
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
+import datetime
 from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
                     Set, Text, Tuple)
 
@@ -12,14 +12,15 @@ from six import string_types
 
 from .builder import Builder  # pylint: disable=unused-import
 from .errors import WorkflowException
+from .loghandler import _logger
 from .job import JobBase  # pylint: disable=unused-import
 from .mutation import MutationManager
+from .provenance import CreateProvProfile
 from .process import (Process,  # pylint: disable=unused-import
                       cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
-from .context import LoadingContext, RuntimeContext, getdefault
-
-_logger = logging.getLogger("cwltool")
+from .context import RuntimeContext, getdefault  # pylint: disable=unused-import
+from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
 class JobExecutor(six.with_metaclass(ABCMeta, object)):
     """ Abstract base job executor. """
@@ -92,6 +93,18 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
             cleanIntermediate(self.output_dirs)
 
         if self.final_output and self.final_status:
+
+            if runtimeContext.research_obj is not None and \
+                    isinstance(process, (JobBase, Process, WorkflowJobStep,
+                                         WorkflowJob)) and process.parent_wf:
+                process_run_id = None
+                name = "primary"
+                process.parent_wf.generate_output_prov(self.final_output[0],
+                                                       process_run_id, name)
+                process.parent_wf.document.wasEndedBy(
+                    process.parent_wf.workflow_run_uri, None, process.parent_wf.engine_uuid,
+                    datetime.datetime.now())
+                process.parent_wf.finalize_prov_profile(name)
             return (self.final_output[0], self.final_status[0])
         return (None, "permanentFail")
 
@@ -104,6 +117,18 @@ class SingleJobExecutor(JobExecutor):
                  logger,
                  runtimeContext     # type: RuntimeContext
                 ):  # type: (...) -> None
+
+        process_run_id = None  # type: Optional[str]
+        reference_locations = {}  # type: Dict[Text,Text]
+
+        # define provenance profile for single commandline tool
+        if not isinstance(process, Workflow) \
+                and runtimeContext.research_obj is not None:
+            orcid = runtimeContext.orcid
+            full_name = runtimeContext.cwl_full_name
+            process.provenance_object = CreateProvProfile(
+                runtimeContext.research_obj, orcid, full_name)
+            process.parent_wf = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback, runtimeContext)
 
         try:
@@ -113,6 +138,21 @@ class SingleJobExecutor(JobExecutor):
                         job.builder = runtimeContext.builder
                     if job.outdir:
                         self.output_dirs.add(job.outdir)
+                    if runtimeContext.research_obj is not None:
+                        if not isinstance(process, Workflow):
+                            runtimeContext.prov_obj = process.provenance_object
+                        else:
+                            runtimeContext.prov_obj = job.prov_obj
+                        assert runtimeContext.prov_obj
+                        process_run_id, reference_locations = \
+                                runtimeContext.prov_obj.evaluate(
+                                        process, job, job_order_object,
+                                        runtimeContext.make_fs_access,
+                                        runtimeContext)
+                        runtimeContext = runtimeContext.copy()
+                        runtimeContext.process_run_id = process_run_id
+                        runtimeContext.reference_locations = \
+                            reference_locations
                     job.run(runtimeContext)
                 else:
                     logger.error("Workflow cannot make any more progress.")
