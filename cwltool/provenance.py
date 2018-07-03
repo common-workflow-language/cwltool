@@ -328,11 +328,11 @@ class CreateProvProfile():
         add basic namespaces
         '''
         def host_provenance(document):
+            # type: (ProvDocument) -> None
             '''
             records host provenance when --enable-host-provenance
             is provided
             '''
-            # type: (ProvDocument) -> None
             document.add_namespace(CWLPROV)
             document.add_namespace(UUID)
             document.add_namespace(FOAF)
@@ -840,10 +840,10 @@ class ResearchObject():
         document.actedOnBehalfOf(account, user)
 
     def write_bag_file(self, path, encoding=ENCODING):
+        # type: (Text, Optional[str]) -> IO
         """
         writes the bag file in research object
         """
-        # type: (Text, Optional[str]) -> IO
 
         # For some reason below throws BlockingIOError
         #fp = io.BufferedWriter(WritableBagFile(self, path))
@@ -856,8 +856,8 @@ class ResearchObject():
         return bag_file
 
     def add_tagfile(self, path, when=None):
-        """ adds tag files to research object """
         # type: (Text, datetime.datetime) -> None
+        """ adds tag files to research object """
         checksums = {}
         # Read file to calculate its checksum
         if os.path.isdir(path):
@@ -887,11 +887,11 @@ class ResearchObject():
             self._file_provenance[rel_path] = {"createdOn": when.isoformat()}
 
     def _ro_aggregates(self):
-        """ returns dictionary of files to be added to the manifest """
         # type: () -> List[Dict[str,Any]]
+        """ returns dictionary of files to be added to the manifest """
         def guess_mediatype(rel_path):
-            """ returns mediatypes """
             # type: (str) -> Dict[str,str]
+            """ returns mediatypes """
             media_types = {
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
@@ -1204,8 +1204,8 @@ class ResearchObject():
         }
 
     def add_to_manifest(self, rel_path, checksums):
-        """ Adds files to rthe research object manifest. """
         # type: (Text, Dict[str,str]) -> None
+        """ Adds files to rthe research object manifest. """
 
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
