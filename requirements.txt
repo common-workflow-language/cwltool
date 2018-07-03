@@ -6,8 +6,6 @@ schema-salad>=2.6.20170927145003,<3
 typing>=3.5.3
 pathlib2==2.3.2; python_version<"3"
 prov==1.5.1
-graphviz==0.8.2
-# for testing only
 bagit==1.6.4
 mypy-extensions
 subprocess32 >= 3.5.0; os.name=="posix"
