@@ -41,7 +41,7 @@ from typing import (Any, Dict, Set, List,  # pylint: disable=unused-import
                     TYPE_CHECKING, MutableMapping)
 from socket import getfqdn
 from getpass import getuser
-
+import six
 import prov.model as provM
 from prov.identifier import Namespace
 from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
@@ -74,6 +74,10 @@ except ImportError:
 if TYPE_CHECKING:
     from .command_line_tool import CommandLineTool, ExpressionTool  # pylint: disable=unused-import
     from .workflow import Workflow  # pylint: disable=unused-import
+
+if six.PY2:
+    class PermissionError(OSError):
+        pass
 
 relativised_input_object = {}  # type: Dict[str, Any]
 #FIXME not module global
