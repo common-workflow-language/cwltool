@@ -943,7 +943,7 @@ class ResearchObject():
                     and extension in prov_conforms_to):
                 if ".cwlprov" in rel_path:
                     # Our own!
-                    local_aggregate["conformsTo"] = [prov_conforms_to[extension], __citation__]
+                    local_aggregate["conformsTo"] = [prov_conforms_to[extension], CWLPROV_VERSION]
                 else:
                     # Some other PROV
                     # TODO: Recognize ProvOne etc.
