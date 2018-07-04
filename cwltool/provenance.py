@@ -1035,15 +1035,15 @@ class ResearchObject():
         # Where is the main workflow?
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": posixpath.join(WORKFLOW, "packed.cwl"),
+            "about": posixpath.join("..", WORKFLOW, "packed.cwl"),
             "oa:motivatedBy": {"@id": "oa:highlighting"}
         })
 
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
-            "content": [posixpath.join(WORKFLOW, "packed.cwl"),
-                        posixpath.join(WORKFLOW, "primary-job.json")],
+            "content": [posixpath.join("..", WORKFLOW, "packed.cwl"),
+                        posixpath.join("..", WORKFLOW, "primary-job.json")],
             "oa:motivatedBy": {"@id": "oa:linking"}
         })
 
