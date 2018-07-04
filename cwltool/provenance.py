@@ -1020,8 +1020,10 @@ class ResearchObject():
         })
 
         # How was it run?
+        # FIXME: Only primary*
         prov_files = [posixpath.relpath(p, METADATA) for p in self.tagfiles
-                      if p.startswith(_posix_path(PROVENANCE))]
+                      if p.startswith(_posix_path(PROVENANCE))
+                         and "/primary." in p]
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
