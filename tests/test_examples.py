@@ -1576,3 +1576,14 @@ def test_staging_files_in_any() -> None:
         [get_data("tests/wf/816_wf.cwl"), "--file", get_data("tests/echo-job.yaml")]
     )
     assert err_code == 0
+
+
+def test_custom_type_in_step_process() -> None:
+    """Test that any needed custom types are available when processing a WorkflowStep."""
+    err_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/811.cwl"),
+            get_data("tests/wf/811_inputs.yml"),
+        ]
+    )
+    assert err_code == 0
