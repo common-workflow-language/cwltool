@@ -243,6 +243,14 @@ class WorkflowStep(Process):
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
         bound = set()
+
+        if self.embedded_tool.get_requirement("SchemaDefRequirement")[0]:
+            if "requirements" not in toolpath_object:
+                toolpath_object["requirements"] = []
+            toolpath_object["requirements"].append(
+                self.embedded_tool.get_requirement("SchemaDefRequirement")[0]
+            )
+
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for index, step_entry in enumerate(toolpath_object[stepfield]):
