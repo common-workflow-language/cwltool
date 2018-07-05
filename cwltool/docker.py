@@ -256,8 +256,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     with os.fdopen(fd, "wb") as f:
                         f.write(contents.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:rw" % (
-                        os.path.realpath(docker_windows_path_adjust(createtmp)),
-                        os.path.realpath(docker_windows_path_adjust(vol.target))))
+                        docker_windows_path_adjust(os.path.realpath(createtmp)),
+                        docker_windows_path_adjust(os.path.realpath(vol.target))))
 
     def create_runtime(self, env, runtimeContext):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
