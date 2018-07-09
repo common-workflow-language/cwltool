@@ -623,16 +623,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                         dockerReq.get("dockerOutputDirectory").startswith('/'):
                     outdir = dockerReq.get("dockerOutputDirectory")
                 else:
-                    outdir = fs_access.docker_compatible_realpath(
-                        dockerReq.get("dockerOutputDirectory") or
-                        runtimeContext.docker_outdir or "/var/spool/cwl")
+                    outdir = dockerReq.get("dockerOutputDirectory") or \
+                        runtimeContext.docker_outdir or "/var/spool/cwl"
             elif defaultDocker:
-                outdir = fs_access.docker_compatible_realpath(
-                    runtimeContext.docker_outdir or "/var/spool/cwl")
-            tmpdir = fs_access.docker_compatible_realpath(
-                runtimeContext.docker_tmpdir or "/tmp")
-            stagedir = fs_access.docker_compatible_realpath(
-                runtimeContext.docker_stagedir or "/var/lib/cwl")
+                outdir = runtimeContext.docker_outdir or "/var/spool/cwl"
+            tmpdir = runtimeContext.docker_tmpdir or "/tmp"
+            stagedir = runtimeContext.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(runtimeContext.outdir or
                 tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix,

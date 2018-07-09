@@ -257,7 +257,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         f.write(contents.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:rw" % (
                         docker_windows_path_adjust(os.path.realpath(createtmp)),
-                        docker_windows_path_adjust(os.path.realpath(vol.target))))
+                        vol.target))
 
     def create_runtime(self, env, runtimeContext):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
@@ -309,7 +309,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.rm_container:
             runtime.append(u"--rm")
 
-        runtime.append(u"--env=TMPDIR=%s" % self.builder.tmpdir)
+        runtime.append(u"--env=TMPDIR=/tmp")
 
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
