@@ -187,8 +187,6 @@ class WritableBagFile(io.FileIO):
         # FIXME: Convert below block to a ResearchObject method?
         if self.rel_path.startswith("data/"):
             self.research_object.bagged_size[self.rel_path] = self.tell()
-        elif self.rel_path.startswith("metadata/"):
-            pass
         else:
             self.research_object.tagfiles.add(self.rel_path)
 
@@ -945,7 +943,7 @@ class ResearchObject():
                     and extension in prov_conforms_to):
                 if ".cwlprov" in rel_path:
                     # Our own!
-                    local_aggregate["conformsTo"] = [prov_conforms_to[extension], __citation__]
+                    local_aggregate["conformsTo"] = [prov_conforms_to[extension], CWLPROV_VERSION]
                 else:
                     # Some other PROV
                     # TODO: Recognize ProvOne etc.
@@ -1022,8 +1020,10 @@ class ResearchObject():
         })
 
         # How was it run?
+        # FIXME: Only primary*
         prov_files = [posixpath.relpath(p, METADATA) for p in self.tagfiles
-                      if p.startswith(_posix_path(PROVENANCE))]
+                      if p.startswith(_posix_path(PROVENANCE))
+                         and "/primary." in p]
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
@@ -1035,15 +1035,15 @@ class ResearchObject():
         # Where is the main workflow?
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": posixpath.join(WORKFLOW, "packed.cwl"),
+            "about": posixpath.join("..", WORKFLOW, "packed.cwl"),
             "oa:motivatedBy": {"@id": "oa:highlighting"}
         })
 
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
-            "content": [posixpath.join(WORKFLOW, "packed.cwl"),
-                        posixpath.join(WORKFLOW, "primary-job.json")],
+            "content": [posixpath.join("..", WORKFLOW, "packed.cwl"),
+                        posixpath.join("..", WORKFLOW, "primary-job.json")],
             "oa:motivatedBy": {"@id": "oa:linking"}
         })
 
@@ -1080,7 +1080,6 @@ class ResearchObject():
         manifest["manifest"] = filename
         manifest.update(self._self_made())
         manifest.update(self._authored_by())
-
         manifest["aggregates"] = self._ro_aggregates()
         manifest["annotations"] = self._ro_annotations()
 
