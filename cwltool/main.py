@@ -11,11 +11,10 @@ import io
 import logging
 import os
 import sys
-import warnings
+
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
                     Iterable, List, Mapping, MutableMapping, Optional, Text,
                     TextIO, Tuple, Union, cast)
-
 import pkg_resources  # part of setuptools
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
@@ -40,6 +39,7 @@ from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
 from .process import (Process, scandeps,   # pylint: disable=unused-import
                       shortname, use_custom_schema, use_standard_schema)
+from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (DependenciesConfiguration,
@@ -47,7 +47,7 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
-                    windows_default_container_id)
+                    versionstring, windows_default_container_id)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .builder import HasReqsHints
 
@@ -103,7 +103,6 @@ def generate_input_template(tool):
         template[name] = generate_example_input(inptype)
     return template
 
-
 def load_job_order(args,                 # type: argparse.Namespace
                    stdin,                # type: IO[Any]
                    fetcher_constructor,  # Fetcher
@@ -148,12 +147,12 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    loader,                  # type: Loader
                    stdout,                  # type: Union[TextIO, StreamWriter]
                    print_input_deps=False,  # type: bool
+                   provArgs=None,           # type: ResearchObject
                    relative_deps=False,     # type: bool
                    make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
-                  ):  # type: (...) -> Union[MutableMapping[Text, Any], int]
-
+                  ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Optional[MutableMapping[Text, Any]]]
     secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
@@ -181,7 +180,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                         MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
                 except Exception as e:
                     _logger.error(Text(e), exc_info=args.debug)
-                    return 1
+                    exit(1)
             else:
                 job_order_object = {"id": args.workflow}
 
@@ -216,6 +215,11 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             exit(1)
         else:
             job_order_object = {}
+    if provArgs:
+        jobobj_for_prov = copy.deepcopy(job_order_object)
+        input_for_prov = printdeps(
+            jobobj_for_prov, loader, stdout, relative_deps, "", provArgs,
+            basedir=file_uri(str(input_basedir) + "/"))
 
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
@@ -249,8 +253,10 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         del job_order_object["cwl:tool"]
     if "id" in job_order_object:
         del job_order_object["id"]
+    if provArgs:
+        return (job_order_object, input_for_prov[1])
+    return (job_order_object, None)
 
-    return job_order_object
 
 
 def make_relative(base, obj):
@@ -269,8 +275,9 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
               stdout,           # type: Union[TextIO, StreamWriter]
               relative_deps,    # type: bool
               uri,              # type: Text
+              provArgs=None,    # type: Any
               basedir=None      # type: Text
-             ):  # type: (...) -> None
+             ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Optional[Dict[Text, Any]]]
     """Print a JSON representation of the dependencies of the CWL document."""
     deps = {"class": "File", "location": uri}  # type: Dict[Text, Any]
 
@@ -290,11 +297,12 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
             base = os.getcwd()
         else:
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
-
+        absdeps = copy.deepcopy(deps)
         visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-
+    if provArgs:
+        return (deps, absdeps)
     stdout.write(json_dumps(deps, indent=4))
-
+    return (None, None)
 
 def print_pack(document_loader,  # type: Loader
                processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -308,12 +316,6 @@ def print_pack(document_loader,  # type: Loader
     return json_dumps(packed["$graph"][0], indent=4)
 
 
-def versionstring():  # type: () -> Text
-    pkg = pkg_resources.require("cwltool")
-    if pkg:
-        return u"%s %s" % (sys.argv[0], pkg[0].version)
-    return u"%s %s" % (sys.argv[0], "unknown version")
-
 def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
     # ALLUPDATES and UPDATES are dicts
     if enable_dev:
@@ -323,18 +325,18 @@ def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
     versions.sort()
     return versions
 
-def main(argsl=None,                  # type: List[str]
-         args=None,                   # type: argparse.Namespace
-         job_order_object=None,       # type: MutableMapping[Text, Any]
-         stdin=sys.stdin,             # type: IO[Any]
-         stdout=None,                 # type: Union[TextIO, codecs.StreamWriter]
-         stderr=sys.stderr,           # type: IO[Any]
-         versionfunc=versionstring,   # type: Callable[[], Text]
-         logger_handler=None,         #
-         custom_schema_callback=None, # type: Callable[[], None]
-         executor=None,               # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         loadingContext=None,         # type: LoadingContext
-         runtimeContext=None          # type: RuntimeContext
+def main(argsl=None,                   # type: List[str]
+         args=None,                    # type: argparse.Namespace
+         job_order_object=None,        # type: MutableMapping[Text, Any]
+         stdin=sys.stdin,              # type: IO[Any]
+         stdout=None,                  # type: Union[TextIO, codecs.StreamWriter]
+         stderr=sys.stderr,            # type: IO[Any]
+         versionfunc=versionstring,    # type: Callable[[], Text]
+         logger_handler=None,          #
+         custom_schema_callback=None,  # type: Callable[[], None]
+         executor=None,                # type: Callable[..., Tuple[Dict[Text, Any], Text]]
+         loadingContext=None,          # type: LoadingContext
+         runtimeContext=None           # type: RuntimeContext
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")  # type: ignore
@@ -352,6 +354,9 @@ def main(argsl=None,                  # type: List[str]
     else:
         stderr_handler = logging.StreamHandler(stderr)
     _logger.addHandler(stderr_handler)
+    # pre-declared for finally block
+    workflowobj = None
+    input_for_prov = None
     try:
         if args is None:
             if argsl is None:
@@ -424,20 +429,34 @@ def main(argsl=None,                  # type: List[str]
             res.close()
         else:
             use_standard_schema("v1.0")
+        #call function from provenance.py if the provenance flag is enabled.
+        if args.provenance:
+            if not args.compute_checksum:
+                _logger.error("--provenance incompatible with --no-compute-checksum")
+                return 1
+
+            runtimeContext.research_obj = ResearchObject(
+                temp_prefix_ro=args.tmpdir_prefix,
+                # Optionals, might be None
+                orcid=args.orcid,
+                full_name=args.cwl_full_name)
+
+
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
         else:
             loadingContext = loadingContext.copy()
-
+        loadingContext.research_obj = runtimeContext.research_obj
         loadingContext.disable_js_validation = \
-                args.disable_js_validation or (not args.do_validate)
-        loadingContext.construct_tool_object = getdefault(loadingContext.construct_tool_object, workflow.default_make_tool)
+            args.disable_js_validation or (not args.do_validate)
+        loadingContext.construct_tool_object = getdefault(
+            loadingContext.construct_tool_object, workflow.default_make_tool)
         loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
 
-        uri, tool_file_uri = resolve_tool_uri(args.workflow,
-                                              resolver=loadingContext.resolver,
-                                              fetcher_constructor=loadingContext.fetcher_constructor)
+        uri, tool_file_uri = resolve_tool_uri(
+            args.workflow, resolver=loadingContext.resolver,
+            fetcher_constructor=loadingContext.fetcher_constructor)
 
         try_again_msg = "" if args.debug else ", try again with --debug for more information"
 
@@ -467,6 +486,13 @@ def main(argsl=None,                  # type: List[str]
                                     skip_schemas=args.skip_schemas,
                                     overrides=loadingContext.overrides_list,
                                     do_validate=loadingContext.do_validate)
+            if args.pack:
+                stdout.write(print_pack(document_loader, processobj, uri, metadata))
+                return 0
+            if args.provenance and runtimeContext.research_obj:
+                # Can't really be combined with args.pack at same time
+                runtimeContext.research_obj.packed_workflow(
+                    print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json_dumps(processobj, indent=4))
@@ -484,10 +510,6 @@ def main(argsl=None,                  # type: List[str]
 
             if args.validate:
                 _logger.info("Tool definition is valid")
-                return 0
-
-            if args.pack:
-                stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
 
             if args.print_rdf:
@@ -516,7 +538,6 @@ def main(argsl=None,                  # type: List[str]
 
         if isinstance(tool, int):
             return tool
-
         # If on MacOS platform, TMPDIR must be set to be under one of the
         # shared volumes in Docker for Mac
         # More info: https://dockstore.org/docs/faq
@@ -544,15 +565,14 @@ def main(argsl=None,                  # type: List[str]
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
-
-        initialized_job_order_object = 255  # type: Union[MutableMapping[Text, Any], int]
         try:
-            initialized_job_order_object = init_job_order(job_order_object, args, tool,
-                                               jobloader, stdout,
-                                               print_input_deps=args.print_input_deps,
-                                               relative_deps=args.relative_deps,
-                                               input_basedir=input_basedir,
-                                               secret_store=runtimeContext.secret_store)
+            initialized_job_order_object, input_for_prov = init_job_order(
+                job_order_object, args, tool, jobloader, stdout,
+                print_input_deps=args.print_input_deps,
+                provArgs=runtimeContext.research_obj,
+                relative_deps=args.relative_deps,
+                input_basedir=input_basedir,
+                secret_store=runtimeContext.secret_store)
         except SystemExit as err:
             return err.code
 
@@ -563,9 +583,6 @@ def main(argsl=None,                  # type: List[str]
             else:
                 executor = SingleJobExecutor()
         assert executor is not None
-
-        if isinstance(initialized_job_order_object, int):
-            return initialized_job_order_object
 
         try:
             runtimeContext.basedir = input_basedir
@@ -580,17 +597,14 @@ def main(argsl=None,                  # type: List[str]
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
 
             runtimeContext.find_default_container = \
-                    functools.partial(find_default_container, args)
+                functools.partial(find_default_container, args)
             runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-
             (out, status) = executor(tool,
                                      initialized_job_order_object,
                                      runtimeContext,
                                      logger=_logger)
 
-            # This is the workflow output, it needs to be written
             if out is not None:
-
                 def loc_to_path(obj):
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in obj:
@@ -600,7 +614,7 @@ def main(argsl=None,                  # type: List[str]
 
                 visit_class(out, ("File", "Directory"), loc_to_path)
 
-                # Unsetting the Generation fron final output object
+                # Unsetting the Generation from final output object
                 visit_class(out, ("File", ), MutationManager().unset_generation)
 
                 if isinstance(out, string_types):
@@ -638,6 +652,24 @@ def main(argsl=None,                  # type: List[str]
             return 1
 
     finally:
+        if args and runtimeContext and runtimeContext.research_obj \
+                and args.rm_tmpdir and workflowobj:
+            #adding all related cwl files to RO
+            prov_dependencies = printdeps(
+                workflowobj, document_loader, stdout, args.relative_deps, uri,
+                runtimeContext.research_obj)
+            prov_dep = prov_dependencies[1]
+            assert prov_dep
+            runtimeContext.research_obj.generate_snapshot(prov_dep)
+            #for input file dependencies
+            if input_for_prov:
+                runtimeContext.research_obj.generate_snapshot(input_for_prov)
+            #NOTE: keep these commented out lines to evaluate tests later
+            #if job_order_object:
+                #runtimeContext.research_obj.generate_snapshot(job_order_object)
+
+            runtimeContext.research_obj.close(args.provenance)
+
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
 
