@@ -251,6 +251,22 @@ class Builder(HasReqsHints):
             else:
                 bindings.extend(self.bind_input(st, datum, lead_pos=lead_pos, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
         else:
+            if schema["type"] == "Any":
+                if isinstance(datum, dict):
+                    if datum.get("class") == "File":
+                        schema["type"] = "File"
+                    elif datum.get("class") == "Directory":
+                        schema["type"] = "Directory"
+                    else:
+                        schema["type"] = "record"
+                        schema["fields"] = [{
+                            "name": field_name,
+                            "type": "Any"
+                        } for field_name in datum.keys()]
+                elif isinstance(datum, list):
+                    schema["type"] = "array"
+                    schema["items"] = "Any"
+
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[schema["type"]]
 
