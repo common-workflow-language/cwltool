@@ -184,6 +184,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
         self.pending_jobs = []  # type: List[JobBase]
+        self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = psutil.virtual_memory().available / 2**20
         self.max_cores = psutil.cpu_count()
@@ -217,21 +218,24 @@ class MultithreadedJobExecutor(JobExecutor):
         """ Execute a single Job in a seperate thread. """
 
         if job is not None:
-            self.pending_jobs.append(job)
+            with self.pending_jobs_lock:
+                self.pending_jobs.append(job)
 
         while self.pending_jobs:
-            job = self.pending_jobs[0]
-            if isinstance(job, JobBase):
-                if ((self.allocated_ram + job.builder.resources["ram"]) > self.max_ram or
-                        (self.allocated_cores + job.builder.resources["cores"]) > self.max_cores):
-                    return
+            with self.pending_jobs_lock:
+                job = self.pending_jobs[0]
+                if isinstance(job, JobBase):
+                    if ((self.allocated_ram + job.builder.resources["ram"])
+                            > self.max_ram or
+                            (self.allocated_cores + job.builder.resources["cores"])
+                            > self.max_cores):
+                        return
+                self.pending_jobs.remove(job)
 
-            self.pending_jobs.pop(0)
-
-            def runner():
+            def runner(my_job, my_runtime_context):
                 """ Job running thread. """
                 try:
-                    job.run(runtime_context)
+                    my_job.run(my_runtime_context)
                 except WorkflowException as err:
                     _logger.exception("Got workflow error")
                     self.exceptions.append(err)
@@ -239,20 +243,22 @@ class MultithreadedJobExecutor(JobExecutor):
                     _logger.exception("Got workflow error")
                     self.exceptions.append(WorkflowException(Text(err)))
                 finally:
-                    with runtime_context.workflow_eval_lock:
-                        self.threads.remove(thread)
-                        if isinstance(job, JobBase):
-                            self.allocated_ram -= job.builder.resources["ram"]
-                            self.allocated_cores -= job.builder.resources["cores"]
-                        runtime_context.workflow_eval_lock.notifyAll()
+                    with my_runtime_context.workflow_eval_lock:
+                        self.threads.remove(threading.current_thread())
+                        if isinstance(my_job, JobBase):
+                            self.allocated_ram -= my_job.builder.resources["ram"]
+                            self.allocated_cores -= my_job.builder.resources["cores"]
+                        my_runtime_context.workflow_eval_lock.notifyAll()
 
-            thread = threading.Thread(target=runner)
+            thread = threading.Thread(
+                target=runner, args=(job, runtime_context))
             thread.daemon = True
             self.threads.add(thread)
             if isinstance(job, JobBase):
                 self.allocated_ram += job.builder.resources["ram"]
                 self.allocated_cores += job.builder.resources["cores"]
             thread.start()
+
 
     def wait_for_next_completion(self, runtimeContext):  # type: (RuntimeContext) -> None
         """ Wait for jobs to finish. """
@@ -294,3 +300,4 @@ class MultithreadedJobExecutor(JobExecutor):
 
         while self.threads:
             self.wait_for_next_completion(runtime_context)
+        runtime_context.workflow_eval_lock.release()
