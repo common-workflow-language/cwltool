@@ -113,7 +113,7 @@ class Builder(HasReqsHints):
                  hints=None,                # type: List[Dict[Text, Any]]
                  timeout=None,              # type: float
                  debug=False,               # type: bool
-                 resources=None,            # type: Dict[Text, int]
+                 resources=None,            # type: Dict[str, int]
                  js_console=False,          # type: bool
                  mutation_manager=None,     # type: Optional[MutationManager]
                  formatgraph=None,          # type: Optional[Graph]
@@ -154,7 +154,7 @@ class Builder(HasReqsHints):
         self.tmpdir = tmpdir
 
         if resources is None:
-            self.resources = {}  # type: Dict[Text, int]
+            self.resources = {}  # type: Dict[str, int]
         else:
             self.resources = resources
 
