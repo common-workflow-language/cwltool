@@ -266,8 +266,7 @@ class WorkflowJob(object):
                 if i["id"] in jobout:
                     self.state[i["id"]] = WorkflowStateItem(i, jobout[i["id"]], processStatus)
                 else:
-                    _logger.error(u"[%s] Output is missing expected field %s", step.name, i["id"])
-                    processStatus = "permanentFail"
+                    self.state[i["id"]] = WorkflowStateItem(i, None, processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[%s] produced output %s", step.name,
                           json_dumps(jobout, indent=4))
@@ -717,7 +716,7 @@ class WorkflowStep(Process):
             if field in jobout:
                 output[i["id"]] = jobout[field]
             else:
-                processStatus = "permanentFail"
+                output[i["id"]] = None
         output_callback(output, processStatus)
 
     def job(self,
