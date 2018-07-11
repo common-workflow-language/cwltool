@@ -579,6 +579,7 @@ def main(argsl=None,                   # type: List[str]
         if not executor:
             if args.parallel:
                 executor = MultithreadedJobExecutor()
+                runtimeContext.select_resources = executor.select_resources
             else:
                 executor = SingleJobExecutor()
         assert executor is not None

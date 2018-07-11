@@ -339,4 +339,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         for t, v in self.environment.items():
             runtime.append(u"--env=%s=%s" % (t, v))
 
+        runtime.append("--memory=%dm" % self.builder.resources["ram"])
+
         return runtime
