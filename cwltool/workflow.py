@@ -710,7 +710,7 @@ class WorkflowStep(Process):
 
     def receive_output(self, output_callback, jobout, processStatus):
         # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
-        output = {}
+        output = {} # type: Dict[Text, Any]
         for i in self.tool["outputs"]:
             field = shortname(i["id"])
             if field in jobout:
