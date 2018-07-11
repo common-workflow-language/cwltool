@@ -344,6 +344,22 @@ class Builder(HasReqsHints):
                     )
                 )
         else:
+            if schema["type"] == "org.w3id.cwl.salad.Any":
+                if isinstance(datum, dict):
+                    if datum.get("class") == "File":
+                        schema["type"] = "org.w3id.cwl.cwl.File"
+                    elif datum.get("class") == "Directory":
+                        schema["type"] = "org.w3id.cwl.cwl.Directory"
+                    else:
+                        schema["type"] = "record"
+                        schema["fields"] = [
+                            {"name": field_name, "type": "Any"}
+                            for field_name in datum.keys()
+                        ]
+                elif isinstance(datum, list):
+                    schema["type"] = "array"
+                    schema["items"] = "Any"
+
             if schema["type"] in self.schemaDefs:
                 schema = self.schemaDefs[cast(str, schema["type"])]
 
