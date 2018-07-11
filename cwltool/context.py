@@ -1,5 +1,5 @@
 import copy
-import threading
+import threading  # pylint: disable=unused-import
 
 from .utils import DEFAULT_TMP_PREFIX
 from .stdfsaccess import StdFsAccess
@@ -70,6 +70,8 @@ class LoadingContext(ContextBase):
 class RuntimeContext(ContextBase):
     def __init__(self, kwargs=None):
         # type: (Optional[Dict[str, Any]]) -> None
+        select_resources_callable = Callable[  # pylint: disable=unused-variable
+            [Dict[str, int], RuntimeContext], Dict[str, int]]
         self.user_space_docker_cmd = "" # type: Text
         self.secret_store = None        # type: Optional[SecretStore]
         self.no_read_only = False       # type: bool
@@ -109,7 +111,7 @@ class RuntimeContext(ContextBase):
         self.docker_stagedir = ""       # type: Text
         self.js_console = False         # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
-        self.select_resources = None    # type: Optional[Callable[[Dict[Text, int], RuntimeContext], Dict[Text, int]]]
+        self.select_resources = None    # type: Optional[select_resources_callable]
         self.eval_timeout = 20          # type: float
         self.postScatterEval = None     # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
         self.on_error = "stop"          # type: Text
