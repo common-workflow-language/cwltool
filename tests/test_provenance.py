@@ -20,6 +20,7 @@ import posixpath
 import ntpath
 import urllib
 from rdflib import Namespace, URIRef, Graph
+from rdflib.namespace import DCTERMS
 import arcp
 
 
@@ -105,7 +106,16 @@ class TestProvenance(unittest.TestCase):
 
         for ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
             break
-        self.assertTrue(ro)
+        self.assertTrue(ro, "Can't find RO with ore:isDescribedBy")
+
+        profile = None
+        for dc in g.objects(ro, DCTERMS.conformsTo):
+            profile = dc
+            break
+        self.assertTrue(profile, "Can't find profile with dct:conformsTo")
+        self.assertEquals(profile, URIRef("https://w3id.org/cwl/prov/0.3.0"), 
+            "Unexpected cwlprov version " + profile)
+
         paths = []
         externals = []
         for aggregate in g.objects(ro, ORE.aggregates):
@@ -128,7 +138,8 @@ class TestProvenance(unittest.TestCase):
 
         for ext in ["provn", "xml", "json", "jsonld", "nt", "ttl"]:
             f = "metadata/provenance/primary.cwlprov.%s" % ext
-            self.assertTrue(f in paths, "provenance file missing " + f)
+            self.assertTrue(f in paths, "provenance file missing " + f)            
+
         for f in ["workflow/primary-job.json", "workflow/packed.cwl"]:
             self.assertTrue(f in paths, "workflow file missing " + f)
         # Can't test snapshot/ files directly as their name varies
