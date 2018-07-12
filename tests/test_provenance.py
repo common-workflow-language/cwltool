@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import unittest
+import sys
 
 from io import open
 import os
@@ -17,6 +18,12 @@ from .util import get_data
 import bagit
 import posixpath
 import ntpath
+import urllib
+from rdflib import Namespace, URIRef, Graph
+import arcp
+
+
+ORE=Namespace("http://www.openarchives.org/ore/terms/")
 
 @pytest.mark.skipif(onWindows(),
                     reason="On Windows this would invoke a default docker container")
@@ -35,61 +42,125 @@ class TestProvenance(unittest.TestCase):
     def test_hello_workflow(self):
         self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello-workflow.cwl'),
             "--usermessage", "Hello workflow"]), 0)
-        self.check_ro()
+        self.check_provenance()
 
     def test_hello_single_tool(self):
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello_single_tool.cwl'), 
+        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello_single_tool.cwl'),
             "--message", "Hello tool"]), 0)
-        self.check_ro()            
+        self.check_provenance()
 
     def test_revsort_workflow(self):
         self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
             get_data('tests/wf/revsort-job.json')]), 0)
-        self.check_ro()            
+        self.check_provenance()
 
-    def check_ro(self):
+    def check_provenance(self):
+        self.check_folders()
+        self.check_bagit()
+        self.check_ro()
+
+    def check_folders(self):
         # Our folders
         for d in ("data", "snapshot", "workflow", "metadata", os.path.join("metadata", "provenance")):
             f = os.path.join(self.folder, d)
             self.assertTrue(os.path.isdir(f))
-        
+
+    def check_bagit(self):
         # check bagit structure
         for f in ("bagit.txt", "bag-info.txt", "manifest-sha1.txt", "tagmanifest-sha1.txt", "tagmanifest-sha256.txt"):
             f = os.path.join(self.folder, f)
             self.assertTrue(os.path.isfile(f))
         bag = bagit.Bag(self.folder)
-        self.assertTrue(bag.has_oxum())        
+        self.assertTrue(bag.has_oxum())
         (only_manifest, only_fs) = bag.compare_manifests_with_fs()
         self.assertFalse(list(only_manifest), "Some files only in manifest")
         self.assertFalse(list(only_fs), "Some files only on file system")
         missing_tagfiles = bag.missing_optional_tagfiles()
         self.assertFalse(list(missing_tagfiles), "Some files only in tagmanifest")
         bag.validate()
+        # TODO: Check other bag-info attributes
+        self.assertTrue(arcp.is_arcp_uri(bag.info.get("External-Identifier")))
+
+    def find_arcp(self):
+        # First try to find External-Identifier
+        bag = bagit.Bag(self.folder)
+        ext_id = bag.info.get("External-Identifier")
+        if arcp.is_arcp_uri(ext_id):
+            return ext_id
+        else:
+            return arcp.arcp_random()
+
+    def check_ro(self):
+        manifest_file = os.path.join(self.folder, "metadata", "manifest.json")
+        self.assertTrue(os.path.isfile(manifest_file), "Can't find " + manifest_file)
+        arcp_root = self.find_arcp()
+        base = urllib.parse.urljoin(arcp_root, "metadata/manifest.json")
+        g = Graph()
+        with open(manifest_file, "rb") as f:
+            # Note: This will use https://w3id.org/bundle/context
+            g.parse(file=f, format="json-ld", publicID=base)
+        print("Parsed manifest:\n\n")
+        g.serialize(sys.stdout, format="nt")
+        ro = None
+
+        for ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
+            break
+        self.assertTrue(ro)
+        paths = []
+        externals = []
+        for aggregate in g.objects(ro, ORE.aggregates):
+            print(aggregate)
+            if not arcp.is_arcp_uri(aggregate):
+                externals.append(aggregate)
+                # Won't check external URIs existence here
+                # TODO: Check they are not relative!
+                continue
+            # arcp URIs - assume they are local to our RO
+            path = arcp.parse_arcp(aggregate).path[1:] # Strip first /
+            paths.append(path)
+            # Convert to local path, in case it uses \ on Windows
+            lpath = provenance._convert_path(path, posixpath, os.path)
+            lfile = os.path.join(self.folder, lpath)
+            self.assertTrue(os.path.isfile(lfile), "Can't find aggregated " + lfile)
+
+        self.assertTrue(paths, "Didn't find any arcp aggregates")
+        self.assertTrue(externals, "Didn't find any data URIs")
+
+        for ext in ["provn", "xml", "json", "jsonld", "nt", "ttl"]:
+            f = "metadata/provenance/primary.cwlprov.%s" % ext
+            self.assertTrue(f in paths, "provenance file missing " + f)
+        for f in ["workflow/primary-job.json", "workflow/packed.cwl"]:
+            self.assertTrue(f in paths, "workflow file missing " + f)
+        # Can't test snapshot/ files directly as their name varies
+
+        # TODO: check urn:hash::sha1 thingies
+        # TODO: Check OA annotations
+
 
 class TestConvertPath(unittest.TestCase):
 
     def test_nt_to_posix(self):
-        self.assertEquals("a/b/c", 
+        self.assertEquals("a/b/c",
             provenance._convert_path(r"a\b\c", ntpath, posixpath))
-    
-    def test_posix_to_nt(self):            
-        self.assertEquals(r"a\b\c", 
+
+    def test_posix_to_nt(self):
+        self.assertEquals(r"a\b\c",
             provenance._convert_path("a/b/c", posixpath, ntpath))
 
-    def test_posix_to_posix(self):            
+    def test_posix_to_posix(self):
         self.assertEquals("a/b/c",
             provenance._convert_path("a/b/c", posixpath, posixpath))
 
     def test_nt_to_nt(self):
-        self.assertEquals(r"a\b\c", 
+        self.assertEquals(r"a\b\c",
             provenance._convert_path(r"a\b\c", ntpath, ntpath))
 
-    def test_posix_to_nt_absolute_fails(self):            
-        with self.assertRaises(ValueError):        
+    def test_posix_to_nt_absolute_fails(self):
+        with self.assertRaises(ValueError):
             provenance._convert_path("/absolute/path", posixpath, ntpath)
-    
-    def test_nt_to_posix_absolute_fails(self):            
-        with self.assertRaises(ValueError):        
+
+    def test_nt_to_posix_absolute_fails(self):
+        with self.assertRaises(ValueError):
             provenance._convert_path(r"D:\absolute\path", ntpath, posixpath)
 
 class TestWritableBagFile(unittest.TestCase):
@@ -112,7 +183,7 @@ class TestWritableBagFile(unittest.TestCase):
             self.assertTrue(f1.writable())
             f1.write(u"Hello\n")
             # TODO: Check Windows does not modify \n to \r\n here
-        
+
         sha1 = os.path.join(self.ro.folder, "tagmanifest-sha1.txt")
         self.assertTrue(os.path.isfile(sha1))
         with open(sha1, "r", encoding="UTF-8") as f2:
@@ -149,7 +220,7 @@ class TestWritableBagFile(unittest.TestCase):
             self.assertTrue(f1.writable())
             f1.write(u"Hello\n")
             # TODO: Check Windows does not modify \n to \r\n here
-        
+
         # Because this is under data/ it should add to manifest
         # rather than tagmanifest
         sha1 = os.path.join(self.ro.folder, "manifest-sha1.txt")
@@ -170,7 +241,7 @@ class TestWritableBagFile(unittest.TestCase):
             with self.assertRaises(IOError):
                 f.read()
 
-    def test_truncate_fails(self):        
+    def test_truncate_fails(self):
         with self.ro.write_bag_file("file.txt") as f:
             f.write(u"Hello there")
             f.truncate() # OK as we're always at end
@@ -247,3 +318,4 @@ class TestORCID(unittest.TestCase):
 class TestResearchObject(unittest.TestCase):
     # TODO: Test ResearchObject methods
     pass
+

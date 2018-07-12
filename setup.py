@@ -69,7 +69,7 @@ setup(name='cwltool',
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       setup_requires=[] + pytest_runner,
       test_suite='tests',
-      tests_require=['pytest', 'mock >= 2.0.0'],
+      tests_require=['pytest', 'mock >= 2.0.0', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:main"]
       },
