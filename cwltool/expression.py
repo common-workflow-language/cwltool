@@ -253,7 +253,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]
-            resources,                # type: Dict[Text, int]
+            resources,                # type: Dict[str, int]
             context=None,             # type: Any
             timeout=None,             # type: float
             force_docker_pull=False,  # type: bool
@@ -262,7 +262,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             strip_whitespace=True     # type: bool
            ):  # type: (...) -> Any
 
-    runtime = copy.copy(resources)  # type: Dict[Text, Any]
+    runtime = copy.copy(resources)  # type: Dict[str, Any]
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
     runtime["outdir"] = docker_windows_path_adjust(outdir)
 
