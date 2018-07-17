@@ -10,20 +10,23 @@ from pkg_resources import (Requirement, ResolutionError,  # type: ignore
 
 from cwltool.factory import Factory
 from cwltool.utils import onWindows, windows_default_container_id
+from cwltool.context import RuntimeContext, LoadingContext
 
-
-def get_windows_safe_factory(**execkwargs):
+def get_windows_safe_factory(runtime_context=None,  # type: RuntimeContext
+                             loading_context=None,  # type: LoadingContext
+                             executor=None          # type: Any
+                            ):  # type: (...) -> Factory
     if onWindows():
-        makekwargs = {'find_default_container': functools.partial(
-            force_default_container, windows_default_container_id),
-                      'use_container': True}
-        execkwargs['default_container'] = windows_default_container_id
-    else:
-        makekwargs = {}
-    return Factory(makekwargs=makekwargs, **execkwargs)
+        if not runtime_context:
+            runtime_context = RuntimeContext()
+        runtime_context.find_default_container = functools.partial(
+            force_default_container, windows_default_container_id)
+        runtime_context.use_container = True
+        runtime_context.default_container = windows_default_container_id
+    return Factory(executor, loading_context, runtime_context)
 
 def force_default_container(default_container_id, builder):
-   return default_container_id
+    return default_container_id
 
 def get_data(filename):
     filename = os.path.normpath(
@@ -51,6 +54,6 @@ needs_singularity = pytest.mark.skipif(not bool(distutils.spawn.find_executable(
                                        "system path.")
 
 windows_needs_docker = pytest.mark.skipif(
-        onWindows() and not bool(distutils.spawn.find_executable('docker')),
-        reason="Running this test on MS Windows requires the docker executable "
-        "on the system path.")
+    onWindows() and not bool(distutils.spawn.find_executable('docker')),
+    reason="Running this test on MS Windows requires the docker executable "
+    "on the system path.")
