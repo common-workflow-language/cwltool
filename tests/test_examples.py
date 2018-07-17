@@ -19,6 +19,7 @@ import cwltool.workflow
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.utils import onWindows, subprocess
+from cwltool.context import RuntimeContext
 
 from .util import (get_data, get_windows_safe_factory, needs_docker,
                    needs_singularity, windows_needs_docker)
@@ -152,16 +153,21 @@ class TestFactory(unittest.TestCase):
 
     def test_default_args(self):
         f = cwltool.factory.Factory()
-        assert f.runtimeContext.use_container is True
-        assert f.runtimeContext.on_error == "stop"
+        assert f.runtime_context.use_container is True
+        assert f.runtime_context.on_error == "stop"
 
     def test_redefined_args(self):
-        f = cwltool.factory.Factory(use_container=False, on_error="continue")
-        assert f.runtimeContext.use_container is False
-        assert f.runtimeContext.on_error == "continue"
+        runtime_context = RuntimeContext()
+        runtime_context.use_container = False
+        runtime_context.on_error = "continue"
+        f = cwltool.factory.Factory(runtime_context=runtime_context)
+        assert f.runtime_context.use_container is False
+        assert f.runtime_context.on_error == "continue"
 
     def test_partial_scatter(self):
-        f = cwltool.factory.Factory(on_error="continue")
+        runtime_context = RuntimeContext()
+        runtime_context.on_error = "continue"
+        f = cwltool.factory.Factory(runtime_context=runtime_context)
         fail = f.make(get_data("tests/wf/scatterfail.cwl"))
         try:
             fail()
@@ -173,7 +179,9 @@ class TestFactory(unittest.TestCase):
             self.fail("Should have raised WorkflowStatus")
 
     def test_partial_output(self):
-        f = cwltool.factory.Factory(on_error="continue")
+        runtime_context = RuntimeContext()
+        runtime_context.on_error = "continue"
+        f = cwltool.factory.Factory(runtime_context=runtime_context)
         fail = f.make(get_data("tests/wf/wffail.cwl"))
         try:
             fail()
@@ -248,36 +256,32 @@ class TestScanDeps(unittest.TestCase):
 
         sc.sort(key=lambda k: k["basename"])
 
-        self.assertEquals([{
-            "basename": "bar.cwl",
-            "nameroot": "bar",
-            "class": "File",
-            "nameext": ".cwl",
-            "location": "file:///example/bar.cwl"
-        },
-            {
-                "basename": "data.txt",
-                "nameroot": "data",
-                "class": "File",
-                "nameext": ".txt",
-                "location": "file:///example/data.txt"
-            },
-            {
-                "basename": "data2",
-                "class": "Directory",
-                "location": "file:///example/data2",
-                "listing": [{
-                    "basename": "data3.txt",
-                    "nameroot": "data3",
-                    "class": "File",
-                    "nameext": ".txt",
-                    "location": "file:///example/data3.txt",
-                    "secondaryFiles": [{
-                        "class": "File",
-                        "basename": "data5.txt",
-                        "location": "file:///example/data5.txt",
-                        "nameext": ".txt",
-                        "nameroot": "data5"
+        self.assertEquals([
+            {"basename": "bar.cwl",
+             "nameroot": "bar",
+             "class": "File",
+             "nameext": ".cwl",
+             "location": "file:///example/bar.cwl"},
+            {"basename": "data.txt",
+             "nameroot": "data",
+             "class": "File",
+             "nameext": ".txt",
+             "location": "file:///example/data.txt"},
+            {"basename": "data2",
+             "class": "Directory",
+             "location": "file:///example/data2",
+             "listing": [
+                 {"basename": "data3.txt",
+                  "nameroot": "data3",
+                  "class": "File",
+                  "nameext": ".txt",
+                  "location": "file:///example/data3.txt",
+                  "secondaryFiles": [
+                      {"class": "File",
+                       "basename": "data5.txt",
+                       "location": "file:///example/data5.txt",
+                       "nameext": ".txt",
+                       "nameroot": "data5"
                     }]
                 }]
             }, {
@@ -313,39 +317,27 @@ class TestScanDeps(unittest.TestCase):
 
 class TestDedup(unittest.TestCase):
     def test_dedup(self):
-        ex = [{
-            "class": "File",
-            "location": "file:///example/a"
-        },
-            {
-                "class": "File",
-                "location": "file:///example/a"
-            },
-            {
-                "class": "File",
-                "location": "file:///example/d"
-            },
-            {
-                "class": "Directory",
-                "location": "file:///example/c",
-                "listing": [{
-                    "class": "File",
-                    "location": "file:///example/d"
-                }]
-            }]
+        ex = [{"class": "File",
+               "location": "file:///example/a"},
+              {"class": "File",
+               "location": "file:///example/a"},
+              {"class": "File",
+               "location": "file:///example/d"},
+              {"class": "Directory",
+               "location": "file:///example/c",
+               "listing": [
+                   {"class": "File",
+                    "location": "file:///example/d"}]}]
 
-        self.assertEquals([{
-            "class": "File",
-            "location": "file:///example/a"
-        },
-            {
-                "class": "Directory",
-                "location": "file:///example/c",
-                "listing": [{
-                    "class": "File",
-                    "location": "file:///example/d"
-                }]
-            }], cwltool.pathmapper.dedup(ex))
+        self.assertEquals([
+            {"class": "File",
+             "location": "file:///example/a"},
+            {"class": "Directory",
+             "location": "file:///example/c",
+             "listing": [
+                 {"class": "File",
+                  "location": "file:///example/d"}]}],
+            cwltool.pathmapper.dedup(ex))
 
 
 class TestTypeCompare(unittest.TestCase):
@@ -623,11 +615,9 @@ class TestPrintDot(unittest.TestCase):
 
 class TestCmdLine(unittest.TestCase):
     def get_main_output(self, new_args):
-        process = subprocess.Popen([
-                                       sys.executable,
-                                       "-m",
-                                       "cwltool"
-                                   ] + new_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            [sys.executable, "-m", "cwltool"] + new_args,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         stdout, stderr = process.communicate()
         return process.returncode, stdout.decode(), stderr.decode()
@@ -684,15 +674,15 @@ class TestCache(TestCmdLine):
 class TestChecksum(TestCmdLine):
 
     def test_compute_checksum(self):
-        f = cwltool.factory.Factory(compute_checksum=True,
-                use_container=onWindows())
+        runtime_context = RuntimeContext()
+        runtime_context.compute_checksum = True
+        runtime_context.use_container = onWindows()
+        f = cwltool.factory.Factory(runtime_context=runtime_context)
         echo = f.make(get_data("tests/wf/cat-tool.cwl"))
-        output = echo(file1={
-                "class": "File",
-                "location": get_data("tests/wf/whale.txt")
-            },
-            reverse=False
-        )
+        output = echo(
+            file1={"class": "File",
+                   "location": get_data("tests/wf/whale.txt")},
+            reverse=False)
         self.assertEquals(output['output']["checksum"], "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376")
 
     def test_no_compute_checksum(self):
@@ -720,6 +710,7 @@ class TestChecksumSingularity(TestCmdLine):
              get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
         self.assertIn("completed success", stderr)
         self.assertEquals(error_code, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
