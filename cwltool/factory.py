@@ -49,9 +49,10 @@ class Factory(object):
         self.loading_context = loading_context
         if loading_context is None:
             self.loading_context = LoadingContext()
-        self.runtime_context = runtime_context
         if runtime_context is None:
             self.runtime_context = RuntimeContext()
+        else:
+            self.runtime_context = runtime_context
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
