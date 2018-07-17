@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
 import os
-from typing import Callable as tCallable # pylint: disable=unused-import
-from typing import (Any, # pylint: disable=unused-import
+from typing import Callable as tCallable   # pylint: disable=unused-import
+from typing import (Any,  # pylint: disable=unused-import
                     Dict, Optional, Text, Tuple, Union)
 
 from . import load_tool
@@ -29,9 +29,9 @@ class Callable(object):
 
     def __call__(self, **kwargs):
         # type: (**Any) -> Union[Text, Dict[Text, Text]]
-        runtimeContext = self.factory.runtimeContext.copy()
-        runtimeContext.basedir = os.getcwd()
-        out, status = self.factory.executor(self.t, kwargs, runtimeContext)
+        runtime_context = self.factory.runtime_context.copy()
+        runtime_context.basedir = os.getcwd()
+        out, status = self.factory.executor(self.t, kwargs, runtime_context)
         if status != "success":
             raise WorkflowStatus(out, status)
         else:
@@ -39,34 +39,24 @@ class Callable(object):
 
 class Factory(object):
     def __init__(self,
-                 executor=None,            # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
-                 loadingContext=None,      # type: LoadingContext
-                 runtimeContext=None,      # type: RuntimeContext
-                 **kwargs
+                 executor=None,        # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
+                 loading_context=None,  # type: LoadingContext
+                 runtime_context=None   # type: RuntimeContext
                 ):  # type: (...) -> None
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
-
-        new_exec_kwargs = get_default_args()
-        new_exec_kwargs.update(kwargs)
-        new_exec_kwargs.pop("job_order")
-        new_exec_kwargs.pop("workflow")
-        new_exec_kwargs.pop("outdir")
-
-        if loadingContext is None:
-            self.loadingContext = LoadingContext(new_exec_kwargs)
+        self.loading_context = loading_context
+        if loading_context is None:
+            self.loading_context = LoadingContext()
+        if runtime_context is None:
+            self.runtime_context = RuntimeContext()
         else:
-            self.loadingContext = loadingContext
-
-        if runtimeContext is None:
-            self.runtimeContext = RuntimeContext(new_exec_kwargs)
-        else:
-            self.runtimeContext = runtimeContext
+            self.runtime_context = runtime_context
 
     def make(self, cwl):
         """Instantiate a CWL object from a CWl document."""
-        load = load_tool.load_tool(cwl, self.loadingContext)
+        load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):
             raise Exception("Error loading tool")
         return Callable(load, self)

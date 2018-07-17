@@ -8,18 +8,21 @@ import shutil
 import stat
 import sys
 import tempfile
+import uuid
+import datetime
 from threading import Lock, Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
                     Dict, Iterable, List, MutableMapping, Optional, Text,
-                    Union, cast)
+                    Union, cast, TYPE_CHECKING)
 
 import shellescape
 from schema_salad.sourceline import SourceLine
 from six import with_metaclass
+from prov.model import PROV
 
-from .builder import Builder, HasReqsHints
+from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
@@ -29,11 +32,11 @@ from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
     onWindows, subprocess)
-from .context import LoadingContext, RuntimeContext, getdefault
-
+from .context import (RuntimeContext,  # pylint: disable=unused-import
+                      getdefault)
+if TYPE_CHECKING:
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
-
-job_output_lock = Lock()
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
@@ -165,6 +168,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
+        self.prov_obj = None   # type: Optional[CreateProvProfile]
+        self.parent_wf = None  # type: Optional[CreateProvProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
@@ -197,9 +202,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                      indent=4))
 
     def _execute(self,
-                 runtime,                # type:List[Text]
+                 runtime,                # type: List[Text]
                  env,                    # type: MutableMapping[Text, Text]
-                 runtimeContext         # type: RuntimeContext
+                 runtimeContext          # type: RuntimeContext
                 ):  # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
@@ -216,9 +221,13 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-
+        if self.joborder and runtimeContext.research_obj:
+            job_order = self.joborder
+            assert runtimeContext.prov_obj
+            runtimeContext.prov_obj.used_artefacts(
+                job_order, runtimeContext.process_run_id,
+                runtimeContext.reference_locations, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
-
         try:
             stdin_path = None
             if self.stdin:
@@ -268,6 +277,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 name=self.name
             )
 
+
+
+
             if self.successCodes and rcode in self.successCodes:
                 processStatus = "success"
             elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
@@ -287,7 +299,6 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
-
         except OSError as e:
             if e.errno == 2:
                 if runtime:
@@ -303,7 +314,14 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-
+        if runtimeContext.research_obj and self.prov_obj and \
+                runtimeContext.process_run_id:
+            #creating entities for the outputs produced by each step (in the provenance document)
+            self.prov_obj.generate_output_prov(
+                outputs, runtimeContext.process_run_id, str(self.name))
+            self.prov_obj.document.wasEndedBy(
+                runtimeContext.process_run_id, None, self.prov_obj.workflow_run_uri,
+                datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
@@ -326,7 +344,10 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 host_outdir, p.target[len(container_outdir)+1:])
                         os.remove(host_outdir_tgt)
 
-        with job_output_lock:
+        if runtimeContext.workflow_eval_lock is None:
+            raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
+
+        with runtimeContext.workflow_eval_lock:
             self.output_callback(outputs, processStatus)
 
         if self.stagedir and os.path.exists(self.stagedir):
@@ -375,6 +396,9 @@ class CommandLineJob(JobBase):
 
 
 class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
+    '''
+    Commandline job using containers
+    '''
 
     @abstractmethod
     def get_from_requirements(self,
@@ -396,7 +420,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         # type: (RuntimeContext) -> None
 
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-
+        self.prov_obj = runtimeContext.prov_obj
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
@@ -428,6 +452,21 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
                 if docker_req and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
+
+                if self.prov_obj and img_id and runtimeContext.process_run_id:
+                    # TODO: Integrate with record_container_id
+                    container_agent = self.prov_obj.document.agent(
+                        uuid.uuid4().urn,
+                        {"prov:type": PROV["SoftwareAgent"],
+                         "cwlprov:image": img_id,
+                         "prov:label": "Container execution of image %s" % img_id})
+                    # FIXME: img_id is not a sha256 id, it might just be "debian:8"
+                    #img_entity = document.entity("nih:sha-256;%s" % img_id,
+                    #                  {"prov:label": "Container image %s" % img_id} )
+                    # The image is the plan for this activity-agent association
+                    #document.wasAssociatedWith(process_run_ID, container_agent, img_entity)
+                    self.prov_obj.document.wasAssociatedWith(
+                        runtimeContext.process_run_id, container_agent)
             except Exception as err:
                 container = "Singularity" if runtimeContext.singularity else "Docker"
                 _logger.debug("%s error", container, exc_info=True)
@@ -444,7 +483,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         self._setup(runtimeContext)
         runtime = self.create_runtime(env, runtimeContext)
         runtime.append(img_id)
-
         self._execute(runtime, env, runtimeContext)
 
 
@@ -531,7 +569,7 @@ def _job_popen(
             stdin_path=stdin_path,
         )
         with open(os.path.join(job_dir, "job.json"), encoding='utf-8',
-                     mode="wb") as job_file:
+                  mode="wb") as job_file:
             json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")

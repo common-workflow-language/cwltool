@@ -1,12 +1,8 @@
 import json
 import unittest
 
-import pytest
-
-import cwltool
-import cwltool.factory
 from cwltool.executors import MultithreadedJobExecutor
-from cwltool.utils import onWindows
+from cwltool.context import RuntimeContext
 
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
@@ -15,12 +11,15 @@ class TestParallel(unittest.TestCase):
     @windows_needs_docker
     def test_sequential_workflow(self):
         test_file = "tests/wf/count-lines1-wf.cwl"
-        f = get_windows_safe_factory(executor=MultithreadedJobExecutor())
-        echo = f.make(get_data(test_file))
-        self.assertEqual(echo(file1= {
-                "class": "File",
-                "location": get_data("tests/wf/whale.txt")
-            }),
+        executor = MultithreadedJobExecutor()
+        runtime_context = RuntimeContext()
+        runtime_context.select_resources = executor.select_resources
+        factory = get_windows_safe_factory(
+            executor=executor, runtime_context=runtime_context)
+        echo = factory.make(get_data(test_file))
+        self.assertEqual(
+            echo(file1={"class": "File",
+                        "location": get_data("tests/wf/whale.txt")}),
             {"count_output": 16})
 
     @windows_needs_docker
