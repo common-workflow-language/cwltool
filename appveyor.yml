@@ -24,6 +24,10 @@ environment:
       PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7.x"
+      PYTHON_ARCH: "64"
+
 install:
   - ps: 'Install-Product node 0.12 x64'
   - "%PYTHON%\\python.exe -m pip install -U wheel pytest mock"
@@ -37,7 +41,6 @@ build_script:
 
 test_script:
   - "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml"
-    #- "%PYTHON%\\python.exe -m pytest --verbose -p no:cacheprovider --junit-xml=tests.xml -n2"
 
 on_finish:
   - ps: |
