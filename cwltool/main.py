@@ -592,12 +592,13 @@ def main(argsl=None,                   # type: List[str]
             conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
             use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
 
-            job_script_provider = None  # type: Optional[DependenciesConfiguration]
             if conf_file or use_conda_dependencies:
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
 
-            runtimeContext.find_default_container = \
-                functools.partial(find_default_container, args)
+            runtimeContext.find_default_container = functools.partial(
+                find_default_container,
+                default_container=runtimeContext.default_container,
+                use_biocontainers=args.beta_use_biocontainers)
             runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
             (out, status) = executor(tool,
                                      initialized_job_order_object,
@@ -674,14 +675,14 @@ def main(argsl=None,                   # type: List[str]
         _logger.addHandler(defaultStreamHandler)
 
 
-def find_default_container(args, builder):
-    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
-    default_container = None
-    if args.default_container:
-        default_container = args.default_container
-    elif args.beta_use_biocontainers:
-        default_container = get_container_from_software_requirements(args, builder)
-
+def find_default_container(builder,                  # type: HasReqsHints
+                           default_container=None,   # type: Text
+                           use_biocontainers=None,  # type: bool
+                          ):  # type: (...) -> Optional[Text]
+    """Default finder for default containers."""
+    if not default_container and use_biocontainers:
+        default_container = get_container_from_software_requirements(
+            use_biocontainers, builder)
     return default_container
 
 

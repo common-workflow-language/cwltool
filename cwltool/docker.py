@@ -36,21 +36,26 @@ def _get_docker_machine_mounts():  # type: () -> List[Text]
             if 'DOCKER_MACHINE_NAME' not in os.environ:
                 __docker_machine_mounts = []
             else:
-                __docker_machine_mounts = [u'/' + line.split(None, 1)[0]
-                        for line in subprocess.check_output(
-                            ['docker-machine', 'ssh',
-                                os.environ['DOCKER_MACHINE_NAME'],
-                                'mount', '-t', 'vboxsf'],
-                            universal_newlines=True).splitlines()]
+                __docker_machine_mounts = [
+                    u'/' + line.split(None, 1)[0] for line in
+                    subprocess.check_output(
+                        ['docker-machine', 'ssh',
+                         os.environ['DOCKER_MACHINE_NAME'], 'mount', '-t',
+                         'vboxsf'],
+                        universal_newlines=True).splitlines()]
     return __docker_machine_mounts
 
 def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
     if not path:
         return
+    if onWindows():
+        path = path.lower()
     mounts = _get_docker_machine_mounts()
     if mounts:
         found = False
         for mount in mounts:
+            if onWindows():
+                mount = mount.lower()
             if path.startswith(mount):
                 found = True
                 break
@@ -59,9 +64,11 @@ def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
                 "Input path {path} is not in the list of host paths mounted "
                 "into the Docker virtual machine named {name}. Already mounted "
                 "paths: {mounts}.\n"
-                "See https://docs.docker.com/toolbox/toolbox_install_windows/#optional-add-shared-directories"
-                " for instructions on how to add this path to your VM.".format(path=path,
-                    name=os.environ["DOCKER_MACHINE_NAME"], mounts=mounts))
+                "See https://docs.docker.com/toolbox/toolbox_install_windows/"
+                "#optional-add-shared-directories for instructions on how to "
+                "add this path to your VM.".format(
+                    path=path, name=os.environ["DOCKER_MACHINE_NAME"],
+                    mounts=mounts))
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
