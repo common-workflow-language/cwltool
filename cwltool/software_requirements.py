@@ -100,9 +100,9 @@ def get_dependencies(builder):
     return ToolRequirements.from_list(dependencies)
 
 
-def get_container_from_software_requirements(args, builder):
-    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
-    if args.beta_use_biocontainers:
+def get_container_from_software_requirements(use_biocontainers, builder):
+    # type: (bool, HasReqsHints) -> Optional[Text]
+    if use_biocontainers:
         ensure_galaxy_lib_available()
         from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
         app_info = AppInfo(
