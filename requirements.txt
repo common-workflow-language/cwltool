@@ -8,4 +8,5 @@ pathlib2==2.3.2; python_version<"3"
 prov==1.5.1
 bagit==1.6.4
 mypy-extensions
+psutil
 subprocess32 >= 3.5.0; os.name=="posix"

@@ -31,10 +31,13 @@ environment:
 install:
   - ps: 'Install-Product node 0.12 x64'
   - "%PYTHON%\\python.exe -m pip install -U wheel pytest mock"
-  - "%PYTHON%\\python.exe -m pip show setuptools"
   - "%PYTHON%\\python.exe -m pip install -U setuptools^>=20.3"
     # Note the use of a `^` to escape the `>`
     #- "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
+  - ps: |
+     if ($env.PYTHON_VERSION -eq "3.7.x") {
+        %PYTHON%\\python.exe -m pip install "https://download.lfd.uci.edu/pythonlibs/l8ulg3xw/lxml-4.2.3-cp37-cp37m-win_amd64.whl"
+     }
 
 build_script:
   - "%PYTHON%\\python.exe -m pip install ."
