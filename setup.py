@@ -64,7 +64,7 @@ setup(name='cwltool',
       extras_require={
           ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
-          ':python_version<"3.7"': ['typing >= 3.5.3'],
+          ':python_version<"3.6"': ['typing >= 3.5.3'],
           'deps': ["galaxy-lib >= 17.09.3"]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',

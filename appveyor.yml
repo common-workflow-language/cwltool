@@ -43,7 +43,7 @@ for:
       - "%PYTHON%\\python.exe -m pip install https://download.lfd.uci.edu/pythonlibs/l8ulg3xw/lxml-4.2.3-cp37-cp37m-win_amd64.whl"
 
 build_script:
-  - "%PYTHON%\\python.exe setup.py bdist_wheel"
+  - "%PYTHON%\\python.exe -m pip install requirements.txt"
 
 test_script:
   - |
