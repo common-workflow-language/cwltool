@@ -45,7 +45,7 @@ build_script:
   - "%PYTHON%\\python.exe -m pip install ."
 
 test_script:
-  - "%PYTHON%\\python.exe setup.py --addopts '--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml -n2'"
+  - "%PYTHON%\\python.exe setup.py test --addopts '--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml -n2'"
   - "%PYTHON%\\python.exe -m codecov"
 
 on_finish:
