@@ -18,7 +18,7 @@ from .util import get_data
 import bagit
 import posixpath
 import ntpath
-import urllib
+from six.moves import urllib
 from rdflib import Namespace, URIRef, Graph
 from rdflib.namespace import DCTERMS
 import arcp
@@ -113,7 +113,7 @@ class TestProvenance(unittest.TestCase):
             profile = dc
             break
         self.assertTrue(profile, "Can't find profile with dct:conformsTo")
-        self.assertEquals(profile, URIRef("https://w3id.org/cwl/prov/0.3.0"), 
+        self.assertEquals(profile, URIRef("https://w3id.org/cwl/prov/0.3.0"),
             "Unexpected cwlprov version " + profile)
 
         paths = []
@@ -126,7 +126,7 @@ class TestProvenance(unittest.TestCase):
                 # TODO: Check they are not relative!
                 continue
             # arcp URIs - assume they are local to our RO
-            path = arcp.parse_arcp(aggregate).path[1:] # Strip first /
+            path = arcp.parse_arcp(aggregate).path[1:]  # Strip first /
             paths.append(path)
             # Convert to local path, in case it uses \ on Windows
             lpath = provenance._convert_path(path, posixpath, os.path)
@@ -138,7 +138,7 @@ class TestProvenance(unittest.TestCase):
 
         for ext in ["provn", "xml", "json", "jsonld", "nt", "ttl"]:
             f = "metadata/provenance/primary.cwlprov.%s" % ext
-            self.assertTrue(f in paths, "provenance file missing " + f)            
+            self.assertTrue(f in paths, "provenance file missing " + f)
 
         for f in ["workflow/primary-job.json", "workflow/packed.cwl"]:
             self.assertTrue(f in paths, "workflow file missing " + f)
@@ -255,7 +255,7 @@ class TestWritableBagFile(unittest.TestCase):
     def test_truncate_fails(self):
         with self.ro.write_bag_file("file.txt") as f:
             f.write(u"Hello there")
-            f.truncate() # OK as we're always at end
+            f.truncate()  # OK as we're always at end
             # Will fail because the checksum can't rewind
             with self.assertRaises(IOError):
                 f.truncate(0)
@@ -329,4 +329,3 @@ class TestORCID(unittest.TestCase):
 class TestResearchObject(unittest.TestCase):
     # TODO: Test ResearchObject methods
     pass
-
