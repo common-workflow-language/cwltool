@@ -31,10 +31,9 @@ environment:
 install:
   - ps: 'Install-Product node 0.12 x64'
   - set "PATH=%PYTHON%\\Scripts;%PATH%"
-  - "%PYTHON%\\python.exe -m pip install -U wheel codecov pytest-xdist pytest-cov mock galaxy-lib"
-  - "%PYTHON%\\python.exe -m pip install -U setuptools^>=20.3"
+  - "%PYTHON%\\python.exe -m pip install -U pip setuptools^>=20.3 wheel"
+  - "%PYTHON%\\python.exe -m pip install -U codecov pytest-xdist pytest-cov mock galaxy-lib"
     # Note the use of a `^` to escape the `>`
-    #- "%PYTHON%\\python.exe -m pip install -U wheel pytest pytest-xdist mock"
 
 for:
   - matrix:
@@ -47,7 +46,7 @@ build_script:
 
 test_script:
   - |
-    %PYTHON%\\python.exe setup.py test --addopts "--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml -n2"
+    %PYTHON%\\python.exe setup.py test --addopts "--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml"
   - "%PYTHON%\\python.exe -m codecov"
 
 on_finish:
