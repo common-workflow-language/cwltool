@@ -42,10 +42,11 @@ for:
       - "%PYTHON%\\python.exe -m pip install https://download.lfd.uci.edu/pythonlibs/l8ulg3xw/lxml-4.2.3-cp37-cp37m-win_amd64.whl"
 
 build_script:
-  - "%PYTHON%\\python.exe -m pip install ."
+  - "%PYTHON%\\python.exe setup.py bdist_wheel"
 
 test_script:
-  - "%PYTHON%\\python.exe setup.py test --addopts '--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml -n2'"
+  - |
+    %PYTHON%\\python.exe setup.py test --addopts "--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml -n2"
   - "%PYTHON%\\python.exe -m codecov"
 
 on_finish:
