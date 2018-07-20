@@ -279,7 +279,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
-            runtime = [user_space_docker_cmd, u"run"]
+            if 'udocker' in user_space_docker_cmd and not runtimeContext.debug:
+                runtime = [user_space_docker_cmd, u"--quiet", u"run"]
+                # udocker 1.1.1 will output diagnostic messages to stdout
+                # without this
+            else:
+                runtime = [user_space_docker_cmd, u"run"]
         else:
             runtime = [u"docker", u"run", u"-i"]
 
@@ -362,10 +367,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             res_req = self.builder.get_requirement("ResourceRequirement")[0]
             if res_req and ("ramMin" in res_req or "ramMax" is res_req):
                 _logger.warning(
-                    "Skipping Docker software container '--memory' limit "
+                    u"[job %s] Skipping Docker software container '--memory' limit "
                     "despite presence of ResourceRequirement with ramMin "
                     "and/or ramMax setting. Consider running with "
                     "--strict-memory-limit for increased portability "
-                    "assurance.")
+                    "assurance.", self.name)
 
         return runtime
