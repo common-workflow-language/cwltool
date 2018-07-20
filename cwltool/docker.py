@@ -72,44 +72,51 @@ def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
+    """Runs a CommandLineJob in a sofware container using the Docker engine."""
 
     @staticmethod
-    def get_image(dockerRequirement,      # type: Dict[Text, Text]
+    def get_image(docker_requirement,     # type: Dict[Text, Text]
                   pull_image,             # type: bool
                   force_pull=False,       # type: bool
                   tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
                  ):  # type: (...) -> bool
+        """
+        Retrieve the relevant Docker container image.
+
+        Returns True upon success
+        """
         found = False
 
-        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
-            dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+        if "dockerImageId" not in docker_requirement \
+                and "dockerPull" in docker_requirement:
+            docker_requirement["dockerImageId"] = docker_requirement["dockerPull"]
 
         with found_images_lock:
-            if dockerRequirement["dockerImageId"] in found_images:
+            if docker_requirement["dockerImageId"] in found_images:
                 return True
 
-        for ln in subprocess.check_output(
+        for line in subprocess.check_output(
                 ["docker", "images", "--no-trunc", "--all"]).decode('utf-8').splitlines():
             try:
-                m = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", ln)
-                sp = dockerRequirement["dockerImageId"].split(":")
-                if len(sp) == 1:
-                    sp.append("latest")
-                elif len(sp) == 2:
-                    #  if sp[1] doesn't  match valid tag names, it is a part of repository
-                    if not re.match(r'[\w][\w.-]{0,127}', sp[1]):
-                        sp[0] = sp[0] + ":" + sp[1]
-                        sp[1] = "latest"
-                elif len(sp) == 3:
-                    if re.match(r'[\w][\w.-]{0,127}', sp[2]):
-                        sp[0] = sp[0] + ":" + sp[1]
-                        sp[1] = sp[2]
-                        del sp[2]
+                match = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", line)
+                split = docker_requirement["dockerImageId"].split(":")
+                if len(split) == 1:
+                    split.append("latest")
+                elif len(split) == 2:
+                    #  if split[1] doesn't  match valid tag names, it is a part of repository
+                    if not re.match(r'[\w][\w.-]{0,127}', split[1]):
+                        split[0] = split[0] + ":" + split[1]
+                        split[1] = "latest"
+                elif len(split) == 3:
+                    if re.match(r'[\w][\w.-]{0,127}', split[2]):
+                        split[0] = split[0] + ":" + split[1]
+                        split[1] = split[2]
+                        del split[2]
 
                 # check for repository:tag match or image id match
-                if (m and
-                        ((sp[0] == m.group(1) and sp[1] == m.group(2)) or
-                         dockerRequirement["dockerImageId"] == m.group(3))):
+                if (match and
+                        ((split[0] == match.group(1) and split[1] == match.group(2)) or
+                         docker_requirement["dockerImageId"] == match.group(3))):
                     found = True
                     break
             except ValueError:
@@ -117,33 +124,34 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
-            if "dockerPull" in dockerRequirement:
-                cmd = ["docker", "pull", str(dockerRequirement["dockerPull"])]
+            if "dockerPull" in docker_requirement:
+                cmd = ["docker", "pull", str(docker_requirement["dockerPull"])]
                 _logger.info(Text(cmd))
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
-            elif "dockerFile" in dockerRequirement:
+            elif "dockerFile" in docker_requirement:
                 dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
-                with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as df:
-                    df.write(dockerRequirement["dockerFile"].encode('utf-8'))
+                with open(os.path.join(
+                        dockerfile_dir, "Dockerfile"), "wb") as dfile:
+                    dfile.write(docker_requirement["dockerFile"].encode('utf-8'))
                 cmd = ["docker", "build", "--tag=%s" %
-                       str(dockerRequirement["dockerImageId"]), dockerfile_dir]
+                       str(docker_requirement["dockerImageId"]), dockerfile_dir]
                 _logger.info(Text(cmd))
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
-            elif "dockerLoad" in dockerRequirement:
+            elif "dockerLoad" in docker_requirement:
                 cmd = ["docker", "load"]
                 _logger.info(Text(cmd))
-                if os.path.exists(dockerRequirement["dockerLoad"]):
-                    _logger.info(u"Loading docker image from %s", dockerRequirement["dockerLoad"])
-                    with open(dockerRequirement["dockerLoad"], "rb") as f:
-                        loadproc = subprocess.Popen(cmd, stdin=f, stdout=sys.stderr)
+                if os.path.exists(docker_requirement["dockerLoad"]):
+                    _logger.info(u"Loading docker image from %s", docker_requirement["dockerLoad"])
+                    with open(docker_requirement["dockerLoad"], "rb") as dload:
+                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                                 stdout=sys.stderr)
                     assert loadproc.stdin is not None
-                    _logger.info(u"Sending GET request to %s", dockerRequirement["dockerLoad"])
-                    req = requests.get(dockerRequirement["dockerLoad"], stream=True)
+                    _logger.info(u"Sending GET request to %s", docker_requirement["dockerLoad"])
+                    req = requests.get(docker_requirement["dockerLoad"], stream=True)
                     size = 0
                     for chunk in req.iter_content(1024 * 1024):
                         size += len(chunk)
@@ -152,18 +160,19 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     loadproc.stdin.close()
                 rcode = loadproc.wait()
                 if rcode != 0:
-                    raise WorkflowException("Docker load returned non-zero exit status %i" % (rcode))
+                    raise WorkflowException(
+                        "Docker load returned non-zero exit status %i" % (rcode))
                 found = True
-            elif "dockerImport" in dockerRequirement:
-                cmd = ["docker", "import", str(dockerRequirement["dockerImport"]),
-                       str(dockerRequirement["dockerImageId"])]
+            elif "dockerImport" in docker_requirement:
+                cmd = ["docker", "import", str(docker_requirement["dockerImport"]),
+                       str(docker_requirement["dockerImageId"])]
                 _logger.info(Text(cmd))
                 subprocess.check_call(cmd, stdout=sys.stderr)
                 found = True
 
         if found:
             with found_images_lock:
-                found_images.add(dockerRequirement["dockerImageId"])
+                found_images.add(docker_requirement["dockerImageId"])
 
         return found
 
@@ -178,10 +187,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             errmsg = None
             try:
                 subprocess.check_output(["docker", "version"])
-            except subprocess.CalledProcessError as e:
-                errmsg = "Cannot communicate with docker daemon: " + Text(e)
-            except OSError as e:
-                errmsg = "'docker' executable not found: " + Text(e)
+            except subprocess.CalledProcessError as err:
+                errmsg = "Cannot communicate with docker daemon: " + Text(err)
+            except OSError as err:
+                errmsg = "'docker' executable not found: " + Text(err)
 
             if errmsg:
                 if req:
@@ -191,18 +200,18 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
             if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
                 return r["dockerImageId"]
-            else:
-                if req:
-                    raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
+            if req:
+                raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
 
         return None
 
     def add_volumes(self, pathmapper, runtime, secret_store=None):
         # type: (PathMapper, List[Text], SecretStore) -> None
+        """Append volume mappings to the runtime option list."""
 
         host_outdir = self.outdir
         container_outdir = self.builder.outdir
-        for src, vol in pathmapper.items():
+        for _, vol in pathmapper.items():
             if not vol.staged:
                 continue
             host_outdir_tgt = None  # type: Optional[Text]
@@ -256,12 +265,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 else:
                     contents = vol.resolved
                 if host_outdir_tgt:
-                    with open(host_outdir_tgt, "wb") as f:
-                        f.write(contents.encode("utf-8"))
+                    with open(host_outdir_tgt, "wb") as file_literal:
+                        file_literal.write(contents.encode("utf-8"))
                 else:
-                    fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
-                    with os.fdopen(fd, "wb") as f:
-                        f.write(contents.encode("utf-8"))
+                    tmp_fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
+                    with os.fdopen(tmp_fd, "wb") as file_literal:
+                        file_literal.write(contents.encode("utf-8"))
                     runtime.append(u"--volume=%s:%s:rw" % (
                         docker_windows_path_adjust(os.path.realpath(createtmp)),
                         vol.target))
@@ -325,14 +334,15 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         # add parameters to docker to write a container ID file
         if runtimeContext.record_container_id:
-            if runtimeContext.cidfile_dir != "":
-                if not os.path.isdir(runtimeContext.cidfile_dir):
-                    _logger.error("--cidfile-dir %s error:\n%s", runtimeContext.cidfile_dir,
-                                  runtimeContext.cidfile_dir + " is not a directory or "
-                                                "directory doesn't exist, please check it first")
+            cidfile_dir = runtimeContext.cidfile_
+            if cidfile_dir != "":
+                if not os.path.isdir(cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                                  cidfile_dir + "%s is not a directory or "
+                                  "directory doesn't exist, please check it first")
                     exit(2)
-                if not os.path.exists(runtimeContext.cidfile_dir):
-                    _logger.error("--cidfile-dir %s error:\n%s", runtimeContext.cidfile_dir,
+                if not os.path.exists(cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
                                   "directory doesn't exist, please create it first")
                     exit(2)
             else:
@@ -340,12 +350,13 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
             if runtimeContext.cidfile_prefix != "":
                 cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
-            cidfile_path = os.path.join(runtimeContext.cidfile_dir, cidfile_name)
+            cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append(u"--cidfile=%s" % cidfile_path)
 
-        for t, v in self.environment.items():
-            runtime.append(u"--env=%s=%s" % (t, v))
+        for key, value in self.environment.items():
+            runtime.append(u"--env=%s=%s" % (key, value))
 
-        runtime.append("--memory=%dm" % self.builder.resources["ram"])
+        if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
+            runtime.append("--memory=%dm" % self.builder.resources["ram"])
 
         return runtime
