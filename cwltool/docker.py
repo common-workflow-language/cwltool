@@ -358,5 +358,14 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             runtime.append("--memory=%dm" % self.builder.resources["ram"])
+        elif not user_space_docker_cmd:
+            res_req = self.builder.get_requirement("ResourceRequirement")[0]
+            if res_req and ("ramMin" in res_req or "ramMax" is res_req):
+                _logger.warning(
+                    "Skipping Docker software container '--memory' limit "
+                    "despite presence of ResourceRequirement with ramMin "
+                    "and/or ramMax setting. Consider running with "
+                    "--strict-memory-limit for increased portability "
+                    "assurance.")
 
         return runtime
