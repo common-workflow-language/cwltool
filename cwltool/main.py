@@ -662,12 +662,6 @@ def main(argsl=None,                   # type: List[str]
             prov_dep = prov_dependencies[1]
             assert prov_dep
             runtimeContext.research_obj.generate_snapshot(prov_dep)
-            #NOTE: keep these commented out lines to evaluate tests later
-            #for input file dependencies
-            #if input_for_prov:
-                #runtimeContext.research_obj.generate_snapshot(input_for_prov)
-            #if job_order_object:
-                #runtimeContext.research_obj.generate_snapshot(job_order_object)
 
             runtimeContext.research_obj.close(args.provenance)
 
