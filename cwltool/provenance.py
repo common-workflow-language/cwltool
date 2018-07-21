@@ -812,8 +812,8 @@ class ResearchObject():
 
 
     def user_provenance(self, document):
-        "adds the user provenance"
         # type: (ProvDocument) -> None
+        "adds the user provenance"
         (username, fullname) = _whoami()
 
         if not self.full_name:
