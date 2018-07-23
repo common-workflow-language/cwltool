@@ -22,10 +22,10 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
                     subprocess)
-from .context import RuntimeContext
+from .context import RuntimeContext  # pylint: disable=unused-import
 
-found_images = set()  # type: Set[Text]
-found_images_lock = threading.Lock()
+_IMAGES = set()  # type: Set[Text]
+_IMAGES_LOCK = threading.Lock()
 __docker_machine_mounts = None  # type: Optional[List[Text]]
 __docker_machine_mounts_lock = threading.Lock()
 
@@ -91,8 +91,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 and "dockerPull" in docker_requirement:
             docker_requirement["dockerImageId"] = docker_requirement["dockerPull"]
 
-        with found_images_lock:
-            if docker_requirement["dockerImageId"] in found_images:
+        with _IMAGES_LOCK:
+            if docker_requirement["dockerImageId"] in _IMAGES:
                 return True
 
         for line in subprocess.check_output(
@@ -132,7 +132,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
                 with open(os.path.join(
-                        dockerfile_dir, "Dockerfile"), "wb") as dfile:
+                    dockerfile_dir, "Dockerfile"), "wb") as dfile:
                     dfile.write(docker_requirement["dockerFile"].encode('utf-8'))
                 cmd = ["docker", "build", "--tag=%s" %
                        str(docker_requirement["dockerImageId"]), dockerfile_dir]
@@ -171,8 +171,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 found = True
 
         if found:
-            with found_images_lock:
-                found_images.add(docker_requirement["dockerImageId"])
+            with _IMAGES_LOCK:
+                _IMAGES.add(docker_requirement["dockerImageId"])
 
         return found
 
