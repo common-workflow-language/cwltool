@@ -534,6 +534,7 @@ def _job_popen(
                 except OSError:
                     pass
             tm = Timer(timelimit, terminate)
+            tm.daemon = True
             tm.start()
 
         rcode = sproc.wait()

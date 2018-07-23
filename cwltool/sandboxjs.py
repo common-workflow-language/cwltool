@@ -181,6 +181,7 @@ def exec_js_process(js_text,                  # type: Text
         timeout = 20
 
     tm = threading.Timer(timeout, terminate)
+    tm.daemon = True
     tm.start()
 
     stdin_text = u""
