@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import json
 import logging
 import shutil
+import os
 import sys
 import tempfile
 import unittest
@@ -642,6 +643,19 @@ class TestJsConsole(TestCmdLine):
 
             self.assertNotIn("[log] Log message", stderr)
             self.assertNotIn("[err] Error message", stderr)
+
+@needs_docker
+class TestRecordContainerId(TestCmdLine):
+    def test_record_container_id(self):
+        test_file = "cache_test_workflow.cwl"
+        cid_dir = tempfile.mkdtemp("cwltool_test_cid")
+        error_code, _, stderr = self.get_main_output(
+            ["--record-container-id", "--cidfile-dir", cid_dir,
+             get_data("tests/wf/" + test_file)])
+        self.assertIn("completed success", stderr)
+        self.assertEqual(error_code, 0)
+        self.assertEqual(len(os.listdir(cid_dir)), 2)
+        shutil.rmtree(cid_dir)
 
 
 @needs_docker

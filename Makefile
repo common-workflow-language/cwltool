@@ -134,12 +134,11 @@ coverage.html: htmlcov/index.html
 htmlcov/index.html: .coverage
 	coverage html
 
-diff-cover: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml
+diff-cover: coverage.xml
+	diff-cover $^
 
-diff-cover.html: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml \
-		--html-report diff-cover.html
+diff-cover.html:  coverage.xml
+	diff-cover $^ --html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
