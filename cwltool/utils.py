@@ -10,8 +10,7 @@ import stat
 import pkg_resources
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
-                    Deque, Dict, Iterable, List, Optional, Text, Tuple, TypeVar,
-                    Union)
+                    Dict, Iterable, List, Optional, Text, Tuple, TypeVar, Union)
 
 import six
 from six.moves import urllib, zip_longest
@@ -33,7 +32,7 @@ Directory = TypedDict('Directory',
 
 DEFAULT_TMP_PREFIX = "tmp"
 
-processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen]
+processes_to_kill = collections.deque()  # type: collections.deque[subprocess.Popen]
 
 def versionstring():
     # type: () -> Text

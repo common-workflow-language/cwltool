@@ -14,8 +14,8 @@ import signal
 import sys
 
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
-                    Deque, Iterable, List, Mapping, MutableMapping, Optional,
-                    Text, TextIO, Tuple, Union, cast)
+                    Iterable, List, Mapping, MutableMapping, Optional, Text,
+                    TextIO, Tuple, Union, cast)
 import pkg_resources  # part of setuptools
 import ruamel.yaml as yaml
 import schema_salad.validate as validate
