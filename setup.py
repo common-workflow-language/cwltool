@@ -72,7 +72,7 @@ setup(name='cwltool',
       test_suite='tests',
       tests_require=['pytest', 'mock >= 2.0.0', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
       entry_points={
-          'console_scripts': ["cwltool=cwltool.main:main"]
+          'console_scripts': ["cwltool=cwltool.main:run"]
       },
       zip_safe=True,
       cmdclass={'egg_info': tagger},
