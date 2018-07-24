@@ -55,6 +55,7 @@ from .builder import HasReqsHints
 
 
 def _terminate_processes():
+    # type: () -> None
     """Kill all spawned processes.
 
     Processes to be killed must be appended to `utils.processes_to_kill`
@@ -72,6 +73,7 @@ def _terminate_processes():
 
 
 def _signal_handler(signum, frame):
+    # type: (int, Any) -> None
     """Kill all spawned processes and exit.
 
     Note that it's possible for another thread to spawn a process after
