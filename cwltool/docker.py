@@ -339,7 +339,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         # add parameters to docker to write a container ID file
         if runtimeContext.record_container_id:
-            cidfile_dir = runtimeContext.cidfile_
+            cidfile_dir = runtimeContext.cidfile_dir
             if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
                     _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
