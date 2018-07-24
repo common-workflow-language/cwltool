@@ -28,7 +28,7 @@ CONTENT_LIMIT = 64 * 1024
 
 
 def substitute(value, replace):  # type: (Text, Text) -> Text
-    if replace[0] == "^":
+    if replace.startswith("^"):
         try:
             return substitute(value[0:value.rindex('.')], replace[1:])
         except ValueError:
