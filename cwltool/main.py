@@ -713,6 +713,7 @@ def find_default_container(builder,                  # type: HasReqsHints
 
 
 def run(*args, **kwargs):
+    # type: (...) -> None
     """Run cwltool."""
     signal.signal(signal.SIGTERM, _signal_handler)
     try:
