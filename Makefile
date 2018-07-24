@@ -26,7 +26,8 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort 
+DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
+	pytest pytest-xdist isort
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
@@ -142,7 +143,7 @@ diff-cover.html:  coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
-	python setup.py test
+	python setup.py test --addopt "-n$(shell expr $(nproc) / 2)"
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(pysources)
