@@ -10,3 +10,4 @@ bagit==1.6.4
 mypy-extensions
 psutil
 subprocess32 >= 3.5.0; os.name=="posix"
+typing-extensions
