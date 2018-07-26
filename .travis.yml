@@ -1,5 +1,5 @@
 dist: trusty
-sudo: true
+sudo: required
 services:
   - docker
 
@@ -17,18 +17,26 @@ cache:
   pip: true
   directories:
     - .mypy_cache
-python:
-  - 2.7
-  - 3.4
-  - 3.5
-  - 3.6
+
 os:
   - linux
 install:
   - pip install tox-travis
 jobs:
   include:
+    - stage: test
+      python: "2.7"
+    - stage: test
+      python: "3.4"
+    - stage: test
+      python: "3.5"
+    - stage: test
+      python: "3.6"
+    - stage: test
+      python: "3.7"
+      dist: xenial
     - stage: release-test
+      python: "2.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 script: tox
 branches:
