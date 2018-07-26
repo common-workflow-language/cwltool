@@ -49,8 +49,8 @@ if TYPE_CHECKING:
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
-DEFAULT_CONTAINER_MSG =\
-"""We are on Microsoft Windows and not all components of this CWL description have a
+DEFAULT_CONTAINER_MSG = """
+We are on Microsoft Windows and not all components of this CWL description have a
 container specified. This means that these steps will be executed in the default container,
 which is %s.
 
@@ -311,19 +311,23 @@ class CommandLineTool(Process):
                 # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
 
-            if "stdout" in self.tool:
-                keydict["stdout"] = self.tool["stdout"]
-            for location, f in cachebuilder.pathmapper.items():
-                if f.type == "File":
-                    checksum = next((e['checksum'] for e in cachebuilder.files
-                            if 'location' in e and e['location'] == location
-                            and 'checksum' in e
-                            and e['checksum'] != 'sha1$hash'), None)
-                    st = os.stat(f.resolved)
+            for shortcut in ["stdout", "stderr"]:  # later, add "stdin"
+                if shortcut in self.tool:
+                    keydict[shortcut] = self.tool[shortcut]
+
+            for location, fobj in cachebuilder.pathmapper.items():
+                if fobj.type == "File":
+                    checksum = next(
+                        (e['checksum'] for e in cachebuilder.files
+                         if 'location' in e and e['location'] == location
+                         and 'checksum' in e
+                         and e['checksum'] != 'sha1$hash'), None)
+                    fobj_stat = os.stat(fobj.resolved)
                     if checksum:
-                        keydict[f.resolved] = [st.st_size, checksum]
+                        keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
                     else:
-                        keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
+                        keydict[fobj.resolved] = [fobj_stat.st_size,
+                                                  int(fobj_stat.st_mtime * 1000)]
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
