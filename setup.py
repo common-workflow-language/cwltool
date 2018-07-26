@@ -60,6 +60,7 @@ setup(name='cwltool',
           'psutil',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
+          'typing-extensions',
       ],
       extras_require={
           ':os.name=="posix"': ['subprocess32 >= 3.5.0'],

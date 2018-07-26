@@ -10,11 +10,8 @@ import stat
 import pkg_resources
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
-                    Dict, Iterable, List, Optional, Text, Tuple, TypeVar, Union,
-                    TYPE_CHECKING)
-
-if TYPE_CHECKING:
-    from typing import Deque
+                    Dict, Iterable, List, Optional, Text, Tuple, TypeVar, Union)
+from typing_extensions import Deque
 
 import six
 from six.moves import urllib, zip_longest
