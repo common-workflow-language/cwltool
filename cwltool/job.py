@@ -31,7 +31,7 @@ from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
-    onWindows, subprocess)
+    onWindows, subprocess, processes_to_kill)
 from .context import (RuntimeContext,  # pylint: disable=unused-import
                       getdefault)
 if TYPE_CHECKING:
@@ -521,6 +521,7 @@ def _job_popen(
                                  stderr=stderr,
                                  env=env,
                                  cwd=cwd)
+        processes_to_kill.append(sproc)
 
         if sproc.stdin:
             sproc.stdin.close()
@@ -534,6 +535,7 @@ def _job_popen(
                 except OSError:
                     pass
             tm = Timer(timelimit, terminate)
+            tm.daemon = True
             tm.start()
 
         rcode = sproc.wait()
@@ -588,6 +590,7 @@ def _job_popen(
                 stderr=sys.stderr,
                 stdin=subprocess.PIPE,
             )
+            processes_to_kill.append(sproc)
             if sproc.stdin:
                 sproc.stdin.close()
 

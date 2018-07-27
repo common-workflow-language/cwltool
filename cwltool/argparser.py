@@ -179,6 +179,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
+    parser.add_argument(
+        "--strict-memory-limit", action="store_true", help="When running with "
+        "software containers and the Docker engine, pass either the "
+        "calculated memory allocation from ResourceRequirements or the "
+        "default of 1 gigabyte to Docker's --memory option.")
+
     parser.add_argument("--timestamps", action="store_true", help="Add "
                         "timestamps to the errors, warnings, and "
                         "notifications.")
