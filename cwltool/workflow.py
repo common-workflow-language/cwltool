@@ -337,7 +337,7 @@ class WorkflowJob(object):
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:
-                            v["contents"] = f.read(CONTENT_LIMIT)
+                            v["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:

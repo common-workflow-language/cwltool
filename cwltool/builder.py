@@ -282,7 +282,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
                     with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT)
+                        datum["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
