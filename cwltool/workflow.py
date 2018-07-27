@@ -24,6 +24,7 @@ from .checker import can_assign_src_to_sink, static_checker
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
+from .pathmapper import adjustDirObjs, get_listing
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .process import Process, get_overrides, shortname, uniquename
 from .software_requirements import (  # pylint: disable=unused-import
@@ -341,6 +342,8 @@ class WorkflowJob(object):
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
+                        adjustDirObjs(v, functools.partial(get_listing,
+                            fs_access, recursive=True))
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
                             None, None, {}, context=v,
