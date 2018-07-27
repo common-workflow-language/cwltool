@@ -689,7 +689,7 @@ class CommandLineTool(Process):
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
-                                files["contents"] = contents
+                                files["contents"] = contents.decode('unicode_escape')
                             if compute_checksum:
                                 checksum = hashlib.sha1()
                                 while contents != b"":
