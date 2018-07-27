@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
                     Generator, List, Optional, Set, Text, Type, TYPE_CHECKING,
@@ -295,10 +296,10 @@ class CommandLineTool(Process):
                                                  separateDirs=False)
             _check_adjust = partial(check_adjust, cachebuilder)
             visit_class([cachebuilder.files, cachebuilder.bindings],
-                       ("File", "Directory"), _check_adjust)
+                        ("File", "Directory"), _check_adjust)
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
-            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
+            (docker_req, _) = self.get_requirement("DockerRequirement")
             if docker_req and runtimeContext.use_container:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
             elif runtimeContext.default_container is not None and runtimeContext.use_container:
@@ -346,7 +347,8 @@ class CommandLineTool(Process):
                           keydictstr, cachekey)
 
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
-            jobcachepending = jobcache + ".pending"
+            jobcachepending = "{}.{}.pending".format(
+                jobcache, threading.current_thread().ident)
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
                 if docker_req and runtimeContext.use_container:
