@@ -254,7 +254,8 @@ class WorkflowJob(object):
                 datetime.datetime.now())
             self.prov_obj.finalize_prov_profile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
-        _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
 
         self.did_callback = True
 
@@ -417,8 +418,8 @@ class WorkflowJob(object):
         self.state = {}
         self.processStatus = "success"
 
-        _logger.debug(u"[%s] %s", self.name, json_dumps(joborder,
-                                                        indent=4))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[%s] %s", self.name, json_dumps(joborder, indent=4))
 
         runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = None

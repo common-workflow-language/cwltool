@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
                     Generator, List, Optional, Set, Text, Type, TYPE_CHECKING,
@@ -49,8 +50,8 @@ if TYPE_CHECKING:
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
-DEFAULT_CONTAINER_MSG =\
-"""We are on Microsoft Windows and not all components of this CWL description have a
+DEFAULT_CONTAINER_MSG = """
+We are on Microsoft Windows and not all components of this CWL description have a
 container specified. This means that these steps will be executed in the default container,
 which is %s.
 
@@ -295,10 +296,10 @@ class CommandLineTool(Process):
                                                  separateDirs=False)
             _check_adjust = partial(check_adjust, cachebuilder)
             visit_class([cachebuilder.files, cachebuilder.bindings],
-                       ("File", "Directory"), _check_adjust)
+                        ("File", "Directory"), _check_adjust)
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
-            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
+            (docker_req, _) = self.get_requirement("DockerRequirement")
             if docker_req and runtimeContext.use_container:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
             elif runtimeContext.default_container is not None and runtimeContext.use_container:
@@ -311,19 +312,23 @@ class CommandLineTool(Process):
                 # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
 
-            if "stdout" in self.tool:
-                keydict["stdout"] = self.tool["stdout"]
-            for location, f in cachebuilder.pathmapper.items():
-                if f.type == "File":
-                    checksum = next((e['checksum'] for e in cachebuilder.files
-                            if 'location' in e and e['location'] == location
-                            and 'checksum' in e
-                            and e['checksum'] != 'sha1$hash'), None)
-                    st = os.stat(f.resolved)
+            for shortcut in ["stdout", "stderr"]:  # later, add "stdin"
+                if shortcut in self.tool:
+                    keydict[shortcut] = self.tool[shortcut]
+
+            for location, fobj in cachebuilder.pathmapper.items():
+                if fobj.type == "File":
+                    checksum = next(
+                        (e['checksum'] for e in cachebuilder.files
+                         if 'location' in e and e['location'] == location
+                         and 'checksum' in e
+                         and e['checksum'] != 'sha1$hash'), None)
+                    fobj_stat = os.stat(fobj.resolved)
                     if checksum:
-                        keydict[f.resolved] = [st.st_size, checksum]
+                        keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
                     else:
-                        keydict[f.resolved] = [st.st_size, int(st.st_mtime * 1000)]
+                        keydict[fobj.resolved] = [fobj_stat.st_size,
+                                                  int(fobj_stat.st_mtime * 1000)]
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
@@ -342,7 +347,8 @@ class CommandLineTool(Process):
                           keydictstr, cachekey)
 
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
-            jobcachepending = jobcache + ".pending"
+            jobcachepending = "{}.{}.pending".format(
+                jobcache, threading.current_thread().ident)
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
                 if docker_req and runtimeContext.use_container:
