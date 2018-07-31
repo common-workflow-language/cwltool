@@ -720,10 +720,21 @@ class CommandLineTool(Process):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
+                                if isinstance(sf, dict) and 'pattern' in sf:
+                                    if 'required' in sf:
+                                        sf_required = sf['required']
+                                    else:
+                                        sf_required = True
+                                    sf = sf['pattern']
+                                else:
+                                    sf_required = True
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
                                 else:
+                                    if sf.endswith('?'):
+                                        sf_required = False
+                                        sf = sf[:-1]
                                     sfpath = sf
                                     subst = True
                                 for sfitem in aslist(sfpath):
@@ -732,6 +743,10 @@ class CommandLineTool(Process):
                                             sfitem = {"path": substitute(primary["path"], sfitem)}
                                         else:
                                             sfitem = {"path": pathprefix+sfitem}
+                                    if not os.path.exists(sfitem['path']) and sf_required:
+                                        raise WorkflowException(
+                                            "Missing required secondary file '%s'" % (
+                                                sfitem["path"]))
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
                                     if fs_access.isfile(sfitem["location"]):

@@ -294,9 +294,14 @@ class Builder(HasReqsHints):
                             else:
                                 sf_required = True
                             sf = sf['pattern']
+                        else:
+                            sf_required = True
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             sfpath = self.do_eval(sf, context=datum)
                         else:
+                            if sf.endswith('?'):
+                                sf_required = False
+                                sf = sf[:-1]
                             sfpath = substitute(datum["basename"], sf)
                         for sfname in aslist(sfpath):
                             found = False
