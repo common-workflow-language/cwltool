@@ -12,13 +12,13 @@ RUN pip install --no-index --no-warn-script-location --root=/pythonroot/ /wheels
 FROM python:3.6-alpine as module
 LABEL maintainer peter.amstutz@curoverse.com
 
-RUN apk add --no-cache docker nodejs
+RUN apk add --no-cache docker nodejs graphviz
 COPY --from=builder /pythonroot/ /
 
 FROM python:3.6-alpine
 LABEL maintainer peter.amstutz@curoverse.com
 
-RUN apk add --no-cache docker nodejs
+RUN apk add --no-cache docker nodejs graphviz
 COPY --from=builder /pythonroot/ /
 COPY cwltool-in-docker.sh /cwltool-in-docker.sh
 
