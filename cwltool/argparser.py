@@ -22,9 +22,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Output directory, default current directory")
 
     parser.add_argument("--parallel", action="store_true", default=False,
-                        help="[experimental] Run jobs in parallel. "
-                             "Does not currently keep track of ResourceRequirements like the number of cores"
-                             "or memory and can overload this system")
+                        help="[experimental] Run jobs in parallel. ")
     envgroup = parser.add_mutually_exclusive_group()
     envgroup.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when "
@@ -115,6 +113,43 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Time to wait for a Javascript expression to evaluate before giving an error, default 20s.",
                         type=float,
                         default=20)
+
+    provgroup = parser.add_argument_group("Options for recording provenance "
+                                          "information of the execution")
+    provgroup.add_argument("--provenance",
+                           help="Save provenance to specified folder as a "
+                           "Research Object that captures and aggregates "
+                           "workflow execution and data products.",
+                           type=Text)
+
+    provgroup.add_argument("--enable-user-provenance", default=False,
+                           action="store_true",
+                           help="Record user account info as part of provenance.",
+                           dest="user_provenance")
+    provgroup.add_argument("--disable-user-provenance", default=False,
+                           action="store_false",
+                           help="Do not record user account info in provenance.",
+                           dest="user_provenance")
+    provgroup.add_argument("--enable-host-provenance", default=False,
+                           action="store_true",
+                           help="Record host info as part of provenance.",
+                           dest="host_provenance")
+    provgroup.add_argument("--disable-host-provenance", default=False,
+                           action="store_false",
+                           help="Do not record host info in provenance.",
+                           dest="host_provenance")
+    provgroup.add_argument(
+        "--orcid", help="Record user ORCID identifier as part of "
+        "provenance, e.g. https://orcid.org/0000-0002-1825-0097 "
+        "or 0000-0002-1825-0097. Alternatively the environment variable "
+        "ORCID may be set.", dest="orcid", default=os.environ.get("ORCID"),
+        type=Text)
+    provgroup.add_argument(
+        "--full-name", help="Record full name of user as part of provenance, "
+        "e.g. Josiah Carberry. You may need to use shell quotes to preserve "
+        "spaces. Alternatively the environment variable CWL_FULL_NAME may "
+        "be set.", dest="cwl_full_name", default=os.environ.get("CWL_FULL_NAME"),
+        type=Text)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",

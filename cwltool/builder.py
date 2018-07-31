@@ -4,7 +4,7 @@ import copy
 import logging
 import os
 from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
-                    Optional, Set, Text, Type, Union, Tuple)
+                    Optional, Set, Text, Type, Union, Tuple, TYPE_CHECKING)
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
@@ -24,7 +24,8 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, docker_windows_path_adjust,
                     json_dumps, onWindows)
-
+if TYPE_CHECKING:
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
 
 
@@ -114,7 +115,7 @@ class Builder(HasReqsHints):
                  hints=None,                # type: List[Dict[Text, Any]]
                  timeout=None,              # type: float
                  debug=False,               # type: bool
-                 resources=None,            # type: Dict[Text, int]
+                 resources=None,            # type: Dict[str, int]
                  js_console=False,          # type: bool
                  mutation_manager=None,     # type: Optional[MutationManager]
                  formatgraph=None,          # type: Optional[Graph]
@@ -155,7 +156,7 @@ class Builder(HasReqsHints):
         self.tmpdir = tmpdir
 
         if resources is None:
-            self.resources = {}  # type: Dict[Text, int]
+            self.resources = {}  # type: Dict[str, int]
         else:
             self.resources = resources
 
@@ -180,6 +181,7 @@ class Builder(HasReqsHints):
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
         self.job_script_provider = job_script_provider
