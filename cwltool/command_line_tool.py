@@ -747,6 +747,8 @@ class CommandLineTool(Process):
                                     sfpath = sf
                                     subst = True
                                 for sfitem in aslist(sfpath):
+                                    if not sfitem:
+                                        continue
                                     if isinstance(sfitem, string_types):
                                         if subst:
                                             sfitem = {"path": substitute(primary["path"], sfitem)}

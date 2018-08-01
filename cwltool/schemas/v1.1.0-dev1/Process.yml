@@ -462,15 +462,13 @@ $graph:
         - Expression
         - SecondaryFileSchema
         - type: array
-          items: [string, Expression, SecondaryFileSchema]
+          items: [string, Expression, SecondaryFileSchema, "null"]
       jsonldPredicate: "cwl:secondaryFiles"
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
         Provides a pattern or expression specifying files or directories that
-        must be included alongside the primary file.  All listed secondary
-        files must be present.  An implementation may fail workflow execution
-        if an expected secondary file does not exist.
+        should be included alongside the primary file.
 
         If the value is an expression, the value of `self` in the expression
         must be the primary input or output File object to which this binding
@@ -481,6 +479,8 @@ $graph:
         `path` or `location` and `basename` fields set, or an array consisting
         of strings or File or Directory objects.  It is legal to reference an
         unchanged File or Directory object taken from input as a secondaryFile.
+        The expression may return "null" in which case there is no secondaryFile
+        from that expression.
 
         To work on non-filename-preserving storage systems, portable tool
         descriptions should avoid constructing new values from `location`, but
@@ -495,7 +495,9 @@ $graph:
             caret, remove the last file extension from the path (the last
             period `.` and all following characters).  If there are no file
             extensions, the path is unchanged.
-          2. Append the remainder of the string to the end of the file path.
+          2. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          3. Append the remainder of the string to the end of the file path.
 
     streamable:
       type: boolean?
@@ -861,7 +863,7 @@ $graph:
         - Expression
       doc: |
         Provides a pattern or expression specifying files or directories that
-        must be included alongside the primary file.
+        should be included alongside the primary file.
 
         If the value is an expression, the value of `self` in the expression
         must be the primary input or output File object to which this binding
@@ -872,6 +874,8 @@ $graph:
         `path` or `location` and `basename` fields set, or an array consisting
         of strings or File or Directory objects.  It is legal to reference an
         unchanged File or Directory object taken from input as a secondaryFile.
+        The expression may return "null" in which case there is no secondaryFile
+        from that expression.
 
         To work on non-filename-preserving storage systems, portable tool
         descriptions should avoid constructing new values from `location`, but
@@ -886,7 +890,9 @@ $graph:
             caret, remove the last file extension from the path (the last
             period `.` and all following characters).  If there are no file
             extensions, the path is unchanged.
-          2. Append the remainder of the string to the end of the file path.
+          2. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          3. Append the remainder of the string to the end of the file path.
     - name: required
       type: boolean?
       doc: |

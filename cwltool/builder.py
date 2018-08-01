@@ -306,6 +306,8 @@ class Builder(HasReqsHints):
                                 sf = sf[:-1]
                             sfpath = substitute(datum["basename"], sf)
                         for sfname in aslist(sfpath):
+                            if not sfname:
+                                continue
                             found = False
                             for d in datum["secondaryFiles"]:
                                 if not d.get("basename"):
