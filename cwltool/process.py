@@ -277,7 +277,7 @@ def collectFilesAndDirs(obj, out):
 
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
-                    outdir,                # type: Text
+                    destination_path,      # type: Text
                     output_dirs,           # type: Set[Text]
                     action,                # type: Text
                     fs_access,             # type: StdFsAccess
@@ -315,14 +315,14 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
-    pm = PathMapper(outfiles, "", outdir, separateDirs=False)
+    pm = PathMapper(outfiles, "", destination_path, separateDirs=False)
     stageFiles(pm, stageFunc=moveIt, symLink=False)
 
-    def _check_adjust(f):
-        f["location"] = file_uri(pm.mapper(f["location"])[1])
-        if "contents" in f:
-            del f["contents"]
-        return f
+    def _check_adjust(file):
+        file["location"] = file_uri(pm.mapper(file["location"])[1])
+        if "contents" in file:
+            del file["contents"]
+        return file
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
     if compute_checksum:
@@ -333,11 +333,11 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     # make an internal relative symlink.
     if action == "move":
         relinked = {}  # type: Dict[Text, Text]
-        for root, dirs, files in os.walk(outdir):
+        for root, dirs, files in os.walk(destination_path):
             for f in dirs+files:
                 path = os.path.join(root, f)
-                rp = os.path.realpath(path)
-                if path != rp:
+                if os.path.islink(path):
+                    rp = os.path.realpath(path)
                     if rp in relinked:
                         if onWindows():
                             if os.path.isfile(path):
@@ -457,7 +457,6 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         return builder.do_eval(resource_req)
     return resource_req
 
-
 class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
                  toolpath_object,      # type: Dict[Text, Any]
@@ -573,8 +572,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
             _logger.warning(SourceLine(
                 item=dockerReq, raise_type=Text).makeError(
-                "When 'dockerOutputDirectory' is declared, DockerRequirement "
-                "should go in the 'requirements' section, not 'hints'."""))
+                    "When 'dockerOutputDirectory' is declared, DockerRequirement "
+                    "should go in the 'requirements' section, not 'hints'."""))
 
         if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
             if is_req:
