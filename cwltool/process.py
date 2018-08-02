@@ -16,8 +16,8 @@ import textwrap
 import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
-from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Tuple,
-                    Union, cast)
+from typing import (Any, Callable, Dict, Generator, Iterator, List, Optional,
+                    Set, Tuple, Union, cast)
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -263,18 +263,6 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
                     n.write(p.resolved.encode("utf-8"))
             ensure_writable(p.target)
 
-def collectFilesAndDirs(obj, out):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
-    if isinstance(obj, dict):
-        if obj.get("class") in ("File", "Directory"):
-            out.append(obj)
-        else:
-            for v in obj.values():
-                collectFilesAndDirs(v, out)
-    if isinstance(obj, list):
-        for l in obj:
-            collectFilesAndDirs(l, out)
-
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
                     destination_path,      # type: Text
@@ -289,7 +277,21 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     if action not in ("move", "copy"):
         return outputObj
 
-    def moveIt(src, dst):
+    def _collectDirEntries(obj):
+        # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> Iterator[Dict[Text, Any]]
+        if isinstance(obj, dict):
+            if obj.get("class") in ("File", "Directory"):
+                yield obj
+            else:
+                for sub_obj in obj.values():
+                    for dir_entry in _collectDirEntries(sub_obj):
+                        yield dir_entry
+        elif isinstance(obj, list):
+            for sub_obj in obj:
+                for dir_entry in _collectDirEntries(sub_obj):
+                    yield dir_entry
+
+    def _relocate(src, dst):
         if action == "move":
             for a in output_dirs:
                 if src.startswith(a+"/"):
@@ -298,7 +300,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                         # merge directories
                         for root, dirs, files in os.walk(src):
                             for f in dirs+files:
-                                moveIt(os.path.join(root, f), os.path.join(dst, f))
+                                _relocate(os.path.join(root, f), os.path.join(dst, f))
                     else:
                         shutil.move(src, dst)
                     return
@@ -313,10 +315,9 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
             else:
                 shutil.copy2(src, dst)
 
-    outfiles = []  # type: List[Dict[Text, Any]]
-    collectFilesAndDirs(outputObj, outfiles)
+    outfiles = list(_collectDirEntries(outputObj))
     pm = PathMapper(outfiles, "", destination_path, separateDirs=False)
-    stageFiles(pm, stageFunc=moveIt, symLink=False)
+    stageFiles(pm, stageFunc=_relocate, symLink=False)
 
     def _check_adjust(file):
         file["location"] = file_uri(pm.mapper(file["location"])[1])
