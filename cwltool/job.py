@@ -10,7 +10,7 @@ import sys
 import tempfile
 import uuid
 import datetime
-from threading import Lock, Timer
+from threading import Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
@@ -31,7 +31,7 @@ from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
     DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
-    onWindows, subprocess)
+    onWindows, subprocess, processes_to_kill)
 from .context import (RuntimeContext,  # pylint: disable=unused-import
                       getdefault)
 if TYPE_CHECKING:
@@ -196,10 +196,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             self.generatemapper = self.make_path_mapper(
                 cast(List[Any], self.generatefiles["listing"]),
                 self.builder.outdir, runtimeContext, False)
-            _logger.debug(u"[job %s] initial work dir %s", self.name,
-                          json_dumps({p: self.generatemapper.mapper(p)
-                                      for p in self.generatemapper.files()},
-                                     indent=4))
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug(
+                    u"[job %s] initial work dir %s", self.name,
+                    json_dumps({p: self.generatemapper.mapper(p)
+                                for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
                  runtime,                # type: List[Text]
@@ -250,12 +251,12 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             stdout_path = None
             if self.stdout:
                 absout = os.path.join(self.outdir, self.stdout)
-                dn = os.path.dirname(absout)
-                if dn and not os.path.exists(dn):
-                    os.makedirs(dn)
+                dnout = os.path.dirname(absout)
+                if dnout and not os.path.exists(dnout):
+                    os.makedirs(dnout)
                 stdout_path = absout
 
-            commands = [Text(x) for x in (runtime + self.command_line)]
+            commands = [Text(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store:
                 commands = runtimeContext.secret_store.retrieve(commands)
                 env = runtimeContext.secret_store.retrieve(env)
@@ -308,8 +309,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             else:
                 _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        except WorkflowException as e:
-            _logger.error(u"[job %s] Job error:\n%s" % (self.name, e))
+        except WorkflowException as err:
+            _logger.error(u"[job %s] Job error:\n%s", self.name, err)
             processStatus = "permanentFail"
         except Exception as e:
             _logger.exception("Exception while running job")
@@ -521,6 +522,7 @@ def _job_popen(
                                  stderr=stderr,
                                  env=env,
                                  cwd=cwd)
+        processes_to_kill.append(sproc)
 
         if sproc.stdin:
             sproc.stdin.close()
@@ -534,6 +536,7 @@ def _job_popen(
                 except OSError:
                     pass
             tm = Timer(timelimit, terminate)
+            tm.daemon = True
             tm.start()
 
         rcode = sproc.wait()
@@ -588,6 +591,7 @@ def _job_popen(
                 stderr=sys.stderr,
                 stdin=subprocess.PIPE,
             )
+            processes_to_kill.append(sproc)
             if sproc.stdin:
                 sproc.stdin.close()
 

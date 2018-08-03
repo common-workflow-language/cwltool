@@ -26,7 +26,7 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
+DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort 
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
@@ -50,7 +50,7 @@ help: Makefile
 
 ## install-dep : install most of the development dependencies via pip
 install-dep:
-	pip install --upgrade $(DEVPKGS)
+	pip install --upgrade $(DEVPKGS) -rtest-requirements.txt
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -134,12 +134,11 @@ coverage.html: htmlcov/index.html
 htmlcov/index.html: .coverage
 	coverage html
 
-diff-cover: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml
+diff-cover: coverage.xml
+	diff-cover $^
 
-diff-cover.html: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml \
-		--html-report diff-cover.html
+diff-cover.html:  coverage.xml
+	diff-cover $^ --html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)

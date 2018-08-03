@@ -24,6 +24,7 @@ from .checker import can_assign_src_to_sink, static_checker
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
+from .pathmapper import adjustDirObjs, get_listing
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .process import Process, get_overrides, shortname, uniquename
 from .software_requirements import (  # pylint: disable=unused-import
@@ -253,6 +254,8 @@ class WorkflowJob(object):
                 datetime.datetime.now())
             self.prov_obj.finalize_prov_profile(str(self.name))
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
 
         self.did_callback = True
 
@@ -335,10 +338,12 @@ class WorkflowJob(object):
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:
-                            v["contents"] = f.read(CONTENT_LIMIT)
+                            v["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
+                        adjustDirObjs(v, functools.partial(get_listing,
+                            fs_access, recursive=True))
                         return expression.do_eval(
                             valueFrom[k], shortio, self.workflow.requirements,
                             None, None, {}, context=v,
@@ -412,6 +417,9 @@ class WorkflowJob(object):
            ):  # type: (...) -> Generator
         self.state = {}
         self.processStatus = "success"
+
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"[%s] %s", self.name, json_dumps(joborder, indent=4))
 
         runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = None
