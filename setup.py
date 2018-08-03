@@ -59,6 +59,7 @@ setup(name='cwltool',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
+          'scandir',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
           'typing-extensions',

@@ -9,6 +9,10 @@ import hashlib
 import json
 import logging
 import os
+try:
+    from os import scandir
+except ImportError:
+    from scandir import scandir
 import shutil
 import stat
 import tempfile
@@ -266,7 +270,7 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
                     destination_path,      # type: Text
-                    output_dirs,           # type: Set[Text]
+                    source_directories,    # type: Set[Text]
                     action,                # type: Text
                     fs_access,             # type: StdFsAccess
                     compute_checksum=True  # type: bool
@@ -292,28 +296,31 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                     yield dir_entry
 
     def _relocate(src, dst):
+        if src == dst:
+            return
+
         if action == "move":
-            for a in output_dirs:
-                if src.startswith(a+"/"):
-                    _logger.debug("Moving %s to %s", src, dst)
-                    if os.path.isdir(src) and os.path.isdir(dst):
-                        # merge directories
-                        for root, dirs, files in os.walk(src):
-                            for f in dirs+files:
-                                _relocate(os.path.join(root, f), os.path.join(dst, f))
-                    else:
-                        shutil.move(src, dst)
+            # do not move anything if we are trying to move an entity from
+            # outside of the source directories
+            if any(src.startswith(path + "/") for path in source_directories):
+                _logger.debug("Moving %s to %s", src, dst)
+                if os.path.isdir(src) and os.path.isdir(dst):
+                    # merge directories
+                    for dir_entry in scandir(src):
+                        _relocate(dir_entry, os.path.join(dst, dir_entry.name))
+                else:
+                    shutil.move(src, dst)
                     return
-        if src != dst:
-            _logger.debug("Copying %s to %s", src, dst)
-            if os.path.isdir(src):
-                if os.path.isdir(dst):
-                    shutil.rmtree(dst)
-                elif os.path.isfile(dst):
-                    os.unlink(dst)
-                shutil.copytree(src, dst)
-            else:
-                shutil.copy2(src, dst)
+
+        _logger.debug("Copying %s to %s", src, dst)
+        if os.path.isdir(src):
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            elif os.path.isfile(dst):
+                os.unlink(dst)
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
 
     outfiles = list(_collectDirEntries(outputObj))
     pm = PathMapper(outfiles, "", destination_path, separateDirs=False)
@@ -332,30 +339,35 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,
     # make an internal relative symlink.
+    def relink(relinked,  # type: Dict[Text, Text]
+               root_path  # type: Text
+               ):
+        for dir_entry in scandir(root_path):
+            path = dir_entry.path
+            if os.path.islink(path):
+                real_path = os.path.realpath(path)
+                if real_path in relinked:
+                    link_name = relinked[real_path]
+                    if onWindows():
+                        if os.path.isfile(path):
+                            shutil.copy(os.path.relpath(link_name, path), path)
+                        elif os.path.exists(path) and os.path.isdir(path):
+                            shutil.rmtree(path)
+                            copytree_with_merge(os.path.relpath(link_name, path), path)
+                    else:
+                        os.unlink(path)
+                        os.symlink(os.path.relpath(link_name, path), path)
+                else:
+                    if any(real_path.startswith(path + "/") for path in source_directories):
+                        os.unlink(path)
+                        os.rename(real_path, path)
+                        relinked[real_path] = path
+            if os.path.isdir(path):
+                relink(relinked, path)
+
     if action == "move":
         relinked = {}  # type: Dict[Text, Text]
-        for root, dirs, files in os.walk(destination_path):
-            for f in dirs+files:
-                path = os.path.join(root, f)
-                if os.path.islink(path):
-                    rp = os.path.realpath(path)
-                    if rp in relinked:
-                        if onWindows():
-                            if os.path.isfile(path):
-                                shutil.copy(os.path.relpath(relinked[rp], path), path)
-                            elif os.path.exists(path) and os.path.isdir(path):
-                                shutil.rmtree(path)
-                                copytree_with_merge(os.path.relpath(relinked[rp], path), path)
-                        else:
-                            os.unlink(path)
-                            os.symlink(os.path.relpath(relinked[rp], path), path)
-                    else:
-                        for od in output_dirs:
-                            if rp.startswith(od+"/"):
-                                os.unlink(path)
-                                os.rename(rp, path)
-                                relinked[rp] = path
-                                break
+        relink(relinked, destination_path)
 
     return outputObj
 
