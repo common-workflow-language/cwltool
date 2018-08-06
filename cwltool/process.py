@@ -10,9 +10,9 @@ import json
 import logging
 import os
 try:
-    from os import scandir
+    from os import scandir  # type: ignore
 except ImportError:
-    from scandir import scandir
+    from scandir import scandir  # type: ignore
 import shutil
 import stat
 import tempfile
