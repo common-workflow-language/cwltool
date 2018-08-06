@@ -733,10 +733,10 @@ class CommandLineTool(Process):
                                     if 'required' in sf:
                                         sf_required = sf['required']
                                     else:
-                                        sf_required = True
+                                        sf_required = False
                                     sf = sf['pattern']
                                 else:
-                                    sf_required = True
+                                    sf_required = False
                                 if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
