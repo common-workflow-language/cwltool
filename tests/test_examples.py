@@ -659,6 +659,19 @@ class TestRecordContainerId(TestCmdLine):
 
 
 @needs_docker
+class TestSecondaryFiles(TestCmdLine):
+    def test_secondary_files(self):
+        test_file = "secondary-files.cwl"
+        error_code, _, stderr = self.get_main_output(
+            ["--enable-dev",
+             get_data("tests/" + test_file),
+             "--fasta_path",
+             "tests/2.fasta"])
+        self.assertIn("completed success", stderr)
+        self.assertEqual(error_code, 0)
+
+
+@needs_docker
 class TestCache(TestCmdLine):
     def setUp(self):
         self.cache_dir = tempfile.mkdtemp("cwltool_cache")
