@@ -662,11 +662,11 @@ class TestRecordContainerId(TestCmdLine):
 class TestSecondaryFiles(TestCmdLine):
     def test_secondary_files(self):
         test_file = "secondary-files.cwl"
+        test_job_file = "secondary-files-job.yml"
         error_code, _, stderr = self.get_main_output(
             ["--enable-dev",
-             get_data("tests/" + test_file),
-             "--fasta_path",
-             "tests/2.fasta"])
+             get_data(os.path.join("tests", test_file)),
+             get_data(os.path.join("tests", test_job_file))])
         self.assertIn("completed success", stderr)
         self.assertEqual(error_code, 0)
 

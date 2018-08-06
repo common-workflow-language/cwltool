@@ -10,9 +10,7 @@ class: CommandLineTool
 
 inputs:
   fasta_path:
-    type:
-      type: array
-      items: File
+    type: File
     secondaryFiles:
       - pattern: ^.fastq
         required: true
