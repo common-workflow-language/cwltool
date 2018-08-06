@@ -33,6 +33,7 @@ def make_tool_notimpl(toolpath_object,      # type: Dict[Text, Any]
                      ):  # type: (...) -> Process
     raise NotImplementedError()
 
+
 default_make_tool = make_tool_notimpl  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
 
 class LoadingContext(ContextBase):
@@ -46,7 +47,7 @@ class LoadingContext(ContextBase):
         self.overrides_list = []           # type: List[Dict[Text, Any]]
         self.loader = None                 # type: Optional[Loader]
         self.avsc_names = None             # type: Optional[schema.Names]
-        self.disable_js_validation = False # type: bool
+        self.disable_js_validation = False  # type: bool
         self.js_hint_options_file = None
         self.do_validate = True            # type: bool
         self.enable_dev = False            # type: bool
@@ -72,7 +73,7 @@ class RuntimeContext(ContextBase):
         # type: (Optional[Dict[str, Any]]) -> None
         select_resources_callable = Callable[  # pylint: disable=unused-variable
             [Dict[str, int], RuntimeContext], Dict[str, int]]
-        self.user_space_docker_cmd = "" # type: Text
+        self.user_space_docker_cmd = ""  # type: Text
         self.secret_store = None        # type: Optional[SecretStore]
         self.no_read_only = False       # type: bool
         self.custom_net = ""            # type: Text
@@ -115,6 +116,7 @@ class RuntimeContext(ContextBase):
         self.eval_timeout = 20          # type: float
         self.postScatterEval = None     # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
         self.on_error = "stop"          # type: Text
+        self.strict_memory_limit = False  # type: bool
 
         self.record_container_id = None
         self.cidfile_dir = None

@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Mapping, Text, Tuple, Union
 import six
 from pkg_resources import resource_stream
 
-from .utils import json_dumps, onWindows, subprocess
+from .utils import json_dumps, onWindows, subprocess, processes_to_kill
 
 try:
     import queue  # type: ignore
@@ -71,7 +71,7 @@ def new_js_proc(js_text, force_docker_pull=False):
                                           stdin=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
-
+                processes_to_kill.append(nodejs)
                 required_node_version = check_js_threshold_version(n)
                 break
         except (subprocess.CalledProcessError, OSError):
@@ -95,6 +95,7 @@ def new_js_proc(js_text, force_docker_pull=False):
                                        "--sig-proxy=true", "--interactive",
                                        "--rm", nodeimg, "node", "--eval", js_text],
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            processes_to_kill.append(nodejs)
             docker = True
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -181,6 +182,7 @@ def exec_js_process(js_text,                  # type: Text
         timeout = 20
 
     tm = threading.Timer(timeout, terminate)
+    tm.daemon = True
     tm.start()
 
     stdin_text = u""

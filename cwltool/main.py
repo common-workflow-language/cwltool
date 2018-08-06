@@ -10,6 +10,7 @@ import functools
 import io
 import logging
 import os
+import signal
 import sys
 
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
@@ -47,9 +48,42 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
-                    versionstring, windows_default_container_id)
+                    versionstring, windows_default_container_id,
+                    processes_to_kill)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .builder import HasReqsHints
+
+
+def _terminate_processes():
+    # type: () -> None
+    """Kill all spawned processes.
+
+    Processes to be killed must be appended to `utils.processes_to_kill`
+    as they are spawned.
+
+    An important caveat: since there's no supported way to kill another
+    thread in Python, this function cannot stop other threads from
+    continuing to execute while it kills the processes that they've
+    spawned. This may occasionally lead to unexpected behaviour.
+    """
+    # It's possible that another thread will spawn a new task while
+    # we're executing, so it's not safe to use a for loop here.
+    while processes_to_kill:
+        processes_to_kill.popleft().kill()
+
+
+def _signal_handler(signum, frame):
+    # type: (int, Any) -> None
+    """Kill all spawned processes and exit.
+
+    Note that it's possible for another thread to spawn a process after
+    all processes have been killed, but before Python exits.
+
+    Refer to the docstring for _terminate_processes() for other caveats.
+    """
+    _terminate_processes()
+    sys.exit(signum)
+
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -662,12 +696,6 @@ def main(argsl=None,                   # type: List[str]
             prov_dep = prov_dependencies[1]
             assert prov_dep
             runtimeContext.research_obj.generate_snapshot(prov_dep)
-            #for input file dependencies
-            if input_for_prov:
-                runtimeContext.research_obj.generate_snapshot(input_for_prov)
-            #NOTE: keep these commented out lines to evaluate tests later
-            #if job_order_object:
-                #runtimeContext.research_obj.generate_snapshot(job_order_object)
 
             runtimeContext.research_obj.close(args.provenance)
 
@@ -686,5 +714,15 @@ def find_default_container(builder,                  # type: HasReqsHints
     return default_container
 
 
+def run(*args, **kwargs):
+    # type: (...) -> None
+    """Run cwltool."""
+    signal.signal(signal.SIGTERM, _signal_handler)
+    try:
+        sys.exit(main(*args, **kwargs))
+    finally:
+        _terminate_processes()
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    run(sys.argv[1:])
