@@ -136,7 +136,7 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,   # type: Builder
-                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,  # type: List[Dict[Text, Text]]
                  hints,  # type: List[Dict[Text, Text]]

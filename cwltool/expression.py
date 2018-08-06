@@ -245,7 +245,7 @@ def needs_parsing(snippet):  # type: (Any) -> bool
         and ("$(" in snippet or "${" in snippet)
 
 def do_eval(ex,                       # type: Union[Text, Dict]
-            jobinput,                 # type: Dict[Text, Union[Dict, List, Text]]
+            jobinput,                 # type: Dict[Text, Union[Dict, List, Text, None]]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]

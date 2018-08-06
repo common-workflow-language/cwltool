@@ -51,6 +51,9 @@ class StdFsAccess(object):
     def exists(self, fn):  # type: (Text) -> bool
         return os.path.exists(self._abs(fn))
 
+    def size(self, fn):    # type: (Text) -> int
+        return os.stat(self._abs(fn)).st_size
+
     def isfile(self, fn):  # type: (Text) -> bool
         return os.path.isfile(self._abs(fn))
 
