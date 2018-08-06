@@ -1,4 +1,6 @@
 import copy
+import threading  # pylint: disable=unused-import
+
 from .utils import DEFAULT_TMP_PREFIX
 from .stdfsaccess import StdFsAccess
 from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
@@ -31,6 +33,7 @@ def make_tool_notimpl(toolpath_object,      # type: Dict[Text, Any]
                      ):  # type: (...) -> Process
     raise NotImplementedError()
 
+
 default_make_tool = make_tool_notimpl  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
 
 class LoadingContext(ContextBase):
@@ -44,7 +47,7 @@ class LoadingContext(ContextBase):
         self.overrides_list = []           # type: List[Dict[Text, Any]]
         self.loader = None                 # type: Optional[Loader]
         self.avsc_names = None             # type: Optional[schema.Names]
-        self.disable_js_validation = False # type: bool
+        self.disable_js_validation = False  # type: bool
         self.js_hint_options_file = None
         self.do_validate = True            # type: bool
         self.enable_dev = False            # type: bool
@@ -68,7 +71,9 @@ class LoadingContext(ContextBase):
 class RuntimeContext(ContextBase):
     def __init__(self, kwargs=None):
         # type: (Optional[Dict[str, Any]]) -> None
-        self.user_space_docker_cmd = "" # type: Text
+        select_resources_callable = Callable[  # pylint: disable=unused-variable
+            [Dict[str, int], RuntimeContext], Dict[str, int]]
+        self.user_space_docker_cmd = ""  # type: Text
         self.secret_store = None        # type: Optional[SecretStore]
         self.no_read_only = False       # type: bool
         self.custom_net = ""            # type: Text
@@ -107,15 +112,17 @@ class RuntimeContext(ContextBase):
         self.docker_stagedir = ""       # type: Text
         self.js_console = False         # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
-        self.select_resources = None    # type: Optional[Callable[[Dict[Text, int]], Dict[Text, int]]]
+        self.select_resources = None    # type: Optional[select_resources_callable]
         self.eval_timeout = 20          # type: float
         self.postScatterEval = None     # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
         self.on_error = "stop"          # type: Text
+        self.strict_memory_limit = False  # type: bool
 
         self.record_container_id = None
         self.cidfile_dir = None
         self.cidfile_prefix = None
 
+        self.workflow_eval_lock = None  # type: Optional[threading.Condition]
         self.research_obj = None        # type: Optional[ResearchObject]
         self.orcid = None
         self.cwl_full_name = None

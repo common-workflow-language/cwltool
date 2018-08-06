@@ -571,20 +571,6 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
     def _init_job(self, joborder, runtimeContext):
         # type: (Dict[Text, Text], RuntimeContext) -> Builder
-        """
-        kwargs:
-
-        use_container: do/don't use Docker when DockerRequirement hint provided
-        make_fs_access: make an FsAccess() object with given basedir
-        docker_outdir: output directory inside docker for this job
-        docker_tmpdir: tmpdir inside docker for this job
-        docker_stagedir: stagedir inside docker for this job
-        outdir: outdir on host for this job
-        tmpdir: tmpdir on host for this job
-        stagedir: stagedir on host for this job
-        select_resources: callback to select compute resources
-        tmp_outdir_prefix: Path prefix for intermediate output directories
-        """
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List,
                                     Text]], copy.deepcopy(joborder))
@@ -623,16 +609,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                         dockerReq.get("dockerOutputDirectory").startswith('/'):
                     outdir = dockerReq.get("dockerOutputDirectory")
                 else:
-                    outdir = fs_access.docker_compatible_realpath(
-                        dockerReq.get("dockerOutputDirectory") or
-                        runtimeContext.docker_outdir or "/var/spool/cwl")
+                    outdir = dockerReq.get("dockerOutputDirectory") or \
+                        runtimeContext.docker_outdir or "/var/spool/cwl"
             elif defaultDocker:
-                outdir = fs_access.docker_compatible_realpath(
-                    runtimeContext.docker_outdir or "/var/spool/cwl")
-            tmpdir = fs_access.docker_compatible_realpath(
-                runtimeContext.docker_tmpdir or "/tmp")
-            stagedir = fs_access.docker_compatible_realpath(
-                runtimeContext.docker_stagedir or "/var/lib/cwl")
+                outdir = runtimeContext.docker_outdir or "/var/spool/cwl"
+            tmpdir = runtimeContext.docker_tmpdir or "/tmp"
+            stagedir = runtimeContext.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(runtimeContext.outdir or
                 tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix,
@@ -711,11 +693,13 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         else:  # PY2
             key = lambda dict: dict["position"]
         bindings.sort(key=key)
-        builder.resources = self.evalResources(builder, runtimeContext)
+
+        if self.tool[u"class"] != 'Workflow':
+            builder.resources = self.evalResources(builder, runtimeContext)
         return builder
 
     def evalResources(self, builder, runtimeContext):
-        # type: (Builder, RuntimeContext) -> Dict[Text, int]
+        # type: (Builder, RuntimeContext) -> Dict[str, int]
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -728,7 +712,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024
-        }  # type: Dict[Text, int]
+        }  # type: Dict[str, int]
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = None
             mx = None
@@ -746,7 +730,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 request[a + "Max"] = cast(int, mx)
 
         if runtimeContext.select_resources:
-            return runtimeContext.select_resources(request)
+            return runtimeContext.select_resources(request, runtimeContext)
         else:
             return {
                 "cores": request["coresMin"],

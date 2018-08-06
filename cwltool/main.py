@@ -10,6 +10,7 @@ import functools
 import io
 import logging
 import os
+import signal
 import sys
 
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
@@ -47,9 +48,42 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
-                    versionstring, windows_default_container_id)
+                    versionstring, windows_default_container_id,
+                    processes_to_kill)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .builder import HasReqsHints
+
+
+def _terminate_processes():
+    # type: () -> None
+    """Kill all spawned processes.
+
+    Processes to be killed must be appended to `utils.processes_to_kill`
+    as they are spawned.
+
+    An important caveat: since there's no supported way to kill another
+    thread in Python, this function cannot stop other threads from
+    continuing to execute while it kills the processes that they've
+    spawned. This may occasionally lead to unexpected behaviour.
+    """
+    # It's possible that another thread will spawn a new task while
+    # we're executing, so it's not safe to use a for loop here.
+    while processes_to_kill:
+        processes_to_kill.popleft().kill()
+
+
+def _signal_handler(signum, frame):
+    # type: (int, Any) -> None
+    """Kill all spawned processes and exit.
+
+    Note that it's possible for another thread to spawn a process after
+    all processes have been killed, but before Python exits.
+
+    Refer to the docstring for _terminate_processes() for other caveats.
+    """
+    _terminate_processes()
+    sys.exit(signum)
+
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -579,6 +613,7 @@ def main(argsl=None,                   # type: List[str]
         if not executor:
             if args.parallel:
                 executor = MultithreadedJobExecutor()
+                runtimeContext.select_resources = executor.select_resources
             else:
                 executor = SingleJobExecutor()
         assert executor is not None
@@ -591,12 +626,13 @@ def main(argsl=None,                   # type: List[str]
             conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # Text
             use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # Text
 
-            job_script_provider = None  # type: Optional[DependenciesConfiguration]
             if conf_file or use_conda_dependencies:
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
 
-            runtimeContext.find_default_container = \
-                functools.partial(find_default_container, args)
+            runtimeContext.find_default_container = functools.partial(
+                find_default_container,
+                default_container=runtimeContext.default_container,
+                use_biocontainers=args.beta_use_biocontainers)
             runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
             (out, status) = executor(tool,
                                      initialized_job_order_object,
@@ -660,12 +696,6 @@ def main(argsl=None,                   # type: List[str]
             prov_dep = prov_dependencies[1]
             assert prov_dep
             runtimeContext.research_obj.generate_snapshot(prov_dep)
-            #for input file dependencies
-            if input_for_prov:
-                runtimeContext.research_obj.generate_snapshot(input_for_prov)
-            #NOTE: keep these commented out lines to evaluate tests later
-            #if job_order_object:
-                #runtimeContext.research_obj.generate_snapshot(job_order_object)
 
             runtimeContext.research_obj.close(args.provenance)
 
@@ -673,16 +703,26 @@ def main(argsl=None,                   # type: List[str]
         _logger.addHandler(defaultStreamHandler)
 
 
-def find_default_container(args, builder):
-    # type: (argparse.Namespace, HasReqsHints) -> Optional[Text]
-    default_container = None
-    if args.default_container:
-        default_container = args.default_container
-    elif args.beta_use_biocontainers:
-        default_container = get_container_from_software_requirements(args, builder)
-
+def find_default_container(builder,                  # type: HasReqsHints
+                           default_container=None,   # type: Text
+                           use_biocontainers=None,  # type: bool
+                          ):  # type: (...) -> Optional[Text]
+    """Default finder for default containers."""
+    if not default_container and use_biocontainers:
+        default_container = get_container_from_software_requirements(
+            use_biocontainers, builder)
     return default_container
 
 
+def run(*args, **kwargs):
+    # type: (...) -> None
+    """Run cwltool."""
+    signal.signal(signal.SIGTERM, _signal_handler)
+    try:
+        sys.exit(main(*args, **kwargs))
+    finally:
+        _terminate_processes()
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    run(sys.argv[1:])

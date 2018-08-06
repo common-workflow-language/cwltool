@@ -4,18 +4,6 @@ the CWL workflow run executed with --provenance enabled
 """
 from __future__ import absolute_import
 
-__citation__ = "https://doi.org/10.5281/zenodo.1208477"
-
-# NOTE: Semantic versioning of the CWLProv Research Object
-# **and** the cwlprov files
-#
-# Rough guide (major.minor.patch):
-# 1. Bump minor number if adding resources or PROV statements
-# 2. Bump major number if removing/"breaking" resources or PROV statements
-# 3. Bump patch number for non-breaking non-adding changes, 
-#    e.g. fixing broken relative paths
-CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.3.0"
-
 import io
 from io import open
 import json
@@ -77,7 +65,19 @@ if TYPE_CHECKING:
 
 if six.PY2:
     class PermissionError(OSError):
+        "to avoid mypy3 error"
         pass
+__citation__ = "https://doi.org/10.5281/zenodo.1208477"
+
+# NOTE: Semantic versioning of the CWLProv Research Object
+# **and** the cwlprov files
+#
+# Rough guide (major.minor.patch):
+# 1. Bump minor number if adding resources or PROV statements
+# 2. Bump major number if removing/"breaking" resources or PROV statements
+# 3. Bump patch number for non-breaking non-adding changes,
+#    e.g. fixing broken relative paths
+CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.3.0"
 
 relativised_input_object = {}  # type: Dict[str, Any]
 #FIXME not module global
@@ -187,8 +187,6 @@ class WritableBagFile(io.FileIO):
         # FIXME: Convert below block to a ResearchObject method?
         if self.rel_path.startswith("data/"):
             self.research_object.bagged_size[self.rel_path] = self.tell()
-        elif self.rel_path.startswith("metadata/"):
-            pass
         else:
             self.research_object.tagfiles.add(self.rel_path)
 
@@ -815,6 +813,7 @@ class ResearchObject():
 
     def user_provenance(self, document):
         # type: (ProvDocument) -> None
+        "adds the user provenance"
         (username, fullname) = _whoami()
 
         if not self.full_name:
@@ -945,7 +944,7 @@ class ResearchObject():
                     and extension in prov_conforms_to):
                 if ".cwlprov" in rel_path:
                     # Our own!
-                    local_aggregate["conformsTo"] = [prov_conforms_to[extension], __citation__]
+                    local_aggregate["conformsTo"] = [prov_conforms_to[extension], CWLPROV_VERSION]
                 else:
                     # Some other PROV
                     # TODO: Recognize ProvOne etc.
@@ -1022,8 +1021,10 @@ class ResearchObject():
         })
 
         # How was it run?
+        # FIXME: Only primary*
         prov_files = [posixpath.relpath(p, METADATA) for p in self.tagfiles
-                      if p.startswith(_posix_path(PROVENANCE))]
+                      if p.startswith(_posix_path(PROVENANCE))
+                        and "/primary." in p]
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
@@ -1035,15 +1036,15 @@ class ResearchObject():
         # Where is the main workflow?
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": posixpath.join(WORKFLOW, "packed.cwl"),
+            "about": posixpath.join("..", WORKFLOW, "packed.cwl"),
             "oa:motivatedBy": {"@id": "oa:highlighting"}
         })
 
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.workflow_run_uri,
-            "content": [posixpath.join(WORKFLOW, "packed.cwl"),
-                        posixpath.join(WORKFLOW, "primary-job.json")],
+            "content": [posixpath.join("..", WORKFLOW, "packed.cwl"),
+                        posixpath.join("..", WORKFLOW, "primary-job.json")],
             "oa:motivatedBy": {"@id": "oa:linking"}
         })
 
@@ -1080,7 +1081,6 @@ class ResearchObject():
         manifest["manifest"] = filename
         manifest.update(self._self_made())
         manifest.update(self._authored_by())
-
         manifest["aggregates"] = self._ro_aggregates()
         manifest["annotations"] = self._ro_annotations()
 

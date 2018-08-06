@@ -22,9 +22,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Output directory, default current directory")
 
     parser.add_argument("--parallel", action="store_true", default=False,
-                        help="[experimental] Run jobs in parallel. "
-                             "Does not currently keep track of ResourceRequirements like the number of cores"
-                             "or memory and can overload this system")
+                        help="[experimental] Run jobs in parallel. ")
     envgroup = parser.add_mutually_exclusive_group()
     envgroup.add_argument("--preserve-environment", type=Text, action="append",
                         help="Preserve specific environment variable when "
@@ -180,6 +178,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
+
+    parser.add_argument(
+        "--strict-memory-limit", action="store_true", help="When running with "
+        "software containers and the Docker engine, pass either the "
+        "calculated memory allocation from ResourceRequirements or the "
+        "default of 1 gigabyte to Docker's --memory option.")
 
     parser.add_argument("--timestamps", action="store_true", help="Add "
                         "timestamps to the errors, warnings, and "

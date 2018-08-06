@@ -19,10 +19,6 @@ def jshead(engine_config, rootvars):
 
     # make sure all the byte strings are converted
     # to str in `rootvars` dict.
-    # TODO: need to make sure the `rootvars dict`
-    # contains no bytes type in the first place.
-    if six.PY3:
-        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     return u"\n".join(
         engine_config + [u"var {} = {};".format(k, json_dumps(v, indent=4))
@@ -253,7 +249,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]
-            resources,                # type: Dict[Text, int]
+            resources,                # type: Dict[str, int]
             context=None,             # type: Any
             timeout=None,             # type: float
             force_docker_pull=False,  # type: bool
@@ -262,7 +258,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             strip_whitespace=True     # type: bool
            ):  # type: (...) -> Any
 
-    runtime = copy.copy(resources)  # type: Dict[Text, Any]
+    runtime = copy.copy(resources)  # type: Dict[str, Any]
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
     runtime["outdir"] = docker_windows_path_adjust(outdir)
 
@@ -270,6 +266,11 @@ def do_eval(ex,                       # type: Union[Text, Dict]
         u"inputs": jobinput,
         u"self": context,
         u"runtime": runtime}
+
+    # TODO: need to make sure the `rootvars dict`
+    # contains no bytes type in the first place.
+    if six.PY3:
+        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     if needs_parsing(ex):
         assert isinstance(ex, string_types)
