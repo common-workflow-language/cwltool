@@ -211,16 +211,6 @@ def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
     # simply return elements itself
     return inp
 
-def add_sizes(obj):  # type: (Dict[Text, Any]) -> None
-    if 'location' in obj:
-        try:
-            obj["size"] = os.stat(obj["location"][7:]).st_size  # strip off file://
-        except OSError:
-            pass
-    elif 'contents' in obj:
-        obj["size"] = len(obj['contents'])
-    else:
-        return  # best effort
 
 
 def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None

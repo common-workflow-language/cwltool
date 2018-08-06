@@ -142,11 +142,6 @@ class Builder(HasReqsHints):
         else:
             self.files = files
 
-        if fs_access is None:
-            self.fs_access = StdFsAccess("")
-        else:
-            self.fs_access = fs_access
-
         self.job = job
         self.requirements = requirements
         self.hints = hints
@@ -170,6 +165,11 @@ class Builder(HasReqsHints):
             self.make_fs_access = StdFsAccess
         else:
             self.make_fs_access = make_fs_access
+
+        if fs_access is None:
+            self.fs_access = self.make_fs_access("")
+        else:
+            self.fs_access = fs_access
 
         self.debug = debug
         self.js_console = js_console
