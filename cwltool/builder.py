@@ -104,7 +104,7 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  files=None,                # type: List[Dict[Text, Text]]
                  bindings=None,             # type: List[Dict[Text, Any]]
                  schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]

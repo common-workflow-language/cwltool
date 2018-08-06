@@ -183,7 +183,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    print_input_deps=False,  # type: bool
                    provArgs=None,           # type: ResearchObject
                    relative_deps=False,     # type: bool
-                   make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
+                   make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
                   ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Optional[MutableMapping[Text, Any]]]

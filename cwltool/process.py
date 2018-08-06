@@ -375,8 +375,8 @@ def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
         return  # best effort
 
 def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
-                   job,      # type: Dict[Text, Union[Dict[Text, Any], Any, None]]
-                   fsaccess  # type: StdFsAccess
+                     job,        # type: Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]]
+                     fsaccess    # type: StdFsAccess
                   ):  # type: (...) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
@@ -583,8 +583,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def _init_job(self, joborder, runtimeContext):
         # type: (Dict[Text, Text], RuntimeContext) -> Builder
 
-        job = cast(Dict[Text, Union[Dict[Text, Any], List,
-                                    Text]], copy.deepcopy(joborder))
+        job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
+                   copy.deepcopy(joborder))
 
         make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtimeContext.basedir)
