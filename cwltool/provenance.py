@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 
 if six.PY2:
     class PermissionError(OSError):
-        "to avoid mypy3 error"
+        "Needed for Python2."
         pass
 __citation__ = "https://doi.org/10.5281/zenodo.1208477"
 
