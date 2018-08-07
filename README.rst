@@ -77,7 +77,7 @@ To run the basis tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  py.test --ignore cwltool/schemas/ --pyarg cwltool
+  py.test --ignore cwltool/schemas/ --pyarg cwltool ## N.B. This requires node.js to be available or else...
 
 To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
 first downloading the complete code repository (see the ``git clone`` instructions above) and then run
