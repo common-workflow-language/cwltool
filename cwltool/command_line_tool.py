@@ -761,9 +761,7 @@ class CommandLineTool(Process):
                     primary["format"] = builder.do_eval(schema["format"], context=primary)
 
             # Ensure files point to local references outside of the run environment
-            adjustFileObjs(r, cast(  # known bug in mypy
-                # https://github.com/python/mypy/issues/797
-                Callable[[Any], Any], revmap))
+            adjustFileObjs(r, revmap)
 
             if not r and optional:
                 return None
