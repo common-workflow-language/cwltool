@@ -31,7 +31,7 @@ from socket import getfqdn
 from getpass import getuser
 import six
 import prov.model as provM
-from prov.identifier import Namespace
+from prov.identifier import Namespace, Identifier
 from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
                         ProvActivity)
 
@@ -375,6 +375,9 @@ class CreateProvProfile():
 
         # info only, won't really be used by prov as sub-resources use /
         self.document.add_namespace('researchobject', self.research_object.base_uri)
+        # Pre-register provenance directory so we can refer to its files
+        self.provenance_ns = self.document.add_namespace('provenance',
+            self.research_object.base_uri + _posix_path(PROVENANCE) + "/")
         ro_identifier_workflow = self.research_object.base_uri + "workflow/packed.cwl#"
         self.wf_ns = self.document.add_namespace("wf", ro_identifier_workflow)
         ro_identifier_input = self.research_object.base_uri + "workflow/primary-job.json#"
@@ -713,11 +716,19 @@ class CreateProvProfile():
             self.document.entity(
                 "wf:main", {"wfdesc:hasSubProcess": step,
                             "prov:label": "Prospective provenance"})
-
         # TODO: Declare roles/parameters as well
 
+    def activity_has_provenance(self, activity, *prov_ids):
+        # Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files
+        # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
+        # is a pre-registered namespace in the PROV Document
+        attribs = [ (PROV["has_provenance"], prov_id) for prov_id in prov_ids]
+        self.document.activity(activity, other_attributes=attribs)
+        # Tip: we can't use https://www.w3.org/TR/prov-links/#term-mention
+        # as prov:mentionOf() is only for entities, not activities
+
     def finalize_prov_profile(self, name):
-            # type: (Optional[str]) -> None
+        # type: (Optional[str]) -> List[Identifier]
         '''
         Transfer the provenance related files to RO
         '''
@@ -738,18 +749,23 @@ class CreateProvProfile():
 
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
+        # list of prov identifiers of provenance files
+        prov_ids = []
+
         # https://www.w3.org/TR/prov-xml/
         with self.research_object.write_bag_file(basename + ".xml") as provenance_file:
             self.document.serialize(provenance_file, format="xml", indent=4)
+            prov_ids.append(self.provenance_ns[filename + ".xml"])
 
         # https://www.w3.org/TR/prov-n/
         with self.research_object.write_bag_file(basename + ".provn") as provenance_file:
             self.document.serialize(provenance_file, format="provn", indent=2)
-
+            prov_ids.append(self.provenance_ns[filename + ".provn"])
 
         # https://www.w3.org/Submission/prov-json/
         with self.research_object.write_bag_file(basename + ".json") as provenance_file:
             self.document.serialize(provenance_file, format="json", indent=2)
+            prov_ids.append(self.provenance_ns[filename + ".json"])
 
         # "rdf" aka https://www.w3.org/TR/prov-o/
         # which can be serialized to ttl/nt/jsonld (and more!)
@@ -757,10 +773,12 @@ class CreateProvProfile():
         # https://www.w3.org/TR/turtle/
         with self.research_object.write_bag_file(basename + ".ttl") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="turtle")
+            prov_ids.append(self.provenance_ns[filename + ".ttl"])
 
         # https://www.w3.org/TR/n-triples/
         with self.research_object.write_bag_file(basename + ".nt") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="ntriples")
+            prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
         # TODO: Use a nice JSON-LD context
@@ -768,8 +786,10 @@ class CreateProvProfile():
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
         with self.research_object.write_bag_file(basename + ".jsonld") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
+            prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
-        _logger.info("[provenance] added all tag files")
+        _logger.info("[provenance] added provenance: %s" % prov_ids)
+        return prov_ids
 
 class ResearchObject():
     '''

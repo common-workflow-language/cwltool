@@ -252,7 +252,10 @@ class WorkflowJob(object):
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri, None, self.prov_obj.engine_uuid,
                 datetime.datetime.now())
-            self.prov_obj.finalize_prov_profile(self.name)
+            prov_ids = self.prov_obj.finalize_prov_profile(self.name)
+            # Tell parent to associate our provenance files with our wf run
+            self.parent_wf.activity_has_provenance(self.prov_obj.workflow_run_uri, *prov_ids)
+
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
