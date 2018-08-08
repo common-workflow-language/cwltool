@@ -313,7 +313,6 @@ class CreateProvProfile():
         self.research_object = research_object
         self.folder = self.research_object.folder
         self.document = ProvDocument()
-        self.workflow_run_uri = uuid.uuid4().urn
         self.host_provenance = host_provenance
         self.user_provenance = user_provenance
         self.engine_uuid = research_object.engine_uuid
@@ -775,7 +774,6 @@ class ResearchObject():
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
         self.ro_uuid = uuid.uuid4()
-        self.workflow_run_uri = self.ro_uuid.urn
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool (unknown version)"
         ##
@@ -1013,7 +1011,7 @@ class ResearchObject():
         annotations = []
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": self.workflow_run_uri,
+            "about": self.ro_uuid.urn,
             "content": "/",
             # https://www.w3.org/TR/annotation-vocab/#named-individuals
             "oa:motivatedBy": {"@id": "oa:describing"}
@@ -1026,7 +1024,7 @@ class ResearchObject():
                         and "/primary." in p]
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": self.workflow_run_uri,
+            "about": self.ro_uuid.urn,
             "content": prov_files,
             # Modulation of https://www.w3.org/TR/prov-aq/
             "oa:motivatedBy": {"@id": "http://www.w3.org/ns/prov#has_provenance"}
@@ -1041,7 +1039,7 @@ class ResearchObject():
 
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": self.workflow_run_uri,
+            "about": self.ro_uuid.urn,
             "content": [posixpath.join("..", WORKFLOW, "packed.cwl"),
                         posixpath.join("..", WORKFLOW, "primary-job.json")],
             "oa:motivatedBy": {"@id": "oa:linking"}
