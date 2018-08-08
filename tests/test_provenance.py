@@ -57,14 +57,18 @@ class TestProvenance(unittest.TestCase):
     def test_hello_single_tool(self):
         self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello_single_tool.cwl'),
             "--message", "Hello tool"]), 0)
-        self.check_provenance()
+        self.check_provenance(singleTool=True)
 
     def test_revsort_workflow(self):
         self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
             get_data('tests/wf/revsort-job.json')]), 0)
         self.check_provenance()
 
-    def check_provenance(self):
+    def test_nested_workflow(self):
+        self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/nested.cwl')]), 0)
+        self.check_provenance(nested=True)
+
+    def check_provenance(self, nested=False, singleTool=False):
         self.check_folders()
         self.check_bagit()
         self.check_ro()
