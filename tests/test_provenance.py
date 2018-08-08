@@ -20,11 +20,20 @@ import posixpath
 import ntpath
 from six.moves import urllib
 from rdflib import Namespace, URIRef, Graph
-from rdflib.namespace import DCTERMS
+from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD
 import arcp
 
 
-ORE=Namespace("http://www.openarchives.org/ore/terms/")
+# RDF namespaces we'll query for later
+ORE = Namespace("http://www.openarchives.org/ore/terms/")
+PROV = Namespace("http://www.w3.org/ns/prov#")
+WFDESC = Namespace("http://purl.org/wf4ever/wfdesc#")
+WFPROV = Namespace("http://purl.org/wf4ever/wfprov#")
+SCHEMA = Namespace("http://schema.org/")
+CWLPROV = Namespace("https://w3id.org/cwl/prov#")
+
+
+
 
 @pytest.mark.skipif(onWindows(),
                     reason="On Windows this would invoke a default docker container")
@@ -59,6 +68,7 @@ class TestProvenance(unittest.TestCase):
         self.check_folders()
         self.check_bagit()
         self.check_ro()
+        self.check_prov()
 
     def check_folders(self):
         # Our folders
@@ -88,8 +98,8 @@ class TestProvenance(unittest.TestCase):
         ext_id = bag.info.get("External-Identifier")
         if arcp.is_arcp_uri(ext_id):
             return ext_id
-        else:
-            return arcp.arcp_random()
+        raise Exception("Can't find External-Identifier")
+        # return arcp.arcp_random()
 
     def check_ro(self):
         manifest_file = os.path.join(self.folder, "metadata", "manifest.json")
@@ -147,9 +157,27 @@ class TestProvenance(unittest.TestCase):
         # TODO: check urn:hash::sha1 thingies
         # TODO: Check OA annotations
 
+    def check_prov(self):
+        prov_file = os.path.join(self.folder, "metadata", "provenance", "primary.cwlprov.nt")
+        self.assertTrue(os.path.isfile(prov_file), "Can't find " + prov_file)
+        arcp_root = self.find_arcp()
+        # Note: We don't need to include metadata/provnance in base URI
+        # as .nt always use absolute URIs
+        g = Graph()
+        with open(prov_file, "rb") as f:
+            g.parse(file=f, format="nt", publicID=arcp_root)
+        print("Parsed %s:\n\n" % prov_file)
+        g.serialize(sys.stdout, format="nt")
+        runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
+
+        # master workflow run URI (as urn:uuid:) should correspond to arcp uuid part
+        uuid = arcp.parse_arcp(arcp_root).uuid
+        master_run = URIRef(uuid.urn)
+        self.assertTrue(master_run in runs,
+            "Can't find run %s in %s" % (master_run, runs))
+
 
 class TestConvertPath(unittest.TestCase):
-
     def test_nt_to_posix(self):
         self.assertEquals("a/b/c",
             provenance._convert_path(r"a\b\c", ntpath, posixpath))
