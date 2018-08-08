@@ -324,6 +324,7 @@ class CreateProvProfile():
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
         if not run_uuid:
             run_uuid = uuid.uuid4()
+        self.workflow_run_uuid = run_uuid
         self.workflow_run_uri = run_uuid.urn
         self.generate_prov_doc()
 
@@ -716,14 +717,25 @@ class CreateProvProfile():
         # TODO: Declare roles/parameters as well
 
     def finalize_prov_profile(self, name):
-            # type: (str) -> None
+            # type: (Optional[str]) -> None
         '''
         Transfer the provenance related files to RO
         '''
         # NOTE: Relative posix path
-        wf_name = urllib.parse.quote(str(name), safe=":/,#")
-        filename = wf_name+".cwlprov"
+        if name is None:
+            # master workflow, fixed filenames
+            filename = "primary.cwlprov"
+        else:
+            # ASCII-friendly filename, avoiding % as we don't want %2520 in manifest.json
+            wf_name = urllib.parse.quote(str(name), safe="").replace("%", "_")
+            # Note that the above could cause overlaps for similarly named
+            # workflows, but that's OK as we'll also include run uuid
+            # which also covers thhe case of this step being run in
+            # multiple places or iterations
+            filename = "%s.%s.cwlprov" % (wf_name, self.workflow_run_uuid)
+
         basename = posixpath.join(_posix_path(PROVENANCE), filename)
+
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
         # https://www.w3.org/TR/prov-xml/

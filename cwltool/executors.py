@@ -109,7 +109,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri, None, process.parent_wf.engine_uuid,
                     datetime.datetime.now())
-                process.parent_wf.finalize_prov_profile(name)
+                process.parent_wf.finalize_prov_profile(name=None)
             return (self.final_output[0], self.final_status[0])
         return (None, "permanentFail")
 

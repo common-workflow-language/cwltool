@@ -224,6 +224,10 @@ class TestProvenance(unittest.TestCase):
                 # Tip: Any nested workflow step executions should not be in this prov file,
                 # but in separate file
             if nested:
+                # TODO
+                # FIXME: How to find the correct filename in
+                # metadata/provenance ?
+
                 pass
 
 class TestConvertPath(unittest.TestCase):

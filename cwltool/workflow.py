@@ -252,7 +252,7 @@ class WorkflowJob(object):
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri, None, self.prov_obj.engine_uuid,
                 datetime.datetime.now())
-            self.prov_obj.finalize_prov_profile(str(self.name))
+            self.prov_obj.finalize_prov_profile(self.name)
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
