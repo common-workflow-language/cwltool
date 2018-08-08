@@ -19,8 +19,8 @@ import bagit
 import posixpath
 import ntpath
 from six.moves import urllib
-from rdflib import Namespace, URIRef, Graph
-from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD
+from rdflib import Namespace, URIRef, Graph, Literal
+from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD,DC
 import arcp
 
 
@@ -31,7 +31,7 @@ WFDESC = Namespace("http://purl.org/wf4ever/wfdesc#")
 WFPROV = Namespace("http://purl.org/wf4ever/wfprov#")
 SCHEMA = Namespace("http://schema.org/")
 CWLPROV = Namespace("https://w3id.org/cwl/prov#")
-
+OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 
@@ -168,6 +168,60 @@ class TestProvenance(unittest.TestCase):
 
         # TODO: check urn:hash::sha1 thingies
         # TODO: Check OA annotations
+
+        packed = urllib.parse.urljoin(arcp_root, "/workflow/packed.cwl")
+        primary_job = urllib.parse.urljoin(arcp_root, "/workflow/primary-job.json")
+        primary_prov_nt = urllib.parse.urljoin(arcp_root, "/metadata/provenance/primary.cwlprov.nt")
+        uuid = arcp.parse_arcp(arcp_root).uuid
+
+        highlights = set(g.subjects(OA.motivatedBy, OA.highlighting))
+        self.assertTrue(highlights, "Didn't find highlights")
+        for h in highlights:
+            self.assertTrue( (h, OA.hasTarget, URIRef(packed)) in g)
+
+        describes = set(g.subjects(OA.motivatedBy, OA.describing))
+        for d in describes:
+            self.assertTrue( (d, OA.hasBody, URIRef(arcp_root)) in g)
+            self.assertTrue( (d, OA.hasTarget, URIRef(uuid.urn)) in g)
+
+        linked = set(g.subjects(OA.motivatedBy, OA.linking))
+        for l in linked:
+            self.assertTrue( (l, OA.hasBody, URIRef(packed)) in g)
+            self.assertTrue( (l, OA.hasBody, URIRef(primary_job)) in g)
+            self.assertTrue( (l, OA.hasTarget, URIRef(uuid.urn)) in g)
+
+        has_provenance = set(g.subjects(OA.hasBody, URIRef(primary_prov_nt)))
+        for p in has_provenance:
+            self.assertTrue( (p, OA.hasTarget, URIRef(uuid.urn)) in g)
+            self.assertTrue( (p, OA.motivatedBy, PROV.has_provenance) in g)
+            # Check all prov elements are listed
+            formats = set()
+            for prov in g.objects(p,OA.hasBody):
+                self.assertTrue( (prov, DCTERMS.conformsTo,
+                                  URIRef("https://w3id.org/cwl/prov/0.3.0") ) in g)
+                # NOTE: DC.format is a Namespace method and does not resolve like other terms
+                formats.update(set(g.objects(prov, DC["format"])))
+            self.assertTrue(formats, "Could not find media types")
+            expected = set(Literal(f) for f in (
+                "application/json",
+                "application/ld+json",
+                "application/n-triples",
+                'text/provenance-notation; charset="UTF-8"',
+                'text/turtle; charset="UTF-8"',
+                "application/xml"
+            ))
+            self.assertEquals(formats, expected,
+                "Did not match expected PROV media types")
+
+        if nested:
+            # Check for additional PROVs
+            # Let's try to find the other wf run ID
+            otherRuns = set()
+            for p in g.subjects(OA.motivatedBy, PROV.has_provenance):
+                if (p, OA.hasTarget, URIRef(uuid.urn)) in g:
+                    continue
+                otherRuns.update(set(g.objects(p, OA.hasTarget)))
+            self.assertTrue(otherRuns, "Could not find nested workflow run prov annotations")
 
     def check_prov(self, nested=False, single_tool=False):
         prov_file = os.path.join(self.folder, "metadata", "provenance", "primary.cwlprov.nt")
