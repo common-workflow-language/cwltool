@@ -2,18 +2,20 @@ from __future__ import absolute_import
 
 import errno
 import json
-import logging
 import os
 import re
 import select
 import sys
 import threading
 from io import BytesIO
-from typing import Any, Dict, List, Mapping, Text, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import six
 from pkg_resources import resource_stream
 
+from .loghandler import _logger
 from .utils import json_dumps, onWindows, subprocess, processes_to_kill
 
 try:
@@ -25,8 +27,6 @@ except ImportError:
 class JavascriptException(Exception):
     pass
 
-
-_logger = logging.getLogger("cwltool")
 
 JSON = Union[Dict[Text, Any], List[Any], Text, int, float, bool, None]
 
@@ -50,10 +50,7 @@ def check_js_threshold_version(working_alias):
     current_version = [int(v) for v in current_version_str.strip().strip('v').split('.')]
     minimum_node_version = [int(v) for v in minimum_node_version_str.split('.')]
 
-    if current_version >= minimum_node_version:
-        return True
-    else:
-        return False
+    return current_version >= minimum_node_version
 
 
 def new_js_proc(js_text, force_docker_pull=False):
@@ -109,24 +106,25 @@ def new_js_proc(js_text, force_docker_pull=False):
     if nodejs is None:
         raise JavascriptException(
             u"cwltool requires Node.js engine to evaluate and validate "
-            u"Javascript expressions, but couldn't find it.  Tried %s, "
-            u"docker run node:slim" % u", ".join(trynodes))
+            u"Javascript expressions, but couldn't find it.  Tried {}, "
+            u"docker run node:slim".format(u", ".join(trynodes)))
 
     # docker failed, but nodejs is installed on system but the version is below the required version
     if docker is False and required_node_version is False:
         raise JavascriptException(
-            u'cwltool requires minimum v{} version of Node.js engine.'.format(minimum_node_version_str),
+            u'cwltool requires minimum v{} version of Node.js engine.'.format(
+                minimum_node_version_str),
             u'Try updating: https://docs.npmjs.com/getting-started/installing-node')
 
     return nodejs
 
+PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
 def exec_js_process(js_text,                  # type: Text
                     timeout=None,             # type: float
                     js_console=False,         # type: bool
                     context=None,             # type: Text
                     force_docker_pull=False,  # type: bool
-                    debug=False               # type: bool
                    ):
     # type: (...) -> Tuple[int, Text, Text]
 
@@ -138,7 +136,8 @@ def exec_js_process(js_text,                  # type: Text
 
     if js_console:
         js_engine = 'cwlNodeEngineJSConsole.js'
-        _logger.warn("Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
+        _logger.warning(
+            "Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
     elif context is not None:
         js_engine = "cwlNodeEngineWithContext.js"
     else:
@@ -170,8 +169,8 @@ def exec_js_process(js_text,                  # type: Text
 
     killed = []
 
-    """ Kill the node process if it exceeds timeout limit"""
     def terminate():
+        """ Kill the node process if it exceeds timeout limit"""
         try:
             killed.append(True)
             nodejs.kill()
@@ -181,9 +180,9 @@ def exec_js_process(js_text,                  # type: Text
     if timeout is None:
         timeout = 20
 
-    tm = threading.Timer(timeout, terminate)
-    tm.daemon = True
-    tm.start()
+    timer = threading.Timer(timeout, terminate)
+    timer.daemon = True
+    timer.start()
 
     stdin_text = u""
     if created_new_process and context is not None:
@@ -197,7 +196,6 @@ def exec_js_process(js_text,                  # type: Text
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
 
-    PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
     def process_finished():  # type: () -> bool
         return stdout_buf.getvalue().decode('utf-8').endswith(PROCESS_FINISHED_STR) and \
@@ -205,7 +203,7 @@ def exec_js_process(js_text,                  # type: Text
 
     # On windows system standard input/output are not handled properly by select module
     # (modules like  pywin32, msvcrt, gevent don't work either)
-    if sys.platform=='win32':
+    if sys.platform == 'win32':
         READ_BYTES_SIZE = 512
 
         # creating queue for reading from a thread to queue
@@ -222,40 +220,40 @@ def exec_js_process(js_text,                  # type: Text
         # put constructed command to input queue which then will be passed to nodejs's stdin
         def put_input(input_queue):
             while True:
-                b = stdin_buf.read(READ_BYTES_SIZE)
-                if b:
-                    input_queue.put(b)
+                buf = stdin_buf.read(READ_BYTES_SIZE)
+                if buf:
+                    input_queue.put(buf)
                 else:
                     break
 
-        # get the output from nodejs's stdout and continue till otuput ends
+        # get the output from nodejs's stdout and continue till output ends
         def get_output(output_queue):
             while not no_more_output.acquire(False):
-                b=os.read(nodejs.stdout.fileno(), READ_BYTES_SIZE)
-                if b:
-                    output_queue.put(b)
+                buf = os.read(nodejs.stdout.fileno(), READ_BYTES_SIZE)
+                if buf:
+                    output_queue.put(buf)
 
         # get the output from nodejs's stderr and continue till error output ends
         def get_error(error_queue):
             while not no_more_error.acquire(False):
-                b = os.read(nodejs.stderr.fileno(), READ_BYTES_SIZE)
-                if b:
-                    error_queue.put(b)
+                buf = os.read(nodejs.stderr.fileno(), READ_BYTES_SIZE)
+                if buf:
+                    error_queue.put(buf)
 
         # Threads managing nodejs.stdin, nodejs.stdout and nodejs.stderr respectively
         input_thread = threading.Thread(target=put_input, args=(input_queue,))
-        input_thread.daemon=True
+        input_thread.daemon = True
         input_thread.start()
         output_thread = threading.Thread(target=get_output, args=(output_queue,))
-        output_thread.daemon=True
+        output_thread.daemon = True
         output_thread.start()
         error_thread = threading.Thread(target=get_error, args=(error_queue,))
-        error_thread.daemon=True
+        error_thread.daemon = True
         error_thread.start()
 
         finished = False
 
-        while not finished and tm.is_alive():
+        while not finished and timer.is_alive():
             try:
                 if nodejs.stdin in wselect:
                     if not input_queue.empty():
@@ -274,25 +272,25 @@ def exec_js_process(js_text,                  # type: Text
                     finished = True
                     no_more_output.release()
                     no_more_error.release()
-            except OSError as e:
+            except OSError:
                 break
 
     else:
-        while not process_finished() and tm.is_alive():
+        while not process_finished() and timer.is_alive():
             rready, wready, _ = select.select(rselect, wselect, [])
             try:
                 if nodejs.stdin in wready:
-                    b = stdin_buf.read(select.PIPE_BUF)
-                    if b:
-                        os.write(nodejs.stdin.fileno(), b)
+                    buf = stdin_buf.read(select.PIPE_BUF)
+                    if buf:
+                        os.write(nodejs.stdin.fileno(), buf)
                 for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
                     if pipes[0] in rready:
-                        b = os.read(pipes[0].fileno(), select.PIPE_BUF)
-                        if b:
-                            pipes[1].write(b)
-            except OSError as e:
+                        buf = os.read(pipes[0].fileno(), select.PIPE_BUF)
+                        if buf:
+                            pipes[1].write(buf)
+            except OSError:
                 break
-    tm.cancel()
+    timer.cancel()
 
     stdin_buf.close()
     stdoutdata = stdout_buf.getvalue()[:-len(PROCESS_FINISHED_STR) - 1]
@@ -307,20 +305,22 @@ def exec_js_process(js_text,                  # type: Text
             returncode = nodejs.returncode
     else:
         returncode = 0
-        # On windows currently a new instance of nodejs process is used due to problem with blocking on read operation on windows
+        # On windows currently a new instance of nodejs process is used due to
+        # problem with blocking on read operation on windows
         if onWindows():
             nodejs.kill()
 
     return returncode, stdoutdata.decode('utf-8'), stderrdata.decode('utf-8')
 
-def code_fragment_to_js(js, jslib=""):
+def code_fragment_to_js(jscript, jslib=""):
     # type: (Text, Text) -> Text
-    if isinstance(js, six.string_types) and len(js) > 1 and js[0] == '{':
-        inner_js = js
+    if isinstance(jscript, six.string_types) \
+            and len(jscript) > 1 and jscript[0] == '{':
+        inner_js = jscript
     else:
-        inner_js = "{return (%s);}" % js
+        inner_js = "{return (%s);}" % jscript
 
-    return u"\"use strict\";\n%s\n(function()%s)()" % (jslib, inner_js)
+    return u"\"use strict\";\n{}\n(function(){})()".format(jslib, inner_js)
 
 def execjs(js,                       # type: Text
            jslib,                    # type: Text
@@ -333,13 +333,15 @@ def execjs(js,                       # type: Text
     fn = code_fragment_to_js(js, jslib)
 
     returncode, stdout, stderr = exec_js_process(
-        fn, timeout=timeout, js_console=js_console, force_docker_pull=force_docker_pull, debug=debug)
+        fn, timeout=timeout, js_console=js_console,
+        force_docker_pull=force_docker_pull)
 
     if js_console:
-        if len(stderr) > 0:
+        if stderr:
             _logger.info("Javascript console output:")
             _logger.info("----------------------------------------")
-            _logger.info('\n'.join(re.findall(r'^[[](?:log|err)[]].*$', stderr, flags=re.MULTILINE)))
+            _logger.info('\n'.join(re.findall(
+                r'^[[](?:log|err)[]].*$', stderr, flags=re.MULTILINE)))
             _logger.info("----------------------------------------")
 
     def stdfmt(data):  # type: (Text) -> Text
@@ -365,12 +367,15 @@ def execjs(js,                       # type: Text
                 (js, stdfmt(stdout), stdfmt(stderr))
 
         if returncode == -1:
-            raise JavascriptException(u"Long-running script killed after %s seconds: %s" % (timeout, info))
+            raise JavascriptException(
+                u"Long-running script killed after {} seconds: {}".format(
+                    timeout, info))
         else:
             raise JavascriptException(info)
 
     try:
         return json.loads(stdout)
-    except ValueError as e:
-        raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
-                                  (e, fn_linenum(), stdout, stderr))
+    except ValueError as err:
+        raise JavascriptException(
+            u"{}\nscript was:\n{}\nstdout was: '{}'\nstderr was: '{}'\n".format(
+                err, fn_linenum(), stdout, stderr))
