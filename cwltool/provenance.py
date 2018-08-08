@@ -305,7 +305,8 @@ class CreateProvProfile():
                  full_name=None,         # type: str
                  orcid=None,             # type: str
                  host_provenance=False,  # type: bool
-                 user_provenance=False   # type: bool
+                 user_provenance=False,  # type: bool
+                 run_uuid=None,          # type: uuid.UUID
                 ):  # type: (...) -> None
 
         self.orcid = orcid
@@ -323,6 +324,9 @@ class CreateProvProfile():
         if self.full_name:
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
         self.generate_prov_doc()
+        if not run_uuid:
+            run_uuid = uuid.uuid4()
+        self.workflow_run_uri = run_uuid.urn
 
     def generate_prov_doc(self):
         # type: () -> Tuple[str, ProvDocument]
@@ -347,8 +351,6 @@ class CreateProvProfile():
                                "prov:location": hostname,
                                CWLPROV["hostname"]: hostname})
 
-        workflow_run_uuid = uuid.uuid4()
-
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         self.document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
@@ -366,14 +368,12 @@ class CreateProvProfile():
         self.document.add_namespace('data', 'urn:hash::sha1:')
         # Also needed for docker images
         self.document.add_namespace("sha256", "nih:sha-256;")
-        self.workflow_run_uri = workflow_run_uuid.urn
-        # https://tools.ietf.org/id/draft-soilandreyes-arcp
-        self.base_uri = "arcp://uuid,%s/" % workflow_run_uuid
+
         # info only, won't really be used by prov as sub-resources use /
-        self.document.add_namespace('researchobject', self.base_uri)
-        ro_identifier_workflow = self.base_uri + "workflow/packed.cwl#"
+        self.document.add_namespace('researchobject', self.research_object.base_uri)
+        ro_identifier_workflow = self.research_object.base_uri + "workflow/packed.cwl#"
         self.wf_ns = self.document.add_namespace("wf", ro_identifier_workflow)
-        ro_identifier_input = self.base_uri + "workflow/primary-job.json#"
+        ro_identifier_input = self.research_object.base_uri + "workflow/primary-job.json#"
         self.document.add_namespace("input", ro_identifier_input)
 
         # More info about the account (e.g. username, fullname)
@@ -527,7 +527,7 @@ class CreateProvProfile():
         adds used() for each data artefact
         '''
         for key, value in job_order.items():
-            prov_role = self.research_object.wf_ns["main/%s/%s" % (name, key)]
+            prov_role = self.wf_ns["main/%s/%s" % (name, key)]
             if isinstance(value, dict) and 'class' in value \
                     and value['class'] == 'File' and 'location' in value \
                     and "contents" not in value:
@@ -629,7 +629,7 @@ class CreateProvProfile():
 
             if process_run_id and name:
                 name = urllib.parse.quote(str(name), safe=":/,#")
-                step_prov = self.research_object.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
+                step_prov = self.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
 
                 self.document.entity(output_checksum,
                                      {provM.PROV_TYPE: WFPROV["Artifact"]})
@@ -774,10 +774,9 @@ class ResearchObject():
 
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
-        workflow_uuid = uuid.uuid4()
-        self.workflow_run_uri = workflow_uuid.urn
-        self.base_uri = "arcp://uuid,%s/" % workflow_uuid
-        self.wf_ns = Namespace("ex", "http://example.com/wf-%s#" % workflow_uuid)
+        self.ro_uuid = uuid.uuid4()
+        self.workflow_run_uri = self.ro_uuid.urn
+        self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool (unknown version)"
         ##
         # This function will be added by create_job()
