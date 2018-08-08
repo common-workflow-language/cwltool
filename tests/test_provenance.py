@@ -224,11 +224,30 @@ class TestProvenance(unittest.TestCase):
                 # Tip: Any nested workflow step executions should not be in this prov file,
                 # but in separate file
             if nested:
-                # TODO
-                # FIXME: How to find the correct filename in
-                # metadata/provenance ?
+                # Find some cwlprov.nt the nested workflow is described in
+                prov_ids = set(g.objects(predicate=PROV.has_provenance))
+                # FIXME: The above is a bit naive and does not check the subject is
+                # one of the steps -- OK for now as this is the only case of prov:has_provenance
+                self.assertTrue(prov_ids, "Could not find prov:has_provenance from nested workflow")
 
-                pass
+                nt_uris = [uri for uri in prov_ids if uri.endswith("cwlprov.nt")]
+                # TODO: Look up manifest conformsTo and content-type rather than assuming magic filename
+                self.assertTrue(nt_uris, "Could not find *.cwlprov.nt")
+                # Load into new graph
+                g2 = Graph()
+                nt_uri = nt_uris.pop()
+                # arcp URIs - assume they are local to our RO and have no %
+                path = arcp.parse_arcp(nt_uri).path[1:]  # Strip first /
+                # Convert to local path, in case it uses \ on Windows
+                lpath = provenance._convert_path(path, posixpath, os.path)
+                lfile = os.path.join(self.folder, lpath)
+                with open(lfile, "rb") as f2:
+                    g2.parse(file=f2, format="nt", publicID=nt_uri)
+
+                # Puh!
+                # TODO: Check g2 statements that it's the same UUID activity inside
+                # as in the outer step
+
 
 class TestConvertPath(unittest.TestCase):
     def test_nt_to_posix(self):
