@@ -719,6 +719,8 @@ class CreateProvProfile():
         # TODO: Declare roles/parameters as well
 
     def activity_has_provenance(self, activity, *prov_ids):
+        # type: (str, List[Identifier]) -> None
+
         # Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
         # is a pre-registered namespace in the PROV Document
@@ -726,6 +728,8 @@ class CreateProvProfile():
         self.document.activity(activity, other_attributes=attribs)
         # Tip: we can't use https://www.w3.org/TR/prov-links/#term-mention
         # as prov:mentionOf() is only for entities, not activities
+        uris = [i.uri for i in prov_ids]
+        self.research_object.add_annotation(activity, uris, PROV["has_provenance"].uri)
 
     def finalize_prov_profile(self, name):
         # type: (Optional[str]) -> List[Identifier]
@@ -806,6 +810,7 @@ class ResearchObject():
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
+        self.annotations = [] # type: Dict
 
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
@@ -1025,6 +1030,7 @@ class ResearchObject():
             if path == posixpath.join(METADATA, "manifest.json"):
                 # Should not really be there yet! But anyway, we won't
                 # aggregate it.
+
                 continue
 
             rel_aggregates = {}
@@ -1045,6 +1051,22 @@ class ResearchObject():
             aggregates.append(rel_aggregates)
         return aggregates
 
+    def add_annotation(self, about, content, motivatedBy="oa:describing"):
+        # type: (str, List[str], str) -> str
+
+        # poor-mans URI relativize for current directory and /
+        curr = self.base_uri + METADATA + "/"
+        content = [c.replace(curr, "")
+                    .replace(self.base_uri, "../")
+                   for c in content]
+        ann = {
+            "uri": uuid.uuid4().urn,
+            "about": about,
+            "content": content,
+            "oa:motivatedBy": {"@id": motivatedBy}
+        }
+        self.annotations.append(ann)
+        return ann["uri"]
 
     def _ro_annotations(self):
         # type: () -> List[Dict]
@@ -1084,8 +1106,8 @@ class ResearchObject():
                         posixpath.join("..", WORKFLOW, "primary-job.json")],
             "oa:motivatedBy": {"@id": "oa:linking"}
         })
-
-
+        # Add user-added annotations at end
+        annotations.extend(self.annotations)
         return annotations
 
     def _authored_by(self):
