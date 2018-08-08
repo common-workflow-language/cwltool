@@ -129,10 +129,12 @@ class SingleJobExecutor(JobExecutor):
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
                 and runtime_context.research_obj is not None:
-            orcid = runtime_context.orcid
-            full_name = runtime_context.cwl_full_name
             process.provenance_object = CreateProvProfile(
-                runtime_context.research_obj, orcid, full_name)
+                runtime_context.research_obj,
+                full_name=runtime_context.cwl_full_name,
+                orcid=runtime_context.orcid,
+                # single tool execution, so RO UUID = wf UUID = tool UUID
+                run_uuid=runtime_context.research_obj.ro_uuid)
             process.parent_wf = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback,
                               runtime_context)
