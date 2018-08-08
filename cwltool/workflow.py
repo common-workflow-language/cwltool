@@ -494,12 +494,17 @@ class Workflow(Process):
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
-            orcid = loadingContext.orcid
-            full_name = loadingContext.cwl_full_name
             self.provenance_object = CreateProvProfile(
-                loadingContext.research_obj, full_name, orcid,
-                loadingContext.host_provenance, loadingContext.user_provenance)
+                loadingContext.research_obj,
+                full_name=loadingContext.cwl_full_name,
+                orcid=loadingContext.orcid,
+                host_provenance=loadingContext.host_provenance,
+                user_provenance=loadingContext.user_provenance,
+                run_uuid=loadingContext.research_obj.ro_uuid # inherit RO UUID for master wf run
+                )
+            # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
+
         loadingContext.prov_obj = self.provenance_object
         loadingContext = loadingContext.copy()
         loadingContext.requirements = self.requirements
