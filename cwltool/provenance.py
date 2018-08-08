@@ -322,10 +322,14 @@ class CreateProvProfile():
         self.full_name = full_name or None
         if self.full_name:
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
-        self.generate_prov_doc()
         if not run_uuid:
             run_uuid = uuid.uuid4()
         self.workflow_run_uri = run_uuid.urn
+        self.generate_prov_doc()
+
+    def __str__(self):
+        return "CreateProvProfile <%s> in <%s>" % (
+            self.workflow_run_uri, self.research_object)
 
     def generate_prov_doc(self):
         # type: () -> Tuple[str, ProvDocument]
@@ -782,6 +786,10 @@ class ResearchObject():
 
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
+
+    def __str__(self):
+        return "ResearchObject <%s> in <%s>" % (
+            self.ro_uuid, self.folder)
 
     def _initialize(self):
         # type: (...) -> None
