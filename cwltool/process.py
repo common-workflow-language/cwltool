@@ -41,7 +41,7 @@ from .secrets import SecretStore  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
+from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -363,9 +363,20 @@ def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
             _logger.debug(u"Removing intermediate output directory %s", a)
             shutil.rmtree(a, True)
 
+def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
+    if 'location' in obj:
+        try:
+            obj["size"] = fsaccess.size(obj["location"])
+        except OSError:
+            pass
+    elif 'contents' in obj:
+        obj["size"] = len(obj['contents'])
+    else:
+        return  # best effort
 
-def fillInDefaults(inputs,  # type: List[Dict[Text, Text]]
-                   job      # Dict[Text, Union[Dict[Text, Any], Any, None]]
+def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
+                     job,        # type: Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]]
+                     fsaccess    # type: StdFsAccess
                   ):  # type: (...) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
@@ -378,7 +389,7 @@ def fillInDefaults(inputs,  # type: List[Dict[Text, Text]]
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
-    add_sizes(job)
+    visit_class(job, ("File",), functools.partial(add_sizes, fsaccess))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -440,7 +451,7 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
 
 def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         if expression.needs_parsing(resource_req):
-            visit_class(builder.job, ("File",), add_sizes)
+            visit_class(builder.job, ("File",), functools.partial(add_sizes, builder.fs_access))
             return builder.do_eval(resource_req)
         return resource_req
 
@@ -572,11 +583,15 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def _init_job(self, joborder, runtimeContext):
         # type: (Dict[Text, Text], RuntimeContext) -> Builder
 
-        job = cast(Dict[Text, Union[Dict[Text, Any], List,
-                                    Text]], copy.deepcopy(joborder))
+        job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
+                   copy.deepcopy(joborder))
+
+        make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
+        fs_access = make_fs_access(runtimeContext.basedir)
+
         # Validate job order
         try:
-            fillInDefaults(self.tool[u"inputs"], job)
+            fill_in_defaults(self.tool[u"inputs"], job, fs_access)
             normalizeFilesDirs(job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""),
                                  job, strict=False, logger=_logger_validation_warnings)
@@ -585,8 +600,6 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()
-        make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-        fs_access = make_fs_access(runtimeContext.basedir)
         tmpdir = u""
         stagedir = u""
 

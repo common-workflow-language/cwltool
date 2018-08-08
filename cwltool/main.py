@@ -10,6 +10,7 @@ import functools
 import io
 import logging
 import os
+import signal
 import sys
 
 from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
@@ -38,7 +39,7 @@ from .pack import pack
 from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
 from .process import (Process, scandeps,   # pylint: disable=unused-import
-                      shortname, use_custom_schema, use_standard_schema)
+                      shortname, use_custom_schema, use_standard_schema, add_sizes)
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -46,10 +47,43 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import (DEFAULT_TMP_PREFIX, add_sizes, json_dumps, onWindows,
-                    versionstring, windows_default_container_id)
+from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
+                    versionstring, windows_default_container_id,
+                    processes_to_kill)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .builder import HasReqsHints
+
+
+def _terminate_processes():
+    # type: () -> None
+    """Kill all spawned processes.
+
+    Processes to be killed must be appended to `utils.processes_to_kill`
+    as they are spawned.
+
+    An important caveat: since there's no supported way to kill another
+    thread in Python, this function cannot stop other threads from
+    continuing to execute while it kills the processes that they've
+    spawned. This may occasionally lead to unexpected behaviour.
+    """
+    # It's possible that another thread will spawn a new task while
+    # we're executing, so it's not safe to use a for loop here.
+    while processes_to_kill:
+        processes_to_kill.popleft().kill()
+
+
+def _signal_handler(signum, frame):
+    # type: (int, Any) -> None
+    """Kill all spawned processes and exit.
+
+    Note that it's possible for another thread to spawn a process after
+    all processes have been killed, but before Python exits.
+
+    Refer to the docstring for _terminate_processes() for other caveats.
+    """
+    _terminate_processes()
+    sys.exit(signum)
+
 
 def generate_example_input(inptype):
     # type: (Union[Text, Dict[Text, Any]]) -> Any
@@ -149,7 +183,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    print_input_deps=False,  # type: bool
                    provArgs=None,           # type: ResearchObject
                    relative_deps=False,     # type: bool
-                   make_fs_access=None,     # type: Callable[[Text], StdFsAccess]
+                   make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
                   ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Optional[MutableMapping[Text, Any]]]
@@ -240,7 +274,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             p["format"] = ld.expand_url(p["format"], "")
 
     visit_class(job_order_object, ("File", "Directory"), pathToLoc)
-    visit_class(job_order_object, ("File",), add_sizes)
+    visit_class(job_order_object, ("File",), functools.partial(add_sizes, make_fs_access(input_basedir)))
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
@@ -565,12 +599,14 @@ def main(argsl=None,                   # type: List[str]
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
+        runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
         try:
             initialized_job_order_object, input_for_prov = init_job_order(
                 job_order_object, args, tool, jobloader, stdout,
                 print_input_deps=args.print_input_deps,
                 provArgs=runtimeContext.research_obj,
                 relative_deps=args.relative_deps,
+                make_fs_access=runtimeContext.make_fs_access,
                 input_basedir=input_basedir,
                 secret_store=runtimeContext.secret_store)
         except SystemExit as err:
@@ -599,7 +635,6 @@ def main(argsl=None,                   # type: List[str]
                 find_default_container,
                 default_container=runtimeContext.default_container,
                 use_biocontainers=args.beta_use_biocontainers)
-            runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
             (out, status) = executor(tool,
                                      initialized_job_order_object,
                                      runtimeContext,
@@ -680,5 +715,15 @@ def find_default_container(builder,                  # type: HasReqsHints
     return default_container
 
 
+def run(*args, **kwargs):
+    # type: (...) -> None
+    """Run cwltool."""
+    signal.signal(signal.SIGTERM, _signal_handler)
+    try:
+        sys.exit(main(*args, **kwargs))
+    finally:
+        _terminate_processes()
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    run(sys.argv[1:])

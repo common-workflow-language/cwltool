@@ -19,10 +19,6 @@ def jshead(engine_config, rootvars):
 
     # make sure all the byte strings are converted
     # to str in `rootvars` dict.
-    # TODO: need to make sure the `rootvars dict`
-    # contains no bytes type in the first place.
-    if six.PY3:
-        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     return u"\n".join(
         engine_config + [u"var {} = {};".format(k, json_dumps(v, indent=4))
@@ -249,7 +245,7 @@ def needs_parsing(snippet):  # type: (Any) -> bool
         and ("$(" in snippet or "${" in snippet)
 
 def do_eval(ex,                       # type: Union[Text, Dict]
-            jobinput,                 # type: Dict[Text, Union[Dict, List, Text]]
+            jobinput,                 # type: Dict[Text, Union[Dict, List, Text, None]]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]
@@ -270,6 +266,11 @@ def do_eval(ex,                       # type: Union[Text, Dict]
         u"inputs": jobinput,
         u"self": context,
         u"runtime": runtime}
+
+    # TODO: need to make sure the `rootvars dict`
+    # contains no bytes type in the first place.
+    if six.PY3:
+        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     if needs_parsing(ex):
         assert isinstance(ex, string_types)

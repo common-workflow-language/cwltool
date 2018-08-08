@@ -60,6 +60,7 @@ setup(name='cwltool',
           'psutil',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
+          'typing-extensions',
       ],
       extras_require={
           ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
@@ -72,7 +73,7 @@ setup(name='cwltool',
       test_suite='tests',
       tests_require=['pytest', 'mock >= 2.0.0', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
       entry_points={
-          'console_scripts': ["cwltool=cwltool.main:main"]
+          'console_scripts': ["cwltool=cwltool.main:run"]
       },
       zip_safe=True,
       cmdclass={'egg_info': tagger},
