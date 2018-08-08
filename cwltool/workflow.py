@@ -494,17 +494,23 @@ class Workflow(Process):
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
+            run_uuid = None # type: Optional[uuid.UUID]
+            is_master = not(loadingContext.prov_obj) # Not yet set
+            if is_master:
+                run_uuid = loadingContext.research_obj.ro_uuid
+
             self.provenance_object = CreateProvProfile(
                 loadingContext.research_obj,
                 full_name=loadingContext.cwl_full_name,
                 orcid=loadingContext.orcid,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
-                run_uuid=loadingContext.research_obj.ro_uuid # inherit RO UUID for master wf run
+                run_uuid=run_uuid # inherit RO UUID for master wf run
                 )
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
 
+        # FIXME: Won't this overwrite prov_obj for nested workflows?
         loadingContext.prov_obj = self.provenance_object
         loadingContext = loadingContext.copy()
         loadingContext.requirements = self.requirements
