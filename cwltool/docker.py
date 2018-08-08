@@ -8,8 +8,9 @@ import sys
 import tempfile
 import threading
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Any, Dict, List,  # pylint: disable=unused-import
-                    MutableMapping, Optional, Set, Text)
+from typing import Dict, List, MutableMapping, Optional, Set
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import requests
 
@@ -132,7 +133,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
                 with open(os.path.join(
-                    dockerfile_dir, "Dockerfile"), "wb") as dfile:
+                        dockerfile_dir, "Dockerfile"), "wb") as dfile:
                     dfile.write(docker_requirement["dockerFile"].encode('utf-8'))
                 cmd = ["docker", "build", "--tag=%s" %
                        str(docker_requirement["dockerImageId"]), dockerfile_dir]

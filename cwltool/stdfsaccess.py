@@ -3,8 +3,9 @@ from __future__ import absolute_import
 import glob
 import os
 from io import open
-from typing import (Any, IO, BinaryIO, List,  # pylint: disable=unused-import
-                    Text, Union, overload)
+from typing import Any, IO, List
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import six
 from six.moves import urllib
@@ -16,7 +17,7 @@ from .utils import onWindows
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
         ab = six.text_type(uri_file_path(str(src)))
-    elif urllib.parse.urlsplit(src).scheme in ['http','https']:
+    elif urllib.parse.urlsplit(src).scheme in ['http', 'https']:
         return src
     else:
         if basedir.startswith(u"file://"):

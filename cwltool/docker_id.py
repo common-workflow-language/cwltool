@@ -1,8 +1,8 @@
 from __future__ import absolute_import, print_function
 
-import os
-import sys
-from typing import List, Optional, Text, Tuple  # pylint: disable=unused-import
+from typing import List, Optional, Tuple  # pylint: disable=unused-import
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .utils import subprocess
 
@@ -19,7 +19,7 @@ def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
     """
     if boot2docker_running():
         return boot2docker_id()
-    elif docker_machine_running():
+    if docker_machine_running():
         return docker_machine_id()
     return (None, None)
 

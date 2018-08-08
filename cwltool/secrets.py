@@ -1,6 +1,7 @@
 import uuid
-from typing import (Any, Dict, List,  # pylint: disable=unused-import
-                    MutableMapping, Text)
+from typing import Any, Dict, List, MutableMapping
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from six import string_types
 
@@ -19,8 +20,7 @@ class SecretStore(object):
             placeholder = "(secret-%s)" % Text(uuid.uuid4())
             self.secrets[placeholder] = value
             return placeholder
-        else:
-            return value
+        return value
 
     def store(self, secrets, job):
         # type: (List[Text], MutableMapping[Text, Any]) -> None
@@ -47,10 +47,10 @@ class SecretStore(object):
     def retrieve(self, value):
         # type: (Any) -> Any
         if isinstance(value, string_types):
-            for k,v in self.secrets.items():
+            for k, v in self.secrets.items():
                 value = value.replace(k, v)
         elif isinstance(value, dict):
-            return {k: self.retrieve(v) for k,v in value.items()}
+            return {k: self.retrieve(v) for k, v in value.items()}
         elif isinstance(value, list):
-            return [self.retrieve(v) for k,v in enumerate(value)]
+            return [self.retrieve(v) for k, v in enumerate(value)]
         return value

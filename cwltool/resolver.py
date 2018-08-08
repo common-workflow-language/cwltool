@@ -1,18 +1,14 @@
 from __future__ import absolute_import
 
-import logging
 import os
 import sys
 
 from six.moves import urllib
-
 if sys.version_info < (3, 4):
-    from pathlib2 import Path
+    from pathlib2 import Path  # pylint: disable=import-error
 else:
     from pathlib import Path
-
-
-_logger = logging.getLogger("cwltool")
+from .loghandler import _logger
 
 
 def resolve_local(document_loader, uri):
@@ -22,8 +18,7 @@ def resolve_local(document_loader, uri):
     if pathobj.is_file():
         if frag:
             return "{}#{}".format(pathobj.as_uri(), frag)
-        else:
-            return pathobj.as_uri()
+        return pathobj.as_uri()
 
     sharepaths = [os.environ.get("XDG_DATA_HOME", os.path.join(
         os.path.expanduser('~'), ".local", "share"))]
@@ -46,6 +41,7 @@ def tool_resolver(document_loader, uri):
         ret = r(document_loader, uri)
         if ret is not None:
             return ret
+    return None
 
 
 ga4gh_tool_registries = ["https://dockstore.org:8443"]
