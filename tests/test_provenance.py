@@ -47,7 +47,8 @@ class TestProvenance(unittest.TestCase):
 
     def tearDown(self):
         if self.folder and not os.environ.get("DEBUG"):
-            shutil.rmtree(self.folder)
+            #shutil.rmtree(self.folder)
+            pass
 
     def test_hello_workflow(self):
         self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello-workflow.cwl'),
@@ -57,7 +58,7 @@ class TestProvenance(unittest.TestCase):
     def test_hello_single_tool(self):
         self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello_single_tool.cwl'),
             "--message", "Hello tool"]), 0)
-        self.check_provenance(singleTool=True)
+        self.check_provenance(single_tool=True)
 
     def test_revsort_workflow(self):
         self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
@@ -68,11 +69,11 @@ class TestProvenance(unittest.TestCase):
         self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/nested.cwl')]), 0)
         self.check_provenance(nested=True)
 
-    def check_provenance(self, nested=False, singleTool=False):
+    def check_provenance(self, nested=False, single_tool=False):
         self.check_folders()
         self.check_bagit()
         self.check_ro()
-        self.check_prov()
+        self.check_prov(nested=nested, single_tool=single_tool)
 
     def check_folders(self):
         # Our folders
@@ -161,7 +162,7 @@ class TestProvenance(unittest.TestCase):
         # TODO: check urn:hash::sha1 thingies
         # TODO: Check OA annotations
 
-    def check_prov(self):
+    def check_prov(self, nested=False, single_tool=False):
         prov_file = os.path.join(self.folder, "metadata", "provenance", "primary.cwlprov.nt")
         self.assertTrue(os.path.isfile(prov_file), "Can't find " + prov_file)
         arcp_root = self.find_arcp()
@@ -179,7 +180,51 @@ class TestProvenance(unittest.TestCase):
         master_run = URIRef(uuid.urn)
         self.assertTrue(master_run in runs,
             "Can't find run %s in %s" % (master_run, runs))
+        # TODO: we should not need to parse arcp, but follow
+        # the has_provenance annotations in manifest.json instead
 
+        # run should have been started by a wf engine
+
+        engines = set(g.subjects(RDF.type, WFPROV.WorkflowEngine))
+        self.assertTrue(engines, "Could not find WorkflowEngine")
+        self.assertEquals(1, len(engines),
+            "Found too many WorkflowEngines: %s" % engines)
+        engine = engines.pop()
+
+        self.assertTrue((master_run, PROV.wasAssociatedWith, engine) in g,
+            "Wf run not associated with wf engine")
+        self.assertTrue((engine, RDF.type, PROV.SoftwareAgent) in g,
+            "Engine not declared as SoftwareAgent")
+
+        if single_tool:
+            activities = set(g.subjects(RDF.type, PROV.Activity))
+            self.assertEquals(1, len(activities),
+                "Too many activities: %s" % activities)
+            # single tool exec, there should be no other activities
+            # than the tool run
+            # (NOTE: the WorkflowEngine is also activity, but not declared explicitly)
+        else:
+            # Check all process runs were started by the master worklow
+            stepActivities = set(g.subjects(RDF.type, WFPROV.ProcessRun))
+            # Although semantically a WorkflowEngine is also a ProcessRun,
+            # we don't declare that,
+            # thus only the step activities should be in this set.
+            self.assertFalse(master_run in stepActivities)
+            self.assertTrue(stepActivities, "No steps executed in workflow")
+            for step in stepActivities:
+                # Let's check it was started by the master_run. Unfortunately, unlike PROV-N
+                # in PROV-O RDF we have to check through the n-ary qualifiedStart relation
+                starts = set(g.objects(step, PROV.qualifiedStart))
+                self.assertTrue(starts, "Could not find qualifiedStart of step %s" % step)
+                self.assertEquals(1, len(starts),
+                    "Too many qualifiedStart for step %s" % step)
+                start = starts.pop()
+                self.assertTrue((start, PROV.hadActivity, master_run) in g,
+                    "Step activity not started by master activity")
+                # Tip: Any nested workflow step executions should not be in this prov file,
+                # but in separate file
+            if nested:
+                pass
 
 class TestConvertPath(unittest.TestCase):
     def test_nt_to_posix(self):
