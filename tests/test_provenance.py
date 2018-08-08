@@ -72,7 +72,7 @@ class TestProvenance(unittest.TestCase):
     def check_provenance(self, nested=False, single_tool=False):
         self.check_folders()
         self.check_bagit()
-        self.check_ro()
+        self.check_ro(nested=nested)
         self.check_prov(nested=nested, single_tool=single_tool)
 
     def check_folders(self):
@@ -106,7 +106,18 @@ class TestProvenance(unittest.TestCase):
         raise Exception("Can't find External-Identifier")
         # return arcp.arcp_random()
 
-    def check_ro(self):
+    def _arcp2file(self, uri):
+        parsed = arcp.parse_arcp(uri)
+        # arcp URIs, ensure they are local to our RO
+        self.assertEquals(parsed.uuid,
+            arcp.parse_arcp(self.find_arcp()).uuid)
+
+        path = parsed.path[1:]  # Strip first /
+        # Convert to local path, in case it uses \ on Windows
+        lpath = provenance._convert_path(path, posixpath, os.path)
+        return os.path.join(self.folder, lpath)
+
+    def check_ro(self, nested=False):
         manifest_file = os.path.join(self.folder, "metadata", "manifest.json")
         self.assertTrue(os.path.isfile(manifest_file), "Can't find " + manifest_file)
         arcp_root = self.find_arcp()
@@ -140,12 +151,8 @@ class TestProvenance(unittest.TestCase):
                 # Won't check external URIs existence here
                 # TODO: Check they are not relative!
                 continue
-            # arcp URIs - assume they are local to our RO
-            path = arcp.parse_arcp(aggregate).path[1:]  # Strip first /
-            paths.append(path)
-            # Convert to local path, in case it uses \ on Windows
-            lpath = provenance._convert_path(path, posixpath, os.path)
-            lfile = os.path.join(self.folder, lpath)
+            lfile = self._arcp2file(aggregate)
+            paths.append(os.path.relpath(lfile, self.folder))
             self.assertTrue(os.path.isfile(lfile), "Can't find aggregated " + lfile)
 
         self.assertTrue(paths, "Didn't find any arcp aggregates")
@@ -236,15 +243,8 @@ class TestProvenance(unittest.TestCase):
                 # Load into new graph
                 g2 = Graph()
                 nt_uri = nt_uris.pop()
-                # arcp URIs - assume they are local to our RO and have no %
-                path = arcp.parse_arcp(nt_uri).path[1:]  # Strip first /
-                # Convert to local path, in case it uses \ on Windows
-                lpath = provenance._convert_path(path, posixpath, os.path)
-                lfile = os.path.join(self.folder, lpath)
-                with open(lfile, "rb") as f2:
-                    g2.parse(file=f2, format="nt", publicID=nt_uri)
-
-                # Puh!
+                with open(self._arcp2file(nt_uri), "rb") as f:
+                    g2.parse(file=f, format="nt", publicID=nt_uri)
                 # TODO: Check g2 statements that it's the same UUID activity inside
                 # as in the outer step
 
