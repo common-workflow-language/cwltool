@@ -139,7 +139,7 @@ class TestProvenance(unittest.TestCase):
             profile = dc
             break
         self.assertTrue(profile, "Can't find profile with dct:conformsTo")
-        self.assertEquals(profile, URIRef("https://w3id.org/cwl/prov/0.3.0"),
+        self.assertEquals(profile, URIRef(provenance.CWLPROV_VERSION),
             "Unexpected cwlprov version " + profile)
 
         paths = []
@@ -198,7 +198,7 @@ class TestProvenance(unittest.TestCase):
             formats = set()
             for prov in g.objects(p,OA.hasBody):
                 self.assertTrue( (prov, DCTERMS.conformsTo,
-                                  URIRef("https://w3id.org/cwl/prov/0.3.0") ) in g)
+                                  URIRef(provenance.CWLPROV_VERSION) ) in g)
                 # NOTE: DC.format is a Namespace method and does not resolve like other terms
                 formats.update(set(g.objects(prov, DC["format"])))
             self.assertTrue(formats, "Could not find media types")
