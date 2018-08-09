@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, MutableMapping
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
@@ -132,7 +132,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
         if key:
             if isinstance(current_value, list) and key == "length" and not remaining_string[m.end(0):]:
                 return len(current_value)
-            if not isinstance(current_value, dict):
+            if not isinstance(current_value, MutableMapping):
                 raise WorkflowException("%s is a %s, cannot index on string '%s'" % (parsed_string, type(current_value).__name__, key))
             if key not in current_value:
                 raise WorkflowException("%s does not contain key '%s'" % (parsed_string, key))
@@ -257,7 +257,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             strip_whitespace=True     # type: bool
            ):  # type: (...) -> Any
 
-    runtime = copy.copy(resources)  # type: Dict[str, Any]
+    runtime = copy.deepcopy(resources)  # type: Dict[str, Any]
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
     runtime["outdir"] = docker_windows_path_adjust(outdir)
 

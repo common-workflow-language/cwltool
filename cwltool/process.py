@@ -20,8 +20,10 @@ import textwrap
 import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
+
 from typing import (Any, Callable, Dict, Generator, Iterator, List, Optional,
-                    Set, Tuple, Union, cast)
+                    Set, Tuple, Union, cast, MutableMapping, MutableSequence)
+
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -196,7 +198,7 @@ def shortname(inputid):
 
 def checkRequirements(rec, supported_process_requirements):
     # type: (Any, Iterable[Any]) -> None
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if "requirements" in rec:
             for i, entry in enumerate(rec["requirements"]):
                 with SourceLine(rec["requirements"], i, UnsupportedRequirement):
@@ -215,7 +217,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
     the primary file associated with a group of secondary files.
     """
 
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"], primary=primary)
             adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
@@ -399,7 +401,7 @@ def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
             if job.get(fieldname) is not None:
                 pass
             elif job.get(fieldname) is None and u"default" in inp:
-                job[fieldname] = copy.copy(inp[u"default"])
+                job[fieldname] = copy.deepcopy(inp[u"default"])
             elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
                 job[fieldname] = None
             else:
@@ -415,7 +417,7 @@ def avroize_type(field_type, name_prefix=""):
     if isinstance(field_type, list):
         for f in field_type:
             avroize_type(f, name_prefix)
-    elif isinstance(field_type, dict):
+    elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
                 field_type["name"] = name_prefix + Text(uuid.uuid4())
@@ -456,7 +458,7 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
                 SourceLine(item=item, key=obj_key, raise_type=Text).makeError(
                     _VAR_SPOOL_ERROR.format(obj)))
             r = True
-    elif isinstance(obj, dict):
+    elif isinstance(obj, MutableMapping):
         for key, value in iteritems(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
     elif isinstance(obj, list):
@@ -535,7 +537,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
-                c = copy.copy(i)
+                c = copy.deepcopy(i)
                 c["name"] = shortname(c["id"])
                 del c["id"]
 
@@ -692,8 +694,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 lc = self.tool["arguments"].lc.data[i]
                 fn = self.tool["arguments"].lc.filename
                 bindings.lc.add_kv_line_col(len(bindings), lc)
-                if isinstance(a, dict):
-                    a = copy.copy(a)
+                if isinstance(a, MutableMapping):
+                    a = copy.deepcopy(a)
                     if a.get("position"):
                         a["position"] = [a["position"], i]
                     else:
@@ -888,7 +890,7 @@ def mergedirs(listing):
 def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
-    if isinstance(doc, dict):
+    if isinstance(doc, MutableMapping):
         if "id" in doc:
             if doc["id"].startswith("file://"):
                 df, _ = urllib.parse.urldefrag(doc["id"])
@@ -922,7 +924,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
         for k, v in iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
-                    if isinstance(u, dict):
+                    if isinstance(u, MutableMapping):
                         r.extend(scandeps(base, u, reffields, urlfields, loadref, urljoin=urljoin))
                     else:
                         sub = loadref(base, u)

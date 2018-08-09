@@ -107,7 +107,7 @@ with open(sys.argv[1], "r") as f:
 
 
 def deref_links(outputs):  # type: (Any) -> None
-    if isinstance(outputs, dict):
+    if isinstance(outputs, MutableMapping):
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):

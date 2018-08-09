@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import copy
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set, Union, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Union, Tuple, MutableMapping
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -208,8 +208,8 @@ class Builder(HasReqsHints):
         bindings = []  # type: List[Dict[Text,Text]]
         binding = None  # type: Optional[Dict[Text,Any]]
         value_from_expression = False
-        if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
-            binding = copy.copy(schema["inputBinding"])
+        if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
+            binding = copy.deepcopy(schema["inputBinding"])
 
             if "position" in binding:
                 binding["position"] = aslist(lead_pos) + aslist(binding["position"]) + aslist(tail_pos)
@@ -226,7 +226,7 @@ class Builder(HasReqsHints):
             for t in schema["type"]:
                 if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
-                elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
+                elif isinstance(t, MutableMapping) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
                 else:
                     avsc = AvroSchemaFromJSONData(t, self.names)
@@ -240,7 +240,7 @@ class Builder(HasReqsHints):
                         bound_input = True
             if not bound_input:
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
-        elif isinstance(schema["type"], dict):
+        elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
             if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
@@ -289,7 +289,7 @@ class Builder(HasReqsHints):
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                             sfpath = self.do_eval(sf, context=datum)
                         else:
                             sfpath = substitute(datum["basename"], sf)
@@ -301,7 +301,7 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
-                                if isinstance(sfname, dict):
+                                if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
                                 elif discover_secondaryFiles:
                                     datum["secondaryFiles"].append({
@@ -344,7 +344,7 @@ class Builder(HasReqsHints):
         return bindings
 
     def tostr(self, value):  # type: (Any) -> Text
-        if isinstance(value, dict) and value.get("class") in ("File", "Directory"):
+        if isinstance(value, MutableMapping) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
 
@@ -383,9 +383,9 @@ class Builder(HasReqsHints):
                 return [prefix]
             else:
                 return []
-        elif isinstance(value, dict) and value.get("class") in ("File", "Directory"):
+        elif isinstance(value, MutableMapping) and value.get("class") in ("File", "Directory"):
             argl = [value]
-        elif isinstance(value, dict):
+        elif isinstance(value, MutableMapping):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
@@ -407,7 +407,7 @@ class Builder(HasReqsHints):
     def do_eval(self, ex, context=None, recursive=False, strip_whitespace=True):
         # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
         if recursive:
-            if isinstance(ex, dict):
+            if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive)
                         for k, v in iteritems(ex)}
             if isinstance(ex, list):

@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast, MutableMapping
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -111,7 +111,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
         uri, fileuri = resolve_tool_uri(argsworkflow, resolver=resolver,
                                         document_loader=document_loader)
         workflowobj = document_loader.fetch(fileuri)
-    elif isinstance(argsworkflow, dict):
+    elif isinstance(argsworkflow, MutableMapping):
         uri = "#" + Text(id(argsworkflow))
         workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
     else:
@@ -124,7 +124,7 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
 def _convert_stdstreams_to_files(workflowobj):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> None
 
-    if isinstance(workflowobj, dict):
+    if isinstance(workflowobj, MutableMapping):
         if workflowobj.get('class') == 'CommandLineTool':
             with SourceLine(workflowobj, "outputs", ValidationException,
                             _logger.isEnabledFor(logging.DEBUG)):
@@ -179,9 +179,9 @@ def _convert_stdstreams_to_files(workflowobj):
 def _add_blank_ids(workflowobj):
     # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> None
 
-    if isinstance(workflowobj, dict):
+    if isinstance(workflowobj, MutableMapping):
         if ("run" in workflowobj and
-                isinstance(workflowobj["run"], dict) and
+                isinstance(workflowobj["run"], MutableMapping) and
                 "id" not in workflowobj["run"] and
                 "$import" not in workflowobj["run"]):
             workflowobj["run"]["id"] = Text(uuid.uuid4())
@@ -211,7 +211,7 @@ def validate_document(document_loader,  # type: Loader
             "$graph": workflowobj
         }, fn=uri)
 
-    if not isinstance(workflowobj, dict):
+    if not isinstance(workflowobj, MutableMapping):
         raise ValueError("workflowjobj must be a dict, got '{}': {}".format(
             type(workflowobj), workflowobj))
 
@@ -329,7 +329,7 @@ def make_tool(document_loader,    # type: Loader
                 "one of #%s" % ", #".join(
                     urllib.parse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
-    elif isinstance(resolveduri, dict):
+    elif isinstance(resolveduri, MutableMapping):
         processobj = resolveduri
     else:
         raise Exception("Must resolve to list or dict")

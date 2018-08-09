@@ -12,7 +12,7 @@ import tempfile
 import threading
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Union,
-                    cast)
+                    cast, MutableMapping)
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -510,7 +510,7 @@ class CommandLineTool(Process):
             def register_reader(f):
                 if f["location"] not in muts:
                     builder.mutation_manager.register_reader(j.name, f)
-                    readers[f["location"]] = copy.copy(f)
+                    readers[f["location"]] = copy.deepcopy(f)
 
             for li in j.generatefiles["listing"]:
                 li = cast(Dict[Text, Any], li)
@@ -693,7 +693,7 @@ class CommandLineTool(Process):
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8") 
+                                files["contents"] = contents.decode("utf-8")
                             if compute_checksum:
                                 checksum = hashlib.sha1()
                                 while contents != b"":
@@ -733,11 +733,11 @@ class CommandLineTool(Process):
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException, debug):
                     for primary in aslist(r):
-                        if isinstance(primary, dict):
+                        if isinstance(primary, MutableMapping):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
-                                if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                                if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
                                 else:
@@ -768,7 +768,7 @@ class CommandLineTool(Process):
             if not r and optional:
                 return None
 
-        if (not empty_and_optional and isinstance(schema["type"], dict)
+        if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
                 and schema["type"]["type"] == "record"):
             out = {}
             for f in schema["type"]["fields"]:

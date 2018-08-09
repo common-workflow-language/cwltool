@@ -8,7 +8,7 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List, Optional,
-                    Tuple, Union)
+                    Tuple, Union, MutableMapping)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -44,7 +44,7 @@ WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'succ
 def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
                       loadingContext        # type: LoadingContext
                      ):  # type: (...) -> Process
-    if not isinstance(toolpath_object, dict):
+    if not isinstance(toolpath_object, MutableMapping):
         raise WorkflowException(u"Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
         if toolpath_object["class"] == "CommandLineTool":
@@ -64,7 +64,7 @@ context.default_make_tool = default_make_tool
 def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
     if fn is None:
         fn = []
-    if isinstance(wo, dict):
+    if isinstance(wo, MutableMapping):
         if wo.get("class") == "File":
             fn.append(wo)
             findfiles(wo.get("secondaryFiles", None), fn)
@@ -165,7 +165,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
                     return None
 
         if inputobj.get(iid) is None and "default" in inp:
-            inputobj[iid] = copy.copy(inp["default"])
+            inputobj[iid] = copy.deepcopy(inp["default"])
 
         if iid not in inputobj and ("valueFrom" in inp or incomplete):
             inputobj[iid] = None
@@ -609,7 +609,7 @@ class WorkflowStep(Process):
         loadingContext.hints = getdefault(loadingContext.hints, []) + toolpath_object.get("hints", [])
 
         try:
-            if isinstance(toolpath_object["run"], dict):
+            if isinstance(toolpath_object["run"], MutableMapping):
                 self.embedded_tool = loadingContext.construct_tool_object(toolpath_object["run"], loadingContext)
             else:
                 self.embedded_tool = load_tool(
@@ -868,7 +868,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
     steps = []
     for index in range(0, jobl):
-        sjobo = copy.copy(joborder)
+        sjobo = copy.deepcopy(joborder)
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
@@ -899,7 +899,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
 
     steps = []
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)
+        sjob = copy.deepcopy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
@@ -957,7 +957,7 @@ def _flat_crossproduct_scatter(process,           # type: WorkflowJobStep
     steps = []
     put = startindex
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)
+        sjob = copy.deepcopy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:

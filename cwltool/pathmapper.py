@@ -31,7 +31,7 @@ MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "
 def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
 
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"])
         for d in rec:

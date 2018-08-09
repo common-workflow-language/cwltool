@@ -2,7 +2,7 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import os
-from typing import Any, AnyStr, Dict, List, Optional, Sequence, Union, cast
+from typing import Any, AnyStr, Dict, List, Optional, Sequence, Union, cast, MutableMapping
 
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -398,16 +398,16 @@ def add_argument(toolparser, name, inptype, records, description="",
         action = cast(argparse.Action, FileAction)
     elif inptype == "Directory":
         action = cast(argparse.Action, DirectoryAction)
-    elif isinstance(inptype, dict) and inptype["type"] == "array":
+    elif isinstance(inptype, MutableMapping) and inptype["type"] == "array":
         if inptype["items"] == "File":
             action = cast(argparse.Action, FileAppendAction)
         elif inptype["items"] == "Directory":
             action = cast(argparse.Action, DirectoryAppendAction)
         else:
             action = "append"
-    elif isinstance(inptype, dict) and inptype["type"] == "enum":
+    elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
         atype = Text
-    elif isinstance(inptype, dict) and inptype["type"] == "record":
+    elif isinstance(inptype, MutableMapping) and inptype["type"] == "record":
         records.append(name)
         for field in inptype['fields']:
             fieldname = name + "." + shortname(field['name'])

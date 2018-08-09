@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import copy
-from typing import Any, Callable, Dict, List, Optional, Set, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Set, Union, cast, MutableMapping
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -18,7 +18,7 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             flatten_deps(s, files)
-    elif isinstance(d, dict):
+    elif isinstance(d, MutableMapping):
         if d["class"] == "File":
             files.add(d["location"])
         if "secondaryFiles" in d:
@@ -36,7 +36,7 @@ def find_run(d,        # type: Any
     if isinstance(d, list):
         for s in d:
             find_run(s, loadref, runs)
-    elif isinstance(d, dict):
+    elif isinstance(d, MutableMapping):
         if "run" in d and isinstance(d["run"], string_types):
             if d["run"] not in runs:
                 runs.add(d["run"])
@@ -49,7 +49,7 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
     if isinstance(d, list):
         for s in d:
             find_ids(s, ids)
-    elif isinstance(d, dict):
+    elif isinstance(d, MutableMapping):
         for i in ("id", "name"):
             if i in d and isinstance(d[i], string_types):
                 ids.add(d[i])
@@ -69,7 +69,7 @@ def replace_refs(d, rewrite, stem, newstem):
                     rewrite[v] = d[s]
             else:
                 replace_refs(v, rewrite, stem, newstem)
-    elif isinstance(d, dict):
+    elif isinstance(d, MutableMapping):
         for s, v in d.items():
             if isinstance(v, string_types):
                 if v in rewrite:
@@ -89,7 +89,7 @@ def import_embed(d, seen):
     if isinstance(d, list):
         for v in d:
             import_embed(v, seen)
-    elif isinstance(d, dict):
+    elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
                 if d[n] in seen:
@@ -114,7 +114,7 @@ def pack(document_loader,  # type: Loader
 
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
-    if isinstance(processobj, dict):
+    if isinstance(processobj, MutableMapping):
         document_loader.idx[processobj["id"]] = CommentedMap(iteritems(processobj))
     elif isinstance(processobj, list):
         _, frag = urllib.parse.urldefrag(uri)
