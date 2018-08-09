@@ -2,8 +2,9 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Optional, Text, Tuple, Union)
+from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import schema_salad.validate
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
@@ -18,16 +19,15 @@ def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
     if isinstance(doc, dict):
         if "id" in doc and doc["id"] == frg:
             return doc
-        else:
-            for d in doc:
-                f = findId(doc[d], frg)
-                if f:
-                    return f
+        for key in doc:
+            found = findId(doc[key], frg)
+            if found:
+                return found
     if isinstance(doc, list):
-        for d in doc:
-            f = findId(d, frg)
-            if f:
-                return f
+        for entry in doc:
+            found = findId(entry, frg)
+            if found:
+                return found
     return None
 
 
@@ -44,7 +44,7 @@ def fixType(doc):  # type: (Any) -> Any
             return "#" + doc
     return doc
 
-digits = re.compile("\d+")
+digits = re.compile(r"\d+")
 
 
 def updateScript(sc):  # type: (Text) -> Text
@@ -61,46 +61,42 @@ def _updateDev2Script(ent):  # type: (Any) -> Any
             sp = ent["script"].split("/")
             if sp[0] in ("tmpdir", "outdir"):
                 return u"$(runtime.%s)" % sp[0]
-            else:
-                if not sp[0]:
-                    sp.pop(0)
-                front = sp.pop(0)
-                sp = [Text(i) if digits.match(i) else "'" + i + "'"
-                      for i in sp]
-                if front == "job":
-                    return u"$(inputs[%s])" % ']['.join(sp)
-                elif front == "context":
-                    return u"$(self[%s])" % ']['.join(sp)
+            if not sp[0]:
+                sp.pop(0)
+            front = sp.pop(0)
+            sp = [Text(i) if digits.match(i) else "'" + i + "'"
+                  for i in sp]
+            if front == "job":
+                return u"$(inputs[%s])" % ']['.join(sp)
+            if front == "context":
+                return u"$(self[%s])" % ']['.join(sp)
         else:
             sc = updateScript(ent["script"])
             if sc[0] == "{":
                 return "$" + sc
-            else:
-                return u"$(%s)" % sc
-    else:
-        return ent
+            return u"$(%s)" % sc
+    return ent
 
 def traverseImport(doc, loader, baseuri, func):
     # type: (Any, Loader, Text, Callable[[Any, Loader, Text], Any]) -> Any
     if "$import" in doc:
         if doc["$import"][0] == "#":
             return doc["$import"]
+        imp = urllib.parse.urljoin(baseuri, doc["$import"])
+        impLoaded = loader.fetch(imp)
+        r = {}  # type: Dict[Text, Any]
+        if isinstance(impLoaded, list):
+            r = {"$graph": impLoaded}
+        elif isinstance(impLoaded, dict):
+            r = impLoaded
         else:
-            imp = urllib.parse.urljoin(baseuri, doc["$import"])
-            impLoaded = loader.fetch(imp)
-            r = {}  # type: Dict[Text, Any]
-            if isinstance(impLoaded, list):
-                r = {"$graph": impLoaded}
-            elif isinstance(impLoaded, dict):
-                r = impLoaded
-            else:
-                raise Exception("Unexpected code path.")
-            r["id"] = imp
-            _, frag = urllib.parse.urldefrag(imp)
-            if frag:
-                frag = "#" + frag
-                r = findId(r, frag)  # type: ignore
-            return func(r, loader, imp)
+            raise Exception("Unexpected code path.")
+        r["id"] = imp
+        _, frag = urllib.parse.urldefrag(imp)
+        if frag:
+            frag = "#" + frag
+            r = findId(r, frag)  # type: ignore
+        return func(r, loader, imp)
 
 def v1_0dev4to1_0(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]

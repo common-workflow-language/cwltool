@@ -24,12 +24,14 @@ import copy
 import datetime
 import uuid
 from collections import OrderedDict
-from typing import (Any, Dict, Set, List,  # pylint: disable=unused-import
-                    Tuple, Text, Optional, IO, Callable, cast, Union,
-                    TYPE_CHECKING, MutableMapping)
 from socket import getfqdn
 from getpass import getuser
+from typing import (Any, Callable, Dict, IO, List, Optional, MutableMapping,
+                    Set, Tuple, cast)
+from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
+from six.moves import urllib
 import prov.model as provM
 from prov.identifier import Namespace, Identifier
 from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
@@ -39,7 +41,6 @@ from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
 #from networkx.drawing.nx_agraph import graphviz_layout
 #from networkx.drawing.nx_pydot import write_dot
 
-from six.moves import urllib
 
 from schema_salad.sourceline import SourceLine
 
@@ -64,7 +65,7 @@ if TYPE_CHECKING:
     from .workflow import Workflow  # pylint: disable=unused-import
 
 if six.PY2:
-    class PermissionError(OSError):
+    class PermissionError(OSError):  # pylint: disable=redefined-builtin
         "Needed for Python2."
         pass
 __citation__ = "https://doi.org/10.5281/zenodo.1208477"
@@ -527,7 +528,6 @@ class CreateProvProfile():
     def used_artefacts(self,
                        job_order,            # type: Dict
                        process_run_id,       # type: Optional[str]
-                       reference_locations,  # type: Dict[Text, Text]
                        name                  # type: str
                       ):  # type: (...) -> None
         '''
@@ -552,8 +552,7 @@ class CreateProvProfile():
                             datetime.datetime.now(), None,
                             {"prov:role": prov_role})
                         return  # successfully logged
-                    else:
-                        _logger.warn("[provenance] Unknown checksum algorithm %s", method)
+                    _logger.warning("[provenance] Unknown checksum algorithm %s", method)
                 else:
                     _logger.info("[provenance] Used data w/o checksum %s", location)
                     # FIXME: Store manually
@@ -659,29 +658,29 @@ class CreateProvProfile():
                 _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
 
 
-    def declare_artefact(self, relativised_input_object, job_order_object):
+    def declare_artefact(self, relativised_input_obj, job_order_object):
         # type: (Any, Dict) -> None
         '''
         create data artefact entities for all file objects.
         '''
-        if isinstance(relativised_input_object, dict):
+        if isinstance(relativised_input_obj, dict):
             # Base case - we found a File we need to update
-            if relativised_input_object.get("class") == "File":
+            if relativised_input_obj.get("class") == "File":
                 #create an artefact
-                shahash = "data:"+relativised_input_object["location"].split("/")[-1]
+                shahash = "data:"+relativised_input_obj["location"].split("/")[-1]
                 self.document.entity(shahash, {provM.PROV_TYPE:WFPROV["Artifact"]})
 
-            for each_input_obj in relativised_input_object.values():
+            for each_input_obj in relativised_input_obj.values():
                 self.declare_artefact(each_input_obj, job_order_object)
             return
 
-        if isinstance(relativised_input_object, (str, Text)):
+        if isinstance(relativised_input_obj, (str, Text)):
             # Just a string value, no need to iterate further
             # FIXME: Should these be added as PROV entities as well?
             return
 
         try:
-            for each_input_obj in iter(relativised_input_object):
+            for each_input_obj in iter(relativised_input_obj):
                 # Recurse and rewrite any nested File objects
                 self.declare_artefact(each_input_obj, job_order_object)
         except TypeError:
@@ -1083,7 +1082,7 @@ class ResearchObject():
         # FIXME: Only primary*
         prov_files = [posixpath.relpath(p, METADATA) for p in self.tagfiles
                       if p.startswith(_posix_path(PROVENANCE))
-                        and "/primary." in p]
+                      and "/primary." in p]
         annotations.append({
             "uri": uuid.uuid4().urn,
             "about": self.ro_uuid.urn,
@@ -1199,7 +1198,7 @@ class ResearchObject():
                         self.add_tagfile(path, when)
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
-            elif key == "secondaryFiles" or key == "listing":
+            elif key in ("secondaryFiles", "listing"):
                 for files in value:
                     if isinstance(files, dict):
                         self.generate_snapshot(files)

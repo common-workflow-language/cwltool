@@ -5,8 +5,9 @@ import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
 import datetime
-from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
-                    Set, Text, Tuple)
+from typing import Any, Dict, List, Optional, Set, Tuple
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from schema_salad.validate import ValidationException
 import six
@@ -165,11 +166,11 @@ class SingleJobExecutor(JobExecutor):
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
-        except (ValidationException, WorkflowException):
+        except (ValidationException, WorkflowException):  # pylint: disable=try-except-raise
             raise
-        except Exception as e:
+        except Exception as err:
             logger.exception("Got workflow error")
-            raise WorkflowException(Text(e))
+            raise WorkflowException(Text(err))
 
 
 class MultithreadedJobExecutor(JobExecutor):
@@ -262,10 +263,11 @@ class MultithreadedJobExecutor(JobExecutor):
             thread.start()
 
 
-    def wait_for_next_completion(self, runtimeContext):  # type: (RuntimeContext) -> None
+    def wait_for_next_completion(self, runtime_context):
+        # type: (RuntimeContext) -> None
         """ Wait for jobs to finish. """
-        if runtimeContext.workflow_eval_lock is not None:
-            runtimeContext.workflow_eval_lock.wait()
+        if runtime_context.workflow_eval_lock is not None:
+            runtime_context.workflow_eval_lock.wait()
         if self.exceptions:
             raise self.exceptions[0]
 

@@ -1,20 +1,19 @@
 import copy
 import threading  # pylint: disable=unused-import
+from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad.ref_resolver import (  # pylint: disable=unused-import
+    ContextType, Fetcher, Loader)
+from schema_salad import schema
 
 from .utils import DEFAULT_TMP_PREFIX
 from .stdfsaccess import StdFsAccess
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, Iterable, List, Optional, Text, Union, AnyStr)
-from schema_salad.ref_resolver import (  # pylint: disable=unused-import
-    ContextType, Fetcher, Loader)
-import schema_salad.schema as schema
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
 from .software_requirements import DependenciesConfiguration
 from .secrets import SecretStore
-import six
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .process import Process
     from .provenance import (ResearchObject,  # pylint: disable=unused-import

@@ -1,11 +1,10 @@
 from __future__ import absolute_import
 
 import copy
-import logging
 import re
-from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
-                    Mapping, Optional, Text, Union)
-
+from typing import Any, Dict, List, Optional, Union
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
 from six import string_types, u
 

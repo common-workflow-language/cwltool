@@ -3,8 +3,9 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (Any, Dict, List,  # pylint: disable=unused-import
-                    Optional, Text, Tuple, Union)
+from typing import Any, Dict, List, Optional, Tuple, Union
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import avro.schema  # always import after schema_salad, never before
 from pkg_resources import resource_stream

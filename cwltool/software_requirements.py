@@ -11,8 +11,9 @@ from __future__ import absolute_import
 import argparse  # pylint: disable=unused-import
 import os
 import string
-from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
-                    Text)
+from typing import Dict, List, Optional
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .builder import HasReqsHints, Builder
 
@@ -69,15 +70,16 @@ class DependenciesConfiguration(object):
         dependencies = get_dependencies(builder)
         handle_dependencies = ""  # str
         if dependencies:
-            handle_dependencies = "\n".join(tool_dependency_manager.dependency_shell_commands(dependencies, job_directory=builder.tmpdir))
+            handle_dependencies = "\n".join(
+                tool_dependency_manager.dependency_shell_commands(
+                    dependencies, job_directory=builder.tmpdir))
 
         template_kwds = dict(handle_dependencies=handle_dependencies)  # type: Dict[str, str]
         job_script = COMMAND_WITH_DEPENDENCIES_TEMPLATE.substitute(template_kwds)
         return job_script
 
 
-def get_dependencies(builder):
-    # type: (HasReqsHints) -> ToolRequirements
+def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):
