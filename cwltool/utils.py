@@ -180,8 +180,8 @@ def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
 
     # if input is dict, recursively call for each value
     if isinstance(inp, MutableMapping):
-        for k, val in dict.items(inp):
-            inp[k] = bytes2str_in_dicts(val)
+        for k in inp:
+            inp[k] = bytes2str_in_dicts(inp[k])
         return inp
 
     # if list, iterate through list and fn call
