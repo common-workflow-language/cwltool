@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, MutableMapping
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -15,7 +15,7 @@ from .utils import json_dumps
 
 def _get_type(tp):
     # type: (Any) -> Any
-    if isinstance(tp, dict):
+    if isinstance(tp, MutableMapping):
         if tp.get("type") not in ("array", "record", "enum"):
             return tp["type"]
     return tp
@@ -48,7 +48,7 @@ def merge_flatten_type(src):
 
     if isinstance(src, list):
         return [merge_flatten_type(t) for t in src]
-    if isinstance(src, dict) and src.get("type") == "array":
+    if isinstance(src, MutableMapping) and src.get("type") == "array":
         return src
     return {"items": src, "type": "array"}
 
@@ -65,7 +65,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
 
     if src == "Any" or sink == "Any":
         return True
-    if isinstance(src, dict) and isinstance(sink, dict):
+    if isinstance(src, MutableMapping) and isinstance(sink, MutableMapping):
         if sink.get("not_connected") and strict:
             return False
         if src["type"] == "array" and sink["type"] == "array":
