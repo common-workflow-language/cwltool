@@ -126,8 +126,9 @@ class TestProvenance(unittest.TestCase):
         with open(manifest_file, "rb") as f:
             # Note: This will use https://w3id.org/bundle/context
             g.parse(file=f, format="json-ld", publicID=base)
-        print("Parsed manifest:\n\n")
-        g.serialize(sys.stdout, format="nt")
+        if os.environ.get("DEBUG"):
+            print("Parsed manifest:\n\n")
+            g.serialize(sys.stdout, format="nt")
         ro = None
 
         for ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
@@ -145,7 +146,6 @@ class TestProvenance(unittest.TestCase):
         paths = []
         externals = []
         for aggregate in g.objects(ro, ORE.aggregates):
-            print(aggregate)
             if not arcp.is_arcp_uri(aggregate):
                 externals.append(aggregate)
                 # Won't check external URIs existence here
@@ -232,8 +232,9 @@ class TestProvenance(unittest.TestCase):
         g = Graph()
         with open(prov_file, "rb") as f:
             g.parse(file=f, format="nt", publicID=arcp_root)
-        print("Parsed %s:\n\n" % prov_file)
-        g.serialize(sys.stdout, format="nt")
+        if os.environ.get("DEBUG"):
+            print("Parsed %s:\n\n" % prov_file)
+            g.serialize(sys.stdout, format="nt")
         runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
 
         # master workflow run URI (as urn:uuid:) should correspond to arcp uuid part
