@@ -718,7 +718,7 @@ class CreateProvProfile():
         # TODO: Declare roles/parameters as well
 
     def activity_has_provenance(self, activity, *prov_ids):
-        # type: (str, List[Identifier]) -> None
+        # type: (str, *List[Identifier]) -> None
 
         # Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
@@ -809,7 +809,7 @@ class ResearchObject():
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
-        self.annotations = [] # type: Dict
+        self.annotations = [] # type: List[Dict]
 
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
