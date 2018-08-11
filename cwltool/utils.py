@@ -5,7 +5,9 @@ import json
 import os
 import sys
 import platform
+import random
 import shutil
+import string
 import stat
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr,   # pylint: disable=unused-import
@@ -245,3 +247,10 @@ def json_dumps(obj,       # type: Any
     if six.PY2:
         kwargs['encoding'] = 'utf-8'
     return json.dumps(obj, **kwargs)
+
+def random_outdir():
+    """ Return the random directory name chosen to use for tool / workflow output """
+    # compute this once and store it as a function attribute - each subsequent call will return the same value
+    if not hasattr(random_outdir, 'outdir'):
+        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])
+    return random_outdir.outdir

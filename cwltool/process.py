@@ -44,7 +44,7 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
-                    copytree_with_merge, onWindows)
+                    copytree_with_merge, onWindows, random_outdir)
 from .validate_js import validate_js_expressions
 from .context import (LoadingContext,  # pylint: disable=unused-import
                       RuntimeContext, getdefault)
@@ -629,9 +629,9 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                     outdir = dockerReq.get("dockerOutputDirectory")
                 else:
                     outdir = dockerReq.get("dockerOutputDirectory") or \
-                        runtimeContext.docker_outdir or "/var/spool/cwl"
+                        runtimeContext.docker_outdir or random_outdir()
             elif defaultDocker:
-                outdir = runtimeContext.docker_outdir or "/var/spool/cwl"
+                outdir = runtimeContext.docker_outdir or random_outdir()
             tmpdir = runtimeContext.docker_tmpdir or "/tmp"
             stagedir = runtimeContext.docker_stagedir or "/var/lib/cwl"
         else:
