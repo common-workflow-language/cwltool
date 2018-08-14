@@ -16,15 +16,16 @@ import textwrap
 import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, List, Optional, Set, Text, Tuple, Union, cast,
-                    TYPE_CHECKING)
+from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Tuple,
+                    Union, cast)
+from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-import schema_salad.schema as schema
-import schema_salad.validate as validate
+from schema_salad import schema
+from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
 import six
@@ -32,6 +33,7 @@ from six import iteritems, itervalues, string_types
 from six.moves import urllib
 
 from . import expression
+from .loghandler import _logger
 from .builder import Builder, HasReqsHints
 from .errors import UnsupportedRequirement, WorkflowException
 from .mutation import MutationManager  # pylint: disable=unused-import
@@ -41,10 +43,11 @@ from .secrets import SecretStore  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .utils import (DEFAULT_TMP_PREFIX, add_sizes, aslist, cmp_like_py2,
+from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
-from .context import LoadingContext, RuntimeContext, getdefault
+from .context import (LoadingContext,  # pylint: disable=unused-import
+                      RuntimeContext, getdefault)
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 
@@ -59,7 +62,6 @@ class LogAsDebugFilter(logging.Filter):
         return self.parent.isEnabledFor(logging.DEBUG)
 
 
-_logger = logging.getLogger("cwltool")
 _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
 _logger_validation_warnings.setLevel(_logger.getEffectiveLevel())
 _logger_validation_warnings.addFilter(LogAsDebugFilter("cwltool.validation_warnings", _logger))
@@ -161,8 +163,8 @@ def get_schema(version):
     for f in salad_files:
         try:
             res = resource_stream(
-                __name__, 'schemas/%s/salad/schema_salad/metaschema/%s'
-                          % (version, f))
+                __name__, 'schemas/{}/salad/schema_salad/metaschema/{}'.format(
+                    version, f))
             cache["https://w3id.org/cwl/salad/schema_salad/metaschema/"
                   + f] = res.read()
             res.close()
@@ -185,23 +187,23 @@ def shortname(inputid):
     d = urllib.parse.urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
-    else:
-        return d.path.split(u"/")[-1]
+    return d.path.split(u"/")[-1]
 
 
-def checkRequirements(rec, supportedProcessRequirements):
+def checkRequirements(rec, supported_process_requirements):
     # type: (Any, Iterable[Any]) -> None
     if isinstance(rec, dict):
         if "requirements" in rec:
-            for i, r in enumerate(rec["requirements"]):
+            for i, entry in enumerate(rec["requirements"]):
                 with SourceLine(rec["requirements"], i, UnsupportedRequirement):
-                    if r["class"] not in supportedProcessRequirements:
-                        raise UnsupportedRequirement(u"Unsupported requirement %s" % r["class"])
-        for d in rec:
-            checkRequirements(rec[d], supportedProcessRequirements)
+                    if entry["class"] not in supported_process_requirements:
+                        raise UnsupportedRequirement(
+                            u"Unsupported requirement {}".format(entry["class"]))
+        for key in rec:
+            checkRequirements(rec[key], supported_process_requirements)
     if isinstance(rec, list):
-        for d in rec:
-            checkRequirements(d, supportedProcessRequirements)
+        for entry in rec:
+            checkRequirements(entry, supported_process_requirements)
 
 
 def adjustFilesWithSecondary(rec, op, primary=None):
@@ -224,7 +226,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
 
 def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_store=None):
     # type: (PathMapper, Callable[..., Any], bool, bool, SecretStore) -> None
-    for f, p in pm.items():
+    for _, p in pm.items():
         if not p.staged:
             continue
         if not os.path.exists(os.path.dirname(p.target)):
@@ -363,10 +365,21 @@ def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
             _logger.debug(u"Removing intermediate output directory %s", a)
             shutil.rmtree(a, True)
 
+def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
+    if 'location' in obj:
+        try:
+            obj["size"] = fsaccess.size(obj["location"])
+        except OSError:
+            pass
+    elif 'contents' in obj:
+        obj["size"] = len(obj['contents'])
+    else:
+        return  # best effort
 
-def fillInDefaults(inputs,  # type: List[Dict[Text, Text]]
-                   job      # Dict[Text, Union[Dict[Text, Any], Any, None]]
-                  ):  # type: (...) -> None
+def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
+                     job,      # type: Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]]
+                     fsaccess  # type: StdFsAccess
+                    ):  # type: (...) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
             fieldname = shortname(inp[u"id"])
@@ -378,7 +391,7 @@ def fillInDefaults(inputs,  # type: List[Dict[Text, Text]]
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
-    add_sizes(job)
+    visit_class(job, ("File",), functools.partial(add_sizes, fsaccess))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -409,7 +422,7 @@ def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> 
     return req
 
 
-_VAR_SPOOL_ERROR=textwrap.dedent(
+_VAR_SPOOL_ERROR = textwrap.dedent(
     """
     Non-portable reference to /var/spool/cwl detected: '{}'.
     To fix, replace /var/spool/cwl with $(runtime.outdir) or add
@@ -426,7 +439,7 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
     r = False
     if isinstance(obj, string_types):
         if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
-            _logger.warn(
+            _logger.warning(
                 SourceLine(item=item, key=obj_key, raise_type=Text).makeError(
                     _VAR_SPOOL_ERROR.format(obj)))
             r = True
@@ -439,10 +452,10 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
     return r
 
 def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
-        if expression.needs_parsing(resource_req):
-            visit_class(builder.job, ("File",), add_sizes)
-            return builder.do_eval(resource_req)
-        return resource_req
+    if expression.needs_parsing(resource_req):
+        visit_class(builder.job, ("File",), functools.partial(add_sizes, builder.fs_access))
+        return builder.do_eval(resource_req)
+    return resource_req
 
 
 class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
@@ -515,8 +528,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(u"Missing 'type' in "
-                            "parameter '%s'" % c["name"])
+                    raise validate.ValidationException(
+                        u"Missing 'type' in parameter '{}'".format(c["name"]))
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -534,18 +547,22 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                     self.inputs_record_schema, {}, set()))
             schema.AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         with SourceLine(toolpath_object, "outputs", validate.ValidationException):
-            self.outputs_record_schema = cast(Dict[six.text_type, Any],
-                    schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            self.outputs_record_schema = cast(
+                Dict[six.text_type, Any],
+                schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             schema.AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
 
-        if toolpath_object.get("class") is not None and not getdefault(loadingContext.disable_js_validation, False):
+        if toolpath_object.get("class") is not None \
+                and not getdefault(loadingContext.disable_js_validation, False):
             if loadingContext.js_hint_options_file is not None:
                 try:
                     with open(loadingContext.js_hint_options_file) as options_file:
                         validate_js_options = json.load(options_file)
-                except (OSError, ValueError) as e:
-                    _logger.error("Failed to read options file %s" % loadingContext.js_hint_options_file)
-                    raise e
+                except (OSError, ValueError) as err:
+                    _logger.error(
+                        "Failed to read options file %s",
+                        loadingContext.js_hint_options_file)
+                    raise err
             else:
                 validate_js_options = None
             if self.doc_schema is not None:
@@ -554,7 +571,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
         if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
-            _logger.warn(SourceLine(
+            _logger.warning(SourceLine(
                 item=dockerReq, raise_type=Text).makeError(
                 "When 'dockerOutputDirectory' is declared, DockerRequirement "
                 "should go in the 'requirements' section, not 'hints'."""))
@@ -572,11 +589,15 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def _init_job(self, joborder, runtimeContext):
         # type: (Dict[Text, Text], RuntimeContext) -> Builder
 
-        job = cast(Dict[Text, Union[Dict[Text, Any], List,
-                                    Text]], copy.deepcopy(joborder))
+        job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
+                   copy.deepcopy(joborder))
+
+        make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
+        fs_access = make_fs_access(runtimeContext.basedir)
+
         # Validate job order
         try:
-            fillInDefaults(self.tool[u"inputs"], job)
+            fill_in_defaults(self.tool[u"inputs"], job, fs_access)
             normalizeFilesDirs(job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""),
                                  job, strict=False, logger=_logger_validation_warnings)
@@ -585,8 +606,6 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()
-        make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-        fs_access = make_fs_access(runtimeContext.basedir)
         tmpdir = u""
         stagedir = u""
 
@@ -616,9 +635,9 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             tmpdir = runtimeContext.docker_tmpdir or "/tmp"
             stagedir = runtimeContext.docker_stagedir or "/var/lib/cwl"
         else:
-            outdir = fs_access.realpath(runtimeContext.outdir or
-                tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix,
-                                                   DEFAULT_TMP_PREFIX)))
+            outdir = fs_access.realpath(
+                runtimeContext.outdir or tempfile.mkdtemp(
+                    prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
                 tmpdir = fs_access.realpath(runtimeContext.tmpdir or tempfile.mkdtemp())
                 stagedir = fs_access.realpath(runtimeContext.stagedir or tempfile.mkdtemp())
@@ -731,13 +750,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         if runtimeContext.select_resources:
             return runtimeContext.select_resources(request, runtimeContext)
-        else:
-            return {
-                "cores": request["coresMin"],
-                "ram": request["ramMin"],
-                "tmpdirSize": request["tmpdirMin"],
-                "outdirSize": request["outdirMin"],
-            }
+        return {
+            "cores": request["coresMin"],
+            "ram": request["ramMin"],
+            "tmpdirSize": request["tmpdirMin"],
+            "outdirSize": request["outdirMin"],
+        }
 
     def validate_hints(self, avsc_names, hints, strict):
         # type: (Any, List[Dict[Text, Any]], bool) -> None
@@ -872,7 +890,8 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = doc.get("location", doc.get("path"))
             if u and not u.startswith("_:"):
-                deps = {"class": doc["class"],"location": urljoin(base, u)
+                deps = {"class": doc["class"],
+                        "location": urljoin(base, u)
                        }  # type: Dict[Text, Any]
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]

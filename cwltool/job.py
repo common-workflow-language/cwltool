@@ -13,10 +13,11 @@ import datetime
 from threading import Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
-from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
-                    Dict, Iterable, List, MutableMapping, Optional, Text,
-                    Union, cast, TYPE_CHECKING)
+from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, MutableMapping,
+                    Optional, Union, cast)
 
+from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 import shellescape
 from schema_salad.sourceline import SourceLine
 from six import with_metaclass
@@ -136,7 +137,7 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,   # type: Builder
-                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,  # type: List[Dict[Text, Text]]
                  hints,  # type: List[Dict[Text, Text]]
@@ -226,8 +227,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             job_order = self.joborder
             assert runtimeContext.prov_obj
             runtimeContext.prov_obj.used_artefacts(
-                job_order, runtimeContext.process_run_id,
-                runtimeContext.reference_locations, str(self.name))
+                job_order, runtimeContext.process_run_id, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None

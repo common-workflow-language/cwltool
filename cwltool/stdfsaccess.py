@@ -3,8 +3,9 @@ from __future__ import absolute_import
 import glob
 import os
 from io import open
-from typing import (IO, BinaryIO, List,  # pylint: disable=unused-import
-                    Text, Union, overload)
+from typing import Any, IO, List
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import six
 from six.moves import urllib
@@ -16,7 +17,7 @@ from .utils import onWindows
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
         ab = six.text_type(uri_file_path(str(src)))
-    elif urllib.parse.urlsplit(src).scheme in ['http','https']:
+    elif urllib.parse.urlsplit(src).scheme in ['http', 'https']:
         return src
     else:
         if basedir.startswith(u"file://"):
@@ -35,21 +36,14 @@ class StdFsAccess(object):
     def glob(self, pattern):  # type: (Text) -> List[Text]
         return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
 
-    # overload is related to mypy type checking and in no way
-    # modifies the behaviour of the function.
-    @overload
-    def open(self, fn, mode='rb'):  # type: (Text, str) -> IO[bytes]
-        pass
-
-    @overload
-    def open(self, fn, mode='r'):  # type: (Text, str) -> IO[str]
-        pass
-
-    def open(self, fn, mode):
+    def open(self, fn, mode):  # type: (Text, str) -> IO[Any]
         return open(self._abs(fn), mode)
 
     def exists(self, fn):  # type: (Text) -> bool
         return os.path.exists(self._abs(fn))
+
+    def size(self, fn):    # type: (Text) -> int
+        return os.stat(self._abs(fn)).st_size
 
     def isfile(self, fn):  # type: (Text) -> bool
         return os.path.isfile(self._abs(fn))

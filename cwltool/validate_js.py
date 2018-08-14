@@ -3,8 +3,9 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (Any, Dict, List,  # pylint: disable=unused-import
-                    Optional, Text, Tuple, Union)
+from typing import Any, Dict, List, Optional, Tuple, Union
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import avro.schema  # always import after schema_salad, never before
 from pkg_resources import resource_stream
@@ -48,7 +49,7 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
                 return [(tool, source_line)]
-            elif validate_ex(possible_schema, tool, strict=True, raise_ex=False,
+            elif validate_ex(possible_schema, tool, raise_ex=False,
                              logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 

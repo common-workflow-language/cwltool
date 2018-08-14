@@ -7,11 +7,13 @@ import sys
 import platform
 import shutil
 import stat
-import pkg_resources
 from functools import partial  # pylint: disable=unused-import
-from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
-                    Dict, Iterable, List, Optional, Text, Tuple, TypeVar, Union)
-from typing_extensions import Deque
+from typing import (IO, Any, AnyStr,   # pylint: disable=unused-import
+                    Callable, Dict, Iterable, List, Optional, Union)
+from typing_extensions import Deque, Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+import pkg_resources
+
 
 import six
 from six.moves import urllib, zip_longest
@@ -21,9 +23,9 @@ from mypy_extensions import TypedDict
 
 
 if os.name == 'posix':
-    import subprocess32 as subprocess  # type: ignore # pylint: disable=import-error,unused-import
+    import subprocess32 as subprocess  # pylint: disable=unused-import
 else:
-    import subprocess  # type: ignore # pylint: disable=unused-import
+    import subprocess  # type: ignore
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -211,16 +213,6 @@ def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
     # simply return elements itself
     return inp
 
-def add_sizes(obj):  # type: (Dict[Text, Any]) -> None
-    if 'location' in obj:
-        try:
-            obj["size"] = os.stat(obj["location"][7:]).st_size  # strip off file://
-        except OSError:
-            pass
-    elif 'contents' in obj:
-        obj["size"] = len(obj['contents'])
-    else:
-        return  # best effort
 
 
 def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
