@@ -60,7 +60,7 @@ class TestProvenance(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.mkdtemp("ro")
         if os.environ.get("DEBUG"):
-            print("%s folder: %s" % (this, self.folder))
+            print("%s folder: %s" % (self, self.folder))
 
     def tearDown(self):
         if self.folder and not os.environ.get("DEBUG"):
@@ -86,7 +86,9 @@ class TestProvenance(unittest.TestCase):
         self.check_provenance(nested=True)
 
     def test_directory_workflow(self):
-        dir2 = tempfile.mkdtemp("dir2")
+        dir2 = os.path.join(tempfile.mkdtemp("test_directory_workflow"),
+            "dir2")
+        os.makedirs(dir2)
         sha1 = {
             # Expected hashes of ASCII letters (no linefeed)
             # as returned from:
