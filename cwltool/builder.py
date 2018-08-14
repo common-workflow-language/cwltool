@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 
 import copy
-import logging
 import os
-from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
-                    Optional, Set, Text, Type, Union, Tuple, TYPE_CHECKING)
+import logging
+from typing import Any, Callable, Dict, List, Optional, Set, Union, Tuple
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
