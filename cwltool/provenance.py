@@ -469,11 +469,10 @@ class CreateProvProfile():
             # record provenance of an independent commandline tool execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            relativised_input_object2, reference_locations = \
+            inputs, reference_locations = \
                 research_obj.create_job(
                     customised_job, make_fs_access)
-            entity = self.declare_artefact(relativised_input_object2)
-            self.document.used(self.engine_uuid, entity)
+            self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
                 name = str(job.name)
@@ -482,11 +481,10 @@ class CreateProvProfile():
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            relativised_input_object2, reference_locations = \
+            inputs, reference_locations = \
                 research_obj.create_job(
                     customised_job, make_fs_access)
-            entity = self.declare_artefact(relativised_input_object2)
-            self.document.used(self.engine_uuid, entity)
+            self.used_artefacts(inputs, self.workflow_run_uri)
         else:  # in case of commandline tool execution as part of workflow
             name = ""
             if hasattr(job, "name"):
@@ -538,7 +536,16 @@ class CreateProvProfile():
             return self.document.entity(CWLPROV["None"],
                 { provM.PROV_LABEL: "None" })
 
-        if isinstance(value, (str, Text, bytes)):
+        elif isinstance(value, (bool, int, float)):
+            # Typically used in job documents for flags
+
+            # FIXME: Make consistent hash URIs for these
+            # that somehow include the type
+            # (so "1" != 1 != "1.0" != true)
+            return self.document.entity(uuid.uuid4().urn,
+                { provM.PROV_VALUE: value })
+
+        elif isinstance(value, (str, Text, bytes)):
             if type(value) == bytes:
                 # Leave as-is (Note: In Python2 this includes strings
                 # which will be written with system encoding)
@@ -554,7 +561,7 @@ class CreateProvProfile():
                 {provM.PROV_TYPE: WFPROV["Artifact"],
                 provM.PROV_VALUE: str(value)})
 
-        if isinstance(value, dict):
+        elif isinstance(value, dict):
             # Base case - we found a File we need to update
             if value.get("class") == "File":
                 if 'checksum' in value:
@@ -686,15 +693,18 @@ class CreateProvProfile():
 
     def used_artefacts(self,
                        job_order,            # type: Dict
-                       process_run_id,       # type: Optional[str]
-                       name                  # type: str
+                       process_run_id,       # type: str
+                       name=None             # type: Optional[str]
                       ):  # type: (...) -> None
         '''
         adds used() for each data artefact
         '''
+        # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
+        base = "main"
+        if name:
+            base += "/" + name
         for key, value in job_order.items():
-            # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
-            prov_role = self.wf_ns["main/%s/%s" % (name, key)]
+            prov_role = self.wf_ns["%s/%s" % (base, key)]
             entity = self.declare_artefact(value)
             self.document.used(
                         process_run_id, entity,
