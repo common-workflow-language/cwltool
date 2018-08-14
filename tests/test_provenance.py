@@ -36,9 +36,26 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 @pytest.mark.skipif(onWindows(),
-                    reason="On Windows this would invoke a default docker container")
+                    reason="On Windows this would invoke a default docker container, some of the test workflows need unix commands")
 class TestProvenance(unittest.TestCase):
     folder = None
+
+
+    def cwltool(self, *args):
+        new_args = ['--no-container',
+            '--provenance',
+            self.folder]
+        new_args.extend(args)
+        # Run within a temporary directory to not pollute git checkout
+        test_dir = os.path.abspath(os.curdir)
+        tmp_dir = tempfile.mkdtemp("cwltool-run")
+        os.chdir(tmp_dir)
+        try:
+            status = main(new_args)
+            self.assertEquals(status, 0, "Failed: cwltool.main(%r)" % (args,))
+        finally:
+            # Change back
+            os.chdir(test_dir)
 
     def setUp(self):
         self.folder = tempfile.mkdtemp("ro")
@@ -50,22 +67,22 @@ class TestProvenance(unittest.TestCase):
             shutil.rmtree(self.folder)
 
     def test_hello_workflow(self):
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello-workflow.cwl'),
-            "--usermessage", "Hello workflow"]), 0)
+        self.cwltool(get_data('tests/wf/hello-workflow.cwl'),
+            "--usermessage", "Hello workflow")
         self.check_provenance()
 
     def test_hello_single_tool(self):
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello_single_tool.cwl'),
-            "--message", "Hello tool"]), 0)
+        self.cwltool(get_data('tests/wf/hello_single_tool.cwl'),
+            "--message", "Hello tool")
         self.check_provenance(single_tool=True)
 
     def test_revsort_workflow(self):
-        self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
-            get_data('tests/wf/revsort-job.json')]), 0)
+        self.cwltool(get_data('tests/wf/revsort.cwl'),
+            get_data('tests/wf/revsort-job.json'))
         self.check_provenance()
 
     def test_nested_workflow(self):
-        self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/nested.cwl')]), 0)
+        self.cwltool(get_data('tests/wf/nested.cwl'))
         self.check_provenance(nested=True)
 
     def test_directory_workflow(self):
@@ -83,8 +100,8 @@ class TestProvenance(unittest.TestCase):
             with open(os.path.join(dir2, x), "w", encoding="ascii") as f:
                 f.write(x)
 
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/directory.cwl'),
-            "--dir", dir2]), 0)
+        self.cwltool(get_data('tests/wf/directory.cwl'),
+            "--dir", dir2)
         self.check_provenance(directory=True)
 
         # Output should include ls stdout of filenames a b c on each line
