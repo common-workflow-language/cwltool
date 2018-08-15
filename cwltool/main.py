@@ -15,7 +15,8 @@ import signal
 import sys
 
 from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
-                    MutableMapping, Optional, TextIO, Tuple, Union, cast)
+                    MutableMapping, MutableSequence, Optional, TextIO, Tuple,
+                    Union, cast)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import pkg_resources  # part of setuptools
@@ -176,8 +177,9 @@ def generate_example_input(inptype,     # type: Any
             comment = u'default value of type "{}".'.format(inptype)
     return example, comment
 
-def realize_input_schema(input_types, schema_defs):
-    # type: (List[Dict[Text, Any]], Dict[Text, Any]) -> List[Dict[Text, Any]]
+def realize_input_schema(input_types,  # type: MutableSequence[Dict[Text, Any]]
+                         schema_defs   # type: Dict[Text, Any]
+                        ):  # type: (...) -> MutableSequence[Dict[Text, Any]]
     """Replace references to named typed with the actual types."""
     for index, entry in enumerate(input_types):
         if isinstance(entry, string_types):
