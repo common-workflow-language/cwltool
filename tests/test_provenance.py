@@ -36,44 +36,98 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 @pytest.mark.skipif(onWindows(),
-                    reason="On Windows this would invoke a default docker container")
+                    reason="On Windows this would invoke a default docker container, some of the test workflows need unix commands")
 class TestProvenance(unittest.TestCase):
     folder = None
+
+
+    def cwltool(self, *args):
+        new_args = ['--no-container',
+            '--provenance',
+            self.folder]
+        new_args.extend(args)
+        # Run within a temporary directory to not pollute git checkout
+        test_dir = os.path.abspath(os.curdir)
+        tmp_dir = tempfile.mkdtemp("cwltool-run")
+        os.chdir(tmp_dir)
+        try:
+            status = main(new_args)
+            self.assertEquals(status, 0, "Failed: cwltool.main(%r)" % (args,))
+        finally:
+            # Change back
+            os.chdir(test_dir)
 
     def setUp(self):
         self.folder = tempfile.mkdtemp("ro")
         if os.environ.get("DEBUG"):
-            print("%s folder: %s" % (this, self.folder))
+            print("%s folder: %s" % (self, self.folder))
 
     def tearDown(self):
         if self.folder and not os.environ.get("DEBUG"):
-            #shutil.rmtree(self.folder)
-            pass
+            shutil.rmtree(self.folder)
 
     def test_hello_workflow(self):
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello-workflow.cwl'),
-            "--usermessage", "Hello workflow"]), 0)
+        self.cwltool(get_data('tests/wf/hello-workflow.cwl'),
+            "--usermessage", "Hello workflow")
         self.check_provenance()
 
     def test_hello_single_tool(self):
-        self.assertEquals(main(['--provenance', self.folder, get_data('tests/wf/hello_single_tool.cwl'),
-            "--message", "Hello tool"]), 0)
+        self.cwltool(get_data('tests/wf/hello_single_tool.cwl'),
+            "--message", "Hello tool")
         self.check_provenance(single_tool=True)
 
     def test_revsort_workflow(self):
-        self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/revsort.cwl'),
-            get_data('tests/wf/revsort-job.json')]), 0)
+        self.cwltool(get_data('tests/wf/revsort.cwl'),
+            get_data('tests/wf/revsort-job.json'))
         self.check_provenance()
 
     def test_nested_workflow(self):
-        self.assertEquals(main(['--no-container', '--provenance', self.folder, get_data('tests/wf/nested.cwl')]), 0)
+        self.cwltool(get_data('tests/wf/nested.cwl'))
         self.check_provenance(nested=True)
 
-    def check_provenance(self, nested=False, single_tool=False):
+    def test_directory_workflow(self):
+        dir2 = os.path.join(tempfile.mkdtemp("test_directory_workflow"),
+            "dir2")
+        os.makedirs(dir2)
+        sha1 = {
+            # Expected hashes of ASCII letters (no linefeed)
+            # as returned from:
+            ## for x in a b c ; do echo -n $x | sha1sum ; done
+            "a": "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
+            "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
+            "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
+        }
+        for x in ("a", "b", "c"):
+            # Make test files with predictable hashes
+            with open(os.path.join(dir2, x), "w", encoding="ascii") as f:
+                f.write(x)
+
+        self.cwltool(get_data('tests/wf/directory.cwl'),
+            "--dir", dir2)
+        self.check_provenance(directory=True)
+
+        # Output should include ls stdout of filenames a b c on each line
+        ls = os.path.join(self.folder, "data",
+            # checksum as returned from:
+            ## echo -e "a\nb\nc" | sha1sum
+            ## 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
+            "3c",
+            "3ca69e8d6c234a469d16ac28a4a658c92267c423")
+        self.assertTrue(os.path.isfile(ls))
+
+        # Input files should be captured by hash value,
+        # even if they were inside a class: Directory
+        for (l,l_hash) in sha1.items():
+            prefix = l_hash[:2] # first 2 letters
+            p = os.path.join(self.folder, "data", prefix, l_hash)
+            self.assertTrue(os.path.isfile(p),
+                "Could not find %s as %s" % (l, p))
+
+    def check_provenance(self, nested=False, single_tool=False, directory=True):
         self.check_folders()
         self.check_bagit()
         self.check_ro(nested=nested)
-        self.check_prov(nested=nested, single_tool=single_tool)
+        self.check_prov(nested=nested, single_tool=single_tool, directory=directory)
 
     def check_folders(self):
         # Our folders
@@ -223,7 +277,7 @@ class TestProvenance(unittest.TestCase):
                 otherRuns.update(set(g.objects(p, OA.hasTarget)))
             self.assertTrue(otherRuns, "Could not find nested workflow run prov annotations")
 
-    def check_prov(self, nested=False, single_tool=False):
+    def check_prov(self, nested=False, single_tool=False, directory=False):
         prov_file = os.path.join(self.folder, "metadata", "provenance", "primary.cwlprov.nt")
         self.assertTrue(os.path.isfile(prov_file), "Can't find " + prov_file)
         arcp_root = self.find_arcp()
@@ -302,6 +356,9 @@ class TestProvenance(unittest.TestCase):
                     g2.parse(file=f, format="nt", publicID=nt_uri)
                 # TODO: Check g2 statements that it's the same UUID activity inside
                 # as in the outer step
+            if directory:
+                # TODO: Test directory
+                pass
 
 
 class TestConvertPath(unittest.TestCase):
