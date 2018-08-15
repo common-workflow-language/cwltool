@@ -97,7 +97,7 @@ class TestProvenance(unittest.TestCase):
             "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
             "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
         }
-        for x in ("a", "b", "c"):
+        for x in u"abc":
             # Make test files with predictable hashes
             with open(os.path.join(dir2, x), "w", encoding="ascii") as f:
                 f.write(x)
