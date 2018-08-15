@@ -525,11 +525,10 @@ class CreateProvProfile():
         return process_run_id
 
     def declare_artefact(self, value):
-        # type: (Any) -> Optional[ProvEntity]
+        # type: (Any) -> ProvEntity
         '''
         create data artefact entities for all file objects.
         '''
-
         if value is None:
             # FIXME: If this can happen in CWL, we'll
             # need a better way to represent this in PROV
@@ -545,15 +544,9 @@ class CreateProvProfile():
             return self.document.entity(uuid.uuid4().urn,
                 { provM.PROV_VALUE: value })
 
-        elif isinstance(value, (str, Text, bytes)):
-            if type(value) == bytes:
-                # Leave as-is (Note: In Python2 this includes strings
-                # which will be written with system encoding)
-                byte_s = io.BytesIO(value)
-            else:
-                # Save as string in UTF-8
-                byte_s = io.BytesIO(str(value).encode(ENCODING))
-
+        elif isinstance(value, Text):
+            # Save as string in UTF-8
+            byte_s = io.BytesIO(str(value).encode(ENCODING))
             data_file = self.research_object.add_data_file(byte_s)
             # FIXME: Don't naively assume add_data_file uses hash in filename!
             data_id = "data:%s" % posixpath.split(data_file)[1]
@@ -584,8 +577,8 @@ class CreateProvProfile():
                             {provM.PROV_TYPE: WFPROV["Artifact"]})
 
                 if 'content' in value:
-                    # Anonymous file, add content as bytes
-                    return declare_artefact(value["content"])
+                    # Anonymous file, add content as string
+                    return self.declare_artefact(value["content"])
 
             elif value.get("class") == "Directory":
                 # Register any nested files/directories
@@ -644,7 +637,7 @@ class CreateProvProfile():
 
                 # Let's iterate and recurse
                 coll_attribs = [] # type ( tuple(Identifier, ProvEntity) )
-                for (k,v) in cast(Dict, value).items():
+                for (k,v) in value.items():
                     v_ent = self.declare_artefact(v)
                     self.document.membership(coll, v_ent)
                     m = self.document.entity(uuid.uuid4().urn)
@@ -694,7 +687,7 @@ class CreateProvProfile():
     def used_artefacts(self,
                        job_order,            # type: Dict
                        process_run_id,       # type: str
-                       name=None             # type: Optional[str]
+                       name=None             # type: str
                       ):  # type: (...) -> None
         '''
         adds used() for each data artefact
@@ -814,8 +807,8 @@ class CreateProvProfile():
                             "prov:label": "Prospective provenance"})
         # TODO: Declare roles/parameters as well
 
-    def activity_has_provenance(self, activity, *prov_ids):
-        # type: (str, *List[Identifier]) -> None
+    def activity_has_provenance(self, activity, prov_ids):
+        # type: (str, List[Identifier]) -> None
 
         # Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
@@ -828,7 +821,7 @@ class CreateProvProfile():
         self.research_object.add_annotation(activity, uris, PROV["has_provenance"].uri)
 
     def finalize_prov_profile(self, name):
-        # type: (Optional[str]) -> List[Identifier]
+        # type: (Optional[Text]) -> List[Identifier]
         '''
         Transfer the provenance related files to RO
         '''
@@ -1155,14 +1148,15 @@ class ResearchObject():
         content = [c.replace(curr, "")
                     .replace(self.base_uri, "../")
                    for c in content]
+        uri = uuid.uuid4().urn
         ann = {
-            "uri": uuid.uuid4().urn,
+            "uri": uri,
             "about": about,
             "content": content,
             "oa:motivatedBy": {"@id": motivatedBy}
         }
         self.annotations.append(ann)
-        return ann["uri"]
+        return uri
 
     def _ro_annotations(self):
         # type: () -> List[Dict]
@@ -1315,6 +1309,8 @@ class ResearchObject():
         _logger.info(u"[provenance] Added packed workflow: %s", rel_path)
 
     def has_data_file(self, sha1hash):
+        # type: (str) -> bool
+        assert self.folder
         folder = os.path.join(self.folder, DATA, sha1hash[0:2])
         return os.path.isfile(os.path.join(folder, sha1hash))
 

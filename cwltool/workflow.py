@@ -18,6 +18,7 @@ from schema_salad.sourceline import SourceLine
 import six
 from six import string_types
 from six.moves import range
+from uuid import UUID # pylint: disable=unused-import
 
 from . import command_line_tool, expression
 from .builder import CONTENT_LIMIT
@@ -257,7 +258,7 @@ class WorkflowJob(object):
                 datetime.datetime.now())
             prov_ids = self.prov_obj.finalize_prov_profile(self.name)
             # Tell parent to associate our provenance files with our wf run
-            self.parent_wf.activity_has_provenance(self.prov_obj.workflow_run_uri, *prov_ids)
+            self.parent_wf.activity_has_provenance(self.prov_obj.workflow_run_uri, prov_ids)
 
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
@@ -502,7 +503,7 @@ class Workflow(Process):
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
-            run_uuid = None # type: Optional[uuid.UUID]
+            run_uuid = None # type: Optional[UUID]
             is_master = not(loadingContext.prov_obj) # Not yet set
             if is_master:
                 run_uuid = loadingContext.research_obj.ro_uuid
