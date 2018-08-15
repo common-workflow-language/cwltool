@@ -641,6 +641,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             if self.tool[u"class"] != 'Workflow':
                 tmpdir = fs_access.realpath(runtimeContext.tmpdir or tempfile.mkdtemp())
                 stagedir = fs_access.realpath(runtimeContext.stagedir or tempfile.mkdtemp())
+        cwl_version = self.metadata["cwlVersion"]
 
         builder = Builder(job,
                           files,
@@ -662,6 +663,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                           outdir,
                           tmpdir,
                           stagedir,
+                          cwl_version,
                           runtimeContext.job_script_provider)
 
         bindings.extend(builder.bind_input(

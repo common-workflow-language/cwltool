@@ -127,6 +127,7 @@ class Builder(HasReqsHints):
                  outdir=u"",                # type: Text
                  tmpdir=u"",                # type: Text
                  stagedir=u"",              # type: Text
+                 cwl_version=u"",           # type: Text
                  job_script_provider=None   # type: Optional[Any]
                 ):  # type: (...) -> None
 
@@ -150,6 +151,7 @@ class Builder(HasReqsHints):
         self.hints = hints
         self.outdir = outdir
         self.tmpdir = tmpdir
+        self.cwl_version = cwl_version
 
         if resources is None:
             self.resources = {}  # type: Dict[str, int]
@@ -302,7 +304,8 @@ class Builder(HasReqsHints):
                         if isinstance(sf, dict) or "$(" in sf or "${" in sf:
                             sfpath = self.do_eval(sf, context=datum)
                         else:
-                            if sf.endswith('?'):
+                            if sf.endswith('?') and \
+                               self.cwl_version != "v1.0":
                                 sf_required = False
                                 sf = sf[:-1]
                             sfpath = substitute(datum["basename"], sf)

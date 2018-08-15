@@ -749,7 +749,7 @@ class CommandLineTool(Process):
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
                                 else:
-                                    if sf.endswith('?'):
+                                    if sf.endswith('?') and self.metadata["cwlVersion"] == "v1.0":
                                         sf_required = False
                                         sf = sf[:-1]
                                     sfpath = sf
