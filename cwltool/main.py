@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Entry point for cwltool."""
 from __future__ import absolute_import, print_function
 
 import argparse
@@ -86,8 +87,12 @@ def _signal_handler(signum, _):
     sys.exit(signum)
 
 
-def generate_example_input(inptype):
-    # type: (Union[Text, Dict[Text, Any]]) -> Any
+def generate_example_input(inptype,     # type: Any
+                           default      # type: Optional[Any]
+                          ):  # type: (...) -> Tuple[Any, Text]
+    """Converts a single input schema into an example."""
+    example = None
+    comment = u""
     defaults = {u'null': 'null',
                 u'Any': 'null',
                 u'boolean': False,
@@ -95,47 +100,123 @@ def generate_example_input(inptype):
                 u'long': 0,
                 u'float': 0.1,
                 u'double': 0.1,
-                u'string': 'default_string',
-                u'File': {'class': 'File',
-                          'path': 'default/file/path'},
-                u'Directory': {'class': 'Directory',
-                               'path': 'default/directory/path'}
+                u'string': 'a_string',
+                u'File': yaml.comments.CommentedMap([
+                    ('class', 'File'), ('path', 'a/file/path')]),
+                u'Directory': yaml.comments.CommentedMap([
+                    ('class', 'Directory'), ('path', 'a/directory/path')])
                }  # type: Dict[Text, Any]
-    if (not isinstance(inptype, string_types) and
-            not isinstance(inptype, collections.Mapping)
-            and isinstance(inptype, collections.MutableSet)):
-        if len(inptype) == 2 and 'null' in inptype:
+    if isinstance(inptype, collections.MutableSequence):
+        optional = False
+        if 'null' in inptype:
             inptype.remove('null')
-            return generate_example_input(inptype[0])
-            # TODO: indicate that this input is optional
-        raise Exception("multi-types other than optional not yet supported"
-                        " for generating example input objects: "
-                        "{}".format(inptype))
-    if isinstance(inptype, collections.Mapping) and 'type' in inptype:
+            optional = True
+        if len(inptype) == 1:
+            example, comment = generate_example_input(inptype[0], default)
+            if optional:
+                if comment:
+                    comment = u"{} (optional)".format(comment)
+                else:
+                    comment = u"optional"
+        else:
+            example = yaml.comments.CommentedSeq()
+            for index, entry in enumerate(inptype):
+                value, e_comment = generate_example_input(entry, default)
+                example.append(value)
+                example.yaml_add_eol_comment(e_comment, index)
+            if optional:
+                comment = u"optional"
+    elif isinstance(inptype, collections.Mapping) and 'type' in inptype:
         if inptype['type'] == 'array':
-            return [generate_example_input(inptype['items'])]
-        if inptype['type'] == 'enum':
-            return 'valid_enum_value'
-            # TODO: list valid values in a comment
-        if inptype['type'] == 'record':
-            record = {}
+            if len(inptype['items']) == 1 and 'type' in inptype['items'][0] \
+                    and inptype['items'][0]['type'] == 'enum':
+                # array of just an enum then list all the options
+                example = inptype['items'][0]['symbols']
+                if 'name' in inptype['items'][0]:
+                    comment = u'array of type "{}".'.format(inptype['items'][0]['name'])
+            else:
+                value, comment = generate_example_input(inptype['items'], None)
+                comment = u"array of " + comment
+                if len(inptype['items']) == 1:
+                    example = [value]
+                else:
+                    example = value
+            if default:
+                example = default
+        elif inptype['type'] == 'enum':
+            if default:
+                example = default
+            elif 'default' in inptype:
+                example = inptype['default']
+            elif len(inptype['symbols']) == 1:
+                example = inptype['symbols'][0]
+            else:
+                example = '{}_enum_value'.format(inptype.get('name', 'valid'))
+            comment = u'enum; valid values: "{}"'.format(
+                '", "'.join(inptype['symbols']))
+        elif inptype['type'] == 'record':
+            example = yaml.comments.CommentedMap()
+            if 'name' in inptype:
+                comment = u'"{}" record type.'.format(inptype['name'])
             for field in inptype['fields']:
-                record[shortname(field['name'])] = generate_example_input(
-                    field['type'])
-            return record
-    elif isinstance(inptype, string_types):
-        return defaults.get(Text(inptype), 'custom_type')
-        # TODO: support custom types, complex arrays
-    return None
+                value, f_comment = generate_example_input(field['type'], None)
+                example.insert(0, shortname(field['name']), value, f_comment)
+        elif 'default' in inptype:
+            example = inptype['default']
+            comment = u'default value of type "{}".'.format(inptype['type'])
+        else:
+            example = defaults.get(inptype['type'], Text(inptype))
+            comment = u'type "{}".'.format(inptype['type'])
+    else:
+        if not default:
+            example = defaults.get(Text(inptype), Text(inptype))
+            comment = u'type "{}"'.format(inptype)
+        else:
+            example = default
+            comment = u'default value of type "{}".'.format(inptype)
+    return example, comment
 
+def realize_input_schema(input_types, schema_defs):
+    # type: (List[Dict[Text, Any]], Dict[Text, Any]) -> List[Dict[Text, Any]]
+    """Replace references to named typed with the actual types."""
+    for index, entry in enumerate(input_types):
+        if isinstance(entry, string_types):
+            if '#' in entry:
+                _, input_type_name = entry.split('#')
+            else:
+                input_type_name = entry
+            if input_type_name in schema_defs:
+                entry = input_types[index] = schema_defs[input_type_name]
+        if isinstance(entry, collections.Mapping):
+            if isinstance(entry['type'], string_types) and '#' in entry['type']:
+                _, input_type_name = entry['type'].split('#')
+                if input_type_name in schema_defs:
+                    input_types[index]['type'] = realize_input_schema(
+                        schema_defs[input_type_name], schema_defs)
+            if isinstance(entry['type'], collections.MutableSequence):
+                input_types[index]['type'] = realize_input_schema(
+                    entry['type'], schema_defs)
+            if isinstance(entry['type'], collections.Mapping):
+                input_types[index]['type'] = realize_input_schema(
+                    [input_types[index]['type']], schema_defs)
+            if entry['type'] == 'array':
+                items = entry['items'] if \
+                    not isinstance(entry['items'], string_types) else [entry['items']]
+                input_types[index]['items'] = realize_input_schema(items, schema_defs)
+            if entry['type'] == 'record':
+                input_types[index]['fields'] = realize_input_schema(
+                    entry['fields'], schema_defs)
+    return input_types
 
 def generate_input_template(tool):
     # type: (Process) -> Dict[Text, Any]
-    template = {}
-    for inp in tool.tool["inputs"]:
+    """Generate an example input object for the given CWL process."""
+    template = yaml.comments.CommentedMap()
+    for inp in realize_input_schema(tool.tool["inputs"], tool.schemaDefs):
         name = shortname(inp["id"])
-        inptype = inp["type"]
-        template[name] = generate_example_input(inptype)
+        value, comment = generate_example_input(
+            inp['type'], inp.get('default', None))
+        template.insert(0, name, value, comment)
     return template
 
 def load_job_order(args,                 # type: argparse.Namespace
@@ -454,19 +535,13 @@ def main(argsl=None,                   # type: List[str]
             res.close()
         else:
             use_standard_schema("v1.0")
-        #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
-
             runtimeContext.research_obj = ResearchObject(
-                temp_prefix_ro=args.tmpdir_prefix,
-                # Optionals, might be None
-                orcid=args.orcid,
+                temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
-
-
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
@@ -528,13 +603,17 @@ def main(argsl=None,                   # type: List[str]
             tool = make_tool(document_loader, avsc_names,
                              metadata, uri, loadingContext)
             if args.make_template:
-                yaml.safe_dump(generate_input_template(tool), sys.stdout,
-                               default_flow_style=False, indent=4,
-                               block_seq_indent=2)
+                def my_represent_none(self, data):  # pylint: disable=unused-argument
+                    """Force clean representation of 'null'."""
+                    return self.represent_scalar(u'tag:yaml.org,2002:null', u'null')
+                yaml.RoundTripRepresenter.add_representer(type(None), my_represent_none)
+                yaml.round_trip_dump(
+                    generate_input_template(tool), sys.stdout,
+                    default_flow_style=False, indent=4, block_seq_indent=2)
                 return 0
 
             if args.validate:
-                _logger.info("Tool definition is valid")
+                print("{} is valid CWL.".format(args.workflow))
                 return 0
 
             if args.print_rdf:
