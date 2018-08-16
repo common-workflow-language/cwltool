@@ -1546,22 +1546,25 @@ class ResearchObject():
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
         if isinstance(structure, dict):
-            if structure.get("class") == "File" and "contents" not in structure:
+            if structure.get("class") == "File" and "location" in structure:
                 #standardised fs access object creation
                 assert self.make_fs_access
                 fsaccess = self.make_fs_access("")
-                # TODO: Replace location/path with new add_data_file() paths
-                # FIXME: check if the contents are given
+                # Store in RO and set "location" as ../data/ab/abcd...
                 with fsaccess.open(structure["location"], "rb") as relative_file:
                     relative_path = self.add_data_file(relative_file)
                     ref_location = structure["location"]
                     structure["location"] = "../"+relative_path
+                    if "path" in structure:
+                        del structure["path"]
                     if "checksum" not in structure:
                         # FIXME: This naively relies on add_data_file setting hash as filename
                         structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
+                # TODO: Calculate secondaryFiles if needed but missing
 
             if structure.get("class") == "Directory":
-                # TODO:
+                # TODO: Generate anonymoys Directory with a "listing"
+                # pointing to the hashed files
                 pass
 
             for val in structure.values():
