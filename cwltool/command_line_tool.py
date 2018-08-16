@@ -22,6 +22,7 @@ from schema_salad.sourceline import SourceLine
 import shellescape
 from six import string_types
 from six.moves import map, urllib
+from braceexpand import braceexpand
 
 from .builder import (CONTENT_LIMIT, Builder,  # pylint: disable=unused-import
                       substitute)
@@ -217,6 +218,16 @@ def check_valid_locations(fs_access, ob):
     if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
+
+def glob_braceexpand(gb):
+    gb_out = []
+    if isinstance(gb, list):
+        for item in gb:
+            gb_item = list(braceexpand(item))
+            gb_out.extend(gb_item)
+    else:
+        gb_out = list(braceexpand(gb))
+    return gb_out
 
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
@@ -646,7 +657,9 @@ class CommandLineTool(Process):
                 with SourceLine(binding, "glob", WorkflowException, debug):
                     for gb in aslist(binding["glob"]):
                         gb = builder.do_eval(gb)
+
                         if gb:
+                            gb = glob_braceexpand(gb)
                             globpatterns.extend(aslist(gb))
 
                     for gb in globpatterns:
