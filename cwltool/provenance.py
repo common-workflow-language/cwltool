@@ -554,6 +554,16 @@ class CreateProvProfile():
                 {provM.PROV_TYPE: WFPROV["Artifact"],
                 provM.PROV_VALUE: str(value)})
 
+        elif isinstance(value, bytes):
+            # If we got here then we must be in Python 3
+            byte_s = io.BytesIO(value)
+            data_file = self.research_object.add_data_file(byte_s)
+            # FIXME: Don't naively assume add_data_file uses hash in filename!
+            data_id = "data:%s" % posixpath.split(data_file)[1]
+            return self.document.entity(data_id,
+                {provM.PROV_TYPE: WFPROV["Artifact"],
+                provM.PROV_VALUE: str(value)})
+
         elif isinstance(value, dict):
             # Base case - we found a File we need to update
             if value.get("class") == "File":
