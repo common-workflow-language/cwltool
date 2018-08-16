@@ -11,3 +11,4 @@ mypy-extensions
 psutil
 subprocess32 >= 3.5.0; os.name=="posix"
 typing-extensions
+braceexpand

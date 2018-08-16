@@ -22,6 +22,7 @@ from schema_salad.sourceline import SourceLine
 import shellescape
 from six import string_types
 from six.moves import map, urllib
+from braceexpand import braceexpand
 
 from .builder import (CONTENT_LIMIT, Builder,  # pylint: disable=unused-import
                       substitute)
@@ -646,7 +647,9 @@ class CommandLineTool(Process):
                 with SourceLine(binding, "glob", WorkflowException, debug):
                     for gb in aslist(binding["glob"]):
                         gb = builder.do_eval(gb)
+
                         if gb:
+                            gb = list(braceexpand(gb))
                             globpatterns.extend(aslist(gb))
 
                     for gb in globpatterns:
