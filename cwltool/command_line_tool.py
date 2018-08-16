@@ -219,6 +219,16 @@ def check_valid_locations(fs_access, ob):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
 
+def glob_braceexpand(gb):
+    gb_out = []
+    if isinstance(gb, list):
+        for item in gb:
+            gb_item = list(braceexpand(item))
+            gb_out.extend(gb_item)
+    else:
+        gb_out = list(braceexpand(gb))
+    return gb_out
+
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
 class CommandLineTool(Process):
@@ -649,7 +659,7 @@ class CommandLineTool(Process):
                         gb = builder.do_eval(gb)
 
                         if gb:
-                            gb = list(braceexpand(gb))
+                            gb = glob_braceexpand(gb)
                             globpatterns.extend(aslist(gb))
 
                     for gb in globpatterns:
