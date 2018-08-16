@@ -436,7 +436,7 @@ class CreateProvProfile():
                  job_order_object,  # type: Dict[Text, Text]
                  make_fs_access,    # type: Callable[[Text], StdFsAccess]
                  runtimeContext     # type: RuntimeContext
-                ):  # type: (...) -> Tuple[Optional[str], Dict[Text, Text]]
+                ):  # type: (...) -> Optional[str]
         '''
         evaluate the nature of r and
         initialize the activity start
@@ -464,7 +464,6 @@ class CreateProvProfile():
                         pass
             return customised_job
 
-        reference_locations = {}  # type: Dict[Text, Any]
         process_run_id = None
         research_obj = runtimeContext.research_obj
         assert research_obj is not None
@@ -472,8 +471,7 @@ class CreateProvProfile():
             # record provenance of an independent commandline tool execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            inputs, reference_locations = \
-                research_obj.create_job(
+            inputs = research_obj.create_job(
                     customised_job, make_fs_access)
             self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
@@ -484,8 +482,7 @@ class CreateProvProfile():
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            inputs, reference_locations = \
-                research_obj.create_job(
+            inputs = research_obj.create_job(
                     customised_job, make_fs_access)
             self.used_artefacts(inputs, self.workflow_run_uri)
         else:  # in case of commandline tool execution as part of workflow
@@ -494,7 +491,7 @@ class CreateProvProfile():
                 name = str(job.name)
             process_name = urllib.parse.quote(name, safe=":/,#")
             process_run_id = self.start_process(process_name)
-        return process_run_id, reference_locations
+        return process_run_id
 
     def start_process(self, process_name, process_run_id=None):
             # type: (Any, str, str) -> str
@@ -1510,7 +1507,7 @@ class ResearchObject():
     def create_job(self,
                    job,             # type: Dict
                    make_fs_access,  # type: Callable[[Text], StdFsAccess]
-                  ):  # type: (...) -> Tuple[Dict,Dict]
+                  ):  # type: (...) -> Dict
         #TODO customise the file
         '''
         This function takes the dictionary input object and generates
@@ -1518,9 +1515,8 @@ class ResearchObject():
         cwl document
         '''
         self.make_fs_access = make_fs_access
-        relativised_input_objecttemp2 = {}  # type: Dict[Any,Any]
         relativised_input_objecttemp = {}  # type: Dict[Any,Any]
-        self._relativise_files(job, relativised_input_objecttemp2)
+        self._relativise_files(job)
 
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(job, indent=4, ensure_ascii=False)
@@ -1534,17 +1530,15 @@ class ResearchObject():
         relativised_input_objecttemp = {}
         for key, value in job.items():
             if isinstance(value, dict):
-                if value.get("class") == "File":
-                    relativised_input_objecttemp[key] = value
-                if value.get("class") == "Directory":
+                if value.get("class") in ("File", "Directory"):
                     relativised_input_objecttemp[key] = value
             else:
                 relativised_input_objecttemp[key] = value
         relativised_input_object.update(
             {k: v for k, v in relativised_input_objecttemp.items() if v})
-        return relativised_input_object, relativised_input_objecttemp2
+        return relativised_input_object
 
-    def _relativise_files(self, structure, relativised_input_objecttemp2):
+    def _relativise_files(self, structure):
         # type: (Any, Dict) -> None
         '''
         save any file objects into Research Object and update the local paths
@@ -1565,14 +1559,13 @@ class ResearchObject():
                     if "checksum" not in structure:
                         # FIXME: This naively relies on add_data_file setting hash as filename
                         structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
-                    relativised_input_objecttemp2[ref_location] = structure["location"]
 
             if structure.get("class") == "Directory":
                 # TODO:
                 pass
 
             for val in structure.values():
-                self._relativise_files(val, relativised_input_objecttemp2)
+                self._relativise_files(val)
             return
 
         if isinstance(structure, (str, Text)):
@@ -1581,7 +1574,7 @@ class ResearchObject():
         try:
             for obj in iter(structure):
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(obj, relativised_input_objecttemp2)
+                self._relativise_files(obj)
         except TypeError:
             pass
 

@@ -127,7 +127,6 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = None
         self.process_run_id = None      # type: Optional[str]
         self.prov_obj = None            # type: Optional[CreateProvProfile]
-        self.reference_locations = {}   # type: Dict[Text, Text]
         super(RuntimeContext, self).__init__(kwargs)
 
 

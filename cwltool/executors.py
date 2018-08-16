@@ -125,7 +125,6 @@ class SingleJobExecutor(JobExecutor):
                 ):  # type: (...) -> None
 
         process_run_id = None  # type: Optional[str]
-        reference_locations = {}  # type: Dict[Text,Text]
 
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
@@ -153,15 +152,13 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             runtime_context.prov_obj = job.prov_obj
                         assert runtime_context.prov_obj
-                        process_run_id, reference_locations = \
+                        process_run_id = \
                                 runtime_context.prov_obj.evaluate(
                                     process, job, job_order_object,
                                     runtime_context.make_fs_access,
                                     runtime_context)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
-                        runtime_context.reference_locations = \
-                            reference_locations
                     job.run(runtime_context)
                 else:
                     logger.error("Workflow cannot make any more progress.")
