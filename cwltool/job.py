@@ -226,6 +226,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if self.joborder and runtimeContext.research_obj:
             job_order = self.joborder
             assert runtimeContext.prov_obj
+            assert runtimeContext.process_run_id
             runtimeContext.prov_obj.used_artefacts(
                 job_order, runtimeContext.process_run_id, str(self.name))
         outputs = {}  # type: Dict[Text,Text]

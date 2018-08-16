@@ -33,9 +33,9 @@ from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-impo
 import six
 from six.moves import urllib
 import prov.model as provM
-from prov.identifier import Namespace
+from prov.identifier import Namespace, Identifier
 from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
-                        ProvActivity)
+                        ProvActivity, ProvEntity)
 
 # Disabled due to excessive transitive dependencies
 #from networkx.drawing.nx_agraph import graphviz_layout
@@ -74,11 +74,11 @@ __citation__ = "https://doi.org/10.5281/zenodo.1208477"
 # **and** the cwlprov files
 #
 # Rough guide (major.minor.patch):
-# 1. Bump minor number if adding resources or PROV statements
-# 2. Bump major number if removing/"breaking" resources or PROV statements
+# 1. Bump major number if removing/"breaking" resources or PROV statements
+# 2. Bump minor number if adding resources or PROV statements
 # 3. Bump patch number for non-breaking non-adding changes,
 #    e.g. fixing broken relative paths
-CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.3.0"
+CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.4.0"
 
 relativised_input_object = {}  # type: Dict[str, Any]
 #FIXME not module global
@@ -93,6 +93,8 @@ MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC = Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV = Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
+RO = Namespace("ro", 'http://purl.org/wf4ever/ro#')
+ORE = Namespace("ore", 'http://www.openarchives.org/ore/terms/')
 FOAF = Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
 SCHEMA = Namespace("schema", 'http://schema.org/')
 CWLPROV = Namespace('cwlprov', 'https://w3id.org/cwl/prov#')
@@ -101,14 +103,12 @@ UUID = Namespace("id", "urn:uuid:")
 
 # BagIt and YAML always use UTF-8
 ENCODING = "UTF-8"
-
+TEXT_PLAIN = 'text/plain; charset="%s"' % ENCODING
 
 # sha1, compatible with the File type's "checksum" field
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
 Hasher = hashlib.sha1
-
-
 
 # TODO: Better identifiers for user, at least
 # these should be preserved in ~/.config/cwl for every execution
@@ -149,7 +149,6 @@ def _whoami():
         if pwnam:
             fullname = pwnam.pw_gecos.split(",", 1)[0]
     return (username, fullname)
-
 
 class WritableBagFile(io.FileIO):
     '''
@@ -306,14 +305,14 @@ class CreateProvProfile():
                  full_name=None,         # type: str
                  orcid=None,             # type: str
                  host_provenance=False,  # type: bool
-                 user_provenance=False   # type: bool
+                 user_provenance=False,  # type: bool
+                 run_uuid=None,          # type: uuid.UUID
                 ):  # type: (...) -> None
 
         self.orcid = orcid
         self.research_object = research_object
         self.folder = self.research_object.folder
         self.document = ProvDocument()
-        self.workflow_run_uri = uuid.uuid4().urn
         self.host_provenance = host_provenance
         self.user_provenance = user_provenance
         self.engine_uuid = research_object.engine_uuid
@@ -323,7 +322,15 @@ class CreateProvProfile():
         self.full_name = full_name or None
         if self.full_name:
             _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
+        if not run_uuid:
+            run_uuid = uuid.uuid4()
+        self.workflow_run_uuid = run_uuid
+        self.workflow_run_uri = run_uuid.urn
         self.generate_prov_doc()
+
+    def __str__(self):
+        return "CreateProvProfile <%s> in <%s>" % (
+            self.workflow_run_uri, self.research_object)
 
     def generate_prov_doc(self):
         # type: () -> Tuple[str, ProvDocument]
@@ -348,8 +355,6 @@ class CreateProvProfile():
                                "prov:location": hostname,
                                CWLPROV["hostname"]: hostname})
 
-        workflow_run_uuid = uuid.uuid4()
-
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         self.document.add_namespace('wfprov', 'http://purl.org/wf4ever/wfprov#')
         #document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
@@ -367,14 +372,18 @@ class CreateProvProfile():
         self.document.add_namespace('data', 'urn:hash::sha1:')
         # Also needed for docker images
         self.document.add_namespace("sha256", "nih:sha-256;")
-        self.workflow_run_uri = workflow_run_uuid.urn
-        # https://tools.ietf.org/id/draft-soilandreyes-arcp
-        self.base_uri = "arcp://uuid,%s/" % workflow_run_uuid
+
         # info only, won't really be used by prov as sub-resources use /
-        self.document.add_namespace('researchobject', self.base_uri)
-        ro_identifier_workflow = self.base_uri + "workflow/packed.cwl#"
+        self.document.add_namespace('researchobject', self.research_object.base_uri)
+        # annotations
+        self.metadata_ns = self.document.add_namespace('metadata',
+            self.research_object.base_uri + _posix_path(METADATA) + "/")
+        # Pre-register provenance directory so we can refer to its files
+        self.provenance_ns = self.document.add_namespace('provenance',
+            self.research_object.base_uri + _posix_path(PROVENANCE) + "/")
+        ro_identifier_workflow = self.research_object.base_uri + "workflow/packed.cwl#"
         self.wf_ns = self.document.add_namespace("wf", ro_identifier_workflow)
-        ro_identifier_input = self.base_uri + "workflow/primary-job.json#"
+        ro_identifier_input = self.research_object.base_uri + "workflow/primary-job.json#"
         self.document.add_namespace("input", ro_identifier_input)
 
         # More info about the account (e.g. username, fullname)
@@ -463,10 +472,10 @@ class CreateProvProfile():
             # record provenance of an independent commandline tool execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            relativised_input_object2, reference_locations = \
+            inputs, reference_locations = \
                 research_obj.create_job(
                     customised_job, make_fs_access)
-            self.declare_artefact(relativised_input_object2, job_order_object)
+            self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
                 name = str(job.name)
@@ -475,10 +484,10 @@ class CreateProvProfile():
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            relativised_input_object2, reference_locations = \
+            inputs, reference_locations = \
                 research_obj.create_job(
                     customised_job, make_fs_access)
-            self.declare_artefact(relativised_input_object2, job_order_object)
+            self.used_artefacts(inputs, self.workflow_run_uri)
         else:  # in case of commandline tool execution as part of workflow
             name = ""
             if hasattr(job, "name"):
@@ -499,7 +508,7 @@ class CreateProvProfile():
             self.document.activity(
                 process_run_id, None, None,
                 {provM.PROV_TYPE: WFPROV["ProcessRun"],
-                 "prov:label": prov_label})
+                 provM.PROV_LABEL: prov_label})
             self.document.wasAssociatedWith(
                 process_run_id, self.engine_uuid, str("wf:main/" + process_name))
             self.document.wasStartedBy(
@@ -510,7 +519,7 @@ class CreateProvProfile():
             self.document.activity(
                 process_run_id, None, None,
                 {provM.PROV_TYPE: WFPROV["ProcessRun"],
-                 "prov:label": prov_label})
+                 provM.PROV_LABEL: prov_label})
             self.document.wasAssociatedWith(
                 process_run_id, self.engine_uuid, str("wf:main/"+process_name))
             self.document.wasStartedBy(
@@ -518,64 +527,259 @@ class CreateProvProfile():
                 None, None)
         return process_run_id
 
+    def declare_artefact(self, value):
+        # type: (Any) -> ProvEntity
+        '''
+        create data artefact entities for all file objects.
+        '''
+        if value is None:
+            # FIXME: If this can happen in CWL, we'll
+            # need a better way to represent this in PROV
+            return self.document.entity(CWLPROV["None"],
+                { provM.PROV_LABEL: "None" })
+
+        elif isinstance(value, (bool, int, float)):
+            # Typically used in job documents for flags
+
+            # FIXME: Make consistent hash URIs for these
+            # that somehow include the type
+            # (so "1" != 1 != "1.0" != true)
+            e =  self.document.entity(uuid.uuid4().urn,
+                { provM.PROV_VALUE: value })
+            self.research_object.add_uri(e.identifier.uri)
+            return e
+
+        elif isinstance(value, (Text, str)):
+            # Save as string in UTF-8
+            byte_s = io.BytesIO(str(value).encode(ENCODING))
+            data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
+            # FIXME: Don't naively assume add_data_file uses hash in filename!
+            data_id = "data:%s" % posixpath.split(data_file)[1]
+            return self.document.entity(data_id,
+                {provM.PROV_TYPE: WFPROV["Artifact"],
+                provM.PROV_VALUE: str(value)})
+
+        elif isinstance(value, bytes):
+            # If we got here then we must be in Python 3
+            byte_s = io.BytesIO(value)
+            data_file = self.research_object.add_data_file(byte_s)
+            # FIXME: Don't naively assume add_data_file uses hash in filename!
+            data_id = "data:%s" % posixpath.split(data_file)[1]
+            return self.document.entity(data_id,
+                {provM.PROV_TYPE: WFPROV["Artifact"],
+                provM.PROV_VALUE: str(value)})
+
+        elif isinstance(value, dict):
+            # Base case - we found a File we need to update
+            if value.get("class") == "File":
+                if 'checksum' in value:
+                    csum = value['checksum']
+                    (method, checksum) = csum.split("$", 1)
+                    if method == "sha1" and \
+                        self.research_object.has_data_file(checksum):
+                        return self.document.entity("data:" + checksum)
+
+                if 'location' in value:
+                    # FIXME: cope with file literals.
+                    location = str(value['location'])
+                    # If we made it here, we'll have to add it to the RO
+                    assert self.research_object.make_fs_access
+                    fsaccess = self.research_object.make_fs_access("")
+                    with fsaccess.open(location, "rb") as fhandle:
+                        relative_path = self.research_object.add_data_file(fhandle)
+                        checksum = posixpath.basename(relative_path)
+                        return self.document.entity("data:" + checksum,
+                            {provM.PROV_TYPE: WFPROV["Artifact"]})
+
+                if 'content' in value:
+                    # Anonymous file, add content as string
+                    return self.declare_artefact(value["content"])
+
+            elif value.get("class") == "Directory":
+                # Register any nested files/directories
+
+                # FIXME: Calculate a hash-like identifier for directory
+                # so we get same value if it's the same filenames/hashes
+                # in a different location.
+                # For now, mint a new UUID to identify this directory, but
+                # attempt to keep it inside the value dictionary
+                dir_id = value.setdefault("id",
+                    uuid.uuid4().urn)
+
+                # New annotation file to keep the ORE Folder listing
+                ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
+                dir_bundle = self.document.bundle(self.metadata_ns[ore_doc_fn])
+
+                coll = self.document.entity(dir_id,
+                    [ (provM.PROV_TYPE, WFPROV["Artifact"]),
+                      (provM.PROV_TYPE, PROV["Collection"]),
+                      (provM.PROV_TYPE, PROV["Dictionary"]),
+                      (provM.PROV_TYPE, RO["Folder"]),
+                    ])
+                # ORE description of ro:Folder, saved separately
+                coll_b = dir_bundle.entity(dir_id,
+                    [
+                      (provM.PROV_TYPE, RO["Folder"]),
+                      (provM.PROV_TYPE, ORE["Aggregation"]),
+                    ])
+                self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
+
+                dir_manifest = dir_bundle.entity(dir_bundle.identifier,
+                {PROV["type"]: ORE["ResourceMap"],
+                 ORE["describes"]: coll_b.identifier}
+                )
+
+                coll_attribs = [ # type ( tuple(Identifier, ProvEntity) )
+                        (ORE["isDescribedBy"], dir_bundle.identifier )
+                ]
+                coll_b_attribs = [] # type ( tuple(Identifier, ProvEntity) )
+
+                # FIXME: .listing might not be populated yet - hopefully
+                # a later call to this method will sort that
+                is_empty = True
+                for f in value.get("listing", []):
+                    is_empty = False
+                    # Declare child-artifacts
+                    entity = self.declare_artefact(f)
+                    self.document.membership(coll, entity)
+                    # Membership relation aka our ORE Proxy
+                    m_id = uuid.uuid4().urn
+                    m = self.document.entity(m_id)
+                    m_b = dir_bundle.entity(m_id)
+
+                    # PROV-O style Dictionary
+                    # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
+                    # ..as prov.py do not currently allow PROV-N extensions
+                    # like hadDictionaryMember(..)
+                    m.add_asserted_type(PROV["KeyEntityPair"])
+
+                    m.add_attributes({
+                        PROV["pairKey"]: f["basename"],
+                        PROV["pairEntity"]: entity,
+                    })
+
+                    # As well as a being a
+                    # http://wf4ever.github.io/ro/2016-01-28/ro/#FolderEntry
+                    m_b.add_asserted_type(RO["FolderEntry"])
+                    m_b.add_asserted_type(ORE["Proxy"])
+                    m_b.add_attributes({
+                        RO["entryName"]: f["basename"],
+                        ORE["proxyIn"]: coll,
+                        ORE["proxyFor"]: entity,
+
+                    })
+                    coll_attribs.append(
+                        (PROV["hadDictionaryMember"], m))
+                    coll_b_attribs.append(
+                        (ORE["aggregates"], m_b))
+
+                coll.add_attributes(coll_attribs)
+                coll_b.add_attributes(coll_b_attribs)
+
+                # Also Save ORE Folder as annotation metadata
+                ore_doc = ProvDocument()
+                ore_doc.add_namespace(ORE)
+                ore_doc.add_namespace(RO)
+                ore_doc.add_namespace(UUID)
+                ore_doc.add_bundle(dir_bundle)
+                ore_doc = ore_doc.flattened()
+                ore_doc_path = posixpath.join(_posix_path(METADATA), ore_doc_fn)
+                with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
+                    ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
+                self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
+
+                if is_empty:
+                    # Empty directory
+                    coll.add_asserted_type(PROV["EmptyCollection"])
+                    coll.add_asserted_type(PROV["EmptyDictionary"])
+                self.research_object.add_uri(coll.identifier.uri)
+                return coll
+            else:
+                # some other kind of dictionary?
+                # TODO: also Save as JSON
+                coll = self.document.entity(uuid.uuid4().urn,
+                        [ (provM.PROV_TYPE, WFPROV["Artifact"]),
+                        (provM.PROV_TYPE, PROV["Collection"]),
+                        (provM.PROV_TYPE, PROV["Dictionary"]),
+                        ])
+
+                if value.get("class"):
+                    _logger.warn("Unknown data class " + value["class"])
+                    # FIXME: The class might be "http://example.com/somethingelse"
+                    coll.add_asserted_type(CWLPROV[value["class"]])
+
+                # Let's iterate and recurse
+                coll_attribs = [] # type ( tuple(Identifier, ProvEntity) )
+                for (k,v) in value.items():
+                    v_ent = self.declare_artefact(v)
+                    self.document.membership(coll, v_ent)
+                    m = self.document.entity(uuid.uuid4().urn)
+                    # Note: only support PROV-O style dictionary
+                    # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
+                    # as prov.py do not easily allow PROV-N extensions
+                    m.add_asserted_type(PROV["KeyEntityPair"])
+                    m.add_attributes({
+                        PROV["pairKey"]: str(k),
+                        PROV["pairEntity"]: v_ent
+                    })
+                    coll_attribs.append(
+                        (PROV["hadDictionaryMember"], m))
+                coll.add_attributes(coll_attribs)
+                self.research_object.add_uri(coll.identifier.uri)
+                return coll
+
+        # some other kind of Collection?
+        # TODO: also save as JSON
+        try:
+            members = []
+            for each_input_obj in iter(value):
+                is_empty = False
+                # Recurse and register any nested objects
+                e = self.declare_artefact(each_input_obj)
+                members.append(e)
+
+            # If we reached this, then we were allowed to iterate
+            coll = self.document.entity(uuid.uuid4().urn,
+                    [ (provM.PROV_TYPE, WFPROV["Artifact"]),
+                      (provM.PROV_TYPE, PROV["Collection"])
+                    ])
+            if not members:
+                coll.add_asserted_type(PROV["EmptyCollection"])
+            else:
+                for m in members:
+                    # FIXME: This won't preserve order, for that
+                    # we would need to use PROV.Dictionary
+                    # with numeric keys
+                    self.document.membership(coll, e)
+            self.research_object.add_uri(coll.identifier.uri)
+            return coll
+        except TypeError:
+            _logger.warning("Unrecognized type %s of %r" %
+                (type(value), value))
+            # Let's just fall back to Python repr()
+            e = self.document.entity(uuid.uuid4().urn,
+                { provM.PROV_LABEL: repr(value) })
+            self.research_object.add_uri(e.identifier.uri)
+            return e
+
     def used_artefacts(self,
                        job_order,            # type: Dict
-                       process_run_id,       # type: Optional[str]
-                       name                  # type: str
+                       process_run_id,       # type: str
+                       name=None             # type: str
                       ):  # type: (...) -> None
         '''
         adds used() for each data artefact
         '''
+        # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
+        base = "main"
+        if name:
+            base += "/" + name
         for key, value in job_order.items():
-            prov_role = self.research_object.wf_ns["main/%s/%s" % (name, key)]
-            if isinstance(value, dict) and 'class' in value \
-                    and value['class'] == 'File' and 'location' in value \
-                    and "contents" not in value:
-                # FIXME: cope with file literals.
-                # FIXME: process Directory.listing
-                location = str(value['location'])
-
-                if 'checksum' in value:
-                    csum = value['checksum']
-                    _logger.info("[provenance] Used data w/ checksum %s", csum)
-                    (method, checksum) = csum.split("$", 1)
-                    if method == "sha1":
-                        self.document.used(
-                            process_run_id, "data:%s" % checksum,
-                            datetime.datetime.now(), None,
-                            {"prov:role": prov_role})
-                        return  # successfully logged
-                    _logger.warning("[provenance] Unknown checksum algorithm %s", method)
-                else:
-                    _logger.info("[provenance] Used data w/o checksum %s", location)
-                    # FIXME: Store manually
-
-                # If we made it here, then we didn't log it correctly with checksum above,
-                # we'll have to hash it again (and potentially add it to RO)
-                # TODO: Avoid duplication of code here and in
-                # _relativise_files()
-                # TODO: check we don't double-hash everything now
-                assert self.research_object.make_fs_access
-                fsaccess = self.research_object.make_fs_access("")
-                with fsaccess.open(location, "rb") as fhandle:
-                    relative_path = self.research_object.add_data_file(fhandle)
-                    checksum = posixpath.basename(relative_path)
-                    self.document.used(
-                        process_run_id, "data:%s" % checksum,
+            prov_role = self.wf_ns["%s/%s" % (base, key)]
+            entity = self.declare_artefact(value)
+            self.document.used(
+                        process_run_id, entity,
                         datetime.datetime.now(), None, {"prov:role": prov_role})
-
-            else:  # add the actual data value in the prov document
-                # Convert to bytes so we can get a hash (and add to RO)
-                byte_s = io.BytesIO(str(value).encode(ENCODING))
-                data_file = self.research_object.add_data_file(byte_s)
-                # FIXME: Don't naively assume add_data_file uses hash in filename!
-                data_id = "data:%s" % posixpath.split(data_file)[1]
-                self.document.entity(
-                    data_id, {provM.PROV_TYPE: WFPROV["Artifact"],
-                              provM.PROV_VALUE: str(value)})
-                self.document.used(
-                    process_run_id, data_id, datetime.datetime.now(), None,
-                    {"prov:role": prov_role})
 
     def generate_output_prov(self,
                              final_output,    # type: Optional[Dict[Text, Any]]
@@ -628,7 +832,7 @@ class CreateProvProfile():
 
             if process_run_id and name:
                 name = urllib.parse.quote(str(name), safe=":/,#")
-                step_prov = self.research_object.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
+                step_prov = self.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
 
                 self.document.entity(output_checksum,
                                      {provM.PROV_TYPE: WFPROV["Artifact"]})
@@ -649,35 +853,6 @@ class CreateProvProfile():
             with open(path, "rb") as cwl_output_file:
                 rel_path = self.research_object.add_data_file(cwl_output_file, when)
                 _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
-
-
-    def declare_artefact(self, relativised_input_obj, job_order_object):
-        # type: (Any, Dict) -> None
-        '''
-        create data artefact entities for all file objects.
-        '''
-        if isinstance(relativised_input_obj, dict):
-            # Base case - we found a File we need to update
-            if relativised_input_obj.get("class") == "File":
-                #create an artefact
-                shahash = "data:"+relativised_input_obj["location"].split("/")[-1]
-                self.document.entity(shahash, {provM.PROV_TYPE:WFPROV["Artifact"]})
-
-            for each_input_obj in relativised_input_obj.values():
-                self.declare_artefact(each_input_obj, job_order_object)
-            return
-
-        if isinstance(relativised_input_obj, (str, Text)):
-            # Just a string value, no need to iterate further
-            # FIXME: Should these be added as PROV entities as well?
-            return
-
-        try:
-            for each_input_obj in iter(relativised_input_obj):
-                # Recurse and rewrite any nested File objects
-                self.declare_artefact(each_input_obj, job_order_object)
-        except TypeError:
-            pass
 
     def prospective_prov(self, job):
         # type: (Any) -> None
@@ -708,32 +883,60 @@ class CreateProvProfile():
             self.document.entity(
                 "wf:main", {"wfdesc:hasSubProcess": step,
                             "prov:label": "Prospective provenance"})
-
         # TODO: Declare roles/parameters as well
 
+    def activity_has_provenance(self, activity, prov_ids):
+        # type: (str, List[Identifier]) -> None
+
+        # Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files
+        # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
+        # is a pre-registered namespace in the PROV Document
+        attribs = [ (PROV["has_provenance"], prov_id) for prov_id in prov_ids]
+        self.document.activity(activity, other_attributes=attribs)
+        # Tip: we can't use https://www.w3.org/TR/prov-links/#term-mention
+        # as prov:mentionOf() is only for entities, not activities
+        uris = [i.uri for i in prov_ids]
+        self.research_object.add_annotation(activity, uris, PROV["has_provenance"].uri)
+
     def finalize_prov_profile(self, name):
-            # type: (str) -> None
+        # type: (Optional[Text]) -> List[Identifier]
         '''
         Transfer the provenance related files to RO
         '''
         # NOTE: Relative posix path
-        wf_name = urllib.parse.quote(str(name), safe=":/,#")
-        filename = wf_name+".cwlprov"
+        if name is None:
+            # master workflow, fixed filenames
+            filename = "primary.cwlprov"
+        else:
+            # ASCII-friendly filename, avoiding % as we don't want %2520 in manifest.json
+            wf_name = urllib.parse.quote(str(name), safe="").replace("%", "_")
+            # Note that the above could cause overlaps for similarly named
+            # workflows, but that's OK as we'll also include run uuid
+            # which also covers thhe case of this step being run in
+            # multiple places or iterations
+            filename = "%s.%s.cwlprov" % (wf_name, self.workflow_run_uuid)
+
         basename = posixpath.join(_posix_path(PROVENANCE), filename)
+
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
+
+        # list of prov identifiers of provenance files
+        prov_ids = []
 
         # https://www.w3.org/TR/prov-xml/
         with self.research_object.write_bag_file(basename + ".xml") as provenance_file:
             self.document.serialize(provenance_file, format="xml", indent=4)
+            prov_ids.append(self.provenance_ns[filename + ".xml"])
 
         # https://www.w3.org/TR/prov-n/
         with self.research_object.write_bag_file(basename + ".provn") as provenance_file:
             self.document.serialize(provenance_file, format="provn", indent=2)
-
+            prov_ids.append(self.provenance_ns[filename + ".provn"])
 
         # https://www.w3.org/Submission/prov-json/
         with self.research_object.write_bag_file(basename + ".json") as provenance_file:
             self.document.serialize(provenance_file, format="json", indent=2)
+            prov_ids.append(self.provenance_ns[filename + ".json"])
 
         # "rdf" aka https://www.w3.org/TR/prov-o/
         # which can be serialized to ttl/nt/jsonld (and more!)
@@ -741,10 +944,12 @@ class CreateProvProfile():
         # https://www.w3.org/TR/turtle/
         with self.research_object.write_bag_file(basename + ".ttl") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="turtle")
+            prov_ids.append(self.provenance_ns[filename + ".ttl"])
 
         # https://www.w3.org/TR/n-triples/
         with self.research_object.write_bag_file(basename + ".nt") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="ntriples")
+            prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
         # TODO: Use a nice JSON-LD context
@@ -752,8 +957,10 @@ class CreateProvProfile():
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
         with self.research_object.write_bag_file(basename + ".jsonld") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
+            prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
-        _logger.info("[provenance] added all tag files")
+        _logger.info("[provenance] added provenance: %s" % prov_ids)
+        return prov_ids
 
 class ResearchObject():
     '''
@@ -770,13 +977,14 @@ class ResearchObject():
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
+        self._external_aggregates = [] # type: List[Dict]
+        self.annotations = [] # type: List[Dict]
+        self._content_types = {} # type: Dict[Text,str]
 
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
-        workflow_uuid = uuid.uuid4()
-        self.workflow_run_uri = workflow_uuid.urn
-        self.base_uri = "arcp://uuid,%s/" % workflow_uuid
-        self.wf_ns = Namespace("ex", "http://example.com/wf-%s#" % workflow_uuid)
+        self.ro_uuid = uuid.uuid4()
+        self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool (unknown version)"
         ##
         # This function will be added by create_job()
@@ -784,6 +992,10 @@ class ResearchObject():
 
         self._initialize()
         _logger.info(u"[provenance] Temporary research object: %s", self.folder)
+
+    def __str__(self):
+        return "ResearchObject <%s> in <%s>" % (
+            self.ro_uuid, self.folder)
 
     def _initialize(self):
         # type: (...) -> None
@@ -898,7 +1110,7 @@ class ResearchObject():
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
 
-                "txt": 'text/plain; charset="UTF-8"',
+                "txt": TEXT_PLAIN,
                 "ttl": 'text/turtle; charset="UTF-8"',
                 "rdf": 'application/rdf+xml',
                 "json": 'application/json',
@@ -950,7 +1162,7 @@ class ResearchObject():
                     local_aggregate["conformsTo"] = prov_conforms_to[extension]
             return local_aggregate
 
-        aggregates = []
+        aggregates = [] # type: List[Dict]
         for path in self.bagged_size.keys():
             aggregate_dict = {}  # type: Dict[str,Any]
 
@@ -977,6 +1189,9 @@ class ResearchObject():
             else:
                 # Probably made outside wf run, part of job object?
                 pass
+            if path in self._content_types:
+                aggregate_dict["mediatype"] = self._content_types[path]
+
             aggregates.append(aggregate_dict)
 
         for path in self.tagfiles:
@@ -989,7 +1204,7 @@ class ResearchObject():
                 # aggregate it.
                 continue
 
-            rel_aggregates = {}
+            rel_aggregates = {} # type: Dict[str,Any]
             # These are local paths like metadata/provenance - but
             # we need to relativize them for our current directory for
             # as we are saved in metadata/manifest.json
@@ -1005,15 +1220,40 @@ class ResearchObject():
                 # make new timestamp?
                 rel_aggregates.update(self._self_made())
             aggregates.append(rel_aggregates)
+        aggregates.extend(self._external_aggregates)
         return aggregates
 
+    def add_uri(self, uri, when=None):
+        # type: (str, Optional[datetime.datetime]) -> Dict
+        aggr = self._self_made(when=when)
+        aggr["uri"] = uri
+        self._external_aggregates.append(aggr)
+        return aggr
+
+    def add_annotation(self, about, content, motivatedBy="oa:describing"):
+        # type: (str, List[str], str) -> str
+
+        # poor-mans URI relativize for current directory and /
+        curr = self.base_uri + METADATA + "/"
+        content = [c.replace(curr, "")
+                    .replace(self.base_uri, "../")
+                   for c in content]
+        uri = uuid.uuid4().urn
+        ann = {
+            "uri": uri,
+            "about": about,
+            "content": content,
+            "oa:motivatedBy": {"@id": motivatedBy}
+        }
+        self.annotations.append(ann)
+        return uri
 
     def _ro_annotations(self):
         # type: () -> List[Dict]
         annotations = []
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": self.workflow_run_uri,
+            "about": self.ro_uuid.urn,
             "content": "/",
             # https://www.w3.org/TR/annotation-vocab/#named-individuals
             "oa:motivatedBy": {"@id": "oa:describing"}
@@ -1026,7 +1266,7 @@ class ResearchObject():
                       and "/primary." in p]
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": self.workflow_run_uri,
+            "about": self.ro_uuid.urn,
             "content": prov_files,
             # Modulation of https://www.w3.org/TR/prov-aq/
             "oa:motivatedBy": {"@id": "http://www.w3.org/ns/prov#has_provenance"}
@@ -1041,13 +1281,13 @@ class ResearchObject():
 
         annotations.append({
             "uri": uuid.uuid4().urn,
-            "about": self.workflow_run_uri,
+            "about": self.ro_uuid.urn,
             "content": [posixpath.join("..", WORKFLOW, "packed.cwl"),
                         posixpath.join("..", WORKFLOW, "primary-job.json")],
             "oa:motivatedBy": {"@id": "oa:linking"}
         })
-
-
+        # Add user-added annotations at end
+        annotations.extend(self.annotations)
         return annotations
 
     def _authored_by(self):
@@ -1158,9 +1398,14 @@ class ResearchObject():
             write_pack.write(packed.encode(ENCODING))
         _logger.info(u"[provenance] Added packed workflow: %s", rel_path)
 
+    def has_data_file(self, sha1hash):
+        # type: (str) -> bool
+        assert self.folder
+        folder = os.path.join(self.folder, DATA, sha1hash[0:2])
+        return os.path.isfile(os.path.join(folder, sha1hash))
 
-    def add_data_file(self, from_fp, when=None):
-        # type: (IO, Optional[datetime.datetime]) -> Text
+    def add_data_file(self, from_fp, when=None, content_type=None):
+        # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
         '''
         copies inputs to Data
         '''
@@ -1194,6 +1439,9 @@ class ResearchObject():
         if when:
             self._file_provenance[rel_path] = self._self_made(when)
         _logger.info(u"[provenance] Relative path for data file %s", rel_path)
+
+        if content_type:
+            self._content_types[rel_path] = content_type
         return rel_path
 
     def _self_made(self, when=None):
@@ -1288,6 +1536,8 @@ class ResearchObject():
             if isinstance(value, dict):
                 if value.get("class") == "File":
                     relativised_input_objecttemp[key] = value
+                if value.get("class") == "Directory":
+                    relativised_input_objecttemp[key] = value
             else:
                 relativised_input_objecttemp[key] = value
         relativised_input_object.update(
@@ -1316,6 +1566,10 @@ class ResearchObject():
                         # FIXME: This naively relies on add_data_file setting hash as filename
                         structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
                     relativised_input_objecttemp2[ref_location] = structure["location"]
+
+            if structure.get("class") == "Directory":
+                # TODO:
+                pass
 
             for val in structure.values():
                 self._relativise_files(val, relativised_input_objecttemp2)
