@@ -544,7 +544,7 @@ class CreateProvProfile():
             return self.document.entity(uuid.uuid4().urn,
                 { provM.PROV_VALUE: value })
 
-        elif isinstance(value, Text):
+        elif isinstance(value, (Text, str)):
             # Save as string in UTF-8
             byte_s = io.BytesIO(str(value).encode(ENCODING))
             data_file = self.research_object.add_data_file(byte_s)
