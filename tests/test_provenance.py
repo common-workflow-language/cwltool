@@ -27,6 +27,7 @@ import arcp
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
 PROV = Namespace("http://www.w3.org/ns/prov#")
+RO = Namespace("http://purl.org/wf4ever/ro#")
 WFDESC = Namespace("http://purl.org/wf4ever/wfdesc#")
 WFPROV = Namespace("http://purl.org/wf4ever/wfprov#")
 SCHEMA = Namespace("http://schema.org/")
@@ -123,7 +124,7 @@ class TestProvenance(unittest.TestCase):
             self.assertTrue(os.path.isfile(p),
                 "Could not find %s as %s" % (l, p))
 
-    def check_provenance(self, nested=False, single_tool=False, directory=True):
+    def check_provenance(self, nested=False, single_tool=False, directory=False):
         self.check_folders()
         self.check_bagit()
         self.check_ro(nested=nested)
@@ -357,8 +358,8 @@ class TestProvenance(unittest.TestCase):
                 # TODO: Check g2 statements that it's the same UUID activity inside
                 # as in the outer step
             if directory:
-                # TODO: Test directory
-                pass
+                directories = set(g.subjects(RDF.type, RO.Folder))
+                self.assertTrue(directories)
 
 
 class TestConvertPath(unittest.TestCase):

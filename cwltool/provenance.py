@@ -93,6 +93,8 @@ MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC = Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV = Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
+RO = Namespace("ro", 'http://purl.org/wf4ever/ro#')
+ORE = Namespace("ore", 'http://www.openarchives.org/ore/terms/')
 FOAF = Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
 SCHEMA = Namespace("schema", 'http://schema.org/')
 CWLPROV = Namespace('cwlprov', 'https://w3id.org/cwl/prov#')
@@ -373,6 +375,9 @@ class CreateProvProfile():
 
         # info only, won't really be used by prov as sub-resources use /
         self.document.add_namespace('researchobject', self.research_object.base_uri)
+        # annotations
+        self.metadata_ns = self.document.add_namespace('metadata',
+            self.research_object.base_uri + _posix_path(METADATA) + "/")
         # Pre-register provenance directory so we can refer to its files
         self.provenance_ns = self.document.add_namespace('provenance',
             self.research_object.base_uri + _posix_path(PROVENANCE) + "/")
@@ -539,8 +544,10 @@ class CreateProvProfile():
             # FIXME: Make consistent hash URIs for these
             # that somehow include the type
             # (so "1" != 1 != "1.0" != true)
-            return self.document.entity(uuid.uuid4().urn,
+            e =  self.document.entity(uuid.uuid4().urn,
                 { provM.PROV_VALUE: value })
+            self.research_object.add_uri(e.identifier.uri)
+            return e
 
         elif isinstance(value, (Text, str)):
             # Save as string in UTF-8
@@ -598,37 +605,92 @@ class CreateProvProfile():
                 # attempt to keep it inside the value dictionary
                 dir_id = value.setdefault("id",
                     uuid.uuid4().urn)
+
+                # New annotation file to keep the ORE Folder listing
+                ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
+                dir_bundle = self.document.bundle(self.metadata_ns[ore_doc_fn])
+
                 coll = self.document.entity(dir_id,
                     [ (provM.PROV_TYPE, WFPROV["Artifact"]),
                       (provM.PROV_TYPE, PROV["Collection"]),
                       (provM.PROV_TYPE, PROV["Dictionary"]),
-                      (provM.PROV_TYPE, CWLPROV["Directory"]),
+                      (provM.PROV_TYPE, RO["Folder"]),
                     ])
-                coll_attribs = [] # type ( tuple(Identifier, ProvEntity) )
+                # ORE description of ro:Folder, saved separately
+                coll_b = dir_bundle.entity(dir_id,
+                    [
+                      (provM.PROV_TYPE, RO["Folder"]),
+                      (provM.PROV_TYPE, ORE["Aggregation"]),
+                    ])
+                self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
+
+                dir_manifest = dir_bundle.entity(dir_bundle.identifier,
+                {PROV["type"]: ORE["ResourceMap"],
+                 ORE["describes"]: coll_b.identifier}
+                )
+
+                coll_attribs = [ # type ( tuple(Identifier, ProvEntity) )
+                        (ORE["isDescribedBy"], dir_bundle.identifier )
+                ]
+                coll_b_attribs = [] # type ( tuple(Identifier, ProvEntity) )
+
                 # FIXME: .listing might not be populated yet - hopefully
                 # a later call to this method will sort that
                 for f in value.get("listing", []):
                     # Declare child-artifacts
                     entity = self.declare_artefact(f)
-                    # TODO: Add filename to PROV-dictionary
                     self.document.membership(coll, entity)
-                    # Membership
-                    m = self.document.entity(uuid.uuid4().urn)
-                    # Note: only support PROV-O style dictionary
+                    # Membership relation aka our ORE Proxy
+                    m_id = uuid.uuid4().urn
+                    m = self.document.entity(m_id)
+                    m_b = dir_bundle.entity(m_id)
+
+                    # PROV-O style Dictionary
                     # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
-                    # as prov.py do not easily allow PROV-N extensions
+                    # ..as prov.py do not currently allow PROV-N extensions
+                    # like hadDictionaryMember(..)
                     m.add_asserted_type(PROV["KeyEntityPair"])
+
                     m.add_attributes({
                         PROV["pairKey"]: f["basename"],
-                        PROV["pairEntity"]: entity
+                        PROV["pairEntity"]: entity,
+                    })
+
+                    # As well as a being a
+                    # http://wf4ever.github.io/ro/2016-01-28/ro/#FolderEntry
+                    m_b.add_asserted_type(RO["FolderEntry"])
+                    m_b.add_asserted_type(ORE["Proxy"])
+                    m_b.add_attributes({
+                        RO["entryName"]: f["basename"],
+                        ORE["proxyIn"]: coll,
+                        ORE["proxyFor"]: entity,
+
                     })
                     coll_attribs.append(
                         (PROV["hadDictionaryMember"], m))
+                    coll_b_attribs.append(
+                        (ORE["aggregates"], m_b))
+
                 coll.add_attributes(coll_attribs)
+                coll_b.add_attributes(coll_b_attribs)
+
+                # Also Save ORE Folder as annotation metadata
+                ore_doc = ProvDocument()
+                ore_doc.add_namespace(ORE)
+                ore_doc.add_namespace(RO)
+                ore_doc.add_namespace(UUID)
+                ore_doc.add_bundle(dir_bundle)
+                ore_doc = ore_doc.flattened()
+                ore_doc_path = posixpath.join(_posix_path(METADATA), ore_doc_fn)
+                with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
+                    ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
+                self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
+
                 if not coll_attribs:
                     # Empty directory
                     coll.add_asserted_type(PROV["EmptyCollection"])
                     coll.add_asserted_type(PROV["EmptyDictionary"])
+                self.research_object.add_uri(coll.identifier.uri)
                 return coll
             else:
                 # some other kind of dictionary?
@@ -661,6 +723,7 @@ class CreateProvProfile():
                     coll_attribs.append(
                         (PROV["hadDictionaryMember"], m))
                 coll.add_attributes(coll_attribs)
+                self.research_object.add_uri(coll.identifier.uri)
                 return coll
 
         # some other kind of Collection?
@@ -686,13 +749,16 @@ class CreateProvProfile():
                     # we would need to use PROV.Dictionary
                     # with numeric keys
                     self.document.membership(coll, e)
+            self.research_object.add_uri(coll.identifier.uri)
             return coll
         except TypeError:
             _logger.warning("Unrecognized type %s of %r" %
                 (type(value), value))
             # Let's just fall back to Python repr()
-            return self.document.entity(uuid.uuid4().urn,
+            e = self.document.entity(uuid.uuid4().urn,
                 { provM.PROV_LABEL: repr(value) })
+            self.research_object.add_uri(e.identifier.uri)
+            return e
 
     def used_artefacts(self,
                        job_order,            # type: Dict
@@ -909,6 +975,7 @@ class ResearchObject():
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
+        self._external_aggregates = [] # type: List[Dict]
         self.annotations = [] # type: List[Dict]
         self._content_types = {} # type: Dict[Text,str]
 
@@ -1093,7 +1160,7 @@ class ResearchObject():
                     local_aggregate["conformsTo"] = prov_conforms_to[extension]
             return local_aggregate
 
-        aggregates = []
+        aggregates = [] # type: List[Dict]
         for path in self.bagged_size.keys():
             aggregate_dict = {}  # type: Dict[str,Any]
 
@@ -1133,10 +1200,9 @@ class ResearchObject():
             if path == posixpath.join(METADATA, "manifest.json"):
                 # Should not really be there yet! But anyway, we won't
                 # aggregate it.
-
                 continue
 
-            rel_aggregates = {}
+            rel_aggregates = {} # type: Dict[str,Any]
             # These are local paths like metadata/provenance - but
             # we need to relativize them for our current directory for
             # as we are saved in metadata/manifest.json
@@ -1152,7 +1218,15 @@ class ResearchObject():
                 # make new timestamp?
                 rel_aggregates.update(self._self_made())
             aggregates.append(rel_aggregates)
+        aggregates.extend(self._external_aggregates)
         return aggregates
+
+    def add_uri(self, uri, when=None):
+        # type: (str, Optional[datetime.datetime]) -> Dict
+        aggr = self._self_made(when=when)
+        aggr["uri"] = uri
+        self._external_aggregates.append(aggr)
+        return aggr
 
     def add_annotation(self, about, content, motivatedBy="oa:describing"):
         # type: (str, List[str], str) -> str
