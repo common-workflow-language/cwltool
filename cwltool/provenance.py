@@ -101,14 +101,12 @@ UUID = Namespace("id", "urn:uuid:")
 
 # BagIt and YAML always use UTF-8
 ENCODING = "UTF-8"
-
+TEXT_PLAIN = 'text/plain; charset="%s"' % ENCODING
 
 # sha1, compatible with the File type's "checksum" field
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
 Hasher = hashlib.sha1
-
-
 
 # TODO: Better identifiers for user, at least
 # these should be preserved in ~/.config/cwl for every execution
@@ -547,7 +545,7 @@ class CreateProvProfile():
         elif isinstance(value, (Text, str)):
             # Save as string in UTF-8
             byte_s = io.BytesIO(str(value).encode(ENCODING))
-            data_file = self.research_object.add_data_file(byte_s)
+            data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
             # FIXME: Don't naively assume add_data_file uses hash in filename!
             data_id = "data:%s" % posixpath.split(data_file)[1]
             return self.document.entity(data_id,
@@ -634,6 +632,7 @@ class CreateProvProfile():
                 return coll
             else:
                 # some other kind of dictionary?
+                # TODO: also Save as JSON
                 coll = self.document.entity(uuid.uuid4().urn,
                         [ (provM.PROV_TYPE, WFPROV["Artifact"]),
                         (provM.PROV_TYPE, PROV["Collection"]),
@@ -665,6 +664,7 @@ class CreateProvProfile():
                 return coll
 
         # some other kind of Collection?
+        # TODO: also save as JSON
         try:
             members = []
             for each_input_obj in iter(value):
@@ -910,6 +910,7 @@ class ResearchObject():
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
         self.annotations = [] # type: List[Dict]
+        self._content_types = {} # type: Dict[Text,str]
 
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
@@ -1040,7 +1041,7 @@ class ResearchObject():
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
 
-                "txt": 'text/plain; charset="UTF-8"',
+                "txt": TEXT_PLAIN,
                 "ttl": 'text/turtle; charset="UTF-8"',
                 "rdf": 'application/rdf+xml',
                 "json": 'application/json',
@@ -1119,6 +1120,9 @@ class ResearchObject():
             else:
                 # Probably made outside wf run, part of job object?
                 pass
+            if path in self._content_types:
+                aggregate_dict["mediatype"] = self._content_types[path]
+
             aggregates.append(aggregate_dict)
 
         for path in self.tagfiles:
@@ -1324,8 +1328,8 @@ class ResearchObject():
         folder = os.path.join(self.folder, DATA, sha1hash[0:2])
         return os.path.isfile(os.path.join(folder, sha1hash))
 
-    def add_data_file(self, from_fp, when=None):
-        # type: (IO, Optional[datetime.datetime]) -> Text
+    def add_data_file(self, from_fp, when=None, content_type=None):
+        # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
         '''
         copies inputs to Data
         '''
@@ -1359,6 +1363,9 @@ class ResearchObject():
         if when:
             self._file_provenance[rel_path] = self._self_made(when)
         _logger.info(u"[provenance] Relative path for data file %s", rel_path)
+
+        if content_type:
+            self._content_types[rel_path] = content_type
         return rel_path
 
     def _self_made(self, when=None):
