@@ -361,6 +361,37 @@ class TestProvenance(unittest.TestCase):
                 directories = set(g.subjects(RDF.type, RO.Folder))
                 self.assertTrue(directories)
 
+                for d in directories:
+                    self.assertTrue((d,RDF.type,PROV.Dictionary) in g)
+                    self.assertTrue((d,RDF.type,PROV.Collection) in g)
+                    self.assertTrue((d,RDF.type,PROV.Entity) in g)
+
+                    files = set()
+                    for entry in g.objects(d, PROV.hadDictionaryMember):
+                        self.assertTrue((entry,RDF.type,PROV.KeyEntityPair) in g)
+                        # We don't check what that filename is here
+                        self.assertTrue(set(g.objects(entry,PROV.pairKey)))
+
+                        # RO:Folder aspect
+                        self.assertTrue(set(g.objects(entry,RO.entryName)))
+                        self.assertTrue((d,ORE.aggregates,entry) in g)
+                        self.assertTrue((entry,RDF.type,RO.FolderEntry) in g)
+                        self.assertTrue((entry,RDF.type,ORE.Proxy) in g)
+                        self.assertTrue((entry,ORE.proxyIn,d) in g)
+                        self.assertTrue((entry,ORE.proxyIn,d) in g)
+
+                        # Which file?
+                        entities = set(g.objects(entry, PROV.pairEntity))
+                        self.assertTrue(entities)
+                        f = entities.pop()
+                        files.add(f)
+                        self.assertTrue((entry,ORE.proxyFor,f) in g)
+                        self.assertTrue((f,RDF.type,PROV.Entity) in g)
+
+                    if not files:
+                        self.assertTrue((d,RDF.type,PROV.EmptyCollection) in g)
+                        self.assertTrue((d,RDF.type,PROV.EmptyDictionary) in g)
+
 
 class TestConvertPath(unittest.TestCase):
     def test_nt_to_posix(self):

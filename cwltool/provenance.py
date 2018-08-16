@@ -636,7 +636,9 @@ class CreateProvProfile():
 
                 # FIXME: .listing might not be populated yet - hopefully
                 # a later call to this method will sort that
+                is_empty = True
                 for f in value.get("listing", []):
+                    is_empty = False
                     # Declare child-artifacts
                     entity = self.declare_artefact(f)
                     self.document.membership(coll, entity)
@@ -686,7 +688,7 @@ class CreateProvProfile():
                     ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
                 self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
 
-                if not coll_attribs:
+                if is_empty:
                     # Empty directory
                     coll.add_asserted_type(PROV["EmptyCollection"])
                     coll.add_asserted_type(PROV["EmptyDictionary"])
