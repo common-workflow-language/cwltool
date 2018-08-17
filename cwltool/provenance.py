@@ -532,6 +532,79 @@ class CreateProvProfile():
                 None, None)
         return process_run_id
 
+    def declare_file(self, value):
+        # type: (Dict) -> Tuple[ProvEntity,ProvEntity,str]
+        if value["class"] != "File":
+            raise ValueError("Must have class:File" % value)
+        # Need to determine file hash aka RO filename
+        entity = None
+        checksum = None
+        if 'checksum' in value:
+            csum = value['checksum']
+            (method, checksum) = csum.split("$", 1)
+            if method == SHA1 and \
+                self.research_object.has_data_file(checksum):
+                entity = self.document.entity("data:" + checksum)
+
+        if not entity and 'location' in value:
+            location = str(value['location'])
+            # If we made it here, we'll have to add it to the RO
+            assert self.research_object.make_fs_access
+            fsaccess = self.research_object.make_fs_access("")
+            with fsaccess.open(location, "rb") as fhandle:
+                relative_path = self.research_object.add_data_file(fhandle)
+                # FIXME: This naively relies on add_data_file setting hash as filename
+                checksum = posixpath.basename(relative_path)
+                entity = self.document.entity("data:" + checksum,
+                    {provM.PROV_TYPE: WFPROV["Artifact"]})
+                if "checksum" not in value:
+                    value["checksum"] = "%s$%s" % (SHA1, checksum)
+
+
+        if not entity and 'content' in value:
+            # Anonymous file, add content as string
+            entity = self.declare_artefact(value["content"])
+            checksum = None # TODO
+
+        # By here one of them should have worked!
+        if not entity:
+            raise ValueError("class:File but missing checksum/location/content: %r" % value)
+
+
+        # Track filename and extension, this is generally useful only for
+        # secondaryFiles. Note that multiple uses of a file might thus record
+        # different names for the same entity, so we'll
+        # make/track a specialized entity by UUID
+        file_id = value.setdefault("@id", uuid.uuid4().urn)
+        # A specialized entity that has just these names
+        file_entity = self.document.entity(file_id,
+            [(provM.PROV_TYPE, WFPROV["Artifact"]),
+                (provM.PROV_TYPE, WF4EVER["File"])
+            ])
+
+        if "basename" in value:
+            file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
+        if "nameroot" in value:
+            file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
+        if "nameext" in value:
+            file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
+        self.document.specializationOf(file_entity, entity)
+
+        # Check for secondaries
+        for sec in value.get("secondaryFiles", ()):
+            # TODO: Record these in a specializationOf entity with UUID?
+            (sec_entity,_,_) = self.declare_file(sec)
+            # We don't know how/when/where the secondary file was generated,
+            # but CWL convention is a kind of summary/index derived
+            # from the original file. As its generally in a different format
+            # then prov:Quotation is not appropriate.
+            self.document.derivation(sec_entity, file_entity,
+                other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
+            # TODO: Add to self.secondaries so it can later
+            # be augmented into primary-job.json
+
+        return file_entity, entity, checksum
+
     def declare_artefact(self, value):
         # type: (Any) -> ProvEntity
         '''
@@ -584,74 +657,9 @@ class CreateProvProfile():
 
             # Base case - we found a File we need to update
             if value.get("class") == "File":
-                # Need to determine file hash aka RO filename
-                entity = None
-                if 'checksum' in value:
-                    csum = value['checksum']
-                    (method, checksum) = csum.split("$", 1)
-                    if method == SHA1 and \
-                        self.research_object.has_data_file(checksum):
-                        entity = self.document.entity("data:" + checksum)
-
-                if not entity and 'location' in value:
-                    location = str(value['location'])
-                    # If we made it here, we'll have to add it to the RO
-                    assert self.research_object.make_fs_access
-                    fsaccess = self.research_object.make_fs_access("")
-                    with fsaccess.open(location, "rb") as fhandle:
-                        relative_path = self.research_object.add_data_file(fhandle)
-                        # FIXME: This naively relies on add_data_file setting hash as filename
-                        checksum = posixpath.basename(relative_path)
-                        entity = self.document.entity("data:" + checksum,
-                            {provM.PROV_TYPE: WFPROV["Artifact"]})
-                        if "checksum" not in value:
-                            value["checksum"] = "%s$%s" % (SHA1, checksum)
-
-
-                if not entity and 'content' in value:
-                    # Anonymous file, add content as string
-                    entity = self.declare_artefact(value["content"])
-
-                # By here one of them should have worked!
-                if not entity:
-                    raise ValueError("class:File but missing checksum/location/content: %r" % value)
-
-
-                # Track filename and extension, this is generally useful only for
-                # secondaryFiles. Note that multiple uses of a file might thus record
-                # different names for the same entity, so we'll
-                # make/track a specialized entity by UUID
-                file_id = value.setdefault("@id", uuid.uuid4().urn)
-                # A specialized entity that has just these names
-                file_entity = self.document.entity(file_id,
-                    [(provM.PROV_TYPE, WFPROV["Artifact"]),
-                     (provM.PROV_TYPE, WF4EVER["File"])
-                    ])
-
-                if "basename" in value:
-                    file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
-                if "nameroot" in value:
-                    file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
-                if "nameext" in value:
-                    file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
-                self.document.specializationOf(file_entity, entity)
-
-                # Check for secondaries
-                for sec in value.get("secondaryFiles", ()):
-                    # TODO: Record these in a specializationOf entity with UUID?
-                    sec_entity = self.declare_artefact(sec)
-                    # We don't know how/when/where the secondary file was generated,
-                    # but CWL convention is a kind of summary/index derived
-                    # from the original file. As its generally in a different format
-                    # then prov:Quotation is not appropriate.
-                    self.document.derivation(sec_entity, file_entity,
-                        other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
-                    # TODO: Add to self.secondaries so it can later
-                    # be augmented into primary-job.json
-
-                # Return the UUID file_entity so that we
-                # know which filenames were used/generated in this activity
-                return file_entity
+                (entity,_,_) = self.declare_file(value)
+                value["@id"] = entity.identifier.uri
+                return entity
 
             elif value.get("class") == "Directory":
                 # Register any nested files/directories
@@ -1564,6 +1572,7 @@ class ResearchObject():
         '''
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
+
         if isinstance(structure, dict):
             if structure.get("class") == "File" and "location" in structure:
                 #standardised fs access object creation
