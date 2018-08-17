@@ -1575,27 +1575,30 @@ class ResearchObject():
 
         if isinstance(structure, dict):
             if structure.get("class") == "File" and "location" in structure:
-                #standardised fs access object creation
-                assert self.make_fs_access
-                fsaccess = self.make_fs_access("")
-                # Store in RO and set "location" as ../data/ab/abcd...
-                with fsaccess.open(structure["location"], "rb") as relative_file:
-                    relative_path = self.add_data_file(relative_file)
-                    ref_location = structure["location"]
-                    ## FIXME: might this break something else while running wf?
-                    structure["location"] = "../"+relative_path
-                    if "path" in structure:
-                        del structure["path"]
-                    if "checksum" not in structure:
-                        # FIXME: This naively relies on add_data_file setting hash as filename
+                if "checksum" in structure:
+                    sha1,checksum = structure["checksum"].split("$")
+                    assert sha1 == SHA1
+                    prefix = checksum[0:2]
+                    relative_path = "../%s/%s" % (prefix,checksum)
+                else:
+                    # Register in RO anyway; but why was this not picked
+                    # up by used_artefacts?
+                    _logger.warning("File not previously registered in RO: %s", structure)
+                    fsaccess = self.make_fs_access("")
+                    with fsaccess.open(structure["location"], "rb") as fp:
+                        relative_path = self.add_data_file(fp)
                         checksum = posixpath.basename(relative_path)
                         structure["checksum"] = "%s$%s" % (SHA1, checksum)
-                # TODO: Calculate secondaryFiles if needed but missing
+
+                # RO-relative path as new location
+                structure["location"] = relative_path
+                if "path" in structure:
+                    del structure["path"]
 
             if structure.get("class") == "Directory":
                 # TODO: Generate anonymoys Directory with a "listing"
                 # pointing to the hashed files
-                pass
+                del structure["location"]
 
             for val in structure.values():
                 self._relativise_files(val)
