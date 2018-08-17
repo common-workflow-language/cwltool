@@ -93,6 +93,7 @@ MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC = Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV = Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
+WF4EVER = Namespace("wf4ever", 'http://purl.org/wf4ever/wf4ever#')
 RO = Namespace("ro", 'http://purl.org/wf4ever/ro#')
 ORE = Namespace("ore", 'http://www.openarchives.org/ore/terms/')
 FOAF = Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
@@ -109,6 +110,9 @@ TEXT_PLAIN = 'text/plain; charset="%s"' % ENCODING
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
 Hasher = hashlib.sha1
+SHA1="sha1"
+SHA256="sha256"
+SHA512="sha512"
 
 # TODO: Better identifiers for user, at least
 # these should be preserved in ~/.config/cwl for every execution
@@ -160,9 +164,9 @@ class WritableBagFile(io.FileIO):
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         self.rel_path = rel_path
-        self.hashes = {"sha1": hashlib.sha1(),
-                       "sha256": hashlib.sha256(),
-                       "sha512": hashlib.sha512()}
+        self.hashes = {SHA1: hashlib.sha1(),
+                       SHA256: hashlib.sha256(),
+                       SHA512: hashlib.sha512()}
         # Open file in Research Object folder
         if research_object.folder:
             path = os.path.abspath(os.path.join(research_object.folder, _local_path(rel_path)))
@@ -327,6 +331,7 @@ class CreateProvProfile():
         self.workflow_run_uuid = run_uuid
         self.workflow_run_uri = run_uuid.urn
         self.generate_prov_doc()
+        self.secondaries = {}
 
     def __str__(self):
         return "CreateProvProfile <%s> in <%s>" % (
@@ -371,7 +376,7 @@ class CreateProvProfile():
         #  https://tools.ietf.org/html/rfc6920#section-7
         self.document.add_namespace('data', 'urn:hash::sha1:')
         # Also needed for docker images
-        self.document.add_namespace("sha256", "nih:sha-256;")
+        self.document.add_namespace(SHA256, "nih:sha-256;")
 
         # info only, won't really be used by prov as sub-resources use /
         self.document.add_namespace('researchobject', self.research_object.base_uri)
@@ -567,30 +572,83 @@ class CreateProvProfile():
                 provM.PROV_VALUE: str(value)})
 
         elif isinstance(value, dict):
+            if "@id" in value:
+                # Already processed this value, but it might not be in this PROV
+                entities = self.document.get_record(value["@id"])
+                if entities:
+                    return entities[0]
+                # else, unknown in PROV, re-add below as if it's fresh
+
             # Base case - we found a File we need to update
             if value.get("class") == "File":
+                # Need to determine file hash aka RO filename
+                entity = None
                 if 'checksum' in value:
                     csum = value['checksum']
                     (method, checksum) = csum.split("$", 1)
-                    if method == "sha1" and \
+                    if method == SHA1 and \
                         self.research_object.has_data_file(checksum):
-                        return self.document.entity("data:" + checksum)
+                        entity = self.document.entity("data:" + checksum)
 
-                if 'location' in value:
-                    # FIXME: cope with file literals.
+                if not entity and 'location' in value:
                     location = str(value['location'])
                     # If we made it here, we'll have to add it to the RO
                     assert self.research_object.make_fs_access
                     fsaccess = self.research_object.make_fs_access("")
                     with fsaccess.open(location, "rb") as fhandle:
                         relative_path = self.research_object.add_data_file(fhandle)
+                        # FIXME: This naively relies on add_data_file setting hash as filename
                         checksum = posixpath.basename(relative_path)
-                        return self.document.entity("data:" + checksum,
+                        entity = self.document.entity("data:" + checksum,
                             {provM.PROV_TYPE: WFPROV["Artifact"]})
+                        if "checksum" not in value:
+                            value["checksum"] = "%s$%s" % (SHA1, checksum)
 
-                if 'content' in value:
+
+                if not entity and 'content' in value:
                     # Anonymous file, add content as string
-                    return self.declare_artefact(value["content"])
+                    entity = self.declare_artefact(value["content"])
+
+                # By here one of them should have worked!
+                if not entity:
+                    raise ValueError("class:File but missing checksum/location/content: %r" % value)
+
+
+                # Track filename and extension, this is generally useful only for
+                # secondaryFiles. Note that multiple uses of a file might thus record
+                # different names for the same entity, so we'll
+                # make/track a specialized entity by UUID
+                file_id = value.setdefault("@id", uuid.uuid4().urn)
+                # A specialized entity that has just these names
+                file_entity = self.document.entity(file_id,
+                    [(provM.PROV_TYPE, WFPROV["Artifact"]),
+                     (provM.PROV_TYPE, WF4EVER["File"])
+                    ])
+
+                if "basename" in value:
+                    file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
+                if "nameroot" in value:
+                    file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
+                if "nameext" in value:
+                    file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
+                self.document.specializationOf(file_entity, entity)
+
+                # Check for secondaries
+                for sec in value.get("secondaryFiles", ()):
+                    # TODO: Record these in a specializationOf entity with UUID?
+                    sec_entity = self.declare_artefact(sec)
+                    # We don't know how/when/where the secondary file was generated,
+                    # but CWL convention is a kind of summary/index derived
+                    # from the original file. As its generally in a different format
+                    # then prov:Quotation is not appropriate.
+                    self.document.derivation(sec_entity, file_entity,
+                        other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
+                    # TODO: Add to self.secondaries so it can later
+                    # be augmented into primary-job.json
+
+                # Return the UUID file_entity so that we
+                # know which filenames were used/generated in this activity
+                return file_entity
 
             elif value.get("class") == "Directory":
                 # Register any nested files/directories
@@ -600,7 +658,7 @@ class CreateProvProfile():
                 # in a different location.
                 # For now, mint a new UUID to identify this directory, but
                 # attempt to keep it inside the value dictionary
-                dir_id = value.setdefault("id",
+                dir_id = value.setdefault("@id",
                     uuid.uuid4().urn)
 
                 # New annotation file to keep the ORE Folder listing
@@ -692,13 +750,16 @@ class CreateProvProfile():
                 self.research_object.add_uri(coll.identifier.uri)
                 return coll
             else:
+                coll_id = value.setdefault("@id",
+                    uuid.uuid4().urn)
                 # some other kind of dictionary?
                 # TODO: also Save as JSON
-                coll = self.document.entity(uuid.uuid4().urn,
+                coll = self.document.entity(coll_id,
                         [ (provM.PROV_TYPE, WFPROV["Artifact"]),
                         (provM.PROV_TYPE, PROV["Collection"]),
                         (provM.PROV_TYPE, PROV["Dictionary"]),
                         ])
+                value
 
                 if value.get("class"):
                     _logger.warn("Unknown data class " + value["class"])
@@ -749,6 +810,7 @@ class CreateProvProfile():
                     # with numeric keys
                     self.document.membership(coll, e)
             self.research_object.add_uri(coll.identifier.uri)
+            # FIXME: list value does not support adding "@id"
             return coll
         except TypeError:
             _logger.warning("Unrecognized type %s of %r" %
@@ -786,70 +848,26 @@ class CreateProvProfile():
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
-        # A bit too late, but we don't know the "inner" when
-        def array_output(key, current_l):
-            # type: (Any, List) -> List
-            '''
-            helper function for generate_output_prov()
-            for the case when we have an array of files as output
-            '''
-            new_l = []
-            for out_file in current_l:
-                if isinstance(out_file, dict):
-                    new_l.append((key, out_file['checksum'], out_file['location']))
-
-            return new_l
-
-        def dict_output(key, current_dict):
-            # type: (Any, Dict) -> List
-            '''
-            helper function for generate_output_prov()
-            for the case when the output is key:value where value is a file item
-            '''
-            new_d = []
-            if current_dict.get("class") == "File":
-                new_d.append((key, current_dict['checksum'], current_dict['location']))
-            return new_d
-
+        # Record "when" as early as possible
         when = datetime.datetime.now()
-        key_files = []  # type: List[List[Any]]
-        if final_output:
-            for key, value in final_output.items():
 
-                if isinstance(value, list):
-                    key_files.append(array_output(key, value))
-                elif isinstance(value, dict):
-                    key_files.append(dict_output(key, value))
-
-        merged_total = list(itertools.chain.from_iterable(key_files))
-        #generate data artefacts at workflow level
-        for tuple_entry in merged_total:
-            # FIXME: What are these magic array[][] positions???
-            output_checksum = "data:"+str(tuple_entry[1][5:])
-
-            if process_run_id and name:
+        # For each output, find/register the corresponding
+        # entity (UUID) and document it as generated in
+        # a role corresponding to the output
+        for output, value in final_output.items():
+            entity = self.declare_artefact(value)
+            if name:
                 name = urllib.parse.quote(str(name), safe=":/,#")
-                step_prov = self.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
-
-                self.document.entity(output_checksum,
-                                     {provM.PROV_TYPE: WFPROV["Artifact"]})
-                self.document.wasGeneratedBy(
-                    output_checksum, process_run_id, when, None,
-                    {"prov:role": step_prov})
+                # FIXME: Probably not "main" in nested workflows
+                role = self.wf_ns["main/%s/%s" % (name, output)]
             else:
-                output_prov_role = self.wf_ns["main/"+str(tuple_entry[0])]
-                self.document.entity(output_checksum,
-                                     {provM.PROV_TYPE: WFPROV["Artifact"]})
-                self.document.wasGeneratedBy(
-                    output_checksum, self.workflow_run_uri, when, None,
-                    {"prov:role": output_prov_role})
-                # FIXME: What are these magic array positions???
-            path = tuple_entry[2]
-            if path.startswith("file://"):
-                path = path[7:]
-            with open(path, "rb") as cwl_output_file:
-                rel_path = self.research_object.add_data_file(cwl_output_file, when)
-                _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
+                role = self.wf_ns["main/%s" % output]
+
+            if not process_run_id:
+                process_run_id = self.workflow_run_uri
+
+            self.document.wasGeneratedBy(entity, process_run_id,
+                when, None, {"prov:role": role})
 
     def prospective_prov(self, job):
         # type: (Any) -> None
@@ -1081,15 +1099,15 @@ class ResearchObject():
             # Below probably OK for now as metadata files
             # are not too large..?
 
-            checksums["sha1"] = checksum_copy(tag_file, hasher=hashlib.sha1)
+            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
             tag_file.seek(0)
             # Older Python's might not have all checksums
             if sha256:
                 tag_file.seek(0)
-                checksums["sha256"] = checksum_copy(tag_file, hasher=sha256)
+                checksums[SHA256] = checksum_copy(tag_file, hasher=sha256)
             if sha512:
                 tag_file.seek(0)
-                checksums["sha512"] = checksum_copy(tag_file, hasher=sha512)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=sha512)
         assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -1495,12 +1513,12 @@ class ResearchObject():
             return
         self.bagged_size[rel_path] = os.path.getsize(local_path)
 
-        if "sha1" not in checksums:
+        if SHA1 not in checksums:
             # ensure we always have sha1
             checksums = dict(checksums)
             with open(local_path, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                checksums["sha1"] = checksum_copy(file_path, hasher=hashlib.sha1)
+                checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
 
         self.add_to_manifest(rel_path, checksums)
 
@@ -1554,12 +1572,14 @@ class ResearchObject():
                 with fsaccess.open(structure["location"], "rb") as relative_file:
                     relative_path = self.add_data_file(relative_file)
                     ref_location = structure["location"]
-                    structure["location"] = "../"+relative_path
+                    ## FIXME: This might break something else
+                    ##structure["location"] = "../"+relative_path
                     if "path" in structure:
                         del structure["path"]
                     if "checksum" not in structure:
                         # FIXME: This naively relies on add_data_file setting hash as filename
-                        structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
+                        checksum = posixpath.basename(relative_path)
+                        structure["checksum"] = "%s$%s" % (SHA1, checksum)
                 # TODO: Calculate secondaryFiles if needed but missing
 
             if structure.get("class") == "Directory":
