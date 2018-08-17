@@ -89,8 +89,8 @@ class TestProvenance(unittest.TestCase):
 
     def test_secondary_files_implicit(self):
         tmpdir = tempfile.mkdtemp("test_secondary_files_implicit")
-        file1 = os.path.join(tmpdir, "file.txt")
-        file1idx = os.path.join(tmpdir, "file.txt.idx")
+        file1 = os.path.join(tmpdir, "foo1.txt")
+        file1idx = os.path.join(tmpdir, "foo1.txt.idx")
 
         with open(file1, "w", encoding="ascii") as f:
             f.write("foo")
