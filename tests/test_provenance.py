@@ -10,6 +10,7 @@ from cwltool.main import main
 import shutil
 import pytest
 from cwltool.utils import onWindows
+from cwltool.resolver import Path
 
 # Module to be tested
 from cwltool import provenance
@@ -34,7 +35,6 @@ WFPROV = Namespace("http://purl.org/wf4ever/wfprov#")
 SCHEMA = Namespace("http://schema.org/")
 CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
-
 
 
 @pytest.mark.skipif(onWindows(),
@@ -262,12 +262,18 @@ class TestProvenance(unittest.TestCase):
         arcp_root = self.find_arcp()
         base = urllib.parse.urljoin(arcp_root, "metadata/manifest.json")
         g = Graph()
-        with open(manifest_file, "rb") as f:
-            # Note: This will use https://w3id.org/bundle/context
-            g.parse(file=f, format="json-ld", publicID=base)
+
+        # Avoid resolving JSON-LD context https://w3id.org/bundle/context
+        # so this test works offline
+        context = Path(get_data("tests/bundle-context.jsonld")).as_uri()
+        with open(manifest_file, "r", encoding="UTF-8") as f:
+            jsonld = f.read()
+            # replace with file:/// URI
+            jsonld = jsonld.replace("https://w3id.org/bundle/context", context)
+        g.parse(data=jsonld, format="json-ld", publicID=base)
         if os.environ.get("DEBUG"):
             print("Parsed manifest:\n\n")
-            g.serialize(sys.stdout, format="nt")
+            g.serialize(sys.stdout, format="ttl")
         ro = None
 
         for ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
@@ -374,7 +380,7 @@ class TestProvenance(unittest.TestCase):
             g.parse(file=f, format="nt", publicID=arcp_root)
         if os.environ.get("DEBUG"):
             print("Parsed %s:\n\n" % prov_file)
-            g.serialize(sys.stdout, format="nt")
+            g.serialize(sys.stdout, format="ttl")
         runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
 
         # master workflow run URI (as urn:uuid:) should correspond to arcp uuid part
