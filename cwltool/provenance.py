@@ -472,13 +472,15 @@ class CreateProvProfile():
         process_run_id = None
         research_obj = runtimeContext.research_obj
         assert research_obj is not None
+        research_obj.make_fs_access = make_fs_access
         if not hasattr(process, "steps"):
             # record provenance of an independent commandline tool execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
+            self.used_artefacts(customised_job, self.workflow_run_uri)
             inputs = research_obj.create_job(
-                    customised_job, make_fs_access)
-            self.used_artefacts(inputs, self.workflow_run_uri)
+                    customised_job)
+            #self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
                 name = str(job.name)
@@ -487,9 +489,10 @@ class CreateProvProfile():
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
+            self.used_artefacts(customised_job, self.workflow_run_uri)
             inputs = research_obj.create_job(
-                    customised_job, make_fs_access)
-            self.used_artefacts(inputs, self.workflow_run_uri)
+                    customised_job)
+            #self.used_artefacts(inputs, self.workflow_run_uri)
         else:  # in case of commandline tool execution as part of workflow
             name = ""
             if hasattr(job, "name"):
@@ -1524,7 +1527,6 @@ class ResearchObject():
 
     def create_job(self,
                    job,             # type: Dict
-                   make_fs_access,  # type: Callable[[Text], StdFsAccess]
                   ):  # type: (...) -> Dict
         #TODO customise the file
         '''
@@ -1532,7 +1534,6 @@ class ResearchObject():
         a json file containing the relative paths and link to the associated
         cwl document
         '''
-        self.make_fs_access = make_fs_access
         relativised_input_objecttemp = {}  # type: Dict[Any,Any]
         self._relativise_files(job)
 
@@ -1572,8 +1573,8 @@ class ResearchObject():
                 with fsaccess.open(structure["location"], "rb") as relative_file:
                     relative_path = self.add_data_file(relative_file)
                     ref_location = structure["location"]
-                    ## FIXME: This might break something else
-                    ##structure["location"] = "../"+relative_path
+                    ## FIXME: might this break something else while running wf?
+                    structure["location"] = "../"+relative_path
                     if "path" in structure:
                         del structure["path"]
                     if "checksum" not in structure:
