@@ -79,7 +79,7 @@ with open(sys.argv[1], "r") as f:
         stderr = open(stderr_path, "wb")
     else:
         stderr = sys.stderr
-    if os.name == 'nt'
+    if os.name == 'nt':
         close_fds = False
         for key, value in env.items():
             env[key] = str(value)
