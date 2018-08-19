@@ -74,10 +74,10 @@ source bin/activate
 rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
-package_tar="${package}*tar.gz"
+package_tar=${package}*tar.gz
 pip install "-r${DIR}/test-requirements.txt"
 #pip install 'galaxy-lib==17.09.3'
-pip install "${package_tar}"  # [deps]
+pip install ${package_tar}  # [deps]
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*
