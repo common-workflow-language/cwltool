@@ -1,0 +1,22 @@
+from __future__ import absolute_import
+
+from .util import get_data, needs_docker
+from .test_examples import TestCmdLine
+
+
+class TestBetaDependenciesResolver(TestCmdLine):
+
+    @needs_docker
+    def test_biocontainers(self):
+        wflow = get_data("tests/seqtk_seq.cwl")
+        job = get_data("tests/seqtk_seq_job.json")
+        error_code, stdout, stderr = self.get_main_output(
+            ["--beta-use-biocontainers", wflow, job])
+        assert error_code is 0
+
+    def test_bioconda(self):
+        wflow = get_data("tests/seqtk_seq.cwl")
+        job = get_data("tests/seqtk_seq_job.json")
+        error_code, stdout, stderr = self.get_main_output(
+            ["--beta-conda-dependencies", wflow, job])
+        assert error_code is 0
