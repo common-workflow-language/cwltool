@@ -79,9 +79,10 @@ with open(sys.argv[1], "r") as f:
         stderr = open(stderr_path, "wb")
     else:
         stderr = sys.stderr
+    close_fds = not os.name == 'nt'
     sp = subprocess.Popen(commands,
                           shell=False,
-                          close_fds=True,
+                          close_fds=close_fds,
                           stdin=stdin,
                           stdout=stdout,
                           stderr=stderr,
