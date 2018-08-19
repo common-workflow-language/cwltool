@@ -20,7 +20,7 @@ class TestDefaultDockerWarning(unittest.TestCase):
                 self.requirements=[]
                 self.hints=[]
 
-            def find_default_container(args, builder):
+            def find_default_container(self, args, builder):
                 return windows_default_container_id
 
         TestObject = TestCommandLineTool()
