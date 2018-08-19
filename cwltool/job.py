@@ -79,7 +79,12 @@ with open(sys.argv[1], "r") as f:
         stderr = open(stderr_path, "wb")
     else:
         stderr = sys.stderr
-    close_fds = not os.name == 'nt'
+    if os.name == 'nt'
+        close_fds = False
+        for key, value in env.items():
+            env[key] = str(value)
+    else:
+        close_fds = True
     sp = subprocess.Popen(commands,
                           shell=False,
                           close_fds=close_fds,
