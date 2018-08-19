@@ -29,7 +29,7 @@ then
 		&& pip install --force-reinstall -U pip==${pipver} \
 	        && pip install setuptools==${setuptoolsver} wheel
 	make install-dep
-	pip install 'galaxy-lib>=17.09.3'
+	#pip install 'galaxy-lib>=17.09.3'
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	mkdir testenv1/not-${module}
@@ -54,7 +54,7 @@ rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
 #pip install 'galaxy-lib==17.09.3'
-pip install -e "git+${repo}@${HEAD}#egg=${package}[deps]"
+pip install -e "git+${repo}@${HEAD}#egg=${package}"  #[deps]
 cd src/${package}
 make install-dep
 make dist
@@ -77,7 +77,7 @@ rm lib/python-wheels/setuptools* \
 package_tar="${package}*tar.gz"
 pip install "-r${DIR}/test-requirements.txt"
 #pip install 'galaxy-lib==17.09.3'
-pip install "${package_tar}[deps]"
+pip install "${package_tar}"  # [deps]
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*

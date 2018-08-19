@@ -14,6 +14,8 @@ class TestBetaDependenciesResolver(TestCmdLine):
         job = get_data("tests/seqtk_seq_job.json")
         error_code, stdout, stderr = self.get_main_output(
             ["--beta-use-biocontainers", wflow, job])
+        print(stderr)
+        print(stdout)
         assert error_code is 0
 
     def test_bioconda(self):
