@@ -20,6 +20,7 @@ from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-impo
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import shellescape
 from schema_salad.sourceline import SourceLine
+import six
 from six import with_metaclass
 from prov.model import PROV
 
@@ -41,11 +42,11 @@ needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
-SHELL_COMMAND_TEMPLATE = """#!/bin/bash
+SHELL_COMMAND_TEMPLATE = u"""#!/bin/bash
 python "run_job.py" "job.json"
 """
 
-PYTHON_RUN_SCRIPT = """
+PYTHON_RUN_SCRIPT = u"""
 import json
 import os
 import sys
@@ -78,9 +79,15 @@ with open(sys.argv[1], "r") as f:
         stderr = open(stderr_path, "wb")
     else:
         stderr = sys.stderr
+    if os.name == 'nt':
+        close_fds = False
+        for key, value in env.items():
+            env[key] = str(value)
+    else:
+        close_fds = True
     sp = subprocess.Popen(commands,
                           shell=False,
-                          close_fds=True,
+                          close_fds=close_fds,
                           stdin=stdin,
                           stdout=stdout,
                           stderr=stderr,
@@ -564,17 +571,21 @@ def _job_popen(
         for key in env:
             env_copy[key] = env[key]
 
-        job_description = dict(
-            commands=commands,
-            cwd=cwd,
-            env=env_copy,
-            stdout_path=stdout_path,
-            stderr_path=stderr_path,
-            stdin_path=stdin_path,
-        )
-        with open(os.path.join(job_dir, "job.json"), encoding='utf-8',
-                  mode="wb") as job_file:
-            json_dump(job_description, job_file, ensure_ascii=False)
+        job_description = {
+            u"commands": commands,
+            u"cwd": cwd,
+            u"env": env_copy,
+            u"stdout_path": stdout_path,
+            u"stderr_path": stderr_path,
+            u"stdin_path": stdin_path}
+
+        if six.PY2:
+            with open(os.path.join(job_dir, "job.json"), mode="wb") as job_file:
+                json_dump(job_description, job_file, ensure_ascii=False)
+        else:
+            with open(os.path.join(job_dir, "job.json"), mode="w",
+                      encoding='utf-8') as job_file:
+                json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as _:
