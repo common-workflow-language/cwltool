@@ -61,6 +61,11 @@ install-deb-dep:
 install: FORCE
 	pip install .[deps]
 
+## dev     : install the ${MODULE} module in dev mode
+dev: install-dep
+	pip install -e .[deps]
+
+
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
