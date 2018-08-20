@@ -758,6 +758,15 @@ class CommandLineTool(Process):
                                         sfitem["class"] = "Directory"
                                         primary["secondaryFiles"].append(sfitem)
 
+            if "addMetadata" in binding:
+                metadata_dict = builder.do_eval(binding["addMetadata"])
+                for primary in aslist(r):
+                    if isinstance(primary, dict):
+                        primary["metadata"] = metadata_dict
+                        if "secondaryFiles" in primary:
+                            for sf in primary["secondaryFiles"]:
+                                sf["metadata"] = metadata_dict
+
             if "format" in schema:
                 for primary in aslist(r):
                     primary["format"] = builder.do_eval(schema["format"], context=primary)

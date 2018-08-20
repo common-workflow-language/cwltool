@@ -223,6 +223,7 @@ $graph:
       - loadContents
       - outputEval
       - secondaryFiles
+      - addMetadata
   fields:
     - name: glob
       type:
@@ -251,6 +252,16 @@ $graph:
         array of a single element.  Additionally, if `loadContents` is `true`,
         the File objects must include up to the first 64 KiB of file contents
         in the `contents` field.
+    - name: addMetadata
+      type:
+        - "null"
+        - string
+        - Expression
+      doc: |
+        Evaluate an expression to generate the output file metadata. Expression
+        should return a key-value map. Returned map should be set as the
+        `metadata` property of the output file or files. The same map
+        should be set as the `metadata` property of all secondary files.
 
 - name: CommandLineBindable
   type: record
