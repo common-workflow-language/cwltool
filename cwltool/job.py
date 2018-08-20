@@ -374,11 +374,11 @@ class CommandLineJob(JobBase):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> None
 
+        if not os.path.exists(self.tmpdir):
+            os.makedirs(self.tmpdir)
         self._setup(runtimeContext)
 
         env = self.environment
-        if not os.path.exists(self.tmpdir):
-            os.makedirs(self.tmpdir)
         vars_to_preserve = runtimeContext.preserve_environment
         if runtimeContext.preserve_entire_environment:
             vars_to_preserve = os.environ
@@ -427,7 +427,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
-
+        if not os.path.exists(self.tmpdir):
+            os.makedirs(self.tmpdir)
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
         img_id = None
