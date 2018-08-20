@@ -8,8 +8,8 @@ from .util import get_data
 
 
 class TestDefaultPath(unittest.TestCase):
-    # Testing that error is not raised when default path is not present
     def test_default_path(self):
+        """Testing that error is not raised when default path is not present"""
         document_loader, workflowobj, uri = fetch_document(
             get_data("tests/wf/default_path.cwl"))
         document_loader, avsc_names, processobj, metadata, uri = validate_document(

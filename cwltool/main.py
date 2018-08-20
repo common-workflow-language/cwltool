@@ -261,7 +261,7 @@ def load_job_order(args,                 # type: argparse.Namespace
 
 def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text, Any]]
                    args,                    # type: argparse.Namespace
-                   t,                       # type: Process
+                   process,                 # type: Process
                    loader,                  # type: Loader
                    stdout,                  # type: Union[TextIO, StreamWriter]
                    print_input_deps=False,  # type: bool
@@ -270,12 +270,12 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
                   ):  # type: (...) -> MutableMapping[Text, Any]
-    secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
+    secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
         toolparser = generate_parser(
-            argparse.ArgumentParser(prog=args.workflow), t, namemap, records)
+            argparse.ArgumentParser(prog=args.workflow), process, namemap, records)
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
@@ -295,8 +295,8 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                 try:
                     job_order_object = cast(
                         MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
-                except Exception as e:
-                    _logger.error(Text(e), exc_info=args.debug)
+                except Exception as err:
+                    _logger.error(Text(err), exc_info=args.debug)
                     exit(1)
             else:
                 job_order_object = {"id": args.workflow}
@@ -315,7 +315,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         else:
             job_order_object = None
 
-    for inp in t.tool["inputs"]:
+    for inp in process.tool["inputs"]:
         if "default" in inp and (
                 not job_order_object or shortname(inp["id"]) not in job_order_object):
             if not job_order_object:
@@ -323,7 +323,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             job_order_object[shortname(inp["id"])] = inp["default"]
 
     if not job_order_object:
-        if len(t.tool["inputs"]) > 0:
+        if process.tool["inputs"]:
             if toolparser:
                 print(u"\nOptions for {} ".format(args.workflow))
                 toolparser.print_help()
@@ -344,7 +344,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             del p["path"]
 
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
-    ns.update(t.metadata.get("$namespaces", {}))
+    ns.update(process.metadata.get("$namespaces", {}))
     ld = Loader(ns)
 
     def expand_formats(p):
@@ -655,7 +655,7 @@ def main(argsl=None,                   # type: List[str]
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
             if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
                 sl = "/" if getattr(runtimeContext, dirprefix).endswith("/") or dirprefix == "cachedir" \
-                        else ""
+                    else ""
                 setattr(runtimeContext, dirprefix,
                         os.path.abspath(getattr(runtimeContext, dirprefix)) + sl)
                 if not os.path.exists(os.path.dirname(getattr(runtimeContext, dirprefix))):
@@ -701,11 +701,12 @@ def main(argsl=None,                   # type: List[str]
 
             if conf_file or use_conda_dependencies:
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
+            else:
+                runtimeContext.find_default_container = functools.partial(
+                    find_default_container,
+                    default_container=runtimeContext.default_container,
+                    use_biocontainers=args.beta_use_biocontainers)
 
-            runtimeContext.find_default_container = functools.partial(
-                find_default_container,
-                default_container=runtimeContext.default_container,
-                use_biocontainers=args.beta_use_biocontainers)
             (out, status) = executor(tool,
                                      initialized_job_order_object,
                                      runtimeContext,
