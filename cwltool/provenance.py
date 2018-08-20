@@ -601,8 +601,10 @@ class CreateProvProfile():
             # then prov:Quotation is not appropriate.
             self.document.derivation(sec_entity, file_entity,
                 other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
-            # TODO: Add to self.secondaries so it can later
+            # Add to self.secondaries so it can later
             # be augmented into primary-job.json
+            secondaries = self.secondaries.setdefault(checksum, set())
+            secondaries.add(self.research_object.relativise_files(sec))
 
         return file_entity, entity, checksum
 
@@ -1549,7 +1551,7 @@ class ResearchObject():
         cwl document
         '''
         relativised_input_objecttemp = {}  # type: Dict[Any,Any]
-        self._relativise_files(job)
+        self.relativise_files(job)
 
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(job, indent=4, ensure_ascii=False)
@@ -1571,7 +1573,7 @@ class ResearchObject():
             {k: v for k, v in relativised_input_objecttemp.items() if v})
         return relativised_input_object
 
-    def _relativise_files(self, structure):
+    def relativise_files(self, structure):
         # type: (Any, Dict) -> None
         '''
         save any file objects into Research Object and update the local paths
@@ -1607,7 +1609,7 @@ class ResearchObject():
                 del structure["location"]
 
             for val in structure.values():
-                self._relativise_files(val)
+                self.relativise_files(val)
             return
 
         if isinstance(structure, (str, Text)):
@@ -1616,7 +1618,7 @@ class ResearchObject():
         try:
             for obj in iter(structure):
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(obj)
+                self.relativise_files(obj)
         except TypeError:
             pass
 
