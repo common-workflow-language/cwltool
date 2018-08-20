@@ -32,7 +32,7 @@ from .process import Process, get_overrides, shortname, uniquename
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .provenance import CreateProvProfile
+from .provenance import CreateProvProfile, ResearchObject
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 from . import context
 from .context import (LoadingContext,  # pylint: disable=unused-import
@@ -564,6 +564,11 @@ class Workflow(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, runtimeContext)
+        #relativeJob=copy.deepcopy(builder.job)
+        if runtimeContext.research_obj:
+            runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
+            runtimeContext.research_obj.create_job(self.job, builder.job)
+
         job = WorkflowJob(self, runtimeContext)
         yield job
 

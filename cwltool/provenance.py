@@ -447,28 +447,6 @@ class CreateProvProfile():
         evaluate the nature of r and
         initialize the activity start
         '''
-        def copy_job_order(job, job_order_object):
-            # type: (Any,Any) -> Any
-            '''
-            creates copy of job object for provenance
-            '''
-            if not hasattr(job, "tool"):
-                # direct command line tool execution
-                return job_order_object
-            customised_job = {}  # new job object for RO
-            for each, i in enumerate(job.tool["inputs"]):
-                with SourceLine(job.tool["inputs"], each, WorkflowException,
-                                _logger.isEnabledFor(logging.DEBUG)):
-                    iid = shortname(i["id"])
-                    if iid in job_order_object:
-                        customised_job[iid] = copy.deepcopy(job_order_object[iid])
-                        # add the input element in dictionary for provenance
-                    elif "default" in i:
-                        customised_job[iid] = copy.deepcopy(i["default"])
-                        # add the default elements in the dictionary for provenance
-                    else:
-                        pass
-            return customised_job
 
         process_run_id = None
         research_obj = runtimeContext.research_obj
@@ -479,8 +457,7 @@ class CreateProvProfile():
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            inputs = research_obj.create_job(
-                    customised_job)
+            research_obj.create_job(job, customised_job)
             #self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
@@ -491,8 +468,8 @@ class CreateProvProfile():
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            inputs = research_obj.create_job(
-                    customised_job)
+            #inputs = research_obj.create_job(
+                    #customised_job)
             #self.used_artefacts(inputs, self.workflow_run_uri)
         else:  # in case of commandline tool execution as part of workflow
             name = ""
@@ -1542,7 +1519,8 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   job,             # type: Dict
+                   wfJob,
+                   builderJob   # type: Dict
                   ):  # type: (...) -> Dict
         #TODO customise the file
         '''
@@ -1550,20 +1528,21 @@ class ResearchObject():
         a json file containing the relative paths and link to the associated
         cwl document
         '''
+        copied=copy.deepcopy(builderJob)
         relativised_input_objecttemp = {}  # type: Dict[Any,Any]
-        self.relativise_files(job)
-
+        self.relativise_files(copied)
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
-        j = json.dumps(job, indent=4, ensure_ascii=False)
+        j = json.dumps(copied, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
-
+        print ("copied: ", copied)
+        print ("original", builderJob)
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
         relativised_input_objecttemp = {}
-        for key, value in job.items():
+        for key, value in copied.items():
             if isinstance(value, dict):
                 if value.get("class") in ("File", "Directory"):
                     relativised_input_objecttemp[key] = value
@@ -1673,3 +1652,26 @@ def checksum_copy(file_path,            # type: IO
     if copy_to_fp is not None:
         copy_to_fp.flush()
     return checksum.hexdigest().lower()
+
+def copy_job_order(job, job_order_object):
+    # type: (Any,Any) -> Any
+    '''
+    creates copy of job object for provenance
+    '''
+    if not hasattr(job, "tool"):
+        # direct command line tool execution
+        return job_order_object
+    customised_job = {}  # new job object for RO
+    for each, i in enumerate(job.tool["inputs"]):
+        with SourceLine(job.tool["inputs"], each, WorkflowException,
+                        _logger.isEnabledFor(logging.DEBUG)):
+            iid = shortname(i["id"])
+            if iid in job_order_object:
+                customised_job[iid] = copy.deepcopy(job_order_object[iid])
+                # add the input element in dictionary for provenance
+            elif "default" in i:
+                customised_job[iid] = copy.deepcopy(i["default"])
+                # add the default elements in the dictionary for provenance
+            else:
+                pass
+    return customised_job
