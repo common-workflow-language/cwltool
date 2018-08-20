@@ -50,7 +50,7 @@ setup(name='cwltool',
       include_package_data=True,
       install_requires=[
           'setuptools',
-          'requests >= 2.4.3',
+          'requests >= 2.6.1',
           'ruamel.yaml >= 0.12.4, <= 0.15.51',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
