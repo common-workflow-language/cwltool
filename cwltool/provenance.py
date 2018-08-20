@@ -1585,7 +1585,7 @@ class ResearchObject():
                     sha1,checksum = structure["checksum"].split("$")
                     assert sha1 == SHA1
                     prefix = checksum[0:2]
-                    relative_path = "../%s/%s" % (prefix,checksum)
+                    relative_path = "../data/%s/%s" % (prefix,checksum)
                 else:
                     # Register in RO anyway; but why was this not picked
                     # up by used_artefacts?
