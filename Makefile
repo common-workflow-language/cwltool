@@ -59,7 +59,7 @@ install-deb-dep:
 
 ## install     : install the ${MODULE} module and schema-salad-tool
 install: FORCE
-	pip install .
+	pip install .[deps]
 
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz

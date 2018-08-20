@@ -18,6 +18,7 @@ from schema_salad.sourceline import SourceLine
 import six
 from six import string_types
 from six.moves import range
+from uuid import UUID # pylint: disable=unused-import
 
 from . import command_line_tool, expression
 from .builder import CONTENT_LIMIT
@@ -255,7 +256,10 @@ class WorkflowJob(object):
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri, None, self.prov_obj.engine_uuid,
                 datetime.datetime.now())
-            self.prov_obj.finalize_prov_profile(str(self.name))
+            prov_ids = self.prov_obj.finalize_prov_profile(self.name)
+            # Tell parent to associate our provenance files with our wf run
+            self.parent_wf.activity_has_provenance(self.prov_obj.workflow_run_uri, prov_ids)
+
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
@@ -499,12 +503,23 @@ class Workflow(Process):
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
-            orcid = loadingContext.orcid
-            full_name = loadingContext.cwl_full_name
+            run_uuid = None # type: Optional[UUID]
+            is_master = not(loadingContext.prov_obj) # Not yet set
+            if is_master:
+                run_uuid = loadingContext.research_obj.ro_uuid
+
             self.provenance_object = CreateProvProfile(
-                loadingContext.research_obj, full_name, orcid,
-                loadingContext.host_provenance, loadingContext.user_provenance)
+                loadingContext.research_obj,
+                full_name=loadingContext.cwl_full_name,
+                orcid=loadingContext.orcid,
+                host_provenance=loadingContext.host_provenance,
+                user_provenance=loadingContext.user_provenance,
+                run_uuid=run_uuid # inherit RO UUID for master wf run
+                )
+            # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
+
+        # FIXME: Won't this overwrite prov_obj for nested workflows?
         loadingContext.prov_obj = self.provenance_object
         loadingContext = loadingContext.copy()
         loadingContext.requirements = self.requirements
