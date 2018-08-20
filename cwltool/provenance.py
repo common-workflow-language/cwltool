@@ -47,6 +47,7 @@ from schema_salad.sourceline import SourceLine
 from .context import RuntimeContext  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .loghandler import _logger
+from .pathmapper import get_listing
 from .process import shortname, Process  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import versionstring
@@ -703,6 +704,11 @@ class CreateProvProfile():
                 # FIXME: .listing might not be populated yet - hopefully
                 # a later call to this method will sort that
                 is_empty = True
+
+                if not "listing" in value:
+                    assert self.research_object.make_fs_access
+                    fsaccess = self.research_object.make_fs_access("")
+                    get_listing(fsaccess, value)
                 for f in value.get("listing", []):
                     is_empty = False
                     # Declare child-artifacts
