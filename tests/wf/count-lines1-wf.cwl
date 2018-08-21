@@ -1,5 +1,8 @@
 class: Workflow
 cwlVersion: v1.0
+requirements:
+  ResourceRequirement:
+    ramMin: 100
 
 inputs:
   file1:

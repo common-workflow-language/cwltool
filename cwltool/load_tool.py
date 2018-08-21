@@ -6,15 +6,15 @@ import logging
 import os
 import re
 import uuid
-import copy
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Iterable, List, Mapping, Optional, Text, Tuple, Union, cast)
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from six import itervalues, string_types
 from six.moves import urllib
-import schema_salad.schema as schema
+from schema_salad import schema
 from schema_salad.ref_resolver import (  # pylint: disable=unused-import
     ContextType, Fetcher, Loader, file_uri)
 from schema_salad.sourceline import SourceLine, cmap
@@ -27,10 +27,10 @@ from .process import (  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .update import ALLUPDATES
+from .loghandler import _logger
 from .utils import json_dumps
-from .context import LoadingContext, RuntimeContext, getdefault
+from .context import LoadingContext  # pylint: disable=unused-import
 
-_logger = logging.getLogger("cwltool")
 jobloaderctx = {
     u"cwl": "https://w3id.org/cwl/cwl#",
     u"cwltool": "http://commonwl.org/cwltool#",

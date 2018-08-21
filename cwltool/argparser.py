@@ -2,8 +2,10 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import os
-from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
-                    Optional, Sequence, Text, Union, cast)
+from typing import Any, AnyStr, Dict, List, Optional, Sequence, Union, cast
+
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from schema_salad.ref_resolver import file_uri
 
@@ -22,49 +24,46 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Output directory, default current directory")
 
     parser.add_argument("--parallel", action="store_true", default=False,
-                        help="[experimental] Run jobs in parallel. "
-                             "Does not currently keep track of ResourceRequirements like the number of cores"
-                             "or memory and can overload this system")
+                        help="[experimental] Run jobs in parallel. ")
     envgroup = parser.add_mutually_exclusive_group()
     envgroup.add_argument("--preserve-environment", type=Text, action="append",
-                        help="Preserve specific environment variable when "
-                        "running CommandLineTools.  May be provided multiple "
-                        "times.", metavar="ENVVAR", default=["PATH"],
-                        dest="preserve_environment")
+                          help="Preserve specific environment variable when "
+                          "running CommandLineTools.  May be provided multiple "
+                          "times.", metavar="ENVVAR", default=["PATH"],
+                          dest="preserve_environment")
     envgroup.add_argument("--preserve-entire-environment", action="store_true",
-                        help="Preserve all environment variable when running "
-                        "CommandLineTools.", default=False,
-                        dest="preserve_entire_environment")
+                          help="Preserve all environment variable when running "
+                          "CommandLineTools.", default=False,
+                          dest="preserve_entire_environment")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-container", action="store_true", default=True,
                          help="Delete Docker container used by jobs after they exit (default)",
                          dest="rm_container")
 
-    exgroup.add_argument("--leave-container", action="store_false",
-                         default=True, help="Do not delete Docker container used by jobs after they exit",
-                         dest="rm_container")
+    exgroup.add_argument(
+        "--leave-container", action="store_false", default=True,
+        help="Do not delete Docker container used by jobs after they exit",
+        dest="rm_container")
 
-    cidgroup = parser.add_argument_group("Options for recording the Docker "
-        "container identifier into a file")
+    cidgroup = parser.add_argument_group(
+        "Options for recording the Docker container identifier into a file")
     cidgroup.add_argument("--record-container-id", action="store_true",
                           default=False,
                           help="If enabled, store the Docker container ID into a file. "
                           "See --cidfile-dir to specify the directory.",
                           dest="record_container_id")
 
-    cidgroup.add_argument("--cidfile-dir", type=Text,
-                        help="Directory for storing the Docker container ID file. "
-                             "The default is the current directory",
-                        default="",
-                        dest="cidfile_dir")
+    cidgroup.add_argument(
+        "--cidfile-dir", type=Text, help="Directory for storing the Docker "
+        "container ID file. The default is the current directory",
+        default="", dest="cidfile_dir")
 
-    cidgroup.add_argument("--cidfile-prefix", type=Text,
-                        help="Specify a prefix to the container ID filename. "
-                             "Final file name will be followed by a timestamp. "
-                             "The default is no prefix.",
-                        default="",
-                        dest="cidfile_prefix")
+    cidgroup.add_argument(
+        "--cidfile-prefix", type=Text,
+        help="Specify a prefix to the container ID filename. "
+        "Final file name will be followed by a timestamp. The default is no prefix.",
+        default="", dest="cidfile_prefix")
 
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
@@ -75,8 +74,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          help="Path prefix for intermediate output directories",
                          default=DEFAULT_TMP_PREFIX)
 
-    exgroup.add_argument("--cachedir", type=Text, default="",
-                         help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
+    exgroup.add_argument(
+        "--cachedir", type=Text, default="",
+        help="Directory to cache intermediate workflow outputs to avoid recomputing steps.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--rm-tmpdir", action="store_true", default=True,
@@ -88,9 +88,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                          dest="rm_tmpdir")
 
     exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--move-outputs", action="store_const", const="move", default="move",
-                         help="Move output files to the workflow output directory and delete intermediate output directories (default).",
-                         dest="move_outputs")
+    exgroup.add_argument(
+        "--move-outputs", action="store_const", const="move", default="move",
+        help="Move output files to the workflow output directory and delete "
+        "intermediate output directories (default).", dest="move_outputs")
 
     exgroup.add_argument("--leave-outputs", action="store_const", const="leave", default="move",
                          help="Leave output files in intermediate output directories.",
@@ -115,6 +116,43 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Time to wait for a Javascript expression to evaluate before giving an error, default 20s.",
                         type=float,
                         default=20)
+
+    provgroup = parser.add_argument_group("Options for recording provenance "
+                                          "information of the execution")
+    provgroup.add_argument("--provenance",
+                           help="Save provenance to specified folder as a "
+                           "Research Object that captures and aggregates "
+                           "workflow execution and data products.",
+                           type=Text)
+
+    provgroup.add_argument("--enable-user-provenance", default=False,
+                           action="store_true",
+                           help="Record user account info as part of provenance.",
+                           dest="user_provenance")
+    provgroup.add_argument("--disable-user-provenance", default=False,
+                           action="store_false",
+                           help="Do not record user account info in provenance.",
+                           dest="user_provenance")
+    provgroup.add_argument("--enable-host-provenance", default=False,
+                           action="store_true",
+                           help="Record host info as part of provenance.",
+                           dest="host_provenance")
+    provgroup.add_argument("--disable-host-provenance", default=False,
+                           action="store_false",
+                           help="Do not record host info in provenance.",
+                           dest="host_provenance")
+    provgroup.add_argument(
+        "--orcid", help="Record user ORCID identifier as part of "
+        "provenance, e.g. https://orcid.org/0000-0002-1825-0097 "
+        "or 0000-0002-1825-0097. Alternatively the environment variable "
+        "ORCID may be set.", dest="orcid", default=os.environ.get("ORCID"),
+        type=Text)
+    provgroup.add_argument(
+        "--full-name", help="Record full name of user as part of provenance, "
+        "e.g. Josiah Carberry. You may need to use shell quotes to preserve "
+        "spaces. Alternatively the environment variable CWL_FULL_NAME may "
+        "be set.", dest="cwl_full_name", default=os.environ.get("CWL_FULL_NAME"),
+        type=Text)
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--print-rdf", action="store_true",
@@ -143,6 +181,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
+
+    parser.add_argument(
+        "--strict-memory-limit", action="store_true", help="When running with "
+        "software containers and the Docker engine, pass either the "
+        "calculated memory allocation from ResourceRequirements or the "
+        "default of 1 gigabyte to Docker's --memory option.")
 
     parser.add_argument("--timestamps", action="store_true", help="Add "
                         "timestamps to the errors, warnings, and "

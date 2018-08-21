@@ -7,23 +7,23 @@ import stat
 import uuid
 from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Iterable, List, MutableMapping, Optional, Set, Text, Tuple,
+from typing import (Any, Callable, Dict, List, MutableMapping, Optional, Set, Tuple,
                     Union)
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-import schema_salad.validate as validate
+from schema_salad import validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
 
+from .loghandler import _logger
 from .stdfsaccess import StdFsAccess, abspath  # pylint: disable=unused-import
 from .utils import (Directory,  # pylint: disable=unused-import
                     convert_pathsep_to_unix, visit_class)
-
-_logger = logging.getLogger("cwltool")
 
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 
@@ -247,7 +247,7 @@ class PathMapper(object):
             else:
                 with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
                     deref = ab
-                    if urllib.parse.urlsplit(deref).scheme in ['http','https']:
+                    if urllib.parse.urlsplit(deref).scheme in ['http', 'https']:
                         deref = downloadHttpFile(path)
                     else:
                         # Dereference symbolic links
@@ -277,8 +277,7 @@ class PathMapper(object):
             i = src.index(u"#")
             p = self._pathmap[src[:i]]
             return MapperEnt(p.resolved, p.target + src[i:], p.type, p.staged)
-        else:
-            return self._pathmap[src]
+        return self._pathmap[src]
 
     def files(self):  # type: () -> List[Text]
         return list(self._pathmap.keys())
@@ -294,8 +293,9 @@ class PathMapper(object):
                 return (k, v[0])
         return None
 
-    def update(self, key, resolved, target, type, stage):  # type: (Text, Text, Text, Text, bool) -> None
-        self._pathmap[key] = MapperEnt(resolved, target, type, stage)
+    def update(self, key, resolved, target, ctype, stage):
+        # type: (Text, Text, Text, Text, bool) -> None
+        self._pathmap[key] = MapperEnt(resolved, target, ctype, stage)
 
     def __contains__(self, key):
         return key in self._pathmap

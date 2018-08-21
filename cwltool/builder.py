@@ -2,13 +2,14 @@ from __future__ import absolute_import
 
 import copy
 import logging
-from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
-                    Optional, Set, Text, Type, Union, Tuple)
+from typing import Any, Callable, Dict, List, Optional, Set, Union, Tuple
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
 import schema_salad.schema  # pylint: disable=unused-import
-import schema_salad.validate as validate
+from schema_salad import validate
 from schema_salad.schema import AvroSchemaFromJSONData
 from schema_salad.sourceline import SourceLine
 from six import iteritems, string_types
@@ -22,7 +23,8 @@ from .pathmapper import (PathMapper,  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, docker_windows_path_adjust,
                     json_dumps, onWindows)
-
+if TYPE_CHECKING:
+    from .provenance import CreateProvProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
 
 
@@ -103,7 +105,7 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  files=None,                # type: List[Dict[Text, Text]]
                  bindings=None,             # type: List[Dict[Text, Any]]
                  schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
@@ -112,7 +114,7 @@ class Builder(HasReqsHints):
                  hints=None,                # type: List[Dict[Text, Any]]
                  timeout=None,              # type: float
                  debug=False,               # type: bool
-                 resources=None,            # type: Dict[Text, int]
+                 resources=None,            # type: Dict[str, int]
                  js_console=False,          # type: bool
                  mutation_manager=None,     # type: Optional[MutationManager]
                  formatgraph=None,          # type: Optional[Graph]
@@ -141,11 +143,6 @@ class Builder(HasReqsHints):
         else:
             self.files = files
 
-        if fs_access is None:
-            self.fs_access = StdFsAccess("")
-        else:
-            self.fs_access = fs_access
-
         self.job = job
         self.requirements = requirements
         self.hints = hints
@@ -153,7 +150,7 @@ class Builder(HasReqsHints):
         self.tmpdir = tmpdir
 
         if resources is None:
-            self.resources = {}  # type: Dict[Text, int]
+            self.resources = {}  # type: Dict[str, int]
         else:
             self.resources = resources
 
@@ -170,6 +167,11 @@ class Builder(HasReqsHints):
         else:
             self.make_fs_access = make_fs_access
 
+        if fs_access is None:
+            self.fs_access = self.make_fs_access("")
+        else:
+            self.fs_access = fs_access
+
         self.debug = debug
         self.js_console = js_console
         self.mutation_manager = mutation_manager
@@ -178,6 +180,7 @@ class Builder(HasReqsHints):
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
         self.job_script_provider = job_script_provider
@@ -280,7 +283,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
                     with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT)
+                        datum["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:

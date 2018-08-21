@@ -42,12 +42,11 @@ do
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
 	pushd common-workflow-language-master
 	rm -f .coverage*
+	EXTRA="--parallel"
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
 	then
-		EXTRA=" --enable-dev"
-	else
-		EXTRA=""
+		EXTRA+=" --enable-dev"
 	fi
 	if [[ "$CONTAINER" = "singularity" ]]
 	then
@@ -73,7 +72,7 @@ done
 # build new docker container
 if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
-  ./build-cwl-docker.sh && docker push commonworkflowlanguage/cwltool_module && docker push commonworkflowlanguage/cwltool
+  ./build-cwl-docker.sh
 fi
 #docker rm -v $(docker ps -a -f status=exited | sed 's/  */ /g' | cut -d' ' -f1)
 exit ${CODE}

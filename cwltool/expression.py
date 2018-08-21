@@ -1,11 +1,10 @@
 from __future__ import absolute_import
 
 import copy
-import logging
 import re
-from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
-                    Mapping, Optional, Text, Union)
-
+from typing import Any, Dict, List, Optional, Union
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
 from six import string_types, u
 
@@ -19,10 +18,6 @@ def jshead(engine_config, rootvars):
 
     # make sure all the byte strings are converted
     # to str in `rootvars` dict.
-    # TODO: need to make sure the `rootvars dict`
-    # contains no bytes type in the first place.
-    if six.PY3:
-        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     return u"\n".join(
         engine_config + [u"var {} = {};".format(k, json_dumps(v, indent=4))
@@ -249,11 +244,11 @@ def needs_parsing(snippet):  # type: (Any) -> bool
         and ("$(" in snippet or "${" in snippet)
 
 def do_eval(ex,                       # type: Union[Text, Dict]
-            jobinput,                 # type: Dict[Text, Union[Dict, List, Text]]
+            jobinput,                 # type: Dict[Text, Union[Dict, List, Text, None]]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]
-            resources,                # type: Dict[Text, int]
+            resources,                # type: Dict[str, int]
             context=None,             # type: Any
             timeout=None,             # type: float
             force_docker_pull=False,  # type: bool
@@ -262,7 +257,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             strip_whitespace=True     # type: bool
            ):  # type: (...) -> Any
 
-    runtime = copy.copy(resources)  # type: Dict[Text, Any]
+    runtime = copy.copy(resources)  # type: Dict[str, Any]
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
     runtime["outdir"] = docker_windows_path_adjust(outdir)
 
@@ -270,6 +265,11 @@ def do_eval(ex,                       # type: Union[Text, Dict]
         u"inputs": jobinput,
         u"self": context,
         u"runtime": runtime}
+
+    # TODO: need to make sure the `rootvars dict`
+    # contains no bytes type in the first place.
+    if six.PY3:
+        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
     if needs_parsing(ex):
         assert isinstance(ex, string_types)

@@ -1,9 +1,9 @@
-import logging
 from collections import namedtuple
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Generator, Iterable, List, Optional, Text, Union, cast)
+from typing import Any, Dict, List, Optional
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-import schema_salad.validate as validate
+from schema_salad import validate
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 import six
 
@@ -27,19 +27,18 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
 
     if valueFrom:
         return "pass"
-    elif not linkMerge:
+    if not linkMerge:
         if can_assign_src_to_sink(srctype, sinktype, strict=True):
             return "pass"
-        elif can_assign_src_to_sink(srctype, sinktype, strict=False):
+        if can_assign_src_to_sink(srctype, sinktype, strict=False):
             return "warning"
-        else:
-            return "exception"
-    elif linkMerge == "merge_nested":
-        return check_types({"items": _get_type(srctype), "type": "array"}, _get_type(sinktype), None, None)
-    elif linkMerge == "merge_flattened":
+        return "exception"
+    if linkMerge == "merge_nested":
+        return check_types({"items": _get_type(srctype), "type": "array"},
+                           _get_type(sinktype), None, None)
+    if linkMerge == "merge_flattened":
         return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
-    else:
-        raise WorkflowException(u"Unrecognized linkMerge enu_m '%s'" % linkMerge)
+    raise WorkflowException(u"Unrecognized linkMerge enu_m '{}'".format(linkMerge))
 
 
 def merge_flatten_type(src):
@@ -49,10 +48,9 @@ def merge_flatten_type(src):
 
     if isinstance(src, list):
         return [merge_flatten_type(t) for t in src]
-    elif isinstance(src, dict) and src.get("type") == "array":
+    if isinstance(src, dict) and src.get("type") == "array":
         return src
-    else:
-        return {"items": src, "type": "array"}
+    return {"items": src, "type": "array"}
 
 
 def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -> bool
@@ -72,16 +70,15 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
             return False
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(src["items"], sink["items"], strict)
-        elif src["type"] == "record" and sink["type"] == "record":
+        if src["type"] == "record" and sink["type"] == "record":
             return _compare_records(src, sink, strict)
-        elif src["type"] == "File" and sink["type"] == "File":
+        if src["type"] == "File" and sink["type"] == "File":
             for sinksf in sink.get("secondaryFiles", []):
                 if not [1 for srcsf in src.get("secondaryFiles", []) if sinksf == srcsf]:
                     if strict:
                         return False
             return True
-        else:
-            return can_assign_src_to_sink(src["type"], sink["type"], strict)
+        return can_assign_src_to_sink(src["type"], sink["type"], strict)
     elif isinstance(src, list):
         if strict:
             for t in src:
@@ -122,11 +119,11 @@ def _compare_records(src, sink, strict=False):
     for key in six.iterkeys(sinkfields):
         if (not can_assign_src_to_sink(
                 srcfields.get(key, "null"), sinkfields.get(key, "null"), strict)
-            and sinkfields.get(key) is not None):
+                and sinkfields.get(key) is not None):
             _logger.info("Record comparison failure for %s and %s\n"
-                         "Did not match fields for %s: %s and %s" %
-                         (src["name"], sink["name"], key, srcfields.get(key),
-                          sinkfields.get(key)))
+                         "Did not match fields for %s: %s and %s",
+                         src["name"], sink["name"], key, srcfields.get(key),
+                         sinkfields.get(key))
             return False
     return True
 
@@ -156,7 +153,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         src = warning.src
         sink = warning.sink
         linkMerge = warning.linkMerge
-        if sink.get("secondaryFiles") and sorted(sink.get("secondaryFiles",[])) != sorted(src.get("secondaryFiles",[])):
+        if sink.get("secondaryFiles") and sorted(
+                sink.get("secondaryFiles", [])) != sorted(src.get("secondaryFiles", [])):
             msg1 = "Sink '%s'" % (shortname(sink["id"]))
             msg2 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError(
                 "expects secondaryFiles: %s but" % (sink.get("secondaryFiles")))
@@ -202,7 +200,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
 
     for sink in step_inputs:
         if ('null' != sink["type"] and 'null' not in sink["type"]
-            and "source" not in sink and "default" not in sink and "valueFrom" not in sink):
+                and "source" not in sink and "default" not in sink and "valueFrom" not in sink):
             msg = SourceLine(sink).makeError(
                 "Required parameter '%s' does not have source, default, or valueFrom expression"
                 % shortname(sink["id"]))
@@ -212,7 +210,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
     all_exception_msg = strip_dup_lineno("\n".join(exception_msgs))
 
     if warnings:
-        _logger.warning("Workflow checker warning:\n%s" % all_warning_msg)
+        _logger.warning("Workflow checker warning:\n%s", all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 

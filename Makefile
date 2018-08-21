@@ -26,12 +26,20 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
+DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
+	pytest pytest-xdist isort
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+UNAME_S=$(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	nproc=$(shell nproc)
+endif
+ifeq ($(UNAME_S),Darwin)
+	nproc=$(shell sysctl -n hw.physicalcpu)
+endif
 
 ## all         : default task
 all:
@@ -43,7 +51,7 @@ help: Makefile
 
 ## install-dep : install most of the development dependencies via pip
 install-dep:
-	pip install --upgrade $(DEVPKGS)
+	pip install --upgrade $(DEVPKGS) -rtest-requirements.txt
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -51,7 +59,12 @@ install-deb-dep:
 
 ## install     : install the ${MODULE} module and schema-salad-tool
 install: FORCE
-	pip install .
+	pip install .[deps]
+
+## dev     : install the ${MODULE} module in dev mode
+dev: install-dep
+	pip install -e .[deps]
+
 
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
@@ -105,11 +118,11 @@ format: autopep8
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-                $^ -j$(shell nproc)|| true
+                $^ -j$(nproc)|| true
 
 pylint_report.txt: ${PYSOURCES}
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ -j$(shell nproc)> pylint_report.txt || true
+		$^ -j$(nproc)> pylint_report.txt || true
 
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
@@ -127,20 +140,19 @@ coverage.html: htmlcov/index.html
 htmlcov/index.html: .coverage
 	coverage html
 
-diff-cover: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml
+diff-cover: coverage.xml
+	diff-cover $^
 
-diff-cover.html: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml \
-		--html-report diff-cover.html
+diff-cover.html:  coverage.xml
+	diff-cover $^ --html-report diff-cover.html
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
-	python setup.py test
+	python setup.py test --addopts "-n$(nproc) --dist=loadfile"
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool"
+	python setup.py test --addopts "--cov cwltool -n$(nproc) --dist=loadfile"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > sloccount.sc

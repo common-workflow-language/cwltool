@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 
 import copy
-from typing import (Any, Callable, Dict, List, # pylint: disable=unused-import
-                    Optional, Set, Text, Union, cast)
+from typing import Any, Callable, Dict, List, Optional, Set, Union, cast
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from six import string_types, iteritems
