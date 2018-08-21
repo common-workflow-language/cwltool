@@ -332,7 +332,6 @@ class CreateProvProfile():
         self.workflow_run_uuid = run_uuid
         self.workflow_run_uri = run_uuid.urn
         self.generate_prov_doc()
-        self.secondaries = {}
 
     def __str__(self):
         return "CreateProvProfile <%s> in <%s>" % (
@@ -513,9 +512,9 @@ class CreateProvProfile():
     def declare_file(self, value):
         # type: (Dict) -> Tuple[ProvEntity,ProvEntity,str]
         if value["class"] != "File":
-            raise ValueError("Must have class:File" % value)
+            raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
-        entity = None
+        entity = None # type: Optional[ProvEntity]
         checksum = None
         if 'checksum' in value:
             csum = value['checksum']
@@ -558,7 +557,7 @@ class CreateProvProfile():
         file_entity = self.document.entity(file_id,
             [(provM.PROV_TYPE, WFPROV["Artifact"]),
                 (provM.PROV_TYPE, WF4EVER["File"])
-            ])
+            ]) # type: ProvEntity
 
         if "basename" in value:
             file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
@@ -578,11 +577,8 @@ class CreateProvProfile():
             # then prov:Quotation is not appropriate.
             self.document.derivation(sec_entity, file_entity,
                 other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
-            # Add to self.secondaries so it can later
-            # be augmented into primary-job.json
-            secondaries = self.secondaries.setdefault(checksum, set())
-            secondaries.add(self.research_object.relativise_files(sec))
 
+        assert entity
         return file_entity, entity, checksum
 
     def declare_artefact(self, value):
