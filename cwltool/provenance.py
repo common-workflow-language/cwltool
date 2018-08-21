@@ -690,7 +690,7 @@ class CreateProvProfile():
         return coll
 
     def declare_string(self, value):
-        # type: (Union[Text, str]) -> Tuple[ProvEntity,str]
+        # type: (Union[Text, str]) -> Tuple[ProvEntity,Text]
 
         # Save as string in UTF-8
         byte_s = io.BytesIO(str(value).encode(ENCODING))
@@ -700,7 +700,7 @@ class CreateProvProfile():
         data_id = "data:%s" % posixpath.split(data_file)[1]
         entity = self.document.entity(data_id,
             {provM.PROV_TYPE: WFPROV["Artifact"],
-            provM.PROV_VALUE: str(value)})
+            provM.PROV_VALUE: str(value)}) # type: ProvEntity
         return entity, checksum
 
     def declare_artefact(self, value):
