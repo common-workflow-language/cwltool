@@ -95,9 +95,9 @@ class TestProvenance(unittest.TestCase):
         file1idx = os.path.join(tmpdir, "foo1.txt.idx")
 
         with open(file1, "w", encoding="ascii") as f:
-            f.write("foo")
+            f.write(u"foo")
         with open(file1idx, "w", encoding="ascii") as f:
-            f.write("bar")
+            f.write(u"bar")
 
         # secondary will be picked up by .idx
         self.cwltool(get_data('tests/wf/sec-wf.cwl'), "--file1", file1)
@@ -110,9 +110,9 @@ class TestProvenance(unittest.TestCase):
         file1idx = tempfile.mktemp("bar")
 
         with open(file1, "w", encoding="ascii") as f:
-            f.write("foo")
+            f.write(u"foo")
         with open(file1idx, "w", encoding="ascii") as f:
-            f.write("bar")
+            f.write(u"bar")
 
         # explicit secondaryFiles
         job = {
