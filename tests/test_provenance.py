@@ -135,6 +135,13 @@ class TestProvenance(unittest.TestCase):
         self.check_provenance(secondary_files=True)
         self.check_secondary_files()
 
+    def test_secondary_files_output(self):
+        # secondary will be picked up by .idx
+        self.cwltool(get_data('tests/wf/sec-wf-out.cwl'))
+        self.check_provenance(secondary_files=True)
+        # Skipped, not the same secondary files as above
+        #self.check_secondary_files()
+
     def test_directory_workflow(self):
         dir2 = os.path.join(tempfile.mkdtemp("test_directory_workflow"),
             "dir2")
@@ -503,7 +510,6 @@ class TestProvenance(unittest.TestCase):
                 prim_basename = set(g.objects(prim, CWLPROV.basename)).pop()
                 prim_nameroot = set(g.objects(prim, CWLPROV.nameroot)).pop()
                 prim_nameext = set(g.objects(prim, CWLPROV.nameext)).pop()
-                self.assertEquals(sec_nameroot, prim_basename)
                 self.assertEquals(str(prim_basename), "%s%s" % (prim_nameroot, prim_nameext))
 
 
