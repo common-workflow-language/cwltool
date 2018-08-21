@@ -855,8 +855,7 @@ $graph:
   doc:
     Define a list of files and subdirectories that must be created by the
     workflow platform in the designated output directory prior to executing the
-    command line tool. If different files with conflicting file names appear in
-    the InitialWorkDirRequirement implementation should break executon.
+    command line tool.
   fields:
     - name: class
       type: string
