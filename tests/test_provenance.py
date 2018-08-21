@@ -130,7 +130,7 @@ class TestProvenance(unittest.TestCase):
                 }
         }
         jobJson = tempfile.mktemp("job.json")
-        with open(jobJson, "w") as fp:
+        with open(jobJson, "w", encoding="ASCII") as fp:
             json.dump(job, fp)
 
         self.cwltool(get_data('tests/wf/sec-wf.cwl'), jobJson)
