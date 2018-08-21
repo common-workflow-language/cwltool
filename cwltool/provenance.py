@@ -539,9 +539,9 @@ class CreateProvProfile():
                     value["checksum"] = "%s$%s" % (SHA1, checksum)
 
 
-        if not entity and 'content' in value:
+        if not entity and 'contents' in value:
             # Anonymous file, add content as string
-            entity,checksum = self.declare_string(value["content"])
+            entity,checksum = self.declare_string(value["contents"])
 
         # By here one of them should have worked!
         if not entity:
