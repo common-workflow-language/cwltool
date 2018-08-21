@@ -400,15 +400,20 @@ class CommandLineTool(Process):
             else:
                 for t in initialWorkdir["listing"]:
                     if "entry" in t:
-                        et = {u"entry": builder.do_eval(t["entry"], strip_whitespace=False)}
-                        if "entryname" in t:
-                            et["entryname"] = builder.do_eval(t["entryname"])
-                        else:
-                            et["entryname"] = None
-                        et["writable"] = t.get("writable", False)
-                        ls.append(et)
+                        entry_exp = builder.do_eval(t["entry"], strip_whitespace=False)
+                        for entry in aslist(entry_exp):
+                            et = {u"entry": entry}
+                            if "entryname" in t:
+                                et["entryname"] = builder.do_eval(t["entryname"])
+                            else:
+                                et["entryname"] = None
+                            et["writable"] = t.get("writable", False)
+                            if et[u"entry"]:
+                                ls.append(et)
                     else:
                         initwd_item = builder.do_eval(t)
+                        if not initwd_item:
+                            continue
                         if isinstance(initwd_item, list):
                             ls.extend(initwd_item)
                         else:
