@@ -1548,8 +1548,6 @@ class ResearchObject():
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
-        print ("copied: ", copied)
-        print ("original", builderJob)
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
