@@ -1561,14 +1561,17 @@ class ResearchObject():
         _logger.debug(u"[provenance] Relativising: %s", structure)
 
         if isinstance(structure, dict):
-            if structure.get("class") == "File" and "location" in structure:
+            if structure.get("class") == "File":
+                relative_path = None
                 if "checksum" in structure:
                     sha1,checksum = structure["checksum"].split("$")
                     assert sha1 == SHA1
-                    prefix = checksum[0:2]
-                    relative_path = "../data/%s/%s" % (prefix,checksum)
-                else:
-                    # Register in RO anyway; but why was this not picked
+                    if self.has_data_file(checksum):
+                        prefix = checksum[0:2]
+                        relative_path = posixpath.join("data", prefix, checksum)
+
+                if not relative_path and "location" in structure:
+                    # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.warning("File not previously registered in RO: %s", structure)
                     fsaccess = self.make_fs_access("")
@@ -1576,9 +1579,11 @@ class ResearchObject():
                         relative_path = self.add_data_file(fp)
                         checksum = posixpath.basename(relative_path)
                         structure["checksum"] = "%s$%s" % (SHA1, checksum)
-
-                # RO-relative path as new location
-                structure["location"] = relative_path
+                if relative_path:
+                    # RO-relative path as new location
+                    structure["location"] = posixpath.join("..", relative_path)
+                else:
+                    _logger.warning("Could not determine RO path for file %s", structure)
                 if "path" in structure:
                     del structure["path"]
 
