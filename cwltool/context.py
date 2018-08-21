@@ -88,7 +88,7 @@ class RuntimeContext(ContextBase):
         self.rm_tmpdir = True           # type: bool
         self.pull_image = True          # type: bool
         self.rm_container = True        # type: bool
-        self.move_outputs = ""          # type: Text
+        self.move_outputs = "move"      # type: Text
 
         self.singularity = False        # type: bool
         self.disable_net = None

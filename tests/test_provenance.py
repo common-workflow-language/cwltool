@@ -14,6 +14,7 @@ from cwltool.resolver import Path
 
 # Module to be tested
 from cwltool import provenance
+from cwltool import load_tool
 
 from .util import get_data
 import bagit
@@ -44,6 +45,7 @@ class TestProvenance(unittest.TestCase):
 
 
     def cwltool(self, *args):
+        load_tool.loaders = {}
         new_args = ['--no-container',
             '--provenance',
             self.folder]
