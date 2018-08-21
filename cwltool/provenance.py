@@ -581,6 +581,113 @@ class CreateProvProfile():
         assert entity
         return file_entity, entity, checksum
 
+    def declare_directory(self, value):
+        # type: (Dict) -> ProvEntity
+
+        # Register any nested files/directories
+
+        # FIXME: Calculate a hash-like identifier for directory
+        # so we get same value if it's the same filenames/hashes
+        # in a different location.
+        # For now, mint a new UUID to identify this directory, but
+        # attempt to keep it inside the value dictionary
+        dir_id = value.setdefault("@id",
+            uuid.uuid4().urn)
+
+        # New annotation file to keep the ORE Folder listing
+        ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
+        dir_bundle = self.document.bundle(self.metadata_ns[ore_doc_fn])
+
+        coll = self.document.entity(dir_id,
+            [ (provM.PROV_TYPE, WFPROV["Artifact"]),
+                (provM.PROV_TYPE, PROV["Collection"]),
+                (provM.PROV_TYPE, PROV["Dictionary"]),
+                (provM.PROV_TYPE, RO["Folder"]),
+            ])
+        # ORE description of ro:Folder, saved separately
+        coll_b = dir_bundle.entity(dir_id,
+            [
+                (provM.PROV_TYPE, RO["Folder"]),
+                (provM.PROV_TYPE, ORE["Aggregation"]),
+            ])
+        self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
+
+        dir_manifest = dir_bundle.entity(dir_bundle.identifier,
+        {PROV["type"]: ORE["ResourceMap"],
+            ORE["describes"]: coll_b.identifier}
+        )
+
+        coll_attribs = [ # type ( tuple(Identifier, ProvEntity) )
+                (ORE["isDescribedBy"], dir_bundle.identifier )
+        ]
+        coll_b_attribs = [] # type ( tuple(Identifier, ProvEntity) )
+
+        # FIXME: .listing might not be populated yet - hopefully
+        # a later call to this method will sort that
+        is_empty = True
+
+        if not "listing" in value:
+            assert self.research_object.make_fs_access
+            fsaccess = self.research_object.make_fs_access("")
+            get_listing(fsaccess, value)
+        for f in value.get("listing", []):
+            is_empty = False
+            # Declare child-artifacts
+            entity = self.declare_artefact(f)
+            self.document.membership(coll, entity)
+            # Membership relation aka our ORE Proxy
+            m_id = uuid.uuid4().urn
+            m = self.document.entity(m_id)
+            m_b = dir_bundle.entity(m_id)
+
+            # PROV-O style Dictionary
+            # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
+            # ..as prov.py do not currently allow PROV-N extensions
+            # like hadDictionaryMember(..)
+            m.add_asserted_type(PROV["KeyEntityPair"])
+
+            m.add_attributes({
+                PROV["pairKey"]: f["basename"],
+                PROV["pairEntity"]: entity,
+            })
+
+            # As well as a being a
+            # http://wf4ever.github.io/ro/2016-01-28/ro/#FolderEntry
+            m_b.add_asserted_type(RO["FolderEntry"])
+            m_b.add_asserted_type(ORE["Proxy"])
+            m_b.add_attributes({
+                RO["entryName"]: f["basename"],
+                ORE["proxyIn"]: coll,
+                ORE["proxyFor"]: entity,
+
+            })
+            coll_attribs.append(
+                (PROV["hadDictionaryMember"], m))
+            coll_b_attribs.append(
+                (ORE["aggregates"], m_b))
+
+        coll.add_attributes(coll_attribs)
+        coll_b.add_attributes(coll_b_attribs)
+
+        # Also Save ORE Folder as annotation metadata
+        ore_doc = ProvDocument()
+        ore_doc.add_namespace(ORE)
+        ore_doc.add_namespace(RO)
+        ore_doc.add_namespace(UUID)
+        ore_doc.add_bundle(dir_bundle)
+        ore_doc = ore_doc.flattened()
+        ore_doc_path = posixpath.join(_posix_path(METADATA), ore_doc_fn)
+        with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
+            ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
+        self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
+
+        if is_empty:
+            # Empty directory
+            coll.add_asserted_type(PROV["EmptyCollection"])
+            coll.add_asserted_type(PROV["EmptyDictionary"])
+        self.research_object.add_uri(coll.identifier.uri)
+        return coll
+
     def declare_artefact(self, value):
         # type: (Any) -> ProvEntity
         '''
@@ -638,109 +745,9 @@ class CreateProvProfile():
                 return entity
 
             elif value.get("class") == "Directory":
-                # Register any nested files/directories
-
-                # FIXME: Calculate a hash-like identifier for directory
-                # so we get same value if it's the same filenames/hashes
-                # in a different location.
-                # For now, mint a new UUID to identify this directory, but
-                # attempt to keep it inside the value dictionary
-                dir_id = value.setdefault("@id",
-                    uuid.uuid4().urn)
-
-                # New annotation file to keep the ORE Folder listing
-                ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
-                dir_bundle = self.document.bundle(self.metadata_ns[ore_doc_fn])
-
-                coll = self.document.entity(dir_id,
-                    [ (provM.PROV_TYPE, WFPROV["Artifact"]),
-                      (provM.PROV_TYPE, PROV["Collection"]),
-                      (provM.PROV_TYPE, PROV["Dictionary"]),
-                      (provM.PROV_TYPE, RO["Folder"]),
-                    ])
-                # ORE description of ro:Folder, saved separately
-                coll_b = dir_bundle.entity(dir_id,
-                    [
-                      (provM.PROV_TYPE, RO["Folder"]),
-                      (provM.PROV_TYPE, ORE["Aggregation"]),
-                    ])
-                self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
-
-                dir_manifest = dir_bundle.entity(dir_bundle.identifier,
-                {PROV["type"]: ORE["ResourceMap"],
-                 ORE["describes"]: coll_b.identifier}
-                )
-
-                coll_attribs = [ # type ( tuple(Identifier, ProvEntity) )
-                        (ORE["isDescribedBy"], dir_bundle.identifier )
-                ]
-                coll_b_attribs = [] # type ( tuple(Identifier, ProvEntity) )
-
-                # FIXME: .listing might not be populated yet - hopefully
-                # a later call to this method will sort that
-                is_empty = True
-
-                if not "listing" in value:
-                    assert self.research_object.make_fs_access
-                    fsaccess = self.research_object.make_fs_access("")
-                    get_listing(fsaccess, value)
-                for f in value.get("listing", []):
-                    is_empty = False
-                    # Declare child-artifacts
-                    entity = self.declare_artefact(f)
-                    self.document.membership(coll, entity)
-                    # Membership relation aka our ORE Proxy
-                    m_id = uuid.uuid4().urn
-                    m = self.document.entity(m_id)
-                    m_b = dir_bundle.entity(m_id)
-
-                    # PROV-O style Dictionary
-                    # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
-                    # ..as prov.py do not currently allow PROV-N extensions
-                    # like hadDictionaryMember(..)
-                    m.add_asserted_type(PROV["KeyEntityPair"])
-
-                    m.add_attributes({
-                        PROV["pairKey"]: f["basename"],
-                        PROV["pairEntity"]: entity,
-                    })
-
-                    # As well as a being a
-                    # http://wf4ever.github.io/ro/2016-01-28/ro/#FolderEntry
-                    m_b.add_asserted_type(RO["FolderEntry"])
-                    m_b.add_asserted_type(ORE["Proxy"])
-                    m_b.add_attributes({
-                        RO["entryName"]: f["basename"],
-                        ORE["proxyIn"]: coll,
-                        ORE["proxyFor"]: entity,
-
-                    })
-                    coll_attribs.append(
-                        (PROV["hadDictionaryMember"], m))
-                    coll_b_attribs.append(
-                        (ORE["aggregates"], m_b))
-
-                coll.add_attributes(coll_attribs)
-                coll_b.add_attributes(coll_b_attribs)
-
-                # Also Save ORE Folder as annotation metadata
-                ore_doc = ProvDocument()
-                ore_doc.add_namespace(ORE)
-                ore_doc.add_namespace(RO)
-                ore_doc.add_namespace(UUID)
-                ore_doc.add_bundle(dir_bundle)
-                ore_doc = ore_doc.flattened()
-                ore_doc_path = posixpath.join(_posix_path(METADATA), ore_doc_fn)
-                with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
-                    ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
-                self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
-
-                if is_empty:
-                    # Empty directory
-                    coll.add_asserted_type(PROV["EmptyCollection"])
-                    coll.add_asserted_type(PROV["EmptyDictionary"])
-                self.research_object.add_uri(coll.identifier.uri)
-                return coll
+                entity = self.declare_directory(value)
+                value["@id"] = entity.identifier.uri
+                return entity
             else:
                 coll_id = value.setdefault("@id",
                     uuid.uuid4().urn)
@@ -1526,7 +1533,7 @@ class ResearchObject():
         '''
         copied=copy.deepcopy(builderJob)
         relativised_input_objecttemp = {}  # type: Dict[Any,Any]
-        self.relativise_files(copied)
+        self._relativise_files(copied)
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(copied, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
@@ -1548,7 +1555,7 @@ class ResearchObject():
             {k: v for k, v in relativised_input_objecttemp.items() if v})
         return relativised_input_object
 
-    def relativise_files(self, structure):
+    def _relativise_files(self, structure):
         # type: (Any, Dict) -> None
         '''
         save any file objects into Research Object and update the local paths
@@ -1589,7 +1596,7 @@ class ResearchObject():
                 del structure["location"]
 
             for val in structure.values():
-                self.relativise_files(val)
+                self._relativise_files(val)
             return
 
         if isinstance(structure, (str, Text)):
@@ -1598,7 +1605,7 @@ class ResearchObject():
         try:
             for obj in iter(structure):
                 # Recurse and rewrite any nested File objects
-                self.relativise_files(obj)
+                self._relativise_files(obj)
         except TypeError:
             pass
 
