@@ -239,7 +239,7 @@ class WorkflowJob(object):
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
-        wo = {}  # type: Optional[Dict[Text, Text]]
+        wo = None  # type: Optional[Dict[Text, Text]]
         try:
             wo = object_from_state(
                 self.state, self.tool["outputs"], True, supportsMultipleInput,
@@ -247,12 +247,11 @@ class WorkflowJob(object):
         except WorkflowException as err:
             _logger.error(
                 u"[%s] Cannot collect workflow output: %s", self.name, err)
-            wo = {}
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
             process_run_id = None
-            self.prov_obj.generate_output_prov(wo, process_run_id, self.name)
+            self.prov_obj.generate_output_prov(wo or {}, process_run_id, self.name)
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri, None, self.prov_obj.engine_uuid,
                 datetime.datetime.now())

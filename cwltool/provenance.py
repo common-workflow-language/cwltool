@@ -27,7 +27,7 @@ from collections import OrderedDict
 from socket import getfqdn
 from getpass import getuser
 from typing import (Any, Callable, Dict, IO, List, Optional, MutableMapping,
-                    Set, Tuple, cast)
+                    Set, Tuple, Union, cast)
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
@@ -519,6 +519,7 @@ class CreateProvProfile():
         if 'checksum' in value:
             csum = value['checksum']
             (method, checksum) = csum.split("$", 1)
+            assert checksum
             if method == SHA1 and \
                 self.research_object.has_data_file(checksum):
                 entity = self.document.entity("data:" + checksum)
@@ -540,8 +541,7 @@ class CreateProvProfile():
 
         if not entity and 'content' in value:
             # Anonymous file, add content as string
-            entity = self.declare_artefact(value["content"])
-            checksum = None # TODO
+            entity,checksum = self.declare_string(value["content"])
 
         # By here one of them should have worked!
         if not entity:
@@ -579,6 +579,7 @@ class CreateProvProfile():
                 other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
 
         assert entity
+        assert checksum
         return file_entity, entity, checksum
 
     def declare_directory(self, value):
@@ -688,6 +689,20 @@ class CreateProvProfile():
         self.research_object.add_uri(coll.identifier.uri)
         return coll
 
+    def declare_string(self, value):
+        # type: (Union[Text, str]) -> Tuple[ProvEntity,str]
+
+        # Save as string in UTF-8
+        byte_s = io.BytesIO(str(value).encode(ENCODING))
+        data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
+        checksum = posixpath.basename(data_file)
+        # FIXME: Don't naively assume add_data_file uses hash in filename!
+        data_id = "data:%s" % posixpath.split(data_file)[1]
+        entity = self.document.entity(data_id,
+            {provM.PROV_TYPE: WFPROV["Artifact"],
+            provM.PROV_VALUE: str(value)})
+        return entity, checksum
+
     def declare_artefact(self, value):
         # type: (Any) -> ProvEntity
         '''
@@ -711,14 +726,8 @@ class CreateProvProfile():
             return e
 
         elif isinstance(value, (Text, str)):
-            # Save as string in UTF-8
-            byte_s = io.BytesIO(str(value).encode(ENCODING))
-            data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
-            # FIXME: Don't naively assume add_data_file uses hash in filename!
-            data_id = "data:%s" % posixpath.split(data_file)[1]
-            return self.document.entity(data_id,
-                {provM.PROV_TYPE: WFPROV["Artifact"],
-                provM.PROV_VALUE: str(value)})
+            (entity,_) = self.declare_string(value)
+            return entity
 
         elif isinstance(value, bytes):
             # If we got here then we must be in Python 3
@@ -840,7 +849,7 @@ class CreateProvProfile():
                         datetime.datetime.now(), None, {"prov:role": prov_role})
 
     def generate_output_prov(self,
-                             final_output,    # type: Optional[Dict[Text, Any]]
+                             final_output,    # type: Dict[Text, Any]
                              process_run_id,  # type: Optional[str]
                              name             # type: Optional[Text]
                             ):   # type: (...) -> None
