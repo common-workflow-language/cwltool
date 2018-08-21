@@ -482,6 +482,29 @@ class TestProvenance(unittest.TestCase):
                 if not files:
                     self.assertTrue((d,RDF.type,PROV.EmptyCollection) in g)
                     self.assertTrue((d,RDF.type,PROV.EmptyDictionary) in g)
+        if secondary_files:
+            derivations = set(g.subjects(RDF.type, CWLPROV.SecondaryFile))
+            self.assertTrue(derivations)
+            for der in derivations:
+                sec = set(g.subjects(PROV.qualifiedDerivation, der)).pop()
+                prim = set(g.objects(der, PROV.entity)).pop()
+
+                # UUID specializes a hash checksum
+                self.assertTrue(set(g.objects(sec, PROV.specializationOf)))
+                # extensions etc.
+                sec_basename = set(g.objects(sec, CWLPROV.basename)).pop()
+                sec_nameroot = set(g.objects(sec, CWLPROV.nameroot)).pop()
+                sec_nameext = set(g.objects(sec, CWLPROV.nameext)).pop()
+                self.assertEquals(str(sec_basename), "%s%s" % (sec_nameroot, sec_nameext))
+                # TODO: Check hash data file exist in RO
+
+                # The primary entity should have the same, but different values
+                self.assertTrue(set(g.objects(prim, PROV.specializationOf)))
+                prim_basename = set(g.objects(prim, CWLPROV.basename)).pop()
+                prim_nameroot = set(g.objects(prim, CWLPROV.nameroot)).pop()
+                prim_nameext = set(g.objects(prim, CWLPROV.nameext)).pop()
+                self.assertEquals(sec_nameroot, prim_basename)
+                self.assertEquals(str(prim_basename), "%s%s" % (prim_nameroot, prim_nameext))
 
 
 class TestConvertPath(unittest.TestCase):
