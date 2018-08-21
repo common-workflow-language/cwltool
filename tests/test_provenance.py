@@ -130,8 +130,9 @@ class TestProvenance(unittest.TestCase):
                 }
         }
         jobJson = tempfile.mktemp("job.json")
-        with open(jobJson, "w", encoding="ASCII") as fp:
-            fp.write(json.dumps(job, ensure_ascii=True))
+        with open(jobJson, "wb") as fp:
+            j = json.dumps(job, ensure_ascii=True)
+            fp.write(j.encode("ascii"))
 
         self.cwltool(get_data('tests/wf/sec-wf.cwl'), jobJson)
         self.check_provenance(secondary_files=True)
