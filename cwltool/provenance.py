@@ -27,7 +27,7 @@ from collections import OrderedDict
 from socket import getfqdn
 from getpass import getuser
 from typing import (Any, Callable, Dict, IO, List, Optional, MutableMapping,
-                    Set, Tuple, cast)
+                    Set, Tuple, Union, cast)
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
@@ -47,6 +47,7 @@ from schema_salad.sourceline import SourceLine
 from .context import RuntimeContext  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .loghandler import _logger
+from .pathmapper import get_listing
 from .process import shortname, Process  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import versionstring
@@ -93,6 +94,7 @@ MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
 WFDESC = Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV = Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
+WF4EVER = Namespace("wf4ever", 'http://purl.org/wf4ever/wf4ever#')
 RO = Namespace("ro", 'http://purl.org/wf4ever/ro#')
 ORE = Namespace("ore", 'http://www.openarchives.org/ore/terms/')
 FOAF = Namespace("foaf", 'http://xmlns.com/foaf/0.1/')
@@ -109,6 +111,9 @@ TEXT_PLAIN = 'text/plain; charset="%s"' % ENCODING
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
 Hasher = hashlib.sha1
+SHA1="sha1"
+SHA256="sha256"
+SHA512="sha512"
 
 # TODO: Better identifiers for user, at least
 # these should be preserved in ~/.config/cwl for every execution
@@ -160,9 +165,9 @@ class WritableBagFile(io.FileIO):
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         self.rel_path = rel_path
-        self.hashes = {"sha1": hashlib.sha1(),
-                       "sha256": hashlib.sha256(),
-                       "sha512": hashlib.sha512()}
+        self.hashes = {SHA1: hashlib.sha1(),
+                       SHA256: hashlib.sha256(),
+                       SHA512: hashlib.sha512()}
         # Open file in Research Object folder
         if research_object.folder:
             path = os.path.abspath(os.path.join(research_object.folder, _local_path(rel_path)))
@@ -371,7 +376,7 @@ class CreateProvProfile():
         #  https://tools.ietf.org/html/rfc6920#section-7
         self.document.add_namespace('data', 'urn:hash::sha1:')
         # Also needed for docker images
-        self.document.add_namespace("sha256", "nih:sha-256;")
+        self.document.add_namespace(SHA256, "nih:sha-256;")
 
         # info only, won't really be used by prov as sub-resources use /
         self.document.add_namespace('researchobject', self.research_object.base_uri)
@@ -436,46 +441,23 @@ class CreateProvProfile():
                  job_order_object,  # type: Dict[Text, Text]
                  make_fs_access,    # type: Callable[[Text], StdFsAccess]
                  runtimeContext     # type: RuntimeContext
-                ):  # type: (...) -> Tuple[Optional[str], Dict[Text, Text]]
+                ):  # type: (...) -> Optional[str]
         '''
         evaluate the nature of r and
         initialize the activity start
         '''
-        def copy_job_order(job, job_order_object):
-            # type: (Any,Any) -> Any
-            '''
-            creates copy of job object for provenance
-            '''
-            if not hasattr(job, "tool"):
-                # direct command line tool execution
-                return job_order_object
-            customised_job = {}  # new job object for RO
-            for each, i in enumerate(job.tool["inputs"]):
-                with SourceLine(job.tool["inputs"], each, WorkflowException,
-                                _logger.isEnabledFor(logging.DEBUG)):
-                    iid = shortname(i["id"])
-                    if iid in job_order_object:
-                        customised_job[iid] = copy.deepcopy(job_order_object[iid])
-                        # add the input element in dictionary for provenance
-                    elif "default" in i:
-                        customised_job[iid] = copy.deepcopy(i["default"])
-                        # add the default elements in the dictionary for provenance
-                    else:
-                        pass
-            return customised_job
 
-        reference_locations = {}  # type: Dict[Text, Any]
         process_run_id = None
         research_obj = runtimeContext.research_obj
         assert research_obj is not None
+        research_obj.make_fs_access = make_fs_access
         if not hasattr(process, "steps"):
             # record provenance of an independent commandline tool execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            inputs, reference_locations = \
-                research_obj.create_job(
-                    customised_job, make_fs_access)
-            self.used_artefacts(inputs, self.workflow_run_uri)
+            self.used_artefacts(customised_job, self.workflow_run_uri)
+            research_obj.create_job(job, customised_job)
+            #self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
                 name = str(job.name)
@@ -484,17 +466,17 @@ class CreateProvProfile():
         elif hasattr(job, "workflow"):  # record provenance for the workflow execution
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            inputs, reference_locations = \
-                research_obj.create_job(
-                    customised_job, make_fs_access)
-            self.used_artefacts(inputs, self.workflow_run_uri)
+            self.used_artefacts(customised_job, self.workflow_run_uri)
+            #inputs = research_obj.create_job(
+                    #customised_job)
+            #self.used_artefacts(inputs, self.workflow_run_uri)
         else:  # in case of commandline tool execution as part of workflow
             name = ""
             if hasattr(job, "name"):
                 name = str(job.name)
             process_name = urllib.parse.quote(name, safe=":/,#")
             process_run_id = self.start_process(process_name)
-        return process_run_id, reference_locations
+        return process_run_id
 
     def start_process(self, process_name, process_run_id=None):
             # type: (Any, str, str) -> str
@@ -527,6 +509,200 @@ class CreateProvProfile():
                 None, None)
         return process_run_id
 
+    def declare_file(self, value):
+        # type: (Dict) -> Tuple[ProvEntity,ProvEntity,str]
+        if value["class"] != "File":
+            raise ValueError("Must have class:File: %s" % value)
+        # Need to determine file hash aka RO filename
+        entity = None # type: Optional[ProvEntity]
+        checksum = None
+        if 'checksum' in value:
+            csum = value['checksum']
+            (method, checksum) = csum.split("$", 1)
+            assert checksum
+            if method == SHA1 and \
+                self.research_object.has_data_file(checksum):
+                entity = self.document.entity("data:" + checksum)
+
+        if not entity and 'location' in value:
+            location = str(value['location'])
+            # If we made it here, we'll have to add it to the RO
+            assert self.research_object.make_fs_access
+            fsaccess = self.research_object.make_fs_access("")
+            with fsaccess.open(location, "rb") as fhandle:
+                relative_path = self.research_object.add_data_file(fhandle)
+                # FIXME: This naively relies on add_data_file setting hash as filename
+                checksum = posixpath.basename(relative_path)
+                entity = self.document.entity("data:" + checksum,
+                    {provM.PROV_TYPE: WFPROV["Artifact"]})
+                if "checksum" not in value:
+                    value["checksum"] = "%s$%s" % (SHA1, checksum)
+
+
+        if not entity and 'contents' in value:
+            # Anonymous file, add content as string
+            entity,checksum = self.declare_string(value["contents"])
+
+        # By here one of them should have worked!
+        if not entity:
+            raise ValueError("class:File but missing checksum/location/content: %r" % value)
+
+
+        # Track filename and extension, this is generally useful only for
+        # secondaryFiles. Note that multiple uses of a file might thus record
+        # different names for the same entity, so we'll
+        # make/track a specialized entity by UUID
+        file_id = value.setdefault("@id", uuid.uuid4().urn)
+        # A specialized entity that has just these names
+        file_entity = self.document.entity(file_id,
+            [(provM.PROV_TYPE, WFPROV["Artifact"]),
+                (provM.PROV_TYPE, WF4EVER["File"])
+            ]) # type: ProvEntity
+
+        if "basename" in value:
+            file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
+        if "nameroot" in value:
+            file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
+        if "nameext" in value:
+            file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
+        self.document.specializationOf(file_entity, entity)
+
+        # Check for secondaries
+        for sec in value.get("secondaryFiles", ()):
+            # TODO: Record these in a specializationOf entity with UUID?
+            (sec_entity,_,_) = self.declare_file(sec)
+            # We don't know how/when/where the secondary file was generated,
+            # but CWL convention is a kind of summary/index derived
+            # from the original file. As its generally in a different format
+            # then prov:Quotation is not appropriate.
+            self.document.derivation(sec_entity, file_entity,
+                other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
+
+        assert entity
+        assert checksum
+        return file_entity, entity, checksum
+
+    def declare_directory(self, value):
+        # type: (Dict) -> ProvEntity
+
+        # Register any nested files/directories
+
+        # FIXME: Calculate a hash-like identifier for directory
+        # so we get same value if it's the same filenames/hashes
+        # in a different location.
+        # For now, mint a new UUID to identify this directory, but
+        # attempt to keep it inside the value dictionary
+        dir_id = value.setdefault("@id",
+            uuid.uuid4().urn)
+
+        # New annotation file to keep the ORE Folder listing
+        ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
+        dir_bundle = self.document.bundle(self.metadata_ns[ore_doc_fn])
+
+        coll = self.document.entity(dir_id,
+            [ (provM.PROV_TYPE, WFPROV["Artifact"]),
+                (provM.PROV_TYPE, PROV["Collection"]),
+                (provM.PROV_TYPE, PROV["Dictionary"]),
+                (provM.PROV_TYPE, RO["Folder"]),
+            ])
+        # ORE description of ro:Folder, saved separately
+        coll_b = dir_bundle.entity(dir_id,
+            [
+                (provM.PROV_TYPE, RO["Folder"]),
+                (provM.PROV_TYPE, ORE["Aggregation"]),
+            ])
+        self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
+
+        dir_manifest = dir_bundle.entity(dir_bundle.identifier,
+        {PROV["type"]: ORE["ResourceMap"],
+            ORE["describes"]: coll_b.identifier}
+        )
+
+        coll_attribs = [ # type ( tuple(Identifier, ProvEntity) )
+                (ORE["isDescribedBy"], dir_bundle.identifier )
+        ]
+        coll_b_attribs = [] # type ( tuple(Identifier, ProvEntity) )
+
+        # FIXME: .listing might not be populated yet - hopefully
+        # a later call to this method will sort that
+        is_empty = True
+
+        if not "listing" in value:
+            assert self.research_object.make_fs_access
+            fsaccess = self.research_object.make_fs_access("")
+            get_listing(fsaccess, value)
+        for f in value.get("listing", []):
+            is_empty = False
+            # Declare child-artifacts
+            entity = self.declare_artefact(f)
+            self.document.membership(coll, entity)
+            # Membership relation aka our ORE Proxy
+            m_id = uuid.uuid4().urn
+            m = self.document.entity(m_id)
+            m_b = dir_bundle.entity(m_id)
+
+            # PROV-O style Dictionary
+            # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
+            # ..as prov.py do not currently allow PROV-N extensions
+            # like hadDictionaryMember(..)
+            m.add_asserted_type(PROV["KeyEntityPair"])
+
+            m.add_attributes({
+                PROV["pairKey"]: f["basename"],
+                PROV["pairEntity"]: entity,
+            })
+
+            # As well as a being a
+            # http://wf4ever.github.io/ro/2016-01-28/ro/#FolderEntry
+            m_b.add_asserted_type(RO["FolderEntry"])
+            m_b.add_asserted_type(ORE["Proxy"])
+            m_b.add_attributes({
+                RO["entryName"]: f["basename"],
+                ORE["proxyIn"]: coll,
+                ORE["proxyFor"]: entity,
+
+            })
+            coll_attribs.append(
+                (PROV["hadDictionaryMember"], m))
+            coll_b_attribs.append(
+                (ORE["aggregates"], m_b))
+
+        coll.add_attributes(coll_attribs)
+        coll_b.add_attributes(coll_b_attribs)
+
+        # Also Save ORE Folder as annotation metadata
+        ore_doc = ProvDocument()
+        ore_doc.add_namespace(ORE)
+        ore_doc.add_namespace(RO)
+        ore_doc.add_namespace(UUID)
+        ore_doc.add_bundle(dir_bundle)
+        ore_doc = ore_doc.flattened()
+        ore_doc_path = posixpath.join(_posix_path(METADATA), ore_doc_fn)
+        with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
+            ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
+        self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
+
+        if is_empty:
+            # Empty directory
+            coll.add_asserted_type(PROV["EmptyCollection"])
+            coll.add_asserted_type(PROV["EmptyDictionary"])
+        self.research_object.add_uri(coll.identifier.uri)
+        return coll
+
+    def declare_string(self, value):
+        # type: (Union[Text, str]) -> Tuple[ProvEntity,Text]
+
+        # Save as string in UTF-8
+        byte_s = io.BytesIO(str(value).encode(ENCODING))
+        data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
+        checksum = posixpath.basename(data_file)
+        # FIXME: Don't naively assume add_data_file uses hash in filename!
+        data_id = "data:%s" % posixpath.split(data_file)[1]
+        entity = self.document.entity(data_id,
+            {provM.PROV_TYPE: WFPROV["Artifact"],
+            provM.PROV_VALUE: str(value)}) # type: ProvEntity
+        return entity, checksum
+
     def declare_artefact(self, value):
         # type: (Any) -> ProvEntity
         '''
@@ -550,14 +726,8 @@ class CreateProvProfile():
             return e
 
         elif isinstance(value, (Text, str)):
-            # Save as string in UTF-8
-            byte_s = io.BytesIO(str(value).encode(ENCODING))
-            data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
-            # FIXME: Don't naively assume add_data_file uses hash in filename!
-            data_id = "data:%s" % posixpath.split(data_file)[1]
-            return self.document.entity(data_id,
-                {provM.PROV_TYPE: WFPROV["Artifact"],
-                provM.PROV_VALUE: str(value)})
+            (entity,_) = self.declare_string(value)
+            return entity
 
         elif isinstance(value, bytes):
             # If we got here then we must be in Python 3
@@ -570,138 +740,34 @@ class CreateProvProfile():
                 provM.PROV_VALUE: str(value)})
 
         elif isinstance(value, dict):
+            if "@id" in value:
+                # Already processed this value, but it might not be in this PROV
+                entities = self.document.get_record(value["@id"])
+                if entities:
+                    return entities[0]
+                # else, unknown in PROV, re-add below as if it's fresh
+
             # Base case - we found a File we need to update
             if value.get("class") == "File":
-                if 'checksum' in value:
-                    csum = value['checksum']
-                    (method, checksum) = csum.split("$", 1)
-                    if method == "sha1" and \
-                        self.research_object.has_data_file(checksum):
-                        return self.document.entity("data:" + checksum)
-
-                if 'location' in value:
-                    # FIXME: cope with file literals.
-                    location = str(value['location'])
-                    # If we made it here, we'll have to add it to the RO
-                    assert self.research_object.make_fs_access
-                    fsaccess = self.research_object.make_fs_access("")
-                    with fsaccess.open(location, "rb") as fhandle:
-                        relative_path = self.research_object.add_data_file(fhandle)
-                        checksum = posixpath.basename(relative_path)
-                        return self.document.entity("data:" + checksum,
-                            {provM.PROV_TYPE: WFPROV["Artifact"]})
-
-                if 'content' in value:
-                    # Anonymous file, add content as string
-                    return self.declare_artefact(value["content"])
+                (entity,_,_) = self.declare_file(value)
+                value["@id"] = entity.identifier.uri
+                return entity
 
             elif value.get("class") == "Directory":
-                # Register any nested files/directories
-
-                # FIXME: Calculate a hash-like identifier for directory
-                # so we get same value if it's the same filenames/hashes
-                # in a different location.
-                # For now, mint a new UUID to identify this directory, but
-                # attempt to keep it inside the value dictionary
-                dir_id = value.setdefault("id",
-                    uuid.uuid4().urn)
-
-                # New annotation file to keep the ORE Folder listing
-                ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
-                dir_bundle = self.document.bundle(self.metadata_ns[ore_doc_fn])
-
-                coll = self.document.entity(dir_id,
-                    [ (provM.PROV_TYPE, WFPROV["Artifact"]),
-                      (provM.PROV_TYPE, PROV["Collection"]),
-                      (provM.PROV_TYPE, PROV["Dictionary"]),
-                      (provM.PROV_TYPE, RO["Folder"]),
-                    ])
-                # ORE description of ro:Folder, saved separately
-                coll_b = dir_bundle.entity(dir_id,
-                    [
-                      (provM.PROV_TYPE, RO["Folder"]),
-                      (provM.PROV_TYPE, ORE["Aggregation"]),
-                    ])
-                self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
-
-                dir_manifest = dir_bundle.entity(dir_bundle.identifier,
-                {PROV["type"]: ORE["ResourceMap"],
-                 ORE["describes"]: coll_b.identifier}
-                )
-
-                coll_attribs = [ # type ( tuple(Identifier, ProvEntity) )
-                        (ORE["isDescribedBy"], dir_bundle.identifier )
-                ]
-                coll_b_attribs = [] # type ( tuple(Identifier, ProvEntity) )
-
-                # FIXME: .listing might not be populated yet - hopefully
-                # a later call to this method will sort that
-                is_empty = True
-                for f in value.get("listing", []):
-                    is_empty = False
-                    # Declare child-artifacts
-                    entity = self.declare_artefact(f)
-                    self.document.membership(coll, entity)
-                    # Membership relation aka our ORE Proxy
-                    m_id = uuid.uuid4().urn
-                    m = self.document.entity(m_id)
-                    m_b = dir_bundle.entity(m_id)
-
-                    # PROV-O style Dictionary
-                    # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
-                    # ..as prov.py do not currently allow PROV-N extensions
-                    # like hadDictionaryMember(..)
-                    m.add_asserted_type(PROV["KeyEntityPair"])
-
-                    m.add_attributes({
-                        PROV["pairKey"]: f["basename"],
-                        PROV["pairEntity"]: entity,
-                    })
-
-                    # As well as a being a
-                    # http://wf4ever.github.io/ro/2016-01-28/ro/#FolderEntry
-                    m_b.add_asserted_type(RO["FolderEntry"])
-                    m_b.add_asserted_type(ORE["Proxy"])
-                    m_b.add_attributes({
-                        RO["entryName"]: f["basename"],
-                        ORE["proxyIn"]: coll,
-                        ORE["proxyFor"]: entity,
-
-                    })
-                    coll_attribs.append(
-                        (PROV["hadDictionaryMember"], m))
-                    coll_b_attribs.append(
-                        (ORE["aggregates"], m_b))
-
-                coll.add_attributes(coll_attribs)
-                coll_b.add_attributes(coll_b_attribs)
-
-                # Also Save ORE Folder as annotation metadata
-                ore_doc = ProvDocument()
-                ore_doc.add_namespace(ORE)
-                ore_doc.add_namespace(RO)
-                ore_doc.add_namespace(UUID)
-                ore_doc.add_bundle(dir_bundle)
-                ore_doc = ore_doc.flattened()
-                ore_doc_path = posixpath.join(_posix_path(METADATA), ore_doc_fn)
-                with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
-                    ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
-                self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
-
-                if is_empty:
-                    # Empty directory
-                    coll.add_asserted_type(PROV["EmptyCollection"])
-                    coll.add_asserted_type(PROV["EmptyDictionary"])
-                self.research_object.add_uri(coll.identifier.uri)
-                return coll
+                entity = self.declare_directory(value)
+                value["@id"] = entity.identifier.uri
+                return entity
             else:
+                coll_id = value.setdefault("@id",
+                    uuid.uuid4().urn)
                 # some other kind of dictionary?
                 # TODO: also Save as JSON
-                coll = self.document.entity(uuid.uuid4().urn,
+                coll = self.document.entity(coll_id,
                         [ (provM.PROV_TYPE, WFPROV["Artifact"]),
                         (provM.PROV_TYPE, PROV["Collection"]),
                         (provM.PROV_TYPE, PROV["Dictionary"]),
                         ])
+                value
 
                 if value.get("class"):
                     _logger.warn("Unknown data class " + value["class"])
@@ -752,6 +818,7 @@ class CreateProvProfile():
                     # with numeric keys
                     self.document.membership(coll, e)
             self.research_object.add_uri(coll.identifier.uri)
+            # FIXME: list value does not support adding "@id"
             return coll
         except TypeError:
             _logger.warning("Unrecognized type %s of %r" %
@@ -782,77 +849,33 @@ class CreateProvProfile():
                         datetime.datetime.now(), None, {"prov:role": prov_role})
 
     def generate_output_prov(self,
-                             final_output,    # type: Optional[Dict[Text, Any]]
+                             final_output,    # type: Dict[Text, Any]
                              process_run_id,  # type: Optional[str]
                              name             # type: Optional[Text]
                             ):   # type: (...) -> None
         '''
         create wasGeneratedBy() for each output and copy each output file in the RO
         '''
-        # A bit too late, but we don't know the "inner" when
-        def array_output(key, current_l):
-            # type: (Any, List) -> List
-            '''
-            helper function for generate_output_prov()
-            for the case when we have an array of files as output
-            '''
-            new_l = []
-            for out_file in current_l:
-                if isinstance(out_file, dict):
-                    new_l.append((key, out_file['checksum'], out_file['location']))
-
-            return new_l
-
-        def dict_output(key, current_dict):
-            # type: (Any, Dict) -> List
-            '''
-            helper function for generate_output_prov()
-            for the case when the output is key:value where value is a file item
-            '''
-            new_d = []
-            if current_dict.get("class") == "File":
-                new_d.append((key, current_dict['checksum'], current_dict['location']))
-            return new_d
-
+        # Record "when" as early as possible
         when = datetime.datetime.now()
-        key_files = []  # type: List[List[Any]]
-        if final_output:
-            for key, value in final_output.items():
 
-                if isinstance(value, list):
-                    key_files.append(array_output(key, value))
-                elif isinstance(value, dict):
-                    key_files.append(dict_output(key, value))
-
-        merged_total = list(itertools.chain.from_iterable(key_files))
-        #generate data artefacts at workflow level
-        for tuple_entry in merged_total:
-            # FIXME: What are these magic array[][] positions???
-            output_checksum = "data:"+str(tuple_entry[1][5:])
-
-            if process_run_id and name:
+        # For each output, find/register the corresponding
+        # entity (UUID) and document it as generated in
+        # a role corresponding to the output
+        for output, value in final_output.items():
+            entity = self.declare_artefact(value)
+            if name:
                 name = urllib.parse.quote(str(name), safe=":/,#")
-                step_prov = self.wf_ns["main/"+name+"/"+str(tuple_entry[0])]
-
-                self.document.entity(output_checksum,
-                                     {provM.PROV_TYPE: WFPROV["Artifact"]})
-                self.document.wasGeneratedBy(
-                    output_checksum, process_run_id, when, None,
-                    {"prov:role": step_prov})
+                # FIXME: Probably not "main" in nested workflows
+                role = self.wf_ns["main/%s/%s" % (name, output)]
             else:
-                output_prov_role = self.wf_ns["main/"+str(tuple_entry[0])]
-                self.document.entity(output_checksum,
-                                     {provM.PROV_TYPE: WFPROV["Artifact"]})
-                self.document.wasGeneratedBy(
-                    output_checksum, self.workflow_run_uri, when, None,
-                    {"prov:role": output_prov_role})
-                # FIXME: What are these magic array positions???
-            path = tuple_entry[2]
-            if path.startswith("file://"):
-                path = path[7:]
-            with open(path, "rb") as cwl_output_file:
-                rel_path = self.research_object.add_data_file(cwl_output_file, when)
-                _logger.info(u"[provenance] Adding output file %s to RO", rel_path)
+                role = self.wf_ns["main/%s" % output]
+
+            if not process_run_id:
+                process_run_id = self.workflow_run_uri
+
+            self.document.wasGeneratedBy(entity, process_run_id,
+                when, None, {"prov:role": role})
 
     def prospective_prov(self, job):
         # type: (Any) -> None
@@ -1084,15 +1107,15 @@ class ResearchObject():
             # Below probably OK for now as metadata files
             # are not too large..?
 
-            checksums["sha1"] = checksum_copy(tag_file, hasher=hashlib.sha1)
+            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
             tag_file.seek(0)
             # Older Python's might not have all checksums
             if sha256:
                 tag_file.seek(0)
-                checksums["sha256"] = checksum_copy(tag_file, hasher=sha256)
+                checksums[SHA256] = checksum_copy(tag_file, hasher=sha256)
             if sha512:
                 tag_file.seek(0)
-                checksums["sha512"] = checksum_copy(tag_file, hasher=sha512)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=sha512)
         assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -1498,81 +1521,89 @@ class ResearchObject():
             return
         self.bagged_size[rel_path] = os.path.getsize(local_path)
 
-        if "sha1" not in checksums:
+        if SHA1 not in checksums:
             # ensure we always have sha1
             checksums = dict(checksums)
             with open(local_path, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                checksums["sha1"] = checksum_copy(file_path, hasher=hashlib.sha1)
+                checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
 
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   job,             # type: Dict
-                   make_fs_access,  # type: Callable[[Text], StdFsAccess]
-                  ):  # type: (...) -> Tuple[Dict,Dict]
+                   wfJob,
+                   builderJob   # type: Dict
+                  ):  # type: (...) -> Dict
         #TODO customise the file
         '''
         This function takes the dictionary input object and generates
         a json file containing the relative paths and link to the associated
         cwl document
         '''
-        self.make_fs_access = make_fs_access
-        relativised_input_objecttemp2 = {}  # type: Dict[Any,Any]
+        copied=copy.deepcopy(builderJob)
         relativised_input_objecttemp = {}  # type: Dict[Any,Any]
-        self._relativise_files(job, relativised_input_objecttemp2)
-
+        self._relativise_files(copied)
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
-        j = json.dumps(job, indent=4, ensure_ascii=False)
+        j = json.dumps(copied, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
-
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
         relativised_input_objecttemp = {}
-        for key, value in job.items():
+        for key, value in copied.items():
             if isinstance(value, dict):
-                if value.get("class") == "File":
-                    relativised_input_objecttemp[key] = value
-                if value.get("class") == "Directory":
+                if value.get("class") in ("File", "Directory"):
                     relativised_input_objecttemp[key] = value
             else:
                 relativised_input_objecttemp[key] = value
         relativised_input_object.update(
             {k: v for k, v in relativised_input_objecttemp.items() if v})
-        return relativised_input_object, relativised_input_objecttemp2
+        return relativised_input_object
 
-    def _relativise_files(self, structure, relativised_input_objecttemp2):
+    def _relativise_files(self, structure):
         # type: (Any, Dict) -> None
         '''
         save any file objects into Research Object and update the local paths
         '''
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
+
         if isinstance(structure, dict):
-            if structure.get("class") == "File" and "contents" not in structure:
-                #standardised fs access object creation
-                assert self.make_fs_access
-                fsaccess = self.make_fs_access("")
-                # TODO: Replace location/path with new add_data_file() paths
-                # FIXME: check if the contents are given
-                with fsaccess.open(structure["location"], "rb") as relative_file:
-                    relative_path = self.add_data_file(relative_file)
-                    ref_location = structure["location"]
-                    structure["location"] = "../"+relative_path
-                    if "checksum" not in structure:
-                        # FIXME: This naively relies on add_data_file setting hash as filename
-                        structure["checksum"] = "sha1$%s" % posixpath.basename(relative_path)
-                    relativised_input_objecttemp2[ref_location] = structure["location"]
+            if structure.get("class") == "File":
+                relative_path = None
+                if "checksum" in structure:
+                    sha1,checksum = structure["checksum"].split("$")
+                    assert sha1 == SHA1
+                    if self.has_data_file(checksum):
+                        prefix = checksum[0:2]
+                        relative_path = posixpath.join("data", prefix, checksum)
+
+                if not relative_path and "location" in structure:
+                    # Register in RO; but why was this not picked
+                    # up by used_artefacts?
+                    _logger.warning("File not previously registered in RO: %s", structure)
+                    fsaccess = self.make_fs_access("")
+                    with fsaccess.open(structure["location"], "rb") as fp:
+                        relative_path = self.add_data_file(fp)
+                        checksum = posixpath.basename(relative_path)
+                        structure["checksum"] = "%s$%s" % (SHA1, checksum)
+                if relative_path:
+                    # RO-relative path as new location
+                    structure["location"] = posixpath.join("..", relative_path)
+                else:
+                    _logger.warning("Could not determine RO path for file %s", structure)
+                if "path" in structure:
+                    del structure["path"]
 
             if structure.get("class") == "Directory":
-                # TODO:
-                pass
+                # TODO: Generate anonymoys Directory with a "listing"
+                # pointing to the hashed files
+                del structure["location"]
 
             for val in structure.values():
-                self._relativise_files(val, relativised_input_objecttemp2)
+                self._relativise_files(val)
             return
 
         if isinstance(structure, (str, Text)):
@@ -1581,7 +1612,7 @@ class ResearchObject():
         try:
             for obj in iter(structure):
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(obj, relativised_input_objecttemp2)
+                self._relativise_files(obj)
         except TypeError:
             pass
 
@@ -1636,3 +1667,26 @@ def checksum_copy(file_path,            # type: IO
     if copy_to_fp is not None:
         copy_to_fp.flush()
     return checksum.hexdigest().lower()
+
+def copy_job_order(job, job_order_object):
+    # type: (Any,Any) -> Any
+    '''
+    creates copy of job object for provenance
+    '''
+    if not hasattr(job, "tool"):
+        # direct command line tool execution
+        return job_order_object
+    customised_job = {}  # new job object for RO
+    for each, i in enumerate(job.tool["inputs"]):
+        with SourceLine(job.tool["inputs"], each, WorkflowException,
+                        _logger.isEnabledFor(logging.DEBUG)):
+            iid = shortname(i["id"])
+            if iid in job_order_object:
+                customised_job[iid] = copy.deepcopy(job_order_object[iid])
+                # add the input element in dictionary for provenance
+            elif "default" in i:
+                customised_job[iid] = copy.deepcopy(i["default"])
+                # add the default elements in the dictionary for provenance
+            else:
+                pass
+    return customised_job

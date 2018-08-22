@@ -32,7 +32,7 @@ from .process import Process, get_overrides, shortname, uniquename
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .provenance import CreateProvProfile
+from .provenance import CreateProvProfile, ResearchObject
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 from . import context
 from .context import (LoadingContext,  # pylint: disable=unused-import
@@ -239,7 +239,7 @@ class WorkflowJob(object):
 
         supportsMultipleInput = bool(self.workflow.get_requirement("MultipleInputFeatureRequirement")[0])
 
-        wo = {}  # type: Optional[Dict[Text, Text]]
+        wo = None  # type: Optional[Dict[Text, Text]]
         try:
             wo = object_from_state(
                 self.state, self.tool["outputs"], True, supportsMultipleInput,
@@ -247,12 +247,11 @@ class WorkflowJob(object):
         except WorkflowException as err:
             _logger.error(
                 u"[%s] Cannot collect workflow output: %s", self.name, err)
-            wo = {}
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
             process_run_id = None
-            self.prov_obj.generate_output_prov(wo, process_run_id, self.name)
+            self.prov_obj.generate_output_prov(wo or {}, process_run_id, self.name)
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri, None, self.prov_obj.engine_uuid,
                 datetime.datetime.now())
@@ -564,6 +563,14 @@ class Workflow(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, runtimeContext)
+        #relativeJob=copy.deepcopy(builder.job)
+        if runtimeContext.research_obj:
+            if not runtimeContext.research_obj.make_fs_access:
+                runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
+            if runtimeContext.toplevel:
+                # Record primary-job.json
+                runtimeContext.research_obj.create_job(self.job, builder.job)
+
         job = WorkflowJob(self, runtimeContext)
         yield job
 
