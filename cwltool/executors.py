@@ -156,7 +156,7 @@ class SingleJobExecutor(JobExecutor):
                                 runtime_context.prov_obj.evaluate(
                                     process, job, job_order_object,
                                     runtime_context.make_fs_access,
-                                    runtime_context)
+                                    runtime_context.research_obj)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
                     job.run(runtime_context)
