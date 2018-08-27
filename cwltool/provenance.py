@@ -13,7 +13,6 @@ import os.path
 import posixpath
 import shutil
 import tempfile
-import itertools
 import logging
 
 import hashlib
@@ -32,6 +31,7 @@ from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-impo
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
 from six.moves import urllib
+from ruamel import yaml
 import prov.model as provM
 from prov.identifier import Namespace, Identifier
 from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
@@ -323,10 +323,10 @@ class CreateProvProfile():
         self.engine_uuid = research_object.engine_uuid
         self.add_to_manifest = self.research_object.add_to_manifest
         if self.orcid:
-            _logger.info(u"[provenance] Creator ORCID: %s", self.orcid)
+            _logger.debug(u"[provenance] Creator ORCID: %s", self.orcid)
         self.full_name = full_name or None
         if self.full_name:
-            _logger.info(u"[provenance] Creator Full name: %s", self.full_name)
+            _logger.debug(u"[provenance] Creator Full name: %s", self.full_name)
         if not run_uuid:
             run_uuid = uuid.uuid4()
         self.workflow_run_uuid = run_uuid
@@ -982,7 +982,7 @@ class CreateProvProfile():
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
-        _logger.info("[provenance] added provenance: %s" % prov_ids)
+        _logger.debug("[provenance] added provenance: %s" % prov_ids)
         return prov_ids
 
 class ResearchObject():
@@ -1014,7 +1014,7 @@ class ResearchObject():
         self.make_fs_access = None  # type: Optional[Callable[[Text], StdFsAccess]]
 
         self._initialize()
-        _logger.info(u"[provenance] Temporary research object: %s", self.folder)
+        _logger.debug(u"[provenance] Temporary research object: %s", self.folder)
 
     def __str__(self):
         return "ResearchObject <%s> in <%s>" % (
@@ -1372,7 +1372,7 @@ class ResearchObject():
             total_size = sum(self.bagged_size.values())
             num_files = len(self.bagged_size)
             info_file.write(u"Payload-Oxum: %d.%d\n" % (total_size, num_files))
-        _logger.info(u"[provenance] Generated bagit metadata: %s", self.folder)
+        _logger.debug(u"[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_snapshot(self, prov_dep):
         # type: (MutableMapping[Text, Any]) -> None
@@ -1419,7 +1419,7 @@ class ResearchObject():
         with self.write_bag_file(rel_path, encoding=None) as write_pack:
             # YAML is always UTF8, but json.dumps gives us str in py2
             write_pack.write(packed.encode(ENCODING))
-        _logger.info(u"[provenance] Added packed workflow: %s", rel_path)
+        _logger.debug(u"[provenance] Added packed workflow: %s", rel_path)
 
     def has_data_file(self, sha1hash):
         # type: (str) -> bool
@@ -1458,10 +1458,10 @@ class ResearchObject():
                 Hasher)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
-        _logger.info(u"[provenance] Added data file %s", path)
+        _logger.debug(u"[provenance] Added data file %s", path)
         if when:
             self._file_provenance[rel_path] = self._self_made(when)
-        _logger.info(u"[provenance] Relative path for data file %s", rel_path)
+        _logger.debug(u"[provenance] Relative path for data file %s", rel_path)
 
         if content_type:
             self._content_types[rel_path] = content_type
@@ -1547,7 +1547,7 @@ class ResearchObject():
         j = json.dumps(copied, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
-        _logger.info(u"[provenance] Generated customised job file: %s", rel_path)
+        _logger.debug(u"[provenance] Generated customised job file: %s", rel_path)
         #Generate dictionary with keys as workflow level input IDs and values as
         #1) for files the relativised location containing hash
         #2) for other attributes, the actual value.
@@ -1583,7 +1583,8 @@ class ResearchObject():
                 if not relative_path and "location" in structure:
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
-                    _logger.warning("File not previously registered in RO: %s", structure)
+                    _logger.warning("File not previously registered in RO: %s",
+                        yaml.dump(structure))
                     fsaccess = self.make_fs_access("")
                     with fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
@@ -1632,7 +1633,7 @@ class ResearchObject():
         """
         if save_to is None:
             if self.folder:
-                _logger.info(u"[provenance] Deleting temporary %s", self.folder)
+                _logger.debug(u"[provenance] Deleting temporary %s", self.folder)
                 shutil.rmtree(self.folder, ignore_errors=True)
         else:
             save_to = os.path.abspath(save_to)
