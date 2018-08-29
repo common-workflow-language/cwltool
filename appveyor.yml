@@ -41,7 +41,7 @@ build_script:
 test_script:
   - |
     %PYTHON%\\python.exe setup.py test --addopts "--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml"
-  - "%PYTHON%\\python.exe -m codecov"
+  - "%PYTHON%\\python.exe -m codecov --file coverage.xml"
 
 on_finish:
   - ps: |
