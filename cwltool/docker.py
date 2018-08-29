@@ -344,7 +344,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
                     _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                                  cidfile_dir + "%s is not a directory or "
+                                  cidfile_dir + " is not a directory or "
                                   "directory doesn't exist, please check it first")
                     exit(2)
                 if not os.path.exists(cidfile_dir):
