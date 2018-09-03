@@ -52,30 +52,16 @@ def aslist(l):  # type: (Any) -> List[Any]
         return l
     return [l]
 
-def copytree_with_merge(src, dst, symlinks=False, ignore=None):
-    # type: (Text, Text, bool, Callable[..., Any]) -> None
+def copytree_with_merge(src, dst):  # type: (Text, Text) -> None
     if not os.path.exists(dst):
         os.makedirs(dst)
         shutil.copystat(src, dst)
     lst = os.listdir(src)
-    if ignore:
-        excl = ignore(src, lst)
-        lst = [x for x in lst if x not in excl]
     for item in lst:
         spath = os.path.join(src, item)
         dpath = os.path.join(dst, item)
-        if symlinks and os.path.islink(spath):
-            if os.path.lexists(dpath):
-                os.remove(dpath)
-            os.symlink(os.readlink(spath), dpath)
-            try:
-                s_stat = os.lstat(spath)
-                mode = stat.S_IMODE(s_stat.st_mode)
-                os.lchmod(dpath, mode)
-            except:
-                pass  # lchmod not available, only available on unix
-        elif os.path.isdir(spath):
-            copytree_with_merge(spath, dpath, symlinks, ignore)
+        if os.path.isdir(spath):
+            copytree_with_merge(spath, dpath)
         else:
             shutil.copy2(spath, dpath)
 
@@ -142,7 +128,6 @@ def onWindows():
     # type: () -> (bool)
     """ Check if we are on Windows OS. """
     return os.name == 'nt'
-
 
 
 def convert_pathsep_to_unix(path):  # type: (Text) -> (Text)

@@ -9,6 +9,10 @@ import hashlib
 import json
 import logging
 import os
+try:
+    from os import scandir  # type: ignore
+except ImportError:
+    from scandir import scandir  # type: ignore
 import shutil
 import stat
 import tempfile
@@ -16,8 +20,8 @@ import textwrap
 import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
-from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Tuple,
-                    Union, cast)
+from typing import (Any, Callable, Dict, Generator, Iterator, List, Optional,
+                    Set, Tuple, Union, cast)
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -263,22 +267,10 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
                     n.write(p.resolved.encode("utf-8"))
             ensure_writable(p.target)
 
-def collectFilesAndDirs(obj, out):
-    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]], List[Dict[Text, Any]]) -> None
-    if isinstance(obj, dict):
-        if obj.get("class") in ("File", "Directory"):
-            out.append(obj)
-        else:
-            for v in obj.values():
-                collectFilesAndDirs(v, out)
-    if isinstance(obj, list):
-        for l in obj:
-            collectFilesAndDirs(l, out)
-
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
-                    outdir,                # type: Text
-                    output_dirs,           # type: Set[Text]
+                    destination_path,      # type: Text
+                    source_directories,    # type: Set[Text]
                     action,                # type: Text
                     fs_access,             # type: StdFsAccess
                     compute_checksum=True  # type: bool
@@ -289,40 +281,56 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     if action not in ("move", "copy"):
         return outputObj
 
-    def moveIt(src, dst):
-        if action == "move":
-            for a in output_dirs:
-                if src.startswith(a+"/"):
-                    _logger.debug("Moving %s to %s", src, dst)
-                    if os.path.isdir(src) and os.path.isdir(dst):
-                        # merge directories
-                        for root, dirs, files in os.walk(src):
-                            for f in dirs+files:
-                                moveIt(os.path.join(root, f), os.path.join(dst, f))
-                    else:
-                        shutil.move(src, dst)
-                    return
-        if src != dst:
-            _logger.debug("Copying %s to %s", src, dst)
-            if os.path.isdir(src):
-                if os.path.isdir(dst):
-                    shutil.rmtree(dst)
-                elif os.path.isfile(dst):
-                    os.unlink(dst)
-                shutil.copytree(src, dst)
+    def _collectDirEntries(obj):
+        # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> Iterator[Dict[Text, Any]]
+        if isinstance(obj, dict):
+            if obj.get("class") in ("File", "Directory"):
+                yield obj
             else:
-                shutil.copy2(src, dst)
+                for sub_obj in obj.values():
+                    for dir_entry in _collectDirEntries(sub_obj):
+                        yield dir_entry
+        elif isinstance(obj, list):
+            for sub_obj in obj:
+                for dir_entry in _collectDirEntries(sub_obj):
+                    yield dir_entry
 
-    outfiles = []  # type: List[Dict[Text, Any]]
-    collectFilesAndDirs(outputObj, outfiles)
-    pm = PathMapper(outfiles, "", outdir, separateDirs=False)
-    stageFiles(pm, stageFunc=moveIt, symLink=False)
+    def _relocate(src, dst):
+        if src == dst:
+            return
 
-    def _check_adjust(f):
-        f["location"] = file_uri(pm.mapper(f["location"])[1])
-        if "contents" in f:
-            del f["contents"]
-        return f
+        if action == "move":
+            # do not move anything if we are trying to move an entity from
+            # outside of the source directories
+            if any(src.startswith(path + "/") for path in source_directories):
+                _logger.debug("Moving %s to %s", src, dst)
+                if os.path.isdir(src) and os.path.isdir(dst):
+                    # merge directories
+                    for dir_entry in scandir(src):
+                        _relocate(dir_entry, os.path.join(dst, dir_entry.name))
+                else:
+                    shutil.move(src, dst)
+                    return
+
+        _logger.debug("Copying %s to %s", src, dst)
+        if os.path.isdir(src):
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            elif os.path.isfile(dst):
+                os.unlink(dst)
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+
+    outfiles = list(_collectDirEntries(outputObj))
+    pm = PathMapper(outfiles, "", destination_path, separateDirs=False)
+    stageFiles(pm, stageFunc=_relocate, symLink=False)
+
+    def _check_adjust(file):
+        file["location"] = file_uri(pm.mapper(file["location"])[1])
+        if "contents" in file:
+            del file["contents"]
+        return file
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
     if compute_checksum:
@@ -331,30 +339,35 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,
     # make an internal relative symlink.
+    def relink(relinked,  # type: Dict[Text, Text]
+               root_path  # type: Text
+               ):
+        for dir_entry in scandir(root_path):
+            path = dir_entry.path
+            if os.path.islink(path):
+                real_path = os.path.realpath(path)
+                if real_path in relinked:
+                    link_name = relinked[real_path]
+                    if onWindows():
+                        if os.path.isfile(path):
+                            shutil.copy(os.path.relpath(link_name, path), path)
+                        elif os.path.exists(path) and os.path.isdir(path):
+                            shutil.rmtree(path)
+                            copytree_with_merge(os.path.relpath(link_name, path), path)
+                    else:
+                        os.unlink(path)
+                        os.symlink(os.path.relpath(link_name, path), path)
+                else:
+                    if any(real_path.startswith(path + "/") for path in source_directories):
+                        os.unlink(path)
+                        os.rename(real_path, path)
+                        relinked[real_path] = path
+            if os.path.isdir(path):
+                relink(relinked, path)
+
     if action == "move":
         relinked = {}  # type: Dict[Text, Text]
-        for root, dirs, files in os.walk(outdir):
-            for f in dirs+files:
-                path = os.path.join(root, f)
-                rp = os.path.realpath(path)
-                if path != rp:
-                    if rp in relinked:
-                        if onWindows():
-                            if os.path.isfile(path):
-                                shutil.copy(os.path.relpath(relinked[rp], path), path)
-                            elif os.path.exists(path) and os.path.isdir(path):
-                                shutil.rmtree(path)
-                                copytree_with_merge(os.path.relpath(relinked[rp], path), path)
-                        else:
-                            os.unlink(path)
-                            os.symlink(os.path.relpath(relinked[rp], path), path)
-                    else:
-                        for od in output_dirs:
-                            if rp.startswith(od+"/"):
-                                os.unlink(path)
-                                os.rename(rp, path)
-                                relinked[rp] = path
-                                break
+        relink(relinked, destination_path)
 
     return outputObj
 
@@ -456,7 +469,6 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         visit_class(builder.job, ("File",), functools.partial(add_sizes, builder.fs_access))
         return builder.do_eval(resource_req)
     return resource_req
-
 
 class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
@@ -573,8 +585,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
             _logger.warning(SourceLine(
                 item=dockerReq, raise_type=Text).makeError(
-                "When 'dockerOutputDirectory' is declared, DockerRequirement "
-                "should go in the 'requirements' section, not 'hints'."""))
+                    "When 'dockerOutputDirectory' is declared, DockerRequirement "
+                    "should go in the 'requirements' section, not 'hints'."""))
 
         if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
             if is_req:
