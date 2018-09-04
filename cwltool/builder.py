@@ -2,7 +2,8 @@ from __future__ import absolute_import
 
 import copy
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set, Union, Tuple, MutableMapping
+from typing import (Any, Callable, Dict, List, Optional, Set, Union,
+                    Tuple, MutableMapping, MutableSequence)
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -221,7 +222,7 @@ class Builder(HasReqsHints):
                 value_from_expression = True
 
         # Handle union types
-        if isinstance(schema["type"], list):
+        if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
                 if isinstance(t, string_types) and self.names.has_name(t, ""):
@@ -373,7 +374,7 @@ class Builder(HasReqsHints):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
         argl = []  # type: List[Dict[Text,Text]]
-        if isinstance(value, list):
+        if isinstance(value, MutableSequence):
             if binding.get("itemSeparator") and value:
                 argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
@@ -410,7 +411,7 @@ class Builder(HasReqsHints):
             if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive)
                         for k, v in iteritems(ex)}
-            if isinstance(ex, list):
+            if isinstance(ex, MutableSequence):
                 return [self.do_eval(v, context, recursive)
                         for v in ex]
 

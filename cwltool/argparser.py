@@ -2,7 +2,8 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import os
-from typing import Any, AnyStr, Dict, List, Optional, Sequence, Union, cast, MutableMapping
+from typing import (Any, AnyStr, Dict, List, Optional, Sequence,
+                    Union, cast, MutableMapping, MutableSequence)
 
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -381,7 +382,7 @@ def add_argument(toolparser, name, inptype, records, description="",
         flag = "--"
 
     required = True
-    if isinstance(inptype, list):
+    if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
             if len(inptype) == 2:

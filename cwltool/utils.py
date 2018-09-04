@@ -9,15 +9,16 @@ import shutil
 import stat
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr,   # pylint: disable=unused-import
-                    Callable, Dict, Iterable, List, Optional, Union, MutableMapping)
+                    Callable, Dict, Iterable, List, Optional, Union,
+                    MutableMapping, MutableSequence)
 from typing_extensions import Deque, Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import pkg_resources
-from schema_salad.schema import convert_to_dict
 
 import six
 from six.moves import urllib, zip_longest
 from mypy_extensions import TypedDict
+from schema_salad.utils import json_dump, json_dumps
 
 # no imports from cwltool allowed
 
@@ -48,7 +49,7 @@ def versionstring():
     return u"%s %s" % (sys.argv[0], "unknown version")
 
 def aslist(l):  # type: (Any) -> List[Any]
-    if isinstance(l, list):
+    if isinstance(l, MutableSequence):
         return l
     return [l]
 
@@ -186,7 +187,7 @@ def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
 
     # if list, iterate through list and fn call
     # for all its elements
-    if isinstance(inp, list):
+    if isinstance(inp, MutableSequence):
         for idx, value in enumerate(inp):
             inp[idx] = bytes2str_in_dicts(value)
             return inp
@@ -208,25 +209,6 @@ def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any]
             op(rec)
         for d in rec:
             visit_class(rec[d], cls, op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             visit_class(d, cls, op)
-
-
-def json_dump(obj,       # type: Any
-              fp,        # type: IO[str]
-              **kwargs   # type: Any
-             ):  # type: (...) -> None
-    """ Force use of unicode. """
-    if six.PY2:
-        kwargs['encoding'] = 'utf-8'
-    json.dump(obj, fp, **kwargs)
-
-
-def json_dumps(obj,       # type: Any
-               **kwargs   # type: Any
-              ):  # type: (...) -> Union[Text, AnyStr]
-    """ Force use of unicode. """
-    if six.PY2:
-        kwargs['encoding'] = 'utf-8'
-    return json.dumps(convert_to_dict(obj), **kwargs)

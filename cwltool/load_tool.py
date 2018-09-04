@@ -6,7 +6,8 @@ import logging
 import os
 import re
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast, MutableMapping
+from typing import (Any, Callable, Dict, List, Optional, Tuple,
+                    Union, cast, MutableMapping, MutableSequence)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -172,7 +173,7 @@ def _convert_stdstreams_to_files(workflowobj):
         else:
             for entry in itervalues(workflowobj):
                 _convert_stdstreams_to_files(entry)
-    if isinstance(workflowobj, list):
+    if isinstance(workflowobj, MutableSequence):
         for entry in workflowobj:
             _convert_stdstreams_to_files(entry)
 
@@ -187,7 +188,7 @@ def _add_blank_ids(workflowobj):
             workflowobj["run"]["id"] = Text(uuid.uuid4())
         for entry in itervalues(workflowobj):
             _add_blank_ids(entry)
-    if isinstance(workflowobj, list):
+    if isinstance(workflowobj, MutableSequence):
         for entry in workflowobj:
             _add_blank_ids(entry)
 
@@ -206,7 +207,7 @@ def validate_document(document_loader,  # type: Loader
     # type: (...) -> Tuple[Loader, schema.Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
 
-    if isinstance(workflowobj, list):
+    if isinstance(workflowobj, MutableSequence):
         workflowobj = cmap({
             "$graph": workflowobj
         }, fn=uri)
@@ -318,7 +319,7 @@ def make_tool(document_loader,    # type: Loader
     resolveduri = document_loader.resolve_ref(uri)[0]
 
     processobj = None
-    if isinstance(resolveduri, list):
+    if isinstance(resolveduri, MutableSequence):
         for obj in resolveduri:
             if obj['id'].endswith('#main'):
                 processobj = obj

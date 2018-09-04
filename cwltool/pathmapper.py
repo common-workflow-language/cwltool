@@ -7,8 +7,8 @@ import stat
 import uuid
 from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
-from typing import (Any, Callable, Dict, List, MutableMapping, Optional, Set, Tuple,
-                    Union)
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Tuple, Union)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -36,7 +36,7 @@ def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]
             rec["path"] = op(rec["path"])
         for d in rec:
             adjustFiles(rec[d], op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             adjustFiles(d, op)
 

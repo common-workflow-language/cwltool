@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import Any, Callable, Dict, Optional, Tuple, Union, MutableMapping
+from typing import Any, Callable, Dict, Optional, Tuple, Union, MutableMapping, MutableSequence
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -23,7 +23,7 @@ def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
             found = findId(doc[key], frg)
             if found:
                 return found
-    if isinstance(doc, list):
+    if isinstance(doc, MutableSequence):
         for entry in doc:
             found = findId(entry, frg)
             if found:
@@ -32,7 +32,7 @@ def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
 
 
 def fixType(doc):  # type: (Any) -> Any
-    if isinstance(doc, list):
+    if isinstance(doc, MutableSequence):
         for i, f in enumerate(doc):
             doc[i] = fixType(f)
         return doc
@@ -85,7 +85,7 @@ def traverseImport(doc, loader, baseuri, func):
         imp = urllib.parse.urljoin(baseuri, doc["$import"])
         impLoaded = loader.fetch(imp)
         r = {}  # type: Dict[Text, Any]
-        if isinstance(impLoaded, list):
+        if isinstance(impLoaded, MutableSequence):
             r = {"$graph": impLoaded}
         elif isinstance(impLoaded, MutableMapping):
             r = impLoaded

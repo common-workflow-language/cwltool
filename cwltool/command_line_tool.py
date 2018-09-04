@@ -12,7 +12,7 @@ import tempfile
 import threading
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Union,
-                    cast, MutableMapping)
+                    cast, MutableMapping, MutableSequence)
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -706,7 +706,7 @@ class CommandLineTool(Process):
 
             optional = False
             single = False
-            if isinstance(schema["type"], list):
+            if isinstance(schema["type"], MutableSequence):
                 if "null" in schema["type"]:
                     optional = True
                 if "File" in schema["type"] or "Directory" in schema["type"]:
@@ -724,7 +724,7 @@ class CommandLineTool(Process):
                         raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
                     pass
-                elif isinstance(r, list):
+                elif isinstance(r, MutableSequence):
                     if len(r) > 1:
                         raise WorkflowException("Multiple matches for output item that is a single file.")
                     else:

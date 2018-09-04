@@ -207,7 +207,7 @@ def checkRequirements(rec, supported_process_requirements):
                             u"Unsupported requirement {}".format(entry["class"]))
         for key in rec:
             checkRequirements(rec[key], supported_process_requirements)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for entry in rec:
             checkRequirements(entry, supported_process_requirements)
 
@@ -225,7 +225,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
         else:
             for d in rec:
                 adjustFilesWithSecondary(rec[d], op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
 
@@ -292,7 +292,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                 for sub_obj in obj.values():
                     for dir_entry in _collectDirEntries(sub_obj):
                         yield dir_entry
-        elif isinstance(obj, list):
+        elif isinstance(obj, MutableSequence):
             for sub_obj in obj:
                 for dir_entry in _collectDirEntries(sub_obj):
                     yield dir_entry
@@ -414,7 +414,7 @@ def avroize_type(field_type, name_prefix=""):
     """
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
-    if isinstance(field_type, list):
+    if isinstance(field_type, MutableSequence):
         for f in field_type:
             avroize_type(f, name_prefix)
     elif isinstance(field_type, MutableMapping):
@@ -429,7 +429,7 @@ def avroize_type(field_type, name_prefix=""):
 
 def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
     req = {}  # type: Dict[Text, Any]
-    if not isinstance(overrides, list):
+    if not isinstance(overrides, MutableSequence):
         raise validate.ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
     for ov in overrides:
         if ov["overrideTarget"] == toolid:
@@ -461,7 +461,7 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
     elif isinstance(obj, MutableMapping):
         for key, value in iteritems(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
-    elif isinstance(obj, list):
+    elif isinstance(obj, MutableSequence):
         for key, value in enumerate(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
     return r
@@ -497,11 +497,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         else:
             self.names = names
         self.tool = toolpath_object
-        self.requirements = (getdefault(loadingContext.requirements, []) +
-                             self.tool.get("requirements", []) +
-                             get_overrides(getdefault(loadingContext.overrides_list, []),
-                                           self.tool["id"]).get("requirements", []))
-        self.hints = getdefault(loadingContext.hints, []) + self.tool.get("hints", [])
+        self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
+        self.requirements.extend(self.tool.get("requirements", []))
+        self.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
+                                               self.tool["id"]).get("requirements", []))
+        self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
+        self.hints.extend(self.tool.get("hints", []))
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)
@@ -546,7 +547,9 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                         u"Missing 'type' in parameter '{}'".format(c["name"]))
 
                 if "default" in c and "null" not in aslist(c["type"]):
-                    c["type"] = ["null"] + aslist(c["type"])
+                    nullable = ["null"]
+                    nullable.extend(aslist(c["type"]))
+                    c["type"] = nullable
                 else:
                     c["type"] = c["type"]
                 c["type"] = avroize_type(c["type"], c["name"])
@@ -725,7 +728,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             key = cmp_to_key(cmp_like_py2)
         else:  # PY2
             key = lambda dict: dict["position"]
-        bindings.sort(key=key)
+        bindings[:] = sorted(bindings, key=key)
 
         if self.tool[u"class"] != 'Workflow':
             builder.resources = self.evalResources(builder, runtimeContext)
@@ -948,7 +951,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                     r.append(deps)
             elif k not in ("listing", "secondaryFiles"):
                 r.extend(scandeps(base, v, reffields, urlfields, loadref, urljoin=urljoin))
-    elif isinstance(doc, list):
+    elif isinstance(doc, MutableSequence):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
 

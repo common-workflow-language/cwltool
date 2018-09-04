@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
 import copy
-from typing import Any, Callable, Dict, List, Optional, Set, Union, cast, MutableMapping
+from typing import (Any, Callable, Dict, List, Optional, Set,
+                    Union, cast, MutableMapping, MutableSequence)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -15,7 +16,7 @@ from .process import shortname, uniquename
 
 
 def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
-    if isinstance(d, list):
+    if isinstance(d, MutableSequence):
         for s in d:
             flatten_deps(s, files)
     elif isinstance(d, MutableMapping):
@@ -33,7 +34,7 @@ def find_run(d,        # type: Any
              loadref,  # type: LoadRefType
              runs      # type: Set[Text]
             ):  # type: (...) -> None
-    if isinstance(d, list):
+    if isinstance(d, MutableSequence):
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, MutableMapping):
@@ -46,7 +47,7 @@ def find_run(d,        # type: Any
 
 
 def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
-    if isinstance(d, list):
+    if isinstance(d, MutableSequence):
         for s in d:
             find_ids(s, ids)
     elif isinstance(d, MutableMapping):
@@ -59,7 +60,7 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
 
 def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
-    if isinstance(d, list):
+    if isinstance(d, MutableSequence):
         for s, v in enumerate(d):
             if isinstance(v, string_types):
                 if v in rewrite:
@@ -86,7 +87,7 @@ def replace_refs(d, rewrite, stem, newstem):
 
 def import_embed(d, seen):
     # type: (Any, Set[Text]) -> None
-    if isinstance(d, list):
+    if isinstance(d, MutableSequence):
         for v in d:
             import_embed(v, seen)
     elif isinstance(d, MutableMapping):
@@ -116,7 +117,7 @@ def pack(document_loader,  # type: Loader
     document_loader.idx = {}
     if isinstance(processobj, MutableMapping):
         document_loader.idx[processobj["id"]] = CommentedMap(iteritems(processobj))
-    elif isinstance(processobj, list):
+    elif isinstance(processobj, MutableSequence):
         _, frag = urllib.parse.urldefrag(uri)
         for po in processobj:
             if not frag:

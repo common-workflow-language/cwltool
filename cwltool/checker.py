@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Any, Dict, List, Optional, MutableMapping
+from typing import Any, Dict, List, Optional, MutableMapping, MutableSequence
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -46,7 +46,7 @@ def merge_flatten_type(src):
     """Return the merge flattened type of the source type
     """
 
-    if isinstance(src, list):
+    if isinstance(src, MutableSequence):
         return [merge_flatten_type(t) for t in src]
     if isinstance(src, MutableMapping) and src.get("type") == "array":
         return src
@@ -79,7 +79,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
                         return False
             return True
         return can_assign_src_to_sink(src["type"], sink["type"], strict)
-    elif isinstance(src, list):
+    elif isinstance(src, MutableSequence):
         if strict:
             for t in src:
                 if not can_assign_src_to_sink(t, sink):
@@ -90,7 +90,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
                 if can_assign_src_to_sink(t, sink):
                     return True
             return False
-    elif isinstance(sink, list):
+    elif isinstance(sink, MutableSequence):
         for t in sink:
             if can_assign_src_to_sink(src, t):
                 return True
@@ -227,7 +227,7 @@ def check_all_types(src_dict, sinks, sourceField):
     for sink in sinks:
         if sourceField in sink:
             valueFrom = sink.get("valueFrom")
-            if isinstance(sink[sourceField], list):
+            if isinstance(sink[sourceField], MutableSequence):
                 srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
                 linkMerge = sink.get("linkMerge", ("merge_nested"
                                                    if len(sink[sourceField]) > 1 else None))

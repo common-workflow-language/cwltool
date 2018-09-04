@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union, MutableMapping
+from typing import Any, Dict, List, Optional, Union, MutableMapping, MutableSequence
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 import six
@@ -130,7 +130,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
             key = next_segment_str[2:-2].replace("\\'", "'").replace('\\"', '"')
 
         if key:
-            if isinstance(current_value, list) and key == "length" and not remaining_string[m.end(0):]:
+            if isinstance(current_value, MutableSequence) and key == "length" and not remaining_string[m.end(0):]:
                 return len(current_value)
             if not isinstance(current_value, MutableMapping):
                 raise WorkflowException("%s is a %s, cannot index on string '%s'" % (parsed_string, type(current_value).__name__, key))
@@ -141,7 +141,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
                 key = int(next_segment_str[1:-1])
             except ValueError as v:
                 raise WorkflowException(u(str(v)))
-            if not isinstance(current_value, list):
+            if not isinstance(current_value, MutableSequence):
                 raise WorkflowException("%s is a %s, cannot index on int '%s'" % (parsed_string, type(current_value).__name__, key))
             if key >= len(current_value):
                 raise WorkflowException("%s list index %i out of range" % (parsed_string, key))

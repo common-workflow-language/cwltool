@@ -8,7 +8,7 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List, Optional,
-                    Tuple, Union, MutableMapping)
+                    Tuple, Union, MutableMapping, MutableSequence)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -71,7 +71,7 @@ def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
         else:
             for w in wo.values():
                 findfiles(w, fn)
-    elif isinstance(wo, list):
+    elif isinstance(wo, MutableSequence):
         for w in wo:
             findfiles(w, fn)
     return fn
@@ -84,12 +84,12 @@ def match_types(sinktype,   # type: Union[List[Text], Text]
                 linkMerge,  # type: Text
                 valueFrom   # type: Optional[Text]
                ):  # type: (...) -> bool
-    if isinstance(sinktype, list):
+    if isinstance(sinktype, MutableSequence):
         # Sink is union type
         for st in sinktype:
             if match_types(st, src, iid, inputobj, linkMerge, valueFrom):
                 return True
-    elif isinstance(src.parameter["type"], list):
+    elif isinstance(src.parameter["type"], MutableSequence):
         # Source is union type
         # Check that at least one source type is compatible with the sink.
         original_types = src.parameter["type"]
@@ -108,7 +108,7 @@ def match_types(sinktype,   # type: Union[List[Text], Text]
         if linkMerge == "merge_nested":
             inputobj[iid].append(src.value)
         elif linkMerge == "merge_flattened":
-            if isinstance(src.value, list):
+            if isinstance(src.value, MutableSequence):
                 inputobj[iid].extend(src.value)
             else:
                 inputobj[iid].append(src.value)

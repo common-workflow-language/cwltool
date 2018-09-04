@@ -13,8 +13,8 @@ import datetime
 from threading import Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
-from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, MutableMapping,
-                    Optional, Union, cast)
+from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List,
+                    Optional, Union, cast, MutableMapping, MutableSequence)
 
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -116,7 +116,7 @@ def deref_links(outputs):  # type: (Any) -> None
         else:
             for v in outputs.values():
                 deref_links(v)
-    if isinstance(outputs, list):
+    if isinstance(outputs, MutableSequence):
         for output in outputs:
             deref_links(output)
 
@@ -523,6 +523,7 @@ def _job_popen(
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
+        print("ZZZ", commands)
         sproc = subprocess.Popen(commands,
                                  shell=False,
                                  close_fds=not onWindows(),
