@@ -1493,15 +1493,19 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   wf_job,
-                   builder_job   # type: Dict
+                   wf_job=None,
+                   builder_job=None,  # type: Dict
+                   is_output=False
                   ):  # type: (...) -> Dict
         #TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
         relativised_input_objecttemp = {}  # type: Dict[Any, Any]
         self._relativise_files(copied)
-        rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
+        if is_output:
+            rel_path = posixpath.join(_posix_path(WORKFLOW), "cwl-output.json")
+        else:
+            rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(copied, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
