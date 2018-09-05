@@ -9,6 +9,7 @@ from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unuse
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
+from ruamel.yaml.comments import CommentedMap
 import schema_salad.schema  # pylint: disable=unused-import
 from schema_salad import validate
 from schema_salad.schema import AvroSchemaFromJSONData
@@ -195,22 +196,23 @@ class Builder(HasReqsHints):
             return None
 
     def bind_input(self,
-                   schema,                   # type: Dict[Text, Any]
+                   schema,                   # type: MutableMapping[Text, Any]
                    datum,                    # type: Any
                    discover_secondaryFiles,  # type: bool
                    lead_pos=None,            # type: Optional[Union[int, List[int]]]
                    tail_pos=None,            # type: Optional[List[int]]
-                  ):  # type: (...) -> List[Dict[Text, Any]]
+                  ):  # type: (...) -> List[MutableMapping[Text, Any]]
 
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
             lead_pos = []
-        bindings = []  # type: List[Dict[Text,Text]]
-        binding = None  # type: Optional[Dict[Text,Any]]
+        bindings = []  # type: List[MutableMapping[Text, Text]]
+        binding = None  # type: Optional[MutableMapping[Text,Any]]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
-            binding = copy.deepcopy(schema["inputBinding"])
+            binding = CommentedMap(schema["inputBinding"].items())
+            assert binding is not None
 
             if "position" in binding:
                 binding["position"] = aslist(lead_pos) + aslist(binding["position"]) + aslist(tail_pos)
@@ -373,7 +375,7 @@ class Builder(HasReqsHints):
             with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
-        argl = []  # type: List[Dict[Text,Text]]
+        argl = []  # type: MutableSequence[MutableMapping[Text, Text]]
         if isinstance(value, MutableSequence):
             if binding.get("itemSeparator") and value:
                 argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]

@@ -2,7 +2,8 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import Any, Callable, Dict, Optional, Tuple, Union, MutableMapping, MutableSequence
+from typing import (Any, Callable, Dict, Optional, Tuple, Union,
+                    MutableMapping, MutableSequence)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -15,7 +16,7 @@ from six.moves import urllib
 from .utils import visit_class
 
 
-def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
+def findId(doc, frg):  # type: (Any, Any) -> Optional[MutableMapping]
     if isinstance(doc, MutableMapping):
         if "id" in doc and doc["id"] == frg:
             return doc
@@ -84,7 +85,7 @@ def traverseImport(doc, loader, baseuri, func):
             return doc["$import"]
         imp = urllib.parse.urljoin(baseuri, doc["$import"])
         impLoaded = loader.fetch(imp)
-        r = {}  # type: Dict[Text, Any]
+        r = {}  # type: MutableMapping[Text, Any]
         if isinstance(impLoaded, MutableSequence):
             r = {"$graph": impLoaded}
         elif isinstance(impLoaded, MutableMapping):

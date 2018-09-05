@@ -41,7 +41,7 @@ from .context import (LoadingContext,  # pylint: disable=unused-import
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
 
-def default_make_tool(toolpath_object,      # type: Dict[Text, Any]
+def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
                       loadingContext        # type: LoadingContext
                      ):  # type: (...) -> Process
     if not isinstance(toolpath_object, MutableMapping):
@@ -189,7 +189,7 @@ class WorkflowJobStep(object):
         self.parent_wf = step.parent_wf
 
     def job(self,
-            joborder,         # type: Dict[Text, Text]
+            joborder,         # type: MutableMapping[Text, Text]
             output_callback,  # type: functools.partial[None]
             runtimeContext    # type: RuntimeContext
            ):
@@ -337,7 +337,7 @@ class WorkflowJob(object):
             vfinputs = {shortname(k): v for k, v in six.iteritems(inputobj)}
 
             def postScatterEval(io):
-                # type: (Dict[Text, Any]) -> Dict[Text, Any]
+                # type: (MutableMapping[Text, Any]) -> Dict[Text, Any]
                 shortio = {shortname(k): v for k, v in six.iteritems(io)}
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
@@ -415,7 +415,7 @@ class WorkflowJob(object):
         _logger.info(u"[%s] start", self.name)
 
     def job(self,
-            joborder,         # type: Dict[Text, Any]
+            joborder,         # type: MutableMapping[Text, Any]
             output_callback,  # type: Callable[[Any, Any], Any]
             runtimeContext    # type: RuntimeContext
            ):  # type: (...) -> Generator
@@ -495,7 +495,7 @@ class WorkflowJob(object):
 
 class Workflow(Process):
     def __init__(self,
-                 toolpath_object,      # type: Dict[Text, Any]
+                 toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
@@ -558,7 +558,7 @@ class Workflow(Process):
 
 
     def job(self,
-            job_order,         # type: Dict[Text, Text]
+            job_order,         # type: MutableMapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -610,7 +610,8 @@ class WorkflowStep(Process):
 
         try:
             if isinstance(toolpath_object["run"], MutableMapping):
-                self.embedded_tool = loadingContext.construct_tool_object(toolpath_object["run"], loadingContext)
+                self.embedded_tool = loadingContext.construct_tool_object(
+                    toolpath_object["run"], loadingContext)
             else:
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
@@ -752,7 +753,7 @@ class WorkflowStep(Process):
         output_callback(output, processStatus)
 
     def job(self,
-            job_order,         # type: Dict[Text, Text]
+            job_order,         # type: MutableMapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext,    # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -845,8 +846,8 @@ def parallel_steps(steps, rc, runtimeContext):
 
 
 def dotproduct_scatter(process,           # type: WorkflowJobStep
-                       joborder,          # type: Dict[Text, Any]
-                       scatter_keys,      # type: List[Text]
+                       joborder,          # type: MutableMapping[Text, Any]
+                       scatter_keys,      # type: MutableSequence[Text]
                        output_callback,   # type: Callable[..., Any]
                        runtimeContext     # type: RuntimeContext
                       ):  # type: (...) -> Generator
@@ -884,8 +885,8 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
 
 def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
-                                joborder,         # type: Dict[Text, Any]
-                                scatter_keys,     # type: List[Text]
+                                joborder,         # type: MutableMapping[Text, Any]
+                                scatter_keys,     # type: MutableSequence[Text]
                                 output_callback,  # type: Callable[..., Any]
                                 runtimeContext    # type: RuntimeContext
                                ):  #type: (...) -> Generator
@@ -919,7 +920,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
 
 
 def crossproduct_size(joborder, scatter_keys):
-    # type: (Dict[Text, Any], List[Text]) -> int
+    # type: (MutableMapping[Text, Any], MutableSequence[Text]) -> int
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         ssum = len(joborder[scatter_key])
@@ -929,11 +930,11 @@ def crossproduct_size(joborder, scatter_keys):
             ssum += crossproduct_size(joborder, scatter_keys[1:])
     return ssum
 
-def flat_crossproduct_scatter(process,           # type: WorkflowJobStep
-                              joborder,          # type: Dict[Text, Any]
-                              scatter_keys,      # type: List[Text]
-                              output_callback,   # type: Callable[..., Any]
-                              runtimeContext     # type: RuntimeContext
+def flat_crossproduct_scatter(process,          # type: WorkflowJobStep
+                              joborder,         # type: MutableMapping[Text, Any]
+                              scatter_keys,     # type: MutableSequence[Text]
+                              output_callback,  # type: Callable[..., Any]
+                              runtimeContext    # type: RuntimeContext
                              ):  # type: (...) -> Generator
     output = {}  # type: Dict[Text, List[Optional[Text]]]
     for i in process.tool["outputs"]:
@@ -944,12 +945,12 @@ def flat_crossproduct_scatter(process,           # type: WorkflowJobStep
     callback.setTotal(total)
     return parallel_steps(steps, callback, runtimeContext)
 
-def _flat_crossproduct_scatter(process,           # type: WorkflowJobStep
-                               joborder,          # type: Dict[Text, Any]
-                               scatter_keys,      # type: List[Text]
-                               callback,          # type: ReceiveScatterOutput
-                               startindex,        # type: int
-                               runtimeContext     # type: RuntimeContext
+def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
+                               joborder,       # type: MutableMapping[Text, Any]
+                               scatter_keys,   # type: MutableSequence[Text]
+                               callback,       # type: ReceiveScatterOutput
+                               startindex,     # type: int
+                               runtimeContext  # type: RuntimeContext
                               ):  # type: (...) -> Tuple[List[Generator], int]
     """ Inner loop. """
     scatter_key = scatter_keys[0]

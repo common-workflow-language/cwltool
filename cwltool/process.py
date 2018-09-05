@@ -446,7 +446,7 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
     """)
 
 
-def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
+def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
                           ):              # type: (...)->bool
@@ -474,7 +474,7 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
 
 class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
-                 toolpath_object,      # type: Dict[Text, Any]
+                 toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
@@ -604,7 +604,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, runtimeContext):
-        # type: (Dict[Text, Text], RuntimeContext) -> Builder
+        # type: (MutableMapping[Text, Text], RuntimeContext) -> Builder
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
@@ -788,12 +788,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 else:
                     _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
 
-    def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
+    def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], None]) -> None
         op(self.tool)
 
     @abc.abstractmethod
     def job(self,
-            job_order,         # type: Dict[Text, Text]
+            job_order,         # type: MutableMapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]

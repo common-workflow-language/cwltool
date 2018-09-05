@@ -48,7 +48,7 @@ def versionstring():
         return u"%s %s" % (sys.argv[0], pkg[0].version)
     return u"%s %s" % (sys.argv[0], "unknown version")
 
-def aslist(l):  # type: (Any) -> List[Any]
+def aslist(l):  # type: (Any) -> MutableSequence[Any]
     if isinstance(l, MutableSequence):
         return l
     return [l]
@@ -172,8 +172,8 @@ def cmp_like_py2(dict1, dict2):  # type: (Dict[Text, Any], Dict[Text, Any]) -> i
     return 0
 
 
-def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
-                      ):  # type: (...) -> Union[Text, List[Any], Dict[Text, Any]]
+def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequence[Any], Any]
+                      ):  # type: (...) -> Union[Text, MutableSequence[Any], MutableMapping[Text, Any]]
     """
     Convert any present byte string to unicode string, inplace.
     input is a dict of nested dicts and lists

@@ -100,14 +100,14 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
 
 
 def _compare_records(src, sink, strict=False):
-    # type: (Dict[Text, Any], Dict[Text, Any], bool) -> bool
+    # type: (MutableMapping[Text, Any], MutableMapping[Text, Any], bool) -> bool
     """Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
     """
 
-    def _rec_fields(rec):  # type: (Dict[Text, Any]) -> Dict[Text, Any]
+    def _rec_fields(rec):  # type: (MutableMapping[Text, Any]) -> MutableMapping[Text, Any]
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
