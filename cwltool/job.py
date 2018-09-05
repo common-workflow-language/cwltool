@@ -523,7 +523,6 @@ def _job_popen(
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
-        print("ZZZ", commands)
         sproc = subprocess.Popen(commands,
                                  shell=False,
                                  close_fds=not onWindows(),

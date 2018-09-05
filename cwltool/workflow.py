@@ -602,11 +602,13 @@ class WorkflowStep(Process):
 
         loadingContext = loadingContext.copy()
 
-        loadingContext.requirements = (getdefault(loadingContext.requirements, []) +
-                                  toolpath_object.get("requirements", []) +
-                                  get_overrides(getdefault(loadingContext.overrides_list, []),
+        loadingContext.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
+        loadingContext.requirements.extend(toolpath_object.get("requirements", []))
+        loadingContext.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
-        loadingContext.hints = getdefault(loadingContext.hints, []) + toolpath_object.get("hints", [])
+
+        loadingContext.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
+        loadingContext.hints.extend(toolpath_object.get("hints", []))
 
         try:
             if isinstance(toolpath_object["run"], MutableMapping):

@@ -178,7 +178,7 @@ def pack(document_loader,  # type: Loader
         if isinstance(dcr, CommentedSeq):
             dcr = dcr[0]
             dcr = cast(CommentedMap, dcr)
-        if not isinstance(dcr, dict):
+        if not isinstance(dcr, MutableMapping):
             continue
         for doc in (dcr, metadata):
             if "$schemas" in doc:
