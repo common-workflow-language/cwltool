@@ -461,7 +461,7 @@ class CreateProvProfile():
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            research_obj.create_job(job, customised_job)
+            research_obj.create_job(customised_job, job)
             # self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
