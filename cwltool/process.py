@@ -727,8 +727,16 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         if six.PY3:
             key = cmp_to_key(cmp_like_py2)
         else:  # PY2
-            key = lambda dict: dict["position"]
-        bindings[:] = sorted(bindings, key=key)
+            key = lambda d: d["position"]
+
+        # This awkward construction replaces the contents of
+        # "bindings" in place (because Builder expects it to be
+        # mutated in place, sigh, I'm sorry) with its contents sorted,
+        # supporting different versions of Python and ruamel.yaml with
+        # different behaviors/bugs in CommentedSeq.
+        bd = copy.deepcopy(bindings)
+        del bindings[:]
+        bindings.extend(sorted(bd, key=key))
 
         if self.tool[u"class"] != 'Workflow':
             builder.resources = self.evalResources(builder, runtimeContext)
