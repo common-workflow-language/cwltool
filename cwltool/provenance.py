@@ -22,7 +22,7 @@ import uuid
 from collections import OrderedDict
 from socket import getfqdn
 from getpass import getuser
-from typing import (Any, Callable, Dict, IO, List, Optional, MutableMapping,
+from typing import (Any, Callable, Dict, Generator, IO, List, Optional, MutableMapping,
                     Set, Tuple, Union, cast)
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -1493,14 +1493,14 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   wf_job=None,
-                   builder_job=None,  # type: Dict
+                   builder_job,  # type: Dict[Text, Any]
+                   wf_job=None,  # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
                    is_output=False
                   ):  # type: (...) -> Dict
         #TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
-        relativised_input_objecttemp = {}  # type: Dict[Any, Any]
+        relativised_input_objecttemp = {}  # type: Dict[Text, Any]
         self._relativise_files(copied)
         if is_output:
             rel_path = posixpath.join(_posix_path(WORKFLOW), "cwl-output.json")
@@ -1527,7 +1527,7 @@ class ResearchObject():
         return self.relativised_input_object
 
     def _relativise_files(self, structure):
-        # type: (Any, Dict) -> None
+        # type: (Any, Dict[Any, Any]) -> None
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)

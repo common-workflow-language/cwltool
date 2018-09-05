@@ -714,7 +714,7 @@ def main(argsl=None,                   # type: List[str]
 
             if out is not None:
                 if runtimeContext.research_obj:
-                    runtimeContext.research_obj.create_job(None, out, True)
+                    runtimeContext.research_obj.create_job(out, None, True)
                 def loc_to_path(obj):
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in obj:
