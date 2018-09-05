@@ -47,7 +47,7 @@ from .loghandler import _logger
 from .pathmapper import get_listing
 from .process import shortname, Process  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import versionstring
+from .utils import versionstring, json_dumps
 
 GET_PW_NAM = None  # type: Optional[Callable[[str], struct_passwd]]
 try:
@@ -306,7 +306,7 @@ def _valid_orcid(orcid):  # type: (Optional[Text]) -> Optional[Text]
 class CreateProvProfile():
     """
     Provenance profile.
-    
+
     Populated as the workflow runs.
     """
 
@@ -727,7 +727,7 @@ class CreateProvProfile():
                 data_id, {provM.PROV_TYPE: WFPROV["Artifact"],
                           provM.PROV_VALUE: str(value)})
 
-        if isinstance(value, dict):
+        if isinstance(value, MutableMapping):
             if "@id" in value:
                 # Already processed this value, but it might not be in this PROV
                 entities = self.document.get_record(value["@id"])
@@ -1315,7 +1315,7 @@ class ResearchObject():
         manifest["aggregates"] = self._ro_aggregates()
         manifest["annotations"] = self._ro_annotations()
 
-        json_manifest = json.dumps(manifest, indent=4, ensure_ascii=False)
+        json_manifest = json_dumps(manifest, indent=4, ensure_ascii=False)
         rel_path = posixpath.join(_posix_path(METADATA), filename)
         with self.write_bag_file(rel_path) as manifest_file:
             manifest_file.write(json_manifest + "\n")
@@ -1371,7 +1371,7 @@ class ResearchObject():
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
                 for files in value:
-                    if isinstance(files, dict):
+                    if isinstance(files, MutableMapping):
                         self.generate_snapshot(files)
             else:
                 pass
@@ -1502,7 +1502,7 @@ class ResearchObject():
         relativised_input_objecttemp = {}  # type: Dict[Any, Any]
         self._relativise_files(copied)
         rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
-        j = json.dumps(copied, indent=4, ensure_ascii=False)
+        j = json_dumps(copied, indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.debug(u"[provenance] Generated customised job file: %s",
@@ -1513,7 +1513,7 @@ class ResearchObject():
         # 2) for other attributes, the actual value.
         relativised_input_objecttemp = {}
         for key, value in copied.items():
-            if isinstance(value, dict):
+            if isinstance(value, MutableMapping):
                 if value.get("class") in ("File", "Directory"):
                     relativised_input_objecttemp[key] = value
             else:
@@ -1528,7 +1528,7 @@ class ResearchObject():
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
 
-        if isinstance(structure, dict):
+        if isinstance(structure, MutableMapping):
             if structure.get("class") == "File":
                 relative_path = None
                 if "checksum" in structure:
