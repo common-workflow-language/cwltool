@@ -93,7 +93,8 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
                 runtime_context.move_outputs, runtime_context.make_fs_access(""),
-                getdefault(runtime_context.compute_checksum, True))
+                getdefault(runtime_context.compute_checksum, True),
+                path_mapper=runtime_context.path_mapper)
 
         if runtime_context.rm_tmpdir:
             cleanIntermediate(self.output_dirs)
@@ -153,10 +154,10 @@ class SingleJobExecutor(JobExecutor):
                             runtime_context.prov_obj = job.prov_obj
                         assert runtime_context.prov_obj
                         process_run_id = \
-                                runtime_context.prov_obj.evaluate(
-                                    process, job, job_order_object,
-                                    runtime_context.make_fs_access,
-                                    runtime_context.research_obj)
+                            runtime_context.prov_obj.evaluate(
+                                process, job, job_order_object,
+                                runtime_context.make_fs_access,
+                                runtime_context.research_obj)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
                     job.run(runtime_context)
