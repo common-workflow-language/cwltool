@@ -3,16 +3,18 @@ from __future__ import absolute_import
 import distutils.spawn  # pylint: disable=no-name-in-module,import-error
 import functools
 import os
+import contextlib
 from typing import Text
 
-import pytest
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
+import pytest
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
 from cwltool.resolver import Path
 from cwltool.utils import onWindows, windows_default_container_id
+
 
 
 def get_windows_safe_factory(runtime_context=None,  # type: RuntimeContext
@@ -28,12 +30,12 @@ def get_windows_safe_factory(runtime_context=None,  # type: RuntimeContext
         runtime_context.default_container = windows_default_container_id
     return Factory(executor, loading_context, runtime_context)
 
-def force_default_container(default_container_id, builder):
+def force_default_container(default_container_id, _):
     return default_container_id
 
 def get_data(filename):
-    filename = os.path.normpath(
-        filename)  # normalizing path depending on OS or else it will cause problem when joining path
+    # normalizing path depending on OS or else it will cause problem when joining path
+    filename = os.path.normpath(filename)
     filepath = None
     try:
         filepath = resource_filename(
@@ -57,3 +59,14 @@ windows_needs_docker = pytest.mark.skipif(
     onWindows() and not bool(distutils.spawn.find_executable('docker')),
     reason="Running this test on MS Windows requires the docker executable "
     "on the system path.")
+
+@contextlib.contextmanager
+def working_directory(path):
+    """Changes working directory and returns to previous on exit."""
+    prev_cwd = Path.cwd()
+    # before python 3.6 chdir doesn't support paths from pathlib
+    os.chdir(str(path))
+    try:
+        yield
+    finally:
+        os.chdir(str(prev_cwd))
