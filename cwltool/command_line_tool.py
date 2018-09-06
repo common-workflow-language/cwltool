@@ -700,9 +700,7 @@ class CommandLineTool(Process):
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()
-                            f.seek(0, 2)
-                            filesize = f.tell()
-                        files["size"] = filesize
+                        files["size"] = fs_access.size(rfile["location"])
 
             optional = False
             single = False

@@ -13,6 +13,7 @@ from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
 from .software_requirements import DependenciesConfiguration
 from .secrets import SecretStore
+from .pathmapper import PathMapper
 
 if TYPE_CHECKING:
     from .process import Process
@@ -105,6 +106,7 @@ class RuntimeContext(ContextBase):
         self.toplevel = False           # type: bool
         self.mutation_manager = None    # type: Optional[MutationManager]
         self.make_fs_access = StdFsAccess  # type: Callable[[Text], StdFsAccess]
+        self.path_mapper = PathMapper
         self.builder = None             # type: Optional[Builder]
         self.docker_outdir = ""         # type: Text
         self.docker_tmpdir = ""         # type: Text

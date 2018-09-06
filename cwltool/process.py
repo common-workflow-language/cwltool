@@ -275,7 +275,8 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                     source_directories,    # type: Set[Text]
                     action,                # type: Text
                     fs_access,             # type: StdFsAccess
-                    compute_checksum=True  # type: bool
+                    compute_checksum=True,  # type: bool
+                    path_mapper=PathMapper
                     ):
     # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
@@ -325,7 +326,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
             shutil.copy2(src, dst)
 
     outfiles = list(_collectDirEntries(outputObj))
-    pm = PathMapper(outfiles, "", destination_path, separateDirs=False)
+    pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
     stageFiles(pm, stageFunc=_relocate, symLink=False)
 
     def _check_adjust(file):
