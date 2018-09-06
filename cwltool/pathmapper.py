@@ -104,7 +104,7 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
     return dd
 
 def get_listing(fs_access, rec, recursive=True):
-    # type: (StdFsAccess, Dict[Text, Any], bool) -> None
+    # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
     if "listing" in rec:
         return
     listing = []
@@ -167,16 +167,16 @@ def ensure_writable(path):
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode|stat.S_IWUSR)
+                os.chmod(j, mode | stat.S_IWUSR)
             for name in dirs:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode|stat.S_IWUSR)
+                os.chmod(j, mode | stat.S_IWUSR)
     else:
         st = os.stat(path)
         mode = stat.S_IMODE(st.st_mode)
-        os.chmod(path, mode|stat.S_IWUSR)
+        os.chmod(path, mode | stat.S_IWUSR)
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of

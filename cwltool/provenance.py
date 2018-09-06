@@ -513,7 +513,7 @@ class CreateProvProfile():
         return process_run_id
 
     def declare_file(self, value):
-        # type: (Dict) -> Tuple[ProvEntity,ProvEntity,str]
+        # type: (MutableMapping) -> Tuple[ProvEntity,ProvEntity,str]
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
@@ -585,7 +585,7 @@ class CreateProvProfile():
         assert checksum
         return file_entity, entity, checksum
 
-    def declare_directory(self, value):  # type: (Dict) -> ProvEntity
+    def declare_directory(self, value):  # type: (MutableMapping) -> ProvEntity
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes

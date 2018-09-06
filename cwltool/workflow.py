@@ -18,7 +18,7 @@ from schema_salad.sourceline import SourceLine
 import six
 from six import string_types
 from six.moves import range
-from uuid import UUID # pylint: disable=unused-import
+from uuid import UUID  # pylint: disable=unused-import
 
 from . import command_line_tool, expression
 from .builder import CONTENT_LIMIT
@@ -209,7 +209,7 @@ class WorkflowJob(object):
         # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
         self.prov_obj = None  # type: Optional[CreateProvProfile]
-        self.parent_wf = None # type: Optional[CreateProvProfile]
+        self.parent_wf = None  # type: Optional[CreateProvProfile]
         self.tool = workflow.tool
         if runtimeContext.research_obj:
             self.prov_obj = workflow.provenance_object
@@ -502,8 +502,8 @@ class Workflow(Process):
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[CreateProvProfile]
         if loadingContext.research_obj:
-            run_uuid = None # type: Optional[UUID]
-            is_master = not(loadingContext.prov_obj) # Not yet set
+            run_uuid = None  # type: Optional[UUID]
+            is_master = not(loadingContext.prov_obj)  # Not yet set
             if is_master:
                 run_uuid = loadingContext.research_obj.ro_uuid
 
@@ -513,8 +513,7 @@ class Workflow(Process):
                 orcid=loadingContext.orcid,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
-                run_uuid=run_uuid # inherit RO UUID for master wf run
-                )
+                run_uuid=run_uuid)  # inherit RO UUID for master wf run
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
 
@@ -603,6 +602,7 @@ class WorkflowStep(Process):
         loadingContext = loadingContext.copy()
 
         loadingContext.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
+        assert loadingContext.requirements is not None
         loadingContext.requirements.extend(toolpath_object.get("requirements", []))
         loadingContext.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
@@ -613,7 +613,7 @@ class WorkflowStep(Process):
         try:
             if isinstance(toolpath_object["run"], MutableMapping):
                 self.embedded_tool = loadingContext.construct_tool_object(
-                    toolpath_object["run"], loadingContext)
+                    toolpath_object["run"], loadingContext)  # type: Process
             else:
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
@@ -891,7 +891,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
                                 scatter_keys,     # type: MutableSequence[Text]
                                 output_callback,  # type: Callable[..., Any]
                                 runtimeContext    # type: RuntimeContext
-                               ):  #type: (...) -> Generator
+                               ):  # type: (...) -> Generator
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
     output = {}  # type: Dict[Text, List[Optional[Text]]]
