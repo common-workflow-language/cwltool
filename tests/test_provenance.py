@@ -25,6 +25,7 @@ from rdflib import Namespace, URIRef, Graph, Literal
 from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD,DC
 import arcp
 import json
+from hashlib import sha1
 
 
 # RDF namespaces we'll query for later
@@ -83,6 +84,7 @@ class TestProvenance(unittest.TestCase):
     def test_revsort_workflow(self):
         self.cwltool(get_data('tests/wf/revsort.cwl'),
             get_data('tests/wf/revsort-job.json'))
+        self.check_output_object()
         self.check_provenance()
 
     def test_nested_workflow(self):
@@ -182,6 +184,15 @@ class TestProvenance(unittest.TestCase):
             p = os.path.join(self.folder, "data", prefix, l_hash)
             self.assertTrue(os.path.isfile(p),
                 "Could not find %s as %s" % (l, p))
+
+    def check_output_object(self):
+        output_obj = os.path.join(self.folder, "workflow", "cwl-output.json")
+        compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
+        with open(output_obj) as fp:
+            out_json = json.load(fp)
+        f1 = out_json["output"]
+        self.assertEqual(f1["checksum"], compare_checksum)
+
 
     def check_secondary_files(self):
         foo_data = os.path.join(self.folder, "data",
@@ -317,7 +328,7 @@ class TestProvenance(unittest.TestCase):
             f = "metadata/provenance/primary.cwlprov.%s" % ext
             self.assertTrue(f in paths, "provenance file missing " + f)
 
-        for f in ["workflow/primary-job.json", "workflow/packed.cwl"]:
+        for f in ["workflow/primary-job.json", "workflow/packed.cwl", "workflow/cwl-output.json"]:
             self.assertTrue(f in paths, "workflow file missing " + f)
         # Can't test snapshot/ files directly as their name varies
 
@@ -326,6 +337,7 @@ class TestProvenance(unittest.TestCase):
 
         packed = urllib.parse.urljoin(arcp_root, "/workflow/packed.cwl")
         primary_job = urllib.parse.urljoin(arcp_root, "/workflow/primary-job.json")
+        output_object = urllib.parse.urljoin(arcp_root, "/workflow/cwl-output.json")
         primary_prov_nt = urllib.parse.urljoin(arcp_root, "/metadata/provenance/primary.cwlprov.nt")
         uuid = arcp.parse_arcp(arcp_root).uuid
 
