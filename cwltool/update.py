@@ -2,7 +2,8 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import (Any, Callable, Dict, Optional, Tuple, Union,
+                    MutableMapping, MutableSequence)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -15,15 +16,15 @@ from six.moves import urllib
 from .utils import visit_class
 
 
-def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
-    if isinstance(doc, dict):
+def findId(doc, frg):  # type: (Any, Any) -> Optional[MutableMapping]
+    if isinstance(doc, MutableMapping):
         if "id" in doc and doc["id"] == frg:
             return doc
         for key in doc:
             found = findId(doc[key], frg)
             if found:
                 return found
-    if isinstance(doc, list):
+    if isinstance(doc, MutableSequence):
         for entry in doc:
             found = findId(entry, frg)
             if found:
@@ -32,7 +33,7 @@ def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
 
 
 def fixType(doc):  # type: (Any) -> Any
-    if isinstance(doc, list):
+    if isinstance(doc, MutableSequence):
         for i, f in enumerate(doc):
             doc[i] = fixType(f)
         return doc
@@ -56,7 +57,7 @@ def updateScript(sc):  # type: (Text) -> Text
 
 
 def _updateDev2Script(ent):  # type: (Any) -> Any
-    if isinstance(ent, dict) and "engine" in ent:
+    if isinstance(ent, MutableMapping) and "engine" in ent:
         if ent["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
             sp = ent["script"].split("/")
             if sp[0] in ("tmpdir", "outdir"):
@@ -84,10 +85,10 @@ def traverseImport(doc, loader, baseuri, func):
             return doc["$import"]
         imp = urllib.parse.urljoin(baseuri, doc["$import"])
         impLoaded = loader.fetch(imp)
-        r = {}  # type: Dict[Text, Any]
-        if isinstance(impLoaded, list):
+        r = {}  # type: MutableMapping[Text, Any]
+        if isinstance(impLoaded, MutableSequence):
             r = {"$graph": impLoaded}
-        elif isinstance(impLoaded, dict):
+        elif isinstance(impLoaded, MutableMapping):
             r = impLoaded
         else:
             raise Exception("Unexpected code path.")
@@ -151,7 +152,7 @@ def checkversion(doc, metadata, enable_dev):
     cdoc = None  # type: Optional[CommentedMap]
     if isinstance(doc, CommentedSeq):
         lc = metadata.lc
-        metadata = copy.copy(metadata)
+        metadata = copy.deepcopy(metadata)
         metadata.lc.data = copy.copy(lc.data)
         metadata.lc.filename = lc.filename
         metadata[u"$graph"] = doc

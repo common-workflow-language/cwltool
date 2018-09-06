@@ -3,7 +3,8 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import (Any, Dict, List, Optional, Tuple, Union,
+                    MutableMapping, MutableSequence)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -55,7 +56,7 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
 
         return get_expressions(tool, valid_schema, source_line)
     elif isinstance(schema, avro.schema.ArraySchema):
-        if not isinstance(tool, list):
+        if not isinstance(tool, MutableSequence):
             return []
 
         return list(itertools.chain(*
@@ -63,7 +64,7 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
         ))
 
     elif isinstance(schema, avro.schema.RecordSchema):
-        if not isinstance(tool, Dict):
+        if not isinstance(tool, MutableMapping):
             return []
 
         expression_nodes = []
