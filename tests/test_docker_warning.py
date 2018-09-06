@@ -5,8 +5,9 @@ import unittest
 from mock import mock
 
 from cwltool.command_line_tool import DEFAULT_CONTAINER_MSG, CommandLineTool
-from cwltool.utils import windows_default_container_id
 from cwltool.context import RuntimeContext
+from cwltool.utils import windows_default_container_id
+
 
 class TestDefaultDockerWarning(unittest.TestCase):
 

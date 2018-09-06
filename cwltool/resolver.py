@@ -1,14 +1,17 @@
+"""Resolves references to CWL documents from local or remote places."""
 from __future__ import absolute_import
 
 import os
 import sys
 
 from six.moves import urllib
+
+from .loghandler import _logger
+
 if sys.version_info < (3, 4):
     from pathlib2 import Path  # pylint: disable=import-error
 else:
     from pathlib import Path
-from .loghandler import _logger
 
 
 def resolve_local(document_loader, uri):

@@ -1,31 +1,30 @@
 from __future__ import absolute_import
-import unittest
-import sys
 
-from io import open
+import json
+import ntpath
 import os
-import tempfile
-from six import StringIO
-from cwltool.main import main
+import posixpath
 import shutil
-import pytest
-from cwltool.utils import onWindows
-from cwltool.resolver import Path
+import sys
+import tempfile
+import unittest
+from io import open
 
+import arcp
+import pytest
+from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.namespace import DC, DCTERMS, FOAF, RDF, RDFS, SKOS, XSD
+from six import StringIO
+from six.moves import urllib
+
+import bagit
 # Module to be tested
-from cwltool import provenance
-from cwltool import load_tool
+from cwltool import load_tool, provenance
+from cwltool.main import main
+from cwltool.resolver import Path
+from cwltool.utils import onWindows
 
 from .util import get_data
-import bagit
-import posixpath
-import ntpath
-from six.moves import urllib
-from rdflib import Namespace, URIRef, Graph, Literal
-from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD,DC
-import arcp
-import json
-
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")

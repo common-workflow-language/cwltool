@@ -6,31 +6,34 @@ import logging
 import os
 import re
 import uuid
-from typing import (Any, Callable, Dict, List, Optional, Tuple,
-                    Union, cast, MutableMapping, MutableSequence)
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union, cast)
 
 import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from six import itervalues, string_types
-from six.moves import urllib
 from schema_salad import schema
-from schema_salad.ref_resolver import (  # pylint: disable=unused-import
-    ContextType, Fetcher, Loader, file_uri)
+from schema_salad.ref_resolver import (ContextType,  # pylint: disable=unused-import
+                                       Fetcher, Loader, file_uri)
 from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.validate import ValidationException
+from six import itervalues, string_types
+from six.moves import urllib
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import process, update
+from .context import LoadingContext  # pylint: disable=unused-import
 from .errors import WorkflowException
-from .process import (  # pylint: disable=unused-import
-    Process, get_schema, shortname)
+from .loghandler import _logger
+from .process import (Process, get_schema,  # pylint: disable=unused-import
+                      shortname)
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .update import ALLUPDATES
-from .loghandler import _logger
 from .utils import json_dumps
-from .context import LoadingContext  # pylint: disable=unused-import
+
+
+
 
 jobloaderctx = {
     u"cwl": "https://w3id.org/cwl/cwl#",
