@@ -1506,7 +1506,7 @@ class ResearchObject():
             rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-output.json")
         else:
             rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
-        j = json.dumps(copied, indent=4, ensure_ascii=False)
+        j = json.dumps(dict(copied), indent=4, ensure_ascii=False)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.debug(u"[provenance] Generated customised job file: %s",
