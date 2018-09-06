@@ -693,16 +693,14 @@ class CommandLineTool(Process):
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8") 
+                                files["contents"] = contents.decode("utf-8")
                             if compute_checksum:
                                 checksum = hashlib.sha1()
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()
-                            f.seek(0, 2)
-                            filesize = f.tell()
-                        files["size"] = filesize
+                        files["size"] = fs_access.size(rfile["location"])
 
             optional = False
             single = False
