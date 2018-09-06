@@ -12,7 +12,7 @@ import tempfile
 import threading
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Union,
-                    cast)
+                    cast, MutableMapping, MutableSequence)
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -99,7 +99,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self,
-            job_order,         # type: Dict[Text, Text]
+            job_order,         # type: MutableMapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):
@@ -222,7 +222,7 @@ OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], D
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, loadingContext):
-        # type: (Dict[Text, Any], LoadingContext) -> None
+        # type: (MutableMapping[Text, Any], LoadingContext) -> None
         super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
 
@@ -272,7 +272,7 @@ class CommandLineTool(Process):
             self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
     def job(self,
-            job_order,         # type: Dict[Text, Text]
+            job_order,         # type: MutableMapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # RuntimeContext
            ):
@@ -510,7 +510,7 @@ class CommandLineTool(Process):
             def register_reader(f):
                 if f["location"] not in muts:
                     builder.mutation_manager.register_reader(j.name, f)
-                    readers[f["location"]] = copy.copy(f)
+                    readers[f["location"]] = copy.deepcopy(f)
 
             for li in j.generatefiles["listing"]:
                 li = cast(Dict[Text, Any], li)
@@ -693,20 +693,18 @@ class CommandLineTool(Process):
                             if binding.get("loadContents") or compute_checksum:
                                 contents = f.read(CONTENT_LIMIT)
                             if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8") 
+                                files["contents"] = contents.decode("utf-8")
                             if compute_checksum:
                                 checksum = hashlib.sha1()
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()
-                            f.seek(0, 2)
-                            filesize = f.tell()
-                        files["size"] = filesize
+                        files["size"] = fs_access.size(rfile["location"])
 
             optional = False
             single = False
-            if isinstance(schema["type"], list):
+            if isinstance(schema["type"], MutableSequence):
                 if "null" in schema["type"]:
                     optional = True
                 if "File" in schema["type"] or "Directory" in schema["type"]:
@@ -724,7 +722,7 @@ class CommandLineTool(Process):
                         raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
                 elif not r and optional:
                     pass
-                elif isinstance(r, list):
+                elif isinstance(r, MutableSequence):
                     if len(r) > 1:
                         raise WorkflowException("Multiple matches for output item that is a single file.")
                     else:
@@ -733,11 +731,11 @@ class CommandLineTool(Process):
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException, debug):
                     for primary in aslist(r):
-                        if isinstance(primary, dict):
+                        if isinstance(primary, MutableMapping):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
-                                if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                                if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
                                 else:
@@ -768,7 +766,7 @@ class CommandLineTool(Process):
             if not r and optional:
                 return None
 
-        if (not empty_and_optional and isinstance(schema["type"], dict)
+        if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
                 and schema["type"]["type"] == "record"):
             out = {}
             for f in schema["type"]["fields"]:

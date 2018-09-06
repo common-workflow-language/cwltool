@@ -24,7 +24,7 @@ def has_types(items):
             if n in items:
                 r.extend(has_types(items[n]))
         return r
-    if isinstance(items, list):
+    if isinstance(items, MutableSequence):
         for i in items:
             r.extend(has_types(i))
         return r

@@ -7,8 +7,8 @@ import stat
 import uuid
 from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
-from typing import (Any, Callable, Dict, List, MutableMapping, Optional, Set, Tuple,
-                    Union)
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Tuple, Union)
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -31,12 +31,12 @@ MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "
 def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
 
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"])
         for d in rec:
             adjustFiles(rec[d], op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             adjustFiles(d, op)
 
@@ -104,7 +104,7 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
     return dd
 
 def get_listing(fs_access, rec, recursive=True):
-    # type: (StdFsAccess, Dict[Text, Any], bool) -> None
+    # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
     if "listing" in rec:
         return
     listing = []
@@ -167,16 +167,16 @@ def ensure_writable(path):
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode|stat.S_IWUSR)
+                os.chmod(j, mode | stat.S_IWUSR)
             for name in dirs:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode|stat.S_IWUSR)
+                os.chmod(j, mode | stat.S_IWUSR)
     else:
         st = os.stat(path)
         mode = stat.S_IMODE(st.st_mode)
-        os.chmod(path, mode|stat.S_IWUSR)
+        os.chmod(path, mode | stat.S_IWUSR)
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of

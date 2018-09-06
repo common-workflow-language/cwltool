@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, List, MutableMapping
+from typing import Any, Dict, List, MutableMapping, MutableSequence
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -34,11 +34,11 @@ class SecretStore(object):
             for k in self.secrets:
                 if k in value:
                     return True
-        elif isinstance(value, dict):
+        elif isinstance(value, MutableMapping):
             for v in value.values():
                 if self.has_secret(v):
                     return True
-        elif isinstance(value, list):
+        elif isinstance(value, MutableSequence):
             for v in value:
                 if self.has_secret(v):
                     return True
@@ -49,8 +49,8 @@ class SecretStore(object):
         if isinstance(value, string_types):
             for k, v in self.secrets.items():
                 value = value.replace(k, v)
-        elif isinstance(value, dict):
+        elif isinstance(value, MutableMapping):
             return {k: self.retrieve(v) for k, v in value.items()}
-        elif isinstance(value, list):
+        elif isinstance(value, MutableSequence):
             return [self.retrieve(v) for k, v in enumerate(value)]
         return value

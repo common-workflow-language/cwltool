@@ -11,7 +11,7 @@ from __future__ import absolute_import
 import argparse  # pylint: disable=unused-import
 import os
 import string
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, MutableSequence
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -86,7 +86,7 @@ def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
         packages = software_requirement.get("packages")
         for package in packages:
             version = package.get("version", None)
-            if isinstance(version, list):
+            if isinstance(version, MutableSequence):
                 if version:
                     version = version[0]
                 else:

@@ -13,8 +13,8 @@ import datetime
 from threading import Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
-from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, MutableMapping,
-                    Optional, Union, cast)
+from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List,
+                    Optional, Union, cast, MutableMapping, MutableSequence)
 
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -107,7 +107,7 @@ with open(sys.argv[1], "r") as f:
 
 
 def deref_links(outputs):  # type: (Any) -> None
-    if isinstance(outputs, dict):
+    if isinstance(outputs, MutableMapping):
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):
@@ -116,7 +116,7 @@ def deref_links(outputs):  # type: (Any) -> None
         else:
             for v in outputs.values():
                 deref_links(v)
-    if isinstance(outputs, list):
+    if isinstance(outputs, MutableSequence):
         for output in outputs:
             deref_links(output)
 

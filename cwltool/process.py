@@ -20,8 +20,10 @@ import textwrap
 import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
+
 from typing import (Any, Callable, Dict, Generator, Iterator, List, Optional,
-                    Set, Tuple, Union, cast)
+                    Set, Tuple, Union, cast, MutableMapping, MutableSequence)
+
 from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -196,7 +198,7 @@ def shortname(inputid):
 
 def checkRequirements(rec, supported_process_requirements):
     # type: (Any, Iterable[Any]) -> None
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if "requirements" in rec:
             for i, entry in enumerate(rec["requirements"]):
                 with SourceLine(rec["requirements"], i, UnsupportedRequirement):
@@ -205,7 +207,7 @@ def checkRequirements(rec, supported_process_requirements):
                             u"Unsupported requirement {}".format(entry["class"]))
         for key in rec:
             checkRequirements(rec[key], supported_process_requirements)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for entry in rec:
             checkRequirements(entry, supported_process_requirements)
 
@@ -215,7 +217,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
     the primary file associated with a group of secondary files.
     """
 
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"], primary=primary)
             adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
@@ -223,7 +225,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
         else:
             for d in rec:
                 adjustFilesWithSecondary(rec[d], op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
 
@@ -273,7 +275,8 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                     source_directories,    # type: Set[Text]
                     action,                # type: Text
                     fs_access,             # type: StdFsAccess
-                    compute_checksum=True  # type: bool
+                    compute_checksum=True,  # type: bool
+                    path_mapper=PathMapper
                     ):
     # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
@@ -290,7 +293,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                 for sub_obj in obj.values():
                     for dir_entry in _collectDirEntries(sub_obj):
                         yield dir_entry
-        elif isinstance(obj, list):
+        elif isinstance(obj, MutableSequence):
             for sub_obj in obj:
                 for dir_entry in _collectDirEntries(sub_obj):
                     yield dir_entry
@@ -323,7 +326,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
             shutil.copy2(src, dst)
 
     outfiles = list(_collectDirEntries(outputObj))
-    pm = PathMapper(outfiles, "", destination_path, separateDirs=False)
+    pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
     stageFiles(pm, stageFunc=_relocate, symLink=False)
 
     def _check_adjust(file):
@@ -399,7 +402,7 @@ def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
             if job.get(fieldname) is not None:
                 pass
             elif job.get(fieldname) is None and u"default" in inp:
-                job[fieldname] = copy.copy(inp[u"default"])
+                job[fieldname] = copy.deepcopy(inp[u"default"])
             elif job.get(fieldname) is None and u"null" in aslist(inp[u"type"]):
                 job[fieldname] = None
             else:
@@ -412,10 +415,10 @@ def avroize_type(field_type, name_prefix=""):
     """
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
-    if isinstance(field_type, list):
+    if isinstance(field_type, MutableSequence):
         for f in field_type:
             avroize_type(f, name_prefix)
-    elif isinstance(field_type, dict):
+    elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
                 field_type["name"] = name_prefix + Text(uuid.uuid4())
@@ -427,7 +430,7 @@ def avroize_type(field_type, name_prefix=""):
 
 def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
     req = {}  # type: Dict[Text, Any]
-    if not isinstance(overrides, list):
+    if not isinstance(overrides, MutableSequence):
         raise validate.ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
     for ov in overrides:
         if ov["overrideTarget"] == toolid:
@@ -444,7 +447,7 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
     """)
 
 
-def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
+def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
                           ):              # type: (...)->bool
@@ -456,10 +459,10 @@ def var_spool_cwl_detector(obj,           # type: Union[Dict, List, Text]
                 SourceLine(item=item, key=obj_key, raise_type=Text).makeError(
                     _VAR_SPOOL_ERROR.format(obj)))
             r = True
-    elif isinstance(obj, dict):
+    elif isinstance(obj, MutableMapping):
         for key, value in iteritems(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
-    elif isinstance(obj, list):
+    elif isinstance(obj, MutableSequence):
         for key, value in enumerate(obj):
             r = var_spool_cwl_detector(value, obj, key) or r
     return r
@@ -472,7 +475,7 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
 
 class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
-                 toolpath_object,      # type: Dict[Text, Any]
+                 toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
@@ -495,11 +498,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         else:
             self.names = names
         self.tool = toolpath_object
-        self.requirements = (getdefault(loadingContext.requirements, []) +
-                             self.tool.get("requirements", []) +
-                             get_overrides(getdefault(loadingContext.overrides_list, []),
-                                           self.tool["id"]).get("requirements", []))
-        self.hints = getdefault(loadingContext.hints, []) + self.tool.get("hints", [])
+        self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
+        self.requirements.extend(self.tool.get("requirements", []))
+        self.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
+                                               self.tool["id"]).get("requirements", []))
+        self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
+        self.hints.extend(self.tool.get("hints", []))
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)
@@ -535,7 +539,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
-                c = copy.copy(i)
+                c = copy.deepcopy(i)
                 c["name"] = shortname(c["id"])
                 del c["id"]
 
@@ -544,7 +548,9 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                         u"Missing 'type' in parameter '{}'".format(c["name"]))
 
                 if "default" in c and "null" not in aslist(c["type"]):
-                    c["type"] = ["null"] + aslist(c["type"])
+                    nullable = ["null"]
+                    nullable.extend(aslist(c["type"]))
+                    c["type"] = nullable
                 else:
                     c["type"] = c["type"]
                 c["type"] = avroize_type(c["type"], c["name"])
@@ -599,7 +605,7 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
             var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, runtimeContext):
-        # type: (Dict[Text, Text], RuntimeContext) -> Builder
+        # type: (MutableMapping[Text, Text], RuntimeContext) -> Builder
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
@@ -692,8 +698,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 lc = self.tool["arguments"].lc.data[i]
                 fn = self.tool["arguments"].lc.filename
                 bindings.lc.add_kv_line_col(len(bindings), lc)
-                if isinstance(a, dict):
-                    a = copy.copy(a)
+                if isinstance(a, MutableMapping):
+                    a = copy.deepcopy(a)
                     if a.get("position"):
                         a["position"] = [a["position"], i]
                     else:
@@ -722,8 +728,16 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         if six.PY3:
             key = cmp_to_key(cmp_like_py2)
         else:  # PY2
-            key = lambda dict: dict["position"]
-        bindings.sort(key=key)
+            key = lambda d: d["position"]
+
+        # This awkward construction replaces the contents of
+        # "bindings" in place (because Builder expects it to be
+        # mutated in place, sigh, I'm sorry) with its contents sorted,
+        # supporting different versions of Python and ruamel.yaml with
+        # different behaviors/bugs in CommentedSeq.
+        bd = copy.deepcopy(bindings)
+        del bindings[:]
+        bindings.extend(sorted(bd, key=key))
 
         if self.tool[u"class"] != 'Workflow':
             builder.resources = self.evalResources(builder, runtimeContext)
@@ -783,12 +797,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
                 else:
                     _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
 
-    def visit(self, op):  # type: (Callable[[Dict[Text, Any]], None]) -> None
+    def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], None]) -> None
         op(self.tool)
 
     @abc.abstractmethod
     def job(self,
-            job_order,         # type: Dict[Text, Text]
+            job_order,         # type: MutableMapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -888,7 +902,7 @@ def mergedirs(listing):
 def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
-    if isinstance(doc, dict):
+    if isinstance(doc, MutableMapping):
         if "id" in doc:
             if doc["id"].startswith("file://"):
                 df, _ = urllib.parse.urldefrag(doc["id"])
@@ -922,7 +936,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
         for k, v in iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
-                    if isinstance(u, dict):
+                    if isinstance(u, MutableMapping):
                         r.extend(scandeps(base, u, reffields, urlfields, loadref, urljoin=urljoin))
                     else:
                         sub = loadref(base, u)
@@ -946,7 +960,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                     r.append(deps)
             elif k not in ("listing", "secondaryFiles"):
                 r.extend(scandeps(base, v, reffields, urlfields, loadref, urljoin=urljoin))
-    elif isinstance(doc, list):
+    elif isinstance(doc, MutableSequence):
         for d in doc:
             r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
 
