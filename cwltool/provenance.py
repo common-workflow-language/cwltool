@@ -1503,7 +1503,7 @@ class ResearchObject():
         relativised_input_objecttemp = {}  # type: Dict[Text, Any]
         self._relativise_files(copied)
         if is_output:
-            rel_path = posixpath.join(_posix_path(WORKFLOW), "cwl-output.json")
+            rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-output.json")
         else:
             rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
         j = json.dumps(copied, indent=4, ensure_ascii=False)
