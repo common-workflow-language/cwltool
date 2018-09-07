@@ -1,16 +1,17 @@
+"""Reformat a CWL document and all its references to be a single stream."""
 from __future__ import absolute_import
 
 import copy
-from typing import (Any, Callable, Dict, List, Optional, Set,
-                    Union, cast, MutableMapping, MutableSequence)
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Union, cast)
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from six import string_types, iteritems
+from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
+from schema_salad.ref_resolver import SubLoader
+from six import iteritems, string_types
 from six.moves import urllib
-from schema_salad.ref_resolver import (Loader, # pylint: disable=unused-import
-                                       SubLoader)
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .process import shortname, uniquename
 

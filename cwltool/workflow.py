@@ -1,42 +1,41 @@
 from __future__ import absolute_import
 
 import copy
+import datetime
 import functools
 import logging
-import datetime
 import random
 import tempfile
 from collections import namedtuple
-from typing import (Any, Callable, Dict, Generator, Iterable, List, Optional,
-                    Tuple, Union, MutableMapping, MutableSequence)
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, Generator, Iterable, List,
+                    MutableMapping, MutableSequence, Optional, Tuple, Union)
+from uuid import UUID  # pylint: disable=unused-import
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import validate
 from schema_salad.sourceline import SourceLine
-import six
-from six import string_types
+from six import string_types, iteritems
 from six.moves import range
-from uuid import UUID  # pylint: disable=unused-import
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from . import command_line_tool, expression
+from . import command_line_tool, context, expression
 from .builder import CONTENT_LIMIT
 from .checker import can_assign_src_to_sink, static_checker
+from .context import LoadingContext  # pylint: disable=unused-import
+from .context import RuntimeContext, getdefault
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
-from .pathmapper import adjustDirObjs, get_listing
 from .mutation import MutationManager  # pylint: disable=unused-import
+from .pathmapper import adjustDirObjs, get_listing
 from .process import Process, get_overrides, shortname, uniquename
+from .provenance import CreateProvProfile
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .provenance import CreateProvProfile, ResearchObject
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
-from . import context
-from .context import (LoadingContext,  # pylint: disable=unused-import
-                      RuntimeContext, getdefault)
+
 
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
@@ -55,7 +54,8 @@ def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
             return Workflow(toolpath_object, loadingContext)
 
     raise WorkflowException(
-        u"Missing or invalid 'class' field in %s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
+        u"Missing or invalid 'class' field in "
+        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow" %
         toolpath_object["id"])
 
 
@@ -334,11 +334,11 @@ class WorkflowJob(object):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
-            vfinputs = {shortname(k): v for k, v in six.iteritems(inputobj)}
+            vfinputs = {shortname(k): v for k, v in iteritems(inputobj)}
 
             def postScatterEval(io):
                 # type: (MutableMapping[Text, Any]) -> Dict[Text, Any]
-                shortio = {shortname(k): v for k, v in six.iteritems(io)}
+                shortio = {shortname(k): v for k, v in iteritems(io)}
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
                 for k, v in io.items():
@@ -634,7 +634,7 @@ class WorkflowStep(Process):
                     param = CommentedMap()  # type: CommentedMap
                     inputid = step_entry
                 else:
-                    param = CommentedMap(six.iteritems(step_entry))
+                    param = CommentedMap(iteritems(step_entry))
                     inputid = step_entry["id"]
 
                 shortinputid = shortname(inputid)

@@ -9,8 +9,6 @@ from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
 from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Set, Tuple, Union)
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import requests
 from cachecontrol import CacheControl
@@ -19,11 +17,14 @@ from schema_salad import validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .loghandler import _logger
 from .stdfsaccess import StdFsAccess, abspath  # pylint: disable=unused-import
-from .utils import (Directory,  # pylint: disable=unused-import
-                    convert_pathsep_to_unix, visit_class)
+from .utils import Directory  # pylint: disable=unused-import
+from .utils import convert_pathsep_to_unix, visit_class
+
 
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 

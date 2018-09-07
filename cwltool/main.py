@@ -3,8 +3,6 @@
 from __future__ import absolute_import, print_function
 
 import argparse
-import codecs
-from codecs import StreamWriter  # pylint: disable=unused-import
 import collections
 import copy
 import functools
@@ -13,36 +11,39 @@ import logging
 import os
 import signal
 import sys
-
+from codecs import StreamWriter, getwriter  # pylint: disable=unused-import
 from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
                     MutableMapping, MutableSequence, Optional, TextIO, Tuple,
                     Union, cast)
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+
 import pkg_resources  # part of setuptools
 from ruamel import yaml
 from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-import six
-from six import string_types
+from six import string_types, iteritems, PY3
+from typing_extensions import Text
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
+from .builder import HasReqsHints  # pylint: disable=unused-import
+from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import MultithreadedJobExecutor, SingleJobExecutor
-from .load_tool import (  # pylint: disable=unused-import
-    FetcherConstructorType, fetch_document, jobloaderctx,
-    load_overrides, make_tool, resolve_overrides, resolve_tool_uri,
-    validate_document)
+from .load_tool import (FetcherConstructorType,  # pylint: disable=unused-import
+                        fetch_document, jobloaderctx, load_overrides,
+                        make_tool, resolve_overrides, resolve_tool_uri,
+                        validate_document)
 from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
-from .process import (Process, scandeps,   # pylint: disable=unused-import
-                      shortname, use_custom_schema, use_standard_schema, add_sizes)
+from .process import (Process, add_sizes,  # pylint: disable=unused-import
+                      scandeps, shortname, use_custom_schema,
+                      use_standard_schema)
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -51,10 +52,8 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
-                    versionstring, windows_default_container_id,
-                    processes_to_kill)
-from .context import LoadingContext, RuntimeContext, getdefault
-from .builder import HasReqsHints  # pylint: disable=unused-import
+                    processes_to_kill, versionstring,
+                    windows_default_container_id)
 
 
 def _terminate_processes():
@@ -284,9 +283,9 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in six.iteritems(cmd_line)
+                    k: v for k, v in iteritems(cmd_line)
                     if k.startswith(record_name)}
-                for key, value in six.iteritems(record_items):
+                for key, value in iteritems(record_items):
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -439,7 +438,7 @@ def main(argsl=None,                   # type: List[str]
          args=None,                    # type: argparse.Namespace
          job_order_object=None,        # type: MutableMapping[Text, Any]
          stdin=sys.stdin,              # type: IO[Any]
-         stdout=None,                  # type: Union[TextIO, codecs.StreamWriter]
+         stdout=None,                  # type: Union[TextIO, StreamWriter]
          stderr=sys.stderr,            # type: IO[Any]
          versionfunc=versionstring,    # type: Callable[[], Text]
          logger_handler=None,          #
@@ -451,10 +450,10 @@ def main(argsl=None,                   # type: List[str]
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")  # type: ignore
                 and sys.stdout.encoding != 'UTF-8'):  # type: ignore
-            if six.PY3 and hasattr(sys.stdout, "detach"):
+            if PY3 and hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
             else:
-                stdout = codecs.getwriter('utf-8')(sys.stdout)  # type: ignore
+                stdout = getwriter('utf-8')(sys.stdout)  # type: ignore
         else:
             stdout = cast(TextIO, sys.stdout)  # type: ignore
 
@@ -487,7 +486,7 @@ def main(argsl=None,                   # type: List[str]
         # If caller parsed its own arguments, it may not include every
         # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.
-        for key, val in six.iteritems(get_default_args()):
+        for key, val in iteritems(get_default_args()):
             if not hasattr(args, key):
                 setattr(args, key, val)
 
@@ -751,7 +750,7 @@ def main(argsl=None,                   # type: List[str]
             return 33
         except WorkflowException as exc:
             _logger.error(
-                u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(six.text_type(exc)),
+                u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(Text(exc)),
                 exc_info=args.debug)
             return 1
         except Exception as exc:

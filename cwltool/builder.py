@@ -2,29 +2,31 @@ from __future__ import absolute_import
 
 import copy
 import logging
-from typing import (Any, Callable, Dict, List, Optional, Set, Union,
-                    Tuple, MutableMapping, MutableSequence)
-from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Tuple, Union)
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
-import schema_salad.schema  # pylint: disable=unused-import
 from schema_salad import validate
-from schema_salad.schema import AvroSchemaFromJSONData
+from schema_salad.schema import AvroSchemaFromJSONData, Names
 from schema_salad.sourceline import SourceLine
 from six import iteritems, string_types
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text, Type)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
-from .pathmapper import (PathMapper,  # pylint: disable=unused-import
-                         get_listing, normalizeFilesDirs, visit_class)
+from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import get_listing, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, docker_windows_path_adjust,
-                    json_dumps, onWindows)
+from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
+
+
+
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
@@ -111,7 +113,7 @@ class Builder(HasReqsHints):
                  files=None,                # type: List[Dict[Text, Text]]
                  bindings=None,             # type: List[Dict[Text, Any]]
                  schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
-                 names=None,                # type: schema_salad.schema.Names
+                 names=None,                # type: Names
                  requirements=None,         # type: List[Dict[Text, Any]]
                  hints=None,                # type: List[Dict[Text, Any]]
                  timeout=None,              # type: float
@@ -131,7 +133,7 @@ class Builder(HasReqsHints):
                 ):  # type: (...) -> None
 
         if names is None:
-            self.names = schema_salad.schema.Names()
+            self.names = Names()
         else:
             self.names = names
 

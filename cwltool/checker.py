@@ -1,11 +1,12 @@
+"""Static checking of CWL workflow connectivity."""
 from collections import namedtuple
-from typing import Any, Dict, List, Optional, MutableMapping, MutableSequence
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import Any, Dict, List, MutableMapping, MutableSequence, Optional
 
+import six
 from schema_salad import validate
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
-import six
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -79,24 +80,22 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
                         return False
             return True
         return can_assign_src_to_sink(src["type"], sink["type"], strict)
-    elif isinstance(src, MutableSequence):
+    if isinstance(src, MutableSequence):
         if strict:
-            for t in src:
-                if not can_assign_src_to_sink(t, sink):
+            for this_src in src:
+                if not can_assign_src_to_sink(this_src, sink):
                     return False
             return True
-        else:
-            for t in src:
-                if can_assign_src_to_sink(t, sink):
-                    return True
-            return False
-    elif isinstance(sink, MutableSequence):
-        for t in sink:
-            if can_assign_src_to_sink(src, t):
+        for this_src in src:
+            if can_assign_src_to_sink(this_src, sink):
                 return True
         return False
-    else:
-        return src == sink
+    if isinstance(sink, MutableSequence):
+        for this_sink in sink:
+            if can_assign_src_to_sink(src, this_sink):
+                return True
+        return False
+    return src == sink
 
 
 def _compare_records(src, sink, strict=False):
