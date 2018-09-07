@@ -375,7 +375,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     return outputObj
 
 
-def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
+def cleanIntermediate(output_dirs):  # type: (Iterable[Text]) -> None
     for a in output_dirs:
         if os.path.exists(a):
             _logger.debug(u"Removing intermediate output directory %s", a)
