@@ -97,8 +97,9 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 path_mapper=runtime_context.path_mapper)
 
         if runtime_context.rm_tmpdir:
-            if runtime_context.cachedir is not None:
-                cleanIntermediate(filter(lambda x: not x.startswith(runtime_context.cachedir), self.output_dirs))
+          cachedir = runtime_context.cachedir
+            if cachedir is not None:
+                cleanIntermediate(filter(lambda x: not x.startswith(cachedir), self.output_dirs))
             else:
                 cleanIntermediate(self.output_dirs)
 
