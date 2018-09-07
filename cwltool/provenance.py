@@ -1493,20 +1493,22 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   builder_job,  # type: Dict
+                   builder_job,  # type: Dict[Text, Any]
                    wf_job=None,  # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
                    is_output=False
                   ):  # type: (...) -> Dict
         #TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
-        relativised_input_objecttemp = {}  # type: Dict
+        relativised_input_objecttemp = {}  # type: Dict[Text, Any]
         self._relativise_files(copied)
+        def jdefault(o):
+            return dict(o)
         if is_output:
             rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-output.json")
         else:
             rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
-        j = json.dumps(dict(copied), indent=4, ensure_ascii=False)
+        j = json.dumps(copied, indent=4, ensure_ascii=False, default=jdefault)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.debug(u"[provenance] Generated customised job file: %s",
@@ -1527,7 +1529,7 @@ class ResearchObject():
         return self.relativised_input_object
 
     def _relativise_files(self, structure):
-        # type: (Any, Dict) -> None
+        # type: (Any, Dict[Any, Any]) -> None
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
