@@ -5,7 +5,7 @@ import os
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import psutil
 from schema_salad.validate import ValidationException
@@ -97,7 +97,11 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                 path_mapper=runtime_context.path_mapper)
 
         if runtime_context.rm_tmpdir:
-            cleanIntermediate(self.output_dirs)
+            if runtime_context.cachedir is None:
+                output_dirs = self.output_dirs # type: Iterable[Any]
+            else:
+                output_dirs = filter(lambda x: not x.startswith(runtime_context.cachedir), self.output_dirs)
+            cleanIntermediate(output_dirs)
 
         if self.final_output and self.final_status:
 
