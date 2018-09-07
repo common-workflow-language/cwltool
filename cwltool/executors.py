@@ -5,7 +5,7 @@ import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
 import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -97,11 +97,11 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 path_mapper=runtime_context.path_mapper)
 
         if runtime_context.rm_tmpdir:
-          cachedir = runtime_context.cachedir
-            if cachedir is not None:
-                cleanIntermediate(filter(lambda x: not x.startswith(cachedir), self.output_dirs))
+            if runtime_context.cachedir is None:
+                output_dirs = self.output_dirs # type: Iterable[Any]
             else:
-                cleanIntermediate(self.output_dirs)
+                output_dirs = filter(lambda x: not x.startswith(runtime_context.cachedir), self.output_dirs)
+            cleanIntermediate(output_dirs)
 
         if self.final_output and self.final_status:
 
