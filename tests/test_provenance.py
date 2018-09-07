@@ -13,8 +13,7 @@ from io import open
 import arcp
 import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import DC, DCTERMS, FOAF, RDF, RDFS, SKOS, XSD
-from six import StringIO
+from rdflib.namespace import DC, DCTERMS, RDF
 from six.moves import urllib
 
 import bagit
@@ -25,15 +24,6 @@ from cwltool.resolver import Path
 from cwltool.utils import onWindows
 
 from .util import get_data
-import bagit
-import posixpath
-import ntpath
-from six.moves import urllib
-from rdflib import Namespace, URIRef, Graph, Literal
-from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD,DC
-import arcp
-import json
-from hashlib import sha1
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
