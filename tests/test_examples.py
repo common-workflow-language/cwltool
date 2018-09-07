@@ -3,8 +3,6 @@ import logging
 import os
 import shutil
 import sys
-import tempfile
-import unittest
 from io import BytesIO, StringIO
 import pytest
 
@@ -19,10 +17,12 @@ import cwltool.workflow
 from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
-from cwltool.utils import onWindows, subprocess
+from cwltool.utils import onWindows
 
-from .util import (get_data, get_windows_safe_factory, needs_docker,
-                   needs_singularity, windows_needs_docker)
+from .util import (get_data, get_main_output, get_windows_safe_factory, needs_docker,
+                   needs_singularity, temp_dir, windows_needs_docker)
+
+
 try:
     reload
 except:  # pylint: disable=bare-except
@@ -349,13 +349,11 @@ def test_dedupe():
 
 record = {
     'fields': [
-        {
-            'type': {'items': 'string', 'type': 'array'},
-            'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
+        {'type': {'items': 'string', 'type': 'array'},
+         'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
         },
-        {
-            'type': {'items': 'File', 'type': 'array'},
-            'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
+        {'type': {'items': 'File', 'type': 'array'},
+         'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
         }],
     'type': 'record',
     'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'
@@ -394,7 +392,7 @@ source_to_sink = [
 
 @pytest.mark.parametrize('name, source, sink, expected', source_to_sink)
 def test_compare_types(name, source, sink, expected):
-    assert cwltool.workflow.can_assign_src_to_sink(source, sink) == expected
+    assert cwltool.workflow.can_assign_src_to_sink(source, sink) == expected, name
 
 source_to_sink_strict = [
     ('0',
@@ -423,7 +421,7 @@ source_to_sink_strict = [
 
 @pytest.mark.parametrize('name, source, sink, expected', source_to_sink_strict)
 def test_compare_types_strict(name, source, sink, expected):
-    assert cwltool.workflow.can_assign_src_to_sink(source, sink, strict=True) == expected
+    assert cwltool.workflow.can_assign_src_to_sink(source, sink, strict=True) == expected, name
 
 typechecks = [
     (['string', 'int'], ['string', 'int', 'null'],
@@ -618,121 +616,94 @@ def test_var_spool_cwl_checker3():
 def test_print_dot():
     assert main(["--print-dot", get_data('tests/wf/revsort.cwl')]) == 0
 
-class TestCmdLine(unittest.TestCase):
-    def get_main_output(self, new_args):
-        process = subprocess.Popen(
-            [sys.executable, "-m", "cwltool"] + new_args,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def test_js_console_cmd_line_tool():
+    for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+        error_code, _, stderr = get_main_output(
+            ["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
 
-        stdout, stderr = process.communicate()
-        return process.returncode, stdout.decode('utf-8'), stderr.decode('utf-8')
+        assert "[log] Log message" in stderr
+        assert "[err] Error message" in stderr
 
+        assert error_code == 0, stderr
 
-class TestJsConsole(TestCmdLine):
+def test_no_js_console():
+    for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
+        _, _, stderr = get_main_output(
+            ["--no-container", get_data("tests/wf/" + test_file)])
 
-    def test_js_console_cmd_line_tool(self):
-        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, _, stderr = self.get_main_output(
-                ["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
-
-            assert "[log] Log message" in stderr
-            assert "[err] Error message" in stderr
-
-            assert error_code == 0, stderr
-
-    def test_no_js_console(self):
-        for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-            error_code, _, stderr = self.get_main_output(
-                ["--no-container", get_data("tests/wf/" + test_file)])
-
-            assert "[log] Log message" not in stderr
-            assert "[err] Error message" not in stderr
+        assert "[log] Log message" not in stderr
+        assert "[err] Error message" not in stderr
 
 @needs_docker
-class TestRecordContainerId(TestCmdLine):
-    def test_record_container_id(self):
-        test_file = "cache_test_workflow.cwl"
-        cid_dir = tempfile.mkdtemp("cwltool_test_cid")
-        error_code, _, stderr = self.get_main_output(
+def test_record_container_id():
+    test_file = "cache_test_workflow.cwl"
+    with temp_dir('cidr') as cid_dir:
+        error_code, _, stderr = get_main_output(
             ["--record-container-id", "--cidfile-dir", cid_dir,
              get_data("tests/wf/" + test_file)])
         assert "completed success" in stderr
         assert error_code == 0
         assert len(os.listdir(cid_dir)) == 2
-        shutil.rmtree(cid_dir)
 
 
 @needs_docker
-class TestCache(TestCmdLine):
-    def setUp(self):
-        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
-
-    def tearDown(self):
-        shutil.rmtree(self.cache_dir)
-
-    def test_wf_without_container(self):
-        test_file = "hello-workflow.cwl"
-        error_code, _, stderr = self.get_main_output(
-            ["--cachedir", self.cache_dir,
+def test_wf_without_container():
+    test_file = "hello-workflow.cwl"
+    with temp_dir("cwltool_cache") as cache_dir:
+        error_code, _, stderr = get_main_output(
+            ["--cachedir", cache_dir,
              get_data("tests/wf/" + test_file),
              "--usermessage",
              "hello"]
         )
 
+    assert "completed success" in stderr
+    assert error_code == 0
+
+@needs_docker
+def test_issue_740_fixed():
+    test_file = "cache_test_workflow.cwl"
+    with temp_dir("cwltool_cache") as cache_dir:
+        error_code, _, stderr = get_main_output(
+            ["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+
         assert "completed success" in stderr
         assert error_code == 0
 
-    def test_issue_740_fixed(self):
-        test_file = "cache_test_workflow.cwl"
-        error_code, _, stderr = self.get_main_output(
-            ["--cachedir", self.cache_dir, get_data("tests/wf/" + test_file)])
-
-        assert "completed success" in stderr
-        assert error_code == 0
-
-        error_code, stdout, stderr = self.get_main_output(
-            ["--cachedir", self.cache_dir, get_data("tests/wf/" + test_file)])
+        error_code, _, stderr = get_main_output(
+            ["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
 
         assert "Output of job will be cached in" not in stderr
         assert error_code == 0
 
 
 @needs_docker
-class TestChecksum(TestCmdLine):
-    def test_compute_checksum(self):
-        runtime_context = RuntimeContext()
-        runtime_context.compute_checksum = True
-        runtime_context.use_container = onWindows()
-        factory = cwltool.factory.Factory(runtime_context=runtime_context)
-        echo = factory.make(get_data("tests/wf/cat-tool.cwl"))
-        output = echo(
-            file1={"class": "File",
-                   "location": get_data("tests/wf/whale.txt")},
-            reverse=False)
-        assert output['output']["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
+def test_compute_checksum():
+    runtime_context = RuntimeContext()
+    runtime_context.compute_checksum = True
+    runtime_context.use_container = onWindows()
+    factory = cwltool.factory.Factory(runtime_context=runtime_context)
+    echo = factory.make(get_data("tests/wf/cat-tool.cwl"))
+    output = echo(
+        file1={"class": "File",
+               "location": get_data("tests/wf/whale.txt")},
+        reverse=False)
+    assert output['output']["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
 
-    def test_no_compute_checksum(self):
-        test_file = "tests/wf/wc-tool.cwl"
-        job_file = "tests/wf/wc-job.json"
-        error_code, stdout, stderr = self.get_main_output(
-            ["--no-compute-checksum", get_data(test_file), get_data(job_file)])
-        assert "completed success" in stderr
-        assert error_code == 0
-        assert "checksum" not in stdout
-
+@needs_docker
+def test_no_compute_checksum():
+    test_file = "tests/wf/wc-tool.cwl"
+    job_file = "tests/wf/wc-job.json"
+    error_code, stdout, stderr = get_main_output(
+        ["--no-compute-checksum", get_data(test_file), get_data(job_file)])
+    assert "completed success" in stderr
+    assert error_code == 0
+    assert "checksum" not in stdout
 
 @needs_singularity
-class TestChecksumSingularity(TestCmdLine):
-
-    def setUp(self):
-        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
-
-    def tearDown(self):
-        shutil.rmtree(self.cache_dir)
-
-    def test_singularity_workflow(self):
-        error_code, _, stderr = self.get_main_output(
-            ['--singularity', '--default-container', 'debian',
-             get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
-        assert "completed success" in stderr
-        assert error_code == 0
+def test_singularity_workflow():
+    error_code, _, stderr = get_main_output(
+        ['--singularity', '--default-container', 'debian',
+         get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
+    assert "completed success" in stderr
+    assert error_code == 0
