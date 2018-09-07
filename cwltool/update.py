@@ -2,31 +2,31 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Callable, Dict, Optional, Tuple, Union,
-                    MutableMapping, MutableSequence)
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union)
 
-import schema_salad.validate
-from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad import validate
+from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from six import string_types
 from six.moves import urllib
+from typing_extensions import Text
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .utils import visit_class
 
 
-def findId(doc, frg):  # type: (Any, Any) -> Optional[MutableMapping]
+def find_id(doc, frg):  # type: (Any, Any) -> Optional[MutableMapping]
     if isinstance(doc, MutableMapping):
         if "id" in doc and doc["id"] == frg:
             return doc
         for key in doc:
-            found = findId(doc[key], frg)
+            found = find_id(doc[key], frg)
             if found:
                 return found
     if isinstance(doc, MutableSequence):
         for entry in doc:
-            found = findId(entry, frg)
+            found = find_id(entry, frg)
             if found:
                 return found
     return None
@@ -96,7 +96,7 @@ def traverseImport(doc, loader, baseuri, func):
         _, frag = urllib.parse.urldefrag(imp)
         if frag:
             frag = "#" + frag
-            r = findId(r, frag)  # type: ignore
+            r = find_id(r, frag)  # type: ignore
         return func(r, loader, imp)
 
 def v1_0dev4to1_0(doc, loader, baseuri):  # pylint: disable=unused-argument
@@ -170,14 +170,14 @@ def checkversion(doc, metadata, enable_dev):
             if enable_dev:
                 pass
             else:
-                raise schema_salad.validate.ValidationException(
+                raise validate.ValidationException(
                     u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(
                         list(UPDATES.keys()))))
         else:
-            raise schema_salad.validate.ValidationException(
+            raise validate.ValidationException(
                 u"Unrecognized version %s" % version)
 
     return (cdoc, version)

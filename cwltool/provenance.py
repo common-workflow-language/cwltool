@@ -1,59 +1,55 @@
 """Stores Research Object including provenance."""
 from __future__ import absolute_import
 
-import io
-from io import open
-import json
-import re
+import copy
+import datetime
+import hashlib
+import logging
 import os
 import os.path
 import posixpath
+import re
 import shutil
 import tempfile
-import logging
-
-import hashlib
-from hashlib import sha256
-from hashlib import sha512
-
-import copy
-import datetime
 import uuid
 from collections import OrderedDict
-from socket import getfqdn
 from getpass import getuser
-from typing import (Any, Callable, Dict, IO, List, Optional, MutableMapping,
-                    Set, Tuple, Union, cast)
-from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-import six
-from six.moves import urllib
-from ruamel import yaml
+from io import BytesIO, FileIO, TextIOWrapper, open
+from socket import getfqdn
+from typing import (IO, Any, Callable, Dict, List, Generator, MutableMapping,
+                    Optional, Set, Tuple, Union, cast)
+
 import prov.model as provM
-from prov.identifier import Namespace, Identifier
-from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
-                        ProvActivity, ProvEntity)
+import six
+from prov.identifier import Identifier, Namespace
+from prov.model import (PROV, ProvActivity,  # pylint: disable=unused-import
+                        ProvDocument, ProvEntity)
+from ruamel import yaml
+from schema_salad.sourceline import SourceLine
+from six.moves import urllib
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+
+from .context import RuntimeContext  # pylint: disable=unused-import
+from .errors import WorkflowException
+from .loghandler import _logger
+from .pathmapper import get_listing
+from .process import Process, shortname  # pylint: disable=unused-import
+from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
+from .utils import json_dumps, versionstring
 
 # Disabled due to excessive transitive dependencies
 # from networkx.drawing.nx_agraph import graphviz_layout
 # from networkx.drawing.nx_pydot import write_dot
 
 
-from schema_salad.sourceline import SourceLine
-
-from .context import RuntimeContext  # pylint: disable=unused-import
-from .errors import WorkflowException
-from .loghandler import _logger
-from .pathmapper import get_listing
-from .process import shortname, Process  # pylint: disable=unused-import
-from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import versionstring, json_dumps
-
-GET_PW_NAM = None  # type: Optional[Callable[[str], struct_passwd]]
+GET_PW_NAM = False
 try:
     # pwd is only available on Unix
     from pwd import struct_passwd  # pylint: disable=unused-import
     from pwd import getpwnam  # pylint: disable=unused-import
+    GET_PW_NAME = True
 except ImportError:
     pass
 
@@ -76,7 +72,7 @@ __citation__ = "https://doi.org/10.5281/zenodo.1208477"
 # 2. Bump minor number if adding resources or PROV statements
 # 3. Bump patch number for non-breaking non-adding changes,
 #    e.g. fixing broken relative paths
-CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.4.0"
+CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.5.0"
 
 # Research Object folders
 METADATA = "metadata"
@@ -152,7 +148,7 @@ def _whoami():
     return (username, fullname)
 
 
-class WritableBagFile(io.FileIO):
+class WritableBagFile(FileIO):
     """Writes files in research object."""
 
     def __init__(self, research_object, rel_path):
@@ -212,7 +208,7 @@ class WritableBagFile(io.FileIO):
 
     def truncate(self, size=None):
         # type: (Optional[int]) -> int
-        # FIXME: This breaks contract io.IOBase,
+        # FIXME: This breaks contract IOBase,
         # as it means we would have to recalculate the hash
         if size is not None:
             raise IOError("WritableBagFile can't truncate")
@@ -461,7 +457,7 @@ class CreateProvProfile():
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            research_obj.create_job(job, customised_job)
+            research_obj.create_job(customised_job, job)
             # self.used_artefacts(inputs, self.workflow_run_uri)
             name = ""
             if hasattr(job, "name"):
@@ -683,7 +679,7 @@ class CreateProvProfile():
     def declare_string(self, value):
         # type: (Union[Text, str]) -> Tuple[ProvEntity,Text]
         """Save as string in UTF-8."""
-        byte_s = io.BytesIO(str(value).encode(ENCODING))
+        byte_s = BytesIO(str(value).encode(ENCODING))
         data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
         checksum = posixpath.basename(data_file)
         # FIXME: Don't naively assume add_data_file uses hash in filename!
@@ -719,7 +715,7 @@ class CreateProvProfile():
 
         if isinstance(value, bytes):
             # If we got here then we must be in Python 3
-            byte_s = io.BytesIO(value)
+            byte_s = BytesIO(value)
             data_file = self.research_object.add_data_file(byte_s)
             # FIXME: Don't naively assume add_data_file uses hash in filename!
             data_id = "data:%s" % posixpath.split(data_file)[1]
@@ -1054,13 +1050,13 @@ class ResearchObject():
         # type: (Text, Optional[str]) -> IO
         """Write the bag file into our research object."""
         # For some reason below throws BlockingIOError
-        #fp = io.BufferedWriter(WritableBagFile(self, path))
+        #fp = BufferedWriter(WritableBagFile(self, path))
         bag_file = cast(IO, WritableBagFile(self, path))
         if encoding:
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
             return cast(IO,
-                        io.TextIOWrapper(bag_file, encoding=encoding, newline="\n"))
+                        TextIOWrapper(bag_file, encoding=encoding, newline="\n"))
         return bag_file
 
     def add_tagfile(self, path, when=None):
@@ -1081,12 +1077,12 @@ class ResearchObject():
             checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
             tag_file.seek(0)
             # Older Python's might not have all checksums
-            if sha256:
+            if hashlib.sha256:
                 tag_file.seek(0)
-                checksums[SHA256] = checksum_copy(tag_file, hasher=sha256)
-            if sha512:
+                checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+            if hashlib.sha512:
                 tag_file.seek(0)
-                checksums[SHA512] = checksum_copy(tag_file, hasher=sha512)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
         assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -1493,16 +1489,22 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   wf_job,
-                   builder_job   # type: Dict
+                   builder_job,  # type: Dict[Text, Any]
+                   wf_job=None,  # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
+                   is_output=False
                   ):  # type: (...) -> Dict
         #TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
-        relativised_input_objecttemp = {}  # type: Dict[Any, Any]
+        relativised_input_objecttemp = {}  # type: Dict[Text, Any]
         self._relativise_files(copied)
-        rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
-        j = json_dumps(copied, indent=4, ensure_ascii=False)
+        def jdefault(o):
+            return dict(o)
+        if is_output:
+            rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-output.json")
+        else:
+            rel_path = posixpath.join(_posix_path(WORKFLOW), "primary-job.json")
+        j = json_dumps(copied, indent=4, ensure_ascii=False, default=jdefault)
         with self.write_bag_file(rel_path) as file_path:
             file_path.write(j + u"\n")
         _logger.debug(u"[provenance] Generated customised job file: %s",
@@ -1523,7 +1525,7 @@ class ResearchObject():
         return self.relativised_input_object
 
     def _relativise_files(self, structure):
-        # type: (Any, Dict) -> None
+        # type: (Any, Dict[Any, Any]) -> None
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)

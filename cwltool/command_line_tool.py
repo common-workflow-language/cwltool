@@ -1,3 +1,4 @@
+"""Implementation of CommandLineTool."""
 from __future__ import absolute_import
 
 import copy
@@ -11,20 +12,24 @@ import shutil
 import tempfile
 import threading
 from functools import cmp_to_key, partial
-from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Union,
-                    cast, MutableMapping, MutableSequence)
-from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, Generator, List, MutableMapping,
+                    MutableSequence, Optional, Set, Union, cast)
 
+import shellescape
 from schema_salad import validate
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
-import shellescape
 from six import string_types
+
 from six.moves import map, urllib
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text, Type)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .builder import (CONTENT_LIMIT, Builder,  # pylint: disable=unused-import
                       substitute)
+from .context import LoadingContext  # pylint: disable=unused-import
+from .context import RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
 from .errors import WorkflowException
 from .flatten import flatten
@@ -43,8 +48,6 @@ from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     windows_default_container_id)
-from .context import (LoadingContext,  # pylint: disable=unused-import
-                      RuntimeContext, getdefault)
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 

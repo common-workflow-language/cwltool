@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 
+import pytest
+
 from cwltool.utils import onWindows
 
-from .util import get_data, needs_docker
 from .test_examples import TestCmdLine
-
-import pytest
+from .util import get_data, needs_docker
 
 try:
     from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements

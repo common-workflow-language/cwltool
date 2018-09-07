@@ -9,7 +9,17 @@ package=cwltool
 module=cwltool
 slug=${TRAVIS_PULL_REQUEST_SLUG:=common-workflow-language/cwltool}
 repo=https://github.com/${slug}.git
-run_tests="bin/py.test --ignore ${module}/schemas/ --pyarg -x cwltool -n$(nproc) --dist=loadfile"
+parallel=""
+if [[ "${OSTYPE}" == linux* ]]
+then
+	parallel=-n$(( $(nproc) / 2 ))
+fi
+if [[ "${OSTYPE}" == darwin* ]]
+then
+	parallel=-n$(( $(sysctl -n hw.physicalcpu) / 2 ))
+fi
+
+run_tests="bin/py.test --ignore ${module}/schemas/ --pyarg -x cwltool ${parallel} --dist=loadfile"
 pipver=7.0.2 # minimum required version of pip
 setuptoolsver=24.2.0 # required to generate correct metadata for
                      # python_requires

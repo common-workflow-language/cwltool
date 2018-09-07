@@ -1,14 +1,14 @@
+"""Command line argument parsing for cwltool."""
 from __future__ import absolute_import, print_function
 
 import argparse
 import os
-from typing import (Any, AnyStr, Dict, List, Optional, Sequence,
-                    Union, cast, MutableMapping, MutableSequence)
-
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, AnyStr, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Sequence, Union, cast)
 
 from schema_salad.ref_resolver import file_uri
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .loghandler import _logger
 from .process import Process, shortname  # pylint: disable=unused-import

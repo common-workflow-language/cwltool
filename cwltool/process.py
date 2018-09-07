@@ -4,15 +4,10 @@ import abc
 import copy
 import errno
 import functools
-from functools import cmp_to_key
 import hashlib
 import json
 import logging
 import os
-try:
-    from os import scandir  # type: ignore
-except ImportError:
-    from scandir import scandir  # type: ignore
 import shutil
 import stat
 import tempfile
@@ -20,28 +15,28 @@ import textwrap
 import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
-
-from typing import (Any, Callable, Dict, Generator, Iterator, List, Optional,
-                    Set, Tuple, Union, cast, MutableMapping, MutableSequence)
-
-from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Callable, Dict, Generator, Iterator, List,
+                    MutableMapping, MutableSequence, Optional, Set, Tuple,
+                    Union, cast)
 
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad import schema
-from schema_salad import validate
+from schema_salad import schema, validate
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
-import six
-from six import iteritems, itervalues, string_types
+from six import PY3, iteritems, itervalues, string_types, with_metaclass
 from six.moves import urllib
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import expression
-from .loghandler import _logger
 from .builder import Builder, HasReqsHints
+from .context import LoadingContext  # pylint: disable=unused-import
+from .context import RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
+from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
                          get_listing, normalizeFilesDirs, visit_class)
@@ -52,8 +47,10 @@ from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows)
 from .validate_js import validate_js_expressions
-from .context import (LoadingContext,  # pylint: disable=unused-import
-                      RuntimeContext, getdefault)
+try:
+    from os import scandir  # type: ignore
+except ImportError:
+    from scandir import scandir  # type: ignore
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 
@@ -473,7 +470,7 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         return builder.do_eval(resource_req)
     return resource_req
 
-class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
+class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
@@ -561,12 +558,12 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         with SourceLine(toolpath_object, "inputs", validate.ValidationException):
             self.inputs_record_schema = cast(
-                Dict[six.text_type, Any], schema.make_valid_avro(
+                Dict[Text, Any], schema.make_valid_avro(
                     self.inputs_record_schema, {}, set()))
             schema.AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
         with SourceLine(toolpath_object, "outputs", validate.ValidationException):
             self.outputs_record_schema = cast(
-                Dict[six.text_type, Any],
+                Dict[Text, Any],
                 schema.make_valid_avro(self.outputs_record_schema, {}, set()))
             schema.AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
 
@@ -725,8 +722,8 @@ class Process(six.with_metaclass(abc.ABCMeta, HasReqsHints)):
         # use python2 like sorting of heterogeneous lists
         # (containing str and int types),
         # TODO: unify for both runtime
-        if six.PY3:
-            key = cmp_to_key(cmp_like_py2)
+        if PY3:
+            key = functools.cmp_to_key(cmp_like_py2)
         else:  # PY2
             key = lambda d: d["position"]
 

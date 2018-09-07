@@ -1,33 +1,33 @@
 # -*- coding: utf-8 -*-
 """ Single and multi-threaded executors."""
+import datetime
 import os
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
-import datetime
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+
+import psutil
+from schema_salad.validate import ValidationException
+from six import string_types, with_metaclass
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from schema_salad.validate import ValidationException
-import six
-from six import string_types
-
-import psutil
-
 from .builder import Builder  # pylint: disable=unused-import
+from .context import (RuntimeContext,  # pylint: disable=unused-import
+                      getdefault)
 from .errors import WorkflowException
-from .loghandler import _logger
 from .job import JobBase  # pylint: disable=unused-import
+from .loghandler import _logger
 from .mutation import MutationManager
+from .process import Process  # pylint: disable=unused-import
+from .process import cleanIntermediate, relocateOutputs
 from .provenance import CreateProvProfile
-from .process import (Process,  # pylint: disable=unused-import
-                      cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
-from .context import RuntimeContext, getdefault  # pylint: disable=unused-import
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
-class JobExecutor(six.with_metaclass(ABCMeta, object)):
+
+class JobExecutor(with_metaclass(ABCMeta, object)):
     """ Abstract base job executor. """
 
     def __init__(self):

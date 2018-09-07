@@ -1,12 +1,15 @@
+"""Parse CWL expressions."""
 from __future__ import absolute_import
 
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union, MutableMapping, MutableSequence
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
+                    Union)
+
 import six
 from six import string_types, u
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import sandboxjs
 from .errors import WorkflowException
