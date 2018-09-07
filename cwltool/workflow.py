@@ -568,7 +568,7 @@ class Workflow(Process):
                 runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
             if runtimeContext.toplevel:
                 # Record primary-job.json
-                runtimeContext.research_obj.create_job(self.job, builder.job)
+                runtimeContext.research_obj.create_job(builder.job, self.job)
 
         job = WorkflowJob(self, runtimeContext)
         yield job
