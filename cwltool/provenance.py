@@ -1,59 +1,56 @@
 """Stores Research Object including provenance."""
 from __future__ import absolute_import
 
+import copy
+import datetime
+import hashlib
 import io
-from io import open
-import json
-import re
+import logging
 import os
 import os.path
 import posixpath
+import re
 import shutil
 import tempfile
-import logging
-
-import hashlib
-from hashlib import sha256
-from hashlib import sha512
-
-import copy
-import datetime
 import uuid
 from collections import OrderedDict
-from socket import getfqdn
 from getpass import getuser
-from typing import (Any, Callable, Dict, Generator, IO, List, Optional, MutableMapping,
+from io import open
+from socket import getfqdn
+from typing import (IO, Any, Callable, Dict, List, MutableMapping, Optional,
                     Set, Tuple, Union, cast)
-from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-import six
-from six.moves import urllib
-from ruamel import yaml
+
 import prov.model as provM
-from prov.identifier import Namespace, Identifier
-from prov.model import (PROV, ProvDocument,  # pylint: disable=unused-import
-                        ProvActivity, ProvEntity)
+import six
+from prov.identifier import Identifier, Namespace
+from prov.model import (PROV, ProvActivity,  # pylint: disable=unused-import
+                        ProvDocument, ProvEntity)
+from ruamel import yaml
+from schema_salad.sourceline import SourceLine
+from six.moves import urllib
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+
+from .context import RuntimeContext  # pylint: disable=unused-import
+from .errors import WorkflowException
+from .loghandler import _logger
+from .pathmapper import get_listing
+from .process import Process, shortname  # pylint: disable=unused-import
+from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
+from .utils import json_dumps, versionstring
 
 # Disabled due to excessive transitive dependencies
 # from networkx.drawing.nx_agraph import graphviz_layout
 # from networkx.drawing.nx_pydot import write_dot
 
 
-from schema_salad.sourceline import SourceLine
-
-from .context import RuntimeContext  # pylint: disable=unused-import
-from .errors import WorkflowException
-from .loghandler import _logger
-from .pathmapper import get_listing
-from .process import shortname, Process  # pylint: disable=unused-import
-from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import versionstring, json_dumps
-
-GET_PW_NAM = None  # type: Optional[Callable[[str], struct_passwd]]
+GET_PW_NAM = False
 try:
     # pwd is only available on Unix
     from pwd import struct_passwd  # pylint: disable=unused-import
     from pwd import getpwnam  # pylint: disable=unused-import
+    GET_PW_NAME = True
 except ImportError:
     pass
 
@@ -1081,12 +1078,12 @@ class ResearchObject():
             checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
             tag_file.seek(0)
             # Older Python's might not have all checksums
-            if sha256:
+            if hashlib.sha256:
                 tag_file.seek(0)
-                checksums[SHA256] = checksum_copy(tag_file, hasher=sha256)
-            if sha512:
+                checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+            if hashlib.sha512:
                 tag_file.seek(0)
-                checksums[SHA512] = checksum_copy(tag_file, hasher=sha512)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
         assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)

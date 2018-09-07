@@ -1,3 +1,4 @@
+"""Enables Docker software containers via the {dx-,u,}docker runtimes."""
 from __future__ import absolute_import
 
 import datetime
@@ -9,21 +10,22 @@ import tempfile
 import threading
 from io import open  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional, Set
+
+import requests
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-import requests
-
+from .context import RuntimeContext  # pylint: disable=unused-import
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import (PathMapper,  # pylint: disable=unused-import
-                         ensure_writable)
+from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import ensure_writable
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
                     subprocess)
-from .context import RuntimeContext  # pylint: disable=unused-import
+
 
 _IMAGES = set()  # type: Set[Text]
 _IMAGES_LOCK = threading.Lock()

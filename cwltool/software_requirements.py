@@ -11,12 +11,12 @@ from __future__ import absolute_import
 import argparse  # pylint: disable=unused-import
 import os
 import string
-from typing import Dict, List, Optional, MutableSequence
+from typing import Dict, List, MutableSequence, Optional
+
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from .builder import HasReqsHints, Builder
-
+from .builder import Builder, HasReqsHints
 try:
     from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
     from galaxy.tools import deps

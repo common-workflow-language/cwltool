@@ -9,10 +9,11 @@ import pytest
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
                            resource_filename)
 
+from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
-from cwltool.utils import onWindows, windows_default_container_id
-from cwltool.context import RuntimeContext, LoadingContext
 from cwltool.resolver import Path
+from cwltool.utils import onWindows, windows_default_container_id
+
 
 def get_windows_safe_factory(runtime_context=None,  # type: RuntimeContext
                              loading_context=None,  # type: LoadingContext
