@@ -2,26 +2,31 @@ from __future__ import absolute_import
 
 import copy
 import logging
-from typing import (Any, Callable, Dict, List,  # pylint: disable=unused-import
-                    Optional, Set, Text, Type, Union, Tuple, TYPE_CHECKING)
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Tuple, Union)
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
-import schema_salad.schema  # pylint: disable=unused-import
-import schema_salad.validate as validate
-from schema_salad.schema import AvroSchemaFromJSONData
+from ruamel.yaml.comments import CommentedMap
+from schema_salad import validate
+from schema_salad.schema import AvroSchemaFromJSONData, Names
 from schema_salad.sourceline import SourceLine
 from six import iteritems, string_types
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text, Type)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
-from .pathmapper import (PathMapper,  # pylint: disable=unused-import
-                         get_listing, normalizeFilesDirs, visit_class)
+from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import get_listing, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, docker_windows_path_adjust,
-                    json_dumps, onWindows)
+from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
+
+
+
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
@@ -104,11 +109,11 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  files=None,                # type: List[Dict[Text, Text]]
                  bindings=None,             # type: List[Dict[Text, Any]]
                  schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
-                 names=None,                # type: schema_salad.schema.Names
+                 names=None,                # type: Names
                  requirements=None,         # type: List[Dict[Text, Any]]
                  hints=None,                # type: List[Dict[Text, Any]]
                  timeout=None,              # type: float
@@ -128,7 +133,7 @@ class Builder(HasReqsHints):
                 ):  # type: (...) -> None
 
         if names is None:
-            self.names = schema_salad.schema.Names()
+            self.names = Names()
         else:
             self.names = names
 
@@ -141,11 +146,6 @@ class Builder(HasReqsHints):
             self.files = []  # type: List[Dict[Text, Text]]
         else:
             self.files = files
-
-        if fs_access is None:
-            self.fs_access = StdFsAccess("")
-        else:
-            self.fs_access = fs_access
 
         self.job = job
         self.requirements = requirements
@@ -171,6 +171,11 @@ class Builder(HasReqsHints):
         else:
             self.make_fs_access = make_fs_access
 
+        if fs_access is None:
+            self.fs_access = self.make_fs_access("")
+        else:
+            self.fs_access = fs_access
+
         self.debug = debug
         self.js_console = js_console
         self.mutation_manager = mutation_manager
@@ -193,22 +198,23 @@ class Builder(HasReqsHints):
             return None
 
     def bind_input(self,
-                   schema,                   # type: Dict[Text, Any]
+                   schema,                   # type: MutableMapping[Text, Any]
                    datum,                    # type: Any
                    discover_secondaryFiles,  # type: bool
                    lead_pos=None,            # type: Optional[Union[int, List[int]]]
                    tail_pos=None,            # type: Optional[List[int]]
-                  ):  # type: (...) -> List[Dict[Text, Any]]
+                  ):  # type: (...) -> List[MutableMapping[Text, Any]]
 
         if tail_pos is None:
             tail_pos = []
         if lead_pos is None:
             lead_pos = []
-        bindings = []  # type: List[Dict[Text,Text]]
-        binding = None  # type: Optional[Dict[Text,Any]]
+        bindings = []  # type: List[MutableMapping[Text, Text]]
+        binding = None  # type: Optional[MutableMapping[Text,Any]]
         value_from_expression = False
-        if "inputBinding" in schema and isinstance(schema["inputBinding"], dict):
-            binding = copy.copy(schema["inputBinding"])
+        if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
+            binding = CommentedMap(schema["inputBinding"].items())
+            assert binding is not None
 
             if "position" in binding:
                 binding["position"] = aslist(lead_pos) + aslist(binding["position"]) + aslist(tail_pos)
@@ -220,12 +226,12 @@ class Builder(HasReqsHints):
                 value_from_expression = True
 
         # Handle union types
-        if isinstance(schema["type"], list):
+        if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
                 if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
-                elif isinstance(t, dict) and "name" in t and self.names.has_name(t["name"], ""):
+                elif isinstance(t, MutableMapping) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
                 else:
                     avsc = AvroSchemaFromJSONData(t, self.names)
@@ -239,7 +245,7 @@ class Builder(HasReqsHints):
                         bound_input = True
             if not bound_input:
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
-        elif isinstance(schema["type"], dict):
+        elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
             if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
@@ -282,13 +288,13 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
                     with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT)
+                        datum["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                             sfpath = self.do_eval(sf, context=datum)
                         else:
                             sfpath = substitute(datum["basename"], sf)
@@ -300,7 +306,7 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
-                                if isinstance(sfname, dict):
+                                if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
                                 elif discover_secondaryFiles:
                                     datum["secondaryFiles"].append({
@@ -343,7 +349,7 @@ class Builder(HasReqsHints):
         return bindings
 
     def tostr(self, value):  # type: (Any) -> Text
-        if isinstance(value, dict) and value.get("class") in ("File", "Directory"):
+        if isinstance(value, MutableMapping) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
 
@@ -371,8 +377,8 @@ class Builder(HasReqsHints):
             with SourceLine(binding, "separate", WorkflowException, _logger.isEnabledFor(logging.DEBUG)):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
-        argl = []  # type: List[Dict[Text,Text]]
-        if isinstance(value, list):
+        argl = []  # type: MutableSequence[MutableMapping[Text, Text]]
+        if isinstance(value, MutableSequence):
             if binding.get("itemSeparator") and value:
                 argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
@@ -382,9 +388,9 @@ class Builder(HasReqsHints):
                 return [prefix]
             else:
                 return []
-        elif isinstance(value, dict) and value.get("class") in ("File", "Directory"):
+        elif isinstance(value, MutableMapping) and value.get("class") in ("File", "Directory"):
             argl = [value]
-        elif isinstance(value, dict):
+        elif isinstance(value, MutableMapping):
             return [prefix] if prefix else []
         elif value is True and prefix:
             return [prefix]
@@ -406,10 +412,10 @@ class Builder(HasReqsHints):
     def do_eval(self, ex, context=None, recursive=False, strip_whitespace=True):
         # type: (Union[Dict[Text, Text], Text], Any, bool, bool) -> Any
         if recursive:
-            if isinstance(ex, dict):
+            if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive)
                         for k, v in iteritems(ex)}
-            if isinstance(ex, list):
+            if isinstance(ex, MutableSequence):
                 return [self.do_eval(v, context, recursive)
                         for v in ex]
 

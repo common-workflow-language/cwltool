@@ -59,7 +59,12 @@ install-deb-dep:
 
 ## install     : install the ${MODULE} module and schema-salad-tool
 install: FORCE
-	pip install .
+	pip install .[deps]
+
+## dev     : install the ${MODULE} module in dev mode
+dev: install-dep
+	pip install -e .[deps]
+
 
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
@@ -143,11 +148,11 @@ diff-cover.html:  coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
-	python setup.py test --addopt "-n$(shell expr $(nproc) / 2)"
+	python setup.py test --addopts "-n$(nproc) --dist=loadfile"
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool"
+	python setup.py test --addopts "--cov cwltool -n$(nproc) --dist=loadfile"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > sloccount.sc

@@ -3,6 +3,8 @@
 set -e
 set -x
 
+export LC_ALL=C
+
 package=cwltool
 module=cwltool
 slug=${TRAVIS_PULL_REQUEST_SLUG:=common-workflow-language/cwltool}
@@ -17,7 +19,7 @@ then
 	parallel=-n$(( $(sysctl -n hw.physicalcpu) / 2 ))
 fi
 
-run_tests="bin/py.test --ignore ${module}/schemas/ --pyarg cwltool ${parallel}"
+run_tests="bin/py.test --ignore ${module}/schemas/ --pyarg -x cwltool ${parallel} --dist=loadfile"
 pipver=7.0.2 # minimum required version of pip
 setuptoolsver=24.2.0 # required to generate correct metadata for
                      # python_requires
@@ -37,6 +39,7 @@ then
 		&& pip install --force-reinstall -U pip==${pipver} \
 	        && pip install setuptools==${setuptoolsver} wheel
 	make install-dep
+	#pip install 'galaxy-lib>=17.09.3'
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	mkdir testenv1/not-${module}
@@ -60,7 +63,8 @@ source bin/activate
 rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
-pip install -e "git+${repo}@${HEAD}#egg=${package}"
+#pip install 'galaxy-lib==17.09.3'
+pip install -e "git+${repo}@${HEAD}#egg=${package}"  #[deps]
 cd src/${package}
 make install-dep
 make dist
@@ -80,11 +84,14 @@ source bin/activate
 rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
-pip install ${package}*tar.gz
-pip install -r${DIR}/test-requirements.txt
+package_tar=${package}*tar.gz
+pip install "-r${DIR}/test-requirements.txt"
+#pip install 'galaxy-lib==17.09.3'
+pip install ${package_tar}  # [deps]
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*
+make install-dep
 make dist
 make test
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install

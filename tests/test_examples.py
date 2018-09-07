@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 import json
 import logging
-import shutil
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -17,14 +17,13 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
+from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.utils import onWindows, subprocess
-from cwltool.context import RuntimeContext
 
 from .util import (get_data, get_windows_safe_factory, needs_docker,
                    needs_singularity, windows_needs_docker)
-
 try:
     reload
 except:  # pylint: disable=bare-except
@@ -32,8 +31,6 @@ except:  # pylint: disable=bare-except
         from imp import reload
     except:
         from importlib import reload
-
-
 
 
 sys.argv = ['']

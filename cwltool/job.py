@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import datetime
 import functools  # pylint: disable=unused-import
 import logging
 import os
@@ -9,42 +10,45 @@ import stat
 import sys
 import tempfile
 import uuid
-import datetime
-from threading import Lock, Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
-from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
-                    Dict, Iterable, List, MutableMapping, Optional, Text,
-                    Union, cast, TYPE_CHECKING)
+from threading import Timer
+from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List,
+                    MutableMapping, MutableSequence, Optional, Union, cast)
 
 import shellescape
-from schema_salad.sourceline import SourceLine
-from six import with_metaclass
 from prov.model import PROV
+from schema_salad.sourceline import SourceLine
+from six import PY2, with_metaclass
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
+from .context import RuntimeContext  # pylint: disable=unused-import
+from .context import getdefault
 from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
 from .process import UnsupportedRequirement, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
-from .utils import (  # pylint: disable=unused-import
-    DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
-    onWindows, subprocess)
-from .context import (RuntimeContext,  # pylint: disable=unused-import
-                      getdefault)
+from .utils import \
+    bytes2str_in_dicts  # pylint: disable=unused-import; pylint: disable=unused-import
+from .utils import (DEFAULT_TMP_PREFIX, Directory, copytree_with_merge,
+                    json_dump, json_dumps, onWindows, processes_to_kill,
+                    subprocess)
+
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
-SHELL_COMMAND_TEMPLATE = """#!/bin/bash
+SHELL_COMMAND_TEMPLATE = u"""#!/bin/bash
 python "run_job.py" "job.json"
 """
 
-PYTHON_RUN_SCRIPT = """
+PYTHON_RUN_SCRIPT = u"""
 import json
 import os
 import sys
@@ -77,9 +81,15 @@ with open(sys.argv[1], "r") as f:
         stderr = open(stderr_path, "wb")
     else:
         stderr = sys.stderr
+    if os.name == 'nt':
+        close_fds = False
+        for key, value in env.items():
+            env[key] = str(value)
+    else:
+        close_fds = True
     sp = subprocess.Popen(commands,
                           shell=False,
-                          close_fds=True,
+                          close_fds=close_fds,
                           stdin=stdin,
                           stdout=stdout,
                           stderr=stderr,
@@ -99,7 +109,7 @@ with open(sys.argv[1], "r") as f:
 
 
 def deref_links(outputs):  # type: (Any) -> None
-    if isinstance(outputs, dict):
+    if isinstance(outputs, MutableMapping):
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):
@@ -108,7 +118,7 @@ def deref_links(outputs):  # type: (Any) -> None
         else:
             for v in outputs.values():
                 deref_links(v)
-    if isinstance(outputs, list):
+    if isinstance(outputs, MutableSequence):
         for output in outputs:
             deref_links(output)
 
@@ -136,7 +146,7 @@ def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_upd
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,   # type: Builder
-                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text]]
+                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,  # type: List[Dict[Text, Text]]
                  hints,  # type: List[Dict[Text, Text]]
@@ -196,10 +206,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             self.generatemapper = self.make_path_mapper(
                 cast(List[Any], self.generatefiles["listing"]),
                 self.builder.outdir, runtimeContext, False)
-            _logger.debug(u"[job %s] initial work dir %s", self.name,
-                          json_dumps({p: self.generatemapper.mapper(p)
-                                      for p in self.generatemapper.files()},
-                                     indent=4))
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug(
+                    u"[job %s] initial work dir %s", self.name,
+                    json_dumps({p: self.generatemapper.mapper(p)
+                                for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
                  runtime,                # type: List[Text]
@@ -224,9 +235,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if self.joborder and runtimeContext.research_obj:
             job_order = self.joborder
             assert runtimeContext.prov_obj
+            assert runtimeContext.process_run_id
             runtimeContext.prov_obj.used_artefacts(
-                job_order, runtimeContext.process_run_id,
-                runtimeContext.reference_locations, str(self.name))
+                job_order, runtimeContext.process_run_id, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
@@ -250,12 +261,12 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             stdout_path = None
             if self.stdout:
                 absout = os.path.join(self.outdir, self.stdout)
-                dn = os.path.dirname(absout)
-                if dn and not os.path.exists(dn):
-                    os.makedirs(dn)
+                dnout = os.path.dirname(absout)
+                if dnout and not os.path.exists(dnout):
+                    os.makedirs(dnout)
                 stdout_path = absout
 
-            commands = [Text(x) for x in (runtime + self.command_line)]
+            commands = [Text(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store:
                 commands = runtimeContext.secret_store.retrieve(commands)
                 env = runtimeContext.secret_store.retrieve(env)
@@ -308,8 +319,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             else:
                 _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        except WorkflowException as e:
-            _logger.error(u"[job %s] Job error:\n%s" % (self.name, e))
+        except WorkflowException as err:
+            _logger.error(u"[job %s] Job error:\n%s", self.name, err)
             processStatus = "permanentFail"
         except Exception as e:
             _logger.exception("Exception while running job")
@@ -365,11 +376,11 @@ class CommandLineJob(JobBase):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> None
 
+        if not os.path.exists(self.tmpdir):
+            os.makedirs(self.tmpdir)
         self._setup(runtimeContext)
 
         env = self.environment
-        if not os.path.exists(self.tmpdir):
-            os.makedirs(self.tmpdir)
         vars_to_preserve = runtimeContext.preserve_environment
         if runtimeContext.preserve_entire_environment:
             vars_to_preserve = os.environ
@@ -418,7 +429,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
-
+        if not os.path.exists(self.tmpdir):
+            os.makedirs(self.tmpdir)
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
         img_id = None
@@ -521,6 +533,7 @@ def _job_popen(
                                  stderr=stderr,
                                  env=env,
                                  cwd=cwd)
+        processes_to_kill.append(sproc)
 
         if sproc.stdin:
             sproc.stdin.close()
@@ -534,6 +547,7 @@ def _job_popen(
                 except OSError:
                     pass
             tm = Timer(timelimit, terminate)
+            tm.daemon = True
             tm.start()
 
         rcode = sproc.wait()
@@ -560,17 +574,21 @@ def _job_popen(
         for key in env:
             env_copy[key] = env[key]
 
-        job_description = dict(
-            commands=commands,
-            cwd=cwd,
-            env=env_copy,
-            stdout_path=stdout_path,
-            stderr_path=stderr_path,
-            stdin_path=stdin_path,
-        )
-        with open(os.path.join(job_dir, "job.json"), encoding='utf-8',
-                  mode="wb") as job_file:
-            json_dump(job_description, job_file, ensure_ascii=False)
+        job_description = {
+            u"commands": commands,
+            u"cwd": cwd,
+            u"env": env_copy,
+            u"stdout_path": stdout_path,
+            u"stderr_path": stderr_path,
+            u"stdin_path": stdin_path}
+
+        if PY2:
+            with open(os.path.join(job_dir, "job.json"), mode="wb") as job_file:
+                json_dump(job_description, job_file, ensure_ascii=False)
+        else:
+            with open(os.path.join(job_dir, "job.json"), mode="w",
+                      encoding='utf-8') as job_file:
+                json_dump(job_description, job_file, ensure_ascii=False)
         try:
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as _:
@@ -588,6 +606,7 @@ def _job_popen(
                 stderr=sys.stderr,
                 stdin=subprocess.PIPE,
             )
+            processes_to_kill.append(sproc)
             if sproc.stdin:
                 sproc.stdin.close()
 
