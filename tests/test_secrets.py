@@ -1,37 +1,38 @@
-from __future__ import absolute_import
-
-import unittest
+import pytest
 
 from cwltool.secrets import SecretStore
 
 from .util import get_data
 
+@pytest.fixture
+def secrets():
+    sec_store = SecretStore()
+    job = {'foo': 'bar',
+           'baz': 'quux'}
 
-class TestSecrets(unittest.TestCase):
-    def test_secrets(self):
-        secrets = SecretStore()
-        job = {"foo": "bar",
-               "baz": "quux"}
-        secrets.store(["foo"], job)
-        self.assertNotEquals(job["foo"], "bar")
-        self.assertEquals(job["baz"], "quux")
-        self.assertEquals(secrets.retrieve(job)["foo"], "bar")
+    sec_store.store(['foo'], job)
+    return sec_store, job
 
-        hello = "hello %s" % job["foo"]
-        self.assertTrue(secrets.has_secret(hello))
-        self.assertNotEquals(hello, "hello bar")
-        self.assertEquals(secrets.retrieve(hello), "hello bar")
+def test_obscuring(secrets):
+    storage, obscured = secrets
+    assert obscured['foo'] != 'bar'
+    assert obscured['baz'] == 'quux'
+    assert storage.retrieve(obscured)['foo'] == 'bar'
 
-        hello2 = ["echo", "hello %s" % job["foo"]]
-        self.assertTrue(secrets.has_secret(hello2))
-        self.assertNotEquals(hello2, ["echo", "hello bar"])
-        self.assertEquals(secrets.retrieve(hello2), ["echo", "hello bar"])
+obscured_factories_expected = [
+    ((lambda x: 'hello %s' % x), 'hello bar'),
+    ((lambda x: ['echo', 'hello %s' % x]), ['echo', 'hello bar']),
+    ((lambda x: {'foo': x}), {'foo': 'bar'}),
+]
 
-        hello3 = {"foo": job["foo"]}
-        print(hello3)
-        self.assertTrue(secrets.has_secret(hello3))
-        self.assertNotEquals(hello3, {"foo": "bar"})
-        self.assertEquals(secrets.retrieve(hello3), {"foo": "bar"})
+@pytest.mark.parametrize('factory,expected', obscured_factories_expected)
+def test_secrets(factory, expected, secrets):
+    storage, obscured = secrets
+    pattern = factory(obscured['foo'])
+    assert pattern != expected
 
-        self.assertNotEquals(job["foo"], "bar")
-        self.assertEquals(job["baz"], "quux")
+    assert storage.has_secret(pattern)
+    assert storage.retrieve(pattern) == expected
+
+    assert obscured['foo'] != 'bar'
+    assert obscured['baz'] == 'quux'
