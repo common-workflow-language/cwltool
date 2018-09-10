@@ -6,6 +6,7 @@ import os
 import platform
 import random
 import shutil
+import string
 import sys
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
