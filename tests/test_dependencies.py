@@ -1,41 +1,33 @@
-from __future__ import absolute_import
+import pytest
 
 import pytest
 
 from cwltool.utils import onWindows
 
-from .test_examples import TestCmdLine
-from .util import get_data, needs_docker
+from .util import get_data, get_main_output, needs_docker
+
 
 try:
-    from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
     from galaxy.tools import deps
 except ImportError:
     deps = None
 
-class TestBetaDependenciesResolver(TestCmdLine):
+@needs_docker
+@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+def test_biocontainers():
+    wflow = get_data("tests/seqtk_seq.cwl")
+    job = get_data("tests/seqtk_seq_job.json")
+    error_code, _, _ = get_main_output(
+        ["--beta-use-biocontainers", wflow, job])
 
-    @needs_docker
-    def test_biocontainers(self):
-        if not deps:
-            pytest.skip("galaxy-lib is not installed.")
-        wflow = get_data("tests/seqtk_seq.cwl")
-        job = get_data("tests/seqtk_seq_job.json")
-        error_code, stdout, stderr = self.get_main_output(
-            ["--beta-use-biocontainers", wflow, job])
-        print(stderr)
-        print(stdout)
-        assert error_code is 0
+    assert error_code == 0
 
-    def test_bioconda(self):
-        if onWindows() or not deps:
-            pytest.skip("bioconda currently not working on MS Windows.")
-        elif not deps:
-            pytest.skip("galaxy-lib is not installed.")
-        wflow = get_data("tests/seqtk_seq.cwl")
-        job = get_data("tests/seqtk_seq_job.json")
-        error_code, stdout, stderr = self.get_main_output(
-            ["--beta-conda-dependencies", "--debug", wflow, job])
-        print(stderr)
-        print(stdout)
-        assert error_code is 0
+@pytest.mark.skipif(onWindows(), reason="bioconda currently not working on MS Windows")
+@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+def test_bioconda():
+    wflow = get_data("tests/seqtk_seq.cwl")
+    job = get_data("tests/seqtk_seq_job.json")
+    error_code, _, stderr = get_main_output(
+        ["--beta-conda-dependencies", "--debug", wflow, job])
+
+    assert error_code == 0, stderr

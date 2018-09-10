@@ -1,13 +1,8 @@
-import unittest
-
-import mock
 from ruamel import yaml
-from schema_salad.schema import get_metaschema
 
 from cwltool import process
 from cwltool.sandboxjs import code_fragment_to_js
-from cwltool.validate_js import (get_expressions, jshint_js,
-                                 validate_js_expressions)
+from cwltool import validate_js
 
 TEST_CWL = """
 cwlVersion: v1.0
@@ -25,45 +20,42 @@ inputs:
 outputs: []
 """
 
-class TestGetExpressions(unittest.TestCase):
-    def test_get_expressions(self):
-        test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
-        schema = process.get_schema("v1.0")[1].names["CommandLineTool"]
+def test_get_expressions():
+    test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
+    schema = process.get_schema("v1.0")[1].names["CommandLineTool"]
 
-        exprs = get_expressions(test_cwl_yaml, schema)
+    exprs = validate_js.get_expressions(test_cwl_yaml, schema)
 
-        self.assertEqual(len(exprs), 1)
+    assert len(exprs) == 1
 
 
-class TestValidateJsExpressions(unittest.TestCase):
-    @mock.patch("cwltool.validate_js.print_js_hint_messages")
-    def test_validate_js_expressions(self, print_js_hint_messages):
-        test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
-        schema = process.get_schema("v1.0")[1].names["CommandLineTool"]
+def test_validate_js_expressions(mocker):
+    test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
+    schema = process.get_schema("v1.0")[1].names["CommandLineTool"]
 
-        validate_js_expressions(test_cwl_yaml, schema)
+    mocker.patch("cwltool.validate_js.print_js_hint_messages")
+    validate_js.validate_js_expressions(test_cwl_yaml, schema)
 
-        assert print_js_hint_messages.call_args is not None
-        assert len(print_js_hint_messages.call_args[0]) > 0
+    assert validate_js.print_js_hint_messages.call_args is not None
+    assert len(validate_js.print_js_hint_messages.call_args[0]) > 0
 
-class TestJSHintJS(unittest.TestCase):
-    def test_basic_usage(self):
-        result = jshint_js("""
-        function funcName(){
-        }
-        """, [])
+def test_js_hint_basic():
+    result = validate_js.jshint_js("""
+    function funcName(){
+    }
+    """, [])
 
-        self.assertEquals(result.errors, [])
-        self.assertEquals(result.globals, ["funcName"])
+    assert result.errors == []
+    assert result.globals == ["funcName"]
 
-    def test_reports_invalid_js(self):
-        assert len(jshint_js("<INVALID JS>").errors) > 1
+def test_js_hint_reports_invalid_js():
+    assert len(validate_js.jshint_js("<INVALID JS>").errors) > 1
 
-    def test_warn_on_es6(self):
-        self.assertEquals(len(jshint_js(code_fragment_to_js("((() => 4)())"), []).errors), 1)
+def test_js_hint_warn_on_es6():
+    assert len(validate_js.jshint_js(code_fragment_to_js("((() => 4)())"), []).errors) == 1
 
-    def test_error_on_undefined_name(self):
-        self.assertEquals(len(jshint_js(code_fragment_to_js("undefined_name()")).errors), 1)
+def test_js_hint_error_on_undefined_name():
+    assert len(validate_js.jshint_js(code_fragment_to_js("undefined_name()")).errors) == 1
 
-    def test_set_defined_name(self):
-        self.assertEquals(len(jshint_js(code_fragment_to_js("defined_name()"), ["defined_name"]).errors), 0)
+def test_js_hint_set_defined_name():
+    assert len(validate_js.jshint_js(code_fragment_to_js("defined_name()"), ["defined_name"]).errors) == 0
