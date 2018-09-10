@@ -1,29 +1,29 @@
 from __future__ import absolute_import
-import unittest
-import sys
 
-from io import open
+import json
+import ntpath
 import os
-import tempfile
-from six import StringIO
-from cwltool.main import main
+import posixpath
 import shutil
+import sys
+import tempfile
+import unittest
+from io import open
+
+import arcp
 import pytest
+from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.namespace import DC, DCTERMS, RDF
+from six.moves import urllib
+
+import bagit
+# Module to be tested
+from cwltool import load_tool, provenance
+from cwltool.main import main
+from cwltool.resolver import Path
 from cwltool.utils import onWindows
 
-# Module to be tested
-from cwltool import provenance
-from cwltool import load_tool
-
 from .util import get_data
-import bagit
-import posixpath
-import ntpath
-from six.moves import urllib
-from rdflib import Namespace, URIRef, Graph, Literal
-from rdflib.namespace import RDF,RDFS,SKOS,DCTERMS,FOAF,XSD,DC
-import arcp
-
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
@@ -34,7 +34,6 @@ WFPROV = Namespace("http://purl.org/wf4ever/wfprov#")
 SCHEMA = Namespace("http://schema.org/")
 CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
-
 
 
 @pytest.mark.skipif(onWindows(),
@@ -82,11 +81,68 @@ class TestProvenance(unittest.TestCase):
     def test_revsort_workflow(self):
         self.cwltool(get_data('tests/wf/revsort.cwl'),
             get_data('tests/wf/revsort-job.json'))
+        self.check_output_object()
         self.check_provenance()
 
     def test_nested_workflow(self):
         self.cwltool(get_data('tests/wf/nested.cwl'))
         self.check_provenance(nested=True)
+
+    def test_secondary_files_implicit(self):
+        tmpdir = tempfile.mkdtemp("test_secondary_files_implicit")
+        file1 = os.path.join(tmpdir, "foo1.txt")
+        file1idx = os.path.join(tmpdir, "foo1.txt.idx")
+
+        with open(file1, "w", encoding="ascii") as f:
+            f.write(u"foo")
+        with open(file1idx, "w", encoding="ascii") as f:
+            f.write(u"bar")
+
+        # secondary will be picked up by .idx
+        self.cwltool(get_data('tests/wf/sec-wf.cwl'), "--file1", file1)
+        self.check_provenance(secondary_files=True)
+        self.check_secondary_files()
+
+    def test_secondary_files_explicit(self):
+        # Deliberately do NOT have common basename or extension
+        file1 = tempfile.mktemp("foo")
+        file1idx = tempfile.mktemp("bar")
+
+        with open(file1, "w", encoding="ascii") as f:
+            f.write(u"foo")
+        with open(file1idx, "w", encoding="ascii") as f:
+            f.write(u"bar")
+
+        # explicit secondaryFiles
+        job = {
+            "file1":
+                { "class": "File",
+                    "path": file1,
+                    "basename": "foo1.txt",
+                    "secondaryFiles": [
+                        {
+                            "class": "File",
+                            "path": file1idx,
+                            "basename": "foo1.txt.idx",
+                        }
+                    ]
+                }
+        }
+        jobJson = tempfile.mktemp("job.json")
+        with open(jobJson, "wb") as fp:
+            j = json.dumps(job, ensure_ascii=True)
+            fp.write(j.encode("ascii"))
+
+        self.cwltool(get_data('tests/wf/sec-wf.cwl'), jobJson)
+        self.check_provenance(secondary_files=True)
+        self.check_secondary_files()
+
+    def test_secondary_files_output(self):
+        # secondary will be picked up by .idx
+        self.cwltool(get_data('tests/wf/sec-wf-out.cwl'))
+        self.check_provenance(secondary_files=True)
+        # Skipped, not the same secondary files as above
+        #self.check_secondary_files()
 
     def test_directory_workflow(self):
         dir2 = os.path.join(tempfile.mkdtemp("test_directory_workflow"),
@@ -126,11 +182,57 @@ class TestProvenance(unittest.TestCase):
             self.assertTrue(os.path.isfile(p),
                 "Could not find %s as %s" % (l, p))
 
-    def check_provenance(self, nested=False, single_tool=False, directory=False):
+    def check_output_object(self):
+        output_obj = os.path.join(self.folder, "workflow", "primary-output.json")
+        compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
+        compare_location = "../data/b9/b9214658cc453331b62c2282b772a5c063dbd284"
+        with open(output_obj) as fp:
+            out_json = json.load(fp)
+        f1 = out_json["output"]
+        self.assertEqual(f1["checksum"], compare_checksum)
+        self.assertEqual(f1["location"], compare_location)
+
+
+    def check_secondary_files(self):
+        foo_data = os.path.join(self.folder, "data",
+            # checksum as returned from:
+            # $ echo -n foo | sha1sum
+            # 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33  -
+            "0b",
+            "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33")
+        bar_data = os.path.join(self.folder, "data", "62",
+            "62cdb7020ff920e5aa642c3d4066950dd1f01f4d")
+        self.assertTrue(os.path.isfile(foo_data),
+            "Did not capture file.txt 'foo'")
+        self.assertTrue(os.path.isfile(bar_data),
+            "Did not capture secondary file.txt.idx 'bar")
+
+        primary_job = os.path.join(self.folder, "workflow", "primary-job.json")
+        with open(primary_job) as fp:
+            job_json = json.load(fp)
+        # TODO: Verify secondaryFile in primary-job.json
+        f1 = job_json["file1"]
+        self.assertEquals(f1["location"],
+            "../data/0b/0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33")
+        self.assertEquals(f1["basename"],
+            "foo1.txt")
+
+        secondaries = f1["secondaryFiles"]
+        self.assertTrue(secondaries)
+        f1idx = secondaries[0]
+        self.assertEquals(f1idx["location"],
+            "../data/62/62cdb7020ff920e5aa642c3d4066950dd1f01f4d")
+        self.assertEquals(f1idx["basename"],
+            "foo1.txt.idx")
+
+
+    def check_provenance(self, nested=False, single_tool=False, directory=False,
+                         secondary_files=False):
         self.check_folders()
         self.check_bagit()
         self.check_ro(nested=nested)
-        self.check_prov(nested=nested, single_tool=single_tool, directory=directory)
+        self.check_prov(nested=nested, single_tool=single_tool, directory=directory,
+                        secondary_files=secondary_files)
 
     def check_folders(self):
         # Our folders
@@ -180,12 +282,18 @@ class TestProvenance(unittest.TestCase):
         arcp_root = self.find_arcp()
         base = urllib.parse.urljoin(arcp_root, "metadata/manifest.json")
         g = Graph()
-        with open(manifest_file, "rb") as f:
-            # Note: This will use https://w3id.org/bundle/context
-            g.parse(file=f, format="json-ld", publicID=base)
+
+        # Avoid resolving JSON-LD context https://w3id.org/bundle/context
+        # so this test works offline
+        context = Path(get_data("tests/bundle-context.jsonld")).as_uri()
+        with open(manifest_file, "r", encoding="UTF-8") as f:
+            jsonld = f.read()
+            # replace with file:/// URI
+            jsonld = jsonld.replace("https://w3id.org/bundle/context", context)
+        g.parse(data=jsonld, format="json-ld", publicID=base)
         if os.environ.get("DEBUG"):
             print("Parsed manifest:\n\n")
-            g.serialize(sys.stdout, format="nt")
+            g.serialize(sys.stdout, format="ttl")
         ro = None
 
         for ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
@@ -219,7 +327,7 @@ class TestProvenance(unittest.TestCase):
             f = "metadata/provenance/primary.cwlprov.%s" % ext
             self.assertTrue(f in paths, "provenance file missing " + f)
 
-        for f in ["workflow/primary-job.json", "workflow/packed.cwl"]:
+        for f in ["workflow/primary-job.json", "workflow/packed.cwl", "workflow/primary-output.json"]:
             self.assertTrue(f in paths, "workflow file missing " + f)
         # Can't test snapshot/ files directly as their name varies
 
@@ -228,6 +336,7 @@ class TestProvenance(unittest.TestCase):
 
         packed = urllib.parse.urljoin(arcp_root, "/workflow/packed.cwl")
         primary_job = urllib.parse.urljoin(arcp_root, "/workflow/primary-job.json")
+        output_object = urllib.parse.urljoin(arcp_root, "/workflow/primary-output.json")
         primary_prov_nt = urllib.parse.urljoin(arcp_root, "/metadata/provenance/primary.cwlprov.nt")
         uuid = arcp.parse_arcp(arcp_root).uuid
 
@@ -280,7 +389,8 @@ class TestProvenance(unittest.TestCase):
                 otherRuns.update(set(g.objects(p, OA.hasTarget)))
             self.assertTrue(otherRuns, "Could not find nested workflow run prov annotations")
 
-    def check_prov(self, nested=False, single_tool=False, directory=False):
+    def check_prov(self, nested=False, single_tool=False, directory=False,
+                   secondary_files=False):
         prov_file = os.path.join(self.folder, "metadata", "provenance", "primary.cwlprov.nt")
         self.assertTrue(os.path.isfile(prov_file), "Can't find " + prov_file)
         arcp_root = self.find_arcp()
@@ -291,7 +401,7 @@ class TestProvenance(unittest.TestCase):
             g.parse(file=f, format="nt", publicID=arcp_root)
         if os.environ.get("DEBUG"):
             print("Parsed %s:\n\n" % prov_file)
-            g.serialize(sys.stdout, format="nt")
+            g.serialize(sys.stdout, format="ttl")
         runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
 
         # master workflow run URI (as urn:uuid:) should correspond to arcp uuid part
@@ -342,57 +452,79 @@ class TestProvenance(unittest.TestCase):
                     "Step activity not started by master activity")
                 # Tip: Any nested workflow step executions should not be in this prov file,
                 # but in separate file
-            if nested:
-                # Find some cwlprov.nt the nested workflow is described in
-                prov_ids = set(g.objects(predicate=PROV.has_provenance))
-                # FIXME: The above is a bit naive and does not check the subject is
-                # one of the steps -- OK for now as this is the only case of prov:has_provenance
-                self.assertTrue(prov_ids, "Could not find prov:has_provenance from nested workflow")
+        if nested:
+            # Find some cwlprov.nt the nested workflow is described in
+            prov_ids = set(g.objects(predicate=PROV.has_provenance))
+            # FIXME: The above is a bit naive and does not check the subject is
+            # one of the steps -- OK for now as this is the only case of prov:has_provenance
+            self.assertTrue(prov_ids, "Could not find prov:has_provenance from nested workflow")
 
-                nt_uris = [uri for uri in prov_ids if uri.endswith("cwlprov.nt")]
-                # TODO: Look up manifest conformsTo and content-type rather than assuming magic filename
-                self.assertTrue(nt_uris, "Could not find *.cwlprov.nt")
-                # Load into new graph
-                g2 = Graph()
-                nt_uri = nt_uris.pop()
-                with open(self._arcp2file(nt_uri), "rb") as f:
-                    g2.parse(file=f, format="nt", publicID=nt_uri)
-                # TODO: Check g2 statements that it's the same UUID activity inside
-                # as in the outer step
-            if directory:
-                directories = set(g.subjects(RDF.type, RO.Folder))
-                self.assertTrue(directories)
+            nt_uris = [uri for uri in prov_ids if uri.endswith("cwlprov.nt")]
+            # TODO: Look up manifest conformsTo and content-type rather than assuming magic filename
+            self.assertTrue(nt_uris, "Could not find *.cwlprov.nt")
+            # Load into new graph
+            g2 = Graph()
+            nt_uri = nt_uris.pop()
+            with open(self._arcp2file(nt_uri), "rb") as f:
+                g2.parse(file=f, format="nt", publicID=nt_uri)
+            # TODO: Check g2 statements that it's the same UUID activity inside
+            # as in the outer step
+        if directory:
+            directories = set(g.subjects(RDF.type, RO.Folder))
+            self.assertTrue(directories)
 
-                for d in directories:
-                    self.assertTrue((d,RDF.type,PROV.Dictionary) in g)
-                    self.assertTrue((d,RDF.type,PROV.Collection) in g)
-                    self.assertTrue((d,RDF.type,PROV.Entity) in g)
+            for d in directories:
+                self.assertTrue((d,RDF.type,PROV.Dictionary) in g)
+                self.assertTrue((d,RDF.type,PROV.Collection) in g)
+                self.assertTrue((d,RDF.type,PROV.Entity) in g)
 
-                    files = set()
-                    for entry in g.objects(d, PROV.hadDictionaryMember):
-                        self.assertTrue((entry,RDF.type,PROV.KeyEntityPair) in g)
-                        # We don't check what that filename is here
-                        self.assertTrue(set(g.objects(entry,PROV.pairKey)))
+                files = set()
+                for entry in g.objects(d, PROV.hadDictionaryMember):
+                    self.assertTrue((entry,RDF.type,PROV.KeyEntityPair) in g)
+                    # We don't check what that filename is here
+                    self.assertTrue(set(g.objects(entry,PROV.pairKey)))
 
-                        # RO:Folder aspect
-                        self.assertTrue(set(g.objects(entry,RO.entryName)))
-                        self.assertTrue((d,ORE.aggregates,entry) in g)
-                        self.assertTrue((entry,RDF.type,RO.FolderEntry) in g)
-                        self.assertTrue((entry,RDF.type,ORE.Proxy) in g)
-                        self.assertTrue((entry,ORE.proxyIn,d) in g)
-                        self.assertTrue((entry,ORE.proxyIn,d) in g)
+                    # RO:Folder aspect
+                    self.assertTrue(set(g.objects(entry,RO.entryName)))
+                    self.assertTrue((d,ORE.aggregates,entry) in g)
+                    self.assertTrue((entry,RDF.type,RO.FolderEntry) in g)
+                    self.assertTrue((entry,RDF.type,ORE.Proxy) in g)
+                    self.assertTrue((entry,ORE.proxyIn,d) in g)
+                    self.assertTrue((entry,ORE.proxyIn,d) in g)
 
-                        # Which file?
-                        entities = set(g.objects(entry, PROV.pairEntity))
-                        self.assertTrue(entities)
-                        f = entities.pop()
-                        files.add(f)
-                        self.assertTrue((entry,ORE.proxyFor,f) in g)
-                        self.assertTrue((f,RDF.type,PROV.Entity) in g)
+                    # Which file?
+                    entities = set(g.objects(entry, PROV.pairEntity))
+                    self.assertTrue(entities)
+                    f = entities.pop()
+                    files.add(f)
+                    self.assertTrue((entry,ORE.proxyFor,f) in g)
+                    self.assertTrue((f,RDF.type,PROV.Entity) in g)
 
-                    if not files:
-                        self.assertTrue((d,RDF.type,PROV.EmptyCollection) in g)
-                        self.assertTrue((d,RDF.type,PROV.EmptyDictionary) in g)
+                if not files:
+                    self.assertTrue((d,RDF.type,PROV.EmptyCollection) in g)
+                    self.assertTrue((d,RDF.type,PROV.EmptyDictionary) in g)
+        if secondary_files:
+            derivations = set(g.subjects(RDF.type, CWLPROV.SecondaryFile))
+            self.assertTrue(derivations)
+            for der in derivations:
+                sec = set(g.subjects(PROV.qualifiedDerivation, der)).pop()
+                prim = set(g.objects(der, PROV.entity)).pop()
+
+                # UUID specializes a hash checksum
+                self.assertTrue(set(g.objects(sec, PROV.specializationOf)))
+                # extensions etc.
+                sec_basename = set(g.objects(sec, CWLPROV.basename)).pop()
+                sec_nameroot = set(g.objects(sec, CWLPROV.nameroot)).pop()
+                sec_nameext = set(g.objects(sec, CWLPROV.nameext)).pop()
+                self.assertEquals(str(sec_basename), "%s%s" % (sec_nameroot, sec_nameext))
+                # TODO: Check hash data file exist in RO
+
+                # The primary entity should have the same, but different values
+                self.assertTrue(set(g.objects(prim, PROV.specializationOf)))
+                prim_basename = set(g.objects(prim, CWLPROV.basename)).pop()
+                prim_nameroot = set(g.objects(prim, CWLPROV.nameroot)).pop()
+                prim_nameext = set(g.objects(prim, CWLPROV.nameext)).pop()
+                self.assertEquals(str(prim_basename), "%s%s" % (prim_nameroot, prim_nameext))
 
 
 class TestConvertPath(unittest.TestCase):

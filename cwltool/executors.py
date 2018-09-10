@@ -1,33 +1,33 @@
 # -*- coding: utf-8 -*-
 """ Single and multi-threaded executors."""
+import datetime
 import os
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
-import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+
+import psutil
+from schema_salad.validate import ValidationException
+from six import string_types, with_metaclass
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from schema_salad.validate import ValidationException
-import six
-from six import string_types
-
-import psutil
-
 from .builder import Builder  # pylint: disable=unused-import
+from .context import (RuntimeContext,  # pylint: disable=unused-import
+                      getdefault)
 from .errors import WorkflowException
-from .loghandler import _logger
 from .job import JobBase  # pylint: disable=unused-import
+from .loghandler import _logger
 from .mutation import MutationManager
+from .process import Process  # pylint: disable=unused-import
+from .process import cleanIntermediate, relocateOutputs
 from .provenance import CreateProvProfile
-from .process import (Process,  # pylint: disable=unused-import
-                      cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
-from .context import RuntimeContext, getdefault  # pylint: disable=unused-import
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
-class JobExecutor(six.with_metaclass(ABCMeta, object)):
+
+class JobExecutor(with_metaclass(ABCMeta, object)):
     """ Abstract base job executor. """
 
     def __init__(self):
@@ -93,10 +93,15 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
                 runtime_context.move_outputs, runtime_context.make_fs_access(""),
-                getdefault(runtime_context.compute_checksum, True))
+                getdefault(runtime_context.compute_checksum, True),
+                path_mapper=runtime_context.path_mapper)
 
         if runtime_context.rm_tmpdir:
-            cleanIntermediate(self.output_dirs)
+            if runtime_context.cachedir is None:
+                output_dirs = self.output_dirs # type: Iterable[Any]
+            else:
+                output_dirs = filter(lambda x: not x.startswith(runtime_context.cachedir), self.output_dirs)
+            cleanIntermediate(output_dirs)
 
         if self.final_output and self.final_status:
 
@@ -125,7 +130,6 @@ class SingleJobExecutor(JobExecutor):
                 ):  # type: (...) -> None
 
         process_run_id = None  # type: Optional[str]
-        reference_locations = {}  # type: Dict[Text,Text]
 
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
@@ -153,15 +157,13 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             runtime_context.prov_obj = job.prov_obj
                         assert runtime_context.prov_obj
-                        process_run_id, reference_locations = \
-                                runtime_context.prov_obj.evaluate(
-                                    process, job, job_order_object,
-                                    runtime_context.make_fs_access,
-                                    runtime_context)
+                        process_run_id = \
+                            runtime_context.prov_obj.evaluate(
+                                process, job, job_order_object,
+                                runtime_context.make_fs_access,
+                                runtime_context.research_obj)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
-                        runtime_context.reference_locations = \
-                            reference_locations
                     job.run(runtime_context)
                 else:
                     logger.error("Workflow cannot make any more progress.")

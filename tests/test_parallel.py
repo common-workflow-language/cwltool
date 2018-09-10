@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from cwltool.executors import MultithreadedJobExecutor
 from cwltool.context import RuntimeContext
+from cwltool.executors import MultithreadedJobExecutor
 
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 

@@ -1,32 +1,33 @@
+"""Abstracted IO access."""
 from __future__ import absolute_import
 
 import glob
 import os
 from io import open
-from typing import Any, IO, List
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import IO, Any, List
 
-import six
-from six.moves import urllib
 from schema_salad.ref_resolver import file_uri, uri_file_path
+from six.moves import urllib
+from typing_extensions import Text
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .utils import onWindows
 
 
 def abspath(src, basedir):  # type: (Text, Text) -> Text
     if src.startswith(u"file://"):
-        ab = six.text_type(uri_file_path(str(src)))
+        abpath = Text(uri_file_path(str(src)))
     elif urllib.parse.urlsplit(src).scheme in ['http', 'https']:
         return src
     else:
         if basedir.startswith(u"file://"):
-            ab = src if os.path.isabs(src) else basedir+ '/'+ src
+            abpath = src if os.path.isabs(src) else basedir+ '/'+ src
         else:
-            ab = src if os.path.isabs(src) else os.path.join(basedir, src)
-    return ab
+            abpath = src if os.path.isabs(src) else os.path.join(basedir, src)
+    return abpath
 
 class StdFsAccess(object):
+    """Local filesystem implementation."""
     def __init__(self, basedir):  # type: (Text) -> None
         self.basedir = basedir
 

@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 import json
 import logging
-import shutil
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -17,14 +17,13 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
+from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.utils import onWindows, subprocess
-from cwltool.context import RuntimeContext
 
 from .util import (get_data, get_windows_safe_factory, needs_docker,
                    needs_singularity, windows_needs_docker)
-
 try:
     reload
 except:  # pylint: disable=bare-except
@@ -32,8 +31,6 @@ except:  # pylint: disable=bare-except
         from imp import reload
     except:
         from importlib import reload
-
-
 
 
 sys.argv = ['']
@@ -379,25 +376,27 @@ class TestTypeCompare(unittest.TestCase):
 
     def test_recordcompare(self):
         src = {
-            'fields': [{
-                'type': {'items': 'string', 'type': 'array'},
-                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
-            },
-                {
-                    'type': {'items': 'File', 'type': 'array'},
-                    'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
+            'fields': [
+                {'type': {'items': 'string', 'type': 'array'},
+                 'name': u'file:///home/chapmanb/drive/work/cwl/'
+                         'test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
+                },
+                {'type': {'items': 'File', 'type': 'array'},
+                 'name': u'file:///home/chapmanb/drive/work/cwl/'
+                         'test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
                 }],
             'type': 'record',
             'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'
         }
         sink = {
-            'fields': [{
-                'type': {'items': 'string', 'type': 'array'},
-                'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/description'
-            },
-                {
-                    'type': {'items': 'File', 'type': 'array'},
-                    'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/vrn_file'
+            'fields': [
+                {'type': {'items': 'string', 'type': 'array'},
+                 'name': u'file:///home/chapmanb/drive/work/cwl/'
+                         'test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/description'
+                },
+                {'type': {'items': 'File', 'type': 'array'},
+                 'name': u'file:///home/chapmanb/drive/work/cwl/'
+                         'test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec/vrn_file'
                 }],
             'type': 'record',
             'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/steps/vc_output_record.cwl#vc_rec/vc_rec'}
@@ -621,7 +620,7 @@ class TestCmdLine(unittest.TestCase):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         stdout, stderr = process.communicate()
-        return process.returncode, stdout.decode(), stderr.decode()
+        return process.returncode, stdout.decode('utf-8'), stderr.decode('utf-8')
 
 
 class TestJsConsole(TestCmdLine):

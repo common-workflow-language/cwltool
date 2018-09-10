@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import datetime
 import functools  # pylint: disable=unused-import
 import logging
 import os
@@ -9,33 +10,34 @@ import stat
 import sys
 import tempfile
 import uuid
-import datetime
-from threading import Timer
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
-from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, MutableMapping,
-                    Optional, Union, cast)
+from threading import Timer
+from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List,
+                    MutableMapping, MutableSequence, Optional, Union, cast)
 
-from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 import shellescape
-from schema_salad.sourceline import SourceLine
-import six
-from six import with_metaclass
 from prov.model import PROV
+from schema_salad.sourceline import SourceLine
+from six import PY2, with_metaclass
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
+from .context import RuntimeContext  # pylint: disable=unused-import
+from .context import getdefault
 from .errors import WorkflowException
 from .loghandler import _logger
 from .pathmapper import PathMapper
 from .process import UnsupportedRequirement, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import bytes2str_in_dicts  # pylint: disable=unused-import
-from .utils import (  # pylint: disable=unused-import
-    DEFAULT_TMP_PREFIX, Directory, copytree_with_merge, json_dump, json_dumps,
-    onWindows, subprocess, processes_to_kill)
-from .context import (RuntimeContext,  # pylint: disable=unused-import
-                      getdefault)
+from .utils import \
+    bytes2str_in_dicts  # pylint: disable=unused-import; pylint: disable=unused-import
+from .utils import (DEFAULT_TMP_PREFIX, Directory, copytree_with_merge,
+                    json_dump, json_dumps, onWindows, processes_to_kill,
+                    subprocess)
+
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
@@ -107,7 +109,7 @@ with open(sys.argv[1], "r") as f:
 
 
 def deref_links(outputs):  # type: (Any) -> None
-    if isinstance(outputs, dict):
+    if isinstance(outputs, MutableMapping):
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
             if stat.S_ISLNK(st.st_mode):
@@ -116,7 +118,7 @@ def deref_links(outputs):  # type: (Any) -> None
         else:
             for v in outputs.values():
                 deref_links(v)
-    if isinstance(outputs, list):
+    if isinstance(outputs, MutableSequence):
         for output in outputs:
             deref_links(output)
 
@@ -580,7 +582,7 @@ def _job_popen(
             u"stderr_path": stderr_path,
             u"stdin_path": stdin_path}
 
-        if six.PY2:
+        if PY2:
             with open(os.path.join(job_dir, "job.json"), mode="wb") as job_file:
                 json_dump(job_description, job_file, ensure_ascii=False)
         else:

@@ -1,3 +1,4 @@
+"""Evaluate CWL Javascript Expressions in a sandbox."""
 from __future__ import absolute_import
 
 import errno
@@ -9,15 +10,14 @@ import sys
 import threading
 from io import BytesIO
 from typing import Any, Dict, List, Tuple, Union
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 import six
 from pkg_resources import resource_stream
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .loghandler import _logger
-from .utils import json_dumps, onWindows, subprocess, processes_to_kill
-
+from .utils import json_dumps, onWindows, processes_to_kill, subprocess
 try:
     import queue  # type: ignore
 except ImportError:
