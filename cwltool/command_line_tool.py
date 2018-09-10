@@ -11,8 +11,8 @@ import shutil
 import tempfile
 import threading
 from functools import cmp_to_key, partial
-from typing import (Any, Callable, Dict, Generator, List, Optional, Set, Union,
-                    cast)
+from typing import (Any, Callable, Dict, Generator, List, MutableMapping,
+                    MutableSequence, Optional, Set, Union, cast)
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -737,7 +737,7 @@ class CommandLineTool(Process):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
-                                if isinstance(sf, dict) and 'pattern' in sf:
+                                if isinstance(sf, MutableMapping) and 'pattern' in sf:
                                     if 'required' in sf:
                                         sf_required = sf['required']
                                     else:
@@ -745,7 +745,7 @@ class CommandLineTool(Process):
                                     sf = sf['pattern']
                                 else:
                                     sf_required = False
-                                if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                                if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
                                 else:

@@ -3,7 +3,8 @@ from __future__ import absolute_import
 import copy
 import os
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set, Union, Tuple
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Tuple, Union)
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -293,7 +294,7 @@ class Builder(HasReqsHints):
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, dict) and 'pattern' in sf:
+                        if isinstance(sf, MutableMapping) and 'pattern' in sf:
                             if 'required' in sf:
                                 sf_required = sf['required']
                             else:
@@ -301,7 +302,7 @@ class Builder(HasReqsHints):
                             sf = sf['pattern']
                         else:
                             sf_required = True
-                        if isinstance(sf, dict) or "$(" in sf or "${" in sf:
+                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                             sfpath = self.do_eval(sf, context=datum)
                         else:
                             if sf.endswith('?') and \
@@ -320,7 +321,7 @@ class Builder(HasReqsHints):
                                     found = True
                             if not found:
                                 sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
-                                if isinstance(sfname, dict):
+                                if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
                                 elif discover_secondaryFiles and os.path.exists(uri_file_path(sf_location)):
                                     datum["secondaryFiles"].append({
