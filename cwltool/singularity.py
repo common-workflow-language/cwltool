@@ -1,4 +1,4 @@
-"""Support for executing Docker containers using Singularity."""
+"""Support for executing Docker containers using a Singularity."""
 from __future__ import absolute_import
 
 import os
@@ -7,21 +7,20 @@ import re
 import shutil
 import sys
 from io import open  # pylint: disable=redefined-builtin
-from typing import List, Dict, MutableMapping, Optional
+from typing import Dict, List, MutableMapping, Optional
+
+from schema_salad.sourceline import SourceLine
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from schema_salad.sourceline import SourceLine
-
+from .context import RuntimeContext  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import (PathMapper,  # pylint: disable=unused-import
-                         ensure_writable)
+from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import ensure_writable
 from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
-from .context import RuntimeContext  # pylint: disable=unused-import
-
 if os.name == 'posix':
     from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
         check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,

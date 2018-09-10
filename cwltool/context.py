@@ -1,18 +1,22 @@
+"""Shared context objects that replace use of kwargs."""
 import copy
 import threading  # pylint: disable=unused-import
-from typing import Any, Callable, Dict, Iterable, List, Optional
-from typing_extensions import Text, TYPE_CHECKING  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-from schema_salad.ref_resolver import (  # pylint: disable=unused-import
-    ContextType, Fetcher, Loader)
-from schema_salad import schema
+from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
+                    Optional)
 
-from .utils import DEFAULT_TMP_PREFIX
-from .stdfsaccess import StdFsAccess
+from schema_salad import schema
+from schema_salad.ref_resolver import (ContextType,  # pylint: disable=unused-import
+                                       Fetcher, Loader)
+from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+                               Text)
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
-from .software_requirements import DependenciesConfiguration
+from .pathmapper import PathMapper
 from .secrets import SecretStore
+from .software_requirements import DependenciesConfiguration
+from .stdfsaccess import StdFsAccess
+from .utils import DEFAULT_TMP_PREFIX
 
 if TYPE_CHECKING:
     from .process import Process
@@ -27,13 +31,13 @@ class ContextBase(object):
                 if hasattr(self, k):
                     setattr(self, k, v)
 
-def make_tool_notimpl(toolpath_object,      # type: Dict[Text, Any]
+def make_tool_notimpl(toolpath_object,      # type: MutableMapping[Text, Any]
                       loadingContext        # type: LoadingContext
                      ):  # type: (...) -> Process
     raise NotImplementedError()
 
 
-default_make_tool = make_tool_notimpl  # type: Callable[[Dict[Text, Any], LoadingContext], Process]
+default_make_tool = make_tool_notimpl  # type: Callable[[MutableMapping[Text, Any], LoadingContext], Process]
 
 class LoadingContext(ContextBase):
 
@@ -88,7 +92,7 @@ class RuntimeContext(ContextBase):
         self.rm_tmpdir = True           # type: bool
         self.pull_image = True          # type: bool
         self.rm_container = True        # type: bool
-        self.move_outputs = ""          # type: Text
+        self.move_outputs = "move"      # type: Text
 
         self.singularity = False        # type: bool
         self.disable_net = None
@@ -105,6 +109,7 @@ class RuntimeContext(ContextBase):
         self.toplevel = False           # type: bool
         self.mutation_manager = None    # type: Optional[MutationManager]
         self.make_fs_access = StdFsAccess  # type: Callable[[Text], StdFsAccess]
+        self.path_mapper = PathMapper
         self.builder = None             # type: Optional[Builder]
         self.docker_outdir = ""         # type: Text
         self.docker_tmpdir = ""         # type: Text
@@ -113,7 +118,7 @@ class RuntimeContext(ContextBase):
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
         self.select_resources = None    # type: Optional[select_resources_callable]
         self.eval_timeout = 20          # type: float
-        self.postScatterEval = None     # type: Optional[Callable[[Dict[Text, Any]], Dict[Text, Any]]]
+        self.postScatterEval = None     # type: Optional[Callable[[MutableMapping[Text, Any]], Dict[Text, Any]]]
         self.on_error = "stop"          # type: Text
         self.strict_memory_limit = False  # type: bool
 
@@ -127,7 +132,6 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = None
         self.process_run_id = None      # type: Optional[str]
         self.prov_obj = None            # type: Optional[CreateProvProfile]
-        self.reference_locations = {}   # type: Dict[Text, Text]
         super(RuntimeContext, self).__init__(kwargs)
 
 

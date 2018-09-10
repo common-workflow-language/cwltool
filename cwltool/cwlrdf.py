@@ -1,13 +1,13 @@
 from __future__ import absolute_import
 
 from typing import IO, Any, Dict
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from rdflib import Graph
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 from six.moves import urllib
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .process import Process
 

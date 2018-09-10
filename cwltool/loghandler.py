@@ -1,3 +1,4 @@
+"""Shared logger for cwltool."""
 import logging
 
 _logger = logging.getLogger("cwltool")  # pylint: disable=invalid-name
