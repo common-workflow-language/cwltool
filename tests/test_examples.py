@@ -665,6 +665,7 @@ class TestCache():
         self.cache_dir = tempfile.mkdtemp("cwltool_cache")
 
 
+@needs_docker
 def test_wf_without_container():
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
