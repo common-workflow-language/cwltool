@@ -647,20 +647,20 @@ def test_record_container_id():
 
 
 @needs_docker
-class TestSecondaryFiles(TestCmdLine):
+class TestSecondaryFiles():
     def test_secondary_files(self):
         test_file = "secondary-files.cwl"
         test_job_file = "secondary-files-job.yml"
-        error_code, _, stderr = self.get_main_output(
+        error_code, _, stderr = get_main_output(
             ["--enable-dev",
              get_data(os.path.join("tests", test_file)),
              get_data(os.path.join("tests", test_job_file))])
-        self.assertIn("completed success", stderr)
-        self.assertEqual(error_code, 0)
+        assert "completed success" in stderr
+        assert error_code == 0
 
 
 @needs_docker
-class TestCache(TestCmdLine):
+class TestCache():
     def setUp(self):
         self.cache_dir = tempfile.mkdtemp("cwltool_cache")
 
