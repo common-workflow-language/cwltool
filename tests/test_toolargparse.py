@@ -1,15 +1,13 @@
-from __future__ import absolute_import
-
-import unittest
+import os
 from tempfile import NamedTemporaryFile
 
+import pytest
 from cwltool.main import main
 
 from .util import get_data, needs_docker
 
 
-class ToolArgparse(unittest.TestCase):
-    script = '''
+script_a = '''
 #!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
@@ -29,7 +27,7 @@ stdout: test.txt
 baseCommand: [cat]
 '''
 
-    script2 = '''
+script_b = '''
 #!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
@@ -47,7 +45,7 @@ baseCommand:
 stdout: foo
 '''
 
-    script3 = '''
+script_c = '''
 #!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
@@ -66,47 +64,48 @@ expression: $(inputs.foo.two)
 outputs: []
 '''
 
-    @needs_docker
-    def test_help(self):
-        with NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write(self.script)
-            f.flush()
-            f.close()
-            self.assertEquals(main(["--debug", f.name, '--input',
-                get_data('tests/echo.cwl')]), 0)
+scripts_argparse_params = [
+    ('help', script_a,
+     lambda x: ["--debug", x, '--input', get_data('tests/echo.cwl')]
+     ),
+    ('boolean', script_b, lambda x: [x, '--help']
+     ),
+]
 
-    @needs_docker
-    def test_bool(self):
-        with NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write(self.script2)
-            f.flush()
-            f.close()
-            try:
-                self.assertEquals(main([f.name, '--help']), 0)
-            except SystemExit as e:
-                self.assertEquals(e.code, 0)
+@needs_docker
+@pytest.mark.parametrize('name,script_contents,params', scripts_argparse_params)
+def test_argparse(name, script_contents, params):
+    try:
+        script = NamedTemporaryFile(mode='w', delete=False)
+        script.write(script_contents)
+        script.flush()
+        script.close()
 
-    def test_record_help(self):
-        with NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write(self.script3)
-            f.flush()
-            f.close()
-            try:
-                self.assertEquals(main([f.name, '--help']), 0)
-            except SystemExit as e:
-                self.assertEquals(e.code, 0)
+        try:
+            assert main(params(script.name)) == 0, name
+        except SystemExit as err:
+            assert err.code == 0, name
+    finally:
+        if os.path.exists(script.name):
+            os.remove(script.name)
 
-    def test_record(self):
-        with NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write(self.script3)
-            f.flush()
-            f.close()
-            try:
-                self.assertEquals(main([f.name, '--foo.one',
-                    get_data('tests/echo.cwl'), '--foo.two', 'test']), 0)
-            except SystemExit as e:
-                self.assertEquals(e.code, 0)
+script_c_params = [
+    (lambda x: [x, '--help']),
+    (lambda x: [x, '--foo.one', get_data('tests/echo.cwl'), '--foo.two', 'test'])
+]
 
+@pytest.mark.parametrize('params', script_c_params)
+def test_argparse_record(params):
+    try:
+        script = NamedTemporaryFile(mode='w', delete=False)
+        script.write(script_c)
+        script.flush()
+        script.close()
 
-if __name__ == '__main__':
-    unittest.main()
+        try:
+            assert main(params(script.name)) == 0
+        except SystemExit as err:
+            assert err.code == 0
+    finally:
+        if os.path.exists(script.name):
+            os.remove(script.name)

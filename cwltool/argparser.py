@@ -1,13 +1,14 @@
+"""Command line argument parsing for cwltool."""
 from __future__ import absolute_import, print_function
 
 import argparse
 import os
-from typing import Any, AnyStr, Dict, List, Optional, Sequence, Union, cast
-
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import (Any, AnyStr, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Sequence, Union, cast)
 
 from schema_salad.ref_resolver import file_uri
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .loghandler import _logger
 from .process import Process, shortname  # pylint: disable=unused-import
@@ -381,7 +382,7 @@ def add_argument(toolparser, name, inptype, records, description="",
         flag = "--"
 
     required = True
-    if isinstance(inptype, list):
+    if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
             if len(inptype) == 2:
@@ -398,16 +399,16 @@ def add_argument(toolparser, name, inptype, records, description="",
         action = cast(argparse.Action, FileAction)
     elif inptype == "Directory":
         action = cast(argparse.Action, DirectoryAction)
-    elif isinstance(inptype, dict) and inptype["type"] == "array":
+    elif isinstance(inptype, MutableMapping) and inptype["type"] == "array":
         if inptype["items"] == "File":
             action = cast(argparse.Action, FileAppendAction)
         elif inptype["items"] == "Directory":
             action = cast(argparse.Action, DirectoryAppendAction)
         else:
             action = "append"
-    elif isinstance(inptype, dict) and inptype["type"] == "enum":
+    elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
         atype = Text
-    elif isinstance(inptype, dict) and inptype["type"] == "record":
+    elif isinstance(inptype, MutableMapping) and inptype["type"] == "record":
         records.append(name)
         for field in inptype['fields']:
             fieldname = name + "." + shortname(field['name'])

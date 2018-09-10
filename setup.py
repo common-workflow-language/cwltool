@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Setup for the reference implementation of the CWL standards."""
 import os
 import sys
 
@@ -11,9 +12,9 @@ README = os.path.join(SETUP_DIR, 'README.rst')
 try:
     import gittaggers
 
-    tagger = gittaggers.EggInfoFromGit
+    Tagger = gittaggers.EggInfoFromGit
 except ImportError:
-    tagger = egg_info_cmd.egg_info
+    Tagger = egg_info_cmd.egg_info
 
 needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 pytest_runner = ['pytest-runner', 'pytest-cov'] if needs_pytest else []
@@ -50,14 +51,16 @@ setup(name='cwltool',
       include_package_data=True,
       install_requires=[
           'setuptools',
-          'requests >= 2.4.3',
-          'ruamel.yaml >= 0.12.4, <= 0.15.51',
+          'requests >= 2.6.1',  # >= 2.6.1 to workaround
+          # https://github.com/ionrock/cachecontrol/issues/137
+          'ruamel.yaml >= 0.12.4, < 0.16',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 2.7.20180719125426, < 3',
+          'schema-salad >= 2.7.20180905124720, < 3',
           'mypy-extensions',
-          'six >= 1.8.0',
+          'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
+          'scandir',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
           'typing-extensions',
@@ -71,12 +74,12 @@ setup(name='cwltool',
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       setup_requires=[] + pytest_runner,
       test_suite='tests',
-      tests_require=['pytest', 'mock >= 2.0.0', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
+      tests_require=['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:run"]
       },
       zip_safe=True,
-      cmdclass={'egg_info': tagger},
+      cmdclass={'egg_info': Tagger},
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Environment :: Console',

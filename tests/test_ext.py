@@ -3,167 +3,197 @@ from __future__ import absolute_import
 import os
 import shutil
 import tempfile
-import unittest
 
 import pytest
 
-import cwltool.expression as expr
-import cwltool.pathmapper
-import cwltool.process
-import cwltool.workflow
 from cwltool.main import main
-from cwltool.utils import onWindows
 
-from .util import get_data, needs_docker, windows_needs_docker
+from .util import get_data, needs_docker, temp_dir, windows_needs_docker
 
 
 @needs_docker
-class TestListing(unittest.TestCase):
-    def test_missing_enable_ext(self):
-        # Require that --enable-ext is provided.
-        self.assertEquals(main([get_data('tests/wf/listing_deep.cwl'), get_data('tests/listing-job.yml')]), 1)
+def test_missing_enable_ext():
+    # Require that --enable-ext is provided.
+    assert main([get_data('tests/wf/listing_deep.cwl'), get_data('tests/listing-job.yml')]) != 0
 
-    def test_listing_deep(self):
-        # Should succeed.
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/listing_deep.cwl'), get_data('tests/listing-job.yml')]), 0)
+@needs_docker
+def test_listing_deep():
+    params = ["--enable-ext", get_data('tests/wf/listing_deep.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) == 0
 
-    def test_listing_shallow(self):
-        # This fails on purpose, because it tries to access listing in a subdirectory the same way that listing_deep does,
-        # but it shouldn't be expanded.
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/listing_shallow.cwl'), get_data('tests/listing-job.yml')]), 1)
+@needs_docker
+def test_listing_shallow():
+    # This fails on purpose, because it tries to access listing in a subdirectory
+    # the same way that listing_deep does, but it shouldn't be expanded.
+    params = ["--enable-ext", get_data('tests/wf/listing_shallow.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) != 0
 
-    def test_listing_none(self):
-        # This fails on purpose, because it tries to access listing but it shouldn't be there.
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/listing_none.cwl'), get_data('tests/listing-job.yml')]), 1)
+@needs_docker
+def test_listing_none():
+    # This fails on purpose, because it tries to access listing but it shouldn't be there.
+    params = ["--enable-ext", get_data('tests/wf/listing_none.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) != 0
 
-    def test_listing_v1_0(self):
-         # Default behavior in 1.0 is deep expansion.
-         self.assertEquals(main([get_data('tests/wf/listing_v1_0.cwl'), get_data('tests/listing-job.yml')]), 0)
+@needs_docker
+def test_listing_v1_0():
+    # Default behavior in 1.0 is deep expansion.
+    assert main([get_data('tests/wf/listing_v1_0.cwl'), get_data('tests/listing-job.yml')]) == 0
 
-    # def test_listing_v1_1(self):
-    #     # Default behavior in 1.1 will be no expansion
-    #     self.assertEquals(main([get_data('tests/wf/listing_v1_1.cwl'), get_data('tests/listing-job.yml')]), 1)
+@pytest.mark.skip(reason="This is not the default behaviour yet")
+@needs_docker
+def test_listing_v1_1():
+    # Default behavior in 1.1 will be no expansion
+    assert main([get_data('tests/wf/listing_v1_1.cwl'), get_data('tests/listing-job.yml')]) != 0
 
-@pytest.mark.skipif(onWindows(),
-                    reason="InplaceUpdate uses symlinks,does not run on windows without admin privileges")
-class TestInplaceUpdate(unittest.TestCase):
+@needs_docker
+def test_double_overwrite():
+    try:
+        tmp = tempfile.mkdtemp()
+        tmp_name = os.path.join(tmp, "value")
 
-    def test_updateval(self):
-        try:
-            tmp = tempfile.mkdtemp()
-            with open(os.path.join(tmp, "value"), "w") as f:
-                f.write("1")
-            out = tempfile.mkdtemp()
-            self.assertEquals(main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", os.path.join(tmp, "value")]), 0)
+        before_value, expected_value = "1", "3"
 
-            with open(os.path.join(tmp, "value"), "r") as f:
-                self.assertEquals("1", f.read())
-            with open(os.path.join(out, "value"), "r") as f:
-                self.assertEquals("2", f.read())
-        finally:
-            shutil.rmtree(tmp)
-            shutil.rmtree(out)
+        with open(tmp_name, "w") as f:
+            f.write(before_value)
 
-    def test_updateval_inplace(self):
-        try:
-            tmp = tempfile.mkdtemp()
-            with open(os.path.join(tmp, "value"), "w") as f:
-                f.write("1")
-            out = tempfile.mkdtemp()
-            self.assertEquals(main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updateval_inplace.cwl'), "-r", os.path.join(tmp, "value")]), 0)
+        assert main(["--enable-ext", get_data('tests/wf/mut2.cwl'), "-a", tmp_name]) == 0
 
-            with open(os.path.join(tmp, "value"), "r") as f:
-                self.assertEquals("2", f.read())
-            self.assertFalse(os.path.exists(os.path.join(out, "value")))
-        finally:
-            shutil.rmtree(tmp)
-            shutil.rmtree(out)
+        with open(tmp_name, "r") as f:
+            actual_value = f.read()
 
-    def test_write_write_conflict(self):
-        try:
-            tmp = tempfile.mkdtemp()
-            with open(os.path.join(tmp, "value"), "w") as f:
-                f.write("1")
+        assert actual_value == expected_value
+    finally:
+        shutil.rmtree(tmp)
 
-            self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut.cwl'), "-a", os.path.join(tmp, "value")]), 1)
-            with open(os.path.join(tmp, "value"), "r") as f:
-                self.assertEquals("2", f.read())
-        finally:
-            shutil.rmtree(tmp)
+@needs_docker
+def test_disable_file_overwrite_without_ext():
+    try:
+        tmp = tempfile.mkdtemp()
+        out = tempfile.mkdtemp()
 
-    def test_sequencing(self):
-        try:
-            tmp = tempfile.mkdtemp()
-            with open(os.path.join(tmp, "value"), "w") as f:
-                f.write("1")
+        tmp_name = os.path.join(tmp, "value")
+        out_name = os.path.join(out, "value")
 
-            self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut2.cwl'), "-a", os.path.join(tmp, "value")]), 0)
-            with open(os.path.join(tmp, "value"), "r") as f:
-                self.assertEquals("3", f.read())
-        finally:
-            shutil.rmtree(tmp)
+        before_value, expected_value = "1", "2"
 
-    # def test_read_write_conflict(self):
-    #     try:
-    #         tmp = tempfile.mkdtemp()
-    #         with open(os.path.join(tmp, "value"), "w") as f:
-    #             f.write("1")
+        with open(tmp_name, "w") as f:
+            f.write(before_value)
 
-    #         self.assertEquals(main(["--enable-ext", get_data('tests/wf/mut3.cwl'), "-a", os.path.join(tmp, "value")]), 0)
-    #     finally:
-    #         shutil.rmtree(tmp)
+        assert main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", tmp_name]) == 0
 
-    def test_updatedir(self):
-        try:
-            tmp = tempfile.mkdtemp()
-            with open(os.path.join(tmp, "value"), "w") as f:
-                f.write("1")
-            out = tempfile.mkdtemp()
+        with open(tmp_name, "r") as f:
+            tmp_value = f.read()
+        with open(out_name, "r") as f:
+            out_value = f.read()
 
-            self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
-            self.assertFalse(os.path.exists(os.path.join(out, "blurb")))
+        assert tmp_value == before_value
+        assert out_value == expected_value
+    finally:
+        shutil.rmtree(tmp)
+        shutil.rmtree(out)
 
-            self.assertEquals(main(["--outdir", out, get_data('tests/wf/updatedir.cwl'), "-r", tmp]), 0)
+@needs_docker
+def test_disable_dir_overwrite_without_ext():
+    try:
+        tmp = tempfile.mkdtemp()
+        out = tempfile.mkdtemp()
 
-            self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
-            self.assertTrue(os.path.exists(os.path.join(out, "inp/blurb")))
-        finally:
-            shutil.rmtree(tmp)
-            shutil.rmtree(out)
+        assert main(["--outdir", out, get_data('tests/wf/updatedir.cwl'), "-r", tmp]) == 0
 
-    def test_updatedir_inplace(self):
-        try:
-            tmp = tempfile.mkdtemp()
-            with open(os.path.join(tmp, "value"), "w") as f:
-                f.write("1")
-            out = tempfile.mkdtemp()
+        assert not os.listdir(tmp)
+        assert os.listdir(out)
+    finally:
+        shutil.rmtree(tmp)
+        shutil.rmtree(out)
 
-            self.assertFalse(os.path.exists(os.path.join(tmp, "blurb")))
-            self.assertFalse(os.path.exists(os.path.join(out, "blurb")))
+@needs_docker
+def test_disable_file_creation_in_outdir_with_ext():
+    try:
+        tmp = tempfile.mkdtemp()
+        out = tempfile.mkdtemp()
 
-            self.assertEquals(main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]), 0)
+        tmp_name = os.path.join(tmp, "value")
+        out_name = os.path.join(out, "value")
 
-            self.assertTrue(os.path.exists(os.path.join(tmp, "blurb")))
-            self.assertFalse(os.path.exists(os.path.join(out, "inp/blurb")))
-        finally:
-            shutil.rmtree(tmp)
-            shutil.rmtree(out)
+        before_value, expected_value = "1", "2"
 
-class TestV1_1backports(unittest.TestCase):
-    @needs_docker
-    def test_require_prefix_networkaccess(self):
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/networkaccess.cwl')]), 0)
-        self.assertEquals(main([get_data('tests/wf/networkaccess.cwl')]), 1)
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/networkaccess-fail.cwl')]), 1)
+        with open(tmp_name, "w") as f:
+            f.write(before_value)
 
-    @needs_docker
-    def test_require_prefix_workreuse(self):
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/workreuse.cwl')]), 0)
-        self.assertEquals(main([get_data('tests/wf/workreuse.cwl')]), 1)
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/workreuse-fail.cwl')]), 1)
+        params = ["--enable-ext", "--leave-outputs", "--outdir",
+                  out, get_data('tests/wf/updateval_inplace.cwl'), "-r", tmp_name]
+        assert main(params) == 0
 
-    @windows_needs_docker
-    def test_require_prefix_timelimit(self):
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/timelimit.cwl')]), 0)
-        self.assertEquals(main([get_data('tests/wf/timelimit.cwl')]), 1)
-        self.assertEquals(main(["--enable-ext", get_data('tests/wf/timelimit-fail.cwl')]), 1)
+        with open(tmp_name, "r") as f:
+            tmp_value = f.read()
+
+        assert tmp_value == expected_value
+        assert not os.path.exists(out_name)
+    finally:
+        shutil.rmtree(tmp)
+        shutil.rmtree(out)
+
+@needs_docker
+def test_disable_dir_creation_in_outdir_with_ext():
+    try:
+        tmp = tempfile.mkdtemp()
+        out = tempfile.mkdtemp()
+        params = ["--enable-ext", "--leave-outputs", "--outdir",
+                  out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]
+        assert main(params) == 0
+
+        assert os.listdir(tmp)
+        assert not os.listdir(out)
+    finally:
+        shutil.rmtree(tmp)
+        shutil.rmtree(out)
+
+@needs_docker
+def test_write_write_conflict():
+    with temp_dir('tmp') as tmp:
+        tmp = tempfile.mkdtemp()
+        tmp_name = os.path.join(tmp, "value")
+
+        before_value, expected_value = "1", "2"
+
+        with open(tmp_name, "w") as f:
+            f.write(before_value)
+
+        assert main(["--enable-ext", get_data('tests/wf/mut.cwl'), "-a", tmp_name]) != 0
+
+        with open(tmp_name, "r") as f:
+            tmp_value = f.read()
+
+        assert tmp_value == expected_value
+
+@pytest.mark.skip(reason="This test is non-deterministic")
+def test_read_write_conflict():
+    with temp_dir('tmp') as tmp:
+        tmp = tempfile.mkdtemp()
+        tmp_name = os.path.join(tmp, "value")
+
+        with open(tmp_name, "w") as f:
+            f.write("1")
+
+        assert main(["--enable-ext", get_data('tests/wf/mut3.cwl'), "-a", tmp_name]) != 0
+
+@needs_docker
+def test_require_prefix_networkaccess():
+    assert main(["--enable-ext", get_data('tests/wf/networkaccess.cwl')]) == 0
+    assert main([get_data('tests/wf/networkaccess.cwl')]) != 0
+    assert main(["--enable-ext", get_data('tests/wf/networkaccess-fail.cwl')]) != 0
+
+@needs_docker
+def test_require_prefix_workreuse():
+    assert main(["--enable-ext", get_data('tests/wf/workreuse.cwl')]) == 0
+    assert main([get_data('tests/wf/workreuse.cwl')]) != 0
+    assert main(["--enable-ext", get_data('tests/wf/workreuse-fail.cwl')]) != 0
+
+@windows_needs_docker
+def test_require_prefix_timelimit():
+    assert main(["--enable-ext", get_data('tests/wf/timelimit.cwl')]) == 0
+    assert main([get_data('tests/wf/timelimit.cwl')]) != 0
+    assert main(["--enable-ext", get_data('tests/wf/timelimit-fail.cwl')]) != 0
