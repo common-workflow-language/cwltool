@@ -1,11 +1,12 @@
+"""Static checking of CWL workflow connectivity."""
 from collections import namedtuple
-from typing import Any, Dict, List, Optional
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import Any, Dict, List, MutableMapping, MutableSequence, Optional
 
+import six
 from schema_salad import validate
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
-import six
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -15,7 +16,7 @@ from .utils import json_dumps
 
 def _get_type(tp):
     # type: (Any) -> Any
-    if isinstance(tp, dict):
+    if isinstance(tp, MutableMapping):
         if tp.get("type") not in ("array", "record", "enum"):
             return tp["type"]
     return tp
@@ -46,9 +47,9 @@ def merge_flatten_type(src):
     """Return the merge flattened type of the source type
     """
 
-    if isinstance(src, list):
+    if isinstance(src, MutableSequence):
         return [merge_flatten_type(t) for t in src]
-    if isinstance(src, dict) and src.get("type") == "array":
+    if isinstance(src, MutableMapping) and src.get("type") == "array":
         return src
     return {"items": src, "type": "array"}
 
@@ -65,7 +66,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
 
     if src == "Any" or sink == "Any":
         return True
-    if isinstance(src, dict) and isinstance(sink, dict):
+    if isinstance(src, MutableMapping) and isinstance(sink, MutableMapping):
         if sink.get("not_connected") and strict:
             return False
         if src["type"] == "array" and sink["type"] == "array":
@@ -79,35 +80,33 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
                         return False
             return True
         return can_assign_src_to_sink(src["type"], sink["type"], strict)
-    elif isinstance(src, list):
+    if isinstance(src, MutableSequence):
         if strict:
-            for t in src:
-                if not can_assign_src_to_sink(t, sink):
+            for this_src in src:
+                if not can_assign_src_to_sink(this_src, sink):
                     return False
             return True
-        else:
-            for t in src:
-                if can_assign_src_to_sink(t, sink):
-                    return True
-            return False
-    elif isinstance(sink, list):
-        for t in sink:
-            if can_assign_src_to_sink(src, t):
+        for this_src in src:
+            if can_assign_src_to_sink(this_src, sink):
                 return True
         return False
-    else:
-        return src == sink
+    if isinstance(sink, MutableSequence):
+        for this_sink in sink:
+            if can_assign_src_to_sink(src, this_sink):
+                return True
+        return False
+    return src == sink
 
 
 def _compare_records(src, sink, strict=False):
-    # type: (Dict[Text, Any], Dict[Text, Any], bool) -> bool
+    # type: (MutableMapping[Text, Any], MutableMapping[Text, Any], bool) -> bool
     """Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
     """
 
-    def _rec_fields(rec):  # type: (Dict[Text, Any]) -> Dict[Text, Any]
+    def _rec_fields(rec):  # type: (MutableMapping[Text, Any]) -> MutableMapping[Text, Any]
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
@@ -227,7 +226,7 @@ def check_all_types(src_dict, sinks, sourceField):
     for sink in sinks:
         if sourceField in sink:
             valueFrom = sink.get("valueFrom")
-            if isinstance(sink[sourceField], list):
+            if isinstance(sink[sourceField], MutableSequence):
                 srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
                 linkMerge = sink.get("linkMerge", ("merge_nested"
                                                    if len(sink[sourceField]) > 1 else None))

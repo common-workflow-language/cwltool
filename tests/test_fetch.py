@@ -8,12 +8,12 @@ import schema_salad.ref_resolver
 import schema_salad.schema
 from six.moves import urllib
 
+from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
-from cwltool.context import LoadingContext
 
 from .util import get_data
 

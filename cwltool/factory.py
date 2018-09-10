@@ -1,15 +1,17 @@
 from __future__ import absolute_import
 
 import os
-from typing import Callable as tCallable   # pylint: disable=unused-import
-from typing import Any, Dict, Union, Tuple
+from typing import Callable as tCallable  # pylint: disable=unused-import
+from typing import Any, Dict, Tuple, Union
+
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import load_tool
+from .context import LoadingContext, RuntimeContext
 from .executors import SingleJobExecutor
 from .process import Process
-from .context import LoadingContext, RuntimeContext
+
 
 class WorkflowStatus(Exception):
     def __init__(self, out, status):

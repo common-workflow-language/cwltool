@@ -1,29 +1,25 @@
+"""Shared functions and other definitions."""
 from __future__ import absolute_import
 
 import collections
-import json
 import os
-import sys
 import platform
 import random
 import shutil
-import string
-import stat
+import sys
 from functools import partial  # pylint: disable=unused-import
-from typing import (IO, Any, AnyStr,   # pylint: disable=unused-import
-                    Callable, Dict, Iterable, List, Optional, Union)
+from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
+                    Dict, Iterable, List, MutableMapping, MutableSequence,
+                    Optional, Union)
+
+import pkg_resources
+from mypy_extensions import TypedDict
+from schema_salad.utils import json_dump, json_dumps  # pylint: disable=unused-import
+from six.moves import urllib, zip_longest
 from typing_extensions import Deque, Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
-import pkg_resources
-
-
-import six
-from six.moves import urllib, zip_longest
-from mypy_extensions import TypedDict
 
 # no imports from cwltool allowed
-
-
 if os.name == 'posix':
     import subprocess32 as subprocess  # pylint: disable=unused-import
 else:
@@ -49,35 +45,22 @@ def versionstring():
         return u"%s %s" % (sys.argv[0], pkg[0].version)
     return u"%s %s" % (sys.argv[0], "unknown version")
 
-def aslist(l):  # type: (Any) -> List[Any]
-    if isinstance(l, list):
+def aslist(l):  # type: (Any) -> MutableSequence[Any]
+    """Wraps any non-MutableSequence/list in a list."""
+    if isinstance(l, MutableSequence):
         return l
     return [l]
 
-def copytree_with_merge(src, dst, symlinks=False, ignore=None):
-    # type: (Text, Text, bool, Callable[..., Any]) -> None
+def copytree_with_merge(src, dst):  # type: (Text, Text) -> None
     if not os.path.exists(dst):
         os.makedirs(dst)
         shutil.copystat(src, dst)
     lst = os.listdir(src)
-    if ignore:
-        excl = ignore(src, lst)
-        lst = [x for x in lst if x not in excl]
     for item in lst:
         spath = os.path.join(src, item)
         dpath = os.path.join(dst, item)
-        if symlinks and os.path.islink(spath):
-            if os.path.lexists(dpath):
-                os.remove(dpath)
-            os.symlink(os.readlink(spath), dpath)
-            try:
-                s_stat = os.lstat(spath)
-                mode = stat.S_IMODE(s_stat.st_mode)
-                os.lchmod(dpath, mode)
-            except:
-                pass  # lchmod not available, only available on unix
-        elif os.path.isdir(spath):
-            copytree_with_merge(spath, dpath, symlinks, ignore)
+        if os.path.isdir(spath):
+            copytree_with_merge(spath, dpath)
         else:
             shutil.copy2(spath, dpath)
 
@@ -135,8 +118,7 @@ def docker_windows_reverse_fileuri_adjust(fileuri):
                 filesplit[3] = filesplit[3]+':'
                 return '/'.join(filesplit)
             return fileuri
-        else:
-            raise ValueError("not a file URI")
+        raise ValueError("not a file URI")
     return fileuri
 
 
@@ -144,7 +126,6 @@ def onWindows():
     # type: () -> (bool)
     """ Check if we are on Windows OS. """
     return os.name == 'nt'
-
 
 
 def convert_pathsep_to_unix(path):  # type: (Text) -> (Text)
@@ -188,22 +169,23 @@ def cmp_like_py2(dict1, dict2):  # type: (Dict[Text, Any], Dict[Text, Any]) -> i
     return 0
 
 
-def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
-                      ):  # type: (...) -> Union[Text, List[Any], Dict[Text, Any]]
+def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequence[Any], Any]
+                      ):
+    # type: (...) -> Union[Text, MutableSequence[Any], MutableMapping[Text, Any]]
     """
     Convert any present byte string to unicode string, inplace.
     input is a dict of nested dicts and lists
     """
 
     # if input is dict, recursively call for each value
-    if isinstance(inp, dict):
-        for k, val in dict.items(inp):
-            inp[k] = bytes2str_in_dicts(val)
+    if isinstance(inp, MutableMapping):
+        for k in inp:
+            inp[k] = bytes2str_in_dicts(inp[k])
         return inp
 
     # if list, iterate through list and fn call
     # for all its elements
-    if isinstance(inp, list):
+    if isinstance(inp, MutableSequence):
         for idx, value in enumerate(inp):
             inp[idx] = bytes2str_in_dicts(value)
             return inp
@@ -216,39 +198,20 @@ def bytes2str_in_dicts(inp  # type: Union[Dict[Text, Any], List[Any], Any]
     return inp
 
 
-
-def visit_class(rec, cls, op):  # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+def visit_class(rec, cls, op):
+    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to with "class" in cls."""
 
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if "class" in rec and rec.get("class") in cls:
             op(rec)
         for d in rec:
             visit_class(rec[d], cls, op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             visit_class(d, cls, op)
 
-
-def json_dump(obj,       # type: Any
-              fp,        # type: IO[str]
-              **kwargs   # type: Any
-             ):  # type: (...) -> None
-    """ Force use of unicode. """
-    if six.PY2:
-        kwargs['encoding'] = 'utf-8'
-    json.dump(obj, fp, **kwargs)
-
-
-def json_dumps(obj,       # type: Any
-               **kwargs   # type: Any
-              ):  # type: (...) -> Union[Text, AnyStr]
-    """ Force use of unicode. """
-    if six.PY2:
-        kwargs['encoding'] = 'utf-8'
-    return json.dumps(obj, **kwargs)
-
-def random_outdir():
+def random_outdir():  # type: () -> Text
     """ Return the random directory name chosen to use for tool / workflow output """
     # compute this once and store it as a function attribute - each subsequent call will return the same value
     if not hasattr(random_outdir, 'outdir'):
