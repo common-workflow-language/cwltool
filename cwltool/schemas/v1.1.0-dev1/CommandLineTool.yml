@@ -257,11 +257,18 @@ $graph:
         - "null"
         - string
         - Expression
+        - string[]
       doc: |
-        Evaluate an expression to generate the output file metadata. Expression
-        should return a key-value map. Returned map should be set as the
-        `metadata` property of the output file or files. The same map
-        should be set as the `metadata` property of all secondary files.
+        If the value is an expression, expression should return a key-value map.
+        Returned map should be set as the `metadata` property of the output file
+        or files. The same map should be set as the `metadata` property of all
+        secondary files.
+
+        If the value is a string or an array of strings, these must be input
+        parameter references. The `metadata` fields for the referenced inputs are
+        intersected and the resulting key-value map is set as the `metadata`
+        property of the output file or files. The same map should be set as the
+        `metadata` property of all secondary files.
 
 - name: CommandLineBindable
   type: record

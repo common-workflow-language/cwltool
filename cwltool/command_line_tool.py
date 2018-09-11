@@ -220,6 +220,25 @@ def check_valid_locations(fs_access, ob):
     if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
+def intersect_pair(dict_1, dict_2):
+    out_dict = dict()
+    for k, v in dict_1.items():
+        if k in dict_2 and dict_2[k] == v:
+            out_dict[k] = v
+    return out_dict
+
+def metadata_intersection(file_list):
+    """
+    Return intersected metadata for a list of files.
+    """
+    if not file_list:
+        return dict()
+    out_metadata = file_list[0].get('metadata', dict())
+    for file_o in file_list:
+        new_metadata = file_o.get('metadata', dict())
+        out_metadata = intersect_pair(out_metadata, new_metadata)
+    return out_metadata
+
 
 OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], Dict[Text, Any]]]
 
@@ -760,9 +779,18 @@ class CommandLineTool(Process):
                                         primary["secondaryFiles"].append(sfitem)
 
             if "addMetadata" in binding:
-                metadata_dict = builder.do_eval(binding["addMetadata"])
+                add_metadata = builder.do_eval(binding["addMetadata"])
+                if isinstance(add_metadata, MutableMapping):
+                    metadata_dict = add_metadata
+                else:
+                    input_list = []
+                    for input_id in aslist(add_metadata):
+                        # For union type lists only take files and folders
+                        input_list.extend([f for f in aslist(builder.job[input_id])
+                                           if isinstance(f, MutableMapping)])
+                    metadata_dict = metadata_intersection(input_list)
                 for primary in aslist(r):
-                    if isinstance(primary, dict):
+                    if isinstance(primary, MutableMapping):
                         primary["metadata"] = metadata_dict
                         if "secondaryFiles" in primary:
                             for sf in primary["secondaryFiles"]:
