@@ -221,6 +221,7 @@ def check_valid_locations(fs_access, ob):
         raise validate.ValidationException("Does not exist or is not a Directory: '%s'" % ob["location"])
 
 def intersect_pair(dict_1, dict_2):
+    # type: (MutableMapping[Text, Any], MutableMapping[Text, Any]) -> MutableMapping[Text, Any]
     out_dict = dict()
     for k, v in dict_1.items():
         if k in dict_2 and dict_2[k] == v:
