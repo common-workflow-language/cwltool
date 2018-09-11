@@ -228,6 +228,7 @@ def intersect_pair(dict_1, dict_2):
     return out_dict
 
 def metadata_intersection(file_list):
+    # type: (List[Dict]) -> Dict[Text, Any]
     """
     Return intersected metadata for a list of files.
     """
