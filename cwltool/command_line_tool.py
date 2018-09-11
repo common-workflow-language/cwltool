@@ -47,7 +47,7 @@ from .software_requirements import (  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
-                    windows_default_container_id)
+                    random_outdir, windows_default_container_id)
 if TYPE_CHECKING:
     from .provenance import CreateProvProfile  # pylint: disable=unused-import
 
@@ -377,7 +377,7 @@ class CommandLineTool(Process):
 
             if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
                 if docker_req and runtimeContext.use_container:
-                    cachebuilder.outdir = runtimeContext.docker_outdir or "/var/spool/cwl"
+                    cachebuilder.outdir = runtimeContext.docker_outdir or random_outdir()
                 else:
                     cachebuilder.outdir = jobcache
 

@@ -4,7 +4,9 @@ from __future__ import absolute_import
 import collections
 import os
 import platform
+import random
 import shutil
+import string
 import sys
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
@@ -209,3 +211,10 @@ def visit_class(rec, cls, op):
     if isinstance(rec, MutableSequence):
         for d in rec:
             visit_class(d, cls, op)
+
+def random_outdir():  # type: () -> Text
+    """ Return the random directory name chosen to use for tool / workflow output """
+    # compute this once and store it as a function attribute - each subsequent call will return the same value
+    if not hasattr(random_outdir, 'outdir'):
+        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore
+    return random_outdir.outdir  # type: ignore
