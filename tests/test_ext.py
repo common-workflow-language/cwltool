@@ -8,7 +8,7 @@ import pytest
 
 from cwltool.main import main
 
-from .util import get_data, needs_docker, windows_needs_docker
+from .util import get_data, needs_docker, temp_dir, windows_needs_docker
 
 
 @needs_docker
@@ -18,18 +18,24 @@ def test_missing_enable_ext():
 
 @needs_docker
 def test_listing_deep():
-    assert main(["--enable-ext", get_data('tests/wf/listing_deep.cwl'), get_data('tests/listing-job.yml')]) == 0
+    params = ["--enable-ext", get_data('tests/wf/listing_deep.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) == 0
 
 @needs_docker
 def test_listing_shallow():
-    # This fails on purpose, because it tries to access listing in a subdirectory the same way that listing_deep does,
-    # but it shouldn't be expanded.
-    assert main(["--enable-ext", get_data('tests/wf/listing_shallow.cwl'), get_data('tests/listing-job.yml')]) != 0
+    # This fails on purpose, because it tries to access listing in a subdirectory
+    # the same way that listing_deep does, but it shouldn't be expanded.
+    params = ["--enable-ext", get_data('tests/wf/listing_shallow.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) != 0
 
 @needs_docker
 def test_listing_none():
     # This fails on purpose, because it tries to access listing but it shouldn't be there.
-    assert main(["--enable-ext", get_data('tests/wf/listing_none.cwl'), get_data('tests/listing-job.yml')]) != 0
+    params = ["--enable-ext", get_data('tests/wf/listing_none.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) != 0
 
 @needs_docker
 def test_listing_v1_0():
@@ -117,7 +123,9 @@ def test_disable_file_creation_in_outdir_with_ext():
         with open(tmp_name, "w") as f:
             f.write(before_value)
 
-        assert main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updateval_inplace.cwl'), "-r", tmp_name]) == 0
+        params = ["--enable-ext", "--leave-outputs", "--outdir",
+                  out, get_data('tests/wf/updateval_inplace.cwl'), "-r", tmp_name]
+        assert main(params) == 0
 
         with open(tmp_name, "r") as f:
             tmp_value = f.read()
@@ -133,8 +141,9 @@ def test_disable_dir_creation_in_outdir_with_ext():
     try:
         tmp = tempfile.mkdtemp()
         out = tempfile.mkdtemp()
-
-        assert main(["--enable-ext", "--leave-outputs", "--outdir", out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]) == 0
+        params = ["--enable-ext", "--leave-outputs", "--outdir",
+                  out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]
+        assert main(params) == 0
 
         assert os.listdir(tmp)
         assert not os.listdir(out)
@@ -144,7 +153,7 @@ def test_disable_dir_creation_in_outdir_with_ext():
 
 @needs_docker
 def test_write_write_conflict():
-    try:
+    with temp_dir('tmp') as tmp:
         tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
 
@@ -159,12 +168,10 @@ def test_write_write_conflict():
             tmp_value = f.read()
 
         assert tmp_value == expected_value
-    finally:
-        shutil.rmtree(tmp)
 
 @pytest.mark.skip(reason="This test is non-deterministic")
 def test_read_write_conflict():
-    try:
+    with temp_dir('tmp') as tmp:
         tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
 
@@ -172,8 +179,6 @@ def test_read_write_conflict():
             f.write("1")
 
         assert main(["--enable-ext", get_data('tests/wf/mut3.cwl'), "-a", tmp_name]) != 0
-    finally:
-        shutil.rmtree(tmp)
 
 @needs_docker
 def test_require_prefix_networkaccess():
