@@ -9,6 +9,7 @@ eggs/
 *.egg-info/
 *.egg
 .tox/
+.pytest_cache
 
 # Editor Temps
 .*.sw?
@@ -44,4 +45,5 @@ output.txt
 pydocstyle_report.txt
 response.txt
 test.txt
+time.txt
 value

@@ -1,9 +1,8 @@
 #!/usr/bin/env python
+"""Entry point for cwltool."""
 from __future__ import absolute_import, print_function
 
 import argparse
-import codecs
-from codecs import StreamWriter  # pylint: disable=unused-import
 import collections
 import copy
 import functools
@@ -12,34 +11,39 @@ import logging
 import os
 import signal
 import sys
+from codecs import StreamWriter, getwriter  # pylint: disable=unused-import
+from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
+                    MutableMapping, MutableSequence, Optional, TextIO, Tuple,
+                    Union, cast)
 
-from typing import (IO, Any, Callable, Dict,  # pylint: disable=unused-import
-                    Iterable, List, Mapping, MutableMapping, Optional, Text,
-                    TextIO, Tuple, Union, cast)
 import pkg_resources  # part of setuptools
-import ruamel.yaml as yaml
-import schema_salad.validate as validate
+from ruamel import yaml
+from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-import six
-from six import string_types
+from six import string_types, iteritems, PY3
+from typing_extensions import Text
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
+from .builder import HasReqsHints  # pylint: disable=unused-import
+from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
 from .executors import MultithreadedJobExecutor, SingleJobExecutor
-from .load_tool import (  # pylint: disable=unused-import
-    FetcherConstructorType, fetch_document, jobloaderctx,
-    load_overrides, make_tool, resolve_overrides, resolve_tool_uri,
-    validate_document)
+from .load_tool import (FetcherConstructorType,  # pylint: disable=unused-import
+                        fetch_document, jobloaderctx, load_overrides,
+                        make_tool, resolve_overrides, resolve_tool_uri,
+                        validate_document)
 from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
 from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
                          visit_class)
-from .process import (Process, scandeps,   # pylint: disable=unused-import
-                      shortname, use_custom_schema, use_standard_schema, add_sizes)
+from .process import (Process, add_sizes,  # pylint: disable=unused-import
+                      scandeps, shortname, use_custom_schema,
+                      use_standard_schema)
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -48,10 +52,8 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
-                    versionstring, windows_default_container_id,
-                    processes_to_kill)
-from .context import LoadingContext, RuntimeContext, getdefault
-from .builder import HasReqsHints
+                    processes_to_kill, versionstring,
+                    windows_default_container_id)
 
 
 def _terminate_processes():
@@ -72,7 +74,7 @@ def _terminate_processes():
         processes_to_kill.popleft().kill()
 
 
-def _signal_handler(signum, frame):
+def _signal_handler(signum, _):
     # type: (int, Any) -> None
     """Kill all spawned processes and exit.
 
@@ -85,8 +87,12 @@ def _signal_handler(signum, frame):
     sys.exit(signum)
 
 
-def generate_example_input(inptype):
-    # type: (Union[Text, Dict[Text, Any]]) -> Any
+def generate_example_input(inptype,     # type: Any
+                           default      # type: Optional[Any]
+                          ):  # type: (...) -> Tuple[Any, Text]
+    """Converts a single input schema into an example."""
+    example = None
+    comment = u""
     defaults = {u'null': 'null',
                 u'Any': 'null',
                 u'boolean': False,
@@ -94,47 +100,124 @@ def generate_example_input(inptype):
                 u'long': 0,
                 u'float': 0.1,
                 u'double': 0.1,
-                u'string': 'default_string',
-                u'File': {'class': 'File',
-                          'path': 'default/file/path'},
-                u'Directory': {'class': 'Directory',
-                               'path': 'default/directory/path'}
+                u'string': 'a_string',
+                u'File': yaml.comments.CommentedMap([
+                    ('class', 'File'), ('path', 'a/file/path')]),
+                u'Directory': yaml.comments.CommentedMap([
+                    ('class', 'Directory'), ('path', 'a/directory/path')])
                }  # type: Dict[Text, Any]
-    if (not isinstance(inptype, string_types) and
-            not isinstance(inptype, collections.Mapping)
-            and isinstance(inptype, collections.MutableSet)):
-        if len(inptype) == 2 and 'null' in inptype:
+    if isinstance(inptype, collections.MutableSequence):
+        optional = False
+        if 'null' in inptype:
             inptype.remove('null')
-            return generate_example_input(inptype[0])
-            # TODO: indicate that this input is optional
+            optional = True
+        if len(inptype) == 1:
+            example, comment = generate_example_input(inptype[0], default)
+            if optional:
+                if comment:
+                    comment = u"{} (optional)".format(comment)
+                else:
+                    comment = u"optional"
         else:
-            raise Exception("multi-types other than optional not yet supported"
-                            " for generating example input objects: %s"
-                            % inptype)
-    if isinstance(inptype, collections.Mapping) and 'type' in inptype:
+            example = yaml.comments.CommentedSeq()
+            for index, entry in enumerate(inptype):
+                value, e_comment = generate_example_input(entry, default)
+                example.append(value)
+                example.yaml_add_eol_comment(e_comment, index)
+            if optional:
+                comment = u"optional"
+    elif isinstance(inptype, collections.Mapping) and 'type' in inptype:
         if inptype['type'] == 'array':
-            return [generate_example_input(inptype['items'])]
+            if len(inptype['items']) == 1 and 'type' in inptype['items'][0] \
+                    and inptype['items'][0]['type'] == 'enum':
+                # array of just an enum then list all the options
+                example = inptype['items'][0]['symbols']
+                if 'name' in inptype['items'][0]:
+                    comment = u'array of type "{}".'.format(inptype['items'][0]['name'])
+            else:
+                value, comment = generate_example_input(inptype['items'], None)
+                comment = u"array of " + comment
+                if len(inptype['items']) == 1:
+                    example = [value]
+                else:
+                    example = value
+            if default:
+                example = default
         elif inptype['type'] == 'enum':
-            return 'valid_enum_value'
-            # TODO: list valid values in a comment
+            if default:
+                example = default
+            elif 'default' in inptype:
+                example = inptype['default']
+            elif len(inptype['symbols']) == 1:
+                example = inptype['symbols'][0]
+            else:
+                example = '{}_enum_value'.format(inptype.get('name', 'valid'))
+            comment = u'enum; valid values: "{}"'.format(
+                '", "'.join(inptype['symbols']))
         elif inptype['type'] == 'record':
-            record = {}
+            example = yaml.comments.CommentedMap()
+            if 'name' in inptype:
+                comment = u'"{}" record type.'.format(inptype['name'])
             for field in inptype['fields']:
-                record[shortname(field['name'])] = generate_example_input(
-                    field['type'])
-            return record
-    elif isinstance(inptype, string_types):
-        return defaults.get(Text(inptype), 'custom_type')
-        # TODO: support custom types, complex arrays
+                value, f_comment = generate_example_input(field['type'], None)
+                example.insert(0, shortname(field['name']), value, f_comment)
+        elif 'default' in inptype:
+            example = inptype['default']
+            comment = u'default value of type "{}".'.format(inptype['type'])
+        else:
+            example = defaults.get(inptype['type'], Text(inptype))
+            comment = u'type "{}".'.format(inptype['type'])
+    else:
+        if not default:
+            example = defaults.get(Text(inptype), Text(inptype))
+            comment = u'type "{}"'.format(inptype)
+        else:
+            example = default
+            comment = u'default value of type "{}".'.format(inptype)
+    return example, comment
 
+def realize_input_schema(input_types,  # type: MutableSequence[Dict[Text, Any]]
+                         schema_defs   # type: Dict[Text, Any]
+                        ):  # type: (...) -> MutableSequence[Dict[Text, Any]]
+    """Replace references to named typed with the actual types."""
+    for index, entry in enumerate(input_types):
+        if isinstance(entry, string_types):
+            if '#' in entry:
+                _, input_type_name = entry.split('#')
+            else:
+                input_type_name = entry
+            if input_type_name in schema_defs:
+                entry = input_types[index] = schema_defs[input_type_name]
+        if isinstance(entry, collections.Mapping):
+            if isinstance(entry['type'], string_types) and '#' in entry['type']:
+                _, input_type_name = entry['type'].split('#')
+                if input_type_name in schema_defs:
+                    input_types[index]['type'] = realize_input_schema(
+                        schema_defs[input_type_name], schema_defs)
+            if isinstance(entry['type'], collections.MutableSequence):
+                input_types[index]['type'] = realize_input_schema(
+                    entry['type'], schema_defs)
+            if isinstance(entry['type'], collections.Mapping):
+                input_types[index]['type'] = realize_input_schema(
+                    [input_types[index]['type']], schema_defs)
+            if entry['type'] == 'array':
+                items = entry['items'] if \
+                    not isinstance(entry['items'], string_types) else [entry['items']]
+                input_types[index]['items'] = realize_input_schema(items, schema_defs)
+            if entry['type'] == 'record':
+                input_types[index]['fields'] = realize_input_schema(
+                    entry['fields'], schema_defs)
+    return input_types
 
 def generate_input_template(tool):
     # type: (Process) -> Dict[Text, Any]
-    template = {}
-    for inp in tool.tool["inputs"]:
+    """Generate an example input object for the given CWL process."""
+    template = yaml.comments.CommentedMap()
+    for inp in realize_input_schema(tool.tool["inputs"], tool.schemaDefs):
         name = shortname(inp["id"])
-        inptype = inp["type"]
-        template[name] = generate_example_input(inptype)
+        value, comment = generate_example_input(
+            inp['type'], inp.get('default', None))
+        template.insert(0, name, value, comment)
     return template
 
 def load_job_order(args,                 # type: argparse.Namespace
@@ -177,22 +260,21 @@ def load_job_order(args,                 # type: argparse.Namespace
 
 def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text, Any]]
                    args,                    # type: argparse.Namespace
-                   t,                       # type: Process
+                   process,                 # type: Process
                    loader,                  # type: Loader
                    stdout,                  # type: Union[TextIO, StreamWriter]
                    print_input_deps=False,  # type: bool
-                   provArgs=None,           # type: ResearchObject
                    relative_deps=False,     # type: bool
                    make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
                    secret_store=None        # type: SecretStore
-                  ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Optional[MutableMapping[Text, Any]]]
-    secrets_req, _ = t.get_requirement("http://commonwl.org/cwltool#Secrets")
+                  ):  # type: (...) -> MutableMapping[Text, Any]
+    secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if not job_order_object:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
         toolparser = generate_parser(
-            argparse.ArgumentParser(prog=args.workflow), t, namemap, records)
+            argparse.ArgumentParser(prog=args.workflow), process, namemap, records)
         if toolparser:
             if args.tool_help:
                 toolparser.print_help()
@@ -201,9 +283,9 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in six.iteritems(cmd_line)
+                    k: v for k, v in iteritems(cmd_line)
                     if k.startswith(record_name)}
-                for key, value in six.iteritems(record_items):
+                for key, value in iteritems(record_items):
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -212,8 +294,8 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                 try:
                     job_order_object = cast(
                         MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
-                except Exception as e:
-                    _logger.error(Text(e), exc_info=args.debug)
+                except Exception as err:
+                    _logger.error(Text(err), exc_info=args.debug)
                     exit(1)
             else:
                 job_order_object = {"id": args.workflow}
@@ -232,7 +314,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         else:
             job_order_object = None
 
-    for inp in t.tool["inputs"]:
+    for inp in process.tool["inputs"]:
         if "default" in inp and (
                 not job_order_object or shortname(inp["id"]) not in job_order_object):
             if not job_order_object:
@@ -240,7 +322,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             job_order_object[shortname(inp["id"])] = inp["default"]
 
     if not job_order_object:
-        if len(t.tool["inputs"]) > 0:
+        if process.tool["inputs"]:
             if toolparser:
                 print(u"\nOptions for {} ".format(args.workflow))
                 toolparser.print_help()
@@ -249,31 +331,26 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             exit(1)
         else:
             job_order_object = {}
-    if provArgs:
-        jobobj_for_prov = copy.deepcopy(job_order_object)
-        input_for_prov = printdeps(
-            jobobj_for_prov, loader, stdout, relative_deps, "", provArgs,
-            basedir=file_uri(str(input_basedir) + "/"))
 
     if print_input_deps:
         printdeps(job_order_object, loader, stdout, relative_deps, "",
                   basedir=file_uri(str(input_basedir) + "/"))
         exit(0)
 
-    def pathToLoc(p):
+    def path_to_loc(p):
         if "location" not in p and "path" in p:
             p["location"] = p["path"]
             del p["path"]
 
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
-    ns.update(t.metadata.get("$namespaces", {}))
+    ns.update(process.metadata.get("$namespaces", {}))
     ld = Loader(ns)
 
     def expand_formats(p):
         if "format" in p:
             p["format"] = ld.expand_url(p["format"], "")
 
-    visit_class(job_order_object, ("File", "Directory"), pathToLoc)
+    visit_class(job_order_object, ("File", "Directory"), path_to_loc)
     visit_class(job_order_object, ("File",), functools.partial(add_sizes, make_fs_access(input_basedir)))
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
@@ -287,9 +364,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         del job_order_object["cwl:tool"]
     if "id" in job_order_object:
         del job_order_object["id"]
-    if provArgs:
-        return (job_order_object, input_for_prov[1])
-    return (job_order_object, None)
+    return job_order_object
 
 
 
@@ -309,7 +384,7 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
               stdout,           # type: Union[TextIO, StreamWriter]
               relative_deps,    # type: bool
               uri,              # type: Text
-              provArgs=None,    # type: Any
+              prov_args=None,   # type: Any
               basedir=None      # type: Text
              ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Optional[Dict[Text, Any]]]
     """Print a JSON representation of the dependencies of the CWL document."""
@@ -333,7 +408,7 @@ def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
             raise Exception(u"Unknown relative_deps %s" % relative_deps)
         absdeps = copy.deepcopy(deps)
         visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-    if provArgs:
+    if prov_args:
         return (deps, absdeps)
     stdout.write(json_dumps(deps, indent=4))
     return (None, None)
@@ -350,7 +425,7 @@ def print_pack(document_loader,  # type: Loader
     return json_dumps(packed["$graph"][0], indent=4)
 
 
-def supportedCWLversions(enable_dev):  # type: (bool) -> List[Text]
+def supported_cwl_versions(enable_dev):  # type: (bool) -> List[Text]
     # ALLUPDATES and UPDATES are dicts
     if enable_dev:
         versions = list(ALLUPDATES)
@@ -363,7 +438,7 @@ def main(argsl=None,                   # type: List[str]
          args=None,                    # type: argparse.Namespace
          job_order_object=None,        # type: MutableMapping[Text, Any]
          stdin=sys.stdin,              # type: IO[Any]
-         stdout=None,                  # type: Union[TextIO, codecs.StreamWriter]
+         stdout=None,                  # type: Union[TextIO, StreamWriter]
          stderr=sys.stderr,            # type: IO[Any]
          versionfunc=versionstring,    # type: Callable[[], Text]
          logger_handler=None,          #
@@ -375,10 +450,10 @@ def main(argsl=None,                   # type: List[str]
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")  # type: ignore
                 and sys.stdout.encoding != 'UTF-8'):  # type: ignore
-            if six.PY3 and hasattr(sys.stdout, "detach"):
+            if PY3 and hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
             else:
-                stdout = codecs.getwriter('utf-8')(sys.stdout)  # type: ignore
+                stdout = getwriter('utf-8')(sys.stdout)  # type: ignore
         else:
             stdout = cast(TextIO, sys.stdout)  # type: ignore
 
@@ -390,7 +465,6 @@ def main(argsl=None,                   # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
-    input_for_prov = None
     try:
         if args is None:
             if argsl is None:
@@ -412,7 +486,7 @@ def main(argsl=None,                   # type: List[str]
         # If caller parsed its own arguments, it may not include every
         # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.
-        for key, val in six.iteritems(get_default_args()):
+        for key, val in iteritems(get_default_args()):
             if not hasattr(args, key):
                 setattr(args, key, val)
 
@@ -432,11 +506,10 @@ def main(argsl=None,                   # type: List[str]
         if args.version:
             print(versionfunc())
             return 0
-        else:
-            _logger.info(versionfunc())
+        _logger.info(versionfunc())
 
         if args.print_supported_versions:
-            print("\n".join(supportedCWLversions(args.enable_dev)))
+            print("\n".join(supported_cwl_versions(args.enable_dev)))
             return 0
 
         if not args.workflow:
@@ -463,19 +536,13 @@ def main(argsl=None,                   # type: List[str]
             res.close()
         else:
             use_standard_schema("v1.0")
-        #call function from provenance.py if the provenance flag is enabled.
         if args.provenance:
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
-
             runtimeContext.research_obj = ResearchObject(
-                temp_prefix_ro=args.tmpdir_prefix,
-                # Optionals, might be None
-                orcid=args.orcid,
+                temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
-
-
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
@@ -537,13 +604,17 @@ def main(argsl=None,                   # type: List[str]
             tool = make_tool(document_loader, avsc_names,
                              metadata, uri, loadingContext)
             if args.make_template:
-                yaml.safe_dump(generate_input_template(tool), sys.stdout,
-                               default_flow_style=False, indent=4,
-                               block_seq_indent=2)
+                def my_represent_none(self, data):  # pylint: disable=unused-argument
+                    """Force clean representation of 'null'."""
+                    return self.represent_scalar(u'tag:yaml.org,2002:null', u'null')
+                yaml.RoundTripRepresenter.add_representer(type(None), my_represent_none)
+                yaml.round_trip_dump(
+                    generate_input_template(tool), sys.stdout,
+                    default_flow_style=False, indent=4, block_seq_indent=2)
                 return 0
 
             if args.validate:
-                _logger.info("Tool definition is valid")
+                print("{} is valid CWL.".format(args.workflow))
                 return 0
 
             if args.print_rdf:
@@ -583,7 +654,7 @@ def main(argsl=None,                   # type: List[str]
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
             if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
                 sl = "/" if getattr(runtimeContext, dirprefix).endswith("/") or dirprefix == "cachedir" \
-                        else ""
+                    else ""
                 setattr(runtimeContext, dirprefix,
                         os.path.abspath(getattr(runtimeContext, dirprefix)) + sl)
                 if not os.path.exists(os.path.dirname(getattr(runtimeContext, dirprefix))):
@@ -601,10 +672,9 @@ def main(argsl=None,                   # type: List[str]
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
         runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
         try:
-            initialized_job_order_object, input_for_prov = init_job_order(
+            initialized_job_order_object = init_job_order(
                 job_order_object, args, tool, jobloader, stdout,
                 print_input_deps=args.print_input_deps,
-                provArgs=runtimeContext.research_obj,
                 relative_deps=args.relative_deps,
                 make_fs_access=runtimeContext.make_fs_access,
                 input_basedir=input_basedir,
@@ -630,17 +700,20 @@ def main(argsl=None,                   # type: List[str]
 
             if conf_file or use_conda_dependencies:
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
+            else:
+                runtimeContext.find_default_container = functools.partial(
+                    find_default_container,
+                    default_container=runtimeContext.default_container,
+                    use_biocontainers=args.beta_use_biocontainers)
 
-            runtimeContext.find_default_container = functools.partial(
-                find_default_container,
-                default_container=runtimeContext.default_container,
-                use_biocontainers=args.beta_use_biocontainers)
             (out, status) = executor(tool,
                                      initialized_job_order_object,
                                      runtimeContext,
                                      logger=_logger)
 
             if out is not None:
+                if runtimeContext.research_obj:
+                    runtimeContext.research_obj.create_job(out, None, True)
                 def loc_to_path(obj):
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in obj:
@@ -679,7 +752,7 @@ def main(argsl=None,                   # type: List[str]
             return 33
         except WorkflowException as exc:
             _logger.error(
-                u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(six.text_type(exc)),
+                u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(Text(exc)),
                 exc_info=args.debug)
             return 1
         except Exception as exc:

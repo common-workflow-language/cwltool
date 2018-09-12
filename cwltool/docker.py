@@ -1,3 +1,4 @@
+"""Enables Docker software containers via the {dx-,u,}docker runtimes."""
 from __future__ import absolute_import
 
 import datetime
@@ -8,21 +9,23 @@ import sys
 import tempfile
 import threading
 from io import open  # pylint: disable=redefined-builtin
-from typing import (Any, Dict, List,  # pylint: disable=unused-import
-                    MutableMapping, Optional, Set, Text)
+from typing import Dict, List, MutableMapping, Optional, Set
 
 import requests
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
+from .context import RuntimeContext  # pylint: disable=unused-import
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import (PathMapper,  # pylint: disable=unused-import
-                         ensure_writable)
+from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import ensure_writable
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
                     subprocess)
-from .context import RuntimeContext  # pylint: disable=unused-import
+
 
 _IMAGES = set()  # type: Set[Text]
 _IMAGES_LOCK = threading.Lock()
@@ -132,7 +135,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
                 with open(os.path.join(
-                    dockerfile_dir, "Dockerfile"), "wb") as dfile:
+                        dockerfile_dir, "Dockerfile"), "wb") as dfile:
                     dfile.write(docker_requirement["dockerFile"].encode('utf-8'))
                 cmd = ["docker", "build", "--tag=%s" %
                        str(docker_requirement["dockerImageId"]), dockerfile_dir]
@@ -343,7 +346,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
                     _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                                  cidfile_dir + "%s is not a directory or "
+                                  cidfile_dir + " is not a directory or "
                                   "directory doesn't exist, please check it first")
                     exit(2)
                 if not os.path.exists(cidfile_dir):
