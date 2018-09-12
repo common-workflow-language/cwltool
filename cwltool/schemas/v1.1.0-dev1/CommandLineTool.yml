@@ -866,7 +866,17 @@ $graph:
     - name: listing
       type:
         - type: array
-          items: ["null", File, File[], Directory, Dirent, string, Expression]
+          items:
+            - "null"
+            - File
+            - type: array
+              items:
+                - File
+                - Directory
+            - Directory
+            - Dirent
+            - string
+            - Expression
         - string
         - Expression
       jsonldPredicate:
