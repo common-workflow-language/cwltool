@@ -313,7 +313,7 @@ class Builder(HasReqsHints):
                             sfpath = self.do_eval(sf, context=datum)
                         else:
                             if sf.endswith('?') and \
-                               self.cwl_version != "v1.0":
+                               self.cwl_version in ['v1.1.0-dev1']:
                                 sf_required = False
                                 sf = sf[:-1]
                             sfpath = substitute(datum["basename"], sf)
