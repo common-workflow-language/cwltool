@@ -235,6 +235,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_windows_path_adjust(vol.target)))
                 else:
                     if host_outdir_tgt:
+                        # Ensure that parent directory exists.
+                        # This can be necessary when Dirent::entryname points to a relative path.
+                        os.makedirs(os.path.dirname(host_outdir_tgt), exist_ok=True)
                         shutil.copy(vol.resolved, host_outdir_tgt)
                         ensure_writable(host_outdir_tgt)
                     else:
