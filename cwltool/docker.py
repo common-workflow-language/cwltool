@@ -239,7 +239,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         # This can be necessary when Dirent::entryname points to a relative path.
                         host_outdir_tgt_parent = os.path.dirname(host_outdir_tgt)
                         if not os.path.exists(host_outdir_tgt_parent):
-                            os.makedirs(host_outdir_tgt_parent, exist_ok=True)
+                            os.makedirs(host_outdir_tgt_parent)
                         shutil.copy(vol.resolved, host_outdir_tgt)
                         ensure_writable(host_outdir_tgt)
                     else:
