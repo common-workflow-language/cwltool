@@ -976,7 +976,5 @@ def compute_checksums(fs_access, fileobj):
             while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
-            f.seek(0, 2)
-            filesize = f.tell()
         fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = filesize
+        fileobj["size"] = fs_access.size(fileobj["location"])
