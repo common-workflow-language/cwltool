@@ -655,8 +655,6 @@ class CommandLineTool(Process):
                     for gb in globpatterns:
                         if gb.startswith(outdir):
                             gb = gb[len(outdir) + 1:]
-                        elif gb == ".":
-                            gb = outdir
                         elif gb.startswith("/"):
                             raise WorkflowException(
                                 "glob patterns must not start with '/'")
