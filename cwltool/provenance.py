@@ -1018,6 +1018,7 @@ class ResearchObject():
             bag_it_file.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
     
     def write_log(self,logger):
+        # type: (IO) -> None
         self.self_check()
         """Copies log files to the snapshot/ directory."""
         assert self.folder
