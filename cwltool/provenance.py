@@ -964,13 +964,14 @@ class ResearchObject():
         self.orcid = _valid_orcid(orcid)
         self.full_name = full_name or None
         self.folder = os.path.abspath(tempfile.mkdtemp(prefix=temp_prefix_ro))  # type: Optional[Text]
+        self.final_location = None  # type: Optional[Text]
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
         self._file_provenance = {}  # type: Dict
-        self._external_aggregates = [] # type: List[Dict]
-        self.annotations = [] # type: List[Dict]
-        self._content_types = {} # type: Dict[Text,str]
+        self._external_aggregates = []  # type: List[Dict]
+        self.annotations = []  # type: List[Dict]
+        self._content_types = {}  # type: Dict[Text,str]
 
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
@@ -986,9 +987,16 @@ class ResearchObject():
         _logger.debug(u"[provenance] Temporary research object: %s",
                       self.folder)
 
+    def self_check(self):  # type: () -> None
+        """Raises ValueError if this RO is closed."""
+        if not self.folder:
+            raise ValueError(
+                "This ResearchObject has already been closed and is not "
+                "available for futher manipulation.")
+
     def __str__(self):
         return "ResearchObject <%s> in <%s>" % (
-            self.ro_uuid, self.folder)
+            self.ro_uuid, self.folder or self.final_location)
 
     def _initialize(self):
         # type: (...) -> None
@@ -1018,6 +1026,7 @@ class ResearchObject():
     def user_provenance(self, document):
         # type: (ProvDocument) -> None
         """Add the user provenance."""
+        self.self_check()
         (username, fullname) = _whoami()
 
         if not self.full_name:
@@ -1049,6 +1058,7 @@ class ResearchObject():
     def write_bag_file(self, path, encoding=ENCODING):
         # type: (Text, Optional[str]) -> IO
         """Write the bag file into our research object."""
+        self.self_check()
         # For some reason below throws BlockingIOError
         #fp = BufferedWriter(WritableBagFile(self, path))
         bag_file = cast(IO, WritableBagFile(self, path))
@@ -1062,6 +1072,7 @@ class ResearchObject():
     def add_tagfile(self, path, when=None):
         # type: (Text, datetime.datetime) -> None
         """Add tag files to our research object."""
+        self.self_check()
         checksums = {}
         # Read file to calculate its checksum
         if os.path.isdir(path):
@@ -1215,6 +1226,7 @@ class ResearchObject():
 
     def add_uri(self, uri, when=None):
         # type: (str, Optional[datetime.datetime]) -> Dict
+        self.self_check()
         aggr = self._self_made(when=when)
         aggr["uri"] = uri
         self._external_aggregates.append(aggr)
@@ -1223,6 +1235,7 @@ class ResearchObject():
     def add_annotation(self, about, content, motivated_by="oa:describing"):
         # type: (str, List[str], str) -> str
         """Cheap URI relativize for current directory and /."""
+        self.self_check()
         curr = self.base_uri + METADATA + "/"
         content = [c.replace(curr, "").replace(self.base_uri, "../")
                    for c in content]
@@ -1342,6 +1355,7 @@ class ResearchObject():
 
     def generate_snapshot(self, prov_dep):
         # type: (MutableMapping[Text, Any]) -> None
+        self.self_check()
         """Copy all of the CWL files to the snapshot/ directory."""
         assert self.folder
         for key, value in prov_dep.items():
@@ -1374,6 +1388,7 @@ class ResearchObject():
 
     def packed_workflow(self, packed):  # type: (Text) -> None
         """Pack CWL description to generate re-runnable CWL object in RO."""
+        self.self_check()
         rel_path = posixpath.join(_posix_path(WORKFLOW), "packed.cwl")
         # Write as binary
         with self.write_bag_file(rel_path, encoding=None) as write_pack:
@@ -1383,12 +1398,14 @@ class ResearchObject():
 
     def has_data_file(self, sha1hash):
         # type: (str) -> bool
+        self.self_check()
         assert self.folder
         folder = os.path.join(self.folder, DATA, sha1hash[0:2])
         return os.path.isfile(os.path.join(folder, sha1hash))
 
     def add_data_file(self, from_fp, when=None, content_type=None):
         # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
+        self.self_check()
         """Copy inputs to data/ folder."""
         with tempfile.NamedTemporaryFile(
                 prefix=self.temp_prefix, delete=False) as tmp:
@@ -1439,6 +1456,7 @@ class ResearchObject():
     def add_to_manifest(self, rel_path, checksums):
         # type: (Text, Dict[str,str]) -> None
         """Add files to the research object manifest."""
+        self.self_check()
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
 
@@ -1608,6 +1626,7 @@ class ResearchObject():
             assert self.folder
             shutil.move(self.folder, save_to)
             _logger.info(u"[provenance] Research Object saved to %s", save_to)
+            self.final_location = save_to
         # Forget our temporary folder, which should no longer exists
         # This makes later close() a no-op
         self.folder = None
