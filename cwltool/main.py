@@ -465,6 +465,7 @@ def main(argsl=None,                   # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
+    prov_handler = None  # type: Optional[logger.FileHandler]
     try:
         if args is None:
             if argsl is None:
@@ -493,6 +494,14 @@ def main(argsl=None,                   # type: List[str]
         rdflib_logger = logging.getLogger("rdflib.term")
         rdflib_logger.addHandler(stderr_handler)
         rdflib_logger.setLevel(logging.ERROR)
+        if args.provenance:
+            try:
+                os.makedirs(args.provenance)
+            except os.error:
+                pass
+            prov_handler = logging.FileHandler(
+                os.path.join(args.provenance, "log"))
+            _logger.addHandler(prov_handler)
         if args.quiet:
             _logger.setLevel(logging.WARN)
         if runtimeContext.debug:
@@ -502,6 +511,8 @@ def main(argsl=None,                   # type: List[str]
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
             stderr_handler.setFormatter(formatter)
+            if prov_handler:
+                prov_handler.setFormatter(formatter)
 
         if args.version:
             print(versionfunc())
@@ -774,6 +785,9 @@ def main(argsl=None,                   # type: List[str]
             runtimeContext.research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
+        if prov_handler:
+            prov_handler.close()
+            _logger.removeHandler(prov_handler)
         _logger.addHandler(defaultStreamHandler)
 
 
