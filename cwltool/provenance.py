@@ -1396,17 +1396,17 @@ class ResearchObject():
             write_pack.write(packed.encode(ENCODING))
         _logger.debug(u"[provenance] Added packed workflow: %s", rel_path)
 
-    def has_data_file(self, sha1hash):
-        # type: (str) -> bool
-        self.self_check()
-        assert self.folder
-        folder = os.path.join(self.folder, DATA, sha1hash[0:2])
+    def has_data_file(self, sha1hash):  # type: (str) -> bool
+        """Confirms the presence of the given file in the RO."""
+        assert self.folder or self.final_location
+        folder = os.path.join(self.folder or self.final_location,  # type: ignore
+                              DATA, sha1hash[0:2])
         return os.path.isfile(os.path.join(folder, sha1hash))
 
     def add_data_file(self, from_fp, when=None, content_type=None):
         # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
-        self.self_check()
         """Copy inputs to data/ folder."""
+        self.self_check()
         with tempfile.NamedTemporaryFile(
                 prefix=self.temp_prefix, delete=False) as tmp:
             checksum = checksum_copy(from_fp, tmp)

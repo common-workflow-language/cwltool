@@ -465,7 +465,8 @@ def main(argsl=None,                   # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
-    prov_handler = None  # type: Optional[logger.FileHandler]
+    prov_log_handler = None  # type: Optional[logging.FileHandler]
+    prov_log_handler_file = None  # type: Optional[IO[Any]]
     try:
         if args is None:
             if argsl is None:
@@ -494,25 +495,16 @@ def main(argsl=None,                   # type: List[str]
         rdflib_logger = logging.getLogger("rdflib.term")
         rdflib_logger.addHandler(stderr_handler)
         rdflib_logger.setLevel(logging.ERROR)
-        if args.provenance:
-            try:
-                os.makedirs(args.provenance)
-            except os.error:
-                pass
-            prov_handler = logging.FileHandler(
-                os.path.join(args.provenance, "log"))
-            _logger.addHandler(prov_handler)
         if args.quiet:
             _logger.setLevel(logging.WARN)
         if runtimeContext.debug:
             _logger.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
+        formatter = None  # type: Optional[logging.Formatter]
         if args.timestamps:
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
             stderr_handler.setFormatter(formatter)
-            if prov_handler:
-                prov_handler.setFormatter(formatter)
 
         if args.version:
             print(versionfunc())
@@ -554,6 +546,14 @@ def main(argsl=None,                   # type: List[str]
             runtimeContext.research_obj = ResearchObject(
                 temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
+            assert runtimeContext.research_obj.folder
+            prov_log_handler_filename = os.path.join(
+                runtimeContext.research_obj.folder, "log")
+            prov_log_handler = logging.FileHandler(
+                str(prov_log_handler_filename))
+            if formatter:
+                prov_log_handler.setFormatter(formatter)
+            _logger.addHandler(prov_log_handler)
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
@@ -766,28 +766,30 @@ def main(argsl=None,                   # type: List[str]
                 u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(Text(exc)),
                 exc_info=args.debug)
             return 1
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             _logger.error(
                 u"Unhandled error%s:\n  %s", try_again_msg, exc, exc_info=args.debug)
             return 1
 
     finally:
         if args and runtimeContext and runtimeContext.research_obj \
-                and args.rm_tmpdir and workflowobj:
+                and workflowobj:
             #adding all related cwl files to RO
+            research_obj = runtimeContext.research_obj
             prov_dependencies = printdeps(
                 workflowobj, document_loader, stdout, args.relative_deps, uri,
-                runtimeContext.research_obj)
+                research_obj)
             prov_dep = prov_dependencies[1]
             assert prov_dep
-            runtimeContext.research_obj.generate_snapshot(prov_dep)
-
-            runtimeContext.research_obj.close(args.provenance)
+            research_obj.generate_snapshot(prov_dep)
+            if prov_log_handler:
+                prov_log_handler.close()
+                _logger.removeHandler(prov_log_handler)
+                with open(prov_log_handler_filename, "rb") as log:
+                    research_obj.add_data_file(log)
+            research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
-        if prov_handler:
-            prov_handler.close()
-            _logger.removeHandler(prov_handler)
         _logger.addHandler(defaultStreamHandler)
 
 
