@@ -1016,6 +1016,23 @@ class ResearchObject():
             # TODO: \n or \r\n ?
             bag_it_file.write(u"BagIt-Version: 0.97\n")
             bag_it_file.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
+    
+    def write_log(self,logger):
+        self.self_check()
+        """Copies log files to the snapshot/ directory."""
+        assert self.folder
+        path = os.path.join(self.folder, SNAPSHOT, logger.name.split("/")[-1])
+        # FIXME: What if destination path already exists?
+        try:
+            if os.path.isdir(path):
+                shutil.copytree(logger.name, path)
+            else:
+                shutil.copy(logger.name, path)
+            when = datetime.datetime.fromtimestamp(os.path.getmtime(logger.name))
+            self.add_tagfile(path, when)
+        except PermissionError:
+            pass  # FIXME: avoids duplicate snapshotting; need better solution
+
 
     def _finalize(self):
         # type: () -> None
