@@ -307,8 +307,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                 if fs_access.isdir(src) and fs_access.isdir(dst):
                     # merge directories
                     for dir_entry in scandir(src):
-                        _relocate(dir_entry, fs_access.join(
-                            dst, dir_entry.name))
+                        _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
                 else:
                     shutil.move(src, dst)
                     return
