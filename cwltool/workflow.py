@@ -675,7 +675,7 @@ class WorkflowStep(Process):
                 toolpath_object[toolfield].append(param)
 
         missing = []
-        for i, tool_entry in enumerate(self.embedded_tool.tool["inputs"]):
+        for _, tool_entry in enumerate(self.embedded_tool.tool["inputs"]):
             if shortname(tool_entry["id"]) not in bound:
                 if "null" not in tool_entry["type"] and "default" not in tool_entry:
                     missing.append(shortname(tool_entry["id"]))
@@ -730,7 +730,7 @@ class WorkflowStep(Process):
             else:
                 nesting = 1
 
-            for index in range(0, nesting):
+            for _ in range(0, nesting):
                 for oparam in outputparms:
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
