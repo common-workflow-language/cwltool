@@ -1649,22 +1649,34 @@ class ResearchObject():
         # This makes later close() a no-op
         self.folder = None
 
-def checksum_copy(file_path,            # type: IO
-                  copy_to_fp=None,      # type: Optional[IO]
+def checksum_copy(src_file,            # type: IO
+                  dst_file=None,      # type: Optional[IO]
                   hasher=Hasher,        # type: Callable[[], Any]
                   buffersize=1024*1024  # type: int
                  ): # type: (...) -> str
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()
-    contents = file_path.read(buffersize)
+    contents = src_file.read(buffersize)
+    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
+        temp_location = os.path.join(os.path.dirname(dst_file.name),
+                                     str(uuid.uuid4()))
+        try:
+            os.rename(dst_file.name, temp_location)
+            os.link(src_file.name, dst_file.name)
+            dst_file = None
+            os.unlink(temp_location)
+        except OSError:
+            pass
+        if os.path.exists(temp_location):
+            os.rename(temp_location, dst_file.name)  # type: ignore
     while contents != b"":
-        if copy_to_fp is not None:
-            copy_to_fp.write(contents)
+        if dst_file:
+            dst_file.write(contents)
         checksum.update(contents)
-        contents = file_path.read(buffersize)
-    if copy_to_fp is not None:
-        copy_to_fp.flush()
+        contents = src_file.read(buffersize)
+    if dst_file is not None:
+        dst_file.flush()
     return checksum.hexdigest().lower()
 
 def copy_job_order(job, job_order_object):
