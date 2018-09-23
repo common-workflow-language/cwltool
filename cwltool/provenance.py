@@ -1416,10 +1416,10 @@ class ResearchObject():
 
     def has_data_file(self, sha1hash):  # type: (str) -> bool
         """Confirms the presence of the given file in the RO."""
-        assert self.folder or self.final_location
-        folder = os.path.join(self.folder or self.final_location,  # type: ignore
-                              DATA, sha1hash[0:2])
-        return os.path.isfile(os.path.join(folder, sha1hash))
+        folder = cast(str, self.folder or self.final_location)
+        folder = os.path.join(folder, DATA, sha1hash[0:2])
+        hash_path = os.path.join(folder, sha1hash)
+        return os.path.isfile(hash_path)
 
     def add_data_file(self, from_fp, when=None, content_type=None):
         # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
