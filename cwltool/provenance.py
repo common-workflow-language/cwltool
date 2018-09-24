@@ -1021,8 +1021,8 @@ class ResearchObject():
             self.folder, SNAPSHOT, os.path.basename(log_path))
         while os.path.exists(dst_path):
             dst_path = dst_path + "_{}".format(uuid.uuid4())
-        shutil.copy(log_path, dst_path)
-        when = datetime.datetime.fromtimestamp(os.path.getmtime(log_path))
+        shutil.move(log_path, dst_path)
+        when = datetime.datetime.fromtimestamp(os.path.getmtime(dst_path))
         self.add_tagfile(dst_path, when)
 
     def _finalize(self):  # type: () -> None
