@@ -72,7 +72,7 @@ __citation__ = "https://doi.org/10.5281/zenodo.1208477"
 # 2. Bump minor number if adding resources or PROV statements
 # 3. Bump patch number for non-breaking non-adding changes,
 #    e.g. fixing broken relative paths
-CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.5.0"
+CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.6.0"
 
 # Research Object folders
 METADATA = "metadata"
