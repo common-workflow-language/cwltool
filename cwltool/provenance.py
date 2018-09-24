@@ -962,9 +962,9 @@ class ResearchObject():
 
         self.temp_prefix = temp_prefix_ro
         self.orcid = _valid_orcid(orcid)
-        self.full_name = full_name or None
-        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=temp_prefix_ro))  # type: Optional[Text]
-        self.final_location = None  # type: Optional[Text]
+        self.full_name = full_name
+        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=temp_prefix_ro))  # type: Text
+        self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict
         self.tagfiles = set()  # type: Set
@@ -989,26 +989,23 @@ class ResearchObject():
 
     def self_check(self):  # type: () -> None
         """Raises ValueError if this RO is closed."""
-        if not self.folder:
+        if self.closed:
             raise ValueError(
                 "This ResearchObject has already been closed and is not "
                 "available for futher manipulation.")
 
     def __str__(self):
-        return "ResearchObject <%s> in <%s>" % (
-            self.ro_uuid, self.folder or self.final_location)
+        return "ResearchObject <{}> in <{}>".format(self.ro_uuid, self.folder)
 
-    def _initialize(self):
-        # type: (...) -> None
-        assert self.folder
-        for research_obj_folder in (METADATA, DATA, WORKFLOW, SNAPSHOT, PROVENANCE):
+    def _initialize(self):  # type: () -> None
+        for research_obj_folder in (METADATA, DATA, WORKFLOW, SNAPSHOT,
+                                    PROVENANCE):
             os.makedirs(os.path.join(self.folder, research_obj_folder))
         self._initialize_bagit()
 
-    def _initialize_bagit(self):
-        # type: (...) -> None
-        # Write fixed bagit header
-        assert self.folder
+    def _initialize_bagit(self):  # type: () -> None
+        """Write fixed bagit header."""
+        self.self_check()
         bagit = os.path.join(self.folder, "bagit.txt")
         # encoding: always UTF-8 (although ASCII would suffice here)
         # newline: ensure LF also on Windows
@@ -1017,32 +1014,22 @@ class ResearchObject():
             bag_it_file.write(u"BagIt-Version: 0.97\n")
             bag_it_file.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
     
-    def write_log(self,logger):
-        # type: (IO) -> None
-        self.self_check()
+    def write_log(self, log_path):  # type: (Text) -> None
         """Copies log files to the snapshot/ directory."""
-        assert self.folder
-        path = os.path.join(self.folder, SNAPSHOT, logger.name.split("/")[-1])
-        # FIXME: What if destination path already exists?
-        try:
-            if os.path.isdir(path):
-                shutil.copytree(logger.name, path)
-            else:
-                shutil.copy(logger.name, path)
-            when = datetime.datetime.fromtimestamp(os.path.getmtime(logger.name))
-            self.add_tagfile(path, when)
-        except PermissionError:
-            pass  # FIXME: avoids duplicate snapshotting; need better solution
+        self.self_check()
+        dst_path = os.path.join(
+            self.folder, SNAPSHOT, os.path.basename(log_path))
+        while os.path.exists(dst_path):
+            dst_path = dst_path + "_{}".format(uuid.uuid4())
+        shutil.copy(log_path, dst_path)
+        when = datetime.datetime.fromtimestamp(os.path.getmtime(log_path))
+        self.add_tagfile(dst_path, when)
 
-
-    def _finalize(self):
-        # type: () -> None
+    def _finalize(self):  # type: () -> None
         self._write_ro_manifest()
         self._write_bag_info()
 
-
-    def user_provenance(self, document):
-        # type: (ProvDocument) -> None
+    def user_provenance(self, document):  # type: (ProvDocument) -> None
         """Add the user provenance."""
         self.self_check()
         (username, fullname) = _whoami()
@@ -1112,7 +1099,6 @@ class ResearchObject():
             if hashlib.sha512:
                 tag_file.seek(0)
                 checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
-        assert self.folder
         rel_path = _posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
         self.add_to_manifest(rel_path, checksums)
@@ -1375,7 +1361,6 @@ class ResearchObject():
         # type: (MutableMapping[Text, Any]) -> None
         self.self_check()
         """Copy all of the CWL files to the snapshot/ directory."""
-        assert self.folder
         for key, value in prov_dep.items():
             if key == "location" and value.split("/")[-1]:
                 filename = value.split("/")[-1]
@@ -1416,8 +1401,7 @@ class ResearchObject():
 
     def has_data_file(self, sha1hash):  # type: (str) -> bool
         """Confirms the presence of the given file in the RO."""
-        folder = cast(str, self.folder or self.final_location)
-        folder = os.path.join(folder, DATA, sha1hash[0:2])
+        folder = os.path.join(self.folder, DATA, sha1hash[0:2])
         hash_path = os.path.join(folder, sha1hash)
         return os.path.isfile(hash_path)
 
@@ -1430,7 +1414,6 @@ class ResearchObject():
             checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
-        assert self.folder
         folder = os.path.join(self.folder, DATA, checksum[0:2])
         path = os.path.join(folder, checksum)
         # os.rename assumed safe, as our temp file should
@@ -1485,7 +1468,6 @@ class ResearchObject():
             # metadata file, go to tag manifest
             manifest = "tagmanifest"
 
-        assert self.folder
         # Add checksums to corresponding manifest files
         for (method, hash_value) in checksums.items():
             # File not in manifest because we bailed out on
@@ -1505,7 +1487,6 @@ class ResearchObject():
         # type: (Text, Any) -> None
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
-        assert self.folder
         local_path = os.path.join(self.folder, _local_path(rel_path))
         if not os.path.exists(local_path):
             raise IOError("File %s does not exist within RO: %s" % (rel_path, local_path))
@@ -1570,8 +1551,11 @@ class ResearchObject():
             if structure.get("class") == "File":
                 relative_path = None
                 if "checksum" in structure:
-                    sha1, checksum = structure["checksum"].split("$")
-                    assert sha1 == SHA1
+                    alg, checksum = structure["checksum"].split("$")
+                    if alg != SHA1:
+                        raise TypeError(
+                            "Only SHA1 CWL checksums are currently supported: "
+                            "{}".format(structure))
                     if self.has_data_file(checksum):
                         prefix = checksum[0:2]
                         relative_path = posixpath.join(
@@ -1629,7 +1613,7 @@ class ResearchObject():
         ensure the temporary files of this Research Object are removed.
         """
         if save_to is None:
-            if self.folder:
+            if not self.closed:
                 _logger.debug(u"[provenance] Deleting temporary %s", self.folder)
                 shutil.rmtree(self.folder, ignore_errors=True)
         else:
@@ -1641,13 +1625,10 @@ class ResearchObject():
             if os.path.isdir(save_to):
                 _logger.info(u"[provenance] Deleting existing %s", save_to)
                 shutil.rmtree(save_to)
-            assert self.folder
             shutil.move(self.folder, save_to)
             _logger.info(u"[provenance] Research Object saved to %s", save_to)
-            self.final_location = save_to
-        # Forget our temporary folder, which should no longer exists
-        # This makes later close() a no-op
-        self.folder = None
+            self.folder = save_to
+        self.closed = True
 
 def checksum_copy(src_file,            # type: IO
                   dst_file=None,      # type: Optional[IO]

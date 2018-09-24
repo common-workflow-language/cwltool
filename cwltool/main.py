@@ -785,8 +785,7 @@ def main(argsl=None,                   # type: List[str]
             if prov_log_handler:
                 prov_log_handler.close()
                 _logger.removeHandler(prov_log_handler)
-                with open(prov_log_handler_filename, "rb") as log:
-                    research_obj.write_log(log)
+                research_obj.write_log(prov_log_handler_filename)
             research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
