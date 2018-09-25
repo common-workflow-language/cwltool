@@ -568,7 +568,7 @@ def main(argsl=None,                   # type: List[str]
             loadingContext = LoadingContext(vars(args))
         else:
             loadingContext = loadingContext.copy()
-        loadingContext.research_obj = ro
+        loadingContext.research_obj = runtimeContext.research_obj
         loadingContext.disable_js_validation = \
             args.disable_js_validation or (not args.do_validate)
         loadingContext.construct_tool_object = getdefault(
