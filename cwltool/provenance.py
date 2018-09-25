@@ -977,7 +977,7 @@ class ResearchObject():
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
         self.ro_uuid = uuid.uuid4()
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
-        self.cwltool_version = "cwltool (unknown version)"
+        self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
         # This function will be added by create_job()
         self.make_fs_access = None  # type: Optional[Callable[[Text], StdFsAccess]]
