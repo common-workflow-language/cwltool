@@ -492,12 +492,15 @@ def main(argsl=None,                   # type: List[str]
             if not hasattr(args, key):
                 setattr(args, key, val)
 
+        ## Configure logging
         rdflib_logger = logging.getLogger("rdflib.term")
         rdflib_logger.addHandler(stderr_handler)
         rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
-            _logger.setLevel(logging.WARN)
+            # Silence STDERR, not an eventual provenance log file
+            stderr_handler.setLevel(logging.WARN)
         if runtimeContext.debug:
+            # Increase to debug for both stderr and provenance log file
             _logger.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
@@ -505,6 +508,7 @@ def main(argsl=None,                   # type: List[str]
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
             stderr_handler.setFormatter(formatter)
+        ##
 
         if args.version:
             print(versionfunc())
