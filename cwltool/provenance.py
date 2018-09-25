@@ -1018,13 +1018,13 @@ class ResearchObject():
     def open_log_file_for_activity(self, uuid_uri): # type: (Text) -> IO
         self.self_check()
         # Ensure valid UUID for safe filenames
-        activity_uuid = uuid.UUID(uuid_uri.replace("urn:uuid:", ""))
+        activity_uuid = uuid.UUID(uuid_uri)
         if activity_uuid.urn == self.engine_uuid:
             # It's the engine aka cwltool!
             name = "engine"
         else:
             name = "activity"
-        p = os.path.join(LOGS, "%s.%s.txt" % (name, activity_uuid))
+        p = os.path.join(LOGS, "{}.{}.txt".format(name, activity_uuid))
         _logger.debug("[provenance] Opening log file for %s: %s" % (name, p))
         self.add_annotation(activity_uuid.urn, [p], CWLPROV["log"].uri)
         return self.write_bag_file(p)
@@ -1363,8 +1363,8 @@ class ResearchObject():
 
     def generate_snapshot(self, prov_dep):
         # type: (MutableMapping[Text, Any]) -> None
-        self.self_check()
         """Copy all of the CWL files to the snapshot/ directory."""
+        self.self_check()
         for key, value in prov_dep.items():
             if key == "location" and value.split("/")[-1]:
                 filename = value.split("/")[-1]
