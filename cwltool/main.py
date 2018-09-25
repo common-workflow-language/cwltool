@@ -550,6 +550,7 @@ def main(argsl=None,                   # type: List[str]
             ro = ResearchObject(
                 temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
+            runtimeContext.research_obj = ro
             log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
             prov_log_handler = logging.StreamHandler(log_file_io)
             class ProvLogFormatter(logging.Formatter):
