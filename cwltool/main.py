@@ -552,10 +552,18 @@ def main(argsl=None,                   # type: List[str]
                 runtimeContext.research_obj.folder, "log")
             prov_log_handler = logging.FileHandler(
                 str(prov_log_handler_filename))
-            formatter = logging.Formatter("[%(asctime)s] %(message)s",
-                                          "%Y-%m-%dT%H:%M:%SZ")
-            formatter.converter = time.gmtime
-            prov_log_handler.setFormatter(formatter)
+            class ProvLogFormatter(logging.Formatter):
+                """Enforce ISO8601 with both T and Z."""
+                def __init__(self):
+                    super(ProvLogFormatter, self).__init__(
+                        "[%(asctime)sZ] %(message)s")
+
+                def formatTime(self, record, datefmt=None):
+                    record_time = time.gmtime(record.created)
+                    formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
+                    with_msecs = "%s,%03d" % (formatted_time, record.msecs)
+                    return with_msecs
+            prov_log_handler.setFormatter(ProvLogFormatter())
             _logger.addHandler(prov_log_handler)
 
         if loadingContext is None:
