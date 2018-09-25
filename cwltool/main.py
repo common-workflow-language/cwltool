@@ -552,7 +552,7 @@ def main(argsl=None,                   # type: List[str]
                 runtimeContext.research_obj.folder, "log")
             prov_log_handler = logging.FileHandler(
                 str(prov_log_handler_filename))
-            formatter = logging.Formatter("[%(asctime)s]Z %(message)s")
+            formatter = logging.Formatter("[%(asctime)sZ] %(message)s")
             formatter.converter = time.gmtime
             prov_log_handler.setFormatter(formatter)
             _logger.addHandler(prov_log_handler)
