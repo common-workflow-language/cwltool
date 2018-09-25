@@ -47,14 +47,16 @@ def tool_resolver(document_loader, uri):
     return None
 
 
-ga4gh_tool_registries = ["https://dockstore.org:8443"]
+ga4gh_tool_registries = ["https://dockstore.org/api"]
+GA4GH_TRS = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor"
 
 def resolve_ga4gh_tool(document_loader, uri):
     path, version = uri.partition(":")[::2]
     if not version:
         version = "latest"
     for reg in ga4gh_tool_registries:
-        ds = "{0}/api/ga4gh/v1/tools/{1}/versions/{2}/plain-CWL/descriptor".format(reg, urllib.parse.quote(path, ""), urllib.parse.quote(version, ""))
+        ds = GA4GH_TRS.format(reg, urllib.parse.quote(path, ""),
+                              urllib.parse.quote(version, ""))
         try:
             resp = document_loader.session.head(ds)
             resp.raise_for_status()
