@@ -11,6 +11,7 @@ import logging
 import os
 import signal
 import sys
+import time
 from codecs import StreamWriter, getwriter  # pylint: disable=unused-import
 from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
                     MutableMapping, MutableSequence, Optional, TextIO, Tuple,
@@ -551,8 +552,9 @@ def main(argsl=None,                   # type: List[str]
                 runtimeContext.research_obj.folder, "log")
             prov_log_handler = logging.FileHandler(
                 str(prov_log_handler_filename))
-            if formatter:
-                prov_log_handler.setFormatter(formatter)
+            formatter = logging.Formatter("[%(asctime)s]Z %(message)s")
+            formatter.converter = time.gmtime
+            prov_log_handler.setFormatter(formatter)
             _logger.addHandler(prov_log_handler)
 
         if loadingContext is None:
