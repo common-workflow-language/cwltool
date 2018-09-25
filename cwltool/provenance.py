@@ -1568,7 +1568,7 @@ class ResearchObject():
                 if not relative_path and "location" in structure:
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
-                    _logger.info("Adding to RO %s", structure["location"])
+                    _logger.info("[provenance] Adding to RO %s", structure["location"])
                     fsaccess = self.make_fs_access("")
                     with fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
