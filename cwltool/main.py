@@ -554,11 +554,12 @@ def main(argsl=None,                   # type: List[str]
                 str(prov_log_handler_filename))
             class ProvLogFormatter(logging.Formatter):
                 """Enforce ISO8601 with both T and Z."""
-                def __init__(self):
+                def __init__(self):  # type: () -> None
                     super(ProvLogFormatter, self).__init__(
                         "[%(asctime)sZ] %(message)s")
 
                 def formatTime(self, record, datefmt=None):
+                    # type: (logging.LogRecord, str) -> str
                     record_time = time.gmtime(record.created)
                     formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
                     with_msecs = "%s,%03d" % (formatted_time, record.msecs)
