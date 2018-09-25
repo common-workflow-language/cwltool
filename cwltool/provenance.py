@@ -82,6 +82,7 @@ SNAPSHOT = "snapshot"
 # sub-folders
 MAIN = os.path.join(WORKFLOW, "main")
 PROVENANCE = os.path.join(METADATA, "provenance")
+LOGS = os.path.join(METADATA, "logs")
 WFDESC = Namespace("wfdesc", 'http://purl.org/wf4ever/wfdesc#')
 WFPROV = Namespace("wfprov", 'http://purl.org/wf4ever/wfprov#')
 WF4EVER = Namespace("wf4ever", 'http://purl.org/wf4ever/wf4ever#')
@@ -999,7 +1000,7 @@ class ResearchObject():
 
     def _initialize(self):  # type: () -> None
         for research_obj_folder in (METADATA, DATA, WORKFLOW, SNAPSHOT,
-                                    PROVENANCE):
+                                    PROVENANCE, LOGS):
             os.makedirs(os.path.join(self.folder, research_obj_folder))
         self._initialize_bagit()
 
@@ -1013,17 +1014,19 @@ class ResearchObject():
             # TODO: \n or \r\n ?
             bag_it_file.write(u"BagIt-Version: 0.97\n")
             bag_it_file.write(u"Tag-File-Character-Encoding: %s\n" % ENCODING)
-    
-    def write_log(self, log_path):  # type: (Text) -> None
-        """Copies log files to the snapshot/ directory."""
+
+    def open_log_file_for_activity(self, uuid_uri): # type: (Text) -> IO
         self.self_check()
-        dst_path = os.path.join(
-            self.folder, SNAPSHOT, os.path.basename(log_path))
-        while os.path.exists(dst_path):
-            dst_path = dst_path + "_{}".format(uuid.uuid4())
-        shutil.move(log_path, dst_path)
-        when = datetime.datetime.fromtimestamp(os.path.getmtime(dst_path))
-        self.add_tagfile(dst_path, when)
+        # Ensure valid UUID for safe filenames
+        activity_uuid = uuid.UUID(uuid_uri.replace("urn:uuid:", ""))
+        if activity_uuid.urn == self.engine_uuid:
+            # It's the engine aka cwltool!
+            name = "engine"
+        else:
+            name = "activity"
+        p = os.path.join(LOGS, "%s.%s.txt" % (name, activity_uuid))
+        _logger.debug("[provenance] Opening log file for %s: %s" % (name, p))
+        return self.write_bag_file(p)
 
     def _finalize(self):  # type: () -> None
         self._write_ro_manifest()
