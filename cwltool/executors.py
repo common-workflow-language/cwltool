@@ -98,9 +98,10 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
 
         if runtime_context.rm_tmpdir:
             if runtime_context.cachedir is None:
-                output_dirs = self.output_dirs # type: Iterable[Any]
+                output_dirs = self.output_dirs  # type: Iterable[Any]
             else:
-                output_dirs = filter(lambda x: not x.startswith(runtime_context.cachedir), self.output_dirs)
+                output_dirs = filter(lambda x: not x.startswith(
+                    runtime_context.cachedir), self.output_dirs)
             cleanIntermediate(output_dirs)
 
         if self.final_output and self.final_status:
