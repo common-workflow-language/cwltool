@@ -566,7 +566,11 @@ def main(argsl=None,                   # type: List[str]
                     return with_msecs
             prov_log_handler.setFormatter(ProvLogFormatter())
             _logger.addHandler(prov_log_handler)
-            _logger.debug("[provenance] Logging to %s", log_file_io)
+            _logger.debug(u"[provenance] Logging to %s", log_file_io)
+            if argsl:
+                # Log cwltool command line options to provenance file
+                _logger.info("[cwltool] %s %s", sys.argv[0], u" ".join(argsl))
+            _logger.debug(u"[cwltool] Arguments: %s", args)
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
