@@ -180,11 +180,11 @@ By default, cwltool searches https://dockstore.org/ .  Use ``--add-tool-registry
 
 For example ::
 
-  cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats:master test.json
+  cwltool quay.io/collaboratory/dockstore-tool-bamstats:develop test.json
 
 and (defaults to latest when a version is not specified) ::
 
-  cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats test.json
+  cwltool quay.io/collaboratory/dockstore-tool-bamstats test.json
 
 For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats
 
