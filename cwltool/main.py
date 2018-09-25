@@ -466,8 +466,7 @@ def main(argsl=None,                   # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
-    prov_log_handler = None  # type: Optional[logging.FileHandler]
-    prov_log_handler_file = None  # type: Optional[IO[Any]]
+    prov_log_handler = None  # type: Optional[logging.StreamHandler]
     try:
         if args is None:
             if argsl is None:
@@ -493,12 +492,15 @@ def main(argsl=None,                   # type: List[str]
             if not hasattr(args, key):
                 setattr(args, key, val)
 
+        ## Configure logging
         rdflib_logger = logging.getLogger("rdflib.term")
         rdflib_logger.addHandler(stderr_handler)
         rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
-            _logger.setLevel(logging.WARN)
+            # Silence STDERR, not an eventual provenance log file
+            stderr_handler.setLevel(logging.WARN)
         if runtimeContext.debug:
+            # Increase to debug for both stderr and provenance log file
             _logger.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
@@ -506,6 +508,7 @@ def main(argsl=None,                   # type: List[str]
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
             stderr_handler.setFormatter(formatter)
+        ##
 
         if args.version:
             print(versionfunc())
@@ -544,14 +547,12 @@ def main(argsl=None,                   # type: List[str]
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
-            runtimeContext.research_obj = ResearchObject(
+            ro = ResearchObject(
                 temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
-            assert runtimeContext.research_obj.folder
-            prov_log_handler_filename = os.path.join(
-                runtimeContext.research_obj.folder, "log")
-            prov_log_handler = logging.FileHandler(
-                str(prov_log_handler_filename))
+            runtimeContext.research_obj = ro
+            log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
+            prov_log_handler = logging.StreamHandler(log_file_io)
             class ProvLogFormatter(logging.Formatter):
                 """Enforce ISO8601 with both T and Z."""
                 def __init__(self):  # type: () -> None
@@ -566,6 +567,11 @@ def main(argsl=None,                   # type: List[str]
                     return with_msecs
             prov_log_handler.setFormatter(ProvLogFormatter())
             _logger.addHandler(prov_log_handler)
+            _logger.debug(u"[provenance] Logging to %s", log_file_io)
+            if argsl:
+                # Log cwltool command line options to provenance file
+                _logger.info("[cwltool] %s %s", sys.argv[0], u" ".join(argsl))
+            _logger.debug(u"[cwltool] Arguments: %s", args)
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
@@ -795,9 +801,15 @@ def main(argsl=None,                   # type: List[str]
             assert prov_dep
             research_obj.generate_snapshot(prov_dep)
             if prov_log_handler:
-                prov_log_handler.close()
+                # Stop logging so we won't half-log adding ourself to RO
+                _logger.debug(u"[provenance] Closing provenance log file %s",
+                    prov_log_handler)
                 _logger.removeHandler(prov_log_handler)
-                research_obj.write_log(prov_log_handler_filename)
+                # Ensure last log lines are written out
+                prov_log_handler.flush()
+                # Underlying WritableBagFile will add the tagfile to the manifest
+                prov_log_handler.stream.close()
+                prov_log_handler.close()
             research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
