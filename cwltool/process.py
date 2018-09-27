@@ -312,15 +312,16 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                     shutil.move(src, dst)
                     return
 
-        _logger.debug("Copying %s to %s", src, dst)
-        if fs_access.isdir(src):
-            if os.path.isdir(dst):
-                shutil.rmtree(dst)
-            elif os.path.isfile(dst):
-                os.unlink(dst)
-            shutil.copytree(src, dst)
-        else:
-            shutil.copy2(src, dst)
+        elif action == "copy":
+            _logger.debug("Copying %s to %s", src, dst)
+            if fs_access.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
 
     outfiles = list(_collectDirEntries(outputObj))
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
