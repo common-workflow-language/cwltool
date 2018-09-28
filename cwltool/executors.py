@@ -5,13 +5,12 @@ import os
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import psutil
-from schema_salad.validate import ValidationException
 from six import string_types, with_metaclass
 from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad.validate import ValidationException
 
 from .builder import Builder  # pylint: disable=unused-import
 from .context import (RuntimeContext,  # pylint: disable=unused-import
@@ -189,7 +188,7 @@ class MultithreadedJobExecutor(JobExecutor):
         super(MultithreadedJobExecutor, self).__init__()
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
-        self.pending_jobs = []  # type: List[JobBase]
+        self.pending_jobs = []  # type: List[Union[JobBase, WorkflowJob]]
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = psutil.virtual_memory().available / 2**20
@@ -218,7 +217,7 @@ class MultithreadedJobExecutor(JobExecutor):
         return result
 
     def run_job(self,
-                job,             # type: JobBase
+                job,             # type: Union[JobBase, WorkflowJob]
                 runtime_context  # type: RuntimeContext
                ):  # type: (...) -> None
         """ Execute a single Job in a seperate thread. """
@@ -230,18 +229,23 @@ class MultithreadedJobExecutor(JobExecutor):
         while self.pending_jobs:
             with self.pending_jobs_lock:
                 job = self.pending_jobs[0]
-                if isinstance(job, JobBase):
-                    if ((self.allocated_ram + job.builder.resources["ram"])
-                            > self.max_ram or
-                            (self.allocated_cores + job.builder.resources["cores"])
-                            > self.max_cores):
-                        return
+                if isinstance(job, JobBase) and \
+                        ((self.allocated_ram + job.builder.resources["ram"])
+                         > self.max_ram or
+                         (self.allocated_cores + job.builder.resources["cores"])
+                         > self.max_cores):
+                    _logger.warning(
+                        'Job "%s" requested more resources (%s) than are '
+                        'available (max ram is %f, max cores is %f)',
+                        job.name, job.builder.resources, self.max_ram,
+                        self.max_cores)
+                    return
                 self.pending_jobs.remove(job)
 
-            def runner(my_job, my_runtime_context):
+            def runner():
                 """ Job running thread. """
                 try:
-                    my_job.run(my_runtime_context)
+                    job.run(runtime_context)
                 except WorkflowException as err:
                     _logger.exception("Got workflow error")
                     self.exceptions.append(err)
@@ -249,15 +253,14 @@ class MultithreadedJobExecutor(JobExecutor):
                     _logger.exception("Got workflow error")
                     self.exceptions.append(WorkflowException(Text(err)))
                 finally:
-                    with my_runtime_context.workflow_eval_lock:
+                    with runtime_context.workflow_eval_lock:
                         self.threads.remove(threading.current_thread())
-                        if isinstance(my_job, JobBase):
-                            self.allocated_ram -= my_job.builder.resources["ram"]
-                            self.allocated_cores -= my_job.builder.resources["cores"]
-                        my_runtime_context.workflow_eval_lock.notifyAll()
+                        if isinstance(job, JobBase):
+                            self.allocated_ram -= job.builder.resources["ram"]
+                            self.allocated_cores -= job.builder.resources["cores"]
+                        runtime_context.workflow_eval_lock.notifyAll()
 
-            thread = threading.Thread(
-                target=runner, args=(job, runtime_context))
+            thread = threading.Thread(target=runner)
             thread.daemon = True
             self.threads.add(thread)
             if isinstance(job, JobBase):
@@ -291,10 +294,10 @@ class MultithreadedJobExecutor(JobExecutor):
         runtime_context.workflow_eval_lock.acquire()
         for job in jobiter:
             if job is not None:
-                if runtime_context.builder is not None:
-                    job.builder = runtime_context.builder
-                if job.outdir:
-                    self.output_dirs.add(job.outdir)
+                if isinstance(job, JobBase):
+                    job.builder = runtime_context.builder or job.builder
+                    if job.outdir:
+                        self.output_dirs.add(job.outdir)
 
             self.run_job(job, runtime_context)
 
