@@ -302,7 +302,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
         if action == "move":
             # do not move anything if we are trying to move an entity from
             # outside of the source directories
-            if any(src.startswith(path + "/") for path in source_directories):
+            if any(os.path.commonprefix([path, src]) == path for path in source_directories):
                 _logger.debug("Moving %s to %s", src, dst)
                 if fs_access.isdir(src) and fs_access.isdir(dst):
                     # merge directories
@@ -356,7 +356,8 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                         os.unlink(path)
                         os.symlink(os.path.relpath(link_name, path), path)
                 else:
-                    if any(real_path.startswith(path + "/") for path in source_directories):
+                    if any(os.path.commonprefix([path, real_path]) == path \
+                           for path in source_directories):
                         os.unlink(path)
                         os.rename(real_path, path)
                         relinked[real_path] = path
