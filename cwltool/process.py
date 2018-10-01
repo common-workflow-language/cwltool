@@ -310,7 +310,6 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                         _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
                 else:
                     shutil.move(src, dst)
-                    return
 
         elif action == "copy":
             _logger.debug("Copying %s to %s", src, dst)
