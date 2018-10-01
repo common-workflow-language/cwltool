@@ -299,23 +299,21 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
         if src == dst:
             return
 
-        _action = action
-        if _action == "move":
-            # do not move anything if we are trying to move an entity from
-            # outside of the source directories
-            if any(os.path.commonprefix([path, src]) == path for path in source_directories):
-                _logger.debug("Moving %s to %s", src, dst)
-                if fs_access.isdir(src) and fs_access.isdir(dst):
-                    # merge directories
-                    for dir_entry in scandir(src):
-                        _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
-                else:
-                    shutil.move(src, dst)
-            else:
-                # we still need the files at the destination, so let's copy them
-                _action = "copy"
+        # If the source is not contained in source_directories we're not allowed to delete it
+        src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
 
-        if _action == "copy":
+        _action = "move" if action == "move" and src_can_deleted else "copy"
+
+        if _action == "move":
+            _logger.debug("Moving %s to %s", src, dst)
+            if fs_access.isdir(src) and fs_access.isdir(dst):
+                # merge directories
+                for dir_entry in scandir(src):
+                    _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
+            else:
+                shutil.move(src, dst)
+
+        elif _action == "copy":
             _logger.debug("Copying %s to %s", src, dst)
             if fs_access.isdir(src):
                 if os.path.isdir(dst):
