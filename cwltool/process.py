@@ -336,40 +336,6 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
 
-    # If there are symlinks to intermediate output directories, we want to move
-    # the real files into the final output location.  If a file is linked more than once,
-    # make an internal relative symlink.
-    def relink(relinked,  # type: Dict[Text, Text]
-               root_path  # type: Text
-               ):
-        for dir_entry in scandir(root_path):
-            path = dir_entry.path
-            if os.path.islink(path):
-                real_path = os.path.realpath(path)
-                if real_path in relinked:
-                    link_name = relinked[real_path]
-                    if onWindows():
-                        if os.path.isfile(path):
-                            shutil.copy(os.path.relpath(link_name, path), path)
-                        elif os.path.exists(path) and os.path.isdir(path):
-                            shutil.rmtree(path)
-                            copytree_with_merge(os.path.relpath(link_name, path), path)
-                    else:
-                        os.unlink(path)
-                        os.symlink(os.path.relpath(link_name, path), path)
-                else:
-                    if any(os.path.commonprefix([path, real_path]) == path \
-                           for path in source_directories):
-                        os.unlink(path)
-                        os.rename(real_path, path)
-                        relinked[real_path] = path
-            if os.path.isdir(path):
-                relink(relinked, path)
-
-    if action == "move":
-        relinked = {}  # type: Dict[Text, Text]
-        relink(relinked, destination_path)
-
     if compute_checksum:
         visit_class(outputObj, ("File",), functools.partial(
             compute_checksums, fs_access))
