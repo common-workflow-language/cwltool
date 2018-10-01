@@ -344,7 +344,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
         if self.generatemapper and runtimeContext.secret_store:
             # Delete any runtime-generated files containing secrets.
-            for f, p in self.generatemapper.items():
+            for _, p in self.generatemapper.items():
                 if p.type == "CreateFile":
                     if runtimeContext.secret_store.has_secret(p.resolved):
                         host_outdir = self.outdir
@@ -509,7 +509,7 @@ def _job_popen(
         job_script_contents=None,  # type: Text
         timelimit=None,            # type: int
         name=None                  # type: Text
-       ):  # type: (...) -> int
+        ):  # type: (...) -> int
 
     if not job_script_contents and not FORCE_SHELLED_POPEN:
 

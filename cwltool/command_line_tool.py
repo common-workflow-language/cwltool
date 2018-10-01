@@ -481,7 +481,6 @@ class CommandLineTool(Process):
         if debug:
             _logger.debug(u"[job %s] command line bindings is %s", j.name,
                           json_dumps(builder.bindings, indent=4))
-
         dockerReq = self.get_requirement("DockerRequirement")[0]
         if dockerReq and runtimeContext.use_container:
             out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')

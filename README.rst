@@ -180,13 +180,17 @@ By default, cwltool searches https://dockstore.org/ .  Use ``--add-tool-registry
 
 For example ::
 
-  cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats:master test.json
+  cwltool quay.io/collaboratory/dockstore-tool-bamstats:develop test.json
 
 and (defaults to latest when a version is not specified) ::
 
-  cwltool --non-strict quay.io/collaboratory/dockstore-tool-bamstats test.json
+  cwltool quay.io/collaboratory/dockstore-tool-bamstats test.json
 
-For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats
+For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats ::
+
+  wget https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-bamstats/versions/develop/PLAIN-CWL/descriptor/test.json
+  wget https://github.com/CancerCollaboratory/dockstore-tool-bamstats/raw/develop/rna.SRR948778.bam
+  
 
 .. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
 
