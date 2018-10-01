@@ -2,37 +2,38 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Optional, Text, Tuple, Union)
+from typing import (Any, Callable, Dict, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union)
 
-import schema_salad.validate
-from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad import validate
+from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from six import string_types
 from six.moves import urllib
+from typing_extensions import Text
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .utils import visit_class
 
 
-def findId(doc, frg):  # type: (Any, Any) -> Optional[Dict]
-    if isinstance(doc, dict):
+def find_id(doc, frg):  # type: (Any, Any) -> Optional[MutableMapping]
+    if isinstance(doc, MutableMapping):
         if "id" in doc and doc["id"] == frg:
             return doc
-        else:
-            for d in doc:
-                f = findId(doc[d], frg)
-                if f:
-                    return f
-    if isinstance(doc, list):
-        for d in doc:
-            f = findId(d, frg)
-            if f:
-                return f
+        for key in doc:
+            found = find_id(doc[key], frg)
+            if found:
+                return found
+    if isinstance(doc, MutableSequence):
+        for entry in doc:
+            found = find_id(entry, frg)
+            if found:
+                return found
     return None
 
 
 def fixType(doc):  # type: (Any) -> Any
-    if isinstance(doc, list):
+    if isinstance(doc, MutableSequence):
         for i, f in enumerate(doc):
             doc[i] = fixType(f)
         return doc
@@ -44,7 +45,7 @@ def fixType(doc):  # type: (Any) -> Any
             return "#" + doc
     return doc
 
-digits = re.compile("\d+")
+digits = re.compile(r"\d+")
 
 
 def updateScript(sc):  # type: (Text) -> Text
@@ -56,51 +57,47 @@ def updateScript(sc):  # type: (Text) -> Text
 
 
 def _updateDev2Script(ent):  # type: (Any) -> Any
-    if isinstance(ent, dict) and "engine" in ent:
+    if isinstance(ent, MutableMapping) and "engine" in ent:
         if ent["engine"] == "https://w3id.org/cwl/cwl#JsonPointer":
             sp = ent["script"].split("/")
             if sp[0] in ("tmpdir", "outdir"):
                 return u"$(runtime.%s)" % sp[0]
-            else:
-                if not sp[0]:
-                    sp.pop(0)
-                front = sp.pop(0)
-                sp = [Text(i) if digits.match(i) else "'" + i + "'"
-                      for i in sp]
-                if front == "job":
-                    return u"$(inputs[%s])" % ']['.join(sp)
-                elif front == "context":
-                    return u"$(self[%s])" % ']['.join(sp)
+            if not sp[0]:
+                sp.pop(0)
+            front = sp.pop(0)
+            sp = [Text(i) if digits.match(i) else "'" + i + "'"
+                  for i in sp]
+            if front == "job":
+                return u"$(inputs[%s])" % ']['.join(sp)
+            if front == "context":
+                return u"$(self[%s])" % ']['.join(sp)
         else:
             sc = updateScript(ent["script"])
             if sc[0] == "{":
                 return "$" + sc
-            else:
-                return u"$(%s)" % sc
-    else:
-        return ent
+            return u"$(%s)" % sc
+    return ent
 
 def traverseImport(doc, loader, baseuri, func):
     # type: (Any, Loader, Text, Callable[[Any, Loader, Text], Any]) -> Any
     if "$import" in doc:
         if doc["$import"][0] == "#":
             return doc["$import"]
+        imp = urllib.parse.urljoin(baseuri, doc["$import"])
+        impLoaded = loader.fetch(imp)
+        r = {}  # type: MutableMapping[Text, Any]
+        if isinstance(impLoaded, MutableSequence):
+            r = {"$graph": impLoaded}
+        elif isinstance(impLoaded, MutableMapping):
+            r = impLoaded
         else:
-            imp = urllib.parse.urljoin(baseuri, doc["$import"])
-            impLoaded = loader.fetch(imp)
-            r = {}  # type: Dict[Text, Any]
-            if isinstance(impLoaded, list):
-                r = {"$graph": impLoaded}
-            elif isinstance(impLoaded, dict):
-                r = impLoaded
-            else:
-                raise Exception("Unexpected code path.")
-            r["id"] = imp
-            _, frag = urllib.parse.urldefrag(imp)
-            if frag:
-                frag = "#" + frag
-                r = findId(r, frag)  # type: ignore
-            return func(r, loader, imp)
+            raise Exception("Unexpected code path.")
+        r["id"] = imp
+        _, frag = urllib.parse.urldefrag(imp)
+        if frag:
+            frag = "#" + frag
+            r = find_id(r, frag)  # type: ignore
+        return func(r, loader, imp)
 
 def v1_0dev4to1_0(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
@@ -155,7 +152,7 @@ def checkversion(doc, metadata, enable_dev):
     cdoc = None  # type: Optional[CommentedMap]
     if isinstance(doc, CommentedSeq):
         lc = metadata.lc
-        metadata = copy.copy(metadata)
+        metadata = copy.deepcopy(metadata)
         metadata.lc.data = copy.copy(lc.data)
         metadata.lc.filename = lc.filename
         metadata[u"$graph"] = doc
@@ -173,14 +170,14 @@ def checkversion(doc, metadata, enable_dev):
             if enable_dev:
                 pass
             else:
-                raise schema_salad.validate.ValidationException(
+                raise validate.ValidationException(
                     u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(
                         list(UPDATES.keys()))))
         else:
-            raise schema_salad.validate.ValidationException(
+            raise validate.ValidationException(
                 u"Unrecognized version %s" % version)
 
     return (cdoc, version)

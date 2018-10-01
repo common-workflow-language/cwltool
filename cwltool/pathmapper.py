@@ -7,23 +7,24 @@ import stat
 import uuid
 from functools import partial  # pylint: disable=unused-import
 from tempfile import NamedTemporaryFile
-from typing import (Any, Callable, Dict,  # pylint: disable=unused-import
-                    Iterable, List, MutableMapping, Optional, Set, Text, Tuple,
-                    Union)
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Set, Tuple, Union)
 
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-import schema_salad.validate as validate
+from schema_salad import validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
+from .loghandler import _logger
 from .stdfsaccess import StdFsAccess, abspath  # pylint: disable=unused-import
-from .utils import (Directory,  # pylint: disable=unused-import
-                    convert_pathsep_to_unix, visit_class)
+from .utils import Directory  # pylint: disable=unused-import
+from .utils import convert_pathsep_to_unix, visit_class
 
-_logger = logging.getLogger("cwltool")
 
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 
@@ -31,12 +32,12 @@ MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "
 def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
 
-    if isinstance(rec, dict):
+    if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"])
         for d in rec:
             adjustFiles(rec[d], op)
-    if isinstance(rec, list):
+    if isinstance(rec, MutableSequence):
         for d in rec:
             adjustFiles(d, op)
 
@@ -104,7 +105,7 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
     return dd
 
 def get_listing(fs_access, rec, recursive=True):
-    # type: (StdFsAccess, Dict[Text, Any], bool) -> None
+    # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
     if "listing" in rec:
         return
     listing = []
@@ -167,16 +168,16 @@ def ensure_writable(path):
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode|stat.S_IWUSR)
+                os.chmod(j, mode | stat.S_IWUSR)
             for name in dirs:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode|stat.S_IWUSR)
+                os.chmod(j, mode | stat.S_IWUSR)
     else:
         st = os.stat(path)
         mode = stat.S_IMODE(st.st_mode)
-        os.chmod(path, mode|stat.S_IWUSR)
+        os.chmod(path, mode | stat.S_IWUSR)
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
@@ -247,7 +248,7 @@ class PathMapper(object):
             else:
                 with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
                     deref = ab
-                    if urllib.parse.urlsplit(deref).scheme in ['http','https']:
+                    if urllib.parse.urlsplit(deref).scheme in ['http', 'https']:
                         deref = downloadHttpFile(path)
                     else:
                         # Dereference symbolic links
@@ -277,8 +278,7 @@ class PathMapper(object):
             i = src.index(u"#")
             p = self._pathmap[src[:i]]
             return MapperEnt(p.resolved, p.target + src[i:], p.type, p.staged)
-        else:
-            return self._pathmap[src]
+        return self._pathmap[src]
 
     def files(self):  # type: () -> List[Text]
         return list(self._pathmap.keys())
@@ -294,8 +294,9 @@ class PathMapper(object):
                 return (k, v[0])
         return None
 
-    def update(self, key, resolved, target, type, stage):  # type: (Text, Text, Text, Text, bool) -> None
-        self._pathmap[key] = MapperEnt(resolved, target, type, stage)
+    def update(self, key, resolved, target, ctype, stage):
+        # type: (Text, Text, Text, Text, bool) -> None
+        self._pathmap[key] = MapperEnt(resolved, target, ctype, stage)
 
     def __contains__(self, key):
         return key in self._pathmap

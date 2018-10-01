@@ -3,21 +3,24 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (Any, Dict, List,  # pylint: disable=unused-import
-                    Optional, Text, Tuple, Union)
+from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
+                    Tuple, Union)
 
 import avro.schema  # always import after schema_salad, never before
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
 from schema_salad.sourceline import SourceLine
-from schema_salad.validate import (Schema,  # pylint: disable=unused-import
-                                   ValidationException, validate_ex)
+from schema_salad.validate import Schema  # pylint: disable=unused-import
+from schema_salad.validate import ValidationException, validate_ex
 from six import string_types
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .expression import scanner as scan_expression
 from .loghandler import _logger
 from .sandboxjs import code_fragment_to_js, exec_js_process
 from .utils import json_dumps
+
 
 def is_expression(tool, schema):
     # type: (Union[CommentedMap, Any], Optional[Schema]) -> bool
@@ -48,13 +51,13 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
                 return [(tool, source_line)]
-            elif validate_ex(possible_schema, tool, strict=True, raise_ex=False,
+            elif validate_ex(possible_schema, tool, raise_ex=False,
                              logger=_logger_validation_warnings):
                 valid_schema = possible_schema
 
         return get_expressions(tool, valid_schema, source_line)
     elif isinstance(schema, avro.schema.ArraySchema):
-        if not isinstance(tool, list):
+        if not isinstance(tool, MutableSequence):
             return []
 
         return list(itertools.chain(*
@@ -62,7 +65,7 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
         ))
 
     elif isinstance(schema, avro.schema.RecordSchema):
-        if not isinstance(tool, Dict):
+        if not isinstance(tool, MutableMapping):
             return []
 
         expression_nodes = []

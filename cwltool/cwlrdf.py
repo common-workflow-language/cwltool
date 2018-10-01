@@ -1,11 +1,13 @@
 from __future__ import absolute_import
 
-from typing import IO, Any, Dict, Text
+from typing import IO, Any, Dict
 
 from rdflib import Graph
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 from six.moves import urllib
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .process import Process
 
@@ -33,8 +35,7 @@ def lastpart(uri):  # type: (Any) -> Text
     uri = Text(uri)
     if "/" in uri:
         return uri[uri.rindex("/") + 1:]
-    else:
-        return uri
+    return uri
 
 
 def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
@@ -45,7 +46,7 @@ def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
               ?run rdf:type ?runtype .
            }""")
 
-    for step, run, runtype in qres:
+    for step, run, _ in qres:
         stdout.write(u'"%s" [label="%s"]\n' % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run))))
 
     qres = g.query(

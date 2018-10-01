@@ -1,32 +1,32 @@
 # -*- coding: utf-8 -*-
 """ Single and multi-threaded executors."""
+import datetime
 import os
 import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
-import datetime
-from typing import (Any, Dict, List, Optional,  # pylint: disable=unused-import
-                    Set, Text, Tuple)
-
-from schema_salad.validate import ValidationException
-import six
-from six import string_types
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import psutil
+from six import string_types, with_metaclass
+from typing_extensions import Text  # pylint: disable=unused-import
+from schema_salad.validate import ValidationException
 
 from .builder import Builder  # pylint: disable=unused-import
+from .context import (RuntimeContext,  # pylint: disable=unused-import
+                      getdefault)
 from .errors import WorkflowException
-from .loghandler import _logger
 from .job import JobBase  # pylint: disable=unused-import
+from .loghandler import _logger
 from .mutation import MutationManager
+from .process import Process  # pylint: disable=unused-import
+from .process import cleanIntermediate, relocateOutputs
 from .provenance import CreateProvProfile
-from .process import (Process,  # pylint: disable=unused-import
-                      cleanIntermediate, relocateOutputs)
 from .utils import DEFAULT_TMP_PREFIX
-from .context import RuntimeContext, getdefault  # pylint: disable=unused-import
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
-class JobExecutor(six.with_metaclass(ABCMeta, object)):
+
+class JobExecutor(with_metaclass(ABCMeta, object)):
     """ Abstract base job executor. """
 
     def __init__(self):
@@ -92,10 +92,16 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
                 runtime_context.move_outputs, runtime_context.make_fs_access(""),
-                getdefault(runtime_context.compute_checksum, True))
+                getdefault(runtime_context.compute_checksum, True),
+                path_mapper=runtime_context.path_mapper)
 
         if runtime_context.rm_tmpdir:
-            cleanIntermediate(self.output_dirs)
+            if runtime_context.cachedir is None:
+                output_dirs = self.output_dirs  # type: Iterable[Any]
+            else:
+                output_dirs = filter(lambda x: not x.startswith(
+                    runtime_context.cachedir), self.output_dirs)
+            cleanIntermediate(output_dirs)
 
         if self.final_output and self.final_status:
 
@@ -109,7 +115,7 @@ class JobExecutor(six.with_metaclass(ABCMeta, object)):
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri, None, process.parent_wf.engine_uuid,
                     datetime.datetime.now())
-                process.parent_wf.finalize_prov_profile(name)
+                process.parent_wf.finalize_prov_profile(name=None)
             return (self.final_output[0], self.final_status[0])
         return (None, "permanentFail")
 
@@ -124,15 +130,16 @@ class SingleJobExecutor(JobExecutor):
                 ):  # type: (...) -> None
 
         process_run_id = None  # type: Optional[str]
-        reference_locations = {}  # type: Dict[Text,Text]
 
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
                 and runtime_context.research_obj is not None:
-            orcid = runtime_context.orcid
-            full_name = runtime_context.cwl_full_name
             process.provenance_object = CreateProvProfile(
-                runtime_context.research_obj, orcid, full_name)
+                runtime_context.research_obj,
+                full_name=runtime_context.cwl_full_name,
+                orcid=runtime_context.orcid,
+                # single tool execution, so RO UUID = wf UUID = tool UUID
+                run_uuid=runtime_context.research_obj.ro_uuid)
             process.parent_wf = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback,
                               runtime_context)
@@ -150,24 +157,22 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             runtime_context.prov_obj = job.prov_obj
                         assert runtime_context.prov_obj
-                        process_run_id, reference_locations = \
-                                runtime_context.prov_obj.evaluate(
-                                    process, job, job_order_object,
-                                    runtime_context.make_fs_access,
-                                    runtime_context)
+                        process_run_id = \
+                            runtime_context.prov_obj.evaluate(
+                                process, job, job_order_object,
+                                runtime_context.make_fs_access,
+                                runtime_context.research_obj)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
-                        runtime_context.reference_locations = \
-                            reference_locations
                     job.run(runtime_context)
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
-        except (ValidationException, WorkflowException):
+        except (ValidationException, WorkflowException):  # pylint: disable=try-except-raise
             raise
-        except Exception as e:
+        except Exception as err:
             logger.exception("Got workflow error")
-            raise WorkflowException(Text(e))
+            raise WorkflowException(Text(err))
 
 
 class MultithreadedJobExecutor(JobExecutor):
@@ -183,7 +188,7 @@ class MultithreadedJobExecutor(JobExecutor):
         super(MultithreadedJobExecutor, self).__init__()
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
-        self.pending_jobs = []  # type: List[JobBase]
+        self.pending_jobs = []  # type: List[Union[JobBase, WorkflowJob]]
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = psutil.virtual_memory().available / 2**20
@@ -212,7 +217,7 @@ class MultithreadedJobExecutor(JobExecutor):
         return result
 
     def run_job(self,
-                job,             # type: JobBase
+                job,             # type: Union[JobBase, WorkflowJob]
                 runtime_context  # type: RuntimeContext
                ):  # type: (...) -> None
         """ Execute a single Job in a seperate thread. """
@@ -224,18 +229,23 @@ class MultithreadedJobExecutor(JobExecutor):
         while self.pending_jobs:
             with self.pending_jobs_lock:
                 job = self.pending_jobs[0]
-                if isinstance(job, JobBase):
-                    if ((self.allocated_ram + job.builder.resources["ram"])
-                            > self.max_ram or
-                            (self.allocated_cores + job.builder.resources["cores"])
-                            > self.max_cores):
-                        return
+                if isinstance(job, JobBase) and \
+                        ((self.allocated_ram + job.builder.resources["ram"])
+                         > self.max_ram or
+                         (self.allocated_cores + job.builder.resources["cores"])
+                         > self.max_cores):
+                    _logger.warning(
+                        'Job "%s" requested more resources (%s) than are '
+                        'available (max ram is %f, max cores is %f)',
+                        job.name, job.builder.resources, self.max_ram,
+                        self.max_cores)
+                    return
                 self.pending_jobs.remove(job)
 
-            def runner(my_job, my_runtime_context):
+            def runner():
                 """ Job running thread. """
                 try:
-                    my_job.run(my_runtime_context)
+                    job.run(runtime_context)
                 except WorkflowException as err:
                     _logger.exception("Got workflow error")
                     self.exceptions.append(err)
@@ -243,15 +253,14 @@ class MultithreadedJobExecutor(JobExecutor):
                     _logger.exception("Got workflow error")
                     self.exceptions.append(WorkflowException(Text(err)))
                 finally:
-                    with my_runtime_context.workflow_eval_lock:
+                    with runtime_context.workflow_eval_lock:
                         self.threads.remove(threading.current_thread())
-                        if isinstance(my_job, JobBase):
-                            self.allocated_ram -= my_job.builder.resources["ram"]
-                            self.allocated_cores -= my_job.builder.resources["cores"]
-                        my_runtime_context.workflow_eval_lock.notifyAll()
+                        if isinstance(job, JobBase):
+                            self.allocated_ram -= job.builder.resources["ram"]
+                            self.allocated_cores -= job.builder.resources["cores"]
+                        runtime_context.workflow_eval_lock.notifyAll()
 
-            thread = threading.Thread(
-                target=runner, args=(job, runtime_context))
+            thread = threading.Thread(target=runner)
             thread.daemon = True
             self.threads.add(thread)
             if isinstance(job, JobBase):
@@ -260,10 +269,11 @@ class MultithreadedJobExecutor(JobExecutor):
             thread.start()
 
 
-    def wait_for_next_completion(self, runtimeContext):  # type: (RuntimeContext) -> None
+    def wait_for_next_completion(self, runtime_context):
+        # type: (RuntimeContext) -> None
         """ Wait for jobs to finish. """
-        if runtimeContext.workflow_eval_lock is not None:
-            runtimeContext.workflow_eval_lock.wait()
+        if runtime_context.workflow_eval_lock is not None:
+            runtime_context.workflow_eval_lock.wait()
         if self.exceptions:
             raise self.exceptions[0]
 
@@ -284,10 +294,10 @@ class MultithreadedJobExecutor(JobExecutor):
         runtime_context.workflow_eval_lock.acquire()
         for job in jobiter:
             if job is not None:
-                if runtime_context.builder is not None:
-                    job.builder = runtime_context.builder
-                if job.outdir:
-                    self.output_dirs.add(job.outdir)
+                if isinstance(job, JobBase):
+                    job.builder = runtime_context.builder or job.builder
+                    if job.outdir:
+                        self.output_dirs.add(job.outdir)
 
             self.run_job(job, runtime_context)
 
