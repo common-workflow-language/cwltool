@@ -304,16 +304,17 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
             # outside of the source directories
             if any(src.startswith(path + "/") for path in source_directories):
                 _logger.debug("Moving %s to %s", src, dst)
-                if os.path.isdir(src) and os.path.isdir(dst):
+                if fs_access.isdir(src) and fs_access.isdir(dst):
                     # merge directories
                     for dir_entry in scandir(src):
-                        _relocate(dir_entry, os.path.join(dst, dir_entry.name))
+                        _relocate(dir_entry, fs_access.join(
+                            dst, dir_entry.name))
                 else:
                     shutil.move(src, dst)
                     return
 
         _logger.debug("Copying %s to %s", src, dst)
-        if os.path.isdir(src):
+        if fs_access.isdir(src):
             if os.path.isdir(dst):
                 shutil.rmtree(dst)
             elif os.path.isfile(dst):
@@ -326,15 +327,13 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
     stageFiles(pm, stageFunc=_relocate, symLink=False)
 
-    def _check_adjust(file):
-        file["location"] = file_uri(pm.mapper(file["location"])[1])
-        if "contents" in file:
-            del file["contents"]
-        return file
+    def _check_adjust(a_file):
+        a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
+        if "contents" in a_file:
+            del a_file["contents"]
+        return a_file
 
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
-    if compute_checksum:
-        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
 
     # If there are symlinks to intermediate output directories, we want to move
     # the real files into the final output location.  If a file is linked more than once,
@@ -369,6 +368,9 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
         relinked = {}  # type: Dict[Text, Text]
         relink(relinked, destination_path)
 
+    if compute_checksum:
+        visit_class(outputObj, ("File",), functools.partial(
+            compute_checksums, fs_access))
     return outputObj
 
 
@@ -976,7 +978,5 @@ def compute_checksums(fs_access, fileobj):
             while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
-            f.seek(0, 2)
-            filesize = f.tell()
         fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = filesize
+        fileobj["size"] = fs_access.size(fileobj["location"])

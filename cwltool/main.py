@@ -11,6 +11,7 @@ import logging
 import os
 import signal
 import sys
+import time
 from codecs import StreamWriter, getwriter  # pylint: disable=unused-import
 from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
                     MutableMapping, MutableSequence, Optional, TextIO, Tuple,
@@ -465,6 +466,7 @@ def main(argsl=None,                   # type: List[str]
     _logger.addHandler(stderr_handler)
     # pre-declared for finally block
     workflowobj = None
+    prov_log_handler = None  # type: Optional[logging.StreamHandler]
     try:
         if args is None:
             if argsl is None:
@@ -490,18 +492,23 @@ def main(argsl=None,                   # type: List[str]
             if not hasattr(args, key):
                 setattr(args, key, val)
 
+        ## Configure logging
         rdflib_logger = logging.getLogger("rdflib.term")
         rdflib_logger.addHandler(stderr_handler)
         rdflib_logger.setLevel(logging.ERROR)
         if args.quiet:
-            _logger.setLevel(logging.WARN)
+            # Silence STDERR, not an eventual provenance log file
+            stderr_handler.setLevel(logging.WARN)
         if runtimeContext.debug:
+            # Increase to debug for both stderr and provenance log file
             _logger.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
+        formatter = None  # type: Optional[logging.Formatter]
         if args.timestamps:
             formatter = logging.Formatter("[%(asctime)s] %(message)s",
                                           "%Y-%m-%d %H:%M:%S")
             stderr_handler.setFormatter(formatter)
+        ##
 
         if args.version:
             print(versionfunc())
@@ -540,9 +547,31 @@ def main(argsl=None,                   # type: List[str]
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
-            runtimeContext.research_obj = ResearchObject(
+            ro = ResearchObject(
                 temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
+            runtimeContext.research_obj = ro
+            log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
+            prov_log_handler = logging.StreamHandler(log_file_io)
+            class ProvLogFormatter(logging.Formatter):
+                """Enforce ISO8601 with both T and Z."""
+                def __init__(self):  # type: () -> None
+                    super(ProvLogFormatter, self).__init__(
+                        "[%(asctime)sZ] %(message)s")
+
+                def formatTime(self, record, datefmt=None):
+                    # type: (logging.LogRecord, str) -> str
+                    record_time = time.gmtime(record.created)
+                    formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
+                    with_msecs = "%s,%03d" % (formatted_time, record.msecs)
+                    return with_msecs
+            prov_log_handler.setFormatter(ProvLogFormatter())
+            _logger.addHandler(prov_log_handler)
+            _logger.debug(u"[provenance] Logging to %s", log_file_io)
+            if argsl:
+                # Log cwltool command line options to provenance file
+                _logger.info("[cwltool] %s %s", sys.argv[0], u" ".join(argsl))
+            _logger.debug(u"[cwltool] Arguments: %s", args)
 
         if loadingContext is None:
             loadingContext = LoadingContext(vars(args))
@@ -755,23 +784,33 @@ def main(argsl=None,                   # type: List[str]
                 u"Workflow error%s:\n%s", try_again_msg, strip_dup_lineno(Text(exc)),
                 exc_info=args.debug)
             return 1
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             _logger.error(
                 u"Unhandled error%s:\n  %s", try_again_msg, exc, exc_info=args.debug)
             return 1
 
     finally:
         if args and runtimeContext and runtimeContext.research_obj \
-                and args.rm_tmpdir and workflowobj:
+                and workflowobj:
             #adding all related cwl files to RO
+            research_obj = runtimeContext.research_obj
             prov_dependencies = printdeps(
                 workflowobj, document_loader, stdout, args.relative_deps, uri,
-                runtimeContext.research_obj)
+                research_obj)
             prov_dep = prov_dependencies[1]
             assert prov_dep
-            runtimeContext.research_obj.generate_snapshot(prov_dep)
-
-            runtimeContext.research_obj.close(args.provenance)
+            research_obj.generate_snapshot(prov_dep)
+            if prov_log_handler:
+                # Stop logging so we won't half-log adding ourself to RO
+                _logger.debug(u"[provenance] Closing provenance log file %s",
+                    prov_log_handler)
+                _logger.removeHandler(prov_log_handler)
+                # Ensure last log lines are written out
+                prov_log_handler.flush()
+                # Underlying WritableBagFile will add the tagfile to the manifest
+                prov_log_handler.stream.close()
+                prov_log_handler.close()
+            research_obj.close(args.provenance)
 
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
