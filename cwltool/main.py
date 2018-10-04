@@ -229,6 +229,7 @@ def load_job_order(args,                 # type: argparse.Namespace
                   ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Text, Loader]
 
     job_order_object = None
+    job_order_file = None
 
     _jobloaderctx = jobloaderctx.copy()
     loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
@@ -256,6 +257,13 @@ def load_job_order(args,                 # type: argparse.Namespace
     if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
 
+    if job_order_object and not isinstance(job_order_object, MutableMapping):
+        _logger.error(
+            'CWL input object at %s is not formatted correctly, it should be a '
+            'JSON/YAML dictionay, not %s.\n'
+            'Raw input object:\n%s', job_order_file or "stdin",
+            type(job_order_object), job_order_object)
+        sys.exit(1)
     return (job_order_object, input_basedir, loader)
 
 
