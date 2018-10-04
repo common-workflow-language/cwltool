@@ -250,8 +250,9 @@ def load_job_order(args,                 # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
+        ov_uri = file_uri(job_order_file or input_basedir)
         overrides_list.extend(
-            resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
+            resolve_overrides(job_order_object, ov_uri, tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if not job_order_object:
