@@ -229,6 +229,7 @@ def load_job_order(args,                 # type: argparse.Namespace
                   ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Text, Loader]
 
     job_order_object = None
+    job_order_file = None
 
     _jobloaderctx = jobloaderctx.copy()
     loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
@@ -249,13 +250,21 @@ def load_job_order(args,                 # type: argparse.Namespace
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
     if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
+        ov_uri = file_uri(job_order_file or input_basedir)
         overrides_list.extend(
-            resolve_overrides(job_order_object, file_uri(job_order_file), tool_file_uri))
+            resolve_overrides(job_order_object, ov_uri, tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if not job_order_object:
         input_basedir = args.basedir if args.basedir else os.getcwd()
 
+    if job_order_object and not isinstance(job_order_object, MutableMapping):
+        _logger.error(
+            'CWL input object at %s is not formatted correctly, it should be a '
+            'JSON/YAML dictionay, not %s.\n'
+            'Raw input object:\n%s', job_order_file or "stdin",
+            type(job_order_object), job_order_object)
+        sys.exit(1)
     return (job_order_object, input_basedir, loader)
 
 
