@@ -299,29 +299,30 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
         if src == dst:
             return
 
-        if action == "move":
-            # do not move anything if we are trying to move an entity from
-            # outside of the source directories
-            if any(src.startswith(path + "/") for path in source_directories):
-                _logger.debug("Moving %s to %s", src, dst)
-                if fs_access.isdir(src) and fs_access.isdir(dst):
-                    # merge directories
-                    for dir_entry in scandir(src):
-                        _relocate(dir_entry, fs_access.join(
-                            dst, dir_entry.name))
-                else:
-                    shutil.move(src, dst)
-                    return
+        # If the source is not contained in source_directories we're not allowed to delete it
+        src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
 
-        _logger.debug("Copying %s to %s", src, dst)
-        if fs_access.isdir(src):
-            if os.path.isdir(dst):
-                shutil.rmtree(dst)
-            elif os.path.isfile(dst):
-                os.unlink(dst)
-            shutil.copytree(src, dst)
-        else:
-            shutil.copy2(src, dst)
+        _action = "move" if action == "move" and src_can_deleted else "copy"
+
+        if _action == "move":
+            _logger.debug("Moving %s to %s", src, dst)
+            if fs_access.isdir(src) and fs_access.isdir(dst):
+                # merge directories
+                for dir_entry in scandir(src):
+                    _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
+            else:
+                shutil.move(src, dst)
+
+        elif _action == "copy":
+            _logger.debug("Copying %s to %s", src, dst)
+            if fs_access.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
 
     outfiles = list(_collectDirEntries(outputObj))
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
@@ -357,7 +358,8 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                         os.unlink(path)
                         os.symlink(os.path.relpath(link_name, path), path)
                 else:
-                    if any(real_path.startswith(path + "/") for path in source_directories):
+                    if any(os.path.commonprefix([path, real_path]) == path \
+                           for path in source_directories):
                         os.unlink(path)
                         os.rename(real_path, path)
                         relinked[real_path] = path
