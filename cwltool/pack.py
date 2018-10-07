@@ -174,6 +174,9 @@ def pack(document_loader,  # type: Loader
     namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]
+    if '$schemas' in metadata:
+        for each_schema in metadata["$schemas"]:
+            schemas.add(each_schema)
     for r in sorted(runs):
         dcr, metadata = document_loader.resolve_ref(r)
         if isinstance(dcr, CommentedSeq):
@@ -208,7 +211,10 @@ def pack(document_loader,  # type: Loader
         # duplicate 'cwlVersion' inside $graph when there is a single item
         # because we're printing contents inside '$graph' rather than whole dict
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
-    if namespaces:
-        packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
+        if namespaces:
+            packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
+        if schemas:
+            packed["$graph"][0]["$schemas"] = list(schemas)
+
 
     return packed
