@@ -208,13 +208,15 @@ def pack(document_loader,  # type: Loader
     import_embed(packed, set())
 
     if len(packed["$graph"]) == 1:
-        # duplicate 'cwlVersion' inside $graph when there is a single item
-        # because we're printing contents inside '$graph' rather than whole dict
+        # duplicate 'cwlVersion' and $schemas inside $graph when there is only
+        # a single item because we will print the contents inside '$graph'
+        # rather than whole dict
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
-        if namespaces:
-            packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
         if schemas:
             packed["$graph"][0]["$schemas"] = list(schemas)
+    # always include $namespaces in the #main
+    if namespaces:
+        packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
 
 
     return packed

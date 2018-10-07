@@ -32,7 +32,7 @@ def test_pack():
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
     assert "$schemas" in packed
-
+    assert len(packed["$schemas"]) == len(expect_packed["$schemas"])
     del packed["$schemas"]
     del expect_packed["$schemas"]
 
