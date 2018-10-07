@@ -39,6 +39,17 @@ def test_pack():
     assert packed == expect_packed
 
 
+def test_pack_single_tool():
+    load_tool.loaders = {}
+
+    document_loader, workflowobj, uri = fetch_document(
+        get_data("tests/wf/formattest.cwl"))
+    document_loader, _, processobj, metadata, uri = validate_document(
+        document_loader, workflowobj, uri)
+
+    packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
+    assert "$schemas" in packed
+
 def test_pack_rewrites():
     load_tool.loaders = {}
     rewrites = {}
