@@ -37,7 +37,7 @@ do
 	pushd common-workflow-language-master
 	source=$(pip show cwltool |grep ^Location | awk '{print $2}')/cwltool
 	COVERAGE_RC=${PWD}/.coveragerc_${PYTHON_VERSION}
-	cat > .coveragerc_${PYTHON_VERSION} <<EOF
+	cat > ${COVERAGE_RC} <<EOF
 [run]
 branch = True
 source = ${source}
@@ -52,6 +52,8 @@ ignore_errors = True
 omit =
     tests/*
 EOF
+	echo ${COVERAGE_RC}
+	cat ${COVERAGE_RC}
 	CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov${PYTHON_VERSION}
 	cat > ${CWLTOOL_WITH_COV} <<EOF
 #!/bin/bash
@@ -59,6 +61,8 @@ coverage run --parallel-mode --rcfile=${COVERAGE_RC} \
 	"$(which cwltool)" "\$@"
 EOF
 	chmod a+x ${CWLTOOL_WITH_COV}
+	echo ${CWLTOOL_WITH_COV}
+	cat ${CWLTOOL_WITH_COV}
 	rm -f .coverage* coverage.xml
 	EXTRA="--parallel"
 	# shellcheck disable=SC2154
