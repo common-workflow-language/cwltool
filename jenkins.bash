@@ -18,10 +18,11 @@ wget https://github.com/common-workflow-language/common-workflow-language/archiv
 tar xzf master.tar.gz
 docker pull node:slim
 # clean both the repos before the loop
-
+COVERAGE_RC=$PWD/.coveragerc
 cat > cwltool_with_cov <<EOF
 #!/bin/bash
-coverage run --parallel-mode --branch "\$(which cwltool)" "\$@"
+coverage run --parallel-mode --branch --rcfile=${COVERAGE_RC} \
+	"\$(which cwltool)" "\$@"
 EOF
 chmod a+x cwltool_with_cov
 CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov
@@ -63,7 +64,8 @@ do
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
-	coverage combine --append $(find . -name '.coverage.*')
+	coverage combine --rcfile=${COVERAGE_RC} --append $(find . -name '.coverage.*')
+	cp ${COVERAGE_RC} ./
 	codecov
 	deactivate
 	popd
