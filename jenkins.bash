@@ -19,7 +19,7 @@ wget https://github.com/common-workflow-language/common-workflow-language/archiv
 tar xzf master.tar.gz
 docker pull node:slim
 
-COVERAGE_RC=${PWD}/.coveragerc
+COVERAGE_RC=${PWD}/.coveragerc_jenkins
 cat > cwltool_with_cov <<EOF
 #!/bin/bash
 source=\$(pip show cwltool |grep ^Location | awk '{print \$2}')/cwltool
@@ -68,8 +68,8 @@ do
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
 	coverage combine "--rcfile=${COVERAGE_RC}" --append $(find . -name '.coverage.*')
-	cp "${COVERAGE_RC}" ./
-	codecov
+	coverage xml "--rcfile=${COVERAGE_RC}"
+	codecov --file coverage.xml
 	deactivate
 	popd
 done
