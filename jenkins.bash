@@ -32,12 +32,12 @@ do
 	# use pip2.7 and pip3 in separate loop runs
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
 	pip${PYTHON_VERSION} uninstall -y cwltool
-	pip${PYTHON_VERSION} install .
+	pip${PYTHON_VERSION} install -e .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
 	pushd common-workflow-language-master
 	rm -f .coverage* coverage.xml
-	source=$(pip show cwltool |grep ^Location | awk '{print $2}')/cwltool
-	COVERAGE_RC=${PWD}/.coveragerc_${PYTHON_VERSION}
+	source=$(realpath ../cwltool)
+	COVERAGE_RC=${PWD}/.coveragerc
 	cat > ${COVERAGE_RC} <<EOF
 [run]
 branch = True

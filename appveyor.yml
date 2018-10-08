@@ -37,7 +37,7 @@ install:
 
 build_script:
   - "%PYTHON%\\python.exe -m pip install -rrequirements.txt"
-  - "%PYTHON%\\python.exe -m pip install ."
+  - "%PYTHON%\\python.exe -m pip install -e ."
 
 test_script:
   - |
