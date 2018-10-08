@@ -19,16 +19,6 @@ wget https://github.com/common-workflow-language/common-workflow-language/archiv
 tar xzf master.tar.gz
 docker pull node:slim
 
-COVERAGE_RC=${PWD}/.coveragerc_jenkins
-cat > cwltool_with_cov <<EOF
-#!/bin/bash
-source=\$(pip show cwltool |grep ^Location | awk '{print \$2}')/cwltool
-coverage run --parallel-mode --branch --rcfile=${COVERAGE_RC} \
-	--source \${source} "\$(which cwltool)" "\$@"
-EOF
-chmod a+x cwltool_with_cov
-CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov
-cat cwltool_with_cov
 
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2 3
@@ -45,7 +35,31 @@ do
 	pip${PYTHON_VERSION} install .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
 	pushd common-workflow-language-master
-	rm -f .coverage*
+	source=$(pip show cwltool |grep ^Location | awk '{print $2}')/cwltool
+	COVERAGE_RC=${PWD}/.coveragerc_${PYTHON_VERSION}
+	cat > .coveragerc_${PYTHON_VERSION} <<EOF
+[run]
+branch = True
+source = ${source}
+
+[report]
+exclude_lines =
+    if self.debug:
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+ignore_errors = True
+omit =
+    tests/*
+EOF
+	CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov${PYTHON_VERSION}
+	cat > ${CWLTOOL_WITH_COV} <<EOF
+#!/bin/bash
+coverage run --parallel-mode --rcfile=${COVERAGE_RC} \
+	"$(which cwltool)" "\$@"
+EOF
+	chmod a+x ${CWLTOOL_WITH_COV}
+	rm -f .coverage* coverage.xml
 	EXTRA="--parallel"
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
@@ -67,7 +81,7 @@ do
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
-	coverage combine "--rcfile=${COVERAGE_RC}" --append $(find . -name '.coverage.*')
+	coverage combine "--rcfile=${COVERAGE_RC}" $(find . -name '.coverage.*')
 	coverage xml "--rcfile=${COVERAGE_RC}"
 	codecov --file coverage.xml
 	deactivate
