@@ -37,10 +37,13 @@ install:
 
 build_script:
   - "%PYTHON%\\python.exe -m pip install -rrequirements.txt"
+  - "%PYTHON%\\python.exe -m pip install ."
 
 test_script:
   - |
-    %PYTHON%\\python.exe setup.py test --addopts "--cov-report xml --cov cwltool -p no:cacheprovider --junit-xml=tests.xml"
+    %PYTHON%\\python.exe -m coverage --parallel-mode -m pytest --strict cwltool -p no:cacheprovider --junit-xml=tests.xml
+  - "%PYTHON%\\python.exe -m codecov combine"
+  - "%PYTHON%\\python.exe -m codecov report"
   - "%PYTHON%\\python.exe -m codecov --file coverage.xml"
 
 on_finish:
