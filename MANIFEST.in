@@ -7,11 +7,6 @@ include tests/wf/*
 include tests/override/*
 include tests/checker_wf/*
 include cwltool/schemas/v1.0/*.yml
-include cwltool/schemas/draft-2/*.yml
-include cwltool/schemas/draft-3/*.yml
-include cwltool/schemas/draft-3/*.md
-include cwltool/schemas/draft-3/salad/schema_salad/metaschema/*.yml
-include cwltool/schemas/draft-3/salad/schema_salad/metaschema/*.md
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
 include cwltool/schemas/v1.0/salad/schema_salad/metaschema/*.yml
@@ -26,5 +21,20 @@ include cwltool/cwlNodeEngineWithContext.js
 include cwltool/extensions.yml
 include cwltool/jshint/jshint_wrapper.js
 include cwltool/jshint/jshint.js
+prune cwltool/schemas/v1.0/salad/typeshed
+prune cwltool/schemas/v1.0/salad/schema_salad/tests
+prune cwltool/schemas/v1.1.0-dev1/salad/typeshed
+prune cwltool/schemas/v1.1.0-dev1/salad/schema_salad/tests
+prune cwltool/schemas/presentations
+prune cwltool/schemas/draft-2
+prune cwltool/schemas/draft-1
+prune cwltool/schemas/draft-3
+prune cwltool/schemas/site
+prune cwltool/schemas/v1.0/examples
+prune cwltool/schemas/v1.0/v1.0
+prune cwltool/schemas/v1.1.0-dev1/examples
+prune cwltool/schemas/v1.1.0-dev1/v1.1.0-dev1
+recursive-exclude cwltool/schemas *.py
+
 global-exclude *~
 global-exclude *.pyc
