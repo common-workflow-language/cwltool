@@ -40,11 +40,10 @@ from .load_tool import (FetcherConstructorType,  # pylint: disable=unused-import
 from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
-from .pathmapper import (adjustDirObjs, normalizeFilesDirs, trim_listing,
-                         visit_class)
+from .pathmapper import adjustDirObjs, normalizeFilesDirs, trim_listing
 from .process import (Process, add_sizes,  # pylint: disable=unused-import
                       scandeps, shortname, use_custom_schema,
-                      use_standard_schema)
+                      use_standard_schema, CWL_IANA)
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -53,7 +52,7 @@ from .software_requirements import (DependenciesConfiguration,
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
-                    processes_to_kill, versionstring,
+                    processes_to_kill, versionstring, visit_class,
                     windows_default_container_id)
 
 
@@ -343,8 +342,13 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             job_order_object = {}
 
     if print_input_deps:
-        printdeps(job_order_object, loader, stdout, relative_deps, "",
-                  basedir=file_uri(str(input_basedir) + "/"))
+        basedir = None
+        uri = job_order_object["id"]
+        if uri == args.workflow:
+            basedir = os.path.dirname(uri)
+            uri = ""
+        printdeps(job_order_object, loader, stdout, relative_deps, uri,
+                  basedir=basedir, nestdirs=False)
         exit(0)
 
     def path_to_loc(p):
@@ -388,40 +392,64 @@ def make_relative(base, obj):
             uri = uri_file_path(uri)
             obj["location"] = os.path.relpath(uri, base)
 
-
-def printdeps(obj,              # type: Optional[Mapping[Text, Any]]
+def printdeps(obj,              # type: Mapping[Text, Any]
               document_loader,  # type: Loader
               stdout,           # type: Union[TextIO, StreamWriter]
               relative_deps,    # type: bool
               uri,              # type: Text
-              prov_args=None,   # type: Any
-              basedir=None      # type: Text
-             ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Optional[Dict[Text, Any]]]
+              basedir=None,     # type: Text
+              nestdirs=True     # type: bool
+             ):  # type: (...) -> None
     """Print a JSON representation of the dependencies of the CWL document."""
-    deps = {"class": "File", "location": uri}  # type: Dict[Text, Any]
+    deps = find_deps(obj, document_loader, uri, basedir=basedir,
+                     nestdirs=nestdirs)
+    if relative_deps == "primary":
+        base = basedir if basedir else os.path.dirname(uri_file_path(str(uri)))
+    elif relative_deps == "cwd":
+        base = os.getcwd()
+    visit_class(deps, ("File", "Directory"), functools.partial(
+        make_relative, base))
+    stdout.write(json_dumps(deps, indent=4))
+
+def prov_deps(obj,              # type: Mapping[Text, Any]
+              document_loader,  # type: Loader
+              uri,              # type: Text
+              basedir=None      # type: Text
+             ):  # type: (...) -> MutableMapping[Text, Any]
+    deps = find_deps(obj, document_loader, uri, basedir=basedir)
+
+    def remove_non_cwl(deps):  # type: (MutableMapping[Text, Any]) -> None
+        if 'secondaryFiles' in deps:
+            sec_files = deps['secondaryFiles']
+            for index, entry in enumerate(sec_files):
+                if not ('format' in entry and entry['format'] == CWL_IANA):
+                    del sec_files[index]
+                else:
+                    remove_non_cwl(entry)
+
+    remove_non_cwl(deps)
+    return deps
+
+
+def find_deps(obj,              # type: Mapping[Text, Any]
+              document_loader,  # type: Loader
+              uri,              # type: Text
+              basedir=None,     # type: Text
+              nestdirs=True     # type: bool
+             ):  # type: (...) -> Dict[Text, Any]
+    """Find the dependencies of the CWL document."""
+    deps = {"class": "File", "location": uri, "format": CWL_IANA}  # type: Dict[Text, Any]
 
     def loadref(base, uri):
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
 
     sfs = scandeps(
         basedir if basedir else uri, obj, {"$import", "run"},
-        {"$include", "$schemas", "location"}, loadref)
+        {"$include", "$schemas", "location"}, loadref, nestdirs=nestdirs)
     if sfs:
         deps["secondaryFiles"] = sfs
 
-    if relative_deps:
-        if relative_deps == "primary":
-            base = basedir if basedir else os.path.dirname(uri_file_path(str(uri)))
-        elif relative_deps == "cwd":
-            base = os.getcwd()
-        else:
-            raise Exception(u"Unknown relative_deps %s" % relative_deps)
-        absdeps = copy.deepcopy(deps)
-        visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-    if prov_args:
-        return (deps, absdeps)
-    stdout.write(json_dumps(deps, indent=4))
-    return (None, None)
+    return deps
 
 def print_pack(document_loader,  # type: Loader
                processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -501,7 +529,7 @@ def main(argsl=None,                   # type: List[str]
             if not hasattr(args, key):
                 setattr(args, key, val)
 
-        ## Configure logging
+        # Configure logging
         rdflib_logger = logging.getLogger("rdflib.term")
         rdflib_logger.addHandler(stderr_handler)
         rdflib_logger.setLevel(logging.ERROR)
@@ -562,6 +590,7 @@ def main(argsl=None,                   # type: List[str]
             runtimeContext.research_obj = ro
             log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
             prov_log_handler = logging.StreamHandler(log_file_io)
+
             class ProvLogFormatter(logging.Formatter):
                 """Enforce ISO8601 with both T and Z."""
                 def __init__(self):  # type: () -> None
@@ -613,7 +642,8 @@ def main(argsl=None,                   # type: List[str]
                 fetcher_constructor=loadingContext.fetcher_constructor)
 
             if args.print_deps:
-                printdeps(workflowobj, document_loader, stdout, args.relative_deps, uri)
+                printdeps(workflowobj, document_loader, stdout,
+                           args.relative_deps, uri)
                 return 0
 
             document_loader, avsc_names, processobj, metadata, uri \
@@ -752,6 +782,7 @@ def main(argsl=None,                   # type: List[str]
             if out is not None:
                 if runtimeContext.research_obj:
                     runtimeContext.research_obj.create_job(out, None, True)
+
                 def loc_to_path(obj):
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in obj:
@@ -801,14 +832,9 @@ def main(argsl=None,                   # type: List[str]
     finally:
         if args and runtimeContext and runtimeContext.research_obj \
                 and workflowobj:
-            #adding all related cwl files to RO
             research_obj = runtimeContext.research_obj
-            prov_dependencies = printdeps(
-                workflowobj, document_loader, stdout, args.relative_deps, uri,
-                research_obj)
-            prov_dep = prov_dependencies[1]
-            assert prov_dep
-            research_obj.generate_snapshot(prov_dep)
+            prov_dependencies = prov_deps(workflowobj, document_loader, uri)
+            research_obj.generate_snapshot(prov_dependencies)
             if prov_log_handler:
                 # Stop logging so we won't half-log adding ourself to RO
                 _logger.debug(u"[provenance] Closing provenance log file %s",
