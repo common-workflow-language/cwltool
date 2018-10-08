@@ -35,6 +35,7 @@ do
 	pip${PYTHON_VERSION} install .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
 	pushd common-workflow-language-master
+	rm -f .coverage* coverage.xml
 	source=$(pip show cwltool |grep ^Location | awk '{print $2}')/cwltool
 	COVERAGE_RC=${PWD}/.coveragerc_${PYTHON_VERSION}
 	cat > ${COVERAGE_RC} <<EOF
@@ -52,8 +53,6 @@ ignore_errors = True
 omit =
     tests/*
 EOF
-	echo ${COVERAGE_RC}
-	cat ${COVERAGE_RC}
 	CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov${PYTHON_VERSION}
 	cat > ${CWLTOOL_WITH_COV} <<EOF
 #!/bin/bash
@@ -61,9 +60,6 @@ coverage run --parallel-mode --rcfile=${COVERAGE_RC} \
 	"$(which cwltool)" "\$@"
 EOF
 	chmod a+x ${CWLTOOL_WITH_COV}
-	echo ${CWLTOOL_WITH_COV}
-	cat ${CWLTOOL_WITH_COV}
-	rm -f .coverage* coverage.xml
 	EXTRA="--parallel"
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
