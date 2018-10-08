@@ -22,7 +22,7 @@ docker pull node:slim
 COVERAGE_RC=${PWD}/.coveragerc
 cat > cwltool_with_cov <<EOF
 #!/bin/bash
-source=$(pip show cwltool |grep ^Location | awk '{print $2}')/cwltool
+source=\$(pip show cwltool |grep ^Location | awk '{print \$2}')/cwltool
 coverage run --parallel-mode --branch --rcfile=${COVERAGE_RC} \
 	--source \${source} "\$(which cwltool)" "\$@"
 EOF
