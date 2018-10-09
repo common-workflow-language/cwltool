@@ -299,29 +299,30 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
         if src == dst:
             return
 
-        if action == "move":
-            # do not move anything if we are trying to move an entity from
-            # outside of the source directories
-            if any(src.startswith(path + "/") for path in source_directories):
-                _logger.debug("Moving %s to %s", src, dst)
-                if fs_access.isdir(src) and fs_access.isdir(dst):
-                    # merge directories
-                    for dir_entry in scandir(src):
-                        _relocate(dir_entry, fs_access.join(
-                            dst, dir_entry.name))
-                else:
-                    shutil.move(src, dst)
-                    return
+        # If the source is not contained in source_directories we're not allowed to delete it
+        src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
 
-        _logger.debug("Copying %s to %s", src, dst)
-        if fs_access.isdir(src):
-            if os.path.isdir(dst):
-                shutil.rmtree(dst)
-            elif os.path.isfile(dst):
-                os.unlink(dst)
-            shutil.copytree(src, dst)
-        else:
-            shutil.copy2(src, dst)
+        _action = "move" if action == "move" and src_can_deleted else "copy"
+
+        if _action == "move":
+            _logger.debug("Moving %s to %s", src, dst)
+            if fs_access.isdir(src) and fs_access.isdir(dst):
+                # merge directories
+                for dir_entry in scandir(src):
+                    _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
+            else:
+                shutil.move(src, dst)
+
+        elif _action == "copy":
+            _logger.debug("Copying %s to %s", src, dst)
+            if fs_access.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
 
     outfiles = list(_collectDirEntries(outputObj))
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
@@ -357,7 +358,8 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                         os.unlink(path)
                         os.symlink(os.path.relpath(link_name, path), path)
                 else:
-                    if any(real_path.startswith(path + "/") for path in source_directories):
+                    if any(os.path.commonprefix([path, real_path]) == path
+                           for path in source_directories):
                         os.unlink(path)
                         os.rename(real_path, path)
                         relinked[real_path] = path
@@ -898,8 +900,16 @@ def mergedirs(listing):
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
-    # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
+CWL_IANA = "https://www.iana.org/assignments/media-types/application/cwl"
+
+def scandeps(base,                          # type: Text
+             doc,                           # type: Any
+             reffields,                     # type: Set[Text]
+             urlfields,                     # type: Set[Text]
+             loadref,                       # type: Callable[[Text, Text], Text]
+             urljoin=urllib.parse.urljoin,  # type: Callable[[Text, Text], Text]
+             nestdirs=True                  # type: bool
+            ):  # type: (...) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     if isinstance(doc, MutableMapping):
         if "id" in doc:
@@ -908,7 +918,8 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                 if base != df:
                     r.append({
                         "class": "File",
-                        "location": df
+                        "location": df,
+                        "format": CWL_IANA
                     })
                     base = df
 
@@ -924,30 +935,41 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
                     deps["secondaryFiles"] = doc["secondaryFiles"]
-                deps = nestdir(base, deps)
+                if nestdirs:
+                    deps = nestdir(base, deps)
                 r.append(deps)
             else:
                 if doc["class"] == "Directory" and "listing" in doc:
-                    r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref, urljoin=urljoin))
+                    r.extend(scandeps(
+                        base, doc["listing"], reffields, urlfields, loadref,
+                        urljoin=urljoin, nestdirs=nestdirs))
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
-                    r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
+                    r.extend(scandeps(
+                        base, doc["secondaryFiles"], reffields, urlfields,
+                        loadref, urljoin=urljoin, nestdirs=nestdirs))
 
         for k, v in iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, MutableMapping):
-                        r.extend(scandeps(base, u, reffields, urlfields, loadref, urljoin=urljoin))
+                        r.extend(scandeps(
+                            base, u, reffields, urlfields, loadref,
+                            urljoin=urljoin, nestdirs=nestdirs))
                     else:
                         sub = loadref(base, u)
                         subid = urljoin(base, u)
                         deps = {
                             "class": "File",
-                            "location": subid
+                            "location": subid,
+                            "format": CWL_IANA
                         }
-                        sf = scandeps(subid, sub, reffields, urlfields, loadref, urljoin=urljoin)
+                        sf = scandeps(
+                            subid, sub, reffields, urlfields, loadref,
+                            urljoin=urljoin, nestdirs=nestdirs)
                         if sf:
                             deps["secondaryFiles"] = sf
-                        deps = nestdir(base, deps)
+                        if nestdirs:
+                            deps = nestdir(base, deps)
                         r.append(deps)
             elif k in urlfields and k != "location":
                 for u in aslist(v):
@@ -955,13 +977,18 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                         "class": "File",
                         "location": urljoin(base, u)
                     }
-                    deps = nestdir(base, deps)
+                    if nestdirs:
+                        deps = nestdir(base, deps)
                     r.append(deps)
             elif k not in ("listing", "secondaryFiles"):
-                r.extend(scandeps(base, v, reffields, urlfields, loadref, urljoin=urljoin))
+                r.extend(scandeps(
+                    base, v, reffields, urlfields, loadref, urljoin=urljoin,
+                    nestdirs=nestdirs))
     elif isinstance(doc, MutableSequence):
         for d in doc:
-            r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
+            r.extend(scandeps(
+                base, d, reffields, urlfields, loadref, urljoin=urljoin,
+                nestdirs=nestdirs))
 
     if r:
         normalizeFilesDirs(r)

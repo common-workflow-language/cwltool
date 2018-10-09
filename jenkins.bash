@@ -13,18 +13,12 @@ venv() {
         source "$1"/bin/activate
 }
 
+# clean both the repos before the loop
 git clean --force -d -x || /bin/true
 wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
 tar xzf master.tar.gz
 docker pull node:slim
-# clean both the repos before the loop
 
-cat > cwltool_with_cov <<EOF
-#!/bin/bash
-coverage run --parallel-mode --branch "\$(which cwltool)" "\$@"
-EOF
-chmod a+x cwltool_with_cov
-CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov
 
 # Test for Python 2.7 and Python 3
 for PYTHON_VERSION in 2 3
@@ -38,10 +32,34 @@ do
 	# use pip2.7 and pip3 in separate loop runs
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
 	pip${PYTHON_VERSION} uninstall -y cwltool
-	pip${PYTHON_VERSION} install .
+	pip${PYTHON_VERSION} install -e .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
 	pushd common-workflow-language-master
-	rm -f .coverage*
+	rm -f .coverage* coverage.xml
+	source=$(realpath ../cwltool)
+	COVERAGE_RC=${PWD}/.coveragerc
+	cat > ${COVERAGE_RC} <<EOF
+[run]
+branch = True
+source = ${source}
+
+[report]
+exclude_lines =
+    if self.debug:
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+ignore_errors = True
+omit =
+    tests/*
+EOF
+	CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov${PYTHON_VERSION}
+	cat > ${CWLTOOL_WITH_COV} <<EOF
+#!/bin/bash
+coverage run --parallel-mode --rcfile=${COVERAGE_RC} \
+	"$(which cwltool)" "\$@"
+EOF
+	chmod a+x ${CWLTOOL_WITH_COV}
 	EXTRA="--parallel"
 	# shellcheck disable=SC2154
 	if [[ "$version" = *dev* ]]
@@ -63,8 +81,9 @@ do
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
-	coverage combine --append $(find . -name '.coverage.*')
-	codecov
+	coverage combine "--rcfile=${COVERAGE_RC}" $(find . -name '.coverage.*')
+	coverage xml "--rcfile=${COVERAGE_RC}"
+	codecov --file coverage.xml
 	deactivate
 	popd
 done

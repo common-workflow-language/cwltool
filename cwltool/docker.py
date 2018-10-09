@@ -218,9 +218,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if not vol.staged:
                 continue
             host_outdir_tgt = None  # type: Optional[Text]
-            if vol.target.startswith(container_outdir+"/"):
+            if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
                     host_outdir, vol.target[len(container_outdir)+1:])
+
             if vol.type in ("File", "Directory"):
                 if not vol.resolved.startswith("_:"):
                     _check_docker_machine_path(docker_windows_path_adjust(
@@ -244,7 +245,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             elif vol.type == "WritableDirectory":
                 if vol.resolved.startswith("_:"):
                     if host_outdir_tgt:
-                        os.makedirs(host_outdir_tgt, 0o0755)
+                        if not os.path.exists(host_outdir_tgt):
+                            os.makedirs(host_outdir_tgt, 0o0755)
                     else:
                         raise WorkflowException(
                             "Unable to compute host_outdir_tgt for "
@@ -268,6 +270,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 else:
                     contents = vol.resolved
                 if host_outdir_tgt:
+                    dirname = os.path.dirname(host_outdir_tgt)
+                    if not os.path.exists(dirname):
+                        os.makedirs(dirname, 0o0755)
                     with open(host_outdir_tgt, "wb") as file_literal:
                         file_literal.write(contents.encode("utf-8"))
                 else:

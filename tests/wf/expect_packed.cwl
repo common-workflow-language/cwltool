@@ -1,47 +1,55 @@
 {
-    "cwlVersion": "v1.0",
-    "$schemas": ["file:///home/peter/work/cwltool/tests/wf/empty.ttl"],
     "$graph": [
         {
+            "class": "Workflow",
+            "doc": "Reverse the lines in a document, then sort those lines.",
+            "hints": [
+                {
+                    "class": "DockerRequirement",
+                    "dockerPull": "debian:8"
+                }
+            ],
             "inputs": [
                 {
-                    "doc": "The input file to be processed.",
                     "type": "File",
-                    "id": "#main/input",
+                    "doc": "The input file to be processed.",
+                    "format": "https://www.iana.org/assignments/media-types/text/plain",
                     "default": {
-                      "class": "File",
-                      "location": "hello.txt"
-                    }
+                        "class": "File",
+                        "location": "hello.txt"
+                    },
+                    "id": "#main/input"
                 },
                 {
+                    "type": "boolean",
                     "default": true,
                     "doc": "If true, reverse (decending) sort",
-                    "type": "boolean",
                     "id": "#main/reverse_sort"
                 }
             ],
-            "doc": "Reverse the lines in a document, then sort those lines.",
-            "class": "Workflow",
+            "outputs": [
+                {
+                    "type": "File",
+                    "outputSource": "#main/sorted/output",
+                    "doc": "The output with the lines reversed and sorted.",
+                    "id": "#main/output"
+                }
+            ],
             "steps": [
                 {
-                    "out": [
-                        "#main/rev/output"
-                    ],
-                    "run": "#revtool.cwl",
-                    "id": "#main/rev",
                     "in": [
                         {
                             "source": "#main/input",
                             "id": "#main/rev/input"
                         }
-                    ]
+                    ],
+                    "out": [
+                        "#main/rev/output"
+                    ],
+                    "run": "#revtool.cwl",
+                    "id": "#main/rev"
                 },
                 {
-                    "out": [
-                        "#main/sorted/output"
-                    ],
-                    "run": "#sorttool.cwl",
-                    "id": "#main/sorted",
                     "in": [
                         {
                             "source": "#main/rev/output",
@@ -51,80 +59,79 @@
                             "source": "#main/reverse_sort",
                             "id": "#main/sorted/reverse"
                         }
-                    ]
-                }
-            ],
-            "outputs": [
-                {
-                    "outputSource": "#main/sorted/output",
-                    "type": "File",
-                    "id": "#main/output",
-                    "doc": "The output with the lines reversed and sorted."
+                    ],
+                    "out": [
+                        "#main/sorted/output"
+                    ],
+                    "run": "#sorttool.cwl",
+                    "id": "#main/sorted"
                 }
             ],
             "id": "#main",
-            "hints": [
-                {
-                    "dockerPull": "debian:8",
-                    "class": "DockerRequirement"
-                }
-            ]
+            "$namespaces": {
+                "iana": "https://www.iana.org/assignments/media-types/"
+            }
         },
         {
+            "class": "CommandLineTool",
+            "doc": "Reverse each line using the `rev` command",
             "inputs": [
                 {
-                    "inputBinding": {},
                     "type": "File",
+                    "inputBinding": {},
                     "id": "#revtool.cwl/input"
                 }
             ],
-            "stdout": "output.txt",
-            "doc": "Reverse each line using the `rev` command",
-            "baseCommand": "rev",
-            "class": "CommandLineTool",
             "outputs": [
                 {
+                    "type": "File",
                     "outputBinding": {
                         "glob": "output.txt"
                     },
-                    "type": "File",
                     "id": "#revtool.cwl/output"
                 }
             ],
+            "baseCommand": "rev",
+            "stdout": "output.txt",
             "id": "#revtool.cwl"
         },
         {
+            "class": "CommandLineTool",
+            "doc": "Sort lines using the `sort` command",
             "inputs": [
                 {
+                    "id": "#sorttool.cwl/reverse",
+                    "type": "boolean",
                     "inputBinding": {
                         "position": 1,
                         "prefix": "--reverse"
-                    },
-                    "type": "boolean",
-                    "id": "#sorttool.cwl/reverse"
+                    }
                 },
                 {
+                    "id": "#sorttool.cwl/input",
+                    "type": "File",
                     "inputBinding": {
                         "position": 2
-                    },
-                    "type": "File",
-                    "id": "#sorttool.cwl/input"
+                    }
                 }
             ],
-            "stdout": "output.txt",
-            "doc": "Sort lines using the `sort` command",
-            "baseCommand": "sort",
-            "class": "CommandLineTool",
             "outputs": [
                 {
+                    "id": "#sorttool.cwl/output",
+                    "type": "File",
                     "outputBinding": {
                         "glob": "output.txt"
-                    },
-                    "type": "File",
-                    "id": "#sorttool.cwl/output"
+                    }
                 }
             ],
+            "baseCommand": "sort",
+            "stdout": "output.txt",
             "id": "#sorttool.cwl"
         }
+    ],
+    "cwlVersion": "v1.0",
+    "$schemas": [
+        "file:///home/mcrusoe/cwltool/tests/wf/empty2.ttl",
+        "file:///home/mcrusoe/cwltool/tests/wf/empty.ttl"
     ]
 }

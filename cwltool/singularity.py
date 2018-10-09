@@ -235,7 +235,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--pwd")
         runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
 
-        if runtimeContext.custom_net is not None:
+        if runtimeContext.custom_net:
             raise UnsupportedRequirement(
                 "Singularity implementation does not support custom networking")
         elif runtimeContext.disable_net:
