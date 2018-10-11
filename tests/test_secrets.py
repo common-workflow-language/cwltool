@@ -4,7 +4,8 @@ import tempfile
 import pytest
 from cwltool.secrets import SecretStore
 from cwltool.main import main
-from .util import get_data, needs_docker, needs_singularity
+from .util import (get_data, needs_docker, needs_singularity,
+                   windows_needs_docker)
 if sys.version_info[0] < 3:
     from io import BytesIO as TextIO
 else:
@@ -66,6 +67,7 @@ def test_secret_workflow_log_singularity():
     shutil.rmtree(tmpdir)
     assert "Hoopla!" not in stream.getvalue()
 
+@windows_needs_docker
 def test_secret_workflow_log_override():
     stream = TextIO()
     tmpdir = tempfile.mkdtemp()

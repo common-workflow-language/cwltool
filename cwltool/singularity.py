@@ -18,7 +18,7 @@ from .context import RuntimeContext  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import PathMapper, MapperEnt  # pylint: disable=unused-import
 from .pathmapper import ensure_writable, ensure_non_writable
 from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
@@ -160,6 +160,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def append_volume(runtime, source, target, writable=False):
+        # type: (List[Text], Text, Text, bool) -> None
         runtime.append(u"--bind")
         runtime.append("{}:{}:{}".format(
             docker_windows_path_adjust(source),
@@ -168,7 +169,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def add_file_or_directory_volume(self,
                                      runtime,         # type: List[Text]
                                      volume,          # type: MapperEnt
-                                     host_outdir_tgt  # type: Text
+                                     host_outdir_tgt  # type: Optional[Text]
                                     ):  # type: (...) -> None
         if host_outdir_tgt:
             # workaround for lack of overlapping mounts in Singularity
@@ -186,7 +187,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def add_writable_file_volume(self,
                                  runtime,         # type: List[Text]
                                  volume,          # type: MapperEnt
-                                 host_outdir_tgt  # type: Text
+                                 host_outdir_tgt  # type: Optional[Text]
                                 ):  # type: (...) -> None
         if host_outdir_tgt:
             # workaround for lack of overlapping mounts in Singularity
@@ -219,7 +220,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def add_writable_directory_volume(self,
                                       runtime,         # type: List[Text]
                                       volume,          # type: MapperEnt
-                                      host_outdir_tgt  # type: Text
+                                      host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         if volume.resolved.startswith("_:"):
             if host_outdir_tgt:
@@ -258,7 +259,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                       ):
         # type: (...) -> List
         """ Returns the Singularity runtime list of commands and options."""
-        any_path_okay = self.builder.get_requirement("DockerRequirement")[1]
+        any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
+            or False
         runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
                    u"--ipc"]
         if _singularity_supports_userns():

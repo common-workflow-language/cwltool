@@ -20,7 +20,7 @@ from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import PathMapper  # pylint: disable=unused-import
+from .pathmapper import PathMapper, MapperEnt  # pylint: disable=unused-import
 from .pathmapper import ensure_writable, ensure_non_writable
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
@@ -219,7 +219,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def add_file_or_directory_volume(self,
                                      runtime,         # type: List[Text]
                                      volume,          # type: MapperEnt
-                                     host_outdir_tgt  # type: Text
+                                     host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
@@ -230,7 +230,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def add_writable_file_volume(self,
                                  runtime,         # type: List[Text]
                                  volume,          # type: MapperEnt
-                                 host_outdir_tgt  # type: Text
+                                 host_outdir_tgt  # type: Optional[Text]
                                 ):  # type: (...) -> None
         """Append a writable file mapping to the runtime option list."""
         if self.inplace_update:
@@ -253,7 +253,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def add_writable_directory_volume(self,
                                       runtime,         # type: List[Text]
                                       volume,          # type: MapperEnt
-                                      host_outdir_tgt  # type: Text
+                                      host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         """Append a writable directory mapping to the runtime option list."""
         if volume.resolved.startswith("_:"):
@@ -273,19 +273,20 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             else:
                 if not host_outdir_tgt:
                     tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
-                    host_outdir_tgt = os.path.join(
+                    new_dir = os.path.join(
                         tmpdir, os.path.basename(volume.resolved))
-                    shutil.copytree(volume.resolved, host_outdir_tgt)
+                    shutil.copytree(volume.resolved, new_dir)
                     self.append_volume(
-                        runtime, host_outdir_tgt, volume.target,
+                        runtime, new_dir, volume.target,
                         writable=True)
                 else:
                     shutil.copytree(volume.resolved, host_outdir_tgt)
-                ensure_writable(host_outdir_tgt)
+                ensure_writable(host_outdir_tgt or new_dir)
 
     def create_runtime(self, env, runtimeContext):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
-        any_path_okay = self.builder.get_requirement("DockerRequirement")[1]
+        any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
+            or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
             if 'udocker' in user_space_docker_cmd and not runtimeContext.debug:

@@ -454,7 +454,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     def add_file_or_directory_volume(self,
                                      runtime,         # type: List[Text]
                                      volume,          # type: MapperEnt
-                                     host_outdir_tgt  # type: Text
+                                     host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         """Append volume a file/dir mapping to the runtime option list."""
         pass
@@ -463,7 +463,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     def add_writable_file_volume(self,
                                  runtime,         # type: List[Text]
                                  volume,          # type: MapperEnt
-                                 host_outdir_tgt  # type: Text
+                                 host_outdir_tgt  # type: Optional[Text]
                                 ):  # type: (...) -> None
         """Append a writable file mapping to the runtime option list."""
         pass
@@ -472,7 +472,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     def add_writable_directory_volume(self,
                                       runtime,         # type: List[Text]
                                       volume,          # type: MapperEnt
-                                      host_outdir_tgt  # type: Text
+                                      host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         """Append a writable directory mapping to the runtime option list."""
         pass
@@ -480,33 +480,31 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     def create_file_and_add_volume(self,
                                    runtime,          # type: List[Text]
                                    volume,           # type: MapperEnt
-                                   host_outdir_tgt,  # type: Text
-                                   secret_store      # type: SecretStore
+                                   host_outdir_tgt,  # type: Optional[Text]
+                                   secret_store      # type: Optional[SecretStore]
                                   ):  # type: (...) -> None
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
-            tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
-            host_outdir_tgt = os.path.join(
-                tmpdir, os.path.basename(volume.resolved))
-        else:
-            tmpdir = False
+            new_file = os.path.join(
+                tempfile.mkdtemp(dir=self.tmpdir),
+                os.path.basename(volume.resolved))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
             contents = secret_store.retrieve(volume.resolved)
         else:
             contents = volume.resolved
-        dirname = os.path.dirname(host_outdir_tgt)
+        dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
             os.makedirs(dirname, 0o0755)
-        with open(host_outdir_tgt, "wb") as file_literal:
+        with open(host_outdir_tgt or new_file, "wb") as file_literal:
             file_literal.write(contents.encode("utf-8"))
-        if not tmpdir:
-            self.append_volume(runtime, host_outdir_tgt, volume.target,
+        if new_file:
+            self.append_volume(runtime, new_file, volume.target,
                                writable=writable)
         if writable:
-            ensure_writable(host_outdir_tgt)
+            ensure_writable(host_outdir_tgt or new_file)
         else:
-            ensure_non_writable(host_outdir_tgt)
+            ensure_non_writable(host_outdir_tgt or new_file)
 
 
 
