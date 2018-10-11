@@ -4,6 +4,7 @@ import distutils.spawn  # pylint: disable=no-name-in-module,import-error
 import functools
 import os
 import sys
+import shutil
 import contextlib
 import tempfile
 from typing import Text
@@ -71,8 +72,8 @@ def get_main_output(args):
     return process.returncode, stdout.decode(), stderr.decode()
 
 @contextlib.contextmanager
-def temp_dir(prefix):
-    c_dir = tempfile.mkdtemp(prefix)
+def temp_dir(suffix=""):
+    c_dir = tempfile.mkdtemp(suffix)
     try:
         yield c_dir
     except:
