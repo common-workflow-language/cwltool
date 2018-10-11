@@ -21,7 +21,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import PathMapper  # pylint: disable=unused-import
-from .pathmapper import ensure_writable
+from .pathmapper import ensure_writable, ensure_non_writable
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
                     subprocess)
@@ -208,83 +208,84 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         return None
 
-    def add_volumes(self, pathmapper, runtime, secret_store=None):
-        # type: (PathMapper, List[Text], SecretStore) -> None
-        """Append volume mappings to the runtime option list."""
+    @staticmethod
+    def append_volume(runtime, source, target, writable=False):
+        # type: (List[Text], Text, Text, bool) -> None
+        """Add binding arguments to the runtime list."""
+        runtime.append(u"--volume={}:{}:{}".format(
+            docker_windows_path_adjust(source),
+            docker_windows_path_adjust(target), "rw" if writable else "ro"))
 
-        host_outdir = self.outdir
-        container_outdir = self.builder.outdir
-        for _, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            host_outdir_tgt = None  # type: Optional[Text]
-            if vol.target.startswith(container_outdir + "/"):
-                host_outdir_tgt = os.path.join(
-                    host_outdir, vol.target[len(container_outdir)+1:])
+    def add_file_or_directory_volume(self,
+                                     runtime,         # type: List[Text]
+                                     volume,          # type: MapperEnt
+                                     host_outdir_tgt  # type: Text
+                                     ):  # type: (...) -> None
+        """Append volume a file/dir mapping to the runtime option list."""
+        if not volume.resolved.startswith("_:"):
+            _check_docker_machine_path(docker_windows_path_adjust(
+                volume.resolved))
+            self.append_volume(runtime, volume.resolved, volume.target)
 
-            if vol.type in ("File", "Directory"):
-                if not vol.resolved.startswith("_:"):
-                    _check_docker_machine_path(docker_windows_path_adjust(
-                        vol.resolved))
-                    runtime.append(u"--volume=%s:%s:ro" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
-            elif vol.type == "WritableFile":
-                if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
+    def add_writable_file_volume(self,
+                                 runtime,         # type: List[Text]
+                                 volume,          # type: MapperEnt
+                                 host_outdir_tgt  # type: Text
+                                ):  # type: (...) -> None
+        """Append a writable file mapping to the runtime option list."""
+        if self.inplace_update:
+            self.append_volume(runtime, volume.resolved, volume.target,
+                               writable=True)
+        else:
+            if host_outdir_tgt:
+                # shortcut, just copy to the output directory
+                # which is already going to be mounted
+                shutil.copy(volume.resolved, host_outdir_tgt)
+            else:
+                tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+                file_copy = os.path.join(
+                    tmpdir, os.path.basename(volume.resolved))
+                shutil.copy(volume.resolved, file_copy)
+                self.append_volume(runtime, file_copy, volume.target,
+                                   writable=True)
+            ensure_writable(host_outdir_tgt or file_copy)
+
+    def add_writable_directory_volume(self,
+                                      runtime,         # type: List[Text]
+                                      volume,          # type: MapperEnt
+                                      host_outdir_tgt  # type: Text
+                                     ):  # type: (...) -> None
+        """Append a writable directory mapping to the runtime option list."""
+        if volume.resolved.startswith("_:"):
+            # Synthetic directory that needs creating first
+            if not host_outdir_tgt:
+                new_dir = os.path.join(
+                    tempfile.mkdtemp(dir=self.tmpdir),
+                    os.path.basename(volume.target))
+                self.append_volume(runtime, new_dir, volume.target,
+                                   writable=True)
+            elif not os.path.exists(host_outdir_tgt):
+                os.makedirs(host_outdir_tgt, 0o0755)
+        else:
+            if self.inplace_update:
+                self.append_volume(runtime, volume.resolved, volume.target,
+                                   writable=True)
+            else:
+                if not host_outdir_tgt:
+                    tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+                    host_outdir_tgt = os.path.join(
+                        tmpdir, os.path.basename(volume.resolved))
+                    shutil.copytree(volume.resolved, host_outdir_tgt)
+                    self.append_volume(
+                        runtime, host_outdir_tgt, volume.target,
+                        writable=True)
                 else:
-                    if host_outdir_tgt:
-                        shutil.copy(vol.resolved, host_outdir_tgt)
-                        ensure_writable(host_outdir_tgt)
-                    else:
-                        raise WorkflowException(
-                            "Unable to compute host_outdir_tgt for "
-                            "WriteableFile.")
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
-                    if host_outdir_tgt:
-                        if not os.path.exists(host_outdir_tgt):
-                            os.makedirs(host_outdir_tgt, 0o0755)
-                    else:
-                        raise WorkflowException(
-                            "Unable to compute host_outdir_tgt for "
-                            "WritableDirectory.")
-                else:
-                    if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (
-                            docker_windows_path_adjust(vol.resolved),
-                            docker_windows_path_adjust(vol.target)))
-                    else:
-                        if host_outdir_tgt:
-                            shutil.copytree(vol.resolved, host_outdir_tgt)
-                            ensure_writable(host_outdir_tgt)
-                        else:
-                            raise WorkflowException(
-                                "Unable to compute host_outdir_tgt for "
-                                "WritableDirectory.")
-            elif vol.type == "CreateFile":
-                if secret_store:
-                    contents = secret_store.retrieve(vol.resolved)
-                else:
-                    contents = vol.resolved
-                if host_outdir_tgt:
-                    dirname = os.path.dirname(host_outdir_tgt)
-                    if not os.path.exists(dirname):
-                        os.makedirs(dirname, 0o0755)
-                    with open(host_outdir_tgt, "wb") as file_literal:
-                        file_literal.write(contents.encode("utf-8"))
-                else:
-                    tmp_fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
-                    with os.fdopen(tmp_fd, "wb") as file_literal:
-                        file_literal.write(contents.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(os.path.realpath(createtmp)),
-                        vol.target))
+                    shutil.copytree(volume.resolved, host_outdir_tgt)
+                ensure_writable(host_outdir_tgt)
 
     def create_runtime(self, env, runtimeContext):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
+        any_path_okay = self.builder.get_requirement("DockerRequirement")[1]
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
             if 'udocker' in user_space_docker_cmd and not runtimeContext.debug:
@@ -302,9 +303,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--volume=%s:%s:rw" % (
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-        self.add_volumes(self.pathmapper, runtime, secret_store=runtimeContext.secret_store)
+        self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
+                         secret_store=runtimeContext.secret_store)
         if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime, secret_store=runtimeContext.secret_store)
+            self.add_volumes(
+                self.generatemapper, runtime, any_path_okay=any_path_okay,
+                secret_store=runtimeContext.secret_store)
 
         if user_space_docker_cmd:
             runtime = [x.replace(":ro", "") for x in runtime]

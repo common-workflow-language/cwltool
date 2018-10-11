@@ -29,7 +29,8 @@ from .context import RuntimeContext  # pylint: disable=unused-import
 from .context import getdefault
 from .errors import WorkflowException
 from .loghandler import _logger
-from .pathmapper import PathMapper
+from .pathmapper import (MapperEnt, PathMapper, ensure_writable,
+                         ensure_non_writable)
 from .process import UnsupportedRequirement, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import \
@@ -122,20 +123,35 @@ def deref_links(outputs):  # type: (Any) -> None
         for output in outputs:
             deref_links(output)
 
-def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_update=False):
-    # type: (PathMapper, Text, Text, bool) -> None
+def relink_initialworkdir(pathmapper,           # type: PathMapper
+                          host_outdir,          # type: Text
+                          container_outdir,     # type: Text
+                          inplace_update=False  # type: bool
+                         ):  # type: (...) -> None
     for _, vol in pathmapper.items():
         if not vol.staged:
             continue
 
-        if vol.type in ("File", "Directory") or (inplace_update and
-                                                 vol.type in ("WritableFile", "WritableDirectory")):
-            host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir)+1:])
-            if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
+        if (vol.type in ("File", "Directory") or (
+                inplace_update and vol.type in
+                ("WritableFile", "WritableDirectory"))):
+            if not vol.target.startswith(container_outdir):
+                # this is an input file written outside of the working
+                # directory, so therefor ineligable for being an output file.
+                # Thus, none of our business
+                continue
+            host_outdir_tgt = os.path.join(
+                host_outdir, vol.target[len(container_outdir)+1:])
+            if os.path.islink(host_outdir_tgt) \
+                    or os.path.isfile(host_outdir_tgt):
                 os.remove(host_outdir_tgt)
-            elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
+            elif os.path.isdir(host_outdir_tgt) \
+                    and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
             if onWindows():
+                # If this becomes a big issue for someone then we could
+                # refactor the code to process output from a running container
+                # and avoid all the extra IO below
                 if vol.type in ("File", "WritableFile"):
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
@@ -426,6 +442,104 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
         """ Return the list of commands to run the selected container engine."""
         pass
+
+    @staticmethod
+    @abstractmethod
+    def append_volume(runtime, source, target, writable=False):
+        # type: (List[Text], Text, Text, bool) -> None
+        """Add binding arguments to the runtime list."""
+        pass
+
+    @abstractmethod
+    def add_file_or_directory_volume(self,
+                                     runtime,         # type: List[Text]
+                                     volume,          # type: MapperEnt
+                                     host_outdir_tgt  # type: Text
+                                     ):  # type: (...) -> None
+        """Append volume a file/dir mapping to the runtime option list."""
+        pass
+
+    @abstractmethod
+    def add_writable_file_volume(self,
+                                 runtime,         # type: List[Text]
+                                 volume,          # type: MapperEnt
+                                 host_outdir_tgt  # type: Text
+                                ):  # type: (...) -> None
+        """Append a writable file mapping to the runtime option list."""
+        pass
+
+    @abstractmethod
+    def add_writable_directory_volume(self,
+                                      runtime,         # type: List[Text]
+                                      volume,          # type: MapperEnt
+                                      host_outdir_tgt  # type: Text
+                                     ):  # type: (...) -> None
+        """Append a writable directory mapping to the runtime option list."""
+        pass
+
+    def create_file_and_add_volume(self,
+                                   runtime,          # type: List[Text]
+                                   volume,           # type: MapperEnt
+                                   host_outdir_tgt,  # type: Text
+                                   secret_store      # type: SecretStore
+                                  ):  # type: (...) -> None
+        """Create the file and add a mapping."""
+        if not host_outdir_tgt:
+            tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+            host_outdir_tgt = os.path.join(
+                tmpdir, os.path.basename(volume.resolved))
+        else:
+            tmpdir = False
+        writable = True if volume.type == "CreateWritableFile" else False
+        if secret_store:
+            contents = secret_store.retrieve(volume.resolved)
+        else:
+            contents = volume.resolved
+        dirname = os.path.dirname(host_outdir_tgt)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname, 0o0755)
+        with open(host_outdir_tgt, "wb") as file_literal:
+            file_literal.write(contents.encode("utf-8"))
+        if not tmpdir:
+            self.append_volume(runtime, host_outdir_tgt, volume.target,
+                               writable=writable)
+        if writable:
+            ensure_writable(host_outdir_tgt)
+        else:
+            ensure_non_writable(host_outdir_tgt)
+
+
+
+    def add_volumes(self,
+                    pathmapper,          # type: PathMapper
+                    runtime,             # type: List[Text]
+                    secret_store=None,   # type: Optional[SecretStore]
+                    any_path_okay=False  # type: bool
+                   ):  # type: (...) -> None
+        """Append volume mappings to the runtime option list."""
+
+        container_outdir = self.builder.outdir
+        for vol in (itm[1] for itm in pathmapper.items() if itm[1].staged):
+            host_outdir_tgt = None  # type: Optional[Text]
+            if vol.target.startswith(container_outdir + "/"):
+                host_outdir_tgt = os.path.join(
+                    self.outdir, vol.target[len(container_outdir)+1:])
+            if not host_outdir_tgt and not any_path_okay:
+                raise WorkflowException(
+                    "No mandatory DockerRequirement, yet path is outside "
+                    "the designated output directory, also know as "
+                    "$(runtime.outdir): {}".format(vol))
+            if vol.type in ("File", "Directory"):
+                self.add_file_or_directory_volume(
+                    runtime, vol, host_outdir_tgt)
+            elif vol.type == "WritableFile":
+                self.add_writable_file_volume(runtime, vol, host_outdir_tgt)
+            elif vol.type == "WritableDirectory":
+                self.add_writable_directory_volume(
+                    runtime, vol, host_outdir_tgt)
+            elif vol.type in ["CreateFile", "CreateWritableFile"]:
+                self.create_file_and_add_volume(
+                    runtime, vol, host_outdir_tgt, secret_store)
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None

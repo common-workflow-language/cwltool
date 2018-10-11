@@ -765,11 +765,3 @@ def test_no_compute_checksum():
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout
-
-@needs_singularity
-def test_singularity_workflow():
-    error_code, _, stderr = get_main_output(
-        ['--singularity', '--default-container', 'debian',
-         get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
-    assert "completed success" in stderr
-    assert error_code == 0

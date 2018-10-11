@@ -1,8 +1,15 @@
+import shutil
+import sys
+import tempfile
 import pytest
-
 from cwltool.secrets import SecretStore
+from cwltool.main import main
+from .util import get_data, needs_docker, needs_singularity
+if sys.version_info[0] < 3:
+    from io import BytesIO as TextIO
+else:
+    from io import StringIO as TextIO
 
-from .util import get_data
 
 @pytest.fixture
 def secrets():
@@ -36,3 +43,36 @@ def test_secrets(factory, expected, secrets):
 
     assert obscured['foo'] != 'bar'
     assert obscured['baz'] == 'quux'
+
+@needs_docker
+def test_secret_workflow_log():
+    stream = TextIO()
+    tmpdir = tempfile.mkdtemp()
+    main(["--debug", "--outdir", tmpdir, get_data("tests/wf/secret_wf.cwl"),
+          "--pw", "Hoopla!"],
+         stderr=stream)
+
+    shutil.rmtree(tmpdir)
+    assert "Hoopla!" not in stream.getvalue()
+
+@needs_singularity
+def test_secret_workflow_log_singularity():
+    stream = TextIO()
+    tmpdir = tempfile.mkdtemp()
+    main(["--debug", "--outdir", tmpdir, "--singularity",
+          get_data("tests/wf/secret_wf.cwl"), "--pw", "Hoopla!"],
+         stderr=stream)
+
+    shutil.rmtree(tmpdir)
+    assert "Hoopla!" not in stream.getvalue()
+
+def test_secret_workflow_log_override():
+    stream = TextIO()
+    tmpdir = tempfile.mkdtemp()
+    main(["--debug", "--outdir", tmpdir, "--overrides",
+          get_data("tests/wf/override-no-secrets.yml"),
+          get_data("tests/wf/secret_wf.cwl"), "--pw", "Hoopla!"],
+         stderr=stream)
+    shutil.rmtree(tmpdir)
+
+    assert "Hoopla!" in stream.getvalue()

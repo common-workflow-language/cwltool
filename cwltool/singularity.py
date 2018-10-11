@@ -1,11 +1,11 @@
-"""Support for executing Docker containers using a Singularity."""
+"""Support for executing Docker containers using the Singularity 2.x engine."""
 from __future__ import absolute_import
 
 import os
 import os.path
 import re
 import shutil
-import stat
+import tempfile
 import sys
 from io import open  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional
@@ -19,7 +19,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import PathMapper  # pylint: disable=unused-import
-from .pathmapper import ensure_writable
+from .pathmapper import ensure_writable, ensure_non_writable
 from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
 if os.name == 'posix':
@@ -158,87 +158,99 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         return None
 
-    def add_volumes(self, pathmapper, runtime, stage_output):
-        # type: (PathMapper, List[Text], bool) -> None
+    @staticmethod
+    def append_volume(runtime, source, target, writable=False):
+        runtime.append(u"--bind")
+        runtime.append("{}:{}:{}".format(
+            docker_windows_path_adjust(source),
+            docker_windows_path_adjust(target), "rw" if writable else "ro"))
 
-        host_outdir = self.outdir
-        host_outdir_tgt = None  # type: Optional[Text]
-        container_outdir = self.builder.outdir
-        for _, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            if stage_output and not vol.target.startswith(container_outdir):
-                containertgt = container_outdir + vol.target[len(host_outdir):]
+    def add_file_or_directory_volume(self,
+                                     runtime,         # type: List[Text]
+                                     volume,          # type: MapperEnt
+                                     host_outdir_tgt  # type: Text
+                                    ):  # type: (...) -> None
+        if host_outdir_tgt:
+            # workaround for lack of overlapping mounts in Singularity
+            # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
+            # once https://github.com/sylabs/singularity/issues/1607
+            # is fixed
+            if volume.type == "File":
+                shutil.copy(volume.resolved, host_outdir_tgt)
             else:
-                containertgt = vol.target
-            if vol.type in ("File", "Directory"):
-                if vol.target.startswith(container_outdir + "/"):
-                    # workaround for lack of overlapping mounts in Singularity
-                    # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
-                    # once https://github.com/sylabs/singularity/issues/1607
-                    # is fixed
-                    target = os.path.join(
-                        self.outdir, os.path.basename(vol.target))
-                    os.link(os.path.realpath(vol.resolved), target)
-                    os.chmod(target, stat.S_IRUSR)
-                elif not vol.resolved.startswith("_:"):
-                    runtime.append(u"--bind")
-                    runtime.append("{}:{}:ro".format(
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(containertgt)))
-            elif vol.type == "WritableFile":
-                if containertgt.startswith(container_outdir + "/"):
-                    # workaround for lack of overlapping mounts in Singularity
-                    # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
-                    # once https://github.com/sylabs/singularity/issues/1607
-                    # is fixed
-                    target = os.path.join(
-                        self.outdir, os.path.basename(containertgt))
-                    if self.inplace_update:
-                        os.link(os.path.realpath(vol.resolved), target)
-                        os.chmod(target, stat.S_IRUSR | stat.S_IWUSR)
-                    else:
-                        shutil.copy(vol.resolved, target)
-                        ensure_writable(target)
-                elif self.inplace_update:
-                    runtime.append(u"--bind")
-                    runtime.append(u"{}:{}:rw".format(
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(containertgt)))
-                elif host_outdir_tgt:
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                    ensure_writable(host_outdir_tgt)
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:") and host_outdir_tgt:
-                    os.makedirs(host_outdir_tgt, 0o0755)
+                shutil.copytree(volume.resolved, host_outdir_tgt)
+            ensure_non_writable(host_outdir_tgt)
+        elif not volume.resolved.startswith("_:"):
+            self.append_volume(runtime, volume.resolved, volume.target)
+
+    def add_writable_file_volume(self,
+                                 runtime,         # type: List[Text]
+                                 volume,          # type: MapperEnt
+                                 host_outdir_tgt  # type: Text
+                                ):  # type: (...) -> None
+        if host_outdir_tgt:
+            # workaround for lack of overlapping mounts in Singularity
+            # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
+            # once https://github.com/sylabs/singularity/issues/1607
+            # is fixed
+            if self.inplace_update:
+                try:
+                    os.link(os.path.realpath(volume.resolved),
+                            host_outdir_tgt)
+                except os.error:
+                    shutil.copy(volume.resolved, host_outdir_tgt)
+            else:
+                shutil.copy(volume.resolved, host_outdir_tgt)
+            ensure_writable(host_outdir_tgt)
+        elif self.inplace_update:
+            self.append_volume(
+                runtime, volume.resolved, volume.target, writable=True)
+            ensure_writable(volume.resolved)
+        else:
+            file_copy = os.path.join(
+                tempfile.mkdtemp(dir=self.tmpdir),
+                os.path.basename(volume.resolved))
+            shutil.copy(volume.resolved, file_copy)
+            #volume.resolved = file_copy
+            self.append_volume(
+                runtime, file_copy, volume.target, writable=True)
+            ensure_writable(file_copy)
+
+    def add_writable_directory_volume(self,
+                                      runtime,         # type: List[Text]
+                                      volume,          # type: MapperEnt
+                                      host_outdir_tgt  # type: Text
+                                     ):  # type: (...) -> None
+        if volume.resolved.startswith("_:"):
+            if host_outdir_tgt:
+                new_dir = host_outdir_tgt
+            else:
+                new_dir = os.path.join(
+                    tempfile.mkdtemp(dir=self.tmpdir),
+                    os.path.basename(volume.resolved))
+            os.makedirs(new_dir, 0o0755)
+        else:
+            if host_outdir_tgt:
+                # workaround for lack of overlapping mounts in Singularity
+                # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
+                # once https://github.com/sylabs/singularity/issues/1607
+                # is fixed
+                shutil.copytree(volume.resolved, host_outdir_tgt)
+                ensure_writable(host_outdir_tgt)
+            else:
+                if not self.inplace_update:
+                    dir_copy = os.path.join(
+                        tempfile.mkdtemp(dir=self.tmpdir),
+                        os.path.basename(volume.resolved))
+                    shutil.copytree(volume.resolved, dir_copy)
+                    source = dir_copy
+                    #volume.resolved = dir_copy
                 else:
-                    if containertgt.startswith(container_outdir + "/"):
-                        # workaround for lack of overlapping mounts in Singularity
-                        # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
-                        # once https://github.com/sylabs/singularity/issues/1607
-                        # is fixed
-                        target = os.path.join(
-                            self.outdir, os.path.basename(containertgt))
-                        if self.inplace_update:
-                            os.link(os.path.realpath(vol.resolved), target)
-                            os.chmod(target, stat.S_IRUSR | stat.S_IWUSR)
-                        else:
-                            shutil.copytree(vol.resolved, target)
-                    elif self.inplace_update:
-                        runtime.append(u"--bind")
-                        runtime.append(u"{}:{}:rw".format(
-                            docker_windows_path_adjust(vol.resolved),
-                            docker_windows_path_adjust(containertgt)))
-                    elif host_outdir_tgt:
-                        shutil.copytree(vol.resolved, host_outdir_tgt)
-            elif vol.type == "CreateFile":
-                createtmp = os.path.join(host_outdir, os.path.basename(vol.target))
-                with open(createtmp, "wb") as tmp:
-                    tmp.write(vol.resolved.encode("utf-8"))
-                runtime.append(u"--bind")
-                runtime.append(u"{}:{}:ro".format(
-                    docker_windows_path_adjust(createtmp),
-                    docker_windows_path_adjust(vol.target)))
+                    source = volume.resolved
+                self.append_volume(
+                    runtime, source, volume.target, writable=True)
+                ensure_writable(source)
+
 
     def create_runtime(self,
                        env,                        # type: MutableMapping[Text, Text]
@@ -246,7 +258,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                       ):
         # type: (...) -> List
         """ Returns the Singularity runtime list of commands and options."""
-
+        any_path_okay = self.builder.get_requirement("DockerRequirement")[1]
         runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",
                    u"--ipc"]
         if _singularity_supports_userns():
@@ -259,9 +271,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"{}:{}:rw".format(
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-        self.add_volumes(self.pathmapper, runtime, stage_output=False)
+        self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
+                         secret_store=runtimeContext.secret_store)
         if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime, stage_output=True)
+            self.add_volumes(
+                self.generatemapper, runtime, any_path_okay=any_path_okay,
+                secret_store=runtimeContext.secret_store)
 
         runtime.append(u"--pwd")
         runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
