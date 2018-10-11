@@ -498,7 +498,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             os.makedirs(dirname, 0o0755)
         with open(host_outdir_tgt or new_file, "wb") as file_literal:
             file_literal.write(contents.encode("utf-8"))
-        if new_file:
+        if not host_outdir_tgt:
             self.append_volume(runtime, new_file, volume.target,
                                writable=writable)
         if writable:
