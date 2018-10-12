@@ -381,7 +381,7 @@ def add_argument(toolparser, name, inptype, records, description="",
     else:
         flag = "--"
 
-    required = True
+    required = default is None
     if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
@@ -418,7 +418,7 @@ def add_argument(toolparser, name, inptype, records, description="",
                 toolparser, fieldname, fieldtype, records,
                 fielddescription)
         return
-    if inptype == "string":
+    elif inptype == "string":
         atype = Text
     elif inptype == "int":
         atype = int
@@ -428,11 +428,7 @@ def add_argument(toolparser, name, inptype, records, description="",
         atype = float
     elif inptype == "boolean":
         action = "store_true"
-
-    if default:
-        required = False
-
-    if not atype and not action:
+    else:
         _logger.debug(u"Can't make command line argument from %s", inptype)
         return None
 
