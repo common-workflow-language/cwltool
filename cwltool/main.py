@@ -141,10 +141,10 @@ def generate_example_input(inptype,     # type: Any
                     example = [value]
                 else:
                     example = value
-            if default:
+            if default is not None:
                 example = default
         elif inptype['type'] == 'enum':
-            if default:
+            if default is not None:
                 example = default
             elif 'default' in inptype:
                 example = inptype['default']
@@ -225,7 +225,7 @@ def load_job_order(args,                 # type: argparse.Namespace
                    fetcher_constructor,  # Fetcher
                    overrides_list,       # type: List[Dict[Text, Any]]
                    tool_file_uri         # type: Text
-                  ):  # type: (...) -> Tuple[MutableMapping[Text, Any], Text, Loader]
+                  ):  # type: (...) -> Tuple[Optional[MutableMapping[Text, Any]], Text, Loader]
 
     job_order_object = None
     job_order_file = None
@@ -241,23 +241,23 @@ def load_job_order(args,                 # type: argparse.Namespace
     else:
         job_order_file = None
 
-    if job_order_object:
+    if job_order_object is not None:
         input_basedir = args.basedir if args.basedir else os.getcwd()
-    elif job_order_file:
+    elif job_order_file is not None:
         input_basedir = args.basedir if args.basedir \
             else os.path.abspath(os.path.dirname(job_order_file))
         job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
 
-    if job_order_object and "http://commonwl.org/cwltool#overrides" in job_order_object:
+    if job_order_object is not None and "http://commonwl.org/cwltool#overrides" in job_order_object:
         ov_uri = file_uri(job_order_file or input_basedir)
         overrides_list.extend(
             resolve_overrides(job_order_object, ov_uri, tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]
 
-    if not job_order_object:
+    if job_order_object is None:
         input_basedir = args.basedir if args.basedir else os.getcwd()
 
-    if job_order_object and not isinstance(job_order_object, MutableMapping):
+    if job_order_object is not None and not isinstance(job_order_object, MutableMapping):
         _logger.error(
             'CWL input object at %s is not formatted correctly, it should be a '
             'JSON/YAML dictionay, not %s.\n'
@@ -279,49 +279,46 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    secret_store=None        # type: SecretStore
                   ):  # type: (...) -> MutableMapping[Text, Any]
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
-    if not job_order_object:
+    if job_order_object is None:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
         toolparser = generate_parser(
             argparse.ArgumentParser(prog=args.workflow), process, namemap, records)
-        if toolparser:
-            if args.tool_help:
-                toolparser.print_help()
-                exit(0)
-            cmd_line = vars(toolparser.parse_args(args.job_order))
-            for record_name in records:
-                record = {}
-                record_items = {
-                    k: v for k, v in iteritems(cmd_line)
-                    if k.startswith(record_name)}
-                for key, value in iteritems(record_items):
-                    record[key[len(record_name) + 1:]] = value
-                    del cmd_line[key]
-                cmd_line[str(record_name)] = record
+        if args.tool_help:
+            toolparser.print_help()
+            exit(0)
+        cmd_line = vars(toolparser.parse_args(args.job_order))
+        for record_name in records:
+            record = {}
+            record_items = {
+                k: v for k, v in iteritems(cmd_line)
+                if k.startswith(record_name)}
+            for key, value in iteritems(record_items):
+                record[key[len(record_name) + 1:]] = value
+                del cmd_line[key]
+            cmd_line[str(record_name)] = record
 
-            if cmd_line["job_order"]:
-                try:
-                    job_order_object = cast(
-                        MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
-                except Exception as err:
-                    _logger.error(Text(err), exc_info=args.debug)
-                    exit(1)
-            else:
-                job_order_object = {"id": args.workflow}
-
-            del cmd_line["job_order"]
-
-            job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
-
-            if secret_store and secrets_req:
-                secret_store.store(
-                    [shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
-
-            if _logger.isEnabledFor(logging.DEBUG):
-                _logger.debug(u"Parsed job order from command line: %s",
-                              json_dumps(job_order_object, indent=4))
+        if 'job_order' in cmd_line and cmd_line["job_order"]:
+            try:
+                job_order_object = cast(
+                    MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
+            except Exception as err:
+                _logger.error(Text(err), exc_info=args.debug)
+                exit(1)
         else:
-            job_order_object = None
+            job_order_object = {"id": args.workflow}
+
+        del cmd_line["job_order"]
+
+        job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
+
+        if secret_store and secrets_req:
+            secret_store.store(
+                [shortname(sc) for sc in secrets_req["secrets"]], job_order_object)
+
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(u"Parsed job order from command line: %s",
+                          json_dumps(job_order_object, indent=4))
 
     for inp in process.tool["inputs"]:
         if "default" in inp and (
@@ -330,9 +327,9 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                 job_order_object = {}
             job_order_object[shortname(inp["id"])] = inp["default"]
 
-    if not job_order_object:
+    if job_order_object is None:
         if process.tool["inputs"]:
-            if toolparser:
+            if toolparser is not None:
                 print(u"\nOptions for {} ".format(args.workflow))
                 toolparser.print_help()
             _logger.error("")
@@ -446,7 +443,7 @@ def find_deps(obj,              # type: Mapping[Text, Any]
     sfs = scandeps(
         basedir if basedir else uri, obj, {"$import", "run"},
         {"$include", "$schemas", "location"}, loadref, nestdirs=nestdirs)
-    if sfs:
+    if sfs is not None:
         deps["secondaryFiles"] = sfs
 
     return deps
@@ -496,7 +493,7 @@ def main(argsl=None,                   # type: List[str]
             stdout = cast(TextIO, sys.stdout)  # type: ignore
 
     _logger.removeHandler(defaultStreamHandler)
-    if logger_handler:
+    if logger_handler is not None:
         stderr_handler = logger_handler
     else:
         stderr_handler = logging.StreamHandler(stderr)
@@ -572,7 +569,7 @@ def main(argsl=None,                   # type: List[str]
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
 
-        if custom_schema_callback:
+        if custom_schema_callback is not None:
             custom_schema_callback()
         elif args.enable_ext:
             res = pkg_resources.resource_stream(__name__, 'extensions.yml')
@@ -606,7 +603,7 @@ def main(argsl=None,                   # type: List[str]
             prov_log_handler.setFormatter(ProvLogFormatter())
             _logger.addHandler(prov_log_handler)
             _logger.debug(u"[provenance] Logging to %s", log_file_io)
-            if argsl:
+            if argsl is not None:
                 # Log cwltool command line options to provenance file
                 _logger.info("[cwltool] %s %s", sys.argv[0], u" ".join(argsl))
             _logger.debug(u"[cwltool] Arguments: %s", args)
@@ -780,7 +777,7 @@ def main(argsl=None,                   # type: List[str]
                                      logger=_logger)
 
             if out is not None:
-                if runtimeContext.research_obj:
+                if runtimeContext.research_obj is not None:
                     runtimeContext.research_obj.create_job(out, None, True)
 
                 def loc_to_path(obj):
@@ -835,7 +832,7 @@ def main(argsl=None,                   # type: List[str]
             research_obj = runtimeContext.research_obj
             prov_dependencies = prov_deps(workflowobj, document_loader, uri)
             research_obj.generate_snapshot(prov_dependencies)
-            if prov_log_handler:
+            if prov_log_handler is not None:
                 # Stop logging so we won't half-log adding ourself to RO
                 _logger.debug(u"[provenance] Closing provenance log file %s",
                     prov_log_handler)
