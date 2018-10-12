@@ -106,7 +106,8 @@ def get_container_from_software_requirements(use_biocontainers, builder):
     # type: (bool, HasReqsHints) -> Optional[Text]
     if use_biocontainers:
         ensure_galaxy_lib_available()
-        from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
+        from galaxy.tools.deps.containers import (
+            ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE)
         app_info = AppInfo(
             involucro_auto_init=True,
             enable_beta_mulled_containers=True,
@@ -122,7 +123,7 @@ def get_container_from_software_requirements(use_biocontainers, builder):
     return None
 
 
-def ensure_galaxy_lib_available():
-    # type: () -> None
+def ensure_galaxy_lib_available():  # type: () -> None
     if not SOFTWARE_REQUIREMENTS_ENABLED:
-        raise Exception("Optional Python library galaxy-lib not available, it is required for this configuration.")
+        raise Exception("Optional Python library galaxy-lib not available, "
+                        "it is required for this configuration.")

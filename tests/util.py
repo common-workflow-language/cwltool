@@ -7,6 +7,7 @@ import sys
 import shutil
 import contextlib
 import tempfile
+from io import StringIO
 from typing import Text
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore
@@ -16,7 +17,9 @@ import pytest
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
 from cwltool.resolver import Path
-from cwltool.utils import onWindows, subprocess, windows_default_container_id
+from cwltool import load_tool
+from cwltool.main import main
+from cwltool.utils import onWindows, windows_default_container_id
 
 
 
@@ -64,12 +67,12 @@ windows_needs_docker = pytest.mark.skipif(
     "on the system path.")
 
 def get_main_output(args):
-    process = subprocess.Popen(
-        [sys.executable, "-m", "cwltool"] + args,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    load_tool.loaders = {}
+    stdout = StringIO()
+    stderr = StringIO()
+    returncode = main(args, stdout=stdout, stderr=stderr)
 
-    stdout, stderr = process.communicate()
-    return process.returncode, stdout.decode(), stderr.decode()
+    return returncode, stdout.getvalue(), stderr.getvalue()
 
 @contextlib.contextmanager
 def temp_dir(suffix=""):
