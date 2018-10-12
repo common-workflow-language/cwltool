@@ -132,7 +132,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
         elif next_segment_str[1] in ("'", '"'):
             key = next_segment_str[2:-2].replace("\\'", "'").replace('\\"', '"')
 
-        if key:
+        if key is not None:
             if isinstance(current_value, MutableSequence) and key == "length" and not remaining_string[m.end(0):]:
                 return len(current_value)
             if not isinstance(current_value, MutableMapping):
@@ -172,7 +172,7 @@ def evaluator(ex,                       # type: Text
     expression_parse_exception = None
     expression_parse_succeeded = False
 
-    if match:
+    if match is not None:
         first_symbol = match.group(1)
         first_symbol_end = match.end(1)
 
