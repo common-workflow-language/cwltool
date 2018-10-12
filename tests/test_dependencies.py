@@ -46,6 +46,7 @@ def test_bioconda_wrong_name():
 
     assert error_code == 0, stderr
 
+@pytest.mark.skipif(onWindows(), reason="custom dependency resolver is Unix only for now.")
 @pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
 def test_custom_config():
     config = get_data("tests/test_deps_env_resolvers_conf_rewrite.yml")
