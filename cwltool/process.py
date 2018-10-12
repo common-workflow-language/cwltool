@@ -675,20 +675,20 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                           self.names,
                           self.requirements,
                           self.hints,
-                          runtimeContext.eval_timeout,
-                          runtimeContext.debug,
                           {},
-                          runtimeContext.js_console,
                           runtimeContext.mutation_manager,
                           self.formatgraph,
                           make_fs_access,
                           fs_access,
+                          runtimeContext.job_script_provider,
+                          runtimeContext.eval_timeout,
+                          runtimeContext.debug,
+                          runtimeContext.js_console,
                           runtimeContext.force_docker_pull,
                           loadListing,
                           outdir,
                           tmpdir,
-                          stagedir,
-                          runtimeContext.job_script_provider)
+                          stagedir)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
