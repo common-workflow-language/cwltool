@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # Dan Blankenberg
 # Selects N random lines from a file and outputs to another file, maintaining original line order
 # allows specifying a seed
