@@ -24,3 +24,4 @@ class EggInfoFromGit(egg_info):
             except subprocess.CalledProcessError:
                 pass
         return egg_info.tags(self)
+    vtags = property(tags)
