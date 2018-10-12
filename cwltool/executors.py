@@ -82,20 +82,20 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         elif ("cwl:defaults" in process.metadata
               and "cwl:requirements" in process.metadata["cwl:defaults"]):
             job_reqs = process.metadata["cwl:defaults"]["cwl:requirements"]
-        if job_reqs:
+        if job_reqs is not None:
             for req in job_reqs:
                 process.requirements.append(req)
 
         self.run_jobs(process, job_order_object, logger, runtime_context)
 
-        if self.final_output and self.final_output[0] and finaloutdir:
+        if self.final_output and self.final_output[0] is not None and finaloutdir is not None:
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
                 runtime_context.move_outputs, runtime_context.make_fs_access(""),
                 getdefault(runtime_context.compute_checksum, True),
                 path_mapper=runtime_context.path_mapper)
 
-        if runtime_context.rm_tmpdir:
+        if runtime_context.rm_tmpdir is not None:
             if runtime_context.cachedir is None:
                 output_dirs = self.output_dirs  # type: Iterable[Any]
             else:
@@ -148,10 +148,10 @@ class SingleJobExecutor(JobExecutor):
 
         try:
             for job in jobiter:
-                if job:
+                if job is not None:
                     if runtime_context.builder is not None:
                         job.builder = runtime_context.builder
-                    if job.outdir:
+                    if job.outdir is not None:
                         self.output_dirs.add(job.outdir)
                     if runtime_context.research_obj is not None:
                         if not isinstance(process, Workflow):
@@ -298,7 +298,7 @@ class MultithreadedJobExecutor(JobExecutor):
             if job is not None:
                 if isinstance(job, JobBase):
                     job.builder = runtime_context.builder or job.builder
-                    if job.outdir:
+                    if job.outdir is not None:
                         self.output_dirs.add(job.outdir)
 
             self.run_job(job, runtime_context)
