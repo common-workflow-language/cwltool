@@ -32,7 +32,7 @@ jobs:
     - stage: test
       python: "3.7"
       dist: xenial
-    - stage: release-test
+    - stage: test
       python: "2.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 script: tox

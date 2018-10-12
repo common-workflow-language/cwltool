@@ -800,7 +800,7 @@ def main(argsl=None,                   # type: List[str]
                 else:
                     stdout.write(json_dumps(out, indent=4,  # type: ignore
                                             ensure_ascii=False))
-                stdout.write("\n")
+                stdout.write(u"\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()  # type: ignore
 
