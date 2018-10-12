@@ -510,9 +510,9 @@ class Workflow(Process):
             self.provenance_object = CreateProvProfile(
                 loadingContext.research_obj,
                 full_name=loadingContext.cwl_full_name,
-                orcid=loadingContext.orcid,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
+                orcid=loadingContext.orcid,
                 run_uuid=run_uuid)  # inherit RO UUID for master wf run
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object

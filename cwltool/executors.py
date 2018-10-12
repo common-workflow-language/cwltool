@@ -137,6 +137,8 @@ class SingleJobExecutor(JobExecutor):
             process.provenance_object = CreateProvProfile(
                 runtime_context.research_obj,
                 full_name=runtime_context.cwl_full_name,
+                host_provenance=False,
+                user_provenance=False,
                 orcid=runtime_context.orcid,
                 # single tool execution, so RO UUID = wf UUID = tool UUID
                 run_uuid=runtime_context.research_obj.ro_uuid)
