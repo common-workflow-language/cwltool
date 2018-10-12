@@ -234,9 +234,9 @@ class CommandLineTool(Process):
                        ):  # type: (...) -> Type[JobBase]
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and runtimeContext.use_container:
-            if runtimeContext.find_default_container:
+            if runtimeContext.find_default_container is not None:
                 default_container = runtimeContext.find_default_container(self)
-                if default_container:
+                if default_container is not None:
                     self.requirements.insert(0, {
                         "class": "DockerRequirement",
                         "dockerPull": default_container
@@ -248,7 +248,7 @@ class CommandLineTool(Process):
                             DEFAULT_CONTAINER_MSG, windows_default_container_id,
                             windows_default_container_id)
 
-        if dockerReq and runtimeContext.use_container:
+        if dockerReq is not None and runtimeContext.use_container:
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
             return DockerCommandLineJob
@@ -285,7 +285,7 @@ class CommandLineTool(Process):
         if self.metadata["cwlVersion"] == "v1.0":
             require_prefix = "http://commonwl.org/cwltool#"
 
-        workReuse = self.get_requirement(require_prefix+"WorkReuse")[0]
+        workReuse, _ = self.get_requirement(require_prefix + "WorkReuse")
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
         jobname = uniquename(runtimeContext.name or shortname(self.tool.get("id", "job")))
@@ -304,15 +304,15 @@ class CommandLineTool(Process):
                         ("File", "Directory"), _check_adjust)
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
-            (docker_req, _) = self.get_requirement("DockerRequirement")
-            if docker_req and runtimeContext.use_container:
+            docker_req, _ = self.get_requirement("DockerRequirement")
+            if docker_req is not None and runtimeContext.use_container:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
             elif runtimeContext.default_container is not None and runtimeContext.use_container:
                 dockerimg = runtimeContext.default_container
             else:
                 dockerimg = None
 
-            if dockerimg:
+            if dockerimg is not None:
                 cmdline = ["docker", "run", dockerimg] + cmdline
                 # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
@@ -329,7 +329,7 @@ class CommandLineTool(Process):
                          and 'checksum' in e
                          and e['checksum'] != 'sha1$hash'), None)
                     fobj_stat = os.stat(fobj.resolved)
-                    if checksum:
+                    if checksum is not None:
                         keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
                     else:
                         keydict[fobj.resolved] = [fobj_stat.st_size,
@@ -413,8 +413,8 @@ class CommandLineTool(Process):
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
-        initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
-        if initialWorkdir:
+        initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
+        if initialWorkdir is not None:
             ls = []  # type: List[Dict[Text, Any]]
             if isinstance(initialWorkdir["listing"], string_types):
                 ls = builder.do_eval(initialWorkdir["listing"])
@@ -482,8 +482,8 @@ class CommandLineTool(Process):
         if debug:
             _logger.debug(u"[job %s] command line bindings is %s", j.name,
                           json_dumps(builder.bindings, indent=4))
-        dockerReq = self.get_requirement("DockerRequirement")[0]
-        if dockerReq and runtimeContext.use_container:
+        dockerReq, _ = self.get_requirement("DockerRequirement")
+        if dockerReq is not None and runtimeContext.use_container:
             out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')
             j.outdir = runtimeContext.outdir or \
                 tempfile.mkdtemp(prefix=out_prefix)  # type: ignore
@@ -496,16 +496,16 @@ class CommandLineTool(Process):
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
-        inplaceUpdateReq = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")[0]
+        inplaceUpdateReq, _ = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")
 
-        if inplaceUpdateReq:
+        if inplaceUpdateReq is not None:
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
 
         readers = {}  # type: Dict[Text, Any]
         muts = set()  # type: Set[Text]
 
-        if builder.mutation_manager:
+        if builder.mutation_manager is not None:
             def register_mut(f):
                 muts.add(f["location"])
                 builder.mutation_manager.register_mutation(j.name, f)
@@ -529,8 +529,8 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit = self.get_requirement(require_prefix+"TimeLimit")[0]
-        if timelimit:
+        timelimit, _ = self.get_requirement(require_prefix + "TimeLimit")
+        if timelimit is not None:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
                 if not isinstance(j.timelimit, int) or j.timelimit < 0:
@@ -538,21 +538,21 @@ class CommandLineTool(Process):
 
         if self.metadata["cwlVersion"] == "v1.0":
             j.networkaccess = True
-        networkaccess = self.get_requirement(require_prefix+"NetworkAccess")[0]
-        if networkaccess:
+        networkaccess, _ = self.get_requirement(require_prefix + "NetworkAccess")
+        if networkaccess is not None:
             with SourceLine(networkaccess, "networkAccess", validate.ValidationException, debug):
                 j.networkaccess = builder.do_eval(networkaccess["networkAccess"])
                 if not isinstance(j.networkaccess, bool):
                     raise Exception("networkAccess must be a boolean, got: %s" % j.networkaccess)
 
         j.environment = {}
-        evr = self.get_requirement("EnvVarRequirement")[0]
-        if evr:
+        evr, _ = self.get_requirement("EnvVarRequirement")
+        if evr is not None:
             for t in evr["envDef"]:
                 j.environment[t["envName"]] = builder.do_eval(t["envValue"])
 
-        shellcmd = self.get_requirement("ShellCommandRequirement")[0]
-        if shellcmd:
+        shellcmd, _ = self.get_requirement("ShellCommandRequirement")
+        if shellcmd is not None:
             cmd = []  # type: List[Text]
             for b in builder.bindings:
                 arg = builder.generate_arg(b)
