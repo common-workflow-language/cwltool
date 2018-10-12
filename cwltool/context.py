@@ -95,7 +95,7 @@ class RuntimeContext(ContextBase):
         self.move_outputs = "move"      # type: Text
 
         self.singularity = False        # type: bool
-        self.disable_net = None
+        self.disable_net = False        # type: bool
         self.debug = False              # type: bool
         self.compute_checksum = True    # type: bool
         self.name = ""                  # type: Text
