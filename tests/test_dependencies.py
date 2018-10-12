@@ -53,13 +53,18 @@ def test_bioconda_wrong_name(depends_dir):
 
 @pytest.mark.skipif(onWindows(), reason="custom dependency resolver is Unix only for now.")
 @pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
-def test_custom_config(depends_dir):
-    config = get_data("tests/test_deps_env_resolvers_conf_rewrite.yml")
+def test_custom_config(depends_dir, tmpdir):
+    config = tmpdir.join("test_deps_env_resolvers_conf_rewrite.yml")
+    with config.open(mode="w") as handle:
+        handle.write("- type: galaxy_packages\n  base_path: {}\n"
+        "  mapping_files: {}".format(get_data("tests/test_deps_env"),
+                                     get_data("tests/test_deps_mapping.yml")))
     wflow = get_data("tests/random_lines_mapping.cwl")
     job = get_data("tests/random_lines_job.json")
     error_code, _, stderr = get_main_output(
-        ["--beta-dependency-resolvers-configuration", config,
+        ["--beta-dependency-resolvers-configuration", Text(config),
          "--beta-dependencies-directory", depends_dir, "--debug", wflow,
          job])
 
     assert error_code == 0, stderr
+    tmpdir.remove()
