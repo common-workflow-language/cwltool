@@ -173,9 +173,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.stdin = None  # type: Optional[Text]
         self.stderr = None  # type: Optional[Text]
         self.stdout = None  # type: Optional[Text]
-        self.successCodes = None  # type: Optional[Iterable[int]]
-        self.temporaryFailCodes = None  # type: Optional[Iterable[int]]
-        self.permanentFailCodes = None  # type: Optional[Iterable[int]]
+        self.successCodes = []  # type: Iterable[int]
+        self.temporaryFailCodes = []  # type: Iterable[int]
+        self.permanentFailCodes = []  # type: Iterable[int]
         self.requirements = requirements
         self.hints = hints
         self.name = name
@@ -216,7 +216,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                     u"Input file %s (at %s) not found or is not a regular "
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
-        if self.generatefiles["listing"]:
+        if 'listing' in self.generatefiles:
             runtimeContext = runtimeContext.copy()
             runtimeContext.outdir = self.outdir
             self.generatemapper = self.make_path_mapper(
@@ -237,7 +237,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         scr, _ = self.get_requirement("ShellCommandRequirement")
 
         shouldquote = needs_shell_quoting_re.search   # type: Callable[[Any], Any]
-        if scr:
+        if scr is not None:
             shouldquote = lambda x: False
 
         _logger.info(u"[job %s] %s$ %s%s%s%s",
@@ -248,18 +248,18 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-        if self.joborder and runtimeContext.research_obj:
+        if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
-            assert runtimeContext.prov_obj
-            assert runtimeContext.process_run_id
+            assert runtimeContext.process_run_id is not None
+            assert runtimeContext.prov_obj is not None
             runtimeContext.prov_obj.used_artefacts(
                 job_order, runtimeContext.process_run_id, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
-            if self.stdin:
+            if self.stdin is not None:
                 rmap = self.pathmapper.reversemap(self.stdin)
-                if not rmap:
+                if rmap is None:
                     raise WorkflowException(
                         "{} missing from pathmapper".format(self.stdin))
                 else:
@@ -267,7 +267,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
 
             stderr_path = None
-            if self.stderr:
+            if self.stderr is not None:
                 abserr = os.path.join(self.outdir, self.stderr)
                 dnerr = os.path.dirname(abserr)
                 if dnerr and not os.path.exists(dnerr):
@@ -275,7 +275,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 stderr_path = abserr
 
             stdout_path = None
-            if self.stdout:
+            if self.stdout is not None:
                 absout = os.path.join(self.outdir, self.stdout)
                 dnout = os.path.dirname(absout)
                 if dnout and not os.path.exists(dnout):
@@ -283,7 +283,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 stdout_path = absout
 
             commands = [Text(x) for x in runtime + self.command_line]
-            if runtimeContext.secret_store:
+            if runtimeContext.secret_store is not None:
                 commands = runtimeContext.secret_store.retrieve(commands)
                 env = runtimeContext.secret_store.retrieve(env)
 
@@ -307,18 +307,18 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
 
 
-            if self.successCodes and rcode in self.successCodes:
+            if rcode in self.successCodes:
                 processStatus = "success"
-            elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
+            elif rcode in self.temporaryFailCodes:
                 processStatus = "temporaryFail"
-            elif self.permanentFailCodes and rcode in self.permanentFailCodes:
+            elif rcode in self.permanentFailCodes:
                 processStatus = "permanentFail"
             elif rcode == 0:
                 processStatus = "success"
             else:
                 processStatus = "permanentFail"
 
-            if self.generatefiles["listing"]:
+            if 'listing' in self.generatefiles:
                 assert self.generatemapper is not None
                 relink_initialworkdir(
                     self.generatemapper, self.outdir, self.builder.outdir,
@@ -341,8 +341,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if runtimeContext.research_obj and self.prov_obj and \
-                runtimeContext.process_run_id:
+        if runtimeContext.research_obj is not None and self.prov_obj is not None and \
+                runtimeContext.process_run_id is not None:
             #creating entities for the outputs produced by each step (in the provenance document)
             self.prov_obj.generate_output_prov(
                 outputs, runtimeContext.process_run_id, str(self.name))
@@ -358,7 +358,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] %s", self.name,
                           json_dumps(outputs, indent=4))
 
-        if self.generatemapper and runtimeContext.secret_store:
+        if self.generatemapper is not None and runtimeContext.secret_store is not None:
             # Delete any runtime-generated files containing secrets.
             for _, p in self.generatemapper.items():
                 if p.type == "CreateFile":
@@ -377,11 +377,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         with runtimeContext.workflow_eval_lock:
             self.output_callback(outputs, processStatus)
 
-        if self.stagedir and os.path.exists(self.stagedir):
+        if self.stagedir is not None and os.path.exists(self.stagedir):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
 
-        if runtimeContext.rm_tmpdir:
+        if runtimeContext.rm_tmpdir is not None:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
@@ -398,7 +398,7 @@ class CommandLineJob(JobBase):
 
         env = self.environment
         vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment:
+        if runtimeContext.preserve_entire_environment is not None:
             vars_to_preserve = os.environ
         if vars_to_preserve is not None:
             for key, value in os.environ.items():
@@ -413,7 +413,7 @@ class CommandLineJob(JobBase):
             env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
 
         stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=runtimeContext.secret_store)
-        if self.generatemapper:
+        if self.generatemapper is not None:
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update,
                        symLink=True, secret_store=runtimeContext.secret_store)
             relink_initialworkdir(self.generatemapper, self.outdir,
@@ -548,7 +548,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
-        if docker_req and user_space_docker_cmd:
+        if docker_req is not None and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
             # takes precedence over a network pull
             if 'dockerImageId' in docker_req:
@@ -562,7 +562,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     "Docker"))
         else:
             try:
-                if docker_req and runtimeContext.use_container:
+                if docker_req is not None and runtimeContext.use_container:
                     img_id = str(
                         self.get_from_requirements(
                             docker_req, True, runtimeContext.pull_image,
@@ -574,10 +574,11 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         if default_container:
                             img_id = str(default_container)
 
-                if docker_req and img_id is None and runtimeContext.use_container:
+                if docker_req is not None and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
-                if self.prov_obj and img_id and runtimeContext.process_run_id:
+                if self.prov_obj is not None and img_id is not None\
+                        and runtimeContext.process_run_id is not None:
                     # TODO: Integrate with record_container_id
                     container_agent = self.prov_obj.document.agent(
                         uuid.uuid4().urn,
@@ -623,7 +624,7 @@ def _job_popen(
         name=None                  # type: Text
         ):  # type: (...) -> int
 
-    if not job_script_contents and not FORCE_SHELLED_POPEN:
+    if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
         stdin = subprocess.PIPE  # type: Union[IO[Any], int]
         if stdin_path is not None:
@@ -647,11 +648,11 @@ def _job_popen(
                                  cwd=cwd)
         processes_to_kill.append(sproc)
 
-        if sproc.stdin:
+        if sproc.stdin is not None:
             sproc.stdin.close()
 
         tm = None
-        if timelimit:
+        if timelimit is not None:
             def terminate():
                 try:
                     _logger.warn(u"[job %s] exceeded time limit of %d seconds and will be terminated", name, timelimit)
@@ -664,7 +665,7 @@ def _job_popen(
 
         rcode = sproc.wait()
 
-        if tm:
+        if tm is not None:
             tm.cancel()
 
         if isinstance(stdin, IOBase):
@@ -678,7 +679,7 @@ def _job_popen(
 
         return rcode
     else:
-        if not job_script_contents:
+        if job_script_contents is None:
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
@@ -719,7 +720,7 @@ def _job_popen(
                 stdin=subprocess.PIPE,
             )
             processes_to_kill.append(sproc)
-            if sproc.stdin:
+            if sproc.stdin is not None:
                 sproc.stdin.close()
 
             rcode = sproc.wait()

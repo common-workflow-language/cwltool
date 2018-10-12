@@ -389,9 +389,10 @@ class CommandLineTool(Process):
             builder, builder.job, self.make_path_mapper, self.requirements,
             self.hints, jobname)
         j.prov_obj = self.prov_obj
-        j.successCodes = self.tool.get("successCodes")
-        j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
-        j.permanentFailCodes = self.tool.get("permanentFailCodes")
+
+        j.successCodes = self.tool.get("successCodes", [])
+        j.temporaryFailCodes = self.tool.get("temporaryFailCodes", [])
+        j.permanentFailCodes = self.tool.get("permanentFailCodes", [])
 
         debug = _logger.isEnabledFor(logging.DEBUG)
 
