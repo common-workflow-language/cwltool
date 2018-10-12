@@ -49,30 +49,31 @@ def _get_docker_machine_mounts():  # type: () -> List[Text]
     return __docker_machine_mounts
 
 def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
-    if not path:
+    if path is None:
         return
     if onWindows():
         path = path.lower()
     mounts = _get_docker_machine_mounts()
-    if mounts:
-        found = False
-        for mount in mounts:
-            if onWindows():
-                mount = mount.lower()
-            if path.startswith(mount):
-                found = True
-                break
-        if not found:
-            raise WorkflowException(
-                "Input path {path} is not in the list of host paths mounted "
-                "into the Docker virtual machine named {name}. Already mounted "
-                "paths: {mounts}.\n"
-                "See https://docs.docker.com/toolbox/toolbox_install_windows/"
-                "#optional-add-shared-directories for instructions on how to "
-                "add this path to your VM.".format(
-                    path=path, name=os.environ["DOCKER_MACHINE_NAME"],
-                    mounts=mounts))
 
+    found = False
+    for mount in mounts:
+        if onWindows():
+            mount = mount.lower()
+        if path.startswith(mount):
+            found = True
+            break
+
+    if not found and mounts:
+        name = os.environ.get("DOCKER_MACHINE_NAME", '???')
+        raise WorkflowException(
+            "Input path {path} is not in the list of host paths mounted "
+            "into the Docker virtual machine named {name}. Already mounted "
+            "paths: {mounts}.\n"
+            "See https://docs.docker.com/toolbox/toolbox_install_windows/"
+            "#optional-add-shared-directories for instructions on how to "
+            "add this path to your VM.".format(
+                path=path, name=name,
+                mounts=mounts))
 
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
@@ -195,7 +196,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             except OSError as err:
                 errmsg = "'docker' executable not found: " + Text(err)
 
-            if errmsg:
+            if errmsg is not None:
                 if req:
                     raise WorkflowException(errmsg)
                 else:
@@ -306,7 +307,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
                          secret_store=runtimeContext.secret_store)
-        if self.generatemapper:
+        if self.generatemapper is not None:
             self.add_volumes(
                 self.generatemapper, runtime, any_path_okay=any_path_okay,
                 secret_store=runtimeContext.secret_store)
@@ -328,7 +329,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             else:
                 runtime.append(u"--net=none")
 
-            if self.stdout:
+            if self.stdout is not None:
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
@@ -351,7 +352,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-        if runtimeContext.record_container_id:
+        if runtimeContext.record_container_id is not None:
             cidfile_dir = runtimeContext.cidfile_dir
             if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
@@ -377,8 +378,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             runtime.append("--memory=%dm" % self.builder.resources["ram"])
         elif not user_space_docker_cmd:
-            res_req = self.builder.get_requirement("ResourceRequirement")[0]
-            if res_req and ("ramMin" in res_req or "ramMax" is res_req):
+            res_req, _ = self.builder.get_requirement("ResourceRequirement")
+            if res_req is not None and ("ramMin" in res_req or "ramMax" is res_req):
                 _logger.warning(
                     u"[job %s] Skipping Docker software container '--memory' limit "
                     "despite presence of ResourceRequirement with ramMin "
