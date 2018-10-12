@@ -643,7 +643,7 @@ def main(argsl=None,                   # type: List[str]
 
             if args.print_deps:
                 printdeps(workflowobj, document_loader, stdout,
-                           args.relative_deps, uri)
+                          args.relative_deps, uri)
                 return 0
 
             document_loader, avsc_names, processobj, metadata, uri \
@@ -798,8 +798,8 @@ def main(argsl=None,                   # type: List[str]
                 if isinstance(out, string_types):
                     stdout.write(out)
                 else:
-                    stdout.write(json_dumps(out, indent=4,  # type: ignore
-                                            ensure_ascii=False))
+                    stdout.write(Text(json_dumps(out, indent=4,  # type: ignore
+                                                 ensure_ascii=False)))
                 stdout.write(u"\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()  # type: ignore

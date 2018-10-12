@@ -85,7 +85,7 @@ def new_js_proc(js_text, force_docker_pull=False):
                 if (len(dockerimgs.split("\n")) <= 1) or force_docker_pull:
                     # pull node:slim docker container
                     nodejsimg = subprocess.check_output(["docker", "pull", nodeimg]).decode('utf-8')
-                    _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
+                    _logger.info(u"Pulled Docker image %s %s", nodeimg, nodejsimg)
                 have_node_slim = True
             nodejs = subprocess.Popen(["docker", "run",
                                        "--attach=STDIN", "--attach=STDOUT", "--attach=STDERR",
@@ -137,7 +137,7 @@ def exec_js_process(js_text,                  # type: Text
     if js_console:
         js_engine = 'cwlNodeEngineJSConsole.js'
         _logger.warning(
-            "Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
+            u"Running with support for javascript console in expressions (DO NOT USE IN PRODUCTION)")
     elif context is not None:
         js_engine = "cwlNodeEngineWithContext.js"
     else:
@@ -338,11 +338,11 @@ def execjs(js,                       # type: Text
 
     if js_console:
         if stderr:
-            _logger.info("Javascript console output:")
-            _logger.info("----------------------------------------")
-            _logger.info('\n'.join(re.findall(
+            _logger.info(u"Javascript console output:")
+            _logger.info(u"----------------------------------------")
+            _logger.info(u'\n'.join(re.findall(
                 r'^[[](?:log|err)[]].*$', stderr, flags=re.MULTILINE)))
-            _logger.info("----------------------------------------")
+            _logger.info(u"----------------------------------------")
 
     def stdfmt(data):  # type: (Text) -> Text
         if "\n" in data:
