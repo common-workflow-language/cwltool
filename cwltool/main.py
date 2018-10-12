@@ -648,12 +648,12 @@ def main(argsl=None,                   # type: List[str]
 
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
+                                    loadingContext.overrides_list, {},
                                     enable_dev=loadingContext.enable_dev,
                                     strict=loadingContext.strict,
                                     preprocess_only=(args.print_pre or args.pack),
                                     fetcher_constructor=loadingContext.fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    overrides=loadingContext.overrides_list,
                                     do_validate=loadingContext.do_validate)
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
