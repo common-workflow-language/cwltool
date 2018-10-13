@@ -1,22 +1,24 @@
 from __future__ import absolute_import
 
 import datetime
-import functools  # pylint: disable=unused-import
+import functools
 import logging
 import os
 import re
 import shutil
 import stat
 import sys
+import time
 import tempfile
 import uuid
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
 from threading import Timer
-from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List,
+from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, Tuple,
                     MutableMapping, MutableSequence, Optional, Union, cast)
 
 import shellescape
+import psutil
 from prov.model import PROV
 from six import PY2, with_metaclass
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
@@ -226,9 +228,10 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
-                 runtime,                # type: List[Text]
-                 env,                    # type: MutableMapping[Text, Text]
-                 runtimeContext          # type: RuntimeContext
+                 runtime,               # type: List[Text]
+                 env,                   # type: MutableMapping[Text, Text]
+                 runtimeContext,        # type: RuntimeContext
+                 monitor_function=None  # type: Optional[Callable]
                 ):  # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
@@ -297,7 +300,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 job_dir=tempfile.mkdtemp(prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
-                name=self.name
+                name=self.name,
+                monitor_function=monitor_function
             )
 
 
@@ -325,17 +329,17 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except OSError as e:
             if e.errno == 2:
                 if runtime:
-                    _logger.error(u"'%s' not found", runtime[0])
+                    _logger.error(u"'%s' not found: %s", runtime[0], e)
                 else:
-                    _logger.error(u"'%s' not found", self.command_line[0])
+                    _logger.error(u"'%s' not found: %s", self.command_line[0], e)
             else:
-                _logger.exception("Exception while running job")
+                _logger.exception(u"Exception while running job")
             processStatus = "permanentFail"
         except WorkflowException as err:
             _logger.error(u"[job %s] Job error:\n%s", self.name, err)
             processStatus = "permanentFail"
         except Exception as e:
-            _logger.exception("Exception while running job")
+            _logger.exception(u"Exception while running job")
             processStatus = "permanentFail"
         if runtimeContext.research_obj is not None and self.prov_obj is not None and \
                 runtimeContext.process_run_id is not None:
@@ -417,6 +421,7 @@ class CommandLineJob(JobBase):
 
         self._execute([], env, runtimeContext)
 
+CONTROL_CODE_RE=r'\x1b\[[0-9;]*[a-zA-Z]'
 
 class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     '''
@@ -433,8 +438,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         pass
 
     @abstractmethod
-    def create_runtime(self, env, runtimeContext):
-        # type: (MutableMapping[Text, Text], RuntimeContext) -> List
+    def create_runtime(self,
+                       env,             # type: MutableMapping[Text, Text]
+                       runtime_context  # type: RuntimeContext
+                      ):  # type: (...) -> Tuple[List[Text], Optional[Text]]
         """ Return the list of commands to run the selected container engine."""
         pass
 
@@ -456,33 +463,36 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     @abstractmethod
     def add_writable_file_volume(self,
-                                 runtime,         # type: List[Text]
-                                 volume,          # type: MapperEnt
-                                 host_outdir_tgt  # type: Optional[Text]
+                                 runtime,          # type: List[Text]
+                                 volume,           # type: MapperEnt
+                                 host_outdir_tgt,  # type: Optional[Text]
+                                 tmpdir_prefix     # type: Text
                                 ):  # type: (...) -> None
         """Append a writable file mapping to the runtime option list."""
         pass
 
     @abstractmethod
     def add_writable_directory_volume(self,
-                                      runtime,         # type: List[Text]
-                                      volume,          # type: MapperEnt
-                                      host_outdir_tgt  # type: Optional[Text]
+                                      runtime,          # type: List[Text]
+                                      volume,           # type: MapperEnt
+                                      host_outdir_tgt,  # type: Optional[Text]
+                                      tmpdir_prefix     # type: Text
                                      ):  # type: (...) -> None
         """Append a writable directory mapping to the runtime option list."""
         pass
 
     def create_file_and_add_volume(self,
-                                   runtime,          # type: List[Text]
-                                   volume,           # type: MapperEnt
+                                   runtime,  # type: List[Text]
+                                   volume,  # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
-                                   secret_store      # type: Optional[SecretStore]
-                                  ):  # type: (...) -> Text
+                                   secret_store,  # type: Optional[SecretStore]
+                                   tmpdir_prefix  # type: Text
+                                   ):  # type: (...) -> None
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
             new_file = os.path.join(
-                tempfile.mkdtemp(dir=self.tmpdir),
-                os.path.basename(volume.target))
+                tempfile.mkdtemp(dir=tmpdir_prefix),
+                os.path.basename(volume.resolved))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
             contents = secret_store.retrieve(volume.resolved)
@@ -502,13 +512,13 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             ensure_non_writable(host_outdir_tgt or new_file)
         return host_outdir_tgt or new_file
 
-
     def add_volumes(self,
-                    pathmapper,          # type: PathMapper
-                    runtime,             # type: List[Text]
-                    secret_store=None,   # type: Optional[SecretStore]
+                    pathmapper,  # type: PathMapper
+                    runtime,  # type: List[Text]
+                    tmpdir_prefix,  # type: Text
+                    secret_store=None,  # type: Optional[SecretStore]
                     any_path_okay=False  # type: bool
-                   ):  # type: (...) -> None
+                    ):  # type: (...) -> None
         """Append volume mappings to the runtime option list."""
 
         container_outdir = self.builder.outdir
@@ -516,7 +526,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             host_outdir_tgt = None  # type: Optional[Text]
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
-                    self.outdir, vol.target[len(container_outdir)+1:])
+                    self.outdir, vol.target[len(container_outdir) + 1:])
             if not host_outdir_tgt and not any_path_okay:
                 raise WorkflowException(
                     "No mandatory DockerRequirement, yet path is outside "
@@ -526,13 +536,14 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 self.add_file_or_directory_volume(
                     runtime, vol, host_outdir_tgt)
             elif vol.type == "WritableFile":
-                self.add_writable_file_volume(runtime, vol, host_outdir_tgt)
+                self.add_writable_file_volume(
+                    runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type == "WritableDirectory":
                 self.add_writable_directory_volume(
-                    runtime, vol, host_outdir_tgt)
+                    runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
                 new_path = self.create_file_and_add_volume(
-                    runtime, vol, host_outdir_tgt, secret_store)
+                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
                 pathmapper.update(
                     key, new_path, vol.target, vol.type, vol.staged)
 
@@ -590,7 +601,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         runtimeContext.process_run_id, container_agent)
             except Exception as err:
                 container = "Singularity" if runtimeContext.singularity else "Docker"
-                _logger.debug("%s error", container, exc_info=True)
+                _logger.debug(u"%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
                         "%s is required to run this tool: %s" % (container, err))
@@ -602,10 +613,66 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         "--user-space-docker-cmd.: {1}".format(container, err))
 
         self._setup(runtimeContext)
-        runtime = self.create_runtime(env, runtimeContext)
-        runtime.append(img_id)
-        self._execute(runtime, env, runtimeContext)
+        (runtime, cidfile) = self.create_runtime(env, runtimeContext)
+        runtime.append(Text(img_id))
+        monitor_function = None
+        if cidfile:
+            monitor_function = functools.partial(
+                self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix,
+                not bool(runtimeContext.record_container_id))
+        self._execute(runtime, env, runtimeContext, monitor_function)
 
+    @staticmethod
+    def docker_get_memory(cid):  # type: (Text) -> int
+        memory = None
+        try:
+            memory = subprocess.check_output(
+                ['docker', 'inspect', '--type', 'container', '--format',
+                 '{{.HostConfig.Memory}}', cid])
+        except subprocess.CalledProcessError:
+            pass
+        if memory:
+            value = int(memory)
+            if value != 0:
+                return value
+        return psutil.virtual_memory().total
+
+    def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
+        # type: (Text, Text, bool, subprocess.Popen) -> None
+        cid = None
+        while cid is None:
+            time.sleep(1)
+            if process.returncode is not None:
+                if cleanup_cidfile:
+                    os.remove(cidfile)
+                return
+            try:
+                with open(cidfile) as cidhandle:
+                    cid = cidhandle.readline().strip()
+            except OSError:
+                cid = None
+        max_mem = self.docker_get_memory(cid)
+        stats_file = tempfile.NamedTemporaryFile(dir=tmpdir_prefix)
+        with open(stats_file.name, mode="w") as stats_file_handle:
+            stats_proc = subprocess.Popen(
+                ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
+                 cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
+            process.wait()
+            stats_proc.kill()
+        max_mem_percent = 0
+        with open(stats_file.name, mode="r") as stats:
+            for line in stats:
+                try:
+                    mem_percent = float(re.sub(
+                        CONTROL_CODE_RE, '', line).replace('%', ''))
+                    if mem_percent > max_mem_percent:
+                        max_mem_percent = mem_percent
+                except ValueError:
+                    break
+        _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+            int((max_mem_percent * max_mem)/(2**20)))
+        if cleanup_cidfile:
+            os.remove(cidfile)
 
 def _job_popen(
         commands,                  # type: List[Text]
@@ -617,7 +684,8 @@ def _job_popen(
         job_dir,                   # type: Text
         job_script_contents=None,  # type: Text
         timelimit=None,            # type: int
-        name=None                  # type: Text
+        name=None,                 # type: Text
+        monitor_function=None      # type: Optional[Callable]
         ):  # type: (...) -> int
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
@@ -651,14 +719,17 @@ def _job_popen(
         if timelimit is not None:
             def terminate():
                 try:
-                    _logger.warn(u"[job %s] exceeded time limit of %d seconds and will be terminated", name, timelimit)
+                    _logger.warning(
+                        u"[job %s] exceeded time limit of %d seconds and will"
+                        "be terminated", name, timelimit)
                     sproc.terminate()
                 except OSError:
                     pass
             tm = Timer(timelimit, terminate)
             tm.daemon = True
             tm.start()
-
+        if monitor_function:
+            monitor_function(sproc)
         rcode = sproc.wait()
 
         if tm is not None:
