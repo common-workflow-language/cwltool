@@ -4,6 +4,7 @@ import os
 import sys
 from io import BytesIO, StringIO
 import pytest
+from typing_extensions import Text
 
 import schema_salad.validate
 
@@ -743,7 +744,7 @@ def test_record_container_id():
 @needs_docker
 def test_record_container_id_file_instead_of_dir(tmpdir):
     test_file = "cache_test_workflow.cwl"
-    bad_cidfile_dir = tmpdir.ensure("cidfile-dir-actually-a-file")
+    bad_cidfile_dir = Text(tmpdir.ensure("cidfile-dir-actually-a-file"))
     error_code, _, stderr = get_main_output(
         ["--record-container-id", "--cidfile-dir", bad_cidfile_dir,
          get_data("tests/wf/" + test_file)])
@@ -755,7 +756,7 @@ def test_record_container_id_file_instead_of_dir(tmpdir):
 @needs_docker
 def test_record_container_id_nonexist_dir(tmpdir):
     test_file = "cache_test_workflow.cwl"
-    bad_cidfile_dir = tmpdir.join("cidfile-dir-badpath")
+    bad_cidfile_dir = Text(tmpdir.join("cidfile-dir-badpath"))
     error_code, _, stderr = get_main_output(
         ["--record-container-id", "--cidfile-dir", bad_cidfile_dir,
          get_data("tests/wf/" + test_file)])
@@ -767,15 +768,14 @@ def test_record_container_id_nonexist_dir(tmpdir):
 @needs_docker
 def test_record_container_id_cwd(tmpdir):
     test_file = "cache_test_workflow.cwl"
-    cwd = os.getcwd()
-    os.chdir(tmpdir)
+    cwd = tmpdir.chdir()
     try:
         error_code, _, stderr = get_main_output(
             ["--record-container-id", '--cidfile-prefix=pytestcid',
              get_data("tests/wf/" + test_file)])
     finally:
         listing = tmpdir.listdir()
-        os.chdir(cwd)
+        cwd.chdir()
         cidfiles_count = sum(1 for _ in tmpdir.visit(fil="pytestcid*"))
         tmpdir.remove(ignore_errors=True)
     assert "completed success" in stderr
@@ -861,7 +861,7 @@ def test_bad_userspace_runtime():
     assert "'quaquioN' not found:" in stderr, stderr
     assert error_code == 1
 
-
+@windows_needs_docker
 def test_bad_basecommand():
     test_file = "tests/wf/missing-tool.cwl"
     error_code, stdout, stderr = get_main_output(
