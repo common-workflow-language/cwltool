@@ -874,6 +874,6 @@ def test_bad_basecommand():
 def test_bad_basecommand_docker():
     test_file = "tests/wf/missing-tool.cwl"
     error_code, stdout, stderr = get_main_output(
-        ["--default-container", "debian", get_data(test_file)])
+        ["--debug", "--default-container", "debian", get_data(test_file)])
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
