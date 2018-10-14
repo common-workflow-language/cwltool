@@ -628,7 +628,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         try:
             memory = subprocess.check_output(
                 ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)
+                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  #  type: ignore
         except subprocess.CalledProcessError:
             pass
         if memory:
