@@ -628,7 +628,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         try:
             memory = subprocess.check_output(
                 ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid])
+                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError:
             pass
         if memory:
@@ -639,6 +639,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
         # type: (Text, Text, bool, subprocess.Popen) -> None
+        """Record memory usage of the running Docker container."""
+        # Todo: consider switching to `docker create` / `docker start`
+        # instead of `docker run` as `docker create` outputs the container ID
+        # to stdout, but the container is frozen, thus allowing us to start the
+        # monitoring process without dealing with the cidfile or too-fast
+        # container execution
         cid = None
         while cid is None:
             time.sleep(1)
@@ -669,8 +675,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         max_mem_percent = mem_percent
                 except ValueError:
                     break
-        _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-            int((max_mem_percent * max_mem)/(2**20)))
+        if max_mem_percent != 0:
+            _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+                int((max_mem_percent * max_mem)/(2**20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 
