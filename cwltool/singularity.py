@@ -53,7 +53,7 @@ def _normalize_image_id(string):  # type: (Text)->Text
 def _singularity_version():  # type: ()->List[Text]
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     if _SINGULARITY_VERSION is None:
-        result = check_output(["singularity", "version"],
+        result = check_output(["singularity", "--version"],
                               universal_newlines=True)
         if result.startswith("v"):
             result = result[1:]
