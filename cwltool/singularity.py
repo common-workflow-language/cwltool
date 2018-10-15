@@ -30,6 +30,7 @@ else:  # we're not on Unix, so none of this matters
     pass
 
 _USERNS = None
+_SINGULARITY_VERSION = None
 
 def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
@@ -49,6 +50,15 @@ def _normalize_image_id(string):  # type: (Text)->Text
     candidate = re.sub(pattern=r'([a-z]*://)', repl=r'', string=string)
     return re.sub(pattern=r'[:/]', repl=r'-', string=candidate) + ".img"
 
+def _singularity_version():  # type: ()->List[Text]
+    global _SINGULARITY_VERSION  # pylint: disable=global-statement
+    if _SINGULARITY_VERSION is None:
+        result = check_output(["singularity", "version"],
+                              universal_newlines=True)
+        if result.startswith("v"):
+            result = result[1:]
+        _SINGULARITY_VERSION = result.split(sep='.')
+    return _SINGULARITY_VERSION
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
 
@@ -98,9 +108,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
             if "dockerPull" in dockerRequirement:
-                cmd = ["singularity", "pull", "--force", "--name",
-                       str(dockerRequirement["dockerImageId"]),
-                       str(dockerRequirement["dockerPull"])]
+                cmd = ["singularity", "pull", "--force"]
+                if _singularity_version()[0] < 3:
+                    cmd.append("--name")
+                cmd.extend([
+                    str(dockerRequirement["dockerImageId"]),
+                    str(dockerRequirement["dockerPull"])])
                 _logger.info(Text(cmd))
                 check_call(cmd, stdout=sys.stderr)
                 found = True
@@ -138,7 +151,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if r:
             errmsg = None
             try:
-                check_output(["singularity", "--version"])
+                _singularity_version()
             except CalledProcessError as err:
                 errmsg = "Cannot execute 'singularity --version' {}".format(err)
             except OSError as err:
