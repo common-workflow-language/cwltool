@@ -44,8 +44,7 @@ def _get_docker_machine_mounts():  # type: () -> List[Text]
                     subprocess.check_output(
                         ['docker-machine', 'ssh',
                          os.environ['DOCKER_MACHINE_NAME'], 'mount', '-t',
-                         'vboxsf'],
-                        universal_newlines=True).splitlines()]
+                         'vboxsf']).decode('utf-8').splitlines()]
     return __docker_machine_mounts
 
 def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None

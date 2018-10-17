@@ -10,9 +10,9 @@ import sys
 from io import open  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional
 
-from schema_salad.sourceline import SourceLine
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad.sourceline import SourceLine
 
 from .context import RuntimeContext  # pylint: disable=unused-import
 from .errors import WorkflowException
@@ -39,8 +39,8 @@ def _singularity_supports_userns():  # type: ()->bool
             hello_image = os.path.join(os.path.dirname(__file__), 'hello.simg')
             result = Popen(
                 [u"singularity", u"exec", u"--userns", hello_image, u"true"],
-                stderr=PIPE, stdout=DEVNULL,
-                universal_newlines=True).communicate(timeout=60)[1]
+                stderr=PIPE, stdout=DEVNULL
+                ).communicate(timeout=60)[1].decode('utf-8')
             _USERNS = "No valid /bin/sh" in result
         except TimeoutExpired:
             _USERNS = False
@@ -53,19 +53,19 @@ def _normalize_image_id(string):  # type: (Text)->Text
 def _singularity_version():  # type: ()->List[Text]
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     if _SINGULARITY_VERSION is None:
-        result = check_output(["singularity", "--version"],
-                              universal_newlines=True)
+        result = check_output(["singularity", "--version"]).decode('utf-8')
         if result.startswith("v"):
             result = result[1:]
-        _SINGULARITY_VERSION = result.split(sep='.')
+        _SINGULARITY_VERSION = result.split('.')
     return _SINGULARITY_VERSION
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
+    """Execute jobs using Docker containers and the Singularity engine."""
 
     @staticmethod
-    def get_image(dockerRequirement,  # type: Dict[Text, Text]
-                  pull_image,         # type: bool
-                  force_pull=False    # type: bool
+    def get_image(docker_requirement,  # type: Dict[Text, Text]
+                  pull_image,          # type: bool
+                  force_pull=False     # type: bool
                  ):
         # type: (...) -> bool
         """
@@ -79,16 +79,20 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         candidates = []
 
-        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
-            match = re.search(pattern=r'([a-z]*://)', string=dockerRequirement["dockerPull"])
-            candidate = _normalize_image_id(dockerRequirement['dockerPull'])
+        if "dockerImageId" not in docker_requirement \
+                and "dockerPull" in docker_requirement:
+            match = re.search(pattern=r'([a-z]*://)',
+                              string=docker_requirement["dockerPull"])
+            candidate = _normalize_image_id(docker_requirement['dockerPull'])
             candidates.append(candidate)
-            dockerRequirement['dockerImageId'] = candidate
+            docker_requirement['dockerImageId'] = candidate
             if not match:
-                dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
-        elif "dockerImageId" in dockerRequirement:
-            candidates.append(dockerRequirement['dockerImageId'])
-            candidates.append(_normalize_image_id(dockerRequirement['dockerImageId']))
+                docker_requirement["dockerPull"] = "docker://" \
+                    + docker_requirement["dockerPull"]
+        elif "dockerImageId" in docker_requirement:
+            candidates.append(docker_requirement['dockerImageId'])
+            candidates.append(_normalize_image_id(
+                docker_requirement['dockerImageId']))
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
         targets = [os.getcwd()]
@@ -102,34 +106,34 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     _logger.info(
                         "Using local copy of Singularity image found in %s",
                         target)
-                    dockerRequirement["dockerImageId"] = path
+                    docker_requirement["dockerImageId"] = path
                     found = True
 
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
-            if "dockerPull" in dockerRequirement:
+            if "dockerPull" in docker_requirement:
                 cmd = ["singularity", "pull", "--force"]
-                if _singularity_version()[0] < 3:
+                if int(_singularity_version()[0]) < 3:
                     cmd.append("--name")
                 cmd.extend([
-                    str(dockerRequirement["dockerImageId"]),
-                    str(dockerRequirement["dockerPull"])])
+                    str(docker_requirement["dockerImageId"]),
+                    str(docker_requirement["dockerPull"])])
                 _logger.info(Text(cmd))
                 check_call(cmd, stdout=sys.stderr)
                 found = True
-            elif "dockerFile" in dockerRequirement:
+            elif "dockerFile" in docker_requirement:
                 raise WorkflowException(SourceLine(
-                    dockerRequirement, 'dockerFile').makeError(
+                    docker_requirement, 'dockerFile').makeError(
                         "dockerFile is not currently supported when using the "
                         "Singularity runtime for Docker containers."))
-            elif "dockerLoad" in dockerRequirement:
+            elif "dockerLoad" in docker_requirement:
                 raise WorkflowException(SourceLine(
-                    dockerRequirement, 'dockerLoad').makeError(
+                    docker_requirement, 'dockerLoad').makeError(
                         "dockerLoad is not currently supported when using the "
                         "Singularity runtime for Docker containers."))
-            elif "dockerImport" in dockerRequirement:
+            elif "dockerImport" in docker_requirement:
                 raise WorkflowException(SourceLine(
-                    dockerRequirement, 'dockerImport').makeError(
+                    docker_requirement, 'dockerImport').makeError(
                         "dockerImport is not currently supported when using the "
                         "Singularity runtime for Docker containers."))
 
