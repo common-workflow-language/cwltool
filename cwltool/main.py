@@ -54,7 +54,7 @@ from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
                     processes_to_kill, versionstring, visit_class,
                     windows_default_container_id)
-
+from .subgraph import print_subgraph
 
 def _terminate_processes():
     # type: () -> None
@@ -655,6 +655,7 @@ def main(argsl=None,                   # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
+
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
                 runtimeContext.research_obj.packed_workflow(
@@ -688,6 +689,10 @@ def main(argsl=None,                   # type: List[str]
 
             if args.print_dot:
                 printdot(tool, document_loader.ctx, stdout)
+                return 0
+
+            if args.extract_subgraph:
+                print_subgraph(args.extract_subgraph, tool, document_loader, stdout)
                 return 0
 
         except (validate.ValidationException) as exc:

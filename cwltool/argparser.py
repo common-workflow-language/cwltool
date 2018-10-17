@@ -167,6 +167,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
     exgroup.add_argument("--print-supported-versions", action="store_true", help="Print supported CWL specs.")
+    exgroup.add_argument("--extract-subgraph", type=str, help="Extract subgraph containing one or more nodes named from comma-separated list.")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true",
