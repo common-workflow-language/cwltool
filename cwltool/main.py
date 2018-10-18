@@ -692,7 +692,7 @@ def main(argsl=None,                   # type: List[str]
                 return 0
 
             if args.print_targets:
-                stdout.write("Available targets: %s\n" % ", ".join([shortname(t["id"]) for t in tool.tool["inputs"]]))
+                stdout.write("Available targets: %s\n" % ", ".join([shortname(t["id"]) for t in tool.tool["outputs"]]))
                 return 0
 
             if args.target:
