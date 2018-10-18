@@ -10,12 +10,14 @@ def subgraph_visit(current, nodes, visited, direction):
     if current in visited:
         return
     visited.add(current)
+
+    if direction == DOWN:
+        d = nodes[current].down
     if direction == UP:
         d = nodes[current].up
-    else:
-        d = nodes[current].down
     for c in d:
         subgraph_visit(c, nodes, visited, direction)
+
 
 def get_subgraph(roots, tool):
     if tool.tool["class"] != "Workflow":
@@ -56,13 +58,15 @@ def get_subgraph(roots, tool):
     import pprint
     pprint.pprint(nodes)
 
-    visited = set()
+    # Find all the downstream nodes from the starting points
+    visited_down = set()
     for r in roots:
-        if r in visited:
-            visited.remove(r)
-        subgraph_visit(r, nodes, visited, UP)
-        visited.remove(r)
-        subgraph_visit(r, nodes, visited, DOWN)
+        subgraph_visit(r, nodes, visited_down, DOWN)
+
+    # Now get all the dependencies of the downstream nodes
+    visited = set()
+    for v in visited_down:
+        subgraph_visit(v, nodes, visited, UP)
 
     extracted = {}
     for f in tool.tool:
