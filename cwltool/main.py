@@ -21,7 +21,7 @@ import pkg_resources  # part of setuptools
 from ruamel import yaml
 from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
-from schema_salad.sourceline import strip_dup_lineno
+from schema_salad.sourceline import strip_dup_lineno, cmap
 from six import string_types, iteritems, PY3
 from typing_extensions import Text
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -54,7 +54,7 @@ from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
                     processes_to_kill, versionstring, visit_class,
                     windows_default_container_id)
-from .subgraph import print_subgraph
+from .subgraph import get_subgraph
 
 def _terminate_processes():
     # type: () -> None
@@ -691,8 +691,20 @@ def main(argsl=None,                   # type: List[str]
                 printdot(tool, document_loader.ctx, stdout)
                 return 0
 
-            if args.extract_subgraph:
-                print_subgraph(args.extract_subgraph, tool, document_loader, stdout)
+            if args.print_targets:
+                stdout.write("Available targets: %s\n" % ", ".join([shortname(t["id"]) for t in tool.tool["inputs"]]))
+                return 0
+
+            if args.target:
+                extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#"+r)
+                                          for r in args.target],
+                                         tool)
+                del document_loader.idx[extracted["id"]]
+                tool = make_tool(document_loader, avsc_names,
+                                 metadata, cmap(extracted), loadingContext)
+
+            if args.print_subgraph:
+                stdout.write(json_dumps(tool.tool, indent=4))
                 return 0
 
         except (validate.ValidationException) as exc:

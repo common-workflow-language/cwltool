@@ -167,7 +167,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
     exgroup.add_argument("--print-supported-versions", action="store_true", help="Print supported CWL specs.")
-    exgroup.add_argument("--extract-subgraph", type=str, help="Extract subgraph containing one or more nodes named from comma-separated list.")
+    exgroup.add_argument("--print-subgraph", action="store_true",
+                         help="Print workflow subgraph that will execute "
+                         "(can combine with --target)")
+    exgroup.add_argument("--print-targets", action="store_true", help="Print targets (output parameters)")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true",
@@ -293,6 +296,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--overrides", type=str,
                         default=None, help="Read process requirement overrides from file.")
+
+    parser.add_argument("--target", "-t", action="append",
+                        help="Only execute steps that contribute to "
+                        "listed targets (can provide more than once).")
 
     parser.add_argument("workflow", type=Text, nargs="?", default=None,
             metavar='cwl_document', help="path or URL to a CWL Workflow, "
