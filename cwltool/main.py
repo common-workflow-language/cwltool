@@ -663,7 +663,7 @@ def main(argsl=None,                   # type: List[str]
                     print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
-                stdout.write(json_dumps(processobj, indent=4))
+                stdout.write(json_dumps(processobj, indent=4, sort_keys=True))
                 return 0
 
             loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
@@ -707,7 +707,9 @@ def main(argsl=None,                   # type: List[str]
                                  loadingContext)
 
             if args.print_subgraph:
-                stdout.write(json_dumps(tool.tool, indent=4))
+                if "name" in tool.tool:
+                    del tool.tool["name"]
+                stdout.write(json_dumps(tool.tool, indent=4, sort_keys=True))
                 return 0
 
         except (validate.ValidationException) as exc:

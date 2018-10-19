@@ -64,9 +64,6 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
             nodes.setdefault(i, Node([], []))
             nodes[i].down.append(out["id"])
 
-    import pprint
-    pprint.pprint(nodes)
-
     # Find all the downstream nodes from the starting points
     visited_down = set()  # type: Set[Text]
     for r in roots:
