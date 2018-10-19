@@ -1,12 +1,19 @@
 import copy
 from .utils import aslist, json_dumps
 from collections import namedtuple
+from .process import Process
+from typing import (Dict, MutableMapping, MutableSequence, Set, Any, Text)
 
 Node = namedtuple('Node', ('up', 'down'))
 UP = "up"
 DOWN = "down"
 
-def subgraph_visit(current, nodes, visited, direction):
+def subgraph_visit(current,   # type: Text
+                   nodes,     # type: MutableMapping[Text, Node]
+                   visited,   # type: Set[Text]
+                   direction  # type: Text
+): # type: (...) -> None
+
     if current in visited:
         return
     visited.add(current)
@@ -19,11 +26,13 @@ def subgraph_visit(current, nodes, visited, direction):
         subgraph_visit(c, nodes, visited, direction)
 
 
-def get_subgraph(roots, tool):
+def get_subgraph(roots,  # type: MutableSequence[Text]
+                 tool    # type: Process
+):
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
-    nodes = {}
+    nodes = {}  # type: Dict[Text, Node]
 
     for inp in tool.tool["inputs"]:
         nodes.setdefault(inp["id"], Node([], []))
@@ -59,16 +68,16 @@ def get_subgraph(roots, tool):
     pprint.pprint(nodes)
 
     # Find all the downstream nodes from the starting points
-    visited_down = set()
+    visited_down = set()  # type: Set[Text]
     for r in roots:
         subgraph_visit(r, nodes, visited_down, DOWN)
 
     # Now get all the dependencies of the downstream nodes
-    visited = set()
+    visited = set()  # type: Set[Text]
     for v in visited_down:
         subgraph_visit(v, nodes, visited, UP)
 
-    extracted = {}
+    extracted = {}  # type: MutableMapping[Text, Any]
     for f in tool.tool:
         if f in ("steps", "inputs", "outputs"):
             extracted[f] = []

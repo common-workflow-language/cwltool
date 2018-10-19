@@ -19,6 +19,7 @@ from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
 
 import pkg_resources  # part of setuptools
 from ruamel import yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno, cmap
@@ -701,7 +702,9 @@ def main(argsl=None,                   # type: List[str]
                                          tool)
                 del document_loader.idx[extracted["id"]]
                 tool = make_tool(document_loader, avsc_names,
-                                 metadata, cmap(extracted), loadingContext)
+                                 metadata,
+                                 cast(CommentedMap, cmap(extracted)),
+                                 loadingContext)
 
             if args.print_subgraph:
                 stdout.write(json_dumps(tool.tool, indent=4))
