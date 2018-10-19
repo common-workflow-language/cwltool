@@ -1,6 +1,7 @@
 """Enables Docker software containers via the {dx-,u,}docker runtimes."""
 from __future__ import absolute_import
 
+from distutils import spawn
 import datetime
 import os
 import re
@@ -182,32 +183,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def get_from_requirements(self,
                               r,                      # type: Dict[Text, Text]
-                              req,                    # type: bool
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
                              ):  # type: (...) -> Optional[Text]
-        if r:
-            errmsg = None
-            try:
-                subprocess.check_output(["docker", "version"])
-            except subprocess.CalledProcessError as err:
-                errmsg = "Cannot communicate with docker daemon: " + Text(err)
-            except OSError as err:
-                errmsg = "'docker' executable not found: " + Text(err)
+        if not spawn.find_executable('docker'):
+            raise WorkflowException("docker executable is not available")
 
-            if errmsg is not None:
-                if req:
-                    raise WorkflowException(errmsg)
-                else:
-                    return None
 
-            if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
-                return r["dockerImageId"]
-            if req:
-                raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
-
-        return None
+        if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
+            return r["dockerImageId"]
+        raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
 
     @staticmethod
     def append_volume(runtime, source, target, writable=False):

@@ -124,8 +124,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         return found
 
     def get_from_requirements(self,
-                              r,                      # type: Optional[Dict[Text, Text]]
-                              req,                    # type: bool
+                              r,                      # type: Dict[Text, Text]
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=None  # type: Text
@@ -136,19 +135,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hello-world-latest.img).
         """
 
-        if r is None:
-            return None
-
         if not bool(spawn.find_executable('singularity')):
-            if req:
-                raise WorkflowException('singularity executable is not available')
-            return None
+            raise WorkflowException('singularity executable is not available')
 
         if not self.get_image(r, pull_image, force_pull):
-            if req:
-                raise WorkflowException(u"Container image {} not "
-                                        "found".format(r["dockerImageId"]))
-            return None
+            raise WorkflowException(u"Container image {} not "
+                                    "found".format(r["dockerImageId"]))
 
         return os.path.abspath(r["dockerImageId"])
 

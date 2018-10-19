@@ -430,7 +430,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     @abstractmethod
     def get_from_requirements(self,
                               r,                      # type: Dict[Text, Text]
-                              req,                    # type: bool
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
@@ -565,7 +564,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 if docker_req is not None and runtimeContext.use_container:
                     img_id = str(
                         self.get_from_requirements(
-                            docker_req, True, runtimeContext.pull_image,
+                            docker_req, runtimeContext.pull_image,
                             getdefault(runtimeContext.force_docker_pull, False),
                             getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)))
                 if img_id is None:
