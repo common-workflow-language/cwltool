@@ -7,6 +7,7 @@ import re
 import shutil
 import tempfile
 import sys
+from distutils import spawn
 from io import open  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional
 
@@ -123,8 +124,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         return found
 
     def get_from_requirements(self,
-                              r,                      # type: Optional[Dict[Text, Text]]
-                              req,                    # type: bool
+                              r,                      # type: Dict[Text, Text]
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=None  # type: Text
@@ -135,28 +135,14 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hello-world-latest.img).
         """
 
-        if r:
-            errmsg = None
-            try:
-                check_output(["singularity", "--version"])
-            except CalledProcessError as err:
-                errmsg = "Cannot execute 'singularity --version' {}".format(err)
-            except OSError as err:
-                errmsg = "'singularity' executable not found: {}".format(err)
+        if not bool(spawn.find_executable('singularity')):
+            raise WorkflowException('singularity executable is not available')
 
-            if errmsg:
-                if req:
-                    raise WorkflowException(errmsg)
-                else:
-                    return None
+        if not self.get_image(r, pull_image, force_pull):
+            raise WorkflowException(u"Container image {} not "
+                                    "found".format(r["dockerImageId"]))
 
-            if self.get_image(r, pull_image, force_pull):
-                return os.path.abspath(r["dockerImageId"])
-            if req:
-                raise WorkflowException(u"Container image {} not "
-                                        "found".format(r["dockerImageId"]))
-
-        return None
+        return os.path.abspath(r["dockerImageId"])
 
     @staticmethod
     def append_volume(runtime, source, target, writable=False):
@@ -171,7 +157,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                                      volume,          # type: MapperEnt
                                      host_outdir_tgt  # type: Optional[Text]
                                     ):  # type: (...) -> None
-        if host_outdir_tgt:
+        if host_outdir_tgt is not None:
             # workaround for lack of overlapping mounts in Singularity
             # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
             # once https://github.com/sylabs/singularity/issues/1607
@@ -189,7 +175,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                                  volume,          # type: MapperEnt
                                  host_outdir_tgt  # type: Optional[Text]
                                 ):  # type: (...) -> None
-        if host_outdir_tgt:
+        if host_outdir_tgt is not None:
             # workaround for lack of overlapping mounts in Singularity
             # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
             # once https://github.com/sylabs/singularity/issues/1607
@@ -223,7 +209,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                                       host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         if volume.resolved.startswith("_:"):
-            if host_outdir_tgt:
+            if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
             else:
                 new_dir = os.path.join(
@@ -231,7 +217,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     os.path.basename(volume.resolved))
             os.makedirs(new_dir, 0o0755)
         else:
-            if host_outdir_tgt:
+            if host_outdir_tgt is not None:
                 # workaround for lack of overlapping mounts in Singularity
                 # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
                 # once https://github.com/sylabs/singularity/issues/1607
@@ -275,7 +261,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
                          secret_store=runtimeContext.secret_store)
-        if self.generatemapper:
+        if self.generatemapper is not None:
             self.add_volumes(
                 self.generatemapper, runtime, any_path_okay=any_path_okay,
                 secret_store=runtimeContext.secret_store)

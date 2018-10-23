@@ -146,13 +146,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
         "--orcid", help="Record user ORCID identifier as part of "
         "provenance, e.g. https://orcid.org/0000-0002-1825-0097 "
         "or 0000-0002-1825-0097. Alternatively the environment variable "
-        "ORCID may be set.", dest="orcid", default=os.environ.get("ORCID"),
+        "ORCID may be set.", dest="orcid", default=os.environ.get("ORCID", ''),
         type=Text)
     provgroup.add_argument(
         "--full-name", help="Record full name of user as part of provenance, "
         "e.g. Josiah Carberry. You may need to use shell quotes to preserve "
         "spaces. Alternatively the environment variable CWL_FULL_NAME may "
-        "be set.", dest="cwl_full_name", default=os.environ.get("CWL_FULL_NAME"),
+        "be set.", dest="cwl_full_name", default=os.environ.get("CWL_FULL_NAME", ''),
         type=Text)
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -381,7 +381,7 @@ def add_argument(toolparser, name, inptype, records, description="",
     else:
         flag = "--"
 
-    required = True
+    required = default is None
     if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
@@ -418,7 +418,7 @@ def add_argument(toolparser, name, inptype, records, description="",
                 toolparser, fieldname, fieldtype, records,
                 fielddescription)
         return
-    if inptype == "string":
+    elif inptype == "string":
         atype = Text
     elif inptype == "int":
         atype = int
@@ -428,11 +428,7 @@ def add_argument(toolparser, name, inptype, records, description="",
         atype = float
     elif inptype == "boolean":
         action = "store_true"
-
-    if default:
-        required = False
-
-    if not atype and not action:
+    else:
         _logger.debug(u"Can't make command line argument from %s", inptype)
         return None
 

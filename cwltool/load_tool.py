@@ -86,7 +86,7 @@ def resolve_tool_uri(argsworkflow,  # type: Text
         uri = argsworkflow
     elif os.path.exists(os.path.abspath(argsworkflow)):
         uri = file_uri(str(os.path.abspath(argsworkflow)))
-    elif resolver:
+    elif resolver is not None:
         if document_loader is None:
             document_loader = default_loader(fetcher_constructor)  # type: ignore
         uri = resolver(document_loader, argsworkflow)
@@ -195,17 +195,17 @@ def _add_blank_ids(workflowobj):
         for entry in workflowobj:
             _add_blank_ids(entry)
 
-def validate_document(document_loader,  # type: Loader
-                      workflowobj,  # type: CommentedMap
-                      uri,  # type: Text
-                      enable_dev=False,  # type: bool
-                      strict=True,  # type: bool
-                      preprocess_only=False,  # type: bool
+def validate_document(document_loader,           # type: Loader
+                      workflowobj,               # type: CommentedMap
+                      uri,                       # type: Text
+                      overrides,                 # type: List[Dict]
+                      metadata,                  # type: Dict[Text, Any]
+                      enable_dev=False,          # type: bool
+                      strict=True,               # type: bool
+                      preprocess_only=False,     # type: bool
                       fetcher_constructor=None,  # type: FetcherConstructorType
-                      skip_schemas=None,  # type: bool
-                      overrides=None,  # type: List[Dict]
-                      metadata=None,  # type: Optional[Dict]
-                      do_validate=True
+                      skip_schemas=None,         # type: bool
+                      do_validate=True           # type: bool
                      ):
     # type: (...) -> Tuple[Loader, schema.Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -234,7 +234,7 @@ def validate_document(document_loader,  # type: Loader
 
     fileuri = urllib.parse.urldefrag(uri)[0]
     if "cwlVersion" not in workflowobj:
-        if metadata and 'cwlVersion' in metadata:
+        if 'cwlVersion' in metadata:
             workflowobj['cwlVersion'] = metadata['cwlVersion']
         else:
             raise ValidationException(
@@ -303,7 +303,7 @@ def validate_document(document_loader,  # type: Loader
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, enable_dev, new_metadata)))
 
-    if jobobj:
+    if jobobj is not None:
         new_metadata[u"cwl:defaults"] = jobobj
 
     if overrides:

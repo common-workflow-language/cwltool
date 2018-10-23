@@ -670,13 +670,20 @@ invalid_orcids = [
     "ftp://orcid.org/0000-0002-1694-233X",
     # Trying to be clever fails (no URL parsing!)
     "https://orcid.org:443/0000-0002-1694-233X",
-    "http://orcid.org:80/0000-0002-1694-233X"
+    "http://orcid.org:80/0000-0002-1694-233X",
+    # Empty string is not really valid
+    ""
 ]
 
 @pytest.mark.parametrize('orcid', invalid_orcids)
 def test_invalid_orcid(orcid):
     with pytest.raises(ValueError):
         provenance._valid_orcid(orcid)
+
+def test_whoami():
+    username, fullname = provenance._whoami()
+    assert username and isinstance(username, str)
+    assert fullname and isinstance(fullname, str)
 
 def test_research_object():
     # TODO: Test ResearchObject methods
