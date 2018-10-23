@@ -211,7 +211,7 @@ class WorkflowJob(object):
         self.prov_obj = None  # type: Optional[CreateProvProfile]
         self.parent_wf = None  # type: Optional[CreateProvProfile]
         self.tool = workflow.tool
-        if runtimeContext.research_obj:
+        if runtimeContext.research_obj is not None:
             self.prov_obj = workflow.provenance_object
             self.parent_wf = workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
@@ -220,7 +220,7 @@ class WorkflowJob(object):
         self.did_callback = False
         self.made_progress = None  # type: Optional[bool]
 
-        if runtimeContext.outdir:
+        if runtimeContext.outdir is not None:
             self.outdir = runtimeContext.outdir
         else:
             self.outdir = tempfile.mkdtemp(
@@ -464,13 +464,13 @@ class WorkflowJob(object):
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
-                if step.iterable:
+                if step.iterable is not None:
                     try:
                         for newjob in step.iterable:
                             if getdefault(runtimeContext.on_error, "stop") == "stop" \
                                     and self.processStatus != "success":
                                 break
-                            if newjob:
+                            if newjob is not None:
                                 self.made_progress = True
                                 yield newjob
                             else:
@@ -501,7 +501,7 @@ class Workflow(Process):
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[CreateProvProfile]
-        if loadingContext.research_obj:
+        if loadingContext.research_obj is not None:
             run_uuid = None  # type: Optional[UUID]
             is_master = not(loadingContext.prov_obj)  # Not yet set
             if is_master:
@@ -510,9 +510,9 @@ class Workflow(Process):
             self.provenance_object = CreateProvProfile(
                 loadingContext.research_obj,
                 full_name=loadingContext.cwl_full_name,
-                orcid=loadingContext.orcid,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
+                orcid=loadingContext.orcid,
                 run_uuid=run_uuid)  # inherit RO UUID for master wf run
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
@@ -563,7 +563,7 @@ class Workflow(Process):
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, runtimeContext)
         #relativeJob=copy.deepcopy(builder.job)
-        if runtimeContext.research_obj:
+        if runtimeContext.research_obj is not None:
             if not runtimeContext.research_obj.make_fs_access:
                 runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
             if runtimeContext.toplevel:
@@ -674,16 +674,16 @@ class WorkflowStep(Process):
                 param.lc.filename = toolpath_object[stepfield].lc.filename
                 toolpath_object[toolfield].append(param)
 
-        missing = []
+        missing_values = []
         for _, tool_entry in enumerate(self.embedded_tool.tool["inputs"]):
             if shortname(tool_entry["id"]) not in bound:
                 if "null" not in tool_entry["type"] and "default" not in tool_entry:
-                    missing.append(shortname(tool_entry["id"]))
+                    missing_values.append(shortname(tool_entry["id"]))
 
-        if missing:
+        if missing_values:
             validation_errors.append(SourceLine(self.tool, "in").makeError(
                 "Step is missing required parameter%s '%s'" %
-                ("s" if len(missing) > 1 else "", "', '".join(missing))))
+                ("s" if len(missing_values) > 1 else "", "', '".join(missing_values))))
 
         if validation_errors:
             raise validate.ValidationException("\n".join(validation_errors))
@@ -736,7 +736,7 @@ class WorkflowStep(Process):
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
         self.prov_obj = None  # type: Optional[CreateProvProfile]
-        if loadingContext.research_obj:
+        if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
                 self.parent_wf = self.embedded_tool.parent_wf
@@ -834,7 +834,7 @@ def parallel_steps(steps, rc, runtimeContext):
                 for j in step:
                     if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
                         break
-                    if j:
+                    if j is not None:
                         made_progress = True
                         yield j
                     else:

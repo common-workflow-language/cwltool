@@ -152,7 +152,7 @@ def jshint_js(js_text, globals=None, options=None):
 
 def print_js_hint_messages(js_hint_messages, source_line):
     # type: (List[Text], Optional[SourceLine]) -> None
-    if source_line:
+    if source_line is not None:
         for js_hint_message in js_hint_messages:
             _logger.warn(source_line.makeError(js_hint_message))
 
