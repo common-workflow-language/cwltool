@@ -7,6 +7,7 @@ import sys
 import shutil
 import contextlib
 import tempfile
+import shutil
 from typing import Text
 
 from pkg_resources import (Requirement, ResolutionError,  # type: ignore

@@ -70,6 +70,10 @@ scripts_argparse_params = [
      ),
     ('boolean', script_b, lambda x: [x, '--help']
      ),
+    ('help with c', script_c, lambda x: [x, '--help']),
+    ('foo with c', script_c,
+     lambda x: [x, '--foo.one', get_data('tests/echo.cwl'), '--foo.two', 'test']
+     )
 ]
 
 @needs_docker
@@ -78,34 +82,12 @@ def test_argparse(name, script_contents, params):
     try:
         script = NamedTemporaryFile(mode='w', delete=False)
         script.write(script_contents)
-        script.flush()
         script.close()
 
-        try:
-            assert main(params(script.name)) == 0, name
-        except SystemExit as err:
-            assert err.code == 0, name
+        assert main(params(script.name)) == 0, name
+
+    except SystemExit as err:
+        assert err.code == 0, name
     finally:
         if os.path.exists(script.name):
-            os.remove(script.name)
-
-script_c_params = [
-    (lambda x: [x, '--help']),
-    (lambda x: [x, '--foo.one', get_data('tests/echo.cwl'), '--foo.two', 'test'])
-]
-
-@pytest.mark.parametrize('params', script_c_params)
-def test_argparse_record(params):
-    try:
-        script = NamedTemporaryFile(mode='w', delete=False)
-        script.write(script_c)
-        script.flush()
-        script.close()
-
-        try:
-            assert main(params(script.name)) == 0
-        except SystemExit as err:
-            assert err.code == 0
-    finally:
-        if os.path.exists(script.name):
-            os.remove(script.name)
+            os.unlink(script.name)
