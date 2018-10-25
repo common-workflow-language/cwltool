@@ -132,15 +132,15 @@ def revmap_file(builder, outdir, f):
     """
 
     # If a local path, then normalize on MS Windows
-    if os.path.exists(outdir):
-        outdir = os.path.normcase(outdir)
     builder_outdir = builder.outdir
     if os.path.exists(builder_outdir):
         builder_outdir = os.path.normcase(builder_outdir)
-
-    split = urllib.parse.urlsplit(outdir)
-    if not split.scheme:
-        outdir = file_uri(outdir)
+    if os.path.exists(outdir):
+        outdir = file_uri(os.path.normcase(outdir))
+    else:
+        split = urllib.parse.urlsplit(outdir)
+        if not split.scheme:
+            outdir = file_uri(outdir)
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
@@ -179,8 +179,8 @@ def revmap_file(builder, outdir, f):
             raise WorkflowException(
                 u"Output file path {} must be within designated output "
                 "directory ({}) or an input file pass through. Host outdir "
-                "is {}, uripath: {}.".format(
-                    path, builder_outdir, outdir, uripath))
+                "is {}, uripath: {}. Source object: %s".format(
+                    path, builder_outdir, outdir, uripath, f))
         return f
 
     raise WorkflowException(u"Output File object is missing both 'location' "
