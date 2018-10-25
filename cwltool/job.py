@@ -29,7 +29,8 @@ from .context import RuntimeContext  # pylint: disable=unused-import
 from .context import getdefault
 from .errors import WorkflowException
 from .loghandler import _logger
-from .pathmapper import PathMapper
+from .pathmapper import (MapperEnt, PathMapper, ensure_writable,
+                         ensure_non_writable)
 from .process import UnsupportedRequirement, stageFiles
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import \
@@ -122,20 +123,35 @@ def deref_links(outputs):  # type: (Any) -> None
         for output in outputs:
             deref_links(output)
 
-def relink_initialworkdir(pathmapper, host_outdir, container_outdir, inplace_update=False):
-    # type: (PathMapper, Text, Text, bool) -> None
+def relink_initialworkdir(pathmapper,           # type: PathMapper
+                          host_outdir,          # type: Text
+                          container_outdir,     # type: Text
+                          inplace_update=False  # type: bool
+                         ):  # type: (...) -> None
     for _, vol in pathmapper.items():
         if not vol.staged:
             continue
 
-        if vol.type in ("File", "Directory") or (inplace_update and
-                                                 vol.type in ("WritableFile", "WritableDirectory")):
-            host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir)+1:])
-            if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
+        if (vol.type in ("File", "Directory") or (
+                inplace_update and vol.type in
+                ("WritableFile", "WritableDirectory"))):
+            if not vol.target.startswith(container_outdir):
+                # this is an input file written outside of the working
+                # directory, so therefor ineligable for being an output file.
+                # Thus, none of our business
+                continue
+            host_outdir_tgt = os.path.join(
+                host_outdir, vol.target[len(container_outdir)+1:])
+            if os.path.islink(host_outdir_tgt) \
+                    or os.path.isfile(host_outdir_tgt):
                 os.remove(host_outdir_tgt)
-            elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
+            elif os.path.isdir(host_outdir_tgt) \
+                    and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
             if onWindows():
+                # If this becomes a big issue for someone then we could
+                # refactor the code to process output from a running container
+                # and avoid all the extra IO below
                 if vol.type in ("File", "WritableFile"):
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
@@ -157,9 +173,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.stdin = None  # type: Optional[Text]
         self.stderr = None  # type: Optional[Text]
         self.stdout = None  # type: Optional[Text]
-        self.successCodes = None  # type: Optional[Iterable[int]]
-        self.temporaryFailCodes = None  # type: Optional[Iterable[int]]
-        self.permanentFailCodes = None  # type: Optional[Iterable[int]]
+        self.successCodes = []  # type: Iterable[int]
+        self.temporaryFailCodes = []  # type: Iterable[int]
+        self.permanentFailCodes = []  # type: Iterable[int]
         self.requirements = requirements
         self.hints = hints
         self.name = name
@@ -200,7 +216,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                     u"Input file %s (at %s) not found or is not a regular "
                     "file." % (knownfile, self.pathmapper.mapper(knownfile)[0]))
 
-        if self.generatefiles["listing"]:
+        if 'listing' in self.generatefiles:
             runtimeContext = runtimeContext.copy()
             runtimeContext.outdir = self.outdir
             self.generatemapper = self.make_path_mapper(
@@ -221,7 +237,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         scr, _ = self.get_requirement("ShellCommandRequirement")
 
         shouldquote = needs_shell_quoting_re.search   # type: Callable[[Any], Any]
-        if scr:
+        if scr is not None:
             shouldquote = lambda x: False
 
         _logger.info(u"[job %s] %s$ %s%s%s%s",
@@ -232,18 +248,18 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' < %s' % self.stdin if self.stdin else '',
                      u' > %s' % os.path.join(self.outdir, self.stdout) if self.stdout else '',
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
-        if self.joborder and runtimeContext.research_obj:
+        if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
-            assert runtimeContext.prov_obj
-            assert runtimeContext.process_run_id
+            assert runtimeContext.process_run_id is not None
+            assert runtimeContext.prov_obj is not None
             runtimeContext.prov_obj.used_artefacts(
                 job_order, runtimeContext.process_run_id, str(self.name))
         outputs = {}  # type: Dict[Text,Text]
         try:
             stdin_path = None
-            if self.stdin:
+            if self.stdin is not None:
                 rmap = self.pathmapper.reversemap(self.stdin)
-                if not rmap:
+                if rmap is None:
                     raise WorkflowException(
                         "{} missing from pathmapper".format(self.stdin))
                 else:
@@ -251,7 +267,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
 
             stderr_path = None
-            if self.stderr:
+            if self.stderr is not None:
                 abserr = os.path.join(self.outdir, self.stderr)
                 dnerr = os.path.dirname(abserr)
                 if dnerr and not os.path.exists(dnerr):
@@ -259,7 +275,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 stderr_path = abserr
 
             stdout_path = None
-            if self.stdout:
+            if self.stdout is not None:
                 absout = os.path.join(self.outdir, self.stdout)
                 dnout = os.path.dirname(absout)
                 if dnout and not os.path.exists(dnout):
@@ -267,7 +283,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 stdout_path = absout
 
             commands = [Text(x) for x in runtime + self.command_line]
-            if runtimeContext.secret_store:
+            if runtimeContext.secret_store is not None:
                 commands = runtimeContext.secret_store.retrieve(commands)
                 env = runtimeContext.secret_store.retrieve(env)
 
@@ -291,18 +307,18 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
 
 
-            if self.successCodes and rcode in self.successCodes:
+            if rcode in self.successCodes:
                 processStatus = "success"
-            elif self.temporaryFailCodes and rcode in self.temporaryFailCodes:
+            elif rcode in self.temporaryFailCodes:
                 processStatus = "temporaryFail"
-            elif self.permanentFailCodes and rcode in self.permanentFailCodes:
+            elif rcode in self.permanentFailCodes:
                 processStatus = "permanentFail"
             elif rcode == 0:
                 processStatus = "success"
             else:
                 processStatus = "permanentFail"
 
-            if self.generatefiles["listing"]:
+            if 'listing' in self.generatefiles:
                 assert self.generatemapper is not None
                 relink_initialworkdir(
                     self.generatemapper, self.outdir, self.builder.outdir,
@@ -325,8 +341,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if runtimeContext.research_obj and self.prov_obj and \
-                runtimeContext.process_run_id:
+        if runtimeContext.research_obj is not None and self.prov_obj is not None and \
+                runtimeContext.process_run_id is not None:
             #creating entities for the outputs produced by each step (in the provenance document)
             self.prov_obj.generate_output_prov(
                 outputs, runtimeContext.process_run_id, str(self.name))
@@ -342,7 +358,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] %s", self.name,
                           json_dumps(outputs, indent=4))
 
-        if self.generatemapper and runtimeContext.secret_store:
+        if self.generatemapper is not None and runtimeContext.secret_store is not None:
             # Delete any runtime-generated files containing secrets.
             for _, p in self.generatemapper.items():
                 if p.type == "CreateFile":
@@ -361,11 +377,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         with runtimeContext.workflow_eval_lock:
             self.output_callback(outputs, processStatus)
 
-        if self.stagedir and os.path.exists(self.stagedir):
+        if self.stagedir is not None and os.path.exists(self.stagedir):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
 
-        if runtimeContext.rm_tmpdir:
+        if runtimeContext.rm_tmpdir is not None:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
@@ -382,7 +398,7 @@ class CommandLineJob(JobBase):
 
         env = self.environment
         vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment:
+        if runtimeContext.preserve_entire_environment is not None:
             vars_to_preserve = os.environ
         if vars_to_preserve is not None:
             for key, value in os.environ.items():
@@ -397,7 +413,7 @@ class CommandLineJob(JobBase):
             env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
 
         stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=runtimeContext.secret_store)
-        if self.generatemapper:
+        if self.generatemapper is not None:
             stageFiles(self.generatemapper, ignoreWritable=self.inplace_update,
                        symLink=True, secret_store=runtimeContext.secret_store)
             relink_initialworkdir(self.generatemapper, self.outdir,
@@ -414,7 +430,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
     @abstractmethod
     def get_from_requirements(self,
                               r,                      # type: Dict[Text, Text]
-                              req,                    # type: bool
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
@@ -427,6 +442,102 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         """ Return the list of commands to run the selected container engine."""
         pass
 
+    @staticmethod
+    @abstractmethod
+    def append_volume(runtime, source, target, writable=False):
+        # type: (List[Text], Text, Text, bool) -> None
+        """Add binding arguments to the runtime list."""
+        pass
+
+    @abstractmethod
+    def add_file_or_directory_volume(self,
+                                     runtime,         # type: List[Text]
+                                     volume,          # type: MapperEnt
+                                     host_outdir_tgt  # type: Optional[Text]
+                                     ):  # type: (...) -> None
+        """Append volume a file/dir mapping to the runtime option list."""
+        pass
+
+    @abstractmethod
+    def add_writable_file_volume(self,
+                                 runtime,         # type: List[Text]
+                                 volume,          # type: MapperEnt
+                                 host_outdir_tgt  # type: Optional[Text]
+                                ):  # type: (...) -> None
+        """Append a writable file mapping to the runtime option list."""
+        pass
+
+    @abstractmethod
+    def add_writable_directory_volume(self,
+                                      runtime,         # type: List[Text]
+                                      volume,          # type: MapperEnt
+                                      host_outdir_tgt  # type: Optional[Text]
+                                     ):  # type: (...) -> None
+        """Append a writable directory mapping to the runtime option list."""
+        pass
+
+    def create_file_and_add_volume(self,
+                                   runtime,          # type: List[Text]
+                                   volume,           # type: MapperEnt
+                                   host_outdir_tgt,  # type: Optional[Text]
+                                   secret_store      # type: Optional[SecretStore]
+                                  ):  # type: (...) -> None
+        """Create the file and add a mapping."""
+        if not host_outdir_tgt:
+            new_file = os.path.join(
+                tempfile.mkdtemp(dir=self.tmpdir),
+                os.path.basename(volume.resolved))
+        writable = True if volume.type == "CreateWritableFile" else False
+        if secret_store:
+            contents = secret_store.retrieve(volume.resolved)
+        else:
+            contents = volume.resolved
+        dirname = os.path.dirname(host_outdir_tgt or new_file)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname, 0o0755)
+        with open(host_outdir_tgt or new_file, "wb") as file_literal:
+            file_literal.write(contents.encode("utf-8"))
+        if not host_outdir_tgt:
+            self.append_volume(runtime, new_file, volume.target,
+                               writable=writable)
+        if writable:
+            ensure_writable(host_outdir_tgt or new_file)
+        else:
+            ensure_non_writable(host_outdir_tgt or new_file)
+
+
+
+    def add_volumes(self,
+                    pathmapper,          # type: PathMapper
+                    runtime,             # type: List[Text]
+                    secret_store=None,   # type: Optional[SecretStore]
+                    any_path_okay=False  # type: bool
+                   ):  # type: (...) -> None
+        """Append volume mappings to the runtime option list."""
+
+        container_outdir = self.builder.outdir
+        for vol in (itm[1] for itm in pathmapper.items() if itm[1].staged):
+            host_outdir_tgt = None  # type: Optional[Text]
+            if vol.target.startswith(container_outdir + "/"):
+                host_outdir_tgt = os.path.join(
+                    self.outdir, vol.target[len(container_outdir)+1:])
+            if not host_outdir_tgt and not any_path_okay:
+                raise WorkflowException(
+                    "No mandatory DockerRequirement, yet path is outside "
+                    "the designated output directory, also know as "
+                    "$(runtime.outdir): {}".format(vol))
+            if vol.type in ("File", "Directory"):
+                self.add_file_or_directory_volume(
+                    runtime, vol, host_outdir_tgt)
+            elif vol.type == "WritableFile":
+                self.add_writable_file_volume(runtime, vol, host_outdir_tgt)
+            elif vol.type == "WritableDirectory":
+                self.add_writable_directory_volume(
+                    runtime, vol, host_outdir_tgt)
+            elif vol.type in ["CreateFile", "CreateWritableFile"]:
+                self.create_file_and_add_volume(
+                    runtime, vol, host_outdir_tgt, secret_store)
+
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
         if not os.path.exists(self.tmpdir):
@@ -436,7 +547,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         img_id = None
         env = cast(MutableMapping[Text, Text], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
-        if docker_req and user_space_docker_cmd:
+        if docker_req is not None and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
             # takes precedence over a network pull
             if 'dockerImageId' in docker_req:
@@ -450,10 +561,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     "Docker"))
         else:
             try:
-                if docker_req and runtimeContext.use_container:
+                if docker_req is not None and runtimeContext.use_container:
                     img_id = str(
                         self.get_from_requirements(
-                            docker_req, True, runtimeContext.pull_image,
+                            docker_req, runtimeContext.pull_image,
                             getdefault(runtimeContext.force_docker_pull, False),
                             getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)))
                 if img_id is None:
@@ -462,10 +573,11 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         if default_container:
                             img_id = str(default_container)
 
-                if docker_req and img_id is None and runtimeContext.use_container:
+                if docker_req is not None and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
-                if self.prov_obj and img_id and runtimeContext.process_run_id:
+                if self.prov_obj is not None and img_id is not None\
+                        and runtimeContext.process_run_id is not None:
                     # TODO: Integrate with record_container_id
                     container_agent = self.prov_obj.document.agent(
                         uuid.uuid4().urn,
@@ -511,7 +623,7 @@ def _job_popen(
         name=None                  # type: Text
         ):  # type: (...) -> int
 
-    if not job_script_contents and not FORCE_SHELLED_POPEN:
+    if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
         stdin = subprocess.PIPE  # type: Union[IO[Any], int]
         if stdin_path is not None:
@@ -535,11 +647,11 @@ def _job_popen(
                                  cwd=cwd)
         processes_to_kill.append(sproc)
 
-        if sproc.stdin:
+        if sproc.stdin is not None:
             sproc.stdin.close()
 
         tm = None
-        if timelimit:
+        if timelimit is not None:
             def terminate():
                 try:
                     _logger.warn(u"[job %s] exceeded time limit of %d seconds and will be terminated", name, timelimit)
@@ -552,7 +664,7 @@ def _job_popen(
 
         rcode = sproc.wait()
 
-        if tm:
+        if tm is not None:
             tm.cancel()
 
         if isinstance(stdin, IOBase):
@@ -566,7 +678,7 @@ def _job_popen(
 
         return rcode
     else:
-        if not job_script_contents:
+        if job_script_contents is None:
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
@@ -607,7 +719,7 @@ def _job_popen(
                 stdin=subprocess.PIPE,
             )
             processes_to_kill.append(sproc)
-            if sproc.stdin:
+            if sproc.stdin is not None:
                 sproc.stdin.close()
 
             rcode = sproc.wait()

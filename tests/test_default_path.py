@@ -10,7 +10,7 @@ def test_default_path():
     document_loader, workflowobj, uri = fetch_document(
         get_data("tests/wf/default_path.cwl"))
     document_loader, _, processobj, _, uri = validate_document(
-        document_loader, workflowobj, uri)
+        document_loader, workflowobj, uri, [], {})
 
     assert isinstance(document_loader, Loader)
     assert "cwlVersion" in processobj

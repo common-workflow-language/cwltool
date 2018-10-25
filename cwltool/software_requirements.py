@@ -43,12 +43,12 @@ class DependenciesConfiguration(object):
         conda_dependencies = getattr(args, "beta_conda_dependencies", None)
         if conf_file is not None and os.path.exists(conf_file):
             self.use_tool_dependencies = True
-            if not tool_dependency_dir:
+            if tool_dependency_dir is None:
                 tool_dependency_dir = os.path.abspath(os.path.dirname(conf_file))
             self.tool_dependency_dir = tool_dependency_dir
             self.dependency_resolvers_config_file = os.path.abspath(conf_file)
-        elif conda_dependencies:
-            if not tool_dependency_dir:
+        elif conda_dependencies is not None:
+            if not tool_dependency_dir is not None:
                 tool_dependency_dir = os.path.abspath("./cwltool_deps")
             self.tool_dependency_dir = tool_dependency_dir
             self.use_tool_dependencies = True

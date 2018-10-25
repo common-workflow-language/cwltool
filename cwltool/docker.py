@@ -1,6 +1,7 @@
 """Enables Docker software containers via the {dx-,u,}docker runtimes."""
 from __future__ import absolute_import
 
+from distutils import spawn
 import datetime
 import os
 import re
@@ -20,8 +21,8 @@ from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import PathMapper  # pylint: disable=unused-import
-from .pathmapper import ensure_writable
+from .pathmapper import PathMapper, MapperEnt  # pylint: disable=unused-import
+from .pathmapper import ensure_writable, ensure_non_writable
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .utils import (DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows,
                     subprocess)
@@ -49,30 +50,31 @@ def _get_docker_machine_mounts():  # type: () -> List[Text]
     return __docker_machine_mounts
 
 def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
-    if not path:
+    if path is None:
         return
     if onWindows():
         path = path.lower()
     mounts = _get_docker_machine_mounts()
-    if mounts:
-        found = False
-        for mount in mounts:
-            if onWindows():
-                mount = mount.lower()
-            if path.startswith(mount):
-                found = True
-                break
-        if not found:
-            raise WorkflowException(
-                "Input path {path} is not in the list of host paths mounted "
-                "into the Docker virtual machine named {name}. Already mounted "
-                "paths: {mounts}.\n"
-                "See https://docs.docker.com/toolbox/toolbox_install_windows/"
-                "#optional-add-shared-directories for instructions on how to "
-                "add this path to your VM.".format(
-                    path=path, name=os.environ["DOCKER_MACHINE_NAME"],
-                    mounts=mounts))
 
+    found = False
+    for mount in mounts:
+        if onWindows():
+            mount = mount.lower()
+        if path.startswith(mount):
+            found = True
+            break
+
+    if not found and mounts:
+        name = os.environ.get("DOCKER_MACHINE_NAME", '???')
+        raise WorkflowException(
+            "Input path {path} is not in the list of host paths mounted "
+            "into the Docker virtual machine named {name}. Already mounted "
+            "paths: {mounts}.\n"
+            "See https://docs.docker.com/toolbox/toolbox_install_windows/"
+            "#optional-add-shared-directories for instructions on how to "
+            "add this path to your VM.".format(
+                path=path, name=name,
+                mounts=mounts))
 
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
@@ -181,105 +183,97 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def get_from_requirements(self,
                               r,                      # type: Dict[Text, Text]
-                              req,                    # type: bool
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
                               tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
                              ):  # type: (...) -> Optional[Text]
-        if r:
-            errmsg = None
-            try:
-                subprocess.check_output(["docker", "version"])
-            except subprocess.CalledProcessError as err:
-                errmsg = "Cannot communicate with docker daemon: " + Text(err)
-            except OSError as err:
-                errmsg = "'docker' executable not found: " + Text(err)
+        if not spawn.find_executable('docker'):
+            raise WorkflowException("docker executable is not available")
 
-            if errmsg:
-                if req:
-                    raise WorkflowException(errmsg)
-                else:
-                    return None
 
-            if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
-                return r["dockerImageId"]
-            if req:
-                raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
+        if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
+            return r["dockerImageId"]
+        raise WorkflowException(u"Docker image %s not found" % r["dockerImageId"])
 
-        return None
+    @staticmethod
+    def append_volume(runtime, source, target, writable=False):
+        # type: (List[Text], Text, Text, bool) -> None
+        """Add binding arguments to the runtime list."""
+        runtime.append(u"--volume={}:{}:{}".format(
+            docker_windows_path_adjust(source),
+            docker_windows_path_adjust(target), "rw" if writable else "ro"))
 
-    def add_volumes(self, pathmapper, runtime, secret_store=None):
-        # type: (PathMapper, List[Text], SecretStore) -> None
-        """Append volume mappings to the runtime option list."""
+    def add_file_or_directory_volume(self,
+                                     runtime,         # type: List[Text]
+                                     volume,          # type: MapperEnt
+                                     host_outdir_tgt  # type: Optional[Text]
+                                     ):  # type: (...) -> None
+        """Append volume a file/dir mapping to the runtime option list."""
+        if not volume.resolved.startswith("_:"):
+            _check_docker_machine_path(docker_windows_path_adjust(
+                volume.resolved))
+            self.append_volume(runtime, volume.resolved, volume.target)
 
-        host_outdir = self.outdir
-        container_outdir = self.builder.outdir
-        for _, vol in pathmapper.items():
-            if not vol.staged:
-                continue
-            host_outdir_tgt = None  # type: Optional[Text]
-            if vol.target.startswith(container_outdir+"/"):
-                host_outdir_tgt = os.path.join(
-                    host_outdir, vol.target[len(container_outdir)+1:])
-            if vol.type in ("File", "Directory"):
-                if not vol.resolved.startswith("_:"):
-                    _check_docker_machine_path(docker_windows_path_adjust(
-                        vol.resolved))
-                    runtime.append(u"--volume=%s:%s:ro" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
-            elif vol.type == "WritableFile":
-                if self.inplace_update:
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(vol.resolved),
-                        docker_windows_path_adjust(vol.target)))
+    def add_writable_file_volume(self,
+                                 runtime,         # type: List[Text]
+                                 volume,          # type: MapperEnt
+                                 host_outdir_tgt  # type: Optional[Text]
+                                ):  # type: (...) -> None
+        """Append a writable file mapping to the runtime option list."""
+        if self.inplace_update:
+            self.append_volume(runtime, volume.resolved, volume.target,
+                               writable=True)
+        else:
+            if host_outdir_tgt:
+                # shortcut, just copy to the output directory
+                # which is already going to be mounted
+                shutil.copy(volume.resolved, host_outdir_tgt)
+            else:
+                tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+                file_copy = os.path.join(
+                    tmpdir, os.path.basename(volume.resolved))
+                shutil.copy(volume.resolved, file_copy)
+                self.append_volume(runtime, file_copy, volume.target,
+                                   writable=True)
+            ensure_writable(host_outdir_tgt or file_copy)
+
+    def add_writable_directory_volume(self,
+                                      runtime,         # type: List[Text]
+                                      volume,          # type: MapperEnt
+                                      host_outdir_tgt  # type: Optional[Text]
+                                     ):  # type: (...) -> None
+        """Append a writable directory mapping to the runtime option list."""
+        if volume.resolved.startswith("_:"):
+            # Synthetic directory that needs creating first
+            if not host_outdir_tgt:
+                new_dir = os.path.join(
+                    tempfile.mkdtemp(dir=self.tmpdir),
+                    os.path.basename(volume.target))
+                self.append_volume(runtime, new_dir, volume.target,
+                                   writable=True)
+            elif not os.path.exists(host_outdir_tgt):
+                os.makedirs(host_outdir_tgt, 0o0755)
+        else:
+            if self.inplace_update:
+                self.append_volume(runtime, volume.resolved, volume.target,
+                                   writable=True)
+            else:
+                if not host_outdir_tgt:
+                    tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+                    new_dir = os.path.join(
+                        tmpdir, os.path.basename(volume.resolved))
+                    shutil.copytree(volume.resolved, new_dir)
+                    self.append_volume(
+                        runtime, new_dir, volume.target,
+                        writable=True)
                 else:
-                    if host_outdir_tgt:
-                        shutil.copy(vol.resolved, host_outdir_tgt)
-                        ensure_writable(host_outdir_tgt)
-                    else:
-                        raise WorkflowException(
-                            "Unable to compute host_outdir_tgt for "
-                            "WriteableFile.")
-            elif vol.type == "WritableDirectory":
-                if vol.resolved.startswith("_:"):
-                    if host_outdir_tgt:
-                        os.makedirs(host_outdir_tgt, 0o0755)
-                    else:
-                        raise WorkflowException(
-                            "Unable to compute host_outdir_tgt for "
-                            "WritableDirectory.")
-                else:
-                    if self.inplace_update:
-                        runtime.append(u"--volume=%s:%s:rw" % (
-                            docker_windows_path_adjust(vol.resolved),
-                            docker_windows_path_adjust(vol.target)))
-                    else:
-                        if host_outdir_tgt:
-                            shutil.copytree(vol.resolved, host_outdir_tgt)
-                            ensure_writable(host_outdir_tgt)
-                        else:
-                            raise WorkflowException(
-                                "Unable to compute host_outdir_tgt for "
-                                "WritableDirectory.")
-            elif vol.type == "CreateFile":
-                if secret_store:
-                    contents = secret_store.retrieve(vol.resolved)
-                else:
-                    contents = vol.resolved
-                if host_outdir_tgt:
-                    with open(host_outdir_tgt, "wb") as file_literal:
-                        file_literal.write(contents.encode("utf-8"))
-                else:
-                    tmp_fd, createtmp = tempfile.mkstemp(dir=self.tmpdir)
-                    with os.fdopen(tmp_fd, "wb") as file_literal:
-                        file_literal.write(contents.encode("utf-8"))
-                    runtime.append(u"--volume=%s:%s:rw" % (
-                        docker_windows_path_adjust(os.path.realpath(createtmp)),
-                        vol.target))
+                    shutil.copytree(volume.resolved, host_outdir_tgt)
+                ensure_writable(host_outdir_tgt or new_dir)
 
     def create_runtime(self, env, runtimeContext):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> List
+        any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
+            or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
             if 'udocker' in user_space_docker_cmd and not runtimeContext.debug:
@@ -297,9 +291,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--volume=%s:%s:rw" % (
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
-        self.add_volumes(self.pathmapper, runtime, secret_store=runtimeContext.secret_store)
-        if self.generatemapper:
-            self.add_volumes(self.generatemapper, runtime, secret_store=runtimeContext.secret_store)
+        self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
+                         secret_store=runtimeContext.secret_store)
+        if self.generatemapper is not None:
+            self.add_volumes(
+                self.generatemapper, runtime, any_path_okay=any_path_okay,
+                secret_store=runtimeContext.secret_store)
 
         if user_space_docker_cmd:
             runtime = [x.replace(":ro", "") for x in runtime]
@@ -318,7 +315,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             else:
                 runtime.append(u"--net=none")
 
-            if self.stdout:
+            if self.stdout is not None:
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
@@ -341,7 +338,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-        if runtimeContext.record_container_id:
+        if runtimeContext.record_container_id is not None:
             cidfile_dir = runtimeContext.cidfile_dir
             if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
@@ -367,8 +364,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             runtime.append("--memory=%dm" % self.builder.resources["ram"])
         elif not user_space_docker_cmd:
-            res_req = self.builder.get_requirement("ResourceRequirement")[0]
-            if res_req and ("ramMin" in res_req or "ramMax" is res_req):
+            res_req, _ = self.builder.get_requirement("ResourceRequirement")
+            if res_req is not None and ("ramMin" in res_req or "ramMax" is res_req):
                 _logger.warning(
                     u"[job %s] Skipping Docker software container '--memory' limit "
                     "despite presence of ResourceRequirement with ramMin "

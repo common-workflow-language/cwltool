@@ -32,6 +32,7 @@ JSON = Union[Dict[Text, Any], List[Any], Text, int, float, bool, None]
 
 localdata = threading.local()
 
+default_timeout = 20
 have_node_slim = False
 # minimum acceptable version of nodejs engine
 minimum_node_version_str = '0.10.26'
@@ -121,7 +122,7 @@ def new_js_proc(js_text, force_docker_pull=False):
 PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
 def exec_js_process(js_text,                  # type: Text
-                    timeout=None,             # type: float
+                    timeout=default_timeout,  # type: float
                     js_console=False,         # type: bool
                     context=None,             # type: Text
                     force_docker_pull=False,  # type: bool
@@ -145,10 +146,10 @@ def exec_js_process(js_text,                  # type: Text
 
     created_new_process = False
 
-    if context is None:
-        nodejs = localdata.procs.get(js_engine)
-    else:
+    if context is not None:
         nodejs = localdata.procs.get((js_engine, context))
+    else:
+        nodejs = localdata.procs.get(js_engine)
 
     if nodejs is None \
             or nodejs.poll() is not None \
@@ -176,9 +177,6 @@ def exec_js_process(js_text,                  # type: Text
             nodejs.kill()
         except OSError:
             pass
-
-    if timeout is None:
-        timeout = 20
 
     timer = threading.Timer(timeout, terminate)
     timer.daemon = True
@@ -324,7 +322,7 @@ def code_fragment_to_js(jscript, jslib=""):
 
 def execjs(js,                       # type: Text
            jslib,                    # type: Text
-           timeout=None,             # type: float
+           timeout,                  # type: float
            force_docker_pull=False,  # type: bool
            debug=False,              # type: bool
            js_console=False          # type: bool
@@ -333,11 +331,11 @@ def execjs(js,                       # type: Text
     fn = code_fragment_to_js(js, jslib)
 
     returncode, stdout, stderr = exec_js_process(
-        fn, timeout=timeout, js_console=js_console,
+        fn, timeout, js_console=js_console,
         force_docker_pull=force_docker_pull)
 
     if js_console:
-        if stderr:
+        if stderr is not None:
             _logger.info("Javascript console output:")
             _logger.info("----------------------------------------")
             _logger.info('\n'.join(re.findall(

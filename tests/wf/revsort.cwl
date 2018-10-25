@@ -24,6 +24,7 @@ inputs:
   input:
     type: File
     doc: "The input file to be processed."
+    format: iana:text/plain
     default:
       class: File
       location: hello.txt
@@ -67,3 +68,9 @@ steps:
       reverse: reverse_sort
     out: [output]
     run: sorttool.cwl
+
+$namespaces:
+  iana: https://www.iana.org/assignments/media-types/
+
+$schemas:
+ - empty2.ttl

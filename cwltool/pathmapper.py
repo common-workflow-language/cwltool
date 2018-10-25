@@ -160,8 +160,7 @@ def downloadHttpFile(httpurl):
     r.close()
     return f.name
 
-def ensure_writable(path):
-    # type: (Text) -> None
+def ensure_writable(path):  # type: (Text) -> None
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path):
             for name in files:
@@ -178,6 +177,26 @@ def ensure_writable(path):
         st = os.stat(path)
         mode = stat.S_IMODE(st.st_mode)
         os.chmod(path, mode | stat.S_IWUSR)
+
+def ensure_non_writable(path):  # type: (Text) -> None
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j,
+                         mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+            for name in dirs:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j,
+                         mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+    else:
+        st = os.stat(path)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(path, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
 
 class PathMapper(object):
     """Mapping of files from relative path provided in the file to a tuple of
@@ -203,13 +222,14 @@ class PathMapper(object):
     path on the local file system (after resolving relative paths and
     traversing symlinks). The "target" is the path on the target file system
     (under stagedir). The type is the object type (one of File, Directory,
-    CreateFile, WritableFile).
+    CreateFile, WritableFile, CreateWritableFile).
 
-    The latter two (CreateFile, WritableFile) are used by
+    The latter three (CreateFile, WritableFile, CreateWritableFile) are used by
     InitialWorkDirRequirement to indicate files that are generated on the fly
-    (CreateFile, in this case "resolved" holds the file contents instead of the
-    path because they file doesn't exist) or copied into the output directory
-    so they can be opened for update ("r+" or "a") (WritableFile).
+    (CreateFile and CreateWritableFile, in this case "resolved" holds the file
+    contents instead of the path because they file doesn't exist) or copied
+    into the output directory so they can be opened for update ("r+" or "a")
+    (WritableFile and CreateWritableFile).
 
     """
 
@@ -244,7 +264,9 @@ class PathMapper(object):
             path = obj["location"]
             ab = abspath(path, basedir)
             if "contents" in obj and obj["location"].startswith("_:"):
-                self._pathmap[obj["location"]] = MapperEnt(obj["contents"], tgt, "CreateFile", staged)
+                self._pathmap[obj["location"]] = MapperEnt(
+                    obj["contents"], tgt,
+                    "CreateWritableFile" if copy else "CreateFile", staged)
             else:
                 with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
                     deref = ab
@@ -259,8 +281,10 @@ class PathMapper(object):
                                 os.path.dirname(deref), rl)
                             st = os.lstat(deref)
 
-                    self._pathmap[path] = MapperEnt(deref, tgt, "WritableFile" if copy else "File", staged)
-                    self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir, copy=copy, staged=staged)
+                    self._pathmap[path] = MapperEnt(
+                        deref, tgt, "WritableFile" if copy else "File", staged)
+            self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir,
+                              copy=copy, staged=staged)
 
     def setup(self, referenced_files, basedir):
         # type: (List[Any], Text) -> None
