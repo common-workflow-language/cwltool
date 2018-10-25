@@ -1405,7 +1405,7 @@ class ResearchObject():
         # be in same file system as our temp folder
         if not os.path.isdir(folder):
             os.makedirs(folder)
-        if not os.path.exists(path)
+        if not os.path.exists(path):
             os.rename(tmp.name, path)
 
         # Relative posix path

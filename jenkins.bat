@@ -10,4 +10,4 @@ python -m coverage combine
 python -m coverage report
 python -m coverage xml
 pip install codecov
-python.exe -m codecov --file coverage.xml
+python -m codecov --file coverage.xml 
