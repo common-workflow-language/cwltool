@@ -59,8 +59,8 @@ class LoadingContext(ContextBase):
         self.fetcher_constructor = None
         self.construct_tool_object = default_make_tool
         self.research_obj = None           # type: Optional[ResearchObject]
-        self.orcid = None
-        self.cwl_full_name = None
+        self.orcid = ''                    # type: str
+        self.cwl_full_name = ""            # type: str
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
         self.prov_obj = None               # type: Optional[CreateProvProfile]
@@ -95,7 +95,7 @@ class RuntimeContext(ContextBase):
         self.move_outputs = "move"      # type: Text
 
         self.singularity = False        # type: bool
-        self.disable_net = None
+        self.disable_net = False        # type: bool
         self.debug = False              # type: bool
         self.compute_checksum = True    # type: bool
         self.name = ""                  # type: Text
@@ -128,8 +128,8 @@ class RuntimeContext(ContextBase):
 
         self.workflow_eval_lock = None  # type: Optional[threading.Condition]
         self.research_obj = None        # type: Optional[ResearchObject]
-        self.orcid = None
-        self.cwl_full_name = None
+        self.orcid = ''                 # type: str
+        self.cwl_full_name = ""         # type: str
         self.process_run_id = None      # type: Optional[str]
         self.prov_obj = None            # type: Optional[CreateProvProfile]
         super(RuntimeContext, self).__init__(kwargs)

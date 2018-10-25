@@ -97,8 +97,8 @@ class HasReqsHints(object):
         self.hints = []         # List[Dict[Text, Any]]
 
     def get_requirement(self,
-                    feature  # type: Text
-                   ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+                        feature  # type: Text
+                       ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
         for item in reversed(self.requirements):
             if item["class"] == feature:
                 return (item, True)
@@ -109,93 +109,68 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
-                 files=None,                # type: List[Dict[Text, Text]]
-                 bindings=None,             # type: List[Dict[Text, Any]]
-                 schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
-                 names=None,                # type: Names
-                 requirements=None,         # type: List[Dict[Text, Any]]
-                 hints=None,                # type: List[Dict[Text, Any]]
-                 timeout=None,              # type: float
-                 debug=False,               # type: bool
-                 resources=None,            # type: Dict[str, int]
-                 js_console=False,          # type: bool
-                 mutation_manager=None,     # type: Optional[MutationManager]
-                 formatgraph=None,          # type: Optional[Graph]
-                 make_fs_access=None,       # type: Type[StdFsAccess]
-                 fs_access=None,            # type: StdFsAccess
-                 force_docker_pull=False,   # type: bool
-                 loadListing=u"",           # type: Text
-                 outdir=u"",                # type: Text
-                 tmpdir=u"",                # type: Text
-                 stagedir=u"",              # type: Text
-                 job_script_provider=None   # type: Optional[Any]
+                 job,                 # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 files,               # type: List[Dict[Text, Text]]
+                 bindings,            # type: List[Dict[Text, Any]]
+                 schemaDefs,          # type: Dict[Text, Dict[Text, Any]]
+                 names,               # type: Names
+                 requirements,        # type: List[Dict[Text, Any]]
+                 hints,               # type: List[Dict[Text, Any]]
+                 resources,           # type: Dict[str, int]
+                 mutation_manager,    # type: Optional[MutationManager]
+                 formatgraph,         # type: Optional[Graph]
+                 make_fs_access,      # type: Type[StdFsAccess]
+                 fs_access,           # type: StdFsAccess
+                 job_script_provider, # type: Optional[Any]
+                 timeout,             # type: float
+                 debug,               # type: bool
+                 js_console,          # type: bool
+                 force_docker_pull,   # type: bool
+                 loadListing,         # type: Text
+                 outdir,              # type: Text
+                 tmpdir,              # type: Text
+                 stagedir,            # type: Text
                 ):  # type: (...) -> None
 
-        if names is None:
-            self.names = Names()
-        else:
-            self.names = names
-
-        if schemaDefs is None:
-            self.schemaDefs = {}  # type: Dict[Text, Dict[Text, Any]]
-        else:
-            self.schemaDefs = schemaDefs
-
-        if files is None:
-            self.files = []  # type: List[Dict[Text, Text]]
-        else:
-            self.files = files
-
         self.job = job
+        self.files = files
+        self.bindings = bindings
+        self.schemaDefs = schemaDefs
+        self.names = names
         self.requirements = requirements
         self.hints = hints
-        self.outdir = outdir
-        self.tmpdir = tmpdir
+        self.resources = resources
+        self.mutation_manager = mutation_manager
+        self.formatgraph = formatgraph
 
-        if resources is None:
-            self.resources = {}  # type: Dict[str, int]
-        else:
-            self.resources = resources
+        self.make_fs_access = make_fs_access
+        self.fs_access = fs_access
 
-        if bindings is None:
-            self.bindings = []  # type: List[Dict[Text, Any]]
-        else:
-            self.bindings = bindings
+        self.job_script_provider = job_script_provider
+
         self.timeout = timeout
-        self.pathmapper = None  # type: Optional[PathMapper]
-        self.stagedir = stagedir
-
-        if make_fs_access is None:
-            self.make_fs_access = StdFsAccess
-        else:
-            self.make_fs_access = make_fs_access
-
-        if fs_access is None:
-            self.fs_access = self.make_fs_access("")
-        else:
-            self.fs_access = fs_access
 
         self.debug = debug
         self.js_console = js_console
-        self.mutation_manager = mutation_manager
         self.force_docker_pull = force_docker_pull
-        self.formatgraph = formatgraph
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
+        self.outdir = outdir
+        self.tmpdir = tmpdir
+        self.stagedir = stagedir
+
+        self.pathmapper = None  # type: Optional[PathMapper]
+        self.prov_obj = None  # type: Optional[CreateProvProfile]
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
-        self.job_script_provider = job_script_provider
 
     def build_job_script(self, commands):
         # type: (List[Text]) -> Text
         build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
-        if build_job_script_method:
+        if build_job_script_method is not None:
             return build_job_script_method(self, commands)
-        else:
-            return None
+        return None
 
     def bind_input(self,
                    schema,                   # type: MutableMapping[Text, Any]
@@ -209,6 +184,7 @@ class Builder(HasReqsHints):
             tail_pos = []
         if lead_pos is None:
             lead_pos = []
+
         bindings = []  # type: List[MutableMapping[Text, Text]]
         binding = None  # type: Optional[MutableMapping[Text,Any]]
         value_from_expression = False
@@ -247,7 +223,11 @@ class Builder(HasReqsHints):
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
-            if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
+            if binding is not None\
+                    and "inputBinding" not in st\
+                    and "type" in st\
+                    and st["type"] == "array"\
+                    and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
             for k in ("secondaryFiles", "format", "streamable"):
                 if k in schema:
@@ -270,7 +250,7 @@ class Builder(HasReqsHints):
             if schema["type"] == "array":
                 for n, item in enumerate(datum):
                     b2 = None
-                    if binding:
+                    if binding is not None:
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
                     itemschema = {
@@ -341,7 +321,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
 
         # Position to front of the sort key
-        if binding:
+        if binding is not None:
             for bi in bindings:
                 bi["position"] = binding["position"] + bi["position"]
             bindings.append(binding)

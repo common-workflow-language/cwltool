@@ -260,7 +260,14 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
                 ensure_writable(p.target)
         elif p.type == "CreateFile":
             with open(p.target, "wb") as n:
-                if secret_store:
+                if secret_store is not None:
+                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
+                else:
+                    n.write(p.resolved.encode("utf-8"))
+            os.chmod(p.target, stat.S_IRUSR)
+        elif p.type == "CreateWritableFile":
+            with open(p.target, "wb") as n:
+                if secret_store is not None:
                     n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
                 else:
                     n.write(p.resolved.encode("utf-8"))
@@ -478,7 +485,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         self.doc_schema = loadingContext.avsc_names
 
         self.formatgraph = None  # type: Optional[Graph]
-        if self.doc_loader:
+        if self.doc_loader is not None:
             self.formatgraph = self.doc_loader.graph
 
         checkRequirements(self.tool, supportedProcessRequirements)
@@ -489,7 +496,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
-        if sd:
+        if sd is not None:
             sdtypes = sd["types"]
             av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
@@ -555,13 +562,15 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
-        if dockerReq and dockerReq.get("dockerOutputDirectory") and not is_req:
+        if dockerReq is not None and "dockerOutputDirectory" in dockerReq\
+                and is_req is not None and not is_req:
             _logger.warning(SourceLine(
                 item=dockerReq, raise_type=Text).makeError(
                     "When 'dockerOutputDirectory' is declared, DockerRequirement "
                     "should go in the 'requirements' section, not 'hints'."""))
 
-        if dockerReq and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
+        if dockerReq is not None and is_req is not None\
+                and dockerReq.get("dockerOutputDirectory") == "/var/spool/cwl":
             if is_req:
                 # In this specific case, it is legal to have /var/spool/cwl, so skip the check.
                 pass
@@ -595,7 +604,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         stagedir = u""
 
         loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
-        if loadListingReq:
+        if loadListingReq is not None:
             loadListing = loadListingReq.get("loadListing")
         else:
             loadListing = "deep_listing"   # will default to "no_listing" in CWL v1.1
@@ -607,7 +616,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             defaultDocker = runtimeContext.default_container
 
         if (dockerReq or defaultDocker) and runtimeContext.use_container:
-            if dockerReq:
+            if dockerReq is not None:
                 # Check if docker output directory is absolute
                 if dockerReq.get("dockerOutputDirectory") and \
                         dockerReq.get("dockerOutputDirectory").startswith('/'):
@@ -615,7 +624,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                 else:
                     outdir = dockerReq.get("dockerOutputDirectory") or \
                         runtimeContext.docker_outdir or random_outdir()
-            elif defaultDocker:
+            elif defaultDocker is not None:
                 outdir = runtimeContext.docker_outdir or random_outdir()
             tmpdir = runtimeContext.docker_tmpdir or "/tmp"
             stagedir = runtimeContext.docker_stagedir or "/var/lib/cwl"
@@ -634,20 +643,20 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                           self.names,
                           self.requirements,
                           self.hints,
-                          runtimeContext.eval_timeout,
-                          runtimeContext.debug,
                           {},
-                          runtimeContext.js_console,
                           runtimeContext.mutation_manager,
                           self.formatgraph,
                           make_fs_access,
                           fs_access,
+                          runtimeContext.job_script_provider,
+                          runtimeContext.eval_timeout,
+                          runtimeContext.debug,
+                          runtimeContext.js_console,
                           runtimeContext.force_docker_pull,
                           loadListing,
                           outdir,
                           tmpdir,
-                          stagedir,
-                          runtimeContext.job_script_provider)
+                          stagedir)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
@@ -737,11 +746,11 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             elif mx is None:
                 mx = mn
 
-            if mn:
+            if mn is not None:
                 request[a + "Min"] = cast(int, mn)
                 request[a + "Max"] = cast(int, mx)
 
-        if runtimeContext.select_resources:
+        if runtimeContext.select_resources is not None:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
             "cores": request["coresMin"],
@@ -866,8 +875,16 @@ def mergedirs(listing):
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urljoin):
-    # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
+CWL_IANA = "https://www.iana.org/assignments/media-types/application/cwl"
+
+def scandeps(base,                          # type: Text
+             doc,                           # type: Any
+             reffields,                     # type: Set[Text]
+             urlfields,                     # type: Set[Text]
+             loadref,                       # type: Callable[[Text, Text], Text]
+             urljoin=urllib.parse.urljoin,  # type: Callable[[Text, Text], Text]
+             nestdirs=True                  # type: bool
+            ):  # type: (...) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     if isinstance(doc, MutableMapping):
         if "id" in doc:
@@ -876,7 +893,8 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                 if base != df:
                     r.append({
                         "class": "File",
-                        "location": df
+                        "location": df,
+                        "format": CWL_IANA
                     })
                     base = df
 
@@ -892,30 +910,41 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
                     deps["secondaryFiles"] = doc["secondaryFiles"]
-                deps = nestdir(base, deps)
+                if nestdirs:
+                    deps = nestdir(base, deps)
                 r.append(deps)
             else:
                 if doc["class"] == "Directory" and "listing" in doc:
-                    r.extend(scandeps(base, doc["listing"], reffields, urlfields, loadref, urljoin=urljoin))
+                    r.extend(scandeps(
+                        base, doc["listing"], reffields, urlfields, loadref,
+                        urljoin=urljoin, nestdirs=nestdirs))
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
-                    r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
+                    r.extend(scandeps(
+                        base, doc["secondaryFiles"], reffields, urlfields,
+                        loadref, urljoin=urljoin, nestdirs=nestdirs))
 
         for k, v in iteritems(doc):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, MutableMapping):
-                        r.extend(scandeps(base, u, reffields, urlfields, loadref, urljoin=urljoin))
+                        r.extend(scandeps(
+                            base, u, reffields, urlfields, loadref,
+                            urljoin=urljoin, nestdirs=nestdirs))
                     else:
                         sub = loadref(base, u)
                         subid = urljoin(base, u)
                         deps = {
                             "class": "File",
-                            "location": subid
+                            "location": subid,
+                            "format": CWL_IANA
                         }
-                        sf = scandeps(subid, sub, reffields, urlfields, loadref, urljoin=urljoin)
+                        sf = scandeps(
+                            subid, sub, reffields, urlfields, loadref,
+                            urljoin=urljoin, nestdirs=nestdirs)
                         if sf:
                             deps["secondaryFiles"] = sf
-                        deps = nestdir(base, deps)
+                        if nestdirs:
+                            deps = nestdir(base, deps)
                         r.append(deps)
             elif k in urlfields and k != "location":
                 for u in aslist(v):
@@ -923,13 +952,18 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urllib.parse.urlj
                         "class": "File",
                         "location": urljoin(base, u)
                     }
-                    deps = nestdir(base, deps)
+                    if nestdirs:
+                        deps = nestdir(base, deps)
                     r.append(deps)
             elif k not in ("listing", "secondaryFiles"):
-                r.extend(scandeps(base, v, reffields, urlfields, loadref, urljoin=urljoin))
+                r.extend(scandeps(
+                    base, v, reffields, urlfields, loadref, urljoin=urljoin,
+                    nestdirs=nestdirs))
     elif isinstance(doc, MutableSequence):
         for d in doc:
-            r.extend(scandeps(base, d, reffields, urlfields, loadref, urljoin=urljoin))
+            r.extend(scandeps(
+                base, d, reffields, urlfields, loadref, urljoin=urljoin,
+                nestdirs=nestdirs))
 
     if r:
         normalizeFilesDirs(r)
