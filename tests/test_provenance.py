@@ -316,10 +316,12 @@ def check_ro(base_path, nested=False):
     assert externals, "Didn't find any data URIs"
 
     for ext in ["provn", "xml", "json", "jsonld", "nt", "ttl"]:
-        f = "metadata/provenance/primary.cwlprov.%s" % ext
+        f = os.path.join("metadata", "provenance", "primary.cwlprov.%s" % ext)
         assert f in paths, "provenance file missing " + f
 
-    for f in ["workflow/primary-job.json", "workflow/packed.cwl", "workflow/primary-output.json"]:
+    for f in [os.path.join("workflow", "primary-job.json"),
+              os.path.join("workflow", "packed.cwl"),
+              os.path.join("workflow", "primary-output.json")]:
         assert f in paths, "workflow file missing " + f
     # Can't test snapshot/ files directly as their name varies
 
