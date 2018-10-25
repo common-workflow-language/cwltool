@@ -131,9 +131,12 @@ def revmap_file(builder, outdir, f):
     internal output directories to the external directory.
     """
 
+    if os.path.exists(outdir):
+        # local path, therefore normalize on MS Windows
+        outdir = os.path.normcase(outdir)
     split = urllib.parse.urlsplit(outdir)
     if not split.scheme:
-        outdir = file_uri(str(outdir))
+        outdir = file_uri(outdir)
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
@@ -145,9 +148,11 @@ def revmap_file(builder, outdir, f):
             return f
 
     if "path" in f:
-        path = os.path.normcase(f["path"])
+        path = f["path"]
+        if os.path.exists(path):
+            # local path, therefore normalize on MS Windows
+            path = os.path.normcase(path)
         uripath = file_uri(path)
-        uri_outdir = file_uri(outdir)
         del f["path"]
 
         if "basename" not in f:
@@ -159,7 +164,7 @@ def revmap_file(builder, outdir, f):
         if revmap_f and not builder.pathmapper.mapper(
                 revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-        elif uripath == uri_outdir or uripath.startswith(uri_outdir+'/'):
+        elif uripath == outdir or uripath.startswith(outdir+'/'):
             # don't use os.sep here, URIs use '/' only
             f["location"] = uripath
         elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
