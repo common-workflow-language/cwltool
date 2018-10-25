@@ -145,7 +145,7 @@ def revmap_file(builder, outdir, f):
             return f
 
     if "path" in f:
-        path = f["path"]
+        path = os.path.normcase(f["path"])
         uripath = file_uri(path)
         uri_outdir = file_uri(outdir)
         del f["path"]
@@ -170,7 +170,8 @@ def revmap_file(builder, outdir, f):
             raise WorkflowException(
                 u"Output file path {} must be within designated output "
                 "directory ({}) or an input file pass through. Host outdir "
-                "is {}.".format(path, builder.outdir, outdir))
+                "is {}, uripath: {}, uri_outdir: {}.".format(
+                    path, builder.outdir, outdir, uripath, uri_outdir))
         return f
 
     raise WorkflowException(u"Output File object is missing both 'location' "
