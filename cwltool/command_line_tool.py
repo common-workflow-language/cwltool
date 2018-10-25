@@ -159,7 +159,8 @@ def revmap_file(builder, outdir, f):
         if revmap_f and not builder.pathmapper.mapper(
                 revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-        elif uripath == uri_outdir or uripath.startswith(uri_outdir+os.sep):
+        elif uripath == uri_outdir or uripath.startswith(uri_outdir+'/'):
+            # don't use os.sep here, URIs use '/' only
             f["location"] = uripath
         elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
