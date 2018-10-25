@@ -123,17 +123,21 @@ def remove_path(f):  # type: (Dict[Text, Any]) -> None
 
 def revmap_file(builder, outdir, f):
     # type: (Builder, Text, Dict[Text, Any]) -> Union[Dict[Text, Any], None]
-
-    """Remap a file from internal path to external path.
+    """
+    Remap a file from internal path to external path.
 
     For Docker, this maps from the path inside tho container to the path
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
 
+    # If a local path, then normalize on MS Windows
     if os.path.exists(outdir):
-        # local path, therefore normalize on MS Windows
         outdir = os.path.normcase(outdir)
+    builder_outdir = builder.outdir
+    if os.path.exists(builder_outdir):
+        builder_outdir = os.path.normcase(builder_outdir)
+
     split = urllib.parse.urlsplit(outdir)
     if not split.scheme:
         outdir = file_uri(outdir)
@@ -167,8 +171,8 @@ def revmap_file(builder, outdir, f):
         elif uripath == outdir or uripath.startswith(outdir+'/'):
             # don't use os.sep here, URIs use '/' only
             f["location"] = uripath
-        elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
-            f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
+        elif path == builder_outdir or path.startswith(builder_outdir+os.sep):
+            f["location"] = builder.fs_access.join(outdir, path[len(builder_outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = builder.fs_access.join(outdir, path)
         else:
@@ -176,7 +180,7 @@ def revmap_file(builder, outdir, f):
                 u"Output file path {} must be within designated output "
                 "directory ({}) or an input file pass through. Host outdir "
                 "is {}, uripath: {}.".format(
-                    path, builder.outdir, outdir, uripath))
+                    path, builder_outdir, outdir, uripath))
         return f
 
     raise WorkflowException(u"Output File object is missing both 'location' "
