@@ -147,6 +147,7 @@ def revmap_file(builder, outdir, f):
     if "path" in f:
         path = f["path"]
         uripath = file_uri(path)
+        uri_outdir = file_uri(outdir)
         del f["path"]
 
         if "basename" not in f:
@@ -155,17 +156,20 @@ def revmap_file(builder, outdir, f):
         assert builder.pathmapper is not None
         revmap_f = builder.pathmapper.reversemap(path)
 
-        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
+        if revmap_f and not builder.pathmapper.mapper(
+                revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-        elif uripath == outdir or uripath.startswith(outdir+os.sep):
-            f["location"] = file_uri(path)
+        elif uripath == uri_outdir or uripath.startswith(uri_outdir+os.sep):
+            f["location"] = uripath
         elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = builder.fs_access.join(outdir, path)
         else:
-            raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input "
-                                    u"file pass through." % (path, builder.outdir))
+            raise WorkflowException(
+                u"Output file path {} must be within designated output "
+                "directory ({}) or an input file pass through. Host outdir "
+                "is {}.".format(path, builder.outdir, outdir))
         return f
 
     raise WorkflowException(u"Output File object is missing both 'location' "
