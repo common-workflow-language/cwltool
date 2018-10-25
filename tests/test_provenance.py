@@ -39,8 +39,8 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 @pytest.fixture
-def folder():
-    directory = tempfile.mkdtemp("ro")
+def folder(tmpdir):
+    directory = tempfile.mkdtemp("ro", dir=str(tmpdir))
     if os.environ.get("DEBUG"):
         print("%s folder: %s" % (__loader__.fullname, folder))
     yield directory
@@ -51,7 +51,7 @@ def folder():
 
 def cwltool(folder, *args):
     load_tool.loaders = {}
-    new_args = ['--no-container', '--provenance', folder]
+    new_args = ['--provenance', folder]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     with temp_dir("cwltool-run") as tmp_dir:
