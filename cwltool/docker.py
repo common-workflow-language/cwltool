@@ -58,6 +58,7 @@ def _check_docker_machine_path(path):  # type: (Optional[Text]) -> None
 
     found = False
     for mount in mounts:
+        mount = re.sub('/+', '/', mount)
         if onWindows():
             mount = mount.lower()
         if path.startswith(mount):
