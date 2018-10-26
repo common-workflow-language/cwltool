@@ -93,6 +93,8 @@ def docker_windows_path_adjust(path):
 def get_actual_filename(name):
     """Get a correctly cased path even on case insensitive filesystems."""
     # Courtesy https://stackoverflow.com/a/30374360
+    if not os.path.exists(name):
+        return name
     sep = os.path.sep
     parts = os.path.normpath(name).split(sep)
     dirs = parts[0:-1]
