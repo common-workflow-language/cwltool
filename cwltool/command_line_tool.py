@@ -179,10 +179,10 @@ def revmap_file(builder, outdir, f):
             raise WorkflowException(
                 u"Output file path {} must be within designated output "
                 "directory ({}) or an input file pass through. Host outdir "
-                "is {}, uripath: {}. Source object: {}; types: {}, {}, {}, "
+                "is {}, uripath: {}. Pathmapper items: {}"
                 "{}.".format(
-                    path, builder_outdir, outdir, uripath, f, type(path),
-                    type(builder_outdir), type(outdir), type(uripath)))
+                    path, builder_outdir, outdir, uripath, f,
+                    builder.pathmapper.items()))
         return f
 
     raise WorkflowException(u"Output File object is missing both 'location' "

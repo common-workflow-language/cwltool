@@ -13,7 +13,7 @@ from typing_extensions import Text  # pylint: disable=unused-import
 
 from .sandboxjs import default_timeout, execjs, JavascriptException
 from .errors import WorkflowException
-from .utils import bytes2str_in_dicts, docker_windows_path_adjust, json_dumps
+from .utils import bytes2str_in_dicts, json_dumps
 
 
 def jshead(engine_config, rootvars):
@@ -261,8 +261,8 @@ def do_eval(ex,                       # type: Union[Text, Dict]
            ):  # type: (...) -> Any
 
     runtime = copy.deepcopy(resources)  # type: Dict[str, Any]
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
-    runtime["outdir"] = docker_windows_path_adjust(outdir)
+    runtime["tmpdir"] = tmpdir
+    runtime["outdir"] = outdir
 
     rootvars = {
         u"inputs": jobinput,
