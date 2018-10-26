@@ -92,7 +92,7 @@ def docker_windows_path_adjust(path):
 
 def get_actual_filename(name):
     """Get a correctly cased path even on case insensitive filesystems."""
-    # Courtesy https://stackoverflow.com/a/30374360
+    # Adapted from https://stackoverflow.com/a/30374360
     if not os.path.exists(name):
         return name
     sep = os.path.sep
@@ -105,8 +105,11 @@ def get_actual_filename(name):
         test_name = [sep + dirs[0]]
     for d in dirs[1:]:
         test_name += ["%s[%s]" % (d[:-1], d[-1])]
-    path = glob(sep.join(test_name))[0]
-    res = glob(sep.join((path, filename)))
+    path_glob = glob(sep.join(test_name))
+    if path_glob:
+        res = glob(sep.join((path_glob[0], filename)))
+    else:
+        res = glob(filename)
     if not res:
         return name  # we failed, so don't change anything
     return res[0]
