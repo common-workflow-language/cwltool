@@ -134,18 +134,30 @@ def _local_path(posix_path):
 
 
 def _whoami():
-    # type: () -> Tuple[Text,Text]
+    # type: () -> Tuple[Text, Text]
     """Return the current operating system account as (username, fullname)."""
     username = getuser()
     try:
         if onWindows():
             get_user_name = ctypes.windll.secur32.GetUserNameExW  # type: ignore
             size = ctypes.pointer(ctypes.c_ulong(0))
-            get_user_name(3, None, size)
+            get_user_name(3, None, size)  # 3 is NameDisplay
 
             name_buffer = ctypes.create_unicode_buffer(size.contents.value)
             get_user_name(3, name_buffer, size)
             fullname = str(name_buffer.value)
+            if not fullname:
+                get_user_name(13, None, size)  # 13 is NameGivenName
+                given_name_buffer = ctypes.create_unicode_buffer(
+                    size.contents.value)
+                get_user_name(13, given_name_buffer, size)
+                given_name = str(given_name_buffer.value)
+                get_user_name(14, None, size)  # 14 is NameSurname
+                surname_buffer = ctypes.create_unicode_buffer(
+                    size.contents.value)
+                get_user_name(14, given_name_buffer, size)
+                surname = str(surname_buffer.value)
+                fullname = "{} {}".format(given_name, surname).strip()
         else:
             fullname = pwd.getpwuid(os.getuid())[4].split(',')[0]
     except (KeyError, IndexError):
