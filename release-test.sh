@@ -21,14 +21,12 @@ fi
 test_prefix=""
 run_tests() {
 	local mod_loc
-	mod_loc=$(pip show ${package} | 
+	mod_loc=$(pip show ${package} |
 		grep ^Location | awk '{print $2}')/${module}
 	${test_prefix}bin/py.test "--ignore=${mod_loc}/schemas/" \
 		--pyarg -x ${module} ${parallel} --dist=loadfile
 }
-pipver=7.0.2 # minimum required version of pip
-setuptoolsver=24.2.0 # required to generate correct metadata for
-                     # python_requires
+pipver=10.0.0 # required to install build deps
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 rm -Rf testenv? || /bin/true
@@ -43,11 +41,8 @@ then
 	source testenv1/bin/activate
 	rm -Rf testenv1/local
 	rm testenv1/lib/python-wheels/setuptools* \
-		&& pip install --force-reinstall -U pip==${pipver} \
-	        && pip install setuptools==${setuptoolsver} wheel
+		&& pip install --force-reinstall -U pip\>=${pipver}
 	make install-dep
-	pip install .
-	#pip install 'galaxy-lib>=17.09.3'
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	mkdir testenv1/not-${module}
@@ -60,8 +55,7 @@ fi
 
 virtualenv testenv2
 virtualenv testenv3
-virtualenv testenv4
-rm -Rf testenv[234]/local
+rm -Rf testenv[23]/local
 
 # Secondly we test via pip
 
@@ -69,9 +63,7 @@ cd testenv2
 # shellcheck source=/dev/null
 source bin/activate
 rm lib/python-wheels/setuptools* \
-	&& pip install --force-reinstall -U pip==${pipver} \
-        && pip install setuptools==${setuptoolsver} wheel
-#pip install 'galaxy-lib==17.09.3'
+	&& pip install --force-reinstall -U pip\>=${pipver}
 pip install -e "git+${repo}@${HEAD}#egg=${package}"  #[deps]
 cd src/${package}
 make install-dep
@@ -90,12 +82,10 @@ cd ../testenv3/
 # shellcheck source=/dev/null
 source bin/activate
 rm lib/python-wheels/setuptools* \
-	&& pip install --force-reinstall -U pip==${pipver} \
-        && pip install setuptools==${setuptoolsver} wheel
+	&& pip install --force-reinstall -U pip\>=${pipver}
 package_tar=${package}*tar.gz
-pip install "-r${DIR}/test-requirements.txt"
-#pip install 'galaxy-lib==17.09.3'
-pip install ${package_tar}  # [deps]
+pip install "${DIR}[test,deps]"
+pip install "${package_tar}"  # [deps]
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*

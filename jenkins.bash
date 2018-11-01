@@ -30,7 +30,7 @@ do
 	venv cwltool-venv${PYTHON_VERSION}
 	export PIP_DOWNLOAD_CACHE=/var/lib/jenkins/pypi-cache/
 	# use pip2.7 and pip3 in separate loop runs
-	pip${PYTHON_VERSION} install -U setuptools wheel pip
+	pip${PYTHON_VERSION} install -U pip\>=10.0.0
 	pip${PYTHON_VERSION} uninstall -y cwltool
 	pip${PYTHON_VERSION} install -e .
 	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov

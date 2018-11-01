@@ -27,7 +27,7 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
-	pytest pytest-xdist isort
+	pytest-xdist isort
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
@@ -51,7 +51,7 @@ help: Makefile
 
 ## install-dep : install most of the development dependencies via pip
 install-dep:
-	pip install --upgrade $(DEVPKGS) -rtest-requirements.txt
+	pip install --upgrade $(DEVPKGS) .[test,deps]
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -69,13 +69,14 @@ dev: install-dep
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
+## can't use pip for sdist yet: https://github.com/pypa/pip/issues/5401
 dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
-	./setup.py sdist bdist_wheel
+	python setup.py sdist bdist_wheel
 
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
 	rm -f ${MODILE}/*.pyc tests/*.pyc
-	./setup.py clean --all || true
+	python setup.py clean --all || true
 	rm -Rf .coverage
 	rm -f diff-cover.html
 

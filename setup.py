@@ -19,6 +19,9 @@ except ImportError:
 NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
 
+test_deps = ['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
+             'pytest-cov', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0']
+
 setup(name='cwltool',
       version='1.0',
       description='Common workflow language reference implementation',
@@ -47,7 +50,6 @@ setup(name='cwltool',
           'hello.simg']},
       include_package_data=True,
       install_requires=[
-          'setuptools',
           'requests >= 2.6.1',  # >= 2.6.1 to workaround
           # https://github.com/ionrock/cachecontrol/issues/137
           'ruamel.yaml >= 0.12.4, <= 0.15.77',
@@ -55,7 +57,6 @@ setup(name='cwltool',
           'shellescape >= 3.4.1, < 3.5',
           'schema-salad >= 3.0, < 3.1',
           'mypy-extensions',
-          'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
           'scandir',
           'prov == 1.5.1',
@@ -66,13 +67,13 @@ setup(name='cwltool',
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
-          'deps': ["galaxy-lib >= 17.09.9"]
+          'deps': ["galaxy-lib >= 17.09.9"],
+          'test': test_deps
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
-      setup_requires=PYTEST_RUNNER,
       test_suite='tests',
-      tests_require=['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
-                     'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
+      tests_require=test_deps,
+      setup_requires=PYTEST_RUNNER,
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:run"]
       },
