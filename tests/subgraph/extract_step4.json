@@ -4,7 +4,7 @@
     "id": "count-lines1-wf.cwl",
     "inputs": [
         {
-            "id": "count-lines1-wf.cwl#file1",
+            "id": "count-lines1-wf.cwl#step1_output",
             "type": "File"
         }
     ],
@@ -17,24 +17,11 @@
     ],
     "steps": [
         {
-            "id": "count-lines1-wf.cwl#step1",
-            "in": [
-                {
-                    "id": "count-lines1-wf.cwl#step1/file1",
-                    "source": "count-lines1-wf.cwl#file1"
-                }
-            ],
-            "out": [
-                "count-lines1-wf.cwl#step1/output"
-            ],
-            "run": "wc-tool.cwl"
-        },
-        {
             "id": "count-lines1-wf.cwl#step4",
             "in": [
                 {
                     "id": "count-lines1-wf.cwl#step4/file1",
-                    "source": "count-lines1-wf.cwl#step1/output"
+                    "source": "count-lines1-wf.cwl#step1_output"
                 }
             ],
             "label": "step that also depends on step1",

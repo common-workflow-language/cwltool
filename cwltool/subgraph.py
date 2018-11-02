@@ -3,10 +3,15 @@ from .utils import aslist, json_dumps
 from collections import namedtuple
 from .process import Process
 from typing import (Dict, MutableMapping, MutableSequence, Set, Any, Text)
+from .process import shortname
+from six.moves import urllib
 
-Node = namedtuple('Node', ('up', 'down'))
+Node = namedtuple('Node', ('up', 'down', 'type'))
 UP = "up"
 DOWN = "down"
+INPUT = "input"
+OUTPUT = "output"
+STEP = "step"
 
 def subgraph_visit(current,   # type: Text
                    nodes,     # type: MutableMapping[Text, Node]
@@ -25,6 +30,14 @@ def subgraph_visit(current,   # type: Text
     for c in d:
         subgraph_visit(c, nodes, visited, direction)
 
+def declare_node(nodes, nodeid, tp):
+    if nodeid in nodes:
+        n = nodes[nodeid]
+        if n.type is None:
+            nodes[nodeid] = Node(n.up, n.down, tp)
+    else:
+        nodes[nodeid] = Node([], [], tp)
+    return nodes[nodeid]
 
 def get_subgraph(roots,  # type: MutableSequence[Text]
                  tool    # type: Process
@@ -35,10 +48,19 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
     nodes = {}  # type: Dict[Text, Node]
 
     for inp in tool.tool["inputs"]:
-        nodes.setdefault(inp["id"], Node([], []))
+        declare_node(nodes, inp["id"], INPUT)
+
+    for out in tool.tool["outputs"]:
+        declare_node(nodes, out["id"], OUTPUT)
+        for i in aslist(out.get("outputSource", [])):
+            # source is upstream from output (dependency)
+            nodes[out["id"]].up.append(i)
+            # output is downstream from source
+            declare_node(nodes, i, None)
+            nodes[i].down.append(out["id"])
 
     for st in tool.tool["steps"]:
-        step = nodes.setdefault(st["id"], Node([], []))
+        step = declare_node(nodes, st["id"], STEP)
         for i in st["in"]:
             if "source" not in i:
                 continue
@@ -46,33 +68,51 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
                 # source is upstream from step (dependency)
                 step.up.append(src)
                 # step is downstream from source
-                nodes.setdefault(src, Node([], []))
+                declare_node(nodes, src, None)
                 nodes[src].down.append(st["id"])
         for out in st["out"]:
             # output is downstream from step
             step.down.append(out)
             # step is upstream from output
-            nodes.setdefault(out, Node([], []))
+            declare_node(nodes, out, None)
             nodes[out].up.append(st["id"])
 
-    for out in tool.tool["outputs"]:
-        nodes.setdefault(out["id"], Node([], []))
-        for i in aslist(out.get("outputSource", [])):
-            # source is upstream from output (dependency)
-            nodes[out["id"]].up.append(i)
-            # output is downstream from step
-            nodes.setdefault(i, Node([], []))
-            nodes[i].down.append(out["id"])
 
     # Find all the downstream nodes from the starting points
     visited_down = set()  # type: Set[Text]
     for r in roots:
-        subgraph_visit(r, nodes, visited_down, DOWN)
+        if nodes[r].type == OUTPUT:
+            subgraph_visit(r, nodes, visited_down, UP)
+        else:
+            subgraph_visit(r, nodes, visited_down, DOWN)
 
-    # Now get all the dependencies of the downstream nodes
+    def find_step(stepid):
+        for st in tool.steps:
+            if st.tool["id"] == stepid:
+                return st.tool
+        return None
+
+    # Now make sure all the nodes are connected to upstream inputs
     visited = set()  # type: Set[Text]
+    rewire = {}
     for v in visited_down:
-        subgraph_visit(v, nodes, visited, UP)
+        visited.add(v)
+        if nodes[v].type in (STEP, OUTPUT):
+            for u in nodes[v].up:
+                if u in visited_down:
+                    continue
+                if nodes[u].type == INPUT:
+                    visited.add(u)
+                else:
+                    # rewire
+                    df = urllib.parse.urldefrag(u)
+                    rn = df[0] + "#" + df[1].replace("/", "_")
+                    if nodes[v].type == STEP:
+                        step = find_step(v)
+                        for inp in step["inputs"]:
+                            if u in inp["source"]:
+                                rewire[u] = (rn, inp["type"])
+                                break
 
     extracted = {}  # type: MutableMapping[Text, Any]
     for f in tool.tool:
@@ -80,8 +120,20 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
             extracted[f] = []
             for i in tool.tool[f]:
                 if i["id"] in visited:
+                    if f == "steps":
+                        for inport in i["in"]:
+                            if isinstance(inport["source"], MutableSequence):
+                                inport["source"] = [rewire[s][0] for s in inport["source"] if s in rewire]
+                            elif inport["source"] in rewire:
+                                inport["source"] = rewire[inport["source"]][0]
                     extracted[f].append(i)
         else:
             extracted[f] = tool.tool[f]
+
+    for k,v in rewire.items():
+        extracted["inputs"].append({
+            "id": v[0],
+            "type": v[1]
+        })
 
     return extracted

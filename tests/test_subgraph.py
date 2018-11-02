@@ -12,6 +12,7 @@ from cwltool.subgraph import get_subgraph
 from schema_salad.utils import convert_to_dict
 
 from .util import get_data, working_directory
+from six import string_types
 
 def test_get_subgraph():
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
@@ -21,7 +22,7 @@ def test_get_subgraph():
     sg = "file://" + get_data("tests/subgraph")
 
     def clean(val):
-        if isinstance(val, str):
+        if isinstance(val, string_types):
             if val.startswith(sg):
                 return val[len(sg)+1:]
         if isinstance(val, dict):
