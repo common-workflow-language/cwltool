@@ -13,13 +13,14 @@ from schema_salad.utils import convert_to_dict
 from cwltool.resolver import Path, resolve_local
 from .util import get_data, working_directory
 from six import string_types
+from .test_fetch import norm
 
 def test_get_subgraph():
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
-    wf = Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri()
+    wf = norm(Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri())
     tool = load_tool(wf, loadingContext)
 
-    sg = Path(get_data("tests/subgraph")).as_uri()
+    sg = norm(Path(get_data("tests/subgraph")).as_uri())
 
     def clean(val):
         if isinstance(val, string_types):
