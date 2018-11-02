@@ -131,7 +131,7 @@ To use Singularity as the Docker container runtime, provide ``--singularity`` co
   cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/cat-job.json
 
 Running a tool or workflow from remote or local locations
--------------------------------------------------------
+---------------------------------------------------------
 
 ``cwltool`` can run tool and workflow descriptions on both local and remote
 systems via its support for HTTP[S] URLs.
@@ -225,7 +225,7 @@ that input.
 
 Use ``--print-targets`` to get a listing of the targets of a workflow.
 To see exactly which steps will run, use ``--print-subgraph`` with
-``--target` to get a printout of the workflow subgraph for the
+``--target`` to get a printout of the workflow subgraph for the
 selected targets.
 
 .. code:: bash
