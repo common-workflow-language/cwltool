@@ -12,10 +12,6 @@ environment:
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
 
-    - PYTHON: "C:\\Python34-x64"
-      PYTHON_VERSION: "3.4.x"
-      PYTHON_ARCH: "64"
-
     - PYTHON: "C:\\Python35-x64"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "64"
@@ -31,22 +27,17 @@ environment:
 install:
   - ps: 'Install-Product node 0.12 x64'
   - "set PATH=%PYTHON%\\Scripts;%PATH%"
-  - "%PYTHON%\\python.exe -m pip install -U pip^>=10.0.0"
-  - "%PYTHON%\\python.exe -m pip install -U codecov pytest-xdist .[test,deps]"
+  - "%PYTHON%\\python.exe -m pip install -U codecov pip^>=10.0.0"
+  - "%PYTHON%\\python.exe -m pip install .[test,deps]"
     # Note the use of a `^` to escape the `>`
 
-build_script:
-  - "%PYTHON%\\python.exe -m pip install ."
+build: off
 
 test_script:
-  - |
-    %PYTHON%\\python.exe -m coverage run --parallel-mode -m pytest --strict -p no:cacheprovider -p no:stepwise --junit-xml=tests.xml
-  - "%PYTHON%\\python.exe -m coverage combine"
-  - "%PYTHON%\\python.exe -m coverage report"
-  - "%PYTHON%\\python.exe -m coverage xml"
-  - "%PYTHON%\\python.exe -m codecov --file coverage.xml"
+  - "%PYTHON%\\python.exe -m pytest -p no:cacheprovider -p no:stepwise --cov --cov-report xml --junit-xml=tests.xml"
 
 on_finish:
+  - "%PYTHON%\\python.exe -m codecov --file coverage.xml"
   - ps: |
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($Env:APPVEYOR_JOB_ID)", (Resolve-Path .\tests.xml))
