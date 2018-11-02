@@ -45,6 +45,7 @@ from .pathmapper import adjustDirObjs, normalizeFilesDirs, trim_listing
 from .process import (Process, add_sizes,  # pylint: disable=unused-import
                       scandeps, shortname, use_custom_schema,
                       use_standard_schema, CWL_IANA)
+from .workflow import Workflow
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -693,13 +694,20 @@ def main(argsl=None,                   # type: List[str]
                 return 0
 
             if args.print_targets:
-                stdout.write("Available targets: %s\n" % ", ".join([shortname(t["id"]) for t in tool.tool["outputs"]]))
+                for f in ("outputs", "steps", "inputs"):
+                    if tool.tool[f]:
+                        _logger.info("%s%s targets:", f[0].upper(), f[1:-1])
+                        stdout.write("  "+"\n  ".join([shortname(t["id"]) for t in tool.tool[f]])+"\n")
                 return 0
 
             if args.target:
-                extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#"+r)
-                                          for r in args.target],
-                                         tool)
+                if isinstance(tool, Workflow):
+                    extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#"+r)
+                                              for r in args.target],
+                                             tool)
+                else:
+                    _logger.error("Can only use --target on Workflows")
+                    return 1
                 del document_loader.idx[extracted["id"]]
                 tool = make_tool(document_loader, avsc_names,
                                  metadata,

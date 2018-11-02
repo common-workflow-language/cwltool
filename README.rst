@@ -67,37 +67,9 @@ Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
-Running tests locally
----------------------
-
--  Running basic tests ``(/tests)``:
-
-To run the basis tests after installing `cwltool` execute the following:
-
-.. code:: bash
-
-  pip install -rtest-requirements.txt
-  py.test --ignore cwltool/schemas/ --pyarg cwltool
-
-To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
-first downloading the complete code repository (see the ``git clone`` instructions above) and then run
-the following in the terminal:
-``pip install tox; tox``
-
-List of all environment can be seen using:
-``tox --listenvs``
-and running a specfic test env using:
-``tox -e <env name>``
-and additionally run a specific test using this format:
-``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
-
--  Running the entire suite of CWL conformance tests:
-
-The GitHub repository for the CWL specifications contains a script that tests a CWL
-implementation against a wide array of valid CWL files using the `cwltest <https://github.com/common-workflow-language/cwltest>`_
-program
-
-Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/master/CONFORMANCE_TESTS.md
+=====
+Usage
+=====
 
 Run on the command line
 -----------------------
@@ -158,7 +130,7 @@ To use Singularity as the Docker container runtime, provide ``--singularity`` co
 
   cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/cat-job.json
 
-Tool or workflow loading from remote or local locations
+Running a tool or workflow from remote or local locations
 -------------------------------------------------------
 
 ``cwltool`` can run tool and workflow descriptions on both local and remote
@@ -170,52 +142,117 @@ is referenced and that document isn't found in the current directory then the
 following locations will be searched:
 http://www.commonwl.org/v1.0/CommandLineTool.html#Discovering_CWL_documents_on_a_local_filesystem
 
+You can also use `cwldep <https://github.com/common-workflow-language/cwldep>`
+to manage dependencies on external tools and workflows.
 
-Use with GA4GH Tool Registry API
---------------------------------
+Overriding workflow requirements at load time
+---------------------------------------------
 
-Cwltool can launch tools directly from `GA4GH Tool Registry API`_ endpoints.
+Sometimes a workflow needs additional requirements to run in a particular
+environment or with a particular dataset.  To avoid the need to modify the
+underlying workflow, cwltool supports requirement "overrides".
 
-By default, cwltool searches https://dockstore.org/ .  Use ``--add-tool-registry`` to add other registries to the search path.
+The format of the "overrides" object is a mapping of item identifier (workflow,
+workflow step, or command line tool) to the process requirements that should be applied.
 
-For example ::
+.. code:: yaml
 
-  cwltool quay.io/collaboratory/dockstore-tool-bamstats:develop test.json
+  cwltool:overrides:
+    echo.cwl:
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
 
-and (defaults to latest when a version is not specified) ::
+Overrides can be specified either on the command line, or as part of the job
+input document.  Workflow steps are identified using the name of the workflow
+file followed by the step name as a document fragment identifier "#id".
+Override identifiers are relative to the toplevel workflow document.
 
-  cwltool quay.io/collaboratory/dockstore-tool-bamstats test.json
+.. code:: bash
 
-For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats ::
+  cwltool --overrides overrides.yml my-tool.cwl my-job.yml
 
-  wget https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-bamstats/versions/develop/PLAIN-CWL/descriptor/test.json
-  wget https://github.com/CancerCollaboratory/dockstore-tool-bamstats/raw/develop/rna.SRR948778.bam
-  
+.. code:: yaml
 
-.. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
+  input_parameter1: value1
+  input_parameter2: value2
+  cwltool:overrides:
+    workflow.cwl#step1:
+      requirements:
+        EnvVarRequirement:
+          envDef:
+            MESSAGE: override_value
 
-Import as a module
-------------------
+.. code:: bash
 
-Add
+  cwltool my-tool.cwl my-job-with-overrides.yml
 
-.. code:: python
 
-  import cwltool
+Combining parts of a workflow into a single document
+----------------------------------------------------
 
-to your script.
+Use ``--pack`` to combine a workflow made up of multiple files into a
+single compound document.  This operation takes all the CWL files
+referenced by a workflow and builds a new CWL document with all
+Process objects (CommandLineTool and Workflow) in a list in the
+``$graph`` field.  Cross references (such as ``run:`` and ``source:``
+fields) are updated to internal references within the new packed
+document.  The top level workflow is named ``#main``.
 
-The easiest way to use cwltool to run a tool or workflow from Python is to use a Factory
+.. code:: bash
 
-.. code:: python
+  cwltool --pack my-wf.cwl > my-packed-wf.cwl
 
-  import cwltool.factory
-  fac = cwltool.factory.Factory()
 
-  echo = fac.make("echo.cwl")
-  result = echo(inp="foo")
+Running only part of a workflow
+-------------------------------
 
-  # result["out"] == "foo"
+You can run a partial workflow with the ``--target`` (``-t``) option.  This
+takes the name of an output parameter, workflow step, or input
+parameter in the top level workflow.  You may provide multiple
+targets.
+
+.. code:: bash
+
+  cwltool --target step3 my-wf.cwl
+
+If a target is an output parameter, it will only run only the steps
+that contribute to that output.  If a target is a workflow step, it
+will run the workflow starting from that step.  If a target is an
+input parameter, it will only run only the steps that are connected to
+that input.
+
+Use ``--print-targets`` to get a listing of the targets of a workflow.
+To see exactly which steps will run, use ``--print-subgraph`` with
+``--target` to get a printout of the workflow subgraph for the
+selected targets.
+
+.. code:: bash
+
+  cwltool --print-targets my-wf.cwl
+
+  cwltool --target step3 --print-subgraph my-wf.cwl > my-wf-starting-from-step3.cwl
+
+
+Visualizing a CWL document
+--------------------------
+
+The ``--print-dot`` option will print a file suitable for Graphviz ``dot`` program.  Here is a bash onliner to generate a Scalable Vector Graphic (SVG) file:
+
+.. code:: bash
+
+  cwltool --print-dot my-wf.cwl | dot -Tsvg > my-wf.svg
+
+Modeling a CWL document as RDF
+------------------------------
+
+CWL documents can be expressed as RDF triple graphs.
+
+.. code:: bash
+
+  cwltool --print-rdf --rdf-serializer=turtle mywf.cwl
+
 
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
@@ -425,48 +462,87 @@ at the following links:
 - `Specifications - Implementation <https://github.com/galaxyproject/galaxy/commit/81d71d2e740ee07754785306e4448f8425f890bc>`__
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
-Overriding workflow requirements at load time
----------------------------------------------
+Use with GA4GH Tool Registry API
+--------------------------------
 
-Sometimes a workflow needs additional requirements to run in a particular
-environment or with a particular dataset.  To avoid the need to modify the
-underlying workflow, cwltool supports requirement "overrides".
+Cwltool can launch tools directly from `GA4GH Tool Registry API`_ endpoints.
 
-The format of the "overrides" object is a mapping of item identifier (workflow,
-workflow step, or command line tool) to the process requirements that should be applied.
+By default, cwltool searches https://dockstore.org/ .  Use ``--add-tool-registry`` to add other registries to the search path.
 
-.. code:: yaml
+For example ::
 
-  cwltool:overrides:
-    echo.cwl:
-      requirements:
-        EnvVarRequirement:
-          envDef:
-            MESSAGE: override_value
+  cwltool quay.io/collaboratory/dockstore-tool-bamstats:develop test.json
 
-Overrides can be specified either on the command line, or as part of the job
-input document.  Workflow steps are identified using the name of the workflow
-file followed by the step name as a document fragment identifier "#id".
-Override identifiers are relative to the toplevel workflow document.
+and (defaults to latest when a version is not specified) ::
 
-.. code:: bash
+  cwltool quay.io/collaboratory/dockstore-tool-bamstats test.json
 
-  cwltool --overrides overrides.yml my-tool.cwl my-job.yml
+For this example, grab the test.json (and input file) from https://github.com/CancerCollaboratory/dockstore-tool-bamstats ::
 
-.. code:: yaml
+  wget https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-bamstats/versions/develop/PLAIN-CWL/descriptor/test.json
+  wget https://github.com/CancerCollaboratory/dockstore-tool-bamstats/raw/develop/rna.SRR948778.bam
 
-  input_parameter1: value1
-  input_parameter2: value2
-  cwltool:overrides:
-    workflow.cwl#step1:
-      requirements:
-        EnvVarRequirement:
-          envDef:
-            MESSAGE: override_value
+
+.. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
+
+===========
+Development
+===========
+
+Running tests locally
+---------------------
+
+-  Running basic tests ``(/tests)``:
+
+To run the basis tests after installing `cwltool` execute the following:
 
 .. code:: bash
 
-  cwltool my-tool.cwl my-job-with-overrides.yml
+  pip install -rtest-requirements.txt
+  py.test --ignore cwltool/schemas/ --pyarg cwltool
+
+To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
+first downloading the complete code repository (see the ``git clone`` instructions above) and then run
+the following in the terminal:
+``pip install tox; tox``
+
+List of all environment can be seen using:
+``tox --listenvs``
+and running a specfic test env using:
+``tox -e <env name>``
+and additionally run a specific test using this format:
+``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
+
+-  Running the entire suite of CWL conformance tests:
+
+The GitHub repository for the CWL specifications contains a script that tests a CWL
+implementation against a wide array of valid CWL files using the `cwltest <https://github.com/common-workflow-language/cwltest>`_
+program
+
+Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/master/CONFORMANCE_TESTS.md
+
+Import as a module
+------------------
+
+Add
+
+.. code:: python
+
+  import cwltool
+
+to your script.
+
+The easiest way to use cwltool to run a tool or workflow from Python is to use a Factory
+
+.. code:: python
+
+  import cwltool.factory
+  fac = cwltool.factory.Factory()
+
+  echo = fac.make("echo.cwl")
+  result = echo(inp="foo")
+
+  # result["out"] == "foo"
 
 
 CWL Tool Control Flow

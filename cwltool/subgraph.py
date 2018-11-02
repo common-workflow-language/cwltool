@@ -1,10 +1,11 @@
 import copy
 from .utils import aslist, json_dumps
 from collections import namedtuple
-from .process import Process
-from typing import (Dict, MutableMapping, MutableSequence, Set, Any, Text)
+from typing import (Dict, MutableMapping, MutableSequence, Set, Any, Text, Optional, Tuple)
 from .process import shortname
+from six import itervalues
 from six.moves import urllib
+from .workflow import Workflow
 
 Node = namedtuple('Node', ('up', 'down', 'type'))
 UP = "up"
@@ -31,6 +32,7 @@ def subgraph_visit(current,   # type: Text
         subgraph_visit(c, nodes, visited, direction)
 
 def declare_node(nodes, nodeid, tp):
+    # type: (Dict[Text, Node], Text, Optional[Text]) -> Node
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:
@@ -40,7 +42,7 @@ def declare_node(nodes, nodeid, tp):
     return nodes[nodeid]
 
 def get_subgraph(roots,  # type: MutableSequence[Text]
-                 tool    # type: Process
+                 tool    # type: Workflow
 ):
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
@@ -86,7 +88,7 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
         else:
             subgraph_visit(r, nodes, visited_down, DOWN)
 
-    def find_step(stepid):
+    def find_step(stepid):  # type: (Text) -> Optional[MutableMapping]
         for st in tool.steps:
             if st.tool["id"] == stepid:
                 return st.tool
@@ -94,7 +96,7 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
 
     # Now make sure all the nodes are connected to upstream inputs
     visited = set()  # type: Set[Text]
-    rewire = {}
+    rewire = {}  # type: Dict[Text, Tuple[Text, Text]]
     for v in visited_down:
         visited.add(v)
         if nodes[v].type in (STEP, OUTPUT):
@@ -108,11 +110,15 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
                     df = urllib.parse.urldefrag(u)
                     rn = df[0] + "#" + df[1].replace("/", "_")
                     if nodes[v].type == STEP:
-                        step = find_step(v)
-                        for inp in step["inputs"]:
-                            if u in inp["source"]:
-                                rewire[u] = (rn, inp["type"])
-                                break
+                        wfstep = find_step(v)
+                        if wfstep is not None:
+                            for inp in wfstep["inputs"]:
+                                if u in inp["source"]:
+                                    rewire[u] = (rn, inp["type"])
+                                    break
+                        else:
+                            raise Exception("Could not find step %s" % v)
+
 
     extracted = {}  # type: MutableMapping[Text, Any]
     for f in tool.tool:
@@ -130,10 +136,10 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
         else:
             extracted[f] = tool.tool[f]
 
-    for k,v in rewire.items():
+    for rv in itervalues(rewire):
         extracted["inputs"].append({
-            "id": v[0],
-            "type": v[1]
+            "id": rv[0],
+            "type": rv[1]
         })
 
     return extracted

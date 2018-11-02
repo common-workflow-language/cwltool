@@ -10,16 +10,16 @@ from cwltool.load_tool import load_tool
 from cwltool.workflow import default_make_tool
 from cwltool.subgraph import get_subgraph
 from schema_salad.utils import convert_to_dict
-
+from cwltool.resolver import Path, resolve_local
 from .util import get_data, working_directory
 from six import string_types
 
 def test_get_subgraph():
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
-    wf = "file://" + get_data("tests/subgraph/count-lines1-wf.cwl")
+    wf = Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri()
     tool = load_tool(wf, loadingContext)
 
-    sg = "file://" + get_data("tests/subgraph")
+    sg = Path(get_data("tests/subgraph")).as_uri()
 
     def clean(val):
         if isinstance(val, string_types):
