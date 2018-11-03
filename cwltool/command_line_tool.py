@@ -170,7 +170,8 @@ def revmap_file(builder, outdir, f):
             f["location"] = revmap_f[1]
         elif uripath == outdir or uripath.startswith(outdir+'/'):
             f["location"] = uripath
-        elif path == builder_outdir or path.startswith(builder_outdir+'/'):
+        elif path == builder_outdir or path.startswith(builder_outdir+'/') \
+                or path.startswith(builder_outdir+os.path.sep):
             f["location"] = builder.fs_access.join(outdir, path[len(builder_outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = builder.fs_access.join(outdir, path)
