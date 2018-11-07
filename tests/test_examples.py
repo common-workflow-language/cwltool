@@ -145,7 +145,8 @@ def test_factory():
     factory = get_windows_safe_factory()
     echo = factory.make(get_data("tests/echo.cwl"))
 
-    assert echo(inp="foo") == {"out": "foo\n"}
+    outputs = echo(inp='foo')
+    assert outputs.get('out', '') == "foo\n"
 
 def test_factory_bad_outputs():
     factory = cwltool.factory.Factory()
@@ -366,7 +367,7 @@ def test_input_deps_cmdline_opts_relative_deps_cwd():
         stream = BytesIO()
     else:
         stream = StringIO()
-    
+
     data_path = get_data("tests/wf/whale.txt")
     main(["--print-input-deps", "--relative-deps", "cwd",
           get_data("tests/wf/count-lines1-wf.cwl"),

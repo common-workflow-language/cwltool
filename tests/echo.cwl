@@ -6,11 +6,13 @@ inputs:
     type: string
     inputBinding: {}
 outputs:
-  - id: out
+  out:
     type: string
     outputBinding:
       glob: out.txt
       loadContents: true
       outputEval: $(self[0].contents)
+  stdout:
+    type: stdout
 baseCommand: echo
 stdout: out.txt

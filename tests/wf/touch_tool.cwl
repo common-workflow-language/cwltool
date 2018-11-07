@@ -15,4 +15,4 @@ outputs:
   - id: out
     type: File
     outputBinding:
-      glob: "*"
+      glob: $(inputs.message)
