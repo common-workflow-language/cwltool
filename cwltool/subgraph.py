@@ -128,6 +128,8 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
                 if i["id"] in visited:
                     if f == "steps":
                         for inport in i["in"]:
+                            if "source" not in inport:
+                                continue
                             if isinstance(inport["source"], MutableSequence):
                                 inport["source"] = [rewire[s][0] for s in inport["source"] if s in rewire]
                             elif inport["source"] in rewire:
