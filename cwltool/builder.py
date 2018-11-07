@@ -264,6 +264,10 @@ class Builder(HasReqsHints):
                         self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
                 binding = None
 
+            def _capture_files(f):
+                self.files.append(f)
+                return f
+
             if schema["type"] == "File":
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
@@ -308,10 +312,6 @@ class Builder(HasReqsHints):
                             "Expected value of '%s' to have format %s but\n "
                             " %s" % (schema["name"], schema["format"], ve))
 
-                def _capture_files(f):
-                    self.files.append(f)
-                    return f
-
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
@@ -319,6 +319,9 @@ class Builder(HasReqsHints):
                 if ll and ll != "no_listing":
                     get_listing(self.fs_access, datum, (ll == "deep_listing"))
                 self.files.append(datum)
+
+            if schema["type"] == "Any":
+                visit_class(datum, ("File", "Directory"), _capture_files)
 
         # Position to front of the sort key
         if binding is not None:
