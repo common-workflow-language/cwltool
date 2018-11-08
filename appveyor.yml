@@ -41,7 +41,7 @@ build_script:
 
 test_script:
   - |
-    %PYTHON%\\python.exe -m coverage run --parallel-mode -m pytest --strict -p no:cacheprovider --junit-xml=tests.xml
+    %PYTHON%\\python.exe -m coverage run --parallel-mode -m pytest --strict -p no:cacheprovider -p no:stepwise --junit-xml=tests.xml
   - "%PYTHON%\\python.exe -m coverage combine"
   - "%PYTHON%\\python.exe -m coverage report"
   - "%PYTHON%\\python.exe -m coverage xml"

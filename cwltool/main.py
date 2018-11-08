@@ -19,9 +19,10 @@ from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
 
 import pkg_resources  # part of setuptools
 from ruamel import yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
-from schema_salad.sourceline import strip_dup_lineno
+from schema_salad.sourceline import strip_dup_lineno, cmap
 from six import string_types, iteritems, PY3
 from typing_extensions import Text
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -44,6 +45,7 @@ from .pathmapper import adjustDirObjs, normalizeFilesDirs, trim_listing
 from .process import (Process, add_sizes,  # pylint: disable=unused-import
                       scandeps, shortname, use_custom_schema,
                       use_standard_schema, CWL_IANA)
+from .workflow import Workflow
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -54,7 +56,7 @@ from .update import ALLUPDATES, UPDATES
 from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
                     processes_to_kill, versionstring, visit_class,
                     windows_default_container_id)
-
+from .subgraph import get_subgraph
 
 def _terminate_processes():
     # type: () -> None
@@ -655,13 +657,14 @@ def main(argsl=None,                   # type: List[str]
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0
+
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
                 runtimeContext.research_obj.packed_workflow(
                     print_pack(document_loader, processobj, uri, metadata))
 
             if args.print_pre:
-                stdout.write(json_dumps(processobj, indent=4))
+                stdout.write(json_dumps(processobj, indent=4, sort_keys=True, separators=(',', ': ')))
                 return 0
 
             loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
@@ -688,6 +691,33 @@ def main(argsl=None,                   # type: List[str]
 
             if args.print_dot:
                 printdot(tool, document_loader.ctx, stdout)
+                return 0
+
+            if args.print_targets:
+                for f in ("outputs", "steps", "inputs"):
+                    if tool.tool[f]:
+                        _logger.info("%s%s targets:", f[0].upper(), f[1:-1])
+                        stdout.write("  "+"\n  ".join([shortname(t["id"]) for t in tool.tool[f]])+"\n")
+                return 0
+
+            if args.target:
+                if isinstance(tool, Workflow):
+                    extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#"+r)
+                                              for r in args.target],
+                                             tool)
+                else:
+                    _logger.error("Can only use --target on Workflows")
+                    return 1
+                del document_loader.idx[extracted["id"]]
+                tool = make_tool(document_loader, avsc_names,
+                                 metadata,
+                                 cast(CommentedMap, cmap(extracted)),
+                                 loadingContext)
+
+            if args.print_subgraph:
+                if "name" in tool.tool:
+                    del tool.tool["name"]
+                stdout.write(json_dumps(tool.tool, indent=4, sort_keys=True, separators=(',', ': ')))
                 return 0
 
         except (validate.ValidationException) as exc:

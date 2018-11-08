@@ -77,7 +77,7 @@ def temp_dir(suffix=""):
     c_dir = tempfile.mkdtemp(suffix)
     try:
         yield c_dir
-    except:
+    finally:
         shutil.rmtree(c_dir)
 
 @contextlib.contextmanager

@@ -315,7 +315,7 @@ def validate_document(document_loader,           # type: Loader
 def make_tool(document_loader,    # type: Loader
               avsc_names,         # type: schema.Names
               metadata,           # type: Dict[Text, Any]
-              uri,                # type: Text
+              uri,                # type: Union[Text, CommentedMap, CommentedSeq]
               loadingContext      # type: LoadingContext
              ):  # type: (...) -> Process
     """Make a Python CWL object."""
