@@ -225,12 +225,56 @@ def adjustFilesWithSecondary(rec, op, primary=None):
         for d in rec:
             adjustFilesWithSecondary(d, op, primary)
 
+def _stage_file(src, dst):
+    if src == dst:
+        return
+    if onWindows():
+        if os.path.isfile(src):
+            shutil.copy(src, dst)
+        elif os.path.isdir(src):
+            if os.path.exists(dst) and os.path.isdir(dst):
+                shutil.rmtree(dst)
+            copytree_with_merge(src, dst)
+    else:
+        os.symlink(src, dst)
 
-def stage_files(pathmapper,             # type: PathMapper
-                stage_func=None,        # type: Callable[..., Any]
-                ignore_writable=False,  # type: bool
-                symlink=True,           # type: bool
-                secret_store=None       # type: SecretStore
+def _stage_file_with(action, source_directories, fs_access):
+    # type: (Text, Iterable[Text], StdFsAccess) -> Callable[[Text, Text], None]
+    def _stage(src, dst):
+        if src == dst:
+            return
+
+        # If the source is not contained in source_directories we're not allowed to delete it
+        src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
+
+        _action = "move" if action == "move" and src_can_deleted else "copy"
+
+        if _action == "move":
+            _logger.debug("Moving %s to %s", src, dst)
+            if fs_access.isdir(src) and fs_access.isdir(dst):
+                # merge directories
+                for dir_entry in scandir(src):
+                    _stage(dir_entry.path, fs_access.join(dst, dir_entry.name))
+            else:
+                shutil.move(src, dst)
+
+        elif _action == "copy":
+            _logger.debug("Copying %s to %s", src, dst)
+            if fs_access.isdir(src):
+                if os.path.isdir(dst):
+                    shutil.rmtree(dst)
+                elif os.path.isfile(dst):
+                    os.unlink(dst)
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+    return _stage
+
+
+def stage_files(pathmapper,              # type: PathMapper
+                stage_func=_stage_file, # type: Callable[..., Any]
+                ignore_writable=False,   # type: bool
+                secret_store=None        # type: SecretStore
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
     for key, entry in pathmapper.items():
@@ -239,21 +283,9 @@ def stage_files(pathmapper,             # type: PathMapper
         if not os.path.exists(os.path.dirname(entry.target)):
             os.makedirs(os.path.dirname(entry.target), 0o0755)
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
-            if symlink:  # Use symlink func if allowed
-                if onWindows():
-                    if entry.type == "File":
-                        shutil.copy(entry.resolved, entry.target)
-                    elif entry.type == "Directory":
-                        if os.path.exists(entry.target) \
-                                and os.path.isdir(entry.target):
-                            shutil.rmtree(entry.target)
-                        copytree_with_merge(entry.resolved, entry.target)
-                else:
-                    os.symlink(entry.resolved, entry.target)
-            elif stage_func is not None:
-                stage_func(entry.resolved, entry.target)
+            stage_func(entry.resolved, entry.target)
         elif entry.type == "Directory" and not os.path.exists(entry.target) \
-                and entry.resolved.startswith("_:"):
+            and entry.resolved.startswith("_:"):
             os.makedirs(entry.target, 0o0755)
         elif entry.type == "WritableFile" and not ignore_writable:
             shutil.copy(entry.resolved, entry.target)
@@ -278,6 +310,19 @@ def stage_files(pathmapper,             # type: PathMapper
             pathmapper.update(
                 key, entry.target, entry.target, entry.type, entry.staged)
 
+def _collectDirEntries(obj):
+    # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> Iterator[Dict[Text, Any]]
+    if isinstance(obj, dict):
+        if obj.get("class") in ("File", "Directory"):
+            yield obj
+        else:
+            for sub_obj in obj.values():
+                for dir_entry in _collectDirEntries(sub_obj):
+                    yield dir_entry
+    elif isinstance(obj, MutableSequence):
+        for sub_obj in obj:
+            for dir_entry in _collectDirEntries(sub_obj):
+                yield dir_entry
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
                     destination_path,      # type: Text
@@ -293,52 +338,9 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     if action not in ("move", "copy"):
         return outputObj
 
-    def _collectDirEntries(obj):
-        # type: (Union[Dict[Text, Any], List[Dict[Text, Any]]]) -> Iterator[Dict[Text, Any]]
-        if isinstance(obj, dict):
-            if obj.get("class") in ("File", "Directory"):
-                yield obj
-            else:
-                for sub_obj in obj.values():
-                    for dir_entry in _collectDirEntries(sub_obj):
-                        yield dir_entry
-        elif isinstance(obj, MutableSequence):
-            for sub_obj in obj:
-                for dir_entry in _collectDirEntries(sub_obj):
-                    yield dir_entry
-
-    def _relocate(src, dst):
-        if src == dst:
-            return
-
-        # If the source is not contained in source_directories we're not allowed to delete it
-        src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
-
-        _action = "move" if action == "move" and src_can_deleted else "copy"
-
-        if _action == "move":
-            _logger.debug("Moving %s to %s", src, dst)
-            if fs_access.isdir(src) and fs_access.isdir(dst):
-                # merge directories
-                for dir_entry in scandir(src):
-                    _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
-            else:
-                shutil.move(src, dst)
-
-        elif _action == "copy":
-            _logger.debug("Copying %s to %s", src, dst)
-            if fs_access.isdir(src):
-                if os.path.isdir(dst):
-                    shutil.rmtree(dst)
-                elif os.path.isfile(dst):
-                    os.unlink(dst)
-                shutil.copytree(src, dst)
-            else:
-                shutil.copy2(src, dst)
-
     outfiles = list(_collectDirEntries(outputObj))
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
-    stage_files(pm, stage_func=_relocate, symlink=False)
+    stage_files(pm, stage_func=_stage_file_with(action, source_directories, fs_access))
 
     def _check_adjust(a_file):
         a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])

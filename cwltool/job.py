@@ -406,11 +406,11 @@ class CommandLineJob(JobBase):
             env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() \
                     else os.environ["SYSTEMROOT"]
 
-        stage_files(self.pathmapper, ignore_writable=True, symlink=True,
+        stage_files(self.pathmapper, ignore_writable=True,
                     secret_store=runtimeContext.secret_store)
         if self.generatemapper is not None:
             stage_files(self.generatemapper, ignore_writable=self.inplace_update,
-                        symlink=True, secret_store=runtimeContext.secret_store)
+                        secret_store=runtimeContext.secret_store)
             relink_initialworkdir(
                 self.generatemapper, self.outdir, self.builder.outdir,
                 inplace_update=self.inplace_update)
