@@ -975,10 +975,14 @@ def scandeps(base,                          # type: Text
 def compute_checksums(fs_access, fileobj):
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()
-        with fs_access.open(fileobj["location"], "rb") as f:
-            contents = f.read(1024 * 1024)
-            while contents != b"":
-                checksum.update(contents)
+        try:
+            with fs_access.open(fileobj["location"], "rb") as f:
                 contents = f.read(1024 * 1024)
-        fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = fs_access.size(fileobj["location"])
+                while contents != b"":
+                    checksum.update(contents)
+                    contents = f.read(1024 * 1024)
+            fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
+            fileobj["size"] = fs_access.size(fileobj["location"])
+        except IOError:
+            _logger.warning("IO error calculating checksum for %s.", fileobj,
+                            exc_info=_logger.isEnabledFor(logging.DEBUG))
