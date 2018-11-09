@@ -527,7 +527,7 @@ class Workflow(Process):
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(step, index, loadingContext,
+                self.steps.append(self.make_workflow_step(step, index, loadingContext,
                                                loadingContext.prov_obj))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
@@ -555,6 +555,14 @@ class Workflow(Process):
         if getdefault(loadingContext.do_validate, True):
             static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
 
+    def make_workflow_step(self,
+                           toolpath_object,      # type: Dict[Text, Any]
+                           pos,                  # type: int
+                           loadingContext,       # type: LoadingContext
+                           parentworkflowProv=None  # type: Optional[CreateProvProfile]
+    ):
+        # (...) -> WorkflowStep
+        return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(self,
             job_order,         # type: MutableMapping[Text, Text]
