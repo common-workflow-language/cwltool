@@ -236,66 +236,70 @@ class PathMapper(object):
     def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
         # type: (List[Any], Text, Text, bool) -> None
         self._pathmap = {}  # type: Dict[Text, MapperEnt]
-        self.stagedir = stagedir
-        self.separateDirs = separateDirs
-        self.setup(dedup(referenced_files), basedir)
+        self._setup_pathmap(dedup(referenced_files), basedir, stagedir, separateDirs)
 
     def visitlisting(self, listing, stagedir, basedir, copy=False, staged=False):
         # type: (List[Dict[Text, Any]], Text, Text, bool, bool) -> None
-        for ld in listing:
-            self.visit(ld, stagedir, basedir, copy=ld.get("writable", copy), staged=staged)
+        for entry in listing:
+            copy = entry.get("writable", copy)
+            self.visit(entry, stagedir, basedir, copy, staged)
 
-    def visit(self, obj, stagedir, basedir, copy=False, staged=False):
+    def visit(self, obj, stagedir, basedir, copy, staged=False):
         # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
-        tgt = convert_pathsep_to_unix(
-            os.path.join(stagedir, obj["basename"]))
-        if obj["location"] in self._pathmap:
-            return
+
+        source_location = obj["location"]
+        target_location = convert_pathsep_to_unix(os.path.join(stagedir, obj["basename"]))
+
         if obj["class"] == "Directory":
-            if obj["location"].startswith("file://"):
-                resolved = uri_file_path(obj["location"])
+            filetype = "WritableDirectory" if copy else "Directory"
+            sub_resolved = obj.get("listing", [])
+            sub_stagedir = target_location
+
+            if source_location.startswith("file://"):
+                resolved = uri_file_path(source_location)  # type: Text
+                sub_staged = False
             else:
-                resolved = obj["location"]
-            self._pathmap[obj["location"]] = MapperEnt(resolved, tgt, "WritableDirectory" if copy else "Directory", staged)
-            if obj["location"].startswith("file://"):
-                staged = False
-            self.visitlisting(obj.get("listing", []), tgt, basedir, copy=copy, staged=staged)
+                resolved = source_location
+                sub_staged = staged
+
+
         elif obj["class"] == "File":
-            path = obj["location"]
-            ab = abspath(path, basedir)
-            if "contents" in obj and obj["location"].startswith("_:"):
-                self._pathmap[obj["location"]] = MapperEnt(
-                    obj["contents"], tgt,
-                    "CreateWritableFile" if copy else "CreateFile", staged)
+            sub_resolved = obj.get("secondaryFiles", [])
+            sub_stagedir = stagedir
+            sub_staged = staged
+
+            if "contents" in obj and source_location.startswith("_:"):
+                filetype = "CreateWritableFile" if copy else "CreateFile"
+                resolved = obj["contents"]
             else:
-                with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
-                    deref = ab
-                    if urllib.parse.urlsplit(deref).scheme in ['http', 'https']:
-                        deref = downloadHttpFile(path)
-                    else:
-                        # Dereference symbolic links
-                        st = os.lstat(deref)
-                        while stat.S_ISLNK(st.st_mode):
-                            rl = os.readlink(deref)
-                            deref = rl if os.path.isabs(rl) else os.path.join(
-                                os.path.dirname(deref), rl)
-                            st = os.lstat(deref)
+                filetype = "WritableFile" if copy else "File"
+                resolved = abspath(source_location, basedir)
 
-                    self._pathmap[path] = MapperEnt(
-                        deref, tgt, "WritableFile" if copy else "File", staged)
-            self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir,
-                              copy=copy, staged=staged)
+                if urllib.parse.urlsplit(resolved).scheme in ['http', 'https']:
+                    with SourceLine(obj, "location",
+                                    validate.ValidationException,
+                                    _logger.isEnabledFor(logging.DEBUG)):
+                        resolved = downloadHttpFile(source_location)
+                else:
+                    # Dereference symbolic links
+                    st = os.lstat(resolved)
+                    while stat.S_ISLNK(st.st_mode):
+                        rl = os.readlink(resolved)
+                        resolved = rl if os.path.isabs(rl) else os.path.join(
+                            os.path.dirname(resolved), rl)
+                        st = os.lstat(resolved)
 
-    def setup(self, referenced_files, basedir):
-        # type: (List[Any], Text) -> None
+        self._pathmap[source_location] = MapperEnt(resolved, target_location, filetype, staged)
+        self.visitlisting(sub_resolved, sub_stagedir, basedir, copy, sub_staged)
 
+    def _setup_pathmap(self, referenced_files, basedir, stagedir, separateDirs):
+        # type: (List[Dict[Text, Any]], Text, Text, bool) -> None
         # Go through each file and set the target to its own directory along
         # with any secondary files.
-        stagedir = self.stagedir
         for fob in referenced_files:
-            if self.separateDirs:
-                stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
-            self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
+            if separateDirs:
+                stagedir = os.path.join(stagedir, "stg%s" % uuid.uuid4())
+            self.visit(fob, stagedir, basedir, fob.get("writable", False), True)
 
     def mapper(self, src):  # type: (Text) -> MapperEnt
         if u"#" in src:
