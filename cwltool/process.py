@@ -254,7 +254,8 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
             ensure_writable(p.target)
         elif p.type == "WritableDirectory" and not ignoreWritable:
             if p.resolved.startswith("_:"):
-                os.makedirs(p.target, 0o0755)
+                if not os.path.exists(p.target):
+                    os.makedirs(p.target, 0o0755)
             else:
                 shutil.copytree(p.resolved, p.target)
                 ensure_writable(p.target)
