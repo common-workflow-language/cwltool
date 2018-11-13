@@ -122,7 +122,7 @@ class RuntimeContext(ContextBase):
         self.on_error = "stop"          # type: Text
         self.strict_memory_limit = False  # type: bool
 
-        self.record_container_id = None
+        self.record_container_id = False
         self.cidfile_dir = None
         self.cidfile_prefix = None
 

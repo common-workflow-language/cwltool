@@ -713,6 +713,22 @@ def test_record_container_id():
 
 
 @needs_docker
+def test_do_not_record_container_id(tmpdir):
+    test_file = "cache_test_workflow.cwl"
+    with temp_dir('cidr') as cid_dir:
+        cur_dir = os.path.curdir
+        os.chdir(cid_dir)
+        try:
+            error_code, _, stderr = get_main_output(
+                ["--outdir", str(tmpdir), get_data("tests/wf/" + test_file)])
+        finally:
+            os.chdir(cur_dir)
+        assert "completed success" in stderr
+        assert error_code == 0
+        assert len(os.listdir(cid_dir)) == 0
+
+
+@needs_docker
 def test_wf_without_container():
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:

@@ -338,7 +338,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-        if runtimeContext.record_container_id is not None:
+        if runtimeContext.record_container_id is True:
             cidfile_dir = runtimeContext.cidfile_dir
             if cidfile_dir != "":
                 if not os.path.isdir(cidfile_dir):
