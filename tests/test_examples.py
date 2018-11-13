@@ -20,7 +20,8 @@ from cwltool.utils import onWindows
 from cwltool.resolver import Path
 from cwltool.process import CWL_IANA
 
-from .util import (get_data, get_main_output, get_windows_safe_factory, needs_docker,
+from .util import (get_data, get_main_output, get_windows_safe_factory,
+                   needs_docker, working_directory,
                    needs_singularity, temp_dir, windows_needs_docker)
 
 
@@ -714,15 +715,11 @@ def test_record_container_id():
 
 @needs_docker
 def test_do_not_record_container_id(tmpdir):
-    test_file = "cache_test_workflow.cwl"
     with temp_dir('cidr') as cid_dir:
-        cur_dir = os.path.curdir
-        os.chdir(cid_dir)
-        try:
+        with working_directory(cid_dir):
             error_code, _, stderr = get_main_output(
-                ["--outdir", str(tmpdir), get_data("tests/wf/" + test_file)])
-        finally:
-            os.chdir(cur_dir)
+                ["--outdir", str(tmpdir),
+                 get_data("tests/wf/cache_test_workflow.cwl")])
         assert "completed success" in stderr
         assert error_code == 0
         assert len(os.listdir(cid_dir)) == 0

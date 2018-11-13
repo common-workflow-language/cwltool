@@ -64,7 +64,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
         "--cidfile-prefix", type=Text,
         help="Specify a prefix to the container ID filename. "
         "Final file name will be followed by a timestamp. The default is no prefix.",
-        default="", dest="cidfile_prefix")
+        default=None, dest="cidfile_prefix")
 
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
