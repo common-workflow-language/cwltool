@@ -48,7 +48,7 @@ jobloaderctx = {
 overrides_ctx = {
     u"overrideTarget": {u"@type": u"@id"},
     u"cwltool": "http://commonwl.org/cwltool#",
-    u"overrides": {
+    u"http://commonwl.org/cwltool#overrides": {
         "@id": "cwltool:overrides",
         "mapSubject": "overrideTarget",
     },
@@ -387,7 +387,7 @@ def resolve_overrides(ov,      # Type: CommentedMap
         raise Exception("Expected CommentedMap, got %s" % type(ret))
     cwl_docloader = get_schema("v1.0")[0]
     cwl_docloader.resolve_all(ret, ov_uri)
-    return ret["overrides"]
+    return ret["http://commonwl.org/cwltool#overrides"]
 
 def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
