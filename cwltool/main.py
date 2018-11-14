@@ -583,7 +583,7 @@ def main(argsl=None,                   # type: List[str]
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
-            ro = ResearchObject(
+            ro = ResearchObject(runtimeContext.make_fs_access,
                 temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
             runtimeContext.research_obj = ro
@@ -808,7 +808,8 @@ def main(argsl=None,                   # type: List[str]
 
             if out is not None:
                 if runtimeContext.research_obj is not None:
-                    runtimeContext.research_obj.create_job(out, None, True)
+                    runtimeContext.research_obj.create_job(
+                        out, None, True)
 
                 def loc_to_path(obj):
                     for field in ("path", "nameext", "nameroot", "dirname"):

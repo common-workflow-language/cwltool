@@ -698,6 +698,6 @@ Workflow.make_workflow_step
   ::
 
     make_workflow_step(toolpath_object, pos, loadingContext, parentworkflowProv)
-      (Dict[Text, Any], int, LoadingContext, Optional[CreateProvProfile]) -> WorkflowStep
+      (Dict[Text, Any], int, LoadingContext, Optional[ProvenanceProfile]) -> WorkflowStep
 
   Create and return a workflow step object.

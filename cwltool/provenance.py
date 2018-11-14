@@ -301,7 +301,7 @@ def _valid_orcid(orcid):  # type: (Optional[Text]) -> Text
     return u"https://orcid.org/%s" % orcid_num
 
 
-class CreateProvProfile():
+class ProvenanceProfile():
     """
     Provenance profile.
 
@@ -338,7 +338,7 @@ class CreateProvProfile():
         self.generate_prov_doc()
 
     def __str__(self):
-        return "CreateProvProfile <%s> in <%s>" % (
+        return "ProvenanceProfile <%s> in <%s>" % (
             self.workflow_run_uri, self.research_object)
 
     def generate_prov_doc(self):
@@ -448,41 +448,34 @@ class CreateProvProfile():
                  process,           # type: Process
                  job,               # type: Any
                  job_order_object,  # type: Dict[Text, Text]
-                 make_fs_access,    # type: Callable[[Text], StdFsAccess]
                  research_obj       # type: ResearchObject
-                ):  # type: (...) -> Optional[str]
-        """Evaluate the nature of job and initialize the activity start."""
-        process_run_id = None
-        research_obj.make_fs_access = make_fs_access
+                ):  # type: (...) -> None
+        """Evaluate the nature of job"""
         if not hasattr(process, "steps"):
-            # record provenance of an independent commandline tool execution
+            # record provenance of independent commandline tool executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
             research_obj.create_job(customised_job, job)
-            # self.used_artefacts(inputs, self.workflow_run_uri)
-            name = ""
-            if hasattr(job, "name"):
-                name = str(job.name)
-            process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.workflow_run_uri
         elif hasattr(job, "workflow"):
-            # record provenance for the workflow execution
+            # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            # inputs = research_obj.create_job(customised_job)
-            # self.used_artefacts(inputs, self.workflow_run_uri)
-        else:  # in case of commandline tool execution as part of workflow
-            name = ""
-            if hasattr(job, "name"):
-                name = str(job.name)
+
+    def record_process_start(self, process, job, process_run_id=None):
+        # type: (Process, Any, str) -> Optional[str]
+        if not hasattr(process, 'steps'):
+            process_run_id = self.workflow_run_uri
+        elif not hasattr(job, 'workflow'):
+            # commandline tool execution as part of workflow
+            name = str(job.name) if hasattr(job, 'name') else ''
             process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.start_process(process_name)
+            process_run_id = self.start_process(process_name, datetime.datetime.now())
         return process_run_id
 
-    def start_process(self, process_name, process_run_id=None):
-        # type: (Any, str, str) -> str
+    def start_process(self, process_name, when, process_run_id=None):
+        # type: (Any, Text, datetime.datetime, Optional[str]) -> str
         """Record the start of each Process."""
         if process_run_id is None:
             process_run_id = uuid.uuid4().urn
@@ -495,11 +488,16 @@ class CreateProvProfile():
             process_run_id, self.engine_uuid, str("wf:main/" + process_name))
         self.document.wasStartedBy(
             process_run_id, None, self.workflow_run_uri,
-            datetime.datetime.now(), None, None)
+            when, None, None)
         return process_run_id
 
+    def record_process_end(self, process_name, process_run_id, outputs, when):
+        # type: (Text, str, Any, datetime.datetime) -> None
+        self.generate_output_prov(outputs, process_run_id, process_name)
+        self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
+
     def declare_file(self, value):
-        # type: (MutableMapping) -> Tuple[ProvEntity,ProvEntity,str]
+        # type: (MutableMapping) -> Tuple[ProvEntity, ProvEntity, str]
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
@@ -856,11 +854,9 @@ class CreateProvProfile():
                         "prov:type": PROV["Plan"],
                         "prov:label":"Prospective provenance"})
 
-        steps = []
         for step in job.steps:
-            stepnametemp = "wf:main/"+str(step.name)[5:]
+            stepnametemp = "wf:main/" + str(step.name)[5:]
             stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
-            steps.append(stepname)
             step = self.document.entity(
                 stepname, {provM.PROV_TYPE: WFDESC["Process"],
                            "prov:type": PROV["Plan"]})
@@ -947,9 +943,10 @@ class CreateProvProfile():
 class ResearchObject():
     """CWLProv Research Object."""
 
-    def __init__(self, temp_prefix_ro="tmp", orcid='', full_name=''):
-        # type: (str, Text, Text) -> None
+    def __init__(self, make_fs_access, temp_prefix_ro="tmp", orcid='', full_name=''):
+        # type: (Callable[[Text], StdFsAccess], str, Text, Text) -> None
 
+        self.make_fs_access = make_fs_access
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
@@ -969,8 +966,6 @@ class ResearchObject():
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
-        # This function will be added by create_job()
-        self.make_fs_access = None  # type: Optional[Callable[[Text], StdFsAccess]]
         self.relativised_input_object = {}  # type: Dict[Any, Any]
 
         self._initialize()
@@ -1499,8 +1494,8 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   builder_job,  # type: Dict[Text, Any]
-                   wf_job=None,  # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
+                   builder_job,    # type: Dict[Text, Any]
+                   wf_job=None,    # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
                    is_output=False
                   ):  # type: (...) -> Dict
         #TODO customise the file

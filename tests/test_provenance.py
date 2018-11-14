@@ -19,6 +19,7 @@ import bagit
 from cwltool import load_tool, provenance
 from cwltool.main import main
 from cwltool.resolver import Path
+from cwltool.context import RuntimeContext
 
 from .util import get_data, needs_docker, temp_dir, working_directory
 
@@ -528,7 +529,7 @@ def test_failing_path_conversion(path, from_type, to_type):
 
 @pytest.fixture
 def research_object():
-    re_ob = provenance.ResearchObject()
+    re_ob = provenance.ResearchObject(RuntimeContext().make_fs_access)
     yield re_ob
     re_ob.close()
 
