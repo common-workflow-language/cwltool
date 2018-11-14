@@ -37,8 +37,8 @@ inputs:
 # the outputs of the workflow.
 #
 # Each output field must be connected to the output of one of the workflow
-# steps using the "connect" field.  Here, the parameter "#output" of the
-# workflow comes from the "#sorted" output of the "sort" step.
+# steps using the "outputSource" field.  Here, the parameter "sorted_output" of the
+# workflow comes from the "sorted_output" output of the "sorted" step.
 outputs:
   sorted_output:
     type: File
@@ -48,13 +48,13 @@ outputs:
 # The "steps" array lists the executable steps that make up the workflow.
 # The tool to execute each step is listed in the "run" field.
 #
-# In the first step, the "inputs" field of the step connects the upstream
-# parameter "#input" of the workflow to the input parameter of the tool
-# "revtool.cwl#input"
+# In the first step, the "in" field of the step connects the upstream
+# parameter "workflow_input" of the workflow to the input parameter of the tool
+# "revtool_input"
 #
-# In the second step, the "inputs" field of the step connects the output
-# parameter "#reversed" from the first step to the input parameter of the
-# tool "sorttool.cwl#input".
+# In the second step, the "in" field of the step connects the output
+# parameter "revtool_output" from the first step to the input parameter of the
+# tool "sorted_input".
 steps:
   rev:
     in:
