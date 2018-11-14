@@ -21,7 +21,7 @@ hints:
 # field "reverse_sort" is not provided in the input object, the default value will
 # be used.
 inputs:
-  input:
+  workflow_input:
     type: File
     doc: "The input file to be processed."
     format: iana:text/plain
@@ -40,9 +40,9 @@ inputs:
 # steps using the "connect" field.  Here, the parameter "#output" of the
 # workflow comes from the "#sorted" output of the "sort" step.
 outputs:
-  output:
+  sorted_output:
     type: File
-    outputSource: sorted/output
+    outputSource: sorted/sorted_output
     doc: "The output with the lines reversed and sorted."
 
 # The "steps" array lists the executable steps that make up the workflow.
@@ -58,15 +58,15 @@ outputs:
 steps:
   rev:
     in:
-      input: input
-    out: [output]
+      revtool_input: workflow_input
+    out: [revtool_output]
     run: revtool.cwl
 
   sorted:
     in:
-      input: rev/output
+      sorted_input: rev/revtool_output
       reverse: reverse_sort
-    out: [output]
+    out: [sorted_output]
     run: sorttool.cwl
 
 $namespaces:
