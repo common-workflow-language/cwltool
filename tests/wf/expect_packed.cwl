@@ -11,6 +11,12 @@
             ],
             "inputs": [
                 {
+                    "type": "boolean",
+                    "default": true,
+                    "doc": "If true, reverse (decending) sort",
+                    "id": "#main/reverse_sort"
+                },
+                {
                     "type": "File",
                     "doc": "The input file to be processed.",
                     "format": "https://www.iana.org/assignments/media-types/text/plain",
@@ -18,33 +24,27 @@
                         "class": "File",
                         "location": "hello.txt"
                     },
-                    "id": "#main/input"
-                },
-                {
-                    "type": "boolean",
-                    "default": true,
-                    "doc": "If true, reverse (decending) sort",
-                    "id": "#main/reverse_sort"
+                    "id": "#main/workflow_input"
                 }
             ],
             "outputs": [
                 {
                     "type": "File",
-                    "outputSource": "#main/sorted/output",
+                    "outputSource": "#main/sorted/sorted_output",
                     "doc": "The output with the lines reversed and sorted.",
-                    "id": "#main/output"
+                    "id": "#main/sorted_output"
                 }
             ],
             "steps": [
                 {
                     "in": [
                         {
-                            "source": "#main/input",
-                            "id": "#main/rev/input"
+                            "source": "#main/workflow_input",
+                            "id": "#main/rev/revtool_input"
                         }
                     ],
                     "out": [
-                        "#main/rev/output"
+                        "#main/rev/revtool_output"
                     ],
                     "run": "#revtool.cwl",
                     "id": "#main/rev"
@@ -52,16 +52,16 @@
                 {
                     "in": [
                         {
-                            "source": "#main/rev/output",
-                            "id": "#main/sorted/input"
-                        },
-                        {
                             "source": "#main/reverse_sort",
                             "id": "#main/sorted/reverse"
+                        },
+                        {
+                            "source": "#main/rev/revtool_output",
+                            "id": "#main/sorted/sorted_input"
                         }
                     ],
                     "out": [
-                        "#main/sorted/output"
+                        "#main/sorted/sorted_output"
                     ],
                     "run": "#sorttool.cwl",
                     "id": "#main/sorted"
@@ -79,7 +79,7 @@
                 {
                     "type": "File",
                     "inputBinding": {},
-                    "id": "#revtool.cwl/input"
+                    "id": "#revtool.cwl/revtool_input"
                 }
             ],
             "outputs": [
@@ -88,7 +88,7 @@
                     "outputBinding": {
                         "glob": "output.txt"
                     },
-                    "id": "#revtool.cwl/output"
+                    "id": "#revtool.cwl/revtool_output"
                 }
             ],
             "baseCommand": "rev",
@@ -108,7 +108,7 @@
                     }
                 },
                 {
-                    "id": "#sorttool.cwl/input",
+                    "id": "#sorttool.cwl/sorted_input",
                     "type": "File",
                     "inputBinding": {
                         "position": 2
@@ -117,7 +117,7 @@
             ],
             "outputs": [
                 {
-                    "id": "#sorttool.cwl/output",
+                    "id": "#sorttool.cwl/sorted_output",
                     "type": "File",
                     "outputBinding": {
                         "glob": "output.txt"
@@ -131,7 +131,7 @@
     ],
     "cwlVersion": "v1.0",
     "$schemas": [
-        "file:///home/mcrusoe/cwltool/tests/wf/empty2.ttl",
-        "file:///home/mcrusoe/cwltool/tests/wf/empty.ttl"
+        "empty.ttl",
+        "empty2.ttl"
     ]
 }

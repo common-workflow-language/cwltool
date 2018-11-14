@@ -176,7 +176,7 @@ def check_output_object(base_path):
     compare_location = "../data/b9/b9214658cc453331b62c2282b772a5c063dbd284"
     with open(output_obj) as fp:
         out_json = json.load(fp)
-    f1 = out_json["output"]
+    f1 = out_json["sorted_output"]
     assert f1["checksum"] == compare_checksum
     assert f1["location"] == compare_location
 
