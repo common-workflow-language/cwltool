@@ -192,14 +192,13 @@ class Builder(HasReqsHints):
             binding = CommentedMap(schema["inputBinding"].items())
             assert binding is not None
 
+            bp = list(aslist(lead_pos))
             if "position" in binding:
-                binding["position"] = list(aslist(lead_pos))
-                binding["position"].extend(aslist(binding["position"]))
-                binding["position"].extend(aslist(tail_pos))
+                bp.extend(aslist(binding["position"]))
             else:
-                binding["position"] = list(aslist(lead_pos))
-                binding["position"].append(0)
-                binding["position"].extend(aslist(tail_pos))
+                bp.append(0)
+            bp.extend(aslist(tail_pos))
+            binding["position"] = bp
 
             binding["datum"] = datum
             if "valueFrom" in binding:
