@@ -193,9 +193,13 @@ class Builder(HasReqsHints):
             assert binding is not None
 
             if "position" in binding:
-                binding["position"] = aslist(lead_pos) + aslist(binding["position"]) + aslist(tail_pos)
+                binding["position"] = list(aslist(lead_pos))
+                binding["position"].extend(aslist(binding["position"]))
+                binding["position"].extend(aslist(tail_pos))
             else:
-                binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
+                binding["position"] = list(aslist(lead_pos))
+                binding["position"].append(0)
+                binding["position"].extend(aslist(tail_pos))
 
             binding["datum"] = datum
             if "valueFrom" in binding:
