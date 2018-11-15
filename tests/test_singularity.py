@@ -7,17 +7,19 @@ import schema_salad.validate
 
 from cwltool.main import main
 
-from .util import get_data, get_main_output, needs_singularity
+from .util import (get_data, get_main_output, needs_singularity,
+                   working_directory)
 
 sys.argv = ['']
 
 
 @needs_singularity
-def test_singularity_workflow():
-    error_code, _, stderr = get_main_output(
-        ['--singularity', '--default-container', 'debian',
-         get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
-    assert "completed success" in stderr
+def test_singularity_workflow(tmpdir):
+    with working_directory(str(tmpdir)):
+        error_code, _, stderr = get_main_output(
+            ['--singularity', '--default-container', 'debian', '--debug',
+             get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
+    assert "completed success" in stderr, stderr
     assert error_code == 0
 
 def test_singularity_iwdr():
