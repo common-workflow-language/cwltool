@@ -475,7 +475,7 @@ class ProvenanceProfile():
         return process_run_id
 
     def start_process(self, process_name, when, process_run_id=None):
-        # type: (Any, Text, datetime.datetime, Optional[str]) -> str
+        # type: (Text, datetime.datetime, Optional[str]) -> str
         """Record the start of each Process."""
         if process_run_id is None:
             process_run_id = uuid.uuid4().urn
@@ -1094,10 +1094,10 @@ class ResearchObject():
             self._file_provenance[rel_path] = {"createdOn": timestamp.isoformat()}
 
     def _ro_aggregates(self):
-        # type: () -> List[Dict[str,Any]]
+        # type: () -> List[Dict[str, Any]]
         """Gather dictionary of files to be added to the manifest."""
         def guess_mediatype(rel_path):
-            # type: (str) -> Dict[str,str]
+            # type: (str) -> Dict[str, str]
             """Return the mediatypes."""
             media_types = {
                 # Adapted from
@@ -1157,7 +1157,7 @@ class ResearchObject():
 
         aggregates = [] # type: List[Dict]
         for path in self.bagged_size.keys():
-            aggregate_dict = {}  # type: Dict[str,Any]
+            aggregate_dict = {}  # type: Dict[str, Any]
 
             (folder, filename) = posixpath.split(path)
 
@@ -1197,7 +1197,7 @@ class ResearchObject():
                 # aggregate it.
                 continue
 
-            rel_aggregates = {} # type: Dict[str,Any]
+            rel_aggregates = {} # type: Dict[str, Any]
             # These are local paths like metadata/provenance - but
             # we need to relativize them for our current directory for
             # as we are saved in metadata/manifest.json
@@ -1302,7 +1302,7 @@ class ResearchObject():
         # type: () -> None
 
         # Does not have to be this order, but it's nice to be consistent
-        manifest = OrderedDict()  # type: Dict[str,Any]
+        manifest = OrderedDict()  # type: Dict[str, Any]
         manifest["@context"] = [
             {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA))},
             "https://w3id.org/bundle/context"
@@ -1433,7 +1433,7 @@ class ResearchObject():
         return rel_path
 
     def _self_made(self, timestamp=None):
-        # type: (Optional[datetime.datetime]) -> Dict[str,Any]
+        # type: (Optional[datetime.datetime]) -> Dict[str, Any]
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return {
@@ -1530,7 +1530,7 @@ class ResearchObject():
         return self.relativised_input_object
 
     def _relativise_files(self, structure):
-        # type: (Any, Dict[Any, Any]) -> None
+        # type: (Dict[Any, Any]) -> None
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
@@ -1648,7 +1648,7 @@ def checksum_copy(src_file,            # type: IO
     return checksum.hexdigest().lower()
 
 def copy_job_order(job, job_order_object):
-    # type: (Any,Any) -> Any
+    # type: (Any, Any) -> Any
     """Create copy of job object for provenance."""
     if not hasattr(job, "tool"):
         # direct command line tool execution
