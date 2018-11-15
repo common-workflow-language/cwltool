@@ -36,6 +36,6 @@ prune cwltool/schemas/v1.0/v1.0
 prune cwltool/schemas/v1.1.0-dev1/examples
 prune cwltool/schemas/v1.1.0-dev1/v1.1.0-dev1
 recursive-exclude cwltool/schemas *.py
-
+exclude debian.img
 global-exclude *~
 global-exclude *.pyc
