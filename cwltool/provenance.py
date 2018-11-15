@@ -514,8 +514,7 @@ class ProvenanceProfile():
         if not entity and 'location' in value:
             location = str(value['location'])
             # If we made it here, we'll have to add it to the RO
-            assert self.research_object.make_fs_access
-            fsaccess = self.research_object.make_fs_access("")
+            fsaccess = StdFsAccess("")
             with fsaccess.open(location, "rb") as fhandle:
                 relative_path = self.research_object.add_data_file(fhandle)
                 # FIXME: This naively relies on add_data_file setting hash as filename
@@ -605,8 +604,7 @@ class ProvenanceProfile():
         is_empty = True
 
         if not "listing" in value:
-            assert self.research_object.make_fs_access
-            fsaccess = self.research_object.make_fs_access("")
+            fsaccess = StdFsAccess("")
             get_listing(fsaccess, value)
         for entry in value.get("listing", []):
             is_empty = False
@@ -943,10 +941,9 @@ class ProvenanceProfile():
 class ResearchObject():
     """CWLProv Research Object."""
 
-    def __init__(self, make_fs_access, temp_prefix_ro="tmp", orcid='', full_name=''):
-        # type: (Callable[[Text], StdFsAccess], str, Text, Text) -> None
+    def __init__(self, temp_prefix_ro="tmp", orcid='', full_name=''):
+        # type: (str, Text, Text) -> None
 
-        self.make_fs_access = make_fs_access
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
@@ -1553,7 +1550,7 @@ class ResearchObject():
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
-                    fsaccess = self.make_fs_access("")
+                    fsaccess = StdFsAccess("")
                     with fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = posixpath.basename(relative_path)

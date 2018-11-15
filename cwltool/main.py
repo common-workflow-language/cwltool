@@ -583,7 +583,7 @@ def main(argsl=None,                   # type: List[str]
             if not args.compute_checksum:
                 _logger.error("--provenance incompatible with --no-compute-checksum")
                 return 1
-            ro = ResearchObject(runtimeContext.make_fs_access,
+            ro = ResearchObject(
                 temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
                 full_name=args.cwl_full_name)
             runtimeContext.research_obj = ro

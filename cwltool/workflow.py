@@ -572,8 +572,6 @@ class Workflow(Process):
         builder = self._init_job(job_order, runtimeContext)
         #relativeJob=copy.deepcopy(builder.job)
         if runtimeContext.research_obj is not None:
-            if not runtimeContext.research_obj.make_fs_access:
-                runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
             if runtimeContext.toplevel:
                 # Record primary-job.json
                 runtimeContext.research_obj.create_job(builder.job, self.job)

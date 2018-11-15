@@ -533,7 +533,7 @@ def test_failing_path_conversion(path, from_type, to_type):
 
 @pytest.fixture
 def research_object():
-    re_ob = provenance.ResearchObject(RuntimeContext().make_fs_access)
+    re_ob = provenance.ResearchObject()
     yield re_ob
     re_ob.close()
 
