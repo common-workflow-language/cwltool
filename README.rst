@@ -609,33 +609,18 @@ Technical outline of how cwltool works internally, for maintainers.
 Extension points
 ----------------
 
-The following functions can be provided to main(), to load_tool(), or to the
-executor to override or augment the listed behaviors.
+The following functions can be passed to main() to override or augment
+the listed behaviors.
 
 executor
   ::
 
-    executor(tool, job_order_object, **kwargs)
-      (Process, Dict[Text, Any], **Any) -> Tuple[Dict[Text, Any], Text]
+    executor(tool, job_order_object, runtimeContext, logger)
+      (Process, Dict[Text, Any], RuntimeContext) -> Tuple[Dict[Text, Any], Text]
 
-  A toplevel workflow execution loop, should synchronously execute a process
-  object and return an output object.
-
-construct_tool_object
-  ::
-
-    construct_tool_object(toolpath_object, **kwargs)
-      (Dict[Text, Any], **Any) -> Process
-
-  Hook to construct a Process object (eg CommandLineTool) object from a document.
-
-selectResources
-  ::
-
-    selectResources(request)
-      (Dict[Text, int]) -> Dict[Text, int]
-
-  Take a resource request and turn it into a concrete resource assignment.
+  An implementation of the toplevel workflow execution loop, should
+  synchronously run a process object to completion and return the
+  output object.
 
 versionfunc
   ::
@@ -645,13 +630,16 @@ versionfunc
 
   Return version string.
 
-make_fs_access
+logger_handler
   ::
 
-    make_fs_access(basedir)
-      (Text) -> StdFsAccess
+    logger_handler
+      logging.Handler
 
-  Return a file system access object.
+  Handler object for logging.
+
+The following functions can be set in LoadingContext to override or
+augment the listed behaviors.
 
 fetcher_constructor
   ::
@@ -669,10 +657,47 @@ resolver
 
   Resolve a relative document identifier to an absolute one which can be fetched.
 
-logger_handler
+The following functions can be set in RuntimeContext to override or
+augment the listed behaviors.
+
+construct_tool_object
   ::
 
-    logger_handler
-      logging.Handler
+    construct_tool_object(toolpath_object, loadingContext)
+      (MutableMapping[Text, Any], LoadingContext) -> Process
 
-  Handler object for logging.
+  Hook to construct a Process object (eg CommandLineTool) object from a document.
+
+select_resources
+  ::
+
+    selectResources(request)
+      (Dict[str, int], RuntimeContext) -> Dict[Text, int]
+
+  Take a resource request and turn it into a concrete resource assignment.
+
+make_fs_access
+  ::
+
+    make_fs_access(basedir)
+      (Text) -> StdFsAccess
+
+  Return a file system access object.
+
+In addition, when providing custom subclasses of Process objects, you can override the following methods:
+
+CommandLineTool.make_job_runner
+  ::
+
+    make_job_runner(RuntimeContext)
+      (RuntimeContext) -> Type[JobBase]
+
+  Create and return a job runner object (this implements concrete execution of a command line tool).
+
+Workflow.make_workflow_step
+  ::
+
+    make_workflow_step(toolpath_object, pos, loadingContext, parentworkflowProv)
+      (Dict[Text, Any], int, LoadingContext, Optional[CreateProvProfile]) -> WorkflowStep
+
+  Create and return a workflow step object.

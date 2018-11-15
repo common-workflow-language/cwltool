@@ -58,13 +58,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     cidgroup.add_argument(
         "--cidfile-dir", type=Text, help="Directory for storing the Docker "
         "container ID file. The default is the current directory",
-        default="", dest="cidfile_dir")
+        default=None, dest="cidfile_dir")
 
     cidgroup.add_argument(
         "--cidfile-prefix", type=Text,
         help="Specify a prefix to the container ID filename. "
         "Final file name will be followed by a timestamp. The default is no prefix.",
-        default="", dest="cidfile_prefix")
+        default=None, dest="cidfile_prefix")
 
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
