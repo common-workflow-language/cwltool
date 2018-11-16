@@ -381,7 +381,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
 
-        if runtimeContext.rm_tmpdir is not None:
+        if runtimeContext.rm_tmpdir:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
