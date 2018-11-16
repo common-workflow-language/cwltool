@@ -48,7 +48,7 @@ jobloaderctx = {
 overrides_ctx = {
     u"overrideTarget": {u"@type": u"@id"},
     u"cwltool": "http://commonwl.org/cwltool#",
-    u"overrides": {
+    u"http://commonwl.org/cwltool#overrides": {
         "@id": "cwltool:overrides",
         "mapSubject": "overrideTarget",
     },
@@ -226,7 +226,7 @@ def validate_document(document_loader,           # type: Loader
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
-        if "http://commonwl.org/cwltool#overrides" in jobobj:
+        if isinstance(jobobj, CommentedMap) and "http://commonwl.org/cwltool#overrides" in jobobj:
             overrides.extend(resolve_overrides(jobobj, uri, uri))
             del jobobj["http://commonwl.org/cwltool#overrides"]
 
@@ -272,7 +272,7 @@ def validate_document(document_loader,           # type: Loader
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text]
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text, None]
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
@@ -285,7 +285,7 @@ def validate_document(document_loader,           # type: Loader
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
-    if not new_metadata:
+    if not new_metadata and isinstance(processobj, CommentedMap):
         new_metadata = cast(CommentedMap, cmap(
             {"$namespaces": processobj.get("$namespaces", {}),
              "$schemas": processobj.get("$schemas", []),
@@ -387,7 +387,7 @@ def resolve_overrides(ov,      # Type: CommentedMap
         raise Exception("Expected CommentedMap, got %s" % type(ret))
     cwl_docloader = get_schema("v1.0")[0]
     cwl_docloader.resolve_all(ret, ov_uri)
-    return ret["overrides"]
+    return ret["http://commonwl.org/cwltool#overrides"]
 
 def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
