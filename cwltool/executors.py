@@ -96,7 +96,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                 getdefault(runtime_context.compute_checksum, True),
                 path_mapper=runtime_context.path_mapper)
 
-        if runtime_context.rm_tmpdir is not None:
+        if runtime_context.rm_tmpdir:
             if runtime_context.cachedir is None:
                 output_dirs = self.output_dirs  # type: Iterable[Any]
             else:
