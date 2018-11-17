@@ -77,11 +77,12 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
 
         job_reqs = None
-        if "cwl:requirements" in job_order_object:
-            job_reqs = job_order_object["cwl:requirements"]
+        if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
+            job_reqs = job_order_object["https://w3id.org/cwl/cwl#requirements"]
         elif ("cwl:defaults" in process.metadata
-              and "cwl:requirements" in process.metadata["cwl:defaults"]):
-            job_reqs = process.metadata["cwl:defaults"]["cwl:requirements"]
+              and "https://w3id.org/cwl/cwl#requirements"
+              in process.metadata["cwl:defaults"]):
+            job_reqs = process.metadata["cwl:defaults"]["https://w3id.org/cwl/cwl#requirements"]
         if job_reqs is not None:
             for req in job_reqs:
                 process.requirements.append(req)
