@@ -44,6 +44,13 @@ override_parameters = [
       get_data('tests/override/echo-job.yml')],
      {"out": "zing hello6\n"}
      ),
+    ([get_data('tests/override/env-tool.cwl'),
+      get_data('tests/override/env-tool_requirement_override.yaml')],
+     {"value": "hello test env"}
+     ),
+    ([get_data('tests/override/env-tool_requirement_override_default.yaml')],
+     {"value": "hello test env"}
+     ),
 ]
 
 @needs_docker
