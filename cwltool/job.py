@@ -515,7 +515,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         """Append volume mappings to the runtime option list."""
 
         container_outdir = self.builder.outdir
-        for vol in (itm[1] for itm in pathmapper.items() if itm[1].staged):
+        for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
             host_outdir_tgt = None  # type: Optional[Text]
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
@@ -536,10 +536,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
                 new_path = self.create_file_and_add_volume(
                     runtime, vol, host_outdir_tgt, secret_store)
-                key = pathmapper.reversemap(vol.target)
-                if key:
-                    pathmapper.update(
-                        key[0], new_path, vol.target, vol.type, vol.staged)
+                pathmapper.update(
+                    key, new_path, vol.target, vol.type, vol.staged)
 
     def run(self, runtimeContext):  # type: (RuntimeContext) -> None
         if not os.path.exists(self.tmpdir):

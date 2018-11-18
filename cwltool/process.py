@@ -233,7 +233,7 @@ def stage_files(pathmapper,             # type: PathMapper
                 secret_store=None       # type: SecretStore
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
-    for _, entry in pathmapper.items():
+    for key, entry in pathmapper.items():
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
@@ -275,11 +275,8 @@ def stage_files(pathmapper,             # type: PathMapper
                 os.chmod(entry.target, stat.S_IRUSR)  # Read only
             else:  # it is a "CreateWritableFile"
                 ensure_writable(entry.target)
-            key = pathmapper.reversemap(entry.target)
-            if key:
-                pathmapper.update(
-                    key[0],
-                    entry.target, entry.target, entry.type, entry.staged)
+            pathmapper.update(
+                key, entry.target, entry.target, entry.type, entry.staged)
 
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
