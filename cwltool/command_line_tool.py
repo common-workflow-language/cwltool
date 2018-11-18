@@ -132,7 +132,7 @@ def revmap_file(builder, outdir, f):
     """
 
     # If a local path, then normalize on MS Windows
-    _logger.info("revmap_file: %s", f)
+    _logger.error("revmap_file: %s", f)
     builder_outdir = builder.outdir
     if os.path.exists(builder_outdir):
         builder_outdir = os.path.normcase(builder_outdir)
@@ -151,14 +151,14 @@ def revmap_file(builder, outdir, f):
             f["path"] = convert_pathsep_to_unix(uri_file_path(f["location"]))
         else:
             return f
-    _logger.info("revmap_file2: %s", f)
+    _logger.error("revmap_file2: %s", f)
 
     if "path" in f:
         path = f["path"]
         if os.path.exists(path):
             # local path, therefore normalize on MS Windows
             path = os.path.normcase(path)
-            _logger.info("revmap_file3: %s", path)
+            _logger.error("revmap_file3: %s", path)
 
         uripath = file_uri(path)
         del f["path"]
