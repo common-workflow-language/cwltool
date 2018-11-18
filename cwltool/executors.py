@@ -78,11 +78,29 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
 
         job_reqs = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
+            if process.metadata["cwlVersion"] == 'v1.0':
+                raise WorkflowException(
+                    "`cwl:requirements` in the input object is not part of CWL "
+                    "v1.0. You can use `cwltool:requirements` instead; or you "
+                    "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
+                    "--enable-dev.")
             job_reqs = job_order_object["https://w3id.org/cwl/cwl#requirements"]
+        elif "http://commonwl.org/cwltool#requirements" in job_order_object:
+            job_reqs = job_order_object["http://commonwl.org/cwltool#requirements"]
         elif ("cwl:defaults" in process.metadata
               and "https://w3id.org/cwl/cwl#requirements"
               in process.metadata["cwl:defaults"]):
+            if process.metadata["cwlVersion"] == 'v1.0':
+                raise WorkflowException(
+                    "`cwl:requirements` in the input object is not part of CWL "
+                    "v1.0. You can use `cwltool:requirements` instead; or you "
+                    "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
+                    "--enable-dev.")
             job_reqs = process.metadata["cwl:defaults"]["https://w3id.org/cwl/cwl#requirements"]
+        elif ("cwl:defaults" in process.metadata
+              and "http://commonwl.org/cwltool#requirements"
+              in process.metadata["cwl:defaults"]):
+            job_reqs = process.metadata["cwl:defaults"]["http://commonwl.org/cwltool#requirements"]
         if job_reqs is not None:
             for req in job_reqs:
                 process.requirements.append(req)

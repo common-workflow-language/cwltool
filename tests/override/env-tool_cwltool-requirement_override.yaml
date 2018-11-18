@@ -1,0 +1,6 @@
+in: "hello test env"
+cwltool:requirements:
+ - class: EnvVarRequirement
+   envDef:
+     - envName: TEST_ENV
+       envValue: $(inputs.in)
