@@ -136,11 +136,11 @@ def revmap_file(builder, outdir, f):
     if os.path.exists(builder_outdir):
         builder_outdir = os.path.normcase(builder_outdir)
     if os.path.exists(outdir):
-        outdir = file_uri(os.path.normcase(outdir))
+        outdir = file_uri(str(os.path.normcase(outdir)))
     else:
         split = urllib.parse.urlsplit(outdir)
         if not split.scheme:
-            outdir = file_uri(outdir)
+            outdir = file_uri(str(outdir))
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
