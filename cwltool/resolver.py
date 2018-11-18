@@ -7,12 +7,7 @@ import sys
 from six.moves import urllib
 
 from .loghandler import _logger
-
-if sys.version_info < (3, 4):
-    from pathlib2 import Path  # pylint: disable=import-error
-else:
-    from pathlib import Path
-
+from .utils import Path
 
 def resolve_local(document_loader, uri):
     pathpart, frag = urllib.parse.urldefrag(uri)

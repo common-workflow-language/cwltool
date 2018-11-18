@@ -27,6 +27,11 @@ if os.name == 'posix':
 else:
     import subprocess  # type: ignore
 
+if sys.version_info < (3, 4):
+    from pathlib2 import Path, PurePosixPath  # pylint: disable=import-error
+else:
+    from pathlib import Path, PurePosixPath
+
 windows_default_container_id = "frolvlad/alpine-bash"
 
 Directory = TypedDict('Directory',

@@ -45,7 +45,7 @@ from .singularity import SingularityCommandLineJob
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, convert_pathsep_to_unix,
+from .utils import (PurePosixPath, aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     random_outdir, windows_default_container_id)
 if TYPE_CHECKING:
@@ -686,11 +686,11 @@ class CommandLineTool(Process):
                             r.extend([{"location": g,
                                        "path": fs_access.join(builder.outdir,
                                            g[len(prefix[0])+1:]),
-                                       "basename": os.path.basename(g),
+                                       "basename": PurePosixPath(g).name,
                                        "nameroot": os.path.splitext(
-                                           os.path.basename(g))[0],
+                                           PurePosixPath(g).name)[0],
                                        "nameext": os.path.splitext(
-                                           os.path.basename(g))[1],
+                                           PurePosixPath(g).name)[1],
                                        "class": "File" if fs_access.isfile(g)
                                        else "Directory"}
                                       for g in sorted(fs_access.glob(
