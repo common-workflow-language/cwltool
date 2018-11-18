@@ -149,6 +149,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                 # If this becomes a big issue for someone then we could
                 # refactor the code to process output from a running container
                 # and avoid all the extra IO below
+                _logger.debug("Host outdir is '%s'.", host_outdir)
                 if vol.type in ("File", "WritableFile"):
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
