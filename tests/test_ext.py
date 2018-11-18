@@ -8,7 +8,8 @@ import pytest
 
 from cwltool.main import main
 
-from .util import get_data, needs_docker, temp_dir, windows_needs_docker
+from .util import (get_data, needs_docker, temp_dir, windows_needs_docker,
+                   onWindows)
 
 
 @needs_docker
@@ -49,6 +50,7 @@ def test_listing_v1_1():
     assert main([get_data('tests/wf/listing_v1_1.cwl'), get_data('tests/listing-job.yml')]) != 0
 
 @needs_docker
+@pytest.mark.skipif(onWindows(), reason="Not yet working on Windows")
 def test_double_overwrite():
     try:
         tmp = tempfile.mkdtemp()
