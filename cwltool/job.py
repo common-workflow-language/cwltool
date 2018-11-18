@@ -486,7 +486,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         if not host_outdir_tgt:
             new_file = os.path.join(
                 tempfile.mkdtemp(dir=self.tmpdir),
-                os.path.basename(volume.resolved))
+                os.path.basename(volume.target))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
             contents = secret_store.retrieve(volume.resolved)
