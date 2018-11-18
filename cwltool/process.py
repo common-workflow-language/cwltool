@@ -51,7 +51,7 @@ try:
 except ImportError:
     from scandir import scandir  # type: ignore
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -458,8 +458,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
-        self.provenance_object = None  # type: Optional[CreateProvProfile]
-        self.parent_wf = None          # type: Optional[CreateProvProfile]
+        self.provenance_object = None  # type: Optional[ProvenanceProfile]
+        self.parent_wf = None          # type: Optional[ProvenanceProfile]
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")

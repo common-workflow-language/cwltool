@@ -21,7 +21,7 @@ from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process  # pylint: disable=unused-import
 from .process import cleanIntermediate, relocateOutputs
-from .provenance import CreateProvProfile
+from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
@@ -135,7 +135,7 @@ class SingleJobExecutor(JobExecutor):
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
                 and runtime_context.research_obj is not None:
-            process.provenance_object = CreateProvProfile(
+            process.provenance_object = ProvenanceProfile(
                 runtime_context.research_obj,
                 full_name=runtime_context.cwl_full_name,
                 host_provenance=False,
@@ -160,11 +160,12 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             runtime_context.prov_obj = job.prov_obj
                         assert runtime_context.prov_obj
-                        process_run_id = \
-                            runtime_context.prov_obj.evaluate(
-                                process, job, job_order_object,
-                                runtime_context.make_fs_access,
-                                runtime_context.research_obj)
+                        runtime_context.prov_obj.evaluate(
+                            process, job, job_order_object,
+                            runtime_context.research_obj)
+                        process_run_id =\
+                            runtime_context.prov_obj.record_process_start(
+                                process, job)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
                     job.run(runtime_context)

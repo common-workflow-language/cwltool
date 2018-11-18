@@ -808,7 +808,8 @@ def main(argsl=None,                   # type: List[str]
 
             if out is not None:
                 if runtimeContext.research_obj is not None:
-                    runtimeContext.research_obj.create_job(out, None, True)
+                    runtimeContext.research_obj.create_job(
+                        out, None, True)
 
                 def loc_to_path(obj):
                     for field in ("path", "nameext", "nameroot", "dirname"):

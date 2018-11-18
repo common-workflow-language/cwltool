@@ -28,7 +28,7 @@ from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
 
 
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 CONTENT_LIMIT = 64 * 1024
 
 
@@ -162,7 +162,7 @@ class Builder(HasReqsHints):
         self.stagedir = stagedir
 
         self.pathmapper = None  # type: Optional[PathMapper]
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
 
     def build_job_script(self, commands):

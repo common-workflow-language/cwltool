@@ -37,7 +37,7 @@ from .utils import (DEFAULT_TMP_PREFIX, Directory, bytes2str_in_dicts,
                     processes_to_kill, subprocess)
 
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
@@ -191,8 +191,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
-        self.prov_obj = None   # type: Optional[CreateProvProfile]
-        self.parent_wf = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None   # type: Optional[ProvenanceProfile]
+        self.parent_wf = None  # type: Optional[ProvenanceProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
@@ -340,11 +340,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if runtimeContext.research_obj is not None and self.prov_obj is not None and \
                 runtimeContext.process_run_id is not None:
             #creating entities for the outputs produced by each step (in the provenance document)
-            self.prov_obj.generate_output_prov(
-                outputs, runtimeContext.process_run_id, str(self.name))
-            self.prov_obj.document.wasEndedBy(
-                runtimeContext.process_run_id, None, self.prov_obj.workflow_run_uri,
-                datetime.datetime.now())
+            self.prov_obj.record_process_end(str(self.name), runtimeContext.process_run_id,
+                                      outputs, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:

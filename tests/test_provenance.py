@@ -6,6 +6,10 @@ import shutil
 import sys
 import tempfile
 from io import open
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 from six.moves import urllib
 
@@ -19,6 +23,7 @@ import bagit
 from cwltool import load_tool, provenance
 from cwltool.main import main
 from cwltool.resolver import Path
+from cwltool.context import RuntimeContext
 
 from .util import get_data, needs_docker, temp_dir, working_directory
 
@@ -688,3 +693,7 @@ def test_whoami():
 def test_research_object():
     # TODO: Test ResearchObject methods
     pass
+
+# Reasearch object may need to be pickled (for Toil)
+def test_research_object_picklability(research_object):
+    assert pickle.dumps(research_object) is not None

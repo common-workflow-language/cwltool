@@ -21,7 +21,7 @@ from .utils import DEFAULT_TMP_PREFIX
 if TYPE_CHECKING:
     from .process import Process
     from .provenance import (ResearchObject,  # pylint: disable=unused-import
-                             CreateProvProfile)
+                             ProvenanceProfile)
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
@@ -63,7 +63,7 @@ class LoadingContext(ContextBase):
         self.cwl_full_name = ""            # type: str
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
-        self.prov_obj = None               # type: Optional[CreateProvProfile]
+        self.prov_obj = None               # type: Optional[ProvenanceProfile]
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -131,7 +131,7 @@ class RuntimeContext(ContextBase):
         self.orcid = ''                 # type: str
         self.cwl_full_name = ""         # type: str
         self.process_run_id = None      # type: Optional[str]
-        self.prov_obj = None            # type: Optional[CreateProvProfile]
+        self.prov_obj = None            # type: Optional[ProvenanceProfile]
         super(RuntimeContext, self).__init__(kwargs)
 
 
