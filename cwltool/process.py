@@ -265,6 +265,9 @@ def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_st
                 else:
                     n.write(p.resolved.encode("utf-8"))
             os.chmod(p.target, stat.S_IRUSR)
+            key = pm.reversemap(p.target)
+            if key:
+                pm.update(key[0], p.target, p.target, p.type, p.staged)
         elif p.type == "CreateWritableFile":
             with open(p.target, "wb") as n:
                 if secret_store is not None:

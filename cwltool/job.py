@@ -265,7 +265,6 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 else:
                     stdin_path = rmap[1]
 
-
             stderr_path = None
             if self.stderr is not None:
                 abserr = os.path.join(self.outdir, self.stderr)
@@ -481,7 +480,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                                    volume,           # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
                                    secret_store      # type: Optional[SecretStore]
-                                  ):  # type: (...) -> None
+                                  ):  # type: (...) -> Optional[Text]
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
             new_file = os.path.join(
@@ -504,6 +503,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             ensure_writable(host_outdir_tgt or new_file)
         else:
             ensure_non_writable(host_outdir_tgt or new_file)
+        return host_outdir_tgt or new_file
 
 
 
@@ -535,8 +535,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 self.add_writable_directory_volume(
                     runtime, vol, host_outdir_tgt)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                self.create_file_and_add_volume(
+                new_path = self.create_file_and_add_volume(
                     runtime, vol, host_outdir_tgt, secret_store)
+                key = pathmapper.reversemap(vol.target)
+                if key:
+                    pathmapper.update(
+                        key[0], new_path, vol.target, vol.type, vol.staged)
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
