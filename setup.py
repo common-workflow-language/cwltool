@@ -16,13 +16,14 @@ try:
 except ImportError:
     Tagger = egg_info_cmd.egg_info
 
-needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-pytest_runner = ['pytest-runner', 'pytest-cov'] if needs_pytest else []
+NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
+PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
 
 setup(name='cwltool',
       version='1.0',
       description='Common workflow language reference implementation',
       long_description=open(README).read(),
+      long_description_content_type="text/x-rst",
       author='Common workflow language working group',
       author_email='common-workflow-language@googlegroups.com',
       url="https://github.com/common-workflow-language/cwltool",
@@ -68,7 +69,7 @@ setup(name='cwltool',
           'deps': ["galaxy-lib >= 17.09.3"]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
-      setup_requires=[] + pytest_runner,
+      setup_requires=PYTEST_RUNNER,
       test_suite='tests',
       tests_require=['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
                      'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
@@ -97,7 +98,7 @@ setup(name='cwltool',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.4',  # except on MS Windows
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
