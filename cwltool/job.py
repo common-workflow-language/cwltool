@@ -325,13 +325,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             outputs = self.collect_outputs(self.outdir)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
-            if e.errno == 2:
-                if runtime:
-                    _logger.error(u"'%s' not found", runtime[0])
-                else:
-                    _logger.error(u"'%s' not found", self.command_line[0])
-            else:
-                _logger.exception("Exception while running job")
+            _logger.exception("Error while running %s", commands)
             processStatus = "permanentFail"
         except WorkflowException as err:
             _logger.error(u"[job %s] Job error:\n%s", self.name, err)
