@@ -20,16 +20,16 @@ def test_iwdr_permutations():
         with temp_dir() as sixth:
             with temp_dir() as seventh:
                 with temp_dir() as eighth:
-                    with tempfile.NamedTemporaryFile() as first:
+                    with tempfile.NamedTemporaryFile(mode='w+t') as first:
                         first.write("1")
                         first.flush()
-                        with tempfile.NamedTemporaryFile() as second:
+                        with tempfile.NamedTemporaryFile(mode='w+t') as second:
                             second.write("2")
                             second.flush()
-                            with tempfile.NamedTemporaryFile() as third:
+                            with tempfile.NamedTemporaryFile(mode='w+t') as third:
                                 third.write("3")
                                 third.flush()
-                                with tempfile.NamedTemporaryFile() as fourth:
+                                with tempfile.NamedTemporaryFile(mode='w+t') as fourth:
                                     fourth.write("4")
                                     fourth.flush()
                                     with temp_dir() as outdir:
