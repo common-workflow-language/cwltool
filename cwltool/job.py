@@ -151,7 +151,8 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                 # and avoid all the extra IO below
                 _logger.debug("Host outdir is '%s'.", host_outdir)
                 if vol.type in ("File", "WritableFile"):
-                    shutil.copy(vol.resolved, host_outdir_tgt)
+                    if not os.path.exists(host_outdir_tgt):
+                        shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
             elif not vol.resolved.startswith("_:"):
