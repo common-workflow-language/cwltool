@@ -480,7 +480,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                                    volume,           # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
                                    secret_store      # type: Optional[SecretStore]
-                                  ):  # type: (...) -> Optional[Text]
+                                  ):  # type: (...) -> Text
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
             new_file = os.path.join(
@@ -504,7 +504,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         else:
             ensure_non_writable(host_outdir_tgt or new_file)
         return host_outdir_tgt or new_file
-
 
 
     def add_volumes(self,
@@ -538,7 +537,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 new_path = self.create_file_and_add_volume(
                     runtime, vol, host_outdir_tgt, secret_store)
                 key = pathmapper.reversemap(vol.target)
-                if key and new_path:
+                if key:
                     pathmapper.update(
                         key[0], new_path, vol.target, vol.type, vol.staged)
 
