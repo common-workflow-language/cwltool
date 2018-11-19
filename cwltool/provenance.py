@@ -301,7 +301,7 @@ def _valid_orcid(orcid):  # type: (Optional[Text]) -> Text
     return u"https://orcid.org/%s" % orcid_num
 
 
-class CreateProvProfile():
+class ProvenanceProfile():
     """
     Provenance profile.
 
@@ -338,7 +338,7 @@ class CreateProvProfile():
         self.generate_prov_doc()
 
     def __str__(self):
-        return "CreateProvProfile <%s> in <%s>" % (
+        return "ProvenanceProfile <%s> in <%s>" % (
             self.workflow_run_uri, self.research_object)
 
     def generate_prov_doc(self):
@@ -448,41 +448,34 @@ class CreateProvProfile():
                  process,           # type: Process
                  job,               # type: Any
                  job_order_object,  # type: Dict[Text, Text]
-                 make_fs_access,    # type: Callable[[Text], StdFsAccess]
                  research_obj       # type: ResearchObject
-                ):  # type: (...) -> Optional[str]
-        """Evaluate the nature of job and initialize the activity start."""
-        process_run_id = None
-        research_obj.make_fs_access = make_fs_access
+                ):  # type: (...) -> None
+        """Evaluate the nature of job"""
         if not hasattr(process, "steps"):
-            # record provenance of an independent commandline tool execution
+            # record provenance of independent commandline tool executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
             research_obj.create_job(customised_job, job)
-            # self.used_artefacts(inputs, self.workflow_run_uri)
-            name = ""
-            if hasattr(job, "name"):
-                name = str(job.name)
-            process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.workflow_run_uri
         elif hasattr(job, "workflow"):
-            # record provenance for the workflow execution
+            # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            # inputs = research_obj.create_job(customised_job)
-            # self.used_artefacts(inputs, self.workflow_run_uri)
-        else:  # in case of commandline tool execution as part of workflow
-            name = ""
-            if hasattr(job, "name"):
-                name = str(job.name)
+
+    def record_process_start(self, process, job, process_run_id=None):
+        # type: (Process, Any, str) -> Optional[str]
+        if not hasattr(process, 'steps'):
+            process_run_id = self.workflow_run_uri
+        elif not hasattr(job, 'workflow'):
+            # commandline tool execution as part of workflow
+            name = str(job.name) if hasattr(job, 'name') else ''
             process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.start_process(process_name)
+            process_run_id = self.start_process(process_name, datetime.datetime.now())
         return process_run_id
 
-    def start_process(self, process_name, process_run_id=None):
-        # type: (Any, str, str) -> str
+    def start_process(self, process_name, when, process_run_id=None):
+        # type: (Text, datetime.datetime, Optional[str]) -> str
         """Record the start of each Process."""
         if process_run_id is None:
             process_run_id = uuid.uuid4().urn
@@ -495,11 +488,16 @@ class CreateProvProfile():
             process_run_id, self.engine_uuid, str("wf:main/" + process_name))
         self.document.wasStartedBy(
             process_run_id, None, self.workflow_run_uri,
-            datetime.datetime.now(), None, None)
+            when, None, None)
         return process_run_id
 
+    def record_process_end(self, process_name, process_run_id, outputs, when):
+        # type: (Text, str, Any, datetime.datetime) -> None
+        self.generate_output_prov(outputs, process_run_id, process_name)
+        self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
+
     def declare_file(self, value):
-        # type: (MutableMapping) -> Tuple[ProvEntity,ProvEntity,str]
+        # type: (MutableMapping) -> Tuple[ProvEntity, ProvEntity, str]
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
@@ -516,8 +514,7 @@ class CreateProvProfile():
         if not entity and 'location' in value:
             location = str(value['location'])
             # If we made it here, we'll have to add it to the RO
-            assert self.research_object.make_fs_access
-            fsaccess = self.research_object.make_fs_access("")
+            fsaccess = StdFsAccess("")
             with fsaccess.open(location, "rb") as fhandle:
                 relative_path = self.research_object.add_data_file(fhandle)
                 # FIXME: This naively relies on add_data_file setting hash as filename
@@ -607,8 +604,7 @@ class CreateProvProfile():
         is_empty = True
 
         if not "listing" in value:
-            assert self.research_object.make_fs_access
-            fsaccess = self.research_object.make_fs_access("")
+            fsaccess = StdFsAccess("")
             get_listing(fsaccess, value)
         for entry in value.get("listing", []):
             is_empty = False
@@ -856,11 +852,9 @@ class CreateProvProfile():
                         "prov:type": PROV["Plan"],
                         "prov:label":"Prospective provenance"})
 
-        steps = []
         for step in job.steps:
-            stepnametemp = "wf:main/"+str(step.name)[5:]
+            stepnametemp = "wf:main/" + str(step.name)[5:]
             stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
-            steps.append(stepname)
             step = self.document.entity(
                 stepname, {provM.PROV_TYPE: WFDESC["Process"],
                            "prov:type": PROV["Plan"]})
@@ -969,8 +963,6 @@ class ResearchObject():
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
-        # This function will be added by create_job()
-        self.make_fs_access = None  # type: Optional[Callable[[Text], StdFsAccess]]
         self.relativised_input_object = {}  # type: Dict[Any, Any]
 
         self._initialize()
@@ -1099,10 +1091,10 @@ class ResearchObject():
             self._file_provenance[rel_path] = {"createdOn": timestamp.isoformat()}
 
     def _ro_aggregates(self):
-        # type: () -> List[Dict[str,Any]]
+        # type: () -> List[Dict[str, Any]]
         """Gather dictionary of files to be added to the manifest."""
         def guess_mediatype(rel_path):
-            # type: (str) -> Dict[str,str]
+            # type: (str) -> Dict[str, str]
             """Return the mediatypes."""
             media_types = {
                 # Adapted from
@@ -1162,7 +1154,7 @@ class ResearchObject():
 
         aggregates = [] # type: List[Dict]
         for path in self.bagged_size.keys():
-            aggregate_dict = {}  # type: Dict[str,Any]
+            aggregate_dict = {}  # type: Dict[str, Any]
 
             (folder, filename) = posixpath.split(path)
 
@@ -1202,7 +1194,7 @@ class ResearchObject():
                 # aggregate it.
                 continue
 
-            rel_aggregates = {} # type: Dict[str,Any]
+            rel_aggregates = {} # type: Dict[str, Any]
             # These are local paths like metadata/provenance - but
             # we need to relativize them for our current directory for
             # as we are saved in metadata/manifest.json
@@ -1307,7 +1299,7 @@ class ResearchObject():
         # type: () -> None
 
         # Does not have to be this order, but it's nice to be consistent
-        manifest = OrderedDict()  # type: Dict[str,Any]
+        manifest = OrderedDict()  # type: Dict[str, Any]
         manifest["@context"] = [
             {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA))},
             "https://w3id.org/bundle/context"
@@ -1438,7 +1430,7 @@ class ResearchObject():
         return rel_path
 
     def _self_made(self, timestamp=None):
-        # type: (Optional[datetime.datetime]) -> Dict[str,Any]
+        # type: (Optional[datetime.datetime]) -> Dict[str, Any]
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return {
@@ -1499,8 +1491,8 @@ class ResearchObject():
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(self,
-                   builder_job,  # type: Dict[Text, Any]
-                   wf_job=None,  # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
+                   builder_job,    # type: Dict[Text, Any]
+                   wf_job=None,    # type: Callable[[Dict[Text, Text], Callable[[Any, Any], Any], RuntimeContext], Generator[Any, None, None]]
                    is_output=False
                   ):  # type: (...) -> Dict
         #TODO customise the file
@@ -1535,7 +1527,7 @@ class ResearchObject():
         return self.relativised_input_object
 
     def _relativise_files(self, structure):
-        # type: (Any, Dict[Any, Any]) -> None
+        # type: (Dict[Any, Any]) -> None
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug(u"[provenance] Relativising: %s", structure)
@@ -1558,7 +1550,7 @@ class ResearchObject():
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
-                    fsaccess = self.make_fs_access("")
+                    fsaccess = StdFsAccess("")
                     with fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = posixpath.basename(relative_path)
@@ -1653,7 +1645,7 @@ def checksum_copy(src_file,            # type: IO
     return checksum.hexdigest().lower()
 
 def copy_job_order(job, job_order_object):
-    # type: (Any,Any) -> Any
+    # type: (Any, Any) -> Any
     """Create copy of job object for provenance."""
     if not hasattr(job, "tool"):
         # direct command line tool execution

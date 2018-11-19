@@ -22,14 +22,13 @@ from typing import (Any, Callable, Dict, Generator, Iterator, List,
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad import schema, validate
-from schema_salad.ref_resolver import Loader, file_uri
-from schema_salad.sourceline import SourceLine
 from six import PY3, iteritems, itervalues, string_types, with_metaclass
 from six.moves import urllib
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad import schema, validate
+from schema_salad.ref_resolver import Loader, file_uri
+from schema_salad.sourceline import SourceLine
 
 from . import expression
 from .builder import Builder, HasReqsHints
@@ -52,7 +51,7 @@ try:
 except ImportError:
     from scandir import scandir  # type: ignore
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -227,51 +226,57 @@ def adjustFilesWithSecondary(rec, op, primary=None):
             adjustFilesWithSecondary(d, op, primary)
 
 
-def stageFiles(pm, stageFunc=None, ignoreWritable=False, symLink=True, secret_store=None):
-    # type: (PathMapper, Callable[..., Any], bool, bool, SecretStore) -> None
-    for _, p in pm.items():
-        if not p.staged:
+def stage_files(pathmapper,             # type: PathMapper
+                stage_func=None,        # type: Callable[..., Any]
+                ignore_writable=False,  # type: bool
+                symlink=True,           # type: bool
+                secret_store=None       # type: SecretStore
+               ):  # type: (...) -> None
+    """Link or copy files to their targets. Create them as needed."""
+    for key, entry in pathmapper.items():
+        if not entry.staged:
             continue
-        if not os.path.exists(os.path.dirname(p.target)):
-            os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and (os.path.exists(p.resolved)):
-            if symLink:  # Use symlink func if allowed
+        if not os.path.exists(os.path.dirname(entry.target)):
+            os.makedirs(os.path.dirname(entry.target), 0o0755)
+        if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
+            if symlink:  # Use symlink func if allowed
                 if onWindows():
-                    if p.type == "File":
-                        shutil.copy(p.resolved, p.target)
-                    elif p.type == "Directory":
-                        if os.path.exists(p.target) and os.path.isdir(p.target):
-                            shutil.rmtree(p.target)
-                        copytree_with_merge(p.resolved, p.target)
+                    if entry.type == "File":
+                        shutil.copy(entry.resolved, entry.target)
+                    elif entry.type == "Directory":
+                        if os.path.exists(entry.target) \
+                                and os.path.isdir(entry.target):
+                            shutil.rmtree(entry.target)
+                        copytree_with_merge(entry.resolved, entry.target)
                 else:
-                    os.symlink(p.resolved, p.target)
-            elif stageFunc is not None:
-                stageFunc(p.resolved, p.target)
-        elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
-            os.makedirs(p.target, 0o0755)
-        elif p.type == "WritableFile" and not ignoreWritable:
-            shutil.copy(p.resolved, p.target)
-            ensure_writable(p.target)
-        elif p.type == "WritableDirectory" and not ignoreWritable:
-            if p.resolved.startswith("_:"):
-                os.makedirs(p.target, 0o0755)
+                    os.symlink(entry.resolved, entry.target)
+            elif stage_func is not None:
+                stage_func(entry.resolved, entry.target)
+        elif entry.type == "Directory" and not os.path.exists(entry.target) \
+                and entry.resolved.startswith("_:"):
+            os.makedirs(entry.target, 0o0755)
+        elif entry.type == "WritableFile" and not ignore_writable:
+            shutil.copy(entry.resolved, entry.target)
+            ensure_writable(entry.target)
+        elif entry.type == "WritableDirectory" and not ignore_writable:
+            if entry.resolved.startswith("_:"):
+                os.makedirs(entry.target, 0o0755)
             else:
-                shutil.copytree(p.resolved, p.target)
-                ensure_writable(p.target)
-        elif p.type == "CreateFile":
-            with open(p.target, "wb") as n:
+                shutil.copytree(entry.resolved, entry.target)
+                ensure_writable(entry.target)
+        elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
+            with open(entry.target, "wb") as new:
                 if secret_store is not None:
-                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
+                    new.write(
+                        secret_store.retrieve(entry.resolved).encode("utf-8"))
                 else:
-                    n.write(p.resolved.encode("utf-8"))
-            os.chmod(p.target, stat.S_IRUSR)
-        elif p.type == "CreateWritableFile":
-            with open(p.target, "wb") as n:
-                if secret_store is not None:
-                    n.write(secret_store.retrieve(p.resolved).encode("utf-8"))
-                else:
-                    n.write(p.resolved.encode("utf-8"))
-            ensure_writable(p.target)
+                    new.write(entry.resolved.encode("utf-8"))
+            if entry.type == "CreateFile":
+                os.chmod(entry.target, stat.S_IRUSR)  # Read only
+            else:  # it is a "CreateWritableFile"
+                ensure_writable(entry.target)
+            pathmapper.update(
+                key, entry.target, entry.target, entry.type, entry.staged)
 
 
 def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
@@ -333,7 +338,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
 
     outfiles = list(_collectDirEntries(outputObj))
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
-    stageFiles(pm, stageFunc=_relocate, symLink=False)
+    stage_files(pm, stage_func=_relocate, symlink=False)
 
     def _check_adjust(a_file):
         a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
@@ -453,8 +458,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
-        self.provenance_object = None  # type: Optional[CreateProvProfile]
-        self.parent_wf = None          # type: Optional[CreateProvProfile]
+        self.provenance_object = None  # type: Optional[ProvenanceProfile]
+        self.parent_wf = None          # type: Optional[ProvenanceProfile]
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")
@@ -558,7 +563,10 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             else:
                 validate_js_options = None
             if self.doc_schema is not None:
-                validate_js_expressions(cast(CommentedMap, toolpath_object), self.doc_schema.names[toolpath_object["class"]], validate_js_options)
+                validate_js_expressions(
+                    cast(CommentedMap, toolpath_object),
+                    self.doc_schema.names[toolpath_object["class"]],
+                    validate_js_options)
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
 
@@ -580,14 +588,14 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         else:
             var_spool_cwl_detector(self.tool)
 
-    def _init_job(self, joborder, runtimeContext):
+    def _init_job(self, joborder, runtime_context):
         # type: (MutableMapping[Text, Text], RuntimeContext) -> Builder
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
 
-        make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-        fs_access = make_fs_access(runtimeContext.basedir)
+        make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
+        fs_access = make_fs_access(runtime_context.basedir)
 
         # Validate job order
         try:
@@ -595,46 +603,50 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             normalizeFilesDirs(job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""),
                                  job, strict=False, logger=_logger_validation_warnings)
-        except (validate.ValidationException, WorkflowException) as e:
-            raise WorkflowException("Invalid job input record:\n" + Text(e))
+        except (validate.ValidationException, WorkflowException) as err:
+            raise WorkflowException("Invalid job input record:\n" + Text(err))
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()
         tmpdir = u""
         stagedir = u""
 
-        loadListingReq, _ = self.get_requirement("http://commonwl.org/cwltool#LoadListingRequirement")
-        if loadListingReq is not None:
-            loadListing = loadListingReq.get("loadListing")
+        load_listing_req, _ = self.get_requirement(
+            "http://commonwl.org/cwltool#LoadListingRequirement")
+        if load_listing_req is not None:
+            load_listing = load_listing_req.get("loadListing")
         else:
-            loadListing = "deep_listing"   # will default to "no_listing" in CWL v1.1
+            load_listing = "deep_listing"   # will default to "no_listing" in CWL v1.1
 
-        dockerReq, _ = self.get_requirement("DockerRequirement")
-        defaultDocker = None
+        docker_req, _ = self.get_requirement("DockerRequirement")
+        default_docker = None
 
-        if dockerReq is None and runtimeContext.default_container:
-            defaultDocker = runtimeContext.default_container
+        if docker_req is None and runtime_context.default_container:
+            default_docker = runtime_context.default_container
 
-        if (dockerReq or defaultDocker) and runtimeContext.use_container:
-            if dockerReq is not None:
+        if (docker_req or default_docker) and runtime_context.use_container:
+            if docker_req is not None:
                 # Check if docker output directory is absolute
-                if dockerReq.get("dockerOutputDirectory") and \
-                        dockerReq.get("dockerOutputDirectory").startswith('/'):
-                    outdir = dockerReq.get("dockerOutputDirectory")
+                if docker_req.get("dockerOutputDirectory") and \
+                        docker_req.get("dockerOutputDirectory").startswith('/'):
+                    outdir = docker_req.get("dockerOutputDirectory")
                 else:
-                    outdir = dockerReq.get("dockerOutputDirectory") or \
-                        runtimeContext.docker_outdir or random_outdir()
-            elif defaultDocker is not None:
-                outdir = runtimeContext.docker_outdir or random_outdir()
-            tmpdir = runtimeContext.docker_tmpdir or "/tmp"
-            stagedir = runtimeContext.docker_stagedir or "/var/lib/cwl"
+                    outdir = docker_req.get("dockerOutputDirectory") or \
+                        runtime_context.docker_outdir or random_outdir()
+            elif default_docker is not None:
+                outdir = runtime_context.docker_outdir or random_outdir()
+            tmpdir = runtime_context.docker_tmpdir or "/tmp"
+            stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(
-                runtimeContext.outdir or tempfile.mkdtemp(
-                    prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)))
+                runtime_context.outdir or tempfile.mkdtemp(
+                    prefix=getdefault(runtime_context.tmp_outdir_prefix,
+                                      DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
-                tmpdir = fs_access.realpath(runtimeContext.tmpdir or tempfile.mkdtemp())
-                stagedir = fs_access.realpath(runtimeContext.stagedir or tempfile.mkdtemp())
+                tmpdir = fs_access.realpath(runtime_context.tmpdir or
+                                            tempfile.mkdtemp())
+                stagedir = fs_access.realpath(runtime_context.stagedir or
+                                              tempfile.mkdtemp())
 
         builder = Builder(job,
                           files,
@@ -644,63 +656,62 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                           self.requirements,
                           self.hints,
                           {},
-                          runtimeContext.mutation_manager,
+                          runtime_context.mutation_manager,
                           self.formatgraph,
                           make_fs_access,
                           fs_access,
-                          runtimeContext.job_script_provider,
-                          runtimeContext.eval_timeout,
-                          runtimeContext.debug,
-                          runtimeContext.js_console,
-                          runtimeContext.force_docker_pull,
-                          loadListing,
+                          runtime_context.job_script_provider,
+                          runtime_context.eval_timeout,
+                          runtime_context.debug,
+                          runtime_context.js_console,
+                          runtime_context.force_docker_pull,
+                          load_listing,
                           outdir,
                           tmpdir,
                           stagedir)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
-            discover_secondaryFiles=getdefault(runtimeContext.toplevel, False)))
+            discover_secondaryFiles=getdefault(runtime_context.toplevel, False)))
 
         if self.tool.get("baseCommand"):
-            for n, b in enumerate(aslist(self.tool["baseCommand"])):
+            for index, command in enumerate(aslist(self.tool["baseCommand"])):
                 bindings.append({
-                    "position": [-1000000, n],
-                    "datum": b
+                    "position": [-1000000, index],
+                    "datum": command
                 })
 
         if self.tool.get("arguments"):
-            for i, a in enumerate(self.tool["arguments"]):
+            for i, arg in enumerate(self.tool["arguments"]):
                 lc = self.tool["arguments"].lc.data[i]
-                fn = self.tool["arguments"].lc.filename
+                filename = self.tool["arguments"].lc.filename
                 bindings.lc.add_kv_line_col(len(bindings), lc)
-                if isinstance(a, MutableMapping):
-                    a = copy.deepcopy(a)
-                    if a.get("position"):
-                        a["position"] = [a["position"], i]
+                if isinstance(arg, MutableMapping):
+                    arg = copy.deepcopy(arg)
+                    if arg.get("position"):
+                        arg["position"] = [arg["position"], i]
                     else:
-                        a["position"] = [0, i]
-                    bindings.append(a)
-                elif ("$(" in a) or ("${" in a):
+                        arg["position"] = [0, i]
+                    bindings.append(arg)
+                elif ("$(" in arg) or ("${" in arg):
                     cm = CommentedMap((
                         ("position", [0, i]),
-                        ("valueFrom", a)
+                        ("valueFrom", arg)
                     ))
                     cm.lc.add_kv_line_col("valueFrom", lc)
-                    cm.lc.filename = fn
+                    cm.lc.filename = filename
                     bindings.append(cm)
                 else:
                     cm = CommentedMap((
                         ("position", [0, i]),
-                        ("datum", a)
+                        ("datum", arg)
                     ))
                     cm.lc.add_kv_line_col("datum", lc)
-                    cm.lc.filename = fn
+                    cm.lc.filename = filename
                     bindings.append(cm)
 
         # use python2 like sorting of heterogeneous lists
         # (containing str and int types),
-        # TODO: unify for both runtime
         if PY3:
             key = functools.cmp_to_key(cmp_like_py2)
         else:  # PY2
@@ -711,12 +722,12 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         # mutated in place, sigh, I'm sorry) with its contents sorted,
         # supporting different versions of Python and ruamel.yaml with
         # different behaviors/bugs in CommentedSeq.
-        bd = copy.deepcopy(bindings)
+        bindings_copy = copy.deepcopy(bindings)
         del bindings[:]
-        bindings.extend(sorted(bd, key=key))
+        bindings.extend(sorted(bindings_copy, key=key))
 
         if self.tool[u"class"] != 'Workflow':
-            builder.resources = self.evalResources(builder, runtimeContext)
+            builder.resources = self.evalResources(builder, runtime_context)
         return builder
 
     def evalResources(self, builder, runtimeContext):

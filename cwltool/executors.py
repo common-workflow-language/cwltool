@@ -21,7 +21,7 @@ from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process  # pylint: disable=unused-import
 from .process import cleanIntermediate, relocateOutputs
-from .provenance import CreateProvProfile
+from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
@@ -77,11 +77,12 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
 
         job_reqs = None
-        if "cwl:requirements" in job_order_object:
-            job_reqs = job_order_object["cwl:requirements"]
+        if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
+            job_reqs = job_order_object["https://w3id.org/cwl/cwl#requirements"]
         elif ("cwl:defaults" in process.metadata
-              and "cwl:requirements" in process.metadata["cwl:defaults"]):
-            job_reqs = process.metadata["cwl:defaults"]["cwl:requirements"]
+              and "https://w3id.org/cwl/cwl#requirements"
+              in process.metadata["cwl:defaults"]):
+            job_reqs = process.metadata["cwl:defaults"]["https://w3id.org/cwl/cwl#requirements"]
         if job_reqs is not None:
             for req in job_reqs:
                 process.requirements.append(req)
@@ -95,7 +96,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                 getdefault(runtime_context.compute_checksum, True),
                 path_mapper=runtime_context.path_mapper)
 
-        if runtime_context.rm_tmpdir is not None:
+        if runtime_context.rm_tmpdir:
             if runtime_context.cachedir is None:
                 output_dirs = self.output_dirs  # type: Iterable[Any]
             else:
@@ -134,7 +135,7 @@ class SingleJobExecutor(JobExecutor):
         # define provenance profile for single commandline tool
         if not isinstance(process, Workflow) \
                 and runtime_context.research_obj is not None:
-            process.provenance_object = CreateProvProfile(
+            process.provenance_object = ProvenanceProfile(
                 runtime_context.research_obj,
                 full_name=runtime_context.cwl_full_name,
                 host_provenance=False,
@@ -159,11 +160,12 @@ class SingleJobExecutor(JobExecutor):
                         else:
                             runtime_context.prov_obj = job.prov_obj
                         assert runtime_context.prov_obj
-                        process_run_id = \
-                            runtime_context.prov_obj.evaluate(
-                                process, job, job_order_object,
-                                runtime_context.make_fs_access,
-                                runtime_context.research_obj)
+                        runtime_context.prov_obj.evaluate(
+                            process, job, job_order_object,
+                            runtime_context.research_obj)
+                        process_run_id =\
+                            runtime_context.prov_obj.record_process_start(
+                                process, job)
                         runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
                     job.run(runtime_context)

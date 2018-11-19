@@ -18,29 +18,26 @@ from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List,
 
 import shellescape
 from prov.model import PROV
-from schema_salad.sourceline import SourceLine
 from six import PY2, with_metaclass
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad.sourceline import SourceLine
 
 from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .context import RuntimeContext  # pylint: disable=unused-import
 from .context import getdefault
 from .errors import WorkflowException
 from .loghandler import _logger
-from .pathmapper import (MapperEnt, PathMapper, ensure_writable,
-                         ensure_non_writable)
-from .process import UnsupportedRequirement, stageFiles
+from .pathmapper import (MapperEnt, PathMapper,  # pylint: disable=unused-import
+                         ensure_writable, ensure_non_writable)
+from .process import UnsupportedRequirement, stage_files
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import \
-    bytes2str_in_dicts  # pylint: disable=unused-import; pylint: disable=unused-import
-from .utils import (DEFAULT_TMP_PREFIX, Directory, copytree_with_merge,
-                    json_dump, json_dumps, onWindows, processes_to_kill,
-                    subprocess)
+from .utils import (DEFAULT_TMP_PREFIX, Directory, bytes2str_in_dicts,
+                    copytree_with_merge, json_dump, json_dumps, onWindows,
+                    processes_to_kill, subprocess)
 
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
@@ -194,8 +191,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatefiles = {"class": "Directory", "listing": [], "basename": ""}  # type: Directory
         self.stagedir = None  # type: Optional[Text]
         self.inplace_update = False
-        self.prov_obj = None   # type: Optional[CreateProvProfile]
-        self.parent_wf = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None   # type: Optional[ProvenanceProfile]
+        self.parent_wf = None  # type: Optional[ProvenanceProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
@@ -264,7 +261,6 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                         "{} missing from pathmapper".format(self.stdin))
                 else:
                     stdin_path = rmap[1]
-
 
             stderr_path = None
             if self.stderr is not None:
@@ -344,11 +340,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if runtimeContext.research_obj is not None and self.prov_obj is not None and \
                 runtimeContext.process_run_id is not None:
             #creating entities for the outputs produced by each step (in the provenance document)
-            self.prov_obj.generate_output_prov(
-                outputs, runtimeContext.process_run_id, str(self.name))
-            self.prov_obj.document.wasEndedBy(
-                runtimeContext.process_run_id, None, self.prov_obj.workflow_run_uri,
-                datetime.datetime.now())
+            self.prov_obj.record_process_end(str(self.name), runtimeContext.process_run_id,
+                                      outputs, datetime.datetime.now())
         if processStatus != "success":
             _logger.warning(u"[job %s] completed %s", self.name, processStatus)
         else:
@@ -381,7 +374,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] Removing input staging directory %s", self.name, self.stagedir)
             shutil.rmtree(self.stagedir, True)
 
-        if runtimeContext.rm_tmpdir is not None:
+        if runtimeContext.rm_tmpdir:
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
@@ -410,14 +403,17 @@ class CommandLineJob(JobBase):
         if "PATH" not in env:
             env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
         if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() else os.environ["SYSTEMROOT"]
+            env["SYSTEMROOT"] = str(os.environ["SYSTEMROOT"]) if onWindows() \
+                    else os.environ["SYSTEMROOT"]
 
-        stageFiles(self.pathmapper, ignoreWritable=True, symLink=True, secret_store=runtimeContext.secret_store)
+        stage_files(self.pathmapper, ignore_writable=True, symlink=True,
+                    secret_store=runtimeContext.secret_store)
         if self.generatemapper is not None:
-            stageFiles(self.generatemapper, ignoreWritable=self.inplace_update,
-                       symLink=True, secret_store=runtimeContext.secret_store)
-            relink_initialworkdir(self.generatemapper, self.outdir,
-                                  self.builder.outdir, inplace_update=self.inplace_update)
+            stage_files(self.generatemapper, ignore_writable=self.inplace_update,
+                        symlink=True, secret_store=runtimeContext.secret_store)
+            relink_initialworkdir(
+                self.generatemapper, self.outdir, self.builder.outdir,
+                inplace_update=self.inplace_update)
 
         self._execute([], env, runtimeContext)
 
@@ -481,12 +477,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                                    volume,           # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
                                    secret_store      # type: Optional[SecretStore]
-                                  ):  # type: (...) -> None
+                                  ):  # type: (...) -> Text
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
             new_file = os.path.join(
                 tempfile.mkdtemp(dir=self.tmpdir),
-                os.path.basename(volume.resolved))
+                os.path.basename(volume.target))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
             contents = secret_store.retrieve(volume.resolved)
@@ -504,7 +500,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             ensure_writable(host_outdir_tgt or new_file)
         else:
             ensure_non_writable(host_outdir_tgt or new_file)
-
+        return host_outdir_tgt or new_file
 
 
     def add_volumes(self,
@@ -516,7 +512,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         """Append volume mappings to the runtime option list."""
 
         container_outdir = self.builder.outdir
-        for vol in (itm[1] for itm in pathmapper.items() if itm[1].staged):
+        for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
             host_outdir_tgt = None  # type: Optional[Text]
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
@@ -535,11 +531,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 self.add_writable_directory_volume(
                     runtime, vol, host_outdir_tgt)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                self.create_file_and_add_volume(
+                new_path = self.create_file_and_add_volume(
                     runtime, vol, host_outdir_tgt, secret_store)
+                pathmapper.update(
+                    key, new_path, vol.target, vol.type, vol.staged)
 
-    def run(self, runtimeContext):
-        # type: (RuntimeContext) -> None
+    def run(self, runtimeContext):  # type: (RuntimeContext) -> None
         if not os.path.exists(self.tmpdir):
             os.makedirs(self.tmpdir)
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")

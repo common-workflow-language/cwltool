@@ -30,7 +30,7 @@ from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import adjustDirObjs, get_listing
 from .process import Process, get_overrides, shortname, uniquename
-from .provenance import CreateProvProfile
+from .provenance import ProvenanceProfile
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
@@ -208,8 +208,8 @@ class WorkflowJob(object):
     def __init__(self, workflow, runtimeContext):
         # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
-        self.parent_wf = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.parent_wf = None  # type: Optional[ProvenanceProfile]
         self.tool = workflow.tool
         if runtimeContext.research_obj is not None:
             self.prov_obj = workflow.provenance_object
@@ -500,14 +500,14 @@ class Workflow(Process):
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
-        self.provenance_object = None  # type: Optional[CreateProvProfile]
+        self.provenance_object = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
             run_uuid = None  # type: Optional[UUID]
-            is_master = not(loadingContext.prov_obj)  # Not yet set
+            is_master = not loadingContext.prov_obj  # Not yet set
             if is_master:
                 run_uuid = loadingContext.research_obj.ro_uuid
 
-            self.provenance_object = CreateProvProfile(
+            self.provenance_object = ProvenanceProfile(
                 loadingContext.research_obj,
                 full_name=loadingContext.cwl_full_name,
                 host_provenance=loadingContext.host_provenance,
@@ -528,7 +528,7 @@ class Workflow(Process):
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
                 self.steps.append(self.make_workflow_step(step, index, loadingContext,
-                                               loadingContext.prov_obj))
+                                                          loadingContext.prov_obj))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -559,7 +559,7 @@ class Workflow(Process):
                            toolpath_object,      # type: Dict[Text, Any]
                            pos,                  # type: int
                            loadingContext,       # type: LoadingContext
-                           parentworkflowProv=None  # type: Optional[CreateProvProfile]
+                           parentworkflowProv=None  # type: Optional[ProvenanceProfile]
     ):
         # (...) -> WorkflowStep
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
@@ -572,8 +572,6 @@ class Workflow(Process):
         builder = self._init_job(job_order, runtimeContext)
         #relativeJob=copy.deepcopy(builder.job)
         if runtimeContext.research_obj is not None:
-            if not runtimeContext.research_obj.make_fs_access:
-                runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
             if runtimeContext.toplevel:
                 # Record primary-job.json
                 runtimeContext.research_obj.create_job(builder.job, self.job)
@@ -600,7 +598,7 @@ class WorkflowStep(Process):
                  toolpath_object,      # type: Dict[Text, Any]
                  pos,                  # type: int
                  loadingContext,       # type: LoadingContext
-                 parentworkflowProv=None  # type: Optional[CreateProvProfile]
+                 parentworkflowProv=None  # type: Optional[ProvenanceProfile]
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -743,7 +741,7 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
@@ -775,7 +773,8 @@ class WorkflowStep(Process):
             self.embedded_tool.parent_wf = self.prov_obj
             process_name = self.tool["id"].split("#")[1]
             self.prov_obj.start_process(
-                process_name, self.embedded_tool.provenance_object.workflow_run_uri)
+                process_name, datetime.datetime.now(),
+                self.embedded_tool.provenance_object.workflow_run_uri)
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
             if not inp.get("not_connected"):
