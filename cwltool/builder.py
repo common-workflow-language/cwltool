@@ -232,7 +232,7 @@ class Builder(HasReqsHints):
                     and st["type"] == "array"\
                     and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
-            for k in ("secondaryFiles", "format", "streamable"):
+            for k in ("secondaryFiles", "format", "streamable", "metadata"):
                 if k in schema:
                     st[k] = schema[k]
             if value_from_expression:
