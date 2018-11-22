@@ -26,20 +26,12 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
-	pytest-xdist isort
+DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 isort
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
 	--max-count=1 --format=format:%cI`)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-UNAME_S=$(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-	nproc=$(shell nproc)
-endif
-ifeq ($(UNAME_S),Darwin)
-	nproc=$(shell sysctl -n hw.physicalcpu)
-endif
 
 ## all         : default task
 all:
@@ -49,11 +41,11 @@ all:
 help: Makefile
 	@sed -n 's/^##//p' $<
 
-## install-dep : install most of the development dependencies via pip
+## install-dep: install most of the development dependencies via pip
 install-dep:
 	pip install --upgrade $(DEVPKGS) .[test,deps]
 
-## install-deb-dep: install most of the dev dependencies via apt-get
+## install-deb-dep: install most of the development dependencies via apt-get
 install-deb-dep:
 	sudo apt-get install $(DEBDEVPKGS)
 
@@ -63,7 +55,7 @@ install: FORCE
 
 ## dev     : install the ${MODULE} module in dev mode
 dev: install-dep
-	pip install -e .[deps]
+	pip install -e .[test,deps]
 
 
 ## dist        : create a module package for distribution
@@ -75,10 +67,13 @@ dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
 
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
-	rm -f ${MODILE}/*.pyc tests/*.pyc
-	python setup.py clean --all || true
+	rm -f ${MODULE}/*.pyc tests/*.pyc diff-cover.html
 	rm -Rf .coverage
-	rm -f diff-cover.html
+	python setup.py clean --all || true
+
+## distclean   : delete all non-tracked files
+distclean: FORCE
+	git clean -ffdx || true
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
@@ -121,11 +116,11 @@ format: autopep8
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-                $^ -j$(nproc)|| true
+                $^ -j 0|| true
 
 pylint_report.txt: ${PYSOURCES}
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ -j$(nproc)> $@ || true
+		$^ -j 0 > $@ || true
 
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
@@ -155,11 +150,11 @@ diff-cover.html:  coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
-	python setup.py test --addopts "-n$(nproc) --dist=loadfile"
+	python setup.py test --addopts "-n auto --dist=loadfile"
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool -n$(nproc) --dist=loadfile"
+	python setup.py test --addopts "--cov cwltool -n auto --dist=loadfile"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > $@
