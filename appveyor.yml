@@ -34,7 +34,7 @@ install:
 build: off
 
 test_script:
-  - "%PYTHON%\\python.exe -m pytest -p no:cacheprovider -p no:stepwise --cov --cov-report xml --junit-xml=tests.xml"
+  - "%PYTHON%\\python.exe -m pytest -n auto --dist=loadfile -p no:cacheprovider -p no:stepwise --cov --cov-report xml --junit-xml=tests.xml"
 
 on_finish:
   - "%PYTHON%\\python.exe -m codecov --file coverage.xml"

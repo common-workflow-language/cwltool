@@ -20,7 +20,7 @@ NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
 
 test_deps = ['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
-             'pytest-cov', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0']
+             'pytest-cov', 'pytest-xdist', 'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0']
 
 setup(name='cwltool',
       version='1.0',
