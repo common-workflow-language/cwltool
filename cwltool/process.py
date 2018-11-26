@@ -363,7 +363,8 @@ def cleanIntermediate(output_dirs):  # type: (Iterable[Text]) -> None
 def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
     if 'location' in obj:
         try:
-            obj["size"] = fsaccess.size(obj["location"])
+            if "size" not in obj:
+                obj["size"] = fsaccess.size(obj["location"])
         except OSError:
             pass
     elif 'contents' in obj:
