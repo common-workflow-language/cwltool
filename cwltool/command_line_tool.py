@@ -17,6 +17,7 @@ from typing import (Any, Callable, Dict, Generator, List, MutableMapping,
 
 import shellescape
 from schema_salad import validate
+from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from six import string_types
@@ -612,17 +613,17 @@ class CommandLineTool(Process):
 
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
-
-            validate.validate_ex(
-                self.names.get_name("outputs_record_schema", ""), ret,
+            expected_schema = cast(Schema, self.names.get_name(
+                "outputs_record_schema", ""))
+            validate.validate_ex(expected_schema, ret,
                 strict=False, logger=_logger_validation_warnings)
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException(
-                "Error validating output record. " + Text(e) + "\n in " +
-                json_dumps(ret, indent=4))
+                "Error validating output record. " + Text(e) + "\n in "
+                + json_dumps(ret, indent=4))
         finally:
             if builder.mutation_manager and readers:
                 for r in readers.values():

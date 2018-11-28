@@ -10,7 +10,7 @@ from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import validate
 from schema_salad.schema import Names, convert_to_dict
-from schema_salad.avro.schema import make_avsc_object
+from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from six import iteritems, string_types
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
@@ -209,7 +209,7 @@ class Builder(HasReqsHints):
         if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
-                avsc = None
+                avsc = None  # type: Optional[Schema]
                 if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
                 elif isinstance(t, MutableMapping) and "name" in t and self.names.has_name(t["name"], ""):
