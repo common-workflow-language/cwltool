@@ -8,7 +8,7 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
-                    MutableMapping, MutableSequence, Optional, Tuple, Union)
+                    Mapping, MutableMapping, MutableSequence, Optional, Tuple, Union)
 from uuid import UUID  # pylint: disable=unused-import
 
 from ruamel.yaml.comments import CommentedMap
@@ -165,7 +165,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
                     return None
 
         if inputobj.get(iid) is None and "default" in inp:
-            inputobj[iid] = copy.deepcopy(inp["default"])
+            inputobj[iid] = inp["default"]
 
         if iid not in inputobj and ("valueFrom" in inp or incomplete):
             inputobj[iid] = None
@@ -189,7 +189,7 @@ class WorkflowJobStep(object):
         self.parent_wf = step.parent_wf
 
     def job(self,
-            joborder,         # type: MutableMapping[Text, Text]
+            joborder,         # type: Mapping[Text, Text]
             output_callback,  # type: functools.partial[None]
             runtimeContext    # type: RuntimeContext
            ):
@@ -415,7 +415,7 @@ class WorkflowJob(object):
         _logger.info(u"[%s] start", self.name)
 
     def job(self,
-            joborder,         # type: MutableMapping[Text, Any]
+            joborder,         # type: Mapping[Text, Any]
             output_callback,  # type: Callable[[Any, Any], Any]
             runtimeContext    # type: RuntimeContext
            ):  # type: (...) -> Generator
@@ -434,10 +434,10 @@ class WorkflowJob(object):
                 inp_id = shortname(inp["id"])
                 if inp_id in joborder:
                     self.state[inp["id"]] = WorkflowStateItem(
-                        inp, copy.deepcopy(joborder[inp_id]), "success")
+                        inp, joborder[inp_id], "success")
                 elif "default" in inp:
                     self.state[inp["id"]] = WorkflowStateItem(
-                        inp, copy.deepcopy(inp["default"]), "success")
+                        inp, inp["default"], "success")
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a "
@@ -565,7 +565,7 @@ class Workflow(Process):
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -761,7 +761,7 @@ class WorkflowStep(Process):
         output_callback(output, processStatus)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext,    # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -775,15 +775,16 @@ class WorkflowStep(Process):
             self.prov_obj.start_process(
                 process_name, datetime.datetime.now(),
                 self.embedded_tool.provenance_object.workflow_run_uri)
+
+        step_input = {}
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
             if not inp.get("not_connected"):
-                job_order[field] = job_order[inp["id"]]
-            del job_order[inp["id"]]
+                step_input[field] = job_order[inp["id"]]
 
         try:
             for tool in self.embedded_tool.job(
-                    job_order,
+                    step_input,
                     functools.partial(self.receive_output, output_callbacks),
                     runtimeContext):
                 yield tool
@@ -878,7 +879,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
     steps = []
     for index in range(0, jobl):
-        sjobo = copy.deepcopy(joborder)
+        sjobo = copy.copy(joborder)
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
@@ -909,7 +910,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
 
     steps = []
     for index in range(0, jobl):
-        sjob = copy.deepcopy(joborder)
+        sjob = copy.copy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
@@ -967,7 +968,7 @@ def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
     steps = []
     put = startindex
     for index in range(0, jobl):
-        sjob = copy.deepcopy(joborder)
+        sjob = copy.copy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:

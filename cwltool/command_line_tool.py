@@ -12,7 +12,7 @@ import shutil
 import tempfile
 import threading
 from functools import cmp_to_key, partial
-from typing import (Any, Callable, Dict, Generator, List, MutableMapping,
+from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
                     MutableSequence, Optional, Set, Union, cast)
 
 import shellescape
@@ -102,7 +102,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):
@@ -275,7 +275,7 @@ class CommandLineTool(Process):
             self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # RuntimeContext
            ):
@@ -402,7 +402,7 @@ class CommandLineTool(Process):
                           self.tool.get("id", ""),
                           u" as part of %s" % runtimeContext.part_of
                           if runtimeContext.part_of else "")
-            _logger.debug(u"[job %s] %s", j.name, json_dumps(job_order,
+            _logger.debug(u"[job %s] %s", j.name, json_dumps(builder.job,
                                                              indent=4))
 
         builder.pathmapper = self.make_path_mapper(

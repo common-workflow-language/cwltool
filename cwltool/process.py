@@ -16,7 +16,7 @@ import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
-                    MutableMapping, MutableSequence, Optional, Set, Tuple,
+                    Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
                     Union, cast)
 
 from pkg_resources import resource_stream
@@ -590,7 +590,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, runtime_context):
-        # type: (MutableMapping[Text, Text], RuntimeContext) -> Builder
+        # type: (Mapping[Text, Text], RuntimeContext) -> Builder
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
@@ -790,7 +790,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
     @abc.abstractmethod
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
