@@ -51,7 +51,7 @@ def folder():
 
 def cwltool(folder, *args):
     load_tool.loaders = {}
-    new_args = ['--no-container', '--provenance', folder]
+    new_args = ['--provenance', folder]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     with temp_dir("cwltool-run") as tmp_dir:
