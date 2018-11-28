@@ -934,7 +934,7 @@ class ProvenanceProfile():
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
-        _logger.debug("[provenance] added provenance: %s", prov_ids)
+        _logger.debug(u"[provenance] added provenance: %s", prov_ids)
         return prov_ids
 
 

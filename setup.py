@@ -53,7 +53,7 @@ setup(name='cwltool',
           'ruamel.yaml >= 0.12.4, <= 0.15.77',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 2.7.20180905124720, < 3',
+          'schema-salad >= 2.8, < 3',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',

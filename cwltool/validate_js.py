@@ -6,15 +6,14 @@ from collections import namedtuple
 from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
                     Tuple, Union)
 
-import avro.schema  # always import after schema_salad, never before
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
-from schema_salad.sourceline import SourceLine
-from schema_salad.validate import Schema  # pylint: disable=unused-import
-from schema_salad.validate import ValidationException, validate_ex
 from six import string_types
 from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad import avro
+from schema_salad.sourceline import SourceLine
+from schema_salad.validate import Schema  # pylint: disable=unused-import
+from schema_salad.validate import validate_ex
 
 from .expression import scanner as scan_expression
 from .loghandler import _logger
@@ -60,8 +59,8 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
         if not isinstance(tool, MutableSequence):
             return []
 
-        return list(itertools.chain(*
-            map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool))  # type: ignore # https://github.com/python/mypy/issues/4679
+        return list(itertools.chain(
+            *map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool))  # type: ignore # https://github.com/python/mypy/issues/4679
         ))
 
     elif isinstance(schema, avro.schema.RecordSchema):
@@ -166,7 +165,7 @@ def validate_js_expressions(tool, schema, jshint_options=None):
 
     default_globals = [u"self", u"inputs", u"runtime", u"console"]
 
-    for i, prop in enumerate(reversed(requirements)):
+    for prop in reversed(requirements):
         if prop["class"] == "InlineJavascriptRequirement":
             expression_lib = prop.get("expressionLib", [])
             break

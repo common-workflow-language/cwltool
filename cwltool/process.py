@@ -470,12 +470,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             SCHEMA_DIR = cast(Dict[Text, Any],
                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"])
 
-        names = schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
-                                        Loader({}))[0]
-        if isinstance(names, schema.SchemaParseException):
-            raise names
-        else:
-            self.names = names
+        self.names = schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
+                                             Loader({}))
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         self.requirements.extend(self.tool.get("requirements", []))
@@ -506,7 +502,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
-            schema.AvroSchemaFromJSONData(av, self.names)  # type: ignore
+            schema.make_avsc_object(schema.convert_to_dict(av), self.names)
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -542,12 +538,14 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             self.inputs_record_schema = cast(
                 Dict[Text, Any], schema.make_valid_avro(
                     self.inputs_record_schema, {}, set()))
-            schema.AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
+            schema.make_avsc_object(
+                schema.convert_to_dict(self.inputs_record_schema), self.names)
         with SourceLine(toolpath_object, "outputs", validate.ValidationException):
             self.outputs_record_schema = cast(
                 Dict[Text, Any],
                 schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            schema.AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
+            schema.make_avsc_object(
+                schema.convert_to_dict(self.outputs_record_schema), self.names)
 
         if toolpath_object.get("class") is not None \
                 and not getdefault(loadingContext.disable_js_validation, False):
@@ -601,8 +599,12 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         try:
             fill_in_defaults(self.tool[u"inputs"], job, fs_access)
             normalizeFilesDirs(job)
-            validate.validate_ex(self.names.get_name("input_record_schema", ""),
-                                 job, strict=False, logger=_logger_validation_warnings)
+            schema = self.names.get_name("input_record_schema", "")
+            if schema is None:
+                raise WorkflowException("Missing input record schema: "
+                    "{}".format(self.names))
+            validate.validate_ex(schema, job, strict=False,
+                                 logger=_logger_validation_warnings)
         except (validate.ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + Text(err))
 
@@ -643,10 +645,10 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                     prefix=getdefault(runtime_context.tmp_outdir_prefix,
                                       DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
-                tmpdir = fs_access.realpath(runtime_context.tmpdir or
-                                            tempfile.mkdtemp())
-                stagedir = fs_access.realpath(runtime_context.stagedir or
-                                              tempfile.mkdtemp())
+                tmpdir = fs_access.realpath(runtime_context.tmpdir
+                                            or tempfile.mkdtemp())
+                stagedir = fs_access.realpath(runtime_context.stagedir
+                                              or tempfile.mkdtemp())
 
         builder = Builder(job,
                           files,
