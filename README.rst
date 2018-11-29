@@ -21,7 +21,8 @@ This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
-This is written and tested for `Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 4, 5, 6}``
+This is written and tested for
+`Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 4, 5, 6, 7}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
