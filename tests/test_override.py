@@ -44,15 +44,8 @@ override_parameters = [
       get_data('tests/override/echo-job.yml')],
      {"out": "zing hello6\n"}
      ),
-    ([get_data('tests/override/env-tool.cwl'),
-      get_data('tests/override/env-tool_cwltool-requirement_override.yaml')],
-     {"value": "hello test env"}
-     ),
     (["--enable-dev", get_data('tests/override/env-tool_v1.1.0-dev1.cwl'),
       get_data('tests/override/env-tool_cwl-requirement_override.yaml')],
-     {"value": "hello test env"}
-     ),
-    ([get_data('tests/override/env-tool_cwltool-requirement_override_default.yaml')],
      {"value": "hello test env"}
      ),
     (["--enable-dev",
@@ -70,11 +63,12 @@ def test_overrides(parameters, result):
     assert main(parameters, stdout=sio) == 0
     assert json.loads(sio.getvalue()) == result
 
+
 failing_override_parameters = [
     ([get_data('tests/override/env-tool.cwl'),
       get_data('tests/override/env-tool_cwl-requirement_override.yaml')],
      "`cwl:requirements` in the input object is not part of CWL v1.0. You can "
-     "use `cwltool:requirements` instead; or you can set the cwlVersion to "
+     "adjust to use `cwltool:overrides` instead; or you can set the cwlVersion to "
      "v1.1.0-dev1 or greater and re-run with --enable-dev."
      ),
     ([get_data('tests/override/env-tool_v1.1.0-dev1.cwl'),
@@ -85,7 +79,7 @@ failing_override_parameters = [
      ),
     ([get_data('tests/override/env-tool_cwl-requirement_override_default_wrongver.yaml')],
      "`cwl:requirements` in the input object is not part of CWL v1.0. You can "
-     "use `cwltool:requirements` instead; or you can set the cwlVersion to "
+     "adjust to use `cwltool:overrides` instead; or you can set the cwlVersion to "
      "v1.1.0-dev1 or greater and re-run with --enable-dev."
      ),
     ([get_data('tests/override/env-tool_cwl-requirement_override_default.yaml')],

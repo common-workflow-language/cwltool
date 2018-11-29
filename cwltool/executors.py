@@ -51,7 +51,6 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                  runtime_context     # type: RuntimeContext
                 ):  # type: (...) -> None
         """ Execute the jobs for the given Process. """
-        pass
 
     def execute(self,
                 process,           # type: Process
@@ -81,26 +80,20 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
             if process.metadata["cwlVersion"] == 'v1.0':
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
-                    "v1.0. You can use `cwltool:requirements` instead; or you "
+                    "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
                     "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
                     "--enable-dev.")
             job_reqs = job_order_object["https://w3id.org/cwl/cwl#requirements"]
-        elif "http://commonwl.org/cwltool#requirements" in job_order_object:
-            job_reqs = job_order_object["http://commonwl.org/cwltool#requirements"]
         elif ("cwl:defaults" in process.metadata
               and "https://w3id.org/cwl/cwl#requirements"
               in process.metadata["cwl:defaults"]):
             if process.metadata["cwlVersion"] == 'v1.0':
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
-                    "v1.0. You can use `cwltool:requirements` instead; or you "
+                    "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
                     "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
                     "--enable-dev.")
             job_reqs = process.metadata["cwl:defaults"]["https://w3id.org/cwl/cwl#requirements"]
-        elif ("cwl:defaults" in process.metadata
-              and "http://commonwl.org/cwltool#requirements"
-              in process.metadata["cwl:defaults"]):
-            job_reqs = process.metadata["cwl:defaults"]["http://commonwl.org/cwltool#requirements"]
         if job_reqs is not None:
             for req in job_reqs:
                 process.requirements.append(req)
@@ -251,10 +244,11 @@ class MultithreadedJobExecutor(JobExecutor):
         while self.pending_jobs:
             with self.pending_jobs_lock:
                 job = self.pending_jobs[0]
-                if isinstance(job, JobBase) and \
+                if isinstance(job, JobBase) \
+                        and \
                         ((self.allocated_ram + job.builder.resources["ram"])
-                         > self.max_ram or
-                         (self.allocated_cores + job.builder.resources["cores"])
+                         > self.max_ram
+                         or (self.allocated_cores + job.builder.resources["cores"])
                          > self.max_cores):
                     _logger.warning(
                         'Job "%s" requested more resources (%s) than are '
