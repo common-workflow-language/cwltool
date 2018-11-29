@@ -270,8 +270,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         dest="ga4gh_tool_registries", default=[])
 
     parser.add_argument("--on-error",
-                        help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
-                             "Default is 'stop'.", default="stop", choices=("stop", "continue"))
+                        help="Desired workflow behavior when a step fails.  One of 'stop' (do not submit any more steps) or "
+                        "'continue' (may submit other steps that are not downstream from the error). Default is 'stop'.",
+                        default="stop", choices=("stop", "continue"))
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--compute-checksum", action="store_true", default=True,
