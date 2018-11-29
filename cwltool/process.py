@@ -499,8 +499,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
         if sd is not None:
-            sdtypes = sd["types"]
-            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
+            sdtypes = avroize_type(sd["types"])
+            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
             schema.make_avsc_object(schema.convert_to_dict(av), self.names)
