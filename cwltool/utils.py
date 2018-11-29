@@ -22,7 +22,10 @@ from typing_extensions import Deque, Text  # pylint: disable=unused-import
 
 # no imports from cwltool allowed
 if os.name == 'posix':
-    import subprocess32 as subprocess  # pylint: disable=unused-import
+    if sys.version_info < (3, 5):
+        import subprocess32 as subprocess  # pylint: disable=unused-import
+    else:
+        import subprocess  # pylint: disable=unused-import
 else:
     import subprocess  # type: ignore
 

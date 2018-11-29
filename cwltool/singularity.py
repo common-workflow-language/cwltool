@@ -23,10 +23,17 @@ from .pathmapper import PathMapper, MapperEnt  # pylint: disable=unused-import
 from .pathmapper import ensure_writable, ensure_non_writable
 from .process import UnsupportedRequirement
 from .utils import docker_windows_path_adjust
+
 if os.name == 'posix':
-    from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
-        check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
-        TimeoutExpired)
+    if sys.version_info < (3, 5):
+        from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
+            check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
+            TimeoutExpired)
+    else:
+        from subprocess import (  # pylint: disable=import-error,no-name-in-module
+            check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
+            TimeoutExpired)
+
 else:  # we're not on Unix, so none of this matters
     pass
 
