@@ -13,7 +13,7 @@ import signal
 import sys
 import time
 from codecs import StreamWriter, getwriter  # pylint: disable=unused-import
-from urlparse import urlparse
+from six.moves import urllib
 from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
                     MutableMapping, MutableSequence, Optional, TextIO, Tuple,
                     Union, cast)
@@ -703,7 +703,7 @@ def main(argsl=None,                   # type: List[str]
 
             if args.target:
                 if isinstance(tool, Workflow):
-                    url = urlparse(tool.tool["id"])
+                    url = urllib.parse.urlparse(tool.tool["id"])
                     if url.fragment:
                         extracted = get_subgraph([tool.tool["id"] + "/" + r for r in args.target], tool)
                     else:
