@@ -396,8 +396,8 @@ def avroize_type(field_type, name_prefix=""):
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
     if isinstance(field_type, MutableSequence):
-        for f in field_type:
-            avroize_type(f, name_prefix)
+        for field in field_type:
+            avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
@@ -406,6 +406,9 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["fields"], name_prefix)
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
+        if isinstance(field_type["type"], MutableSequence):
+            for ctype in field_type["type"]:
+                avroize_type(ctype, name_prefix)
     return field_type
 
 def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
