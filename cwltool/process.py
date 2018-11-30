@@ -208,24 +208,6 @@ def checkRequirements(rec, supported_process_requirements):
             checkRequirements(entry, supported_process_requirements)
 
 
-def adjustFilesWithSecondary(rec, op, primary=None):
-    """Apply a mapping function to each File path in the object `rec`, propagating
-    the primary file associated with a group of secondary files.
-    """
-
-    if isinstance(rec, MutableMapping):
-        if rec.get("class") == "File":
-            rec["path"] = op(rec["path"], primary=primary)
-            adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
-                                     primary if primary else rec["path"])
-        else:
-            for d in rec:
-                adjustFilesWithSecondary(rec[d], op)
-    if isinstance(rec, MutableSequence):
-        for d in rec:
-            adjustFilesWithSecondary(d, op, primary)
-
-
 def stage_files(pathmapper,             # type: PathMapper
                 stage_func=None,        # type: Callable[..., Any]
                 ignore_writable=False,  # type: bool
@@ -801,25 +783,6 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
            ):  # type: (...) -> Generator[Any, None, None]
         # FIXME: Declare base type for what Generator yields
         pass
-
-
-def empty_subtree(dirpath):  # type: (Text) -> bool
-    # Test if a directory tree contains any files (does not count empty
-    # subdirectories)
-    for d in os.listdir(dirpath):
-        d = os.path.join(dirpath, d)
-        try:
-            if stat.S_ISDIR(os.stat(d).st_mode):
-                if empty_subtree(d) is False:
-                    return False
-            else:
-                return False
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                pass
-            else:
-                raise
-    return True
 
 
 _names = set()  # type: Set[Text]
