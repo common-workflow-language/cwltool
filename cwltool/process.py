@@ -208,24 +208,6 @@ def checkRequirements(rec, supported_process_requirements):
             checkRequirements(entry, supported_process_requirements)
 
 
-def adjustFilesWithSecondary(rec, op, primary=None):
-    """Apply a mapping function to each File path in the object `rec`, propagating
-    the primary file associated with a group of secondary files.
-    """
-
-    if isinstance(rec, MutableMapping):
-        if rec.get("class") == "File":
-            rec["path"] = op(rec["path"], primary=primary)
-            adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
-                                     primary if primary else rec["path"])
-        else:
-            for d in rec:
-                adjustFilesWithSecondary(rec[d], op)
-    if isinstance(rec, MutableSequence):
-        for d in rec:
-            adjustFilesWithSecondary(d, op, primary)
-
-
 def stage_files(pathmapper,             # type: PathMapper
                 stage_func=None,        # type: Callable[..., Any]
                 ignore_writable=False,  # type: bool
@@ -396,8 +378,8 @@ def avroize_type(field_type, name_prefix=""):
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
     if isinstance(field_type, MutableSequence):
-        for f in field_type:
-            avroize_type(f, name_prefix)
+        for field in field_type:
+            avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
@@ -406,6 +388,9 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["fields"], name_prefix)
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
+        if isinstance(field_type["type"], MutableSequence):
+            for ctype in field_type["type"]:
+                avroize_type(ctype, name_prefix)
     return field_type
 
 def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
@@ -499,8 +484,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
         if sd is not None:
-            sdtypes = sd["types"]
-            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
+            sdtypes = avroize_type(sd["types"])
+            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
             schema.make_avsc_object(schema.convert_to_dict(av), self.names)
@@ -798,25 +783,6 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
            ):  # type: (...) -> Generator[Any, None, None]
         # FIXME: Declare base type for what Generator yields
         pass
-
-
-def empty_subtree(dirpath):  # type: (Text) -> bool
-    # Test if a directory tree contains any files (does not count empty
-    # subdirectories)
-    for d in os.listdir(dirpath):
-        d = os.path.join(dirpath, d)
-        try:
-            if stat.S_ISDIR(os.stat(d).st_mode):
-                if empty_subtree(d) is False:
-                    return False
-            else:
-                return False
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                pass
-            else:
-                raise
-    return True
 
 
 _names = set()  # type: Set[Text]
