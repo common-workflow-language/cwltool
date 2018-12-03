@@ -7,6 +7,7 @@ import io
 import logging
 import os
 import signal
+import subprocess
 import sys
 import time
 import urllib
@@ -116,7 +117,16 @@ def _terminate_processes() -> None:
     # It's possible that another thread will spawn a new task while
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
-        processes_to_kill.popleft().kill()
+        process = processes_to_kill.popleft()
+        cidfile = [str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)]
+        if cidfile:
+            with open(cidfile[0], "r") as inp_stream:
+                p = subprocess.Popen(["docker", "kill", inp_stream.read()], shell=False)
+                try:
+                    p.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    p.kill()
+        process.kill()
 
 
 def _signal_handler(signum: int, _: Any) -> None:
