@@ -279,5 +279,5 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
-            env["SINGULARITYENV_{}".format(name)] = value
+            env["SINGULARITYENV_{}".format(name)] = str(value)
         return runtime
