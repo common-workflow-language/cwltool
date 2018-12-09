@@ -63,7 +63,7 @@ setup(name='cwltool',
           'typing-extensions',
       ],
       extras_require={
-          ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
+          ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
           'deps': ["galaxy-lib >= 17.09.9"]

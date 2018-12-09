@@ -10,5 +10,5 @@ bagit==1.6.4
 mypy-extensions
 psutil
 scandir
-subprocess32 >= 3.5.0; os.name=="posix"
+subprocess32 >= 3.5.0; os.name=="posix" and python_version<"3.5"
 typing-extensions
