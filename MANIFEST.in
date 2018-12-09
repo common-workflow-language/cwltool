@@ -1,4 +1,5 @@
 include MANIFEST.in
+include LICENSE.txt
 include *requirements.txt
 include gittaggers.py Makefile cwltool.py
 include tests/*
