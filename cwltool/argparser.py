@@ -49,10 +49,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     cidgroup = parser.add_argument_group(
         "Options for recording the Docker container identifier into a file")
+    # Disabled as containerid is now saved by default
     cidgroup.add_argument("--record-container-id", action="store_true",
                           default=False,
-                          help="If enabled, store the Docker container ID into a file. "
-                          "See --cidfile-dir to specify the directory.",
+                          help = argparse.SUPPRESS,
+                          # help="If enabled, store the Docker container ID into a file. "
+                          # "See --cidfile-dir to specify the directory.",
                           dest="record_container_id")
 
     cidgroup.add_argument(

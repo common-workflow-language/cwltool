@@ -730,23 +730,25 @@ def test_no_js_console():
 
 
 @needs_docker
-def test_record_container_id():
+def test_cid_file_dir(tmpdir):
     test_file = "cache_test_workflow.cwl"
-    with temp_dir('cidr') as cid_dir:
-        error_code, _, stderr = get_main_output(
-            ["--record-container-id", "--cidfile-dir", cid_dir,
-             get_data("tests/wf/" + test_file)])
-        assert "completed success" in stderr
-        assert error_code == 0
-        assert len(os.listdir(cid_dir)) == 2
+    cwd = tmpdir.chdir()
+    error_code, stdout, stderr = get_main_output(
+        ["--cidfile-dir", str(tmpdir), get_data("tests/wf/" + test_file)])
+    assert "completed success" in stderr
+    assert error_code == 0
+    cidfiles_count = sum(1 for _ in tmpdir.visit(fil="*"))
+    assert cidfiles_count == 2
+    cwd.chdir()
+    tmpdir.remove(ignore_errors=True)
 
 
 @needs_docker
-def test_record_container_id_file_instead_of_dir(tmpdir):
+def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir):
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = Text(tmpdir.ensure("cidfile-dir-actually-a-file"))
     error_code, _, stderr = get_main_output(
-        ["--record-container-id", "--cidfile-dir", bad_cidfile_dir,
+        ["--cidfile-dir", bad_cidfile_dir,
          get_data("tests/wf/" + test_file)])
     assert "is not a directory, please check it first" in stderr, stderr
     assert error_code == 2
@@ -754,11 +756,11 @@ def test_record_container_id_file_instead_of_dir(tmpdir):
 
 
 @needs_docker
-def test_record_container_id_nonexist_dir(tmpdir):
+def test_cid_file_non_existing_dir(tmpdir):
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = Text(tmpdir.join("cidfile-dir-badpath"))
     error_code, _, stderr = get_main_output(
-        ["--record-container-id", "--cidfile-dir", bad_cidfile_dir,
+        ['--record-container-id',"--cidfile-dir", bad_cidfile_dir,
          get_data("tests/wf/" + test_file)])
     assert "directory doesn't exist, please create it first" in stderr, stderr
     assert error_code == 2
@@ -766,12 +768,12 @@ def test_record_container_id_nonexist_dir(tmpdir):
 
 
 @needs_docker
-def test_record_container_id_cwd(tmpdir):
+def test_cid_file_w_prefix(tmpdir):
     test_file = "cache_test_workflow.cwl"
     cwd = tmpdir.chdir()
     try:
-        error_code, _, stderr = get_main_output(
-            ["--record-container-id", '--cidfile-prefix=pytestcid',
+        error_code, stdout, stderr = get_main_output(
+            ['--record-container-id', '--cidfile-prefix=pytestcid',
              get_data("tests/wf/" + test_file)])
     finally:
         listing = tmpdir.listdir()
@@ -781,18 +783,6 @@ def test_record_container_id_cwd(tmpdir):
     assert "completed success" in stderr
     assert error_code == 0
     assert cidfiles_count == 2, '{}/n{}'.format(listing, stderr)
-
-
-@needs_docker
-def test_do_not_record_container_id(tmpdir):
-    with temp_dir('cidr') as cid_dir:
-        with working_directory(cid_dir):
-            error_code, _, stderr = get_main_output(
-                ["--outdir", str(tmpdir),
-                 get_data("tests/wf/cache_test_workflow.cwl")])
-        assert "completed success" in stderr
-        assert error_code == 0
-        assert len(os.listdir(cid_dir)) == 0
 
 
 @needs_docker

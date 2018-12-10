@@ -341,10 +341,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-        cidfile_dir = runtimeContext.cidfile_dir \
-            if runtimeContext.cidfile_dir is not None and runtimeContext.record_container_id is not None \
-            else tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
-        if cidfile_dir != "":
+
+        if runtimeContext.cidfile_dir:
+            cidfile_dir = runtimeContext.cidfile_dir
             if not os.path.exists(str(cidfile_dir)):
                 _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
                               "directory doesn't exist, please create it first")
@@ -356,6 +355,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 exit(2)
         else:
             cidfile_dir = os.getcwd()
+
         cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
         if runtimeContext.cidfile_prefix is not None:
             cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
@@ -377,4 +377,4 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     "--strict-memory-limit for increased portability "
                     "assurance.", self.name)
 
-        return (runtime, cidfile_path)
+        return runtime, cidfile_path
