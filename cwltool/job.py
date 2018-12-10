@@ -483,12 +483,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         pass
 
     def create_file_and_add_volume(self,
-                                   runtime,  # type: List[Text]
-                                   volume,  # type: MapperEnt
+                                   runtime,          # type: List[Text]
+                                   volume,           # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
-                                   secret_store,  # type: Optional[SecretStore]
-                                   tmpdir_prefix  # type: Text
-                                   ):  # type: (...) -> None
+                                   secret_store,     # type: Optional[SecretStore]
+                                   tmpdir_prefix     # type: Text
+                                   ):                # type: (...) -> Text
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
             new_file = os.path.join(
@@ -543,8 +543,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 self.add_writable_directory_volume(
                     runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                self.create_file_and_add_volume(
-                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
+                self.create_file_and_add_volume(runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
 
     def run(self, runtimeContext):  # type: (RuntimeContext) -> None
         if not os.path.exists(self.tmpdir):
@@ -583,7 +582,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 if docker_req is not None and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
-                if self.prov_obj is not None and img_id is not None\
+                if self.prov_obj is not None and img_id is not None \
                         and runtimeContext.process_run_id is not None:
                     # TODO: Integrate with record_container_id
                     container_agent = self.prov_obj.document.agent(
@@ -592,10 +591,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                          "cwlprov:image": img_id,
                          "prov:label": "Container execution of image %s" % img_id})
                     # FIXME: img_id is not a sha256 id, it might just be "debian:8"
-                    #img_entity = document.entity("nih:sha-256;%s" % img_id,
+                    # img_entity = document.entity("nih:sha-256;%s" % img_id,
                     #                  {"prov:label": "Container image %s" % img_id} )
                     # The image is the plan for this activity-agent association
-                    #document.wasAssociatedWith(process_run_ID, container_agent, img_entity)
+                    # document.wasAssociatedWith(process_run_ID, container_agent, img_entity)
                     self.prov_obj.document.wasAssociatedWith(
                         runtimeContext.process_run_id, container_agent)
             except Exception as err:
