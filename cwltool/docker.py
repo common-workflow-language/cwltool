@@ -341,12 +341,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-
         cidfile_dir = runtimeContext.cidfile_dir \
-            if runtimeContext.record_container_id is not None \
+            if runtimeContext.cidfile_dir is not None and runtimeContext.record_container_id is not None \
             else tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
         if cidfile_dir != "":
-            if not os.path.exists(cidfile_dir):
+            if not os.path.exists(str(cidfile_dir)):
                 _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
                               "directory doesn't exist, please create it first")
                 exit(2)
