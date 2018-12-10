@@ -483,12 +483,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         pass
 
     def create_file_and_add_volume(self,
-                                   runtime,          # type: List[Text]
-                                   volume,           # type: MapperEnt
+                                   runtime,  # type: List[Text]
+                                   volume,  # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
-                                   secret_store,     # type: Optional[SecretStore]
-                                   tmpdir_prefix     # type: Text
-                                   ):                # type: (...) -> Text
+                                   secret_store,  # type: Optional[SecretStore]
+                                   tmpdir_prefix  # type: Text
+                                   ):  # type: (...) -> Text
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
             new_file = os.path.join(
@@ -635,7 +635,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         return psutil.virtual_memory().total
 
     def docker_monitor(self, cidfile, tmpdir_prefix, process):
-        # type: (Text, Text, bool, subprocess.Popen) -> None
+        # type: (Text, Text, subprocess.Popen) -> None
         cid = None
         while cid is None:
             time.sleep(1)
