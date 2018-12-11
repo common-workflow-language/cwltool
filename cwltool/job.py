@@ -232,11 +232,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
-                 runtime,                # type: List[Text]
-                 env,                    # type: MutableMapping[Text, Text]
-                 runtimeContext,         # type: RuntimeContext
-                 monitor_function=None,  # type: Optional[Callable]
-                 ):                      # type: (...) -> None
+                 runtime,               # type: List[Text]
+                 env,                   # type: MutableMapping[Text, Text]
+                 runtimeContext,        # type: RuntimeContext
+                 monitor_function=None  # type: Optional[Callable]
+                 ):  # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
 
