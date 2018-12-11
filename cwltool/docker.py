@@ -119,9 +119,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         del split[2]
 
                 # check for repository:tag match or image id match
-                if (match and
-                        ((split[0] == match.group(1) and split[1] == match.group(2)) or
-                         docker_requirement["dockerImageId"] == match.group(3))):
+                if (match
+                        and (
+                            (split[0] == match.group(1) and split[1] == match.group(2))
+                            or docker_requirement["dockerImageId"] == match.group(3))):
                     found = True
                     break
             except ValueError:
@@ -354,7 +355,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                               "please check it first")
                 exit(2)
         else:
-            cidfile_dir = os.getcwd()
+            cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
 
         cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
         if runtimeContext.cidfile_prefix is not None:
