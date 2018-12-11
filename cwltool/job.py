@@ -123,9 +123,9 @@ def deref_links(outputs):  # type: (Any) -> None
             deref_links(output)
 
 
-def relink_initialworkdir(pathmapper,  # type: PathMapper
-                          host_outdir,  # type: Text
-                          container_outdir,  # type: Text
+def relink_initialworkdir(pathmapper,           # type: PathMapper
+                          host_outdir,          # type: Text
+                          container_outdir,     # type: Text
                           inplace_update=False  # type: bool
                           ):  # type: (...) -> None
     for _, vol in pathmapper.items():
@@ -133,8 +133,8 @@ def relink_initialworkdir(pathmapper,  # type: PathMapper
             continue
 
         if (vol.type in ("File", "Directory") or (
-                    inplace_update and vol.type in
-                    ("WritableFile", "WritableDirectory"))):
+                inplace_update and vol.type in
+                ("WritableFile", "WritableDirectory"))):
             if not vol.target.startswith(container_outdir):
                 # this is an input file written outside of the working
                 # directory, so therefor ineligable for being an output file.
@@ -162,12 +162,12 @@ def relink_initialworkdir(pathmapper,  # type: PathMapper
 
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
-                 builder,  # type: Builder
-                 joborder,  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 builder,           # type: Builder
+                 joborder,          # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
                  make_path_mapper,  # type: Callable[..., PathMapper]
-                 requirements,  # type: List[Dict[Text, Text]]
-                 hints,  # type: List[Dict[Text, Text]]
-                 name,  # type: Text
+                 requirements,      # type: List[Dict[Text, Text]]
+                 hints,             # type: List[Dict[Text, Text]]
+                 name,              # type: Text
                  ):  # type: (...) -> None
         self.builder = builder
         self.joborder = joborder
@@ -231,9 +231,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
-                 runtime,  # type: List[Text]
-                 env,  # type: MutableMapping[Text, Text]
-                 runtimeContext,  # type: RuntimeContext
+                 runtime,               # type: List[Text]
+                 env,                   # type: MutableMapping[Text, Text]
+                 runtimeContext,        # type: RuntimeContext
                  monitor_function=None  # type: Optional[Callable]
                  ):  # type: (...) -> None
 
@@ -341,8 +341,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception(u"Exception while running job")
             processStatus = "permanentFail"
-        if runtimeContext.research_obj is not None and self.prov_obj is not None and \
-                        runtimeContext.process_run_id is not None:
+        if runtimeContext.research_obj is not None \
+                and self.prov_obj is not None \
+                and runtimeContext.process_run_id is not None:
             # creating entities for the outputs produced by each step (in the provenance document)
             self.prov_obj.record_process_end(str(self.name), runtimeContext.process_run_id,
                                              outputs, datetime.datetime.now())
@@ -431,16 +432,16 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     @abstractmethod
     def get_from_requirements(self,
-                              r,  # type: Dict[Text, Text]
-                              pull_image,  # type: bool
-                              force_pull=False,  # type: bool
+                              r,                                    # type: Dict[Text, Text]
+                              pull_image,                           # type: bool
+                              force_pull=False,                     # type: bool
                               tmp_outdir_prefix=DEFAULT_TMP_PREFIX  # type: Text
                               ):  # type: (...) -> Optional[Text]
         pass
 
     @abstractmethod
     def create_runtime(self,
-                       env,  # type: MutableMapping[Text, Text]
+                       env,             # type: MutableMapping[Text, Text]
                        runtime_context  # type: RuntimeContext
                        ):  # type: (...) -> Tuple[List[Text], Optional[Text]]
         """ Return the list of commands to run the selected container engine."""
@@ -455,8 +456,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     @abstractmethod
     def add_file_or_directory_volume(self,
-                                     runtime,  # type: List[Text]
-                                     volume,  # type: MapperEnt
+                                     runtime,         # type: List[Text]
+                                     volume,          # type: MapperEnt
                                      host_outdir_tgt  # type: Optional[Text]
                                      ):  # type: (...) -> None
         """Append volume a file/dir mapping to the runtime option list."""
@@ -464,30 +465,30 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     @abstractmethod
     def add_writable_file_volume(self,
-                                 runtime,  # type: List[Text]
-                                 volume,  # type: MapperEnt
+                                 runtime,          # type: List[Text]
+                                 volume,           # type: MapperEnt
                                  host_outdir_tgt,  # type: Optional[Text]
-                                 tmpdir_prefix  # type: Text
+                                 tmpdir_prefix     # type: Text
                                  ):  # type: (...) -> None
         """Append a writable file mapping to the runtime option list."""
         pass
 
     @abstractmethod
     def add_writable_directory_volume(self,
-                                      runtime,  # type: List[Text]
-                                      volume,  # type: MapperEnt
+                                      runtime,          # type: List[Text]
+                                      volume,           # type: MapperEnt
                                       host_outdir_tgt,  # type: Optional[Text]
-                                      tmpdir_prefix  # type: Text
+                                      tmpdir_prefix     # type: Text
                                       ):  # type: (...) -> None
         """Append a writable directory mapping to the runtime option list."""
         pass
 
     def create_file_and_add_volume(self,
-                                   runtime,  # type: List[Text]
-                                   volume,  # type: MapperEnt
+                                   runtime,          # type: List[Text]
+                                   volume,           # type: MapperEnt
                                    host_outdir_tgt,  # type: Optional[Text]
-                                   secret_store,  # type: Optional[SecretStore]
-                                   tmpdir_prefix  # type: Text
+                                   secret_store,     # type: Optional[SecretStore]
+                                   tmpdir_prefix     # type: Text
                                    ):  # type: (...) -> Text
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
@@ -514,10 +515,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         return host_outdir_tgt or new_file
 
     def add_volumes(self,
-                    pathmapper,  # type: PathMapper
-                    runtime,  # type: List[Text]
-                    tmpdir_prefix,  # type: Text
-                    secret_store=None,  # type: Optional[SecretStore]
+                    pathmapper,          # type: PathMapper
+                    runtime,             # type: List[Text]
+                    tmpdir_prefix,       # type: Text
+                    secret_store=None,   # type: Optional[SecretStore]
                     any_path_okay=False  # type: bool
                     ):  # type: (...) -> None
         """Append volume mappings to the runtime option list."""
@@ -543,7 +544,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 self.add_writable_directory_volume(
                     runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                self.create_file_and_add_volume(runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
+                new_path = self.create_file_and_add_volume(
+                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
+                pathmapper.update(
+                    key, new_path, vol.target, vol.type, vol.staged)
 
     def run(self, runtimeContext):  # type: (RuntimeContext) -> None
         if not os.path.exists(self.tmpdir):
@@ -615,7 +619,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         monitor_function = None
         if cidfile:
             monitor_function = functools.partial(
-                self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix)
+                self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix,
+                not bool(runtimeContext.cidfile_dir))
         self._execute(runtime, env, runtimeContext, monitor_function)
 
     @staticmethod
@@ -624,7 +629,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         try:
             memory = subprocess.check_output(
                 ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid])
+                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  # type: ignore
         except subprocess.CalledProcessError:
             pass
         if memory:
@@ -633,11 +638,21 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 return value
         return psutil.virtual_memory().total
 
-    def docker_monitor(self, cidfile, tmpdir_prefix, process):
-        # type: (Text, Text, subprocess.Popen) -> None
+    def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
+        # type: (Text, Text, bool, subprocess.Popen) -> None
+        """Record memory usage of the running Docker container."""
+        # Todo: consider switching to `docker create` / `docker start`
+        # instead of `docker run` as `docker create` outputs the container ID
+        # to stdout, but the container is frozen, thus allowing us to start the
+        # monitoring process without dealing with the cidfile or too-fast
+        # container execution
         cid = None
         while cid is None:
             time.sleep(1)
+            if process.returncode is not None:
+                if cleanup_cidfile:
+                    os.remove(cidfile)
+                return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
@@ -663,21 +678,22 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     break
         _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                      int((max_mem_percent * max_mem) / (2 ** 20)))
+        if cleanup_cidfile:
+            os.remove(cidfile)
 
 
-def _job_popen(
-        commands,  # type: List[Text]
-        stdin_path,  # type: Optional[Text]
-        stdout_path,  # type: Optional[Text]
-        stderr_path,  # type: Optional[Text]
-        env,  # type: MutableMapping[AnyStr, AnyStr]
-        cwd,  # type: Text
-        job_dir,  # type: Text
-        job_script_contents=None,  # type: Text
-        timelimit=None,  # type: int
-        name=None,  # type: Text
-        monitor_function=None  # type: Optional[Callable]
-):  # type: (...) -> int
+def _job_popen(commands,                  # type: List[Text]
+               stdin_path,                # type: Optional[Text]
+               stdout_path,               # type: Optional[Text]
+               stderr_path,               # type: Optional[Text]
+               env,                       # type: MutableMapping[AnyStr, AnyStr]
+               cwd,                       # type: Text
+               job_dir,                   # type: Text
+               job_script_contents=None,  # type: Text
+               timelimit=None,            # type: int
+               name=None,                 # type: Text
+               monitor_function=None      # type: Optional[Callable]
+               ):  # type: (...) -> int
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
