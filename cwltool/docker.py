@@ -342,27 +342,28 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
+        if 'udocker' not in runtimeContext.user_space_docker_cmd:
+            if runtimeContext.cidfile_dir:
+                cidfile_dir = runtimeContext.cidfile_dir
+                if not os.path.exists(str(cidfile_dir)):
+                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                                  "directory doesn't exist, please create it first")
+                    exit(2)
+                if not os.path.isdir(cidfile_dir):
+                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                                  cidfile_dir + " is not a directory, "
+                                  "please check it first")
+                    exit(2)
+            else:
+                cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
 
-        if runtimeContext.cidfile_dir:
-            cidfile_dir = runtimeContext.cidfile_dir
-            if not os.path.exists(str(cidfile_dir)):
-                _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                              "directory doesn't exist, please create it first")
-                exit(2)
-            if not os.path.isdir(cidfile_dir):
-                _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                              cidfile_dir + " is not a directory, "
-                              "please check it first")
-                exit(2)
+            cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
+            if runtimeContext.cidfile_prefix is not None:
+                cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
+            cidfile_path = os.path.join(cidfile_dir, cidfile_name)
+            runtime.append(u"--cidfile=%s" % cidfile_path)
         else:
-            cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
-
-        cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
-        if runtimeContext.cidfile_prefix is not None:
-            cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
-        cidfile_path = os.path.join(cidfile_dir, cidfile_name)
-        runtime.append(u"--cidfile=%s" % cidfile_path)
-
+            cidfile_path = None
         for key, value in self.environment.items():
             runtime.append(u"--env=%s=%s" % (key, value))
 
