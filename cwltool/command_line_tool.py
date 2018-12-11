@@ -389,13 +389,7 @@ class CommandLineTool(Process):
                 output_callbacks = partial(
                     rm_pending_output_callback, output_callbacks, jobcachepending)
 
-
-        #import arvados_cwl.executor
-        #hp = arvados_cwl.executor.hp
-        #before = hp.heap()
         builder = self._init_job(job_order, runtimeContext)
-        #after = hp.heap()
-        #_logger.info("Heap after CommandLineTool._init_job  %s", after - before)
 
         reffiles = copy.deepcopy(builder.files)
 
@@ -423,16 +417,9 @@ class CommandLineTool(Process):
             reffiles, builder.stagedir, runtimeContext, True)
         builder.requirements = j.requirements
 
-        #import arvados_cwl.executor
-        #hp = arvados_cwl.executor.hp
-        #before = hp.heap()
-
         _check_adjust = partial(check_adjust, builder)
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
-
-        #after = hp.heap()
-        #_logger.info("Heap after check_adjust %s", after - before)
 
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
         if initialWorkdir is not None:

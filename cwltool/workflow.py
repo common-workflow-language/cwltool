@@ -270,10 +270,6 @@ class WorkflowJob(object):
     def receive_output(self, step, outputparms, final_output_callback, jobout, processStatus):
         # type: (WorkflowJobStep, List[Dict[Text,Text]], Callable[[Any, Any], Any], Dict[Text,Text], Text) -> None
 
-        #import arvados_cwl.executor
-        #hp = arvados_cwl.executor.hp
-        #before = hp.heap()
-
         for i in outputparms:
             if "id" in i:
                 if i["id"] in jobout:
@@ -302,9 +298,6 @@ class WorkflowJob(object):
         completed = sum(1 for s in self.steps if s.completed)
         if completed == len(self.steps):
             self.do_output_callback(final_output_callback)
-
-        #after = hp.heap()
-        #_logger.info("Heap after Workflow.receive_output setup  %s", after - before)
 
     def try_make_job(self,
                      step,                   # type: WorkflowJobStep
@@ -432,10 +425,6 @@ class WorkflowJob(object):
         self.state = {}
         self.processStatus = "success"
 
-        #import arvados_cwl.executor
-        #hp = arvados_cwl.executor.hp
-        #before = hp.heap()
-
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(u"[%s] %s", self.name, json_dumps(joborder, indent=4))
 
@@ -461,9 +450,6 @@ class WorkflowJob(object):
             for out in step.tool["outputs"]:
                 self.state[out["id"]] = None
 
-        #after = hp.heap()
-        #_logger.info("Heap after Workflow.job setup  %s", after - before)
-
         completed = 0
         while completed < len(self.steps):
             self.made_progress = False
@@ -483,17 +469,13 @@ class WorkflowJob(object):
 
                 if step.iterable is not None:
                     try:
-                        #before = hp.heap()
                         for newjob in step.iterable:
                             if getdefault(runtimeContext.on_error, "stop") == "stop" \
                                     and self.processStatus != "success":
                                 break
                             if newjob is not None:
-                                #after = hp.heap()
-                                #_logger.info("Heap after Workflow.job step.iterable %s %s %s %s", step.name, newjob, type(newjob), after - before)
                                 self.made_progress = True
                                 yield newjob
-                                #before = hp.heap()
                             else:
                                 break
                     except WorkflowException as exc:
@@ -853,7 +835,7 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total, steps):  # type: (int) -> None
+    def setTotal(self, total, steps):  # type: (int, List[Generator]) -> None
         self.total = total
         self.steps = steps
         if self.completed == self.total:
