@@ -369,7 +369,6 @@ def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
-    visit_class(job, ("File",), functools.partial(add_sizes, fsaccess))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -575,16 +574,47 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
     def _init_job(self, joborder, runtime_context):
         # type: (Mapping[Text, Text], RuntimeContext) -> Builder
 
+        #import arvados_cwl.executor
+        #hp = arvados_cwl.executor.hp
+
+        #before = hp.heap()
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
+
+        #after = hp.heap()
+        #_logger.info("Heap after _init_job.deepcopy %s", after - before)
 
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)
 
+        load_listing_req, _ = self.get_requirement(
+            "http://commonwl.org/cwltool#LoadListingRequirement")
+        if load_listing_req is not None:
+            load_listing = load_listing_req.get("loadListing")
+        else:
+            load_listing = "deep_listing"   # will default to "no_listing" in CWL v1.1
+
         # Validate job order
         try:
             fill_in_defaults(self.tool[u"inputs"], job, fs_access)
+
+            if load_listing and load_listing != "no_listing":
+                #before = hp.heap()
+                get_listing(fs_access, job, (load_listing == "deep_listing"))
+                #after = hp.heap()
+                #_logger.info("Heap after get_listing %s", after - before)
+
+            visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
+
+            #before = hp.heap()
+
+            #_logger.info("job before _init_job.normalizeFilesDirs %s", json.dumps(job, indent=2))
             normalizeFilesDirs(job)
+            #_logger.info("job after _init_job.normalizeFilesDirs %s", json.dumps(job, indent=2))
+
+            #after = hp.heap()
+            #_logger.info("Heap after _init_job.normalizeFilesDirs %s", after - before)
+
             schema = self.names.get_name("input_record_schema", "")
             if schema is None:
                 raise WorkflowException("Missing input record schema: "
@@ -598,13 +628,6 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         bindings = CommentedSeq()
         tmpdir = u""
         stagedir = u""
-
-        load_listing_req, _ = self.get_requirement(
-            "http://commonwl.org/cwltool#LoadListingRequirement")
-        if load_listing_req is not None:
-            load_listing = load_listing_req.get("loadListing")
-        else:
-            load_listing = "deep_listing"   # will default to "no_listing" in CWL v1.1
 
         docker_req, _ = self.get_requirement("DockerRequirement")
         default_docker = None

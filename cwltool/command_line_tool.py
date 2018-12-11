@@ -203,10 +203,17 @@ def check_adjust(builder, file_o):
     assert builder.pathmapper is not None
     file_o["path"] = docker_windows_path_adjust(
         builder.pathmapper.mapper(file_o["location"])[1])
-    file_o["dirname"], file_o["basename"] = os.path.split(file_o["path"])
+    dn, bn = os.path.split(file_o["path"])
+    if file_o.get("dirname") != dn:
+        file_o["dirname"] = Text(dn)
+    if file_o.get("basename") != bn:
+        file_o["basename"] = Text(bn)
     if file_o["class"] == "File":
-        file_o["nameroot"], file_o["nameext"] = os.path.splitext(
-            file_o["basename"])
+        nr, ne = os.path.splitext(file_o["basename"])
+        if file_o.get("nameroot") != nr:
+            file_o["nameroot"] = Text(nr)
+        if file_o.get("nameext") != ne:
+            file_o["nameext"] = Text(ne)
     if not ACCEPTLIST_RE.match(file_o["basename"]):
         raise WorkflowException(
             "Invalid filename: '{}' contains illegal characters".format(
@@ -382,7 +389,13 @@ class CommandLineTool(Process):
                 output_callbacks = partial(
                     rm_pending_output_callback, output_callbacks, jobcachepending)
 
+
+        #import arvados_cwl.executor
+        #hp = arvados_cwl.executor.hp
+        #before = hp.heap()
         builder = self._init_job(job_order, runtimeContext)
+        #after = hp.heap()
+        #_logger.info("Heap after CommandLineTool._init_job  %s", after - before)
 
         reffiles = copy.deepcopy(builder.files)
 
@@ -410,9 +423,16 @@ class CommandLineTool(Process):
             reffiles, builder.stagedir, runtimeContext, True)
         builder.requirements = j.requirements
 
+        #import arvados_cwl.executor
+        #hp = arvados_cwl.executor.hp
+        #before = hp.heap()
+
         _check_adjust = partial(check_adjust, builder)
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
+
+        #after = hp.heap()
+        #_logger.info("Heap after check_adjust %s", after - before)
 
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
         if initialWorkdir is not None:
