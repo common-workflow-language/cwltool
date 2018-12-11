@@ -403,10 +403,12 @@ class CommandLineJob(JobBase):
         mem_tm.start()
         sproc.wait()
         mem_tm.cancel()
-        max_mem_usage = max(memory_usage)
-        _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     round(max_mem_usage / (2 ** 20)))
-        return
+        if memory_usage:
+            max_mem_usage = max(memory_usage)
+            _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+                         round(max_mem_usage / (2 ** 20)))
+        else:
+            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
 
     def run(self,
             runtimeContext  # type: RuntimeContext
