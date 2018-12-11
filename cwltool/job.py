@@ -133,8 +133,8 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
             continue
 
         if (vol.type in ("File", "Directory") or (
-                    inplace_update and vol.type in
-                    ("WritableFile", "WritableDirectory"))):
+                inplace_update and vol.type in
+                ("WritableFile", "WritableDirectory"))):
             if not vol.target.startswith(container_outdir):
                 # this is an input file written outside of the working
                 # directory, so therefor ineligable for being an output file.
@@ -341,8 +341,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except Exception as e:
             _logger.exception(u"Exception while running job")
             processStatus = "permanentFail"
-        if runtimeContext.research_obj is not None and self.prov_obj is not None and \
-                        runtimeContext.process_run_id is not None:
+        if runtimeContext.research_obj is not None \
+                and self.prov_obj is not None \
+                and runtimeContext.process_run_id is not None:
             # creating entities for the outputs produced by each step (in the provenance document)
             self.prov_obj.record_process_end(str(self.name), runtimeContext.process_run_id,
                                              outputs, datetime.datetime.now())
@@ -543,7 +544,10 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 self.add_writable_directory_volume(
                     runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                self.create_file_and_add_volume(runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
+                new_path = self.create_file_and_add_volume(
+                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix)
+                pathmapper.update(
+                    key, new_path, vol.target, vol.type, vol.staged)
 
     def run(self, runtimeContext):  # type: (RuntimeContext) -> None
         if not os.path.exists(self.tmpdir):
@@ -615,7 +619,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         monitor_function = None
         if cidfile:
             monitor_function = functools.partial(
-                self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix)
+                self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix,
+                not bool(runtimeContext.cidfile_dir))
         self._execute(runtime, env, runtimeContext, monitor_function)
 
     @staticmethod
@@ -624,7 +629,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         try:
             memory = subprocess.check_output(
                 ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid])
+                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  # type: ignore
         except subprocess.CalledProcessError:
             pass
         if memory:
@@ -633,11 +638,21 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 return value
         return psutil.virtual_memory().total
 
-    def docker_monitor(self, cidfile, tmpdir_prefix, process):
-        # type: (Text, Text, subprocess.Popen) -> None
+    def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
+        # type: (Text, Text, bool, subprocess.Popen) -> None
+        """Record memory usage of the running Docker container."""
+        # Todo: consider switching to `docker create` / `docker start`
+        # instead of `docker run` as `docker create` outputs the container ID
+        # to stdout, but the container is frozen, thus allowing us to start the
+        # monitoring process without dealing with the cidfile or too-fast
+        # container execution
         cid = None
         while cid is None:
             time.sleep(1)
+            if process.returncode is not None:
+                if cleanup_cidfile:
+                    os.remove(cidfile)
+                return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
@@ -661,9 +676,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                         max_mem_percent = mem_percent
                 except ValueError:
                     break
-        if max_mem_percent != 0:
-            _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                    int((max_mem_percent * max_mem) / (2 ** 20)))
+        _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+                     int((max_mem_percent * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 
