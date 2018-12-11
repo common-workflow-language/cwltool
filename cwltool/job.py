@@ -584,7 +584,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
                 if self.prov_obj is not None and img_id is not None \
                         and runtimeContext.process_run_id is not None:
-                    # TODO: Integrate with record_container_id
                     container_agent = self.prov_obj.document.agent(
                         uuid.uuid4().urn,
                         {"prov:type": PROV["SoftwareAgent"],

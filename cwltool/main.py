@@ -509,6 +509,10 @@ def main(argsl=None,                   # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
+            if args.record_container_id:
+                if not args.cidfile_dir:
+                    args.cidfile_dir = os.getcwd()
+                del args.record_container_id
 
         if runtimeContext is None:
             runtimeContext = RuntimeContext(vars(args))
