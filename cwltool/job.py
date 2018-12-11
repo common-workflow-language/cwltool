@@ -398,7 +398,7 @@ class CommandLineJob(JobBase):
                 children = list(itertools.chain(*[process.children() for process in children]))
             container.append(rss)
 
-        mem_tm = Timer(interval=.005, function=get_tree_mem_usage, args=(memory_usage,))
+        mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
         mem_tm.start()
         sproc.wait()
