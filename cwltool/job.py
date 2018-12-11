@@ -11,6 +11,7 @@ import sys
 import time
 import tempfile
 import uuid
+import itertools
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
 from threading import Timer
@@ -231,11 +232,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
-                 runtime,  # type: List[Text]
-                 env,  # type: MutableMapping[Text, Text]
-                 runtimeContext,  # type: RuntimeContext
-                 monitor_function=None  # type: Optional[Callable]
-                 ):  # type: (...) -> None
+                 runtime,                # type: List[Text]
+                 env,                    # type: MutableMapping[Text, Text]
+                 runtimeContext,         # type: RuntimeContext
+                 monitor_function=None,  # type: Optional[Callable]
+                 ):                      # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
 
@@ -384,6 +385,28 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
 
 class CommandLineJob(JobBase):
+    def process_monitor(self, sproc):
+        monitor = psutil.Process(sproc.pid)
+        memory_usage = []
+
+        def get_tree_mem_usage(container):
+            children = monitor.children()
+            rss = monitor.memory_info().rss
+            while len(children):
+                rss += sum([process.memory_info().rss for process in children])
+                children = list(itertools.chain(*[process.children() for process in children]))
+            container.append(rss)
+
+        mem_tm = Timer(interval=.005, function=get_tree_mem_usage, args=(memory_usage,))
+        mem_tm.daemon = True
+        mem_tm.start()
+        sproc.wait()
+        mem_tm.cancel()
+        max_mem_usage = max(memory_usage)
+        _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+                     round(max_mem_usage / (2 ** 20)))
+        return
+
     def run(self,
             runtimeContext  # type: RuntimeContext
             ):  # type: (...) -> None
@@ -418,7 +441,9 @@ class CommandLineJob(JobBase):
                 self.generatemapper, self.outdir, self.builder.outdir,
                 inplace_update=self.inplace_update)
 
-        self._execute([], env, runtimeContext)
+        monitor_function = functools.partial(self.process_monitor)
+
+        self._execute([], env, runtimeContext, monitor_function)
 
 
 CONTROL_CODE_RE = r'\x1b\[[0-9;]*[a-zA-Z]'
