@@ -363,7 +363,14 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append(u"--cidfile=%s" % cidfile_path)
         else:
-            cidfile_path = None
+            cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
+
+        cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
+        if runtimeContext.cidfile_prefix is not None:
+            cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
+        cidfile_path = os.path.join(cidfile_dir, cidfile_name)
+        runtime.append(u"--cidfile=%s" % cidfile_path)
+
         for key, value in self.environment.items():
             runtime.append(u"--env=%s=%s" % (key, value))
 
