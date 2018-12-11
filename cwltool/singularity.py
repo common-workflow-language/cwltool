@@ -9,7 +9,7 @@ import tempfile
 import sys
 from distutils import spawn
 from io import open  # pylint: disable=redefined-builtin
-from typing import Dict, List, MutableMapping, Optional
+from typing import Dict, List, MutableMapping, Optional, Tuple
 
 from schema_salad.sourceline import SourceLine
 from typing_extensions import Text  # pylint: disable=unused-import
@@ -178,9 +178,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             self.append_volume(runtime, volume.resolved, volume.target)
 
     def add_writable_file_volume(self,
-                                 runtime,         # type: List[Text]
-                                 volume,          # type: MapperEnt
-                                 host_outdir_tgt  # type: Optional[Text]
+                                 runtime,          # type: List[Text]
+                                 volume,           # type: MapperEnt
+                                 host_outdir_tgt,  # type: Optional[Text]
+                                 tmpdir_prefix     # type: Text
                                 ):  # type: (...) -> None
         if host_outdir_tgt is not None:
             # workaround for lack of overlapping mounts in Singularity
@@ -202,7 +203,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             ensure_writable(volume.resolved)
         else:
             file_copy = os.path.join(
-                tempfile.mkdtemp(dir=self.tmpdir),
+                tempfile.mkdtemp(dir=tmpdir_prefix),
                 os.path.basename(volume.resolved))
             shutil.copy(volume.resolved, file_copy)
             #volume.resolved = file_copy
@@ -211,16 +212,17 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             ensure_writable(file_copy)
 
     def add_writable_directory_volume(self,
-                                      runtime,         # type: List[Text]
-                                      volume,          # type: MapperEnt
-                                      host_outdir_tgt  # type: Optional[Text]
+                                      runtime,          # type: List[Text]
+                                      volume,           # type: MapperEnt
+                                      host_outdir_tgt,  # type: Optional[Text]
+                                      tmpdir_prefix     # type: Text
                                      ):  # type: (...) -> None
         if volume.resolved.startswith("_:"):
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
             else:
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(dir=self.tmpdir),
+                    tempfile.mkdtemp(dir=tmpdir_prefix),
                     os.path.basename(volume.resolved))
             os.makedirs(new_dir, 0o0755)
         else:
@@ -234,7 +236,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             else:
                 if not self.inplace_update:
                     dir_copy = os.path.join(
-                        tempfile.mkdtemp(dir=self.tmpdir),
+                        tempfile.mkdtemp(dir=tmpdir_prefix),
                         os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, dir_copy)
                     source = dir_copy
@@ -247,10 +249,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
 
     def create_runtime(self,
-                       env,                        # type: MutableMapping[Text, Text]
-                       runtimeContext              # type: RuntimeContext
-                      ):
-        # type: (...) -> List
+                       env,            # type: MutableMapping[Text, Text]
+                       runtime_context  # type: RuntimeContext
+                      ):  # type: (...) -> Tuple[List, Optional[Text]]
         """ Returns the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
             or False
@@ -267,19 +268,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
 
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
-                         secret_store=runtimeContext.secret_store)
+                         secret_store=runtime_context.secret_store,
+                         tmpdir_prefix=runtime_context.tmpdir_prefix)
         if self.generatemapper is not None:
             self.add_volumes(
                 self.generatemapper, runtime, any_path_okay=any_path_okay,
-                secret_store=runtimeContext.secret_store)
+                secret_store=runtime_context.secret_store,
+                tmpdir_prefix=runtime_context.tmpdir_prefix)
 
         runtime.append(u"--pwd")
-        runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
+        runtime.append(u"%s" % (docker_windows_path_adjust(self.builder.outdir)))
 
-        if runtimeContext.custom_net:
+        if runtime_context.custom_net:
             raise UnsupportedRequirement(
                 "Singularity implementation does not support custom networking")
-        elif runtimeContext.disable_net:
+        elif runtime_context.disable_net:
             runtime.append(u"--net")
 
         env["SINGULARITYENV_TMPDIR"] = "/tmp"
@@ -287,4 +290,4 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         for name, value in self.environment.items():
             env["SINGULARITYENV_{}".format(name)] = value
-        return runtime
+        return (runtime, None)
