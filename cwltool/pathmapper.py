@@ -75,7 +75,10 @@ def normalizeFilesDirs(job):
             d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
 
         if not d.get("basename"):
-            d["basename"] = Text(os.path.basename(urllib.request.url2pathname(path)))
+            if path.startswith("_:"):
+                d["basename"] = Text(path[2:])
+            else:
+                d["basename"] = Text(os.path.basename(urllib.request.url2pathname(path)))
 
         if d["class"] == "File":
             nr, ne = os.path.splitext(d["basename"])
