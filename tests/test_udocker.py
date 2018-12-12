@@ -1,12 +1,13 @@
 import pytest
+import sys
 import os
 import subprocess
-
 from .util import get_data, get_main_output
-from psutil import LINUX
+
+LINUX = sys.platform in ('linux', 'linux2')
 
 
-@pytest.mark.skipif(not LINUX, "LINUX only")
+@pytest.mark.skipif(not LINUX, reason="LINUX only")
 def test_udocker_usage_should_not_write_cid_file(tmpdir):
     cwd = tmpdir.chdir()
     install_cmds = [
