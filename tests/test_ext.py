@@ -3,12 +3,16 @@ from __future__ import absolute_import
 import os
 import shutil
 import tempfile
+import sys
+from io import BytesIO, StringIO
 
 import pytest
 
 from cwltool.main import main
+import cwltool.process
 
-from .util import get_data, needs_docker, temp_dir, windows_needs_docker
+
+from .util import get_data, needs_docker, temp_dir, windows_needs_docker, get_main_output
 
 
 @needs_docker
@@ -197,3 +201,19 @@ def test_require_prefix_timelimit():
     assert main(["--enable-ext", get_data('tests/wf/timelimit.cwl')]) == 0
     assert main([get_data('tests/wf/timelimit.cwl')]) != 0
     assert main(["--enable-ext", get_data('tests/wf/timelimit-fail.cwl')]) != 0
+
+def test_warn_large_inputs():
+    was = cwltool.process.FILE_COUNT_WARNING
+    try:
+        if sys.version_info[0] < 3:
+            stream = BytesIO()
+        else:
+            stream = StringIO()
+
+        cwltool.process.FILE_COUNT_WARNING = 3
+        main([get_data('tests/wf/listing_v1_0.cwl'), get_data('tests/listing2-job.yml')],
+             stderr=stream)
+
+        assert "Recursive directory listing has resulted in a large number" in stream.getvalue()
+    finally:
+        cwltool.process.FILE_COUNT_WARNING = was

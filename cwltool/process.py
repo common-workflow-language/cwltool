@@ -28,7 +28,7 @@ from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
 from schema_salad.ref_resolver import Loader, file_uri
-from schema_salad.sourceline import SourceLine
+from schema_salad.sourceline import SourceLine, strip_dup_lineno
 
 from . import expression
 from .builder import Builder, HasReqsHints
@@ -433,9 +433,11 @@ def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Te
 
 def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
     if expression.needs_parsing(resource_req):
-        visit_class(builder.job, ("File",), functools.partial(add_sizes, builder.fs_access))
         return builder.do_eval(resource_req)
     return resource_req
+
+# Threshold where the "too many files" warning kicks in
+FILE_COUNT_WARNING = 5000
 
 class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
@@ -591,11 +593,6 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         try:
             fill_in_defaults(self.tool[u"inputs"], job, fs_access)
 
-            if load_listing and load_listing != "no_listing":
-                get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
-
-            visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
-
             normalizeFilesDirs(job)
             schema = self.names.get_name("input_record_schema", "")
             if schema is None:
@@ -603,6 +600,41 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                     "{}".format(self.names))
             validate.validate_ex(schema, job, strict=False,
                                  logger=_logger_validation_warnings)
+
+            if load_listing and load_listing != "no_listing":
+                get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
+
+            visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
+
+            if load_listing == "deep_listing" and load_listing_req is None:
+                for i, inparm in enumerate(self.tool["inputs"]):
+                    k = shortname(inparm["id"])
+                    if k not in job:
+                        continue
+                    v = job[k]
+                    dircount = [0]
+                    def inc(d):  # type: (List[int]) -> None
+                        d[0] += 1
+                    visit_class(v, ("Directory",), lambda x: inc(dircount))
+                    if dircount[0] == 0:
+                        continue
+                    filecount = [0]
+                    visit_class(v, ("File",), lambda x: inc(filecount))
+                    if filecount[0] > FILE_COUNT_WARNING:
+                        # Long lines in this message are okay, will be reflowed based on terminal columns.
+                        _logger.warning(strip_dup_lineno(SourceLine(self.tool["inputs"], i, Text).makeError(
+                    """Recursive directory listing has resulted in a large number of File objects (%s) passed to the input parameter '%s'.  This may negatively affect workflow performance and memory use.
+
+If this is a problem, use the hint 'cwltool:LoadListingRequirement' with "shallow_listing" or "no_listing" to change the directory listing behavior:
+
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
+hints:
+  cwltool:LoadListingRequirement:
+    loadListing: shallow_listing
+
+""" % (filecount[0], k))))
+
         except (validate.ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + Text(err))
 
