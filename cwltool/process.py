@@ -592,7 +592,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             fill_in_defaults(self.tool[u"inputs"], job, fs_access)
 
             if load_listing and load_listing != "no_listing":
-                get_listing(fs_access, job, (load_listing == "deep_listing"))
+                get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
 
             visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
 

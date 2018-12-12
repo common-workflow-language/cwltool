@@ -8,7 +8,8 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
-                    Mapping, MutableMapping, MutableSequence, Optional, Tuple, Union)
+                    Mapping, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union, cast)
 from uuid import UUID  # pylint: disable=unused-import
 
 from ruamel.yaml.comments import CommentedMap
@@ -573,14 +574,11 @@ class Workflow(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, runtimeContext)
-        job_order = builder.job
-        builder = None
 
-        #relativeJob=copy.deepcopy(builder.job)
         if runtimeContext.research_obj is not None:
             if runtimeContext.toplevel:
                 # Record primary-job.json
-                runtimeContext.research_obj.create_job(job_order, self.job)
+                runtimeContext.research_obj.create_job(builder.job, self.job)
 
         job = WorkflowJob(self, runtimeContext)
         yield job
@@ -589,7 +587,7 @@ class Workflow(Process):
         runtimeContext.part_of = u"workflow %s" % job.name
         runtimeContext.toplevel = False
 
-        for wjob in job.job(job_order, output_callbacks, runtimeContext):
+        for wjob in job.job(builder.job, output_callbacks, runtimeContext):
             yield wjob
 
     def visit(self, op):
@@ -816,6 +814,7 @@ class ReceiveScatterOutput(object):
         self.processStatus = u"success"
         self.total = total
         self.output_callback = output_callback
+        self.steps = []  # type: List[Optional[Generator]]
 
     def receive_scatter_output(self, index, jobout, processStatus):
         # type: (int, Dict[Text, Text], Text) -> None
@@ -824,7 +823,8 @@ class ReceiveScatterOutput(object):
 
         # Release the iterable related to this step to
         # reclaim memory.
-        self.steps[index] = None
+        if self.steps:
+            self.steps[index] = None
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -837,7 +837,7 @@ class ReceiveScatterOutput(object):
 
     def setTotal(self, total, steps):  # type: (int, List[Generator]) -> None
         self.total = total
-        self.steps = steps
+        self.steps = cast(List[Optional[Generator]], steps)
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 

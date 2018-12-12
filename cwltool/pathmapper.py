@@ -111,7 +111,10 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 def get_listing(fs_access, rec, recursive=True):
     # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
     if rec.get("class") != "Directory":
-        visit_class(rec, ("Directory",), partial(get_listing, fs_access, recursive=recursive))
+        finddirs = []  # type: List[MutableMapping]
+        visit_class(rec, ("Directory",), finddirs.append)
+        for f in finddirs:
+            get_listing(fs_access, f, recursive=recursive)
         return
     if "listing" in rec:
         return
