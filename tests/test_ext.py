@@ -4,7 +4,7 @@ import os
 import shutil
 import tempfile
 import sys
-from io import BytesIO, StringIO
+from io import StringIO
 
 import pytest
 
@@ -205,10 +205,7 @@ def test_require_prefix_timelimit():
 def test_warn_large_inputs():
     was = cwltool.process.FILE_COUNT_WARNING
     try:
-        if sys.version_info[0] < 3:
-            stream = BytesIO()
-        else:
-            stream = StringIO()
+        stream = StringIO()
 
         cwltool.process.FILE_COUNT_WARNING = 3
         main([get_data('tests/wf/listing_v1_0.cwl'), get_data('tests/listing2-job.yml')],
