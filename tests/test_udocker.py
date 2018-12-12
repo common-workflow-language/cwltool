@@ -2,17 +2,16 @@ import pytest
 import subprocess
 
 from .util import get_data, get_main_output
-from psutil import LINUX
 
 
-@pytest.mark.skipIf(not LINUX, "LINUX only")
+# @pytest.mark.skipIf(not LINUX, "LINUX only")
 def test_udocker_usage_should_not_write_cid_file(tmpdir):
     cwd = tmpdir.chdir()
     install_cmds = [
-        "curl https://raw.githubusercontent.com/indigo-dc/udocker/master/udocker.py > udocker",
+        "curl https://raw.githubusercontent.com/indigo-dc/udocker/master/udocker.py -o ./udocker",
         "chmod u+rx ./udocker",
         "./udocker install"]
-    assert sum([subprocess.check_output(cmd) for cmd in install_cmds]) == 0
+    assert sum([subprocess.call(cmd.split()) for cmd in install_cmds]) == 0
 
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
