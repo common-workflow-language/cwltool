@@ -8,6 +8,7 @@ import random
 import shutil
 import string
 import sys
+import tempfile
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
                     Dict, Iterable, List, MutableMapping, MutableSequence,
@@ -35,7 +36,7 @@ Directory = TypedDict('Directory',
                       {'class': Text, 'listing': List[Dict[Text, Text]],
                        'basename': Text})
 
-DEFAULT_TMP_PREFIX = "tmp"
+DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen]
 

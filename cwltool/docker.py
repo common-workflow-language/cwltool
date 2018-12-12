@@ -10,7 +10,7 @@ import sys
 import tempfile
 import threading
 from io import open  # pylint: disable=redefined-builtin
-from typing import Dict, List, MutableMapping, Optional, Set
+from typing import Dict, List, MutableMapping, Optional, Set, Tuple
 
 import requests
 from typing_extensions import Text  # pylint: disable=unused-import
@@ -119,9 +119,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         del split[2]
 
                 # check for repository:tag match or image id match
-                if (match and
-                        ((split[0] == match.group(1) and split[1] == match.group(2)) or
-                         docker_requirement["dockerImageId"] == match.group(3))):
+                if (match
+                        and (
+                            (split[0] == match.group(1) and split[1] == match.group(2))
+                            or docker_requirement["dockerImageId"] == match.group(3))):
                     found = True
                     break
             except ValueError:
@@ -200,8 +201,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         # type: (List[Text], Text, Text, bool) -> None
         """Add binding arguments to the runtime list."""
         runtime.append(u"--volume={}:{}:{}".format(
-            docker_windows_path_adjust(source),
-            docker_windows_path_adjust(target), "rw" if writable else "ro"))
+            docker_windows_path_adjust(source), target,
+            "rw" if writable else "ro"))
 
     def add_file_or_directory_volume(self,
                                      runtime,         # type: List[Text]
@@ -215,9 +216,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             self.append_volume(runtime, volume.resolved, volume.target)
 
     def add_writable_file_volume(self,
-                                 runtime,         # type: List[Text]
-                                 volume,          # type: MapperEnt
-                                 host_outdir_tgt  # type: Optional[Text]
+                                 runtime,          # type: List[Text]
+                                 volume,           # type: MapperEnt
+                                 host_outdir_tgt,  # type: Optional[Text]
+                                 tmpdir_prefix     # type: Text
                                 ):  # type: (...) -> None
         """Append a writable file mapping to the runtime option list."""
         if self.inplace_update:
@@ -229,7 +231,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # which is already going to be mounted
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
-                tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+                tmpdir = tempfile.mkdtemp(dir=tmpdir_prefix)
                 file_copy = os.path.join(
                     tmpdir, os.path.basename(volume.resolved))
                 shutil.copy(volume.resolved, file_copy)
@@ -238,16 +240,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             ensure_writable(host_outdir_tgt or file_copy)
 
     def add_writable_directory_volume(self,
-                                      runtime,         # type: List[Text]
-                                      volume,          # type: MapperEnt
-                                      host_outdir_tgt  # type: Optional[Text]
+                                      runtime,          # type: List[Text]
+                                      volume,           # type: MapperEnt
+                                      host_outdir_tgt,  # type: Optional[Text]
+                                      tmpdir_prefix     # type: Text
                                      ):  # type: (...) -> None
         """Append a writable directory mapping to the runtime option list."""
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
             if not host_outdir_tgt:
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(dir=self.tmpdir),
+                    tempfile.mkdtemp(dir=tmpdir_prefix),
                     os.path.basename(volume.target))
                 self.append_volume(runtime, new_dir, volume.target,
                                    writable=True)
@@ -259,7 +262,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                                    writable=True)
             else:
                 if not host_outdir_tgt:
-                    tmpdir = tempfile.mkdtemp(dir=self.tmpdir)
+                    tmpdir = tempfile.mkdtemp(dir=tmpdir_prefix)
                     new_dir = os.path.join(
                         tmpdir, os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, new_dir)
@@ -270,8 +273,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt or new_dir)
 
-    def create_runtime(self, env, runtimeContext):
-        # type: (MutableMapping[Text, Text], RuntimeContext) -> List
+    def create_runtime(self,
+                       env,            # type: MutableMapping[Text, Text]
+                       runtimeContext  # type: RuntimeContext
+                      ):  # type: (...) -> Tuple[List[Text], Optional[Text]]
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
             or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
@@ -284,19 +289,18 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime = [user_space_docker_cmd, u"run"]
         else:
             runtime = [u"docker", u"run", u"-i"]
-
-        runtime.append(u"--volume=%s:%s:rw" % (
-            docker_windows_path_adjust(os.path.realpath(self.outdir)),
-            self.builder.outdir))
-        runtime.append(u"--volume=%s:%s:rw" % (
-            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
-
+        self.append_volume(runtime, os.path.realpath(self.outdir),
+                           self.builder.outdir, writable=True)
+        self.append_volume(runtime, os.path.realpath(self.tmpdir), "/tmp",
+                           writable=True)
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
-                         secret_store=runtimeContext.secret_store)
+                         secret_store=runtimeContext.secret_store,
+                         tmpdir_prefix=runtimeContext.tmpdir_prefix)
         if self.generatemapper is not None:
             self.add_volumes(
                 self.generatemapper, runtime, any_path_okay=any_path_okay,
-                secret_store=runtimeContext.secret_store)
+                secret_store=runtimeContext.secret_store,
+                tmpdir_prefix=runtimeContext.tmpdir_prefix)
 
         if user_space_docker_cmd:
             runtime = [x.replace(":ro", "") for x in runtime]
@@ -338,25 +342,26 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--env=HOME=%s" % self.builder.outdir)
 
         # add parameters to docker to write a container ID file
-        if runtimeContext.record_container_id is True:
+
+        if runtimeContext.cidfile_dir:
             cidfile_dir = runtimeContext.cidfile_dir
-            if cidfile_dir is not None:
-                if not os.path.isdir(cidfile_dir):
-                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                                  cidfile_dir + " is not a directory or "
-                                  "directory doesn't exist, please check it first")
-                    exit(2)
-                if not os.path.exists(cidfile_dir):
-                    _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
-                                  "directory doesn't exist, please create it first")
-                    exit(2)
-            else:
-                cidfile_dir = os.getcwd()
-            cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
-            if runtimeContext.cidfile_prefix is not None:
-                cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
-            cidfile_path = os.path.join(cidfile_dir, cidfile_name)
-            runtime.append(u"--cidfile=%s" % cidfile_path)
+            if not os.path.exists(str(cidfile_dir)):
+                _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                              "directory doesn't exist, please create it first")
+                exit(2)
+            if not os.path.isdir(cidfile_dir):
+                _logger.error("--cidfile-dir %s error:\n%s", cidfile_dir,
+                              cidfile_dir + " is not a directory, "
+                              "please check it first")
+                exit(2)
+        else:
+            cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
+
+        cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
+        if runtimeContext.cidfile_prefix is not None:
+            cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
+        cidfile_path = os.path.join(cidfile_dir, cidfile_name)
+        runtime.append(u"--cidfile=%s" % cidfile_path)
 
         for key, value in self.environment.items():
             runtime.append(u"--env=%s=%s" % (key, value))
@@ -373,4 +378,4 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     "--strict-memory-limit for increased portability "
                     "assurance.", self.name)
 
-        return runtime
+        return runtime, cidfile_path
