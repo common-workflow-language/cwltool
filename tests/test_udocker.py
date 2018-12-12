@@ -6,7 +6,7 @@ from .util import get_data, get_main_output
 from psutil import LINUX
 
 
-@pytest.mark.skipIf(not LINUX, "LINUX only")
+@pytest.mark.skipif(not LINUX, "LINUX only")
 def test_udocker_usage_should_not_write_cid_file(tmpdir):
     cwd = tmpdir.chdir()
     install_cmds = [
