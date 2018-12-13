@@ -388,7 +388,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 class CommandLineJob(JobBase):
     def process_monitor(self, sproc):
         monitor = psutil.Process(sproc.pid)
-        memory_usage = []
+        memory_usage = None
 
         def get_tree_mem_usage(container):
             children = monitor.children()
@@ -396,7 +396,8 @@ class CommandLineJob(JobBase):
             while len(children):
                 rss += sum([process.memory_info().rss for process in children])
                 children = list(itertools.chain(*[process.children() for process in children]))
-            container.append(rss)
+            if rss > memory_usage or memory_usage is None:
+                memory_usage = rss
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
@@ -404,9 +405,8 @@ class CommandLineJob(JobBase):
         sproc.wait()
         mem_tm.cancel()
         if memory_usage:
-            max_mem_usage = max(memory_usage)
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                         round(max_mem_usage / (2 ** 20)))
+                         round(memory_usage / (2 ** 20)))
         else:
             _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
 
