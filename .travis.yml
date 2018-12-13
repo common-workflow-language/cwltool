@@ -1,43 +1,79 @@
-dist: trusty
-sudo: required
-services:
-  - docker
-
-before_install:
-- wget -O- http://neuro.debian.net/lists/trusty.us-nh.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
-- sudo apt-key add .travis.singularity_key.txt
-- sudo apt-get update
-- sudo apt-get install -y singularity-container
-
+# RUN IN LINUX W/ singularity
+# Python 27, 34-37
+# RUN IN MACOS on all possible python versions
+# Paralellise
+#Factor out
+os:
+  - linux
+  - osx
 language: python
+python:
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.6"
+  - "3.7-dev"
+
+
+install:
+  - pip install tox
+
+script:
+  - tox
+
 cache:
   pip: true
   directories:
     - .mypy_cache
 
-os:
-  - linux
-install:
-  - pip install tox-travis
-jobs:
-  include:
-    - stage: test
-      python: "2.7"
-    - stage: test
-      python: "3.4"
-    - stage: test
-      python: "3.5"
-    - stage: test
-      python: "3.6"
-    - stage: test
-      python: "3.7"
-      dist: xenial
-    - stage: release-test
-      python: "2.7"
-      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
-script: tox
+
+
 branches:
   only:
     - master
 notifications:
   email: false
+
+#dist: trusty
+#sudo: required
+#services:
+#  - docker
+#
+#before_install:
+#- wget -O- http://neuro.debian.net/lists/trusty.us-nh.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+#- sudo apt-key add .travis.singularity_key.txt
+#- sudo apt-get update
+#- sudo apt-get install -y singularity-container
+#
+#language: python
+#cache:
+#  pip: true
+#  directories:
+#    - .mypy_cache
+#
+#os:
+#  - linux
+#install:
+#  - pip install tox-travis
+#jobs:
+#  include:
+#    - stage: test
+#      python: "2.7"
+#    - stage: test
+#      python: "3.4"
+#    - stage: test
+#      python: "3.5"
+#    - stage: test
+#      python: "3.6"
+#    - stage: test
+#      python: "3.7"
+#      dist: xenial
+#    - stage: release-test
+#      python: "2.7"
+#      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+#script: tox
+#branches:
+#  only:
+#    - master
+#notifications:
+#  email: false
