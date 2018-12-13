@@ -4,19 +4,39 @@
 # Paralellise
 # Factor out
 
-env:
-  - TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
-  - TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
-  - TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
-  - TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
-  - TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
-
 matrix:
   include:
     - os: linux
       language: python
+      python: 2.7
+      env: TRAVIS_PYTHON_VERSION=py27
+    - os: linux
+      language: python
+      python: TRAVIS_PYTHON_VERSION=py34
+    - os: linux
+      language: python
+      python: TRAVIS_PYTHON_VERSION=py35
+    - os: linux
+      language: python
+      python: TRAVIS_PYTHON_VERSION=py36
+    - os: linux
+      language: python
+      python: TRAVIS_PYTHON_VERSION=py37
     - os: osx
       language: generic
+      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
 
 install:
   - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
