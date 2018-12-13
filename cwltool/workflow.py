@@ -8,7 +8,8 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
-                    Mapping, MutableMapping, MutableSequence, Optional, Tuple, Union)
+                    Mapping, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union, cast)
 from uuid import UUID  # pylint: disable=unused-import
 
 from ruamel.yaml.comments import CommentedMap
@@ -290,6 +291,9 @@ class WorkflowJob(object):
             _logger.info(u"[%s] completed %s", step.name, processStatus)
 
         step.completed = True
+        # Release the iterable related to this step to
+        # reclaim memory.
+        step.iterable = None
         self.made_progress = True
 
         completed = sum(1 for s in self.steps if s.completed)
@@ -570,7 +574,7 @@ class Workflow(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, runtimeContext)
-        #relativeJob=copy.deepcopy(builder.job)
+
         if runtimeContext.research_obj is not None:
             if runtimeContext.toplevel:
                 # Record primary-job.json
@@ -810,11 +814,17 @@ class ReceiveScatterOutput(object):
         self.processStatus = u"success"
         self.total = total
         self.output_callback = output_callback
+        self.steps = []  # type: List[Optional[Generator]]
 
     def receive_scatter_output(self, index, jobout, processStatus):
         # type: (int, Dict[Text, Text], Text) -> None
         for key, val in jobout.items():
             self.dest[key][index] = val
+
+        # Release the iterable related to this step to
+        # reclaim memory.
+        if self.steps:
+            self.steps[index] = None
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -825,8 +835,9 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total):  # type: (int) -> None
+    def setTotal(self, total, steps):  # type: (int, List[Generator]) -> None
         self.total = total
+        self.steps = cast(List[Optional[Generator]], steps)
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
@@ -838,6 +849,8 @@ def parallel_steps(steps, rc, runtimeContext):
         for index, step in enumerate(steps):
             if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
                 break
+            if step is None:
+                continue
             try:
                 for j in step:
                     if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
@@ -847,6 +860,8 @@ def parallel_steps(steps, rc, runtimeContext):
                         yield j
                     else:
                         break
+                if made_progress:
+                    break
             except WorkflowException as exc:
                 _logger.error(u"Cannot make scatter job: %s", exc)
                 _logger.debug("", exc_info=True)
@@ -890,7 +905,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
             sjobo, functools.partial(rc.receive_scatter_output, index),
             runtimeContext))
 
-    rc.setTotal(jobl)
+    rc.setTotal(jobl, steps)
     return parallel_steps(steps, rc, runtimeContext)
 
 
@@ -925,7 +940,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
                 functools.partial(rc.receive_scatter_output, index),
                 runtimeContext))
 
-    rc.setTotal(jobl)
+    rc.setTotal(jobl, steps)
     return parallel_steps(steps, rc, runtimeContext)
 
 
@@ -952,7 +967,7 @@ def flat_crossproduct_scatter(process,          # type: WorkflowJobStep
     callback = ReceiveScatterOutput(output_callback, output, 0)
     (steps, total) = _flat_crossproduct_scatter(
         process, joborder, scatter_keys, callback, 0, runtimeContext)
-    callback.setTotal(total)
+    callback.setTotal(total, steps)
     return parallel_steps(steps, callback, runtimeContext)
 
 def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
