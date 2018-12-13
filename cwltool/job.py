@@ -2,14 +2,15 @@ from __future__ import absolute_import
 
 import datetime
 import functools
+import itertools
 import logging
 import os
 import re
 import shutil
 import stat
 import sys
-import time
 import tempfile
+import time
 import uuid
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
@@ -17,13 +18,13 @@ from threading import Timer
 from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, Tuple,
                     MutableMapping, MutableSequence, Optional, Union, cast)
 
-import shellescape
 import psutil
+import shellescape
 from prov.model import PROV
+from schema_salad.sourceline import SourceLine
 from six import PY2, with_metaclass
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
-from schema_salad.sourceline import SourceLine
 
 from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .context import RuntimeContext  # pylint: disable=unused-import
@@ -231,11 +232,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                                 for p in self.generatemapper.files()}, indent=4))
 
     def _execute(self,
-                 runtime,               # type: List[Text]
-                 env,                   # type: MutableMapping[Text, Text]
-                 runtimeContext,        # type: RuntimeContext
-                 monitor_function=None  # type: Optional[Callable]
-                 ):  # type: (...) -> None
+                 runtime,                # type: List[Text]
+                 env,                    # type: MutableMapping[Text, Text]
+                 runtimeContext,         # type: RuntimeContext
+                 monitor_function=None,  # type: Optional[Callable]
+                 ):                      # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
 
@@ -383,6 +384,30 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
+    def process_monitor(self, sproc):
+        monitor = psutil.Process(sproc.pid)
+        memory_usage = [None]  # Value must be list rather than integer to utilise pass-by-reference in python
+
+        def get_tree_mem_usage(memory_usage):
+            children = monitor.children()
+            rss = monitor.memory_info().rss
+            while len(children):
+                rss += sum([process.memory_info().rss for process in children])
+                children = list(itertools.chain(*[process.children() for process in children]))
+            if memory_usage[0] is None or rss > memory_usage[0]:
+                memory_usage[0] = rss
+
+        mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
+        mem_tm.daemon = True
+        mem_tm.start()
+        sproc.wait()
+        mem_tm.cancel()
+        if memory_usage[0] is not None:
+            _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+                         round(memory_usage[0] / (2 ** 20)))
+        else:
+            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
+
 
 class CommandLineJob(JobBase):
     def run(self,
@@ -419,7 +444,9 @@ class CommandLineJob(JobBase):
                 self.generatemapper, self.outdir, self.builder.outdir,
                 inplace_update=self.inplace_update)
 
-        self._execute([], env, runtimeContext)
+        monitor_function = functools.partial(self.process_monitor)
+
+        self._execute([], env, runtimeContext, monitor_function)
 
 
 CONTROL_CODE_RE = r'\x1b\[[0-9;]*[a-zA-Z]'
@@ -621,6 +648,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             monitor_function = functools.partial(
                 self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix,
                 not bool(runtimeContext.cidfile_dir))
+        elif runtimeContext.user_space_docker_cmd:
+            monitor_function = functools.partial(self.process_monitor)
         self._execute(runtime, env, runtimeContext, monitor_function)
 
     @staticmethod
