@@ -2,20 +2,17 @@
 # Python 27, 34-37
 # RUN IN MACOS on all possible python versions
 # Paralellise
-#Factor out
-os:
-  - linux
-  - osx
-language: python
-python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
-  - "3.6"
-  - "3.7-dev"
+# Factor out
+
+matrix:
+  include:
+    - os: linux
+      language: python
+      python: 2.7
 
 
 install:
+  - ./.travis/os_install.sh
   - pip install tox
 
 script:
