@@ -13,19 +13,19 @@ matrix:
     - os: linux
       language: python
       python: 3.4
-      python: TRAVIS_PYTHON_VERSION=py34
+      env: TRAVIS_PYTHON_VERSION=py34
     - os: linux
       language: python
       python: 3.5
-      python: TRAVIS_PYTHON_VERSION=py35
+      env: TRAVIS_PYTHON_VERSION=py35
     - os: linux
       language: python
       python: 3.6
-      python: TRAVIS_PYTHON_VERSION=py36
+      env: TRAVIS_PYTHON_VERSION=py36
     - os: linux
       language: python
       python: 3.7-dev
-      python: TRAVIS_PYTHON_VERSION=py37
+      env: TRAVIS_PYTHON_VERSION=py37
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
