@@ -56,7 +56,7 @@ class TestUdocker:
         cwd = tmpdir.chdir()
         error_code, stdout, stderr = get_main_output(
             ["--default-container=debian",  "--user-space-docker-cmd=" + self.udocker_path,
-             get_data("tests/wf/timelimit.cwl"), "--sleep_time", "10"])
+             get_data("tests/wf/timelimit.cwl"), "--sleep_time", "100"])
         cwd.chdir()
         tmpdir.remove(ignore_errors=True)
 
