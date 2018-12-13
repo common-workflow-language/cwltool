@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import sys
+import re
 from io import StringIO
 
 import pytest
@@ -211,6 +212,6 @@ def test_warn_large_inputs():
         main([get_data('tests/wf/listing_v1_0.cwl'), get_data('tests/listing2-job.yml')],
              stderr=stream)
 
-        assert "Recursive directory listing has resulted in a large number" in stream.getvalue()
+        assert "Recursive directory listing has resulted in a large number of File objects" in re.sub("\n  *", " ", stream.getvalue())
     finally:
         cwltool.process.FILE_COUNT_WARNING = was
