@@ -402,7 +402,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         mem_tm.start()
         sproc.wait()
         mem_tm.cancel()
-        if memory_usage:
+        if memory_usage[0] is not None:
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
