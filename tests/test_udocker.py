@@ -54,9 +54,6 @@ class TestUdocker:
 
     def test_udocker_should_display_memory_usage(self, tmpdir):
         cwd = tmpdir.chdir()
-        tmpdir.remove(ignore_errors=True)
-        test_file = "tests/wf/wc-tool.cwl"
-        job_file = "tests/wf/wc-job.json"
         error_code, stdout, stderr = get_main_output(
             ["--default-container=debian",  "--user-space-docker-cmd=" + self.udocker_path,
              get_data("tests/wf/timelimit.cwl"), "--sleep_time", "10"])
