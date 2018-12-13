@@ -2,29 +2,29 @@ from __future__ import absolute_import
 
 import datetime
 import functools
+import itertools
 import logging
 import os
 import re
 import shutil
 import stat
 import sys
-import time
 import tempfile
+import time
 import uuid
-import itertools
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
 from threading import Timer
 from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, Tuple,
                     MutableMapping, MutableSequence, Optional, Union, cast)
 
-import shellescape
 import psutil
+import shellescape
 from prov.model import PROV
+from schema_salad.sourceline import SourceLine
 from six import PY2, with_metaclass
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
-from schema_salad.sourceline import SourceLine
 
 from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .context import RuntimeContext  # pylint: disable=unused-import
@@ -384,8 +384,6 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
-
-class CommandLineJob(JobBase):
     def process_monitor(self, sproc):
         monitor = psutil.Process(sproc.pid)
         memory_usage = None
@@ -410,6 +408,8 @@ class CommandLineJob(JobBase):
         else:
             _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
 
+
+class CommandLineJob(JobBase):
     def run(self,
             runtimeContext  # type: RuntimeContext
             ):  # type: (...) -> None
@@ -648,6 +648,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             monitor_function = functools.partial(
                 self.docker_monitor, cidfile, runtimeContext.tmpdir_prefix,
                 not bool(runtimeContext.cidfile_dir))
+        elif runtimeContext.user_space_docker_cmd:
+            monitor_function = functools.partial(self.process_monitor)
         self._execute(runtime, env, runtimeContext, monitor_function)
 
     @staticmethod
