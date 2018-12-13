@@ -17,7 +17,7 @@ matrix:
 #      python: 3.7
 
 install:
-  - $TRAVIS_BUILD_DIR/travis/os_install.sh
+  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
   - pip install tox
 
 script:
