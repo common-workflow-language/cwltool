@@ -9,7 +9,7 @@ matrix:
     - os: linux
       language: python
       python: 2.7
-      env: TOXENV=py27
+      env: TRAVIS_PYTHON_VERSION=py27
 #    - os: linux
 #      language: python
 #      python: 3.4
@@ -22,7 +22,7 @@ matrix:
 
 install:
   - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
-  - pip install tox
+  - pip install tox-travis
 
 script:
   - tox
