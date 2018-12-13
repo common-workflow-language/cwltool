@@ -18,7 +18,7 @@ matrix:
 #      python: 3.7
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py27
+      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
 
 install:
   - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
