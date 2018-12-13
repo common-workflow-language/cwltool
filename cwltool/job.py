@@ -386,16 +386,16 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
     def process_monitor(self, sproc):
         monitor = psutil.Process(sproc.pid)
-        memory_usage = None
+        memory_usage = [None]  # Value must be list rather than integer to utilise pass-by-reference in python
 
-        def get_tree_mem_usage(container):
+        def get_tree_mem_usage(memory_usage):
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):
                 rss += sum([process.memory_info().rss for process in children])
                 children = list(itertools.chain(*[process.children() for process in children]))
-            if rss > memory_usage or memory_usage is None:
-                memory_usage = rss
+            if memory_usage[0] is None or rss > memory_usage[0]:
+                memory_usage[0] = rss
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
@@ -404,7 +404,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         mem_tm.cancel()
         if memory_usage:
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                         round(memory_usage / (2 ** 20)))
+                         round(memory_usage[0] / (2 ** 20)))
         else:
             _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
 
