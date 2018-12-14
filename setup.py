@@ -58,7 +58,7 @@ setup(name='cwltool',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
           'scandir',
-          'prov == 1.5.1',
+          'prov == 1.5.1, >= 1.5.2',
           'bagit >= 1.6.4',
           'typing-extensions',
       ],
@@ -109,6 +109,6 @@ setup(name='cwltool',
           'Topic :: Scientific/Engineering :: Information Analysis',
           'Topic :: Scientific/Engineering :: Medical Science Apps.',
           'Topic :: System :: Distributed Computing',
-          'Topic :: Utilities',
+          'Topic :: Utilities'
       ]
      )
