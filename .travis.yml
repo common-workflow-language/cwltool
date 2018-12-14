@@ -49,6 +49,8 @@ matrix:
 install:
 #  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
   - pyenv install $PYENV_VERSION
+  - echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
+  - pyenv shell $TRAVIS_PYTHON_VERSION
   - python --version
   - pip install tox-travis
 
