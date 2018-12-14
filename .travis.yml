@@ -49,6 +49,7 @@ matrix:
 install:
 #  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
   - brew install pyenv-virtualenv
+  - pyenv install $PYENV_VERSION
   - pyenv virtualenv $PYENV_VERSION venv
   - source $(pyenv root)/versions/venv/bin/activate
   - python --version
