@@ -53,11 +53,15 @@ install:
 script:
   - tox
 
+before_cache:
+  - brew cleanup
 cache:
   pip: true
   directories:
     - .mypy_cache
     - $HOME/.pyenv_cache
+    - $HOME/Library/Caches/Homebrew
+
 branches:
   only:
     - master
