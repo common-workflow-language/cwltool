@@ -15,8 +15,6 @@ elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
     # ``pyenv shell $PYTHON`` would work, but ``pyenv init`` doesn't seem to
     # modify the Bash environment. ??? So, I hand-set the variables instead.
     export PATH="/Users/travis/.pyenv/shims:${PATH}"
-    pyenv-virtualenv venv
-    source venv/bin/activate
     # A manual check that the correct version of Python is running.
     python --version
 
