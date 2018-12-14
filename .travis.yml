@@ -18,8 +18,10 @@ matrix:
       python: 3.6
       env: TRAVIS_PYTHON_VERSION=py36
     - os: linux
+      dist: xenial
       language: python
-      python: 3.7-dev
+      python: 3.7
+      sudo: true
       env: TRAVIS_PYTHON_VERSION=py37
     - os: osx
       language: generic
