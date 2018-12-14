@@ -6,6 +6,7 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-get update;
     sudo apt-get install -y singularity-container;
 elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
+    export TOXENV=$TRAVIS_PYTHON_VERSION
     brew update
     brew install openssl readline
     # See https://docs.travis-ci.com/user/osx-ci-environment/#A-note-on-upgrading-packages.
