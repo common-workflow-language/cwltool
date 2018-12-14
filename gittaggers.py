@@ -6,10 +6,12 @@ from setuptools.command.egg_info import egg_info
 SETUPTOOLS_VER = pkg_resources.get_distribution(
     "setuptools").version.split('.')
 
-RECENT_SETUPTOOLS = int(SETUPTOOLS_VER[0]) > 40 or (
-    int(SETUPTOOLS_VER[0]) == 40 and int(SETUPTOOLS_VER[1]) > 0) or (
-        int(SETUPTOOLS_VER[0]) == 40 and int(SETUPTOOLS_VER[1]) == 0 and
-        int(SETUPTOOLS_VER[2]) > 0)
+[major,minor,sub] = [ int(item) for item in SETUPTOOLS_VER ]
+
+RECENT_SETUPTOOLS = major > 40 or (major == 40 and minor or (major == 40 and minor==0 and sub > 0))
+# 40.6.3 does not have vtags
+if major == 40 and minor == 6 and sub == 3:
+    RECENT_SETUPTOOLS=False
 
 class EggInfoFromGit(egg_info):
     """Tag the build with git commit timestamp.
