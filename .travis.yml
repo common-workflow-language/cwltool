@@ -3,40 +3,40 @@
 
 matrix:
   include:
-#    - os: linux
-#      language: python
-#      python: 2.7
-#      env: TRAVIS_PYTHON_VERSION=py27
-#    - os: linux
-#      language: python
-#      python: 3.4
-#      env: TRAVIS_PYTHON_VERSION=py34
-#    - os: linux
-#      language: python
-#      python: 3.5
-#      env: TRAVIS_PYTHON_VERSION=py35
-#    - os: linux
-#      language: python
-#      python: 3.6
-#      env: TRAVIS_PYTHON_VERSION=py36
-#    - os: linux
-#      dist: xenial
-#      language: python
-#      python: 3.7 # Sudo is required with xenial and python 3.7, see
-#      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
-#      env: TRAVIS_PYTHON_VERSION=py37
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
+    - os: linux
+      language: python
+      python: 2.7
+      env: TRAVIS_PYTHON_VERSION=py27
+    - os: linux
+      language: python
+      python: 3.4
+      env: TRAVIS_PYTHON_VERSION=py34
+    - os: linux
+      language: python
+      python: 3.5
+      env: TRAVIS_PYTHON_VERSION=py35
+    - os: linux
+      language: python
+      python: 3.6
+      env: TRAVIS_PYTHON_VERSION=py36
+    - os: linux
+      dist: xenial
+      language: python
+      python: 3.7 # Sudo is required with xenial and python 3.7, see
+      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
+      env: TRAVIS_PYTHON_VERSION=py37
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
@@ -47,11 +47,7 @@ matrix:
       python: 2.7
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
-#  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
-  - brew install pyenv-virtualenv
-  - pyenv install $PYENV_VERSION
-  - pyenv virtualenv $PYENV_VERSION venv
-  - source $(pyenv root)/versions/venv/bin/activate
+  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
   - python --version
   - pip install tox-travis
 
