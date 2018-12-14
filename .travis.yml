@@ -45,7 +45,7 @@ matrix:
       python: 2.7
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
-  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
+  - source $TRAVIS_BUILD_DIR/travis/os_install.sh
   - python --version
   - pip install tox-travis
 
