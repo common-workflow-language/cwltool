@@ -20,8 +20,8 @@ matrix:
     - os: linux
       dist: xenial
       language: python
-      python: 3.7
-      sudo: true
+      python: 3.7 # Sudo is required with xenial and python 3.7, see
+      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
       env: TRAVIS_PYTHON_VERSION=py37
     - os: osx
       language: generic
