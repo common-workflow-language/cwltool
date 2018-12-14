@@ -38,6 +38,7 @@ matrix:
       env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
 
     - stage: release-test
+      os: linux
       python: 2.7
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
