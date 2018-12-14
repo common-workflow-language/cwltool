@@ -24,4 +24,6 @@ elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
     source venv/bin/activate
     # A manual check that the correct version of Python is running.
     python --version
+
+    brew cask install docker
 fi
