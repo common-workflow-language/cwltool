@@ -26,4 +26,5 @@ elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
     python --version
 
     brew cask install docker
+    open /Applications/Docker.app &
 fi
