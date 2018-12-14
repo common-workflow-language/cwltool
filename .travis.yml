@@ -4,19 +4,15 @@ matrix:
     - os: linux
       language: python
       python: 2.7
-      env: TRAVIS_PYTHON_VERSION=py27
     - os: linux
       language: python
       python: 3.4
-      env: TRAVIS_PYTHON_VERSION=py34
     - os: linux
       language: python
       python: 3.5
-      env: TRAVIS_PYTHON_VERSION=py35
     - os: linux
       language: python
       python: 3.6
-      env: TRAVIS_PYTHON_VERSION=py36
     - os: linux
       dist: xenial
       language: python
