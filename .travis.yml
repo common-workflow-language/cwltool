@@ -47,7 +47,7 @@ matrix:
       python: 2.7
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
-  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
+#  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
   - pyenv install $PYENV_VERSION
   - pyenv activate $PYENV_VERSION
   - python --version
