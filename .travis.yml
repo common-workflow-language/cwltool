@@ -48,10 +48,9 @@ matrix:
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
 #  - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
-  - pyenv install $PYENV_VERSION
-  - echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
-  - pyenv init
-  - pyenv shell $TRAVIS_PYTHON_VERSION
+  - brew install pyenv-virtualenv
+  - pyenv virtualenv $PYENV_VERSION venv
+  - source $(pyenv root)/versions/venv/bin/activate
   - python --version
   - pip install tox-travis
 
