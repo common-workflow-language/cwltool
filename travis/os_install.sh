@@ -6,8 +6,6 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-get update;
     sudo apt-get install -y singularity-container;
 elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
-    brew install pyenv-virtualenv
     pyenv install $PYENV_VERSION
-    pyenv virtualenv $PYENV_VERSION venv
-    source $(pyenv root)/versions/venv/bin/activate
+    pyenv global $PYENV_VERSION
 fi
