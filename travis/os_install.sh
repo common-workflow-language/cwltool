@@ -7,11 +7,6 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-get install -y singularity-container;
 elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
     export TOXENV=$TRAVIS_PYTHON_VERSION
-    brew update
-    brew install openssl readline
-    # See https://docs.travis-ci.com/user/osx-ci-environment/#A-note-on-upgrading-packages.
-    # I didn't do this above because it works and I'm lazy.
-    brew outdated pyenv || brew upgrade pyenv
     # virtualenv doesn't work without pyenv knowledge. venv in Python 3.3
     # doesn't provide Pip by default. So, use `pyenv-virtualenv <https://github.com/yyuu/pyenv-virtualenv/blob/master/README.md>`_.
     brew install pyenv-virtualenv
