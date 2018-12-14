@@ -47,6 +47,7 @@ matrix:
 install:
 #  - source $TRAVIS_BUILD_DIR/travis/os_install.sh
   - pyenv install $PYENV_VERSION;
+  - $(pyenv init -)
   - pyenv global $PYENV_VERSION;
   - python --version
   - pip install tox-travis
