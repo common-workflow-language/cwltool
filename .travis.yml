@@ -45,10 +45,7 @@ matrix:
 #      python: 2.7
 #      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
-#  - source $TRAVIS_BUILD_DIR/travis/os_install.sh
-  - pyenv install $PYENV_VERSION;
-  - pyenv init 
-  - pyenv global $PYENV_VERSION;
+  - source $TRAVIS_BUILD_DIR/travis/os_install.sh
   - python --version
   - pip install tox-travis
 
