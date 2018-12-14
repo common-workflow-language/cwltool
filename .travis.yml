@@ -19,7 +19,7 @@ matrix:
       env: TRAVIS_PYTHON_VERSION=py36
     - os: linux
       language: python
-      python: 3.7-dev
+      python: 3.7
       env: TRAVIS_PYTHON_VERSION=py37
     - os: osx
       language: generic
@@ -37,6 +37,9 @@ matrix:
       language: generic
       env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
 
+    - stage: release-test
+      python: "2.7"
+      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
   - bash $TRAVIS_BUILD_DIR/travis/os_install.sh
   - pip install tox-travis

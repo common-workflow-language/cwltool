@@ -237,8 +237,6 @@ def validate_document(document_loader,           # type: Loader
         if 'cwlVersion' in metadata:
             workflowobj['cwlVersion'] = metadata['cwlVersion']
         else:
-            print(workflowobj)
-            print(metadata)
             raise ValidationException(
                 "No cwlVersion found. "
                 "Use the following syntax in your CWL document to declare "
