@@ -1,28 +1,28 @@
 matrix:
   include:
-#    - os: linux
-#      language: python
-#      python: 2.7
-#      env: TRAVIS_PYTHON_VERSION=py27
-#    - os: linux
-#      language: python
-#      python: 3.4
-#      env: TRAVIS_PYTHON_VERSION=py34
-#    - os: linux
-#      language: python
-#      python: 3.5
-#      env: TRAVIS_PYTHON_VERSION=py35
-#    - os: linux
-#      language: python
-#      python: 3.6
-#      env: TRAVIS_PYTHON_VERSION=py36
-#    - os: linux
-#      dist: xenial
-#      language: python
-#      python: 3.7 # Sudo is required with xenial and python 3.7, see
-#      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
-#      env: TRAVIS_PYTHON_VERSION=py37
-#
+    - os: linux
+      language: python
+      python: 2.7
+      env: TRAVIS_PYTHON_VERSION=py27
+    - os: linux
+      language: python
+      python: 3.4
+      env: TRAVIS_PYTHON_VERSION=py34
+    - os: linux
+      language: python
+      python: 3.5
+      env: TRAVIS_PYTHON_VERSION=py35
+    - os: linux
+      language: python
+      python: 3.6
+      env: TRAVIS_PYTHON_VERSION=py36
+    - os: linux
+      dist: xenial
+      language: python
+      python: 3.7 # Sudo is required with xenial and python 3.7, see
+      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
+      env: TRAVIS_PYTHON_VERSION=py37
+
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
@@ -38,12 +38,12 @@ matrix:
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
-#
-#    - stage: release-test
-#      os: linux
-#      language: python
-#      python: 2.7
-#      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+
+    - stage: release-test
+      os: linux
+      language: python
+      python: 2.7
+      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
   - source $TRAVIS_BUILD_DIR/travis/os_install.sh
   - python --version
