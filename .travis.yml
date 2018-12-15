@@ -39,10 +39,10 @@ matrix:
       language: generic
       env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
 
-    - stage: release-test
-      os: linux
+    - os: linux
       language: python
       python: 2.7
+      name: RELEASE
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
   - source $TRAVIS_BUILD_DIR/travis/os_install.sh
