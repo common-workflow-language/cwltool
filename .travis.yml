@@ -1,51 +1,54 @@
 matrix:
   include:
-    - os: linux
-      language: python
-      python: 2.7
-      env: TRAVIS_PYTHON_VERSION=py27
-    - os: linux
-      language: python
-      python: 3.4
-      env: TRAVIS_PYTHON_VERSION=py34
-    - os: linux
-      language: python
-      python: 3.5
-      env: TRAVIS_PYTHON_VERSION=py35
-    - os: linux
-      language: python
-      python: 3.6
-      env: TRAVIS_PYTHON_VERSION=py36
-    - os: linux
-      dist: xenial
-      language: python
-      python: 3.7 # Sudo is required with xenial and python 3.7, see
-      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
-      env: TRAVIS_PYTHON_VERSION=py37
+#    - os: linux
+#      language: python
+#      python: 2.7
+#      env: TRAVIS_PYTHON_VERSION=py27
+#    - os: linux
+#      language: python
+#      python: 3.4
+#      env: TRAVIS_PYTHON_VERSION=py34
+#    - os: linux
+#      language: python
+#      python: 3.5
+#      env: TRAVIS_PYTHON_VERSION=py35
+#    - os: linux
+#      language: python
+#      python: 3.6
+#      env: TRAVIS_PYTHON_VERSION=py36
+#    - os: linux
+#      dist: xenial
+#      language: python
+#      python: 3.7 # Sudo is required with xenial and python 3.7, see
+#      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
+#      env: TRAVIS_PYTHON_VERSION=py37
 
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
+      env: PYENV_VERSION_STRING=2.7.14
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
+      env: PYENV_VERSION_STRING=3.4.7
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
+      env: PYENV_VERSION_STRING=3.5.4
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
+      env: PYENV_VERSION_STRING=3.6.3
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
+      env: PYENV_VERSION_STRING=3.7-dev
 
-    - os: linux
-      language: python
-      python: 2.7
-      name: RELEASE
-      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+#    - os: linux
+#      language: python
+#      python: 2.7
+#      name: RELEASE
+#      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
-  - source $TRAVIS_BUILD_DIR/travis/os_install.sh
+  - |
+      if [[ $TRAVIS_OS_NAME == "osx" ]]; then
+        source $TRAVEL_BUILD_DIR/travis_setup-pyenv.sh
+      fi
   - python --version
   - pip install tox-travis
 
