@@ -23,18 +23,18 @@ matrix:
 #      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
 #      env: TRAVIS_PYTHON_VERSION=py37
 #
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev
