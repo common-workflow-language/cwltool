@@ -60,6 +60,7 @@ cache:
     - .mypy_cache
     - $HOME/.pyenv_cache
     - $HOME/Library/Caches/Homebrew
+    - $HOME/.pyenv/versions
 
 branches:
   only:
