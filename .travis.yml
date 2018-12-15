@@ -47,7 +47,7 @@ matrix:
 install:
   - |
       if [[ $TRAVIS_OS_NAME == "osx" ]]; then
-        source $TRAVEL_BUILD_DIR/travis_setup-pyenv.sh
+        source $TRAVEL_BUILD_DIR/travis/setup-pyenv.sh
       fi
   - python --version
   - pip install tox-travis
