@@ -1,3 +1,6 @@
+services:
+  - docker
+
 matrix:
   include:
     - os: linux
