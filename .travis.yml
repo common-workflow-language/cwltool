@@ -3,41 +3,41 @@ matrix:
     - os: linux
       language: python
       python: 2.7
-      env: TRAVIS_PYTHON_VERSION=py27 TOXENV=py27
+      env: TRAVIS_PYTHON_VERSION=2.7 TOXENV=py27
     - os: linux
       language: python
       python: 3.4
-      env: TRAVIS_PYTHON_VERSION=py34 TOXENV=py34
-    - os: linux
-      language: python
-      python: 3.5
-      env: TRAVIS_PYTHON_VERSION=py35 TOXENV=py35
-    - os: linux
-      language: python
-      python: 3.6
-      env: TRAVIS_PYTHON_VERSION=py36 TOXENV=py36
-    - os: linux
-      dist: xenial
-      language: python
-      python: 3.7 # Sudo is required with xenial and python 3.7, see
-      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
-      env: TRAVIS_PYTHON_VERSION=py37 TOXENV=py37
+      env: TRAVIS_PYTHON_VERSION=3.4 TOXENV=py34
+#    - os: linux
+#      language: python
+#      python: 3.5
+#      env: TRAVIS_PYTHON_VERSION=3.5 TOXENV=py35
+#    - os: linux
+#      language: python
+#      python: 3.6
+#      env: TRAVIS_PYTHON_VERSION=3.6 TOXENV=py36
+#    - os: linux
+#      dist: xenial
+#      language: python
+#      python: 3.7 # Sudo is required with xenial and python 3.7, see
+#      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
+#      env: TRAVIS_PYTHON_VERSION=3.7 TOXENV=py37
 
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py27 PYENV_VERSION=2.7.14 TOXENV=py27
+      env: TRAVIS_PYTHON_VERSION=2.7 PYENV_VERSION=2.7.14 TOXENV=py27
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=py34 PYENV_VERSION=3.4.7 TOXENV=py34
-    - os: osx
-      language: generic
-      env: TRAVIS_PYTHON_VERSION=py35 PYENV_VERSION=3.5.4 TOXENV=py35
-    - os: osx
-      language: generic
-      env: TRAVIS_PYTHON_VERSION=py36 PYENV_VERSION=3.6.3 TOXENV=py36
-    - os: osx
-      language: generic
-      env: TRAVIS_PYTHON_VERSION=py37 PYENV_VERSION=3.7-dev TOXENV=py37
+      env: TRAVIS_PYTHON_VERSION=3.4 PYENV_VERSION=3.4.7 TOXENV=py34
+#    - os: osx
+#      language: generic
+#      env: TRAVIS_PYTHON_VERSION=3.5 PYENV_VERSION=3.5.4 TOXENV=py35
+#    - os: osx
+#      language: generic
+#      env: TRAVIS_PYTHON_VERSION=3.6 PYENV_VERSION=3.6.3 TOXENV=py36
+#    - os: osx
+#      language: generic
+#      env: TRAVIS_PYTHON_VERSION=3.7 PYENV_VERSION=3.7-dev TOXENV=py37
 
     - os: linux
       language: python
