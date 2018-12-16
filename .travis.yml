@@ -37,7 +37,7 @@ matrix:
       env: PYENV_VERSION='3.6.3' PYENV_VERSION_STRING='Python 3.6.3' TOXENV=py36
     - os: osx
       language: generic
-      env: PYENV_VERSION='3.7.0b3' PYENV_VERSION_STRING='Python 3.7-dev' TOXENV=py37
+      env: PYENV_VERSION='3.7' PYENV_VERSION_STRING='Python 3.7-dev' TOXENV=py37
 
 #    - os: linux
 #      language: python
