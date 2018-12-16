@@ -6,7 +6,7 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-get update;
     sudo apt-get install -y singularity-container;
 elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
-    pyenv install $PYENV_VERSION;
+    pyenv install $PYENV_VERSION -s;
     eval "$(pyenv init -)";
     pyenv global $PYENV_VERSION;
     pip install -U virtualenv;
