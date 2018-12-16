@@ -25,7 +25,7 @@ matrix:
 
     - os: osx
       language: generic
-      env: PYENV_VERSION='2.7.14' PYENV_VERSION_STRING='Python 2.7.14' TOXENV=py27
+      env: PYENV_VERSION='2.7.14' PYENV_VERSION_STRING='Python 2.7.14' TOXENV=py27 TRAVIS_PYTHON_VERSION=py27
     - os: osx
       language: generic
       env: PYENV_VERSION='3.4.7' PYENV_VERSION_STRING='Python 3.4.7' TOXENV=py34
