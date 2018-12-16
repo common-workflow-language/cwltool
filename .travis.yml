@@ -37,7 +37,7 @@ matrix:
       env: PYENV_VERSION='3.6.3' PYENV_VERSION_STRING='Python 3.6.3'
     - os: osx
       language: generic
-      env: PYENV_VERSION='3.7-dev' PYENV_VERSION_STRING='Python 3.7-dev'
+      env: PYENV_VERSION='3.7.0b3' PYENV_VERSION_STRING='Python 3.7-dev'
 
 #    - os: linux
 #      language: python
@@ -54,7 +54,7 @@ install:
   - pip install tox-travis
 
 script:
-  - tox
+  - tox -v
 
 before_cache:
   - brew cleanup
