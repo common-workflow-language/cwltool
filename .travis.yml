@@ -25,19 +25,19 @@ matrix:
 
     - os: osx
       language: generic
-      env: PYENV_VERSION_STRING=2.7.14
+      env: PYENV_VERSION='2.7.14' PYENV_VERSION_STRING='Python 2.7.14'
     - os: osx
       language: generic
-      env: PYENV_VERSION_STRING=3.4.7
+      env: PYENV_VERSION='3.4.7' PYENV_VERSION_STRING='Python 3.4.7'
     - os: osx
       language: generic
-      env: PYENV_VERSION_STRING=3.5.4
+      env: PYENV_VERSION='3.5.4' PYENV_VERSION_STRING='Python 3.5.4'
     - os: osx
       language: generic
-      env: PYENV_VERSION_STRING=3.6.3
+      env: PYENV_VERSION='3.6.3' PYENV_VERSION_STRING='Python 3.6.3'
     - os: osx
       language: generic
-      env: PYENV_VERSION_STRING=3.7-dev
+      env: PYENV_VERSION='3.7-dev' PYENV_VERSION_STRING='Python 3.7-dev'
 
 #    - os: linux
 #      language: python
@@ -47,7 +47,8 @@ matrix:
 install:
   - |
       if [[ $TRAVIS_OS_NAME == "osx" ]]; then
-        source $TRAVIS_BUILD_DIR/travis/setup-pyenv.sh
+        wget https://github.com/praekeltfoundation/travis-pyenv/releases/download/0.4.0/setup-pyenv.sh
+        source setup-pyenv.sh
       fi
   - python --version
   - pip install tox-travis
