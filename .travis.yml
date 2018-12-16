@@ -50,6 +50,7 @@ install:
         wget https://github.com/praekeltfoundation/travis-pyenv/releases/download/0.4.0/setup-pyenv.sh
         source setup-pyenv.sh
       fi
+  - bash $TRAVIS_BUILD_DIR/travis/singularity_install.sh
   - python --version
   - pip install tox-travis
 
