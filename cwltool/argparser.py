@@ -48,22 +48,23 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
         dest="rm_container")
 
     cidgroup = parser.add_argument_group(
-        "Options for recording the Docker container identifier into a file")
+        "Options for recording the Docker container identifier into a file.")
+    # Disabled as containerid is now saved by default
     cidgroup.add_argument("--record-container-id", action="store_true",
                           default=False,
-                          help="If enabled, store the Docker container ID into a file. "
-                          "See --cidfile-dir to specify the directory.",
+                          help = argparse.SUPPRESS,
                           dest="record_container_id")
 
     cidgroup.add_argument(
-        "--cidfile-dir", type=Text, help="Directory for storing the Docker "
-        "container ID file. The default is the current directory",
+        "--cidfile-dir", type=Text, help="Store the Docker "
+        "container ID into a file in the specifed directory.",
         default=None, dest="cidfile_dir")
 
     cidgroup.add_argument(
         "--cidfile-prefix", type=Text,
         help="Specify a prefix to the container ID filename. "
-        "Final file name will be followed by a timestamp. The default is no prefix.",
+        "Final file name will be followed by a timestamp. "
+        "The default is no prefix.",
         default=None, dest="cidfile_prefix")
 
     parser.add_argument("--tmpdir-prefix", type=Text,
@@ -270,8 +271,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         dest="ga4gh_tool_registries", default=[])
 
     parser.add_argument("--on-error",
-                        help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
-                             "Default is 'stop'.", default="stop", choices=("stop", "continue"))
+                        help="Desired workflow behavior when a step fails.  One of 'stop' (do not submit any more steps) or "
+                        "'continue' (may submit other steps that are not downstream from the error). Default is 'stop'.",
+                        default="stop", choices=("stop", "continue"))
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--compute-checksum", action="store_true", default=True,

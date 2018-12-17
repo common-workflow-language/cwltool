@@ -1,3 +1,9 @@
+Style guide:
+PEP-8
+Python 2.7 + Python 3.4+ compatible code
+PEP-484 type hints, in comments for Python 2.7 compatability
+Vertically align the type hints in function definitions
+
 In order to contribute to the development of ``cwltool``, you need to install cwltool from source (preferably in a virtual environment):
 Here's a rough 
 - Install virtualenv via pip: ``pip install virtualenv``

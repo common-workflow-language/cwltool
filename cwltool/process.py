@@ -16,7 +16,7 @@ import uuid
 from collections import Iterable  # pylint: disable=unused-import
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
-                    MutableMapping, MutableSequence, Optional, Set, Tuple,
+                    Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
                     Union, cast)
 
 from pkg_resources import resource_stream
@@ -28,7 +28,7 @@ from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
 from schema_salad.ref_resolver import Loader, file_uri
-from schema_salad.sourceline import SourceLine
+from schema_salad.sourceline import SourceLine, strip_dup_lineno
 
 from . import expression
 from .builder import Builder, HasReqsHints
@@ -208,24 +208,6 @@ def checkRequirements(rec, supported_process_requirements):
             checkRequirements(entry, supported_process_requirements)
 
 
-def adjustFilesWithSecondary(rec, op, primary=None):
-    """Apply a mapping function to each File path in the object `rec`, propagating
-    the primary file associated with a group of secondary files.
-    """
-
-    if isinstance(rec, MutableMapping):
-        if rec.get("class") == "File":
-            rec["path"] = op(rec["path"], primary=primary)
-            adjustFilesWithSecondary(rec.get("secondaryFiles", []), op,
-                                     primary if primary else rec["path"])
-        else:
-            for d in rec:
-                adjustFilesWithSecondary(rec[d], op)
-    if isinstance(rec, MutableSequence):
-        for d in rec:
-            adjustFilesWithSecondary(d, op, primary)
-
-
 def stage_files(pathmapper,             # type: PathMapper
                 stage_func=None,        # type: Callable[..., Any]
                 ignore_writable=False,  # type: bool
@@ -363,7 +345,8 @@ def cleanIntermediate(output_dirs):  # type: (Iterable[Text]) -> None
 def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
     if 'location' in obj:
         try:
-            obj["size"] = fsaccess.size(obj["location"])
+            if "size" not in obj:
+                obj["size"] = fsaccess.size(obj["location"])
         except OSError:
             pass
     elif 'contents' in obj:
@@ -386,7 +369,6 @@ def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
                 job[fieldname] = None
             else:
                 raise WorkflowException("Missing required input parameter '%s'" % shortname(inp["id"]))
-    visit_class(job, ("File",), functools.partial(add_sizes, fsaccess))
 
 
 def avroize_type(field_type, name_prefix=""):
@@ -395,8 +377,8 @@ def avroize_type(field_type, name_prefix=""):
     adds missing information to a type so that CWL types are valid in schema_salad.
     """
     if isinstance(field_type, MutableSequence):
-        for f in field_type:
-            avroize_type(f, name_prefix)
+        for field in field_type:
+            avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
@@ -405,6 +387,9 @@ def avroize_type(field_type, name_prefix=""):
             avroize_type(field_type["fields"], name_prefix)
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
+        if isinstance(field_type["type"], MutableSequence):
+            for ctype in field_type["type"]:
+                avroize_type(ctype, name_prefix)
     return field_type
 
 def get_overrides(overrides, toolid):  # type: (List[Dict[Text, Any]], Text) -> Dict[Text, Any]
@@ -448,9 +433,11 @@ def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Te
 
 def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
     if expression.needs_parsing(resource_req):
-        visit_class(builder.job, ("File",), functools.partial(add_sizes, builder.fs_access))
         return builder.do_eval(resource_req)
     return resource_req
+
+# Threshold where the "too many files" warning kicks in
+FILE_COUNT_WARNING = 5000
 
 class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
     def __init__(self,
@@ -470,12 +457,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             SCHEMA_DIR = cast(Dict[Text, Any],
                               SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"])
 
-        names = schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
-                                        Loader({}))[0]
-        if isinstance(names, schema.SchemaParseException):
-            raise names
-        else:
-            self.names = names
+        self.names = schema.make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
+                                             Loader({}))
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         self.requirements.extend(self.tool.get("requirements", []))
@@ -502,11 +485,11 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
         if sd is not None:
-            sdtypes = sd["types"]
-            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
+            sdtypes = avroize_type(sd["types"])
+            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
-            schema.AvroSchemaFromJSONData(av, self.names)  # type: ignore
+            schema.make_avsc_object(schema.convert_to_dict(av), self.names)
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -542,12 +525,14 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             self.inputs_record_schema = cast(
                 Dict[Text, Any], schema.make_valid_avro(
                     self.inputs_record_schema, {}, set()))
-            schema.AvroSchemaFromJSONData(self.inputs_record_schema, self.names)
+            schema.make_avsc_object(
+                schema.convert_to_dict(self.inputs_record_schema), self.names)
         with SourceLine(toolpath_object, "outputs", validate.ValidationException):
             self.outputs_record_schema = cast(
                 Dict[Text, Any],
                 schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            schema.AvroSchemaFromJSONData(self.outputs_record_schema, self.names)
+            schema.make_avsc_object(
+                schema.convert_to_dict(self.outputs_record_schema), self.names)
 
         if toolpath_object.get("class") is not None \
                 and not getdefault(loadingContext.disable_js_validation, False):
@@ -589,7 +574,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             var_spool_cwl_detector(self.tool)
 
     def _init_job(self, joborder, runtime_context):
-        # type: (MutableMapping[Text, Text], RuntimeContext) -> Builder
+        # type: (Mapping[Text, Text], RuntimeContext) -> Builder
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
@@ -597,12 +582,59 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)
 
+        load_listing_req, _ = self.get_requirement(
+            "http://commonwl.org/cwltool#LoadListingRequirement")
+        if load_listing_req is not None:
+            load_listing = load_listing_req.get("loadListing")
+        else:
+            load_listing = "deep_listing"   # will default to "no_listing" in CWL v1.1
+
         # Validate job order
         try:
             fill_in_defaults(self.tool[u"inputs"], job, fs_access)
+
             normalizeFilesDirs(job)
-            validate.validate_ex(self.names.get_name("input_record_schema", ""),
-                                 job, strict=False, logger=_logger_validation_warnings)
+            schema = self.names.get_name("input_record_schema", "")
+            if schema is None:
+                raise WorkflowException("Missing input record schema: "
+                    "{}".format(self.names))
+            validate.validate_ex(schema, job, strict=False,
+                                 logger=_logger_validation_warnings)
+
+            if load_listing and load_listing != "no_listing":
+                get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
+
+            visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
+
+            if load_listing == "deep_listing" and load_listing_req is None:
+                for i, inparm in enumerate(self.tool["inputs"]):
+                    k = shortname(inparm["id"])
+                    if k not in job:
+                        continue
+                    v = job[k]
+                    dircount = [0]
+                    def inc(d):  # type: (List[int]) -> None
+                        d[0] += 1
+                    visit_class(v, ("Directory",), lambda x: inc(dircount))
+                    if dircount[0] == 0:
+                        continue
+                    filecount = [0]
+                    visit_class(v, ("File",), lambda x: inc(filecount))
+                    if filecount[0] > FILE_COUNT_WARNING:
+                        # Long lines in this message are okay, will be reflowed based on terminal columns.
+                        _logger.warning(strip_dup_lineno(SourceLine(self.tool["inputs"], i, Text).makeError(
+                    """Recursive directory listing has resulted in a large number of File objects (%s) passed to the input parameter '%s'.  This may negatively affect workflow performance and memory use.
+
+If this is a problem, use the hint 'cwltool:LoadListingRequirement' with "shallow_listing" or "no_listing" to change the directory listing behavior:
+
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
+hints:
+  cwltool:LoadListingRequirement:
+    loadListing: shallow_listing
+
+""" % (filecount[0], k))))
+
         except (validate.ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + Text(err))
 
@@ -610,13 +642,6 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         bindings = CommentedSeq()
         tmpdir = u""
         stagedir = u""
-
-        load_listing_req, _ = self.get_requirement(
-            "http://commonwl.org/cwltool#LoadListingRequirement")
-        if load_listing_req is not None:
-            load_listing = load_listing_req.get("loadListing")
-        else:
-            load_listing = "deep_listing"   # will default to "no_listing" in CWL v1.1
 
         docker_req, _ = self.get_requirement("DockerRequirement")
         default_docker = None
@@ -643,10 +668,10 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                     prefix=getdefault(runtime_context.tmp_outdir_prefix,
                                       DEFAULT_TMP_PREFIX)))
             if self.tool[u"class"] != 'Workflow':
-                tmpdir = fs_access.realpath(runtime_context.tmpdir or
-                                            tempfile.mkdtemp())
-                stagedir = fs_access.realpath(runtime_context.stagedir or
-                                              tempfile.mkdtemp())
+                tmpdir = fs_access.realpath(runtime_context.tmpdir
+                                            or tempfile.mkdtemp())
+                stagedir = fs_access.realpath(runtime_context.stagedir
+                                              or tempfile.mkdtemp())
 
         builder = Builder(job,
                           files,
@@ -789,31 +814,12 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
     @abc.abstractmethod
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         # FIXME: Declare base type for what Generator yields
         pass
-
-
-def empty_subtree(dirpath):  # type: (Text) -> bool
-    # Test if a directory tree contains any files (does not count empty
-    # subdirectories)
-    for d in os.listdir(dirpath):
-        d = os.path.join(dirpath, d)
-        try:
-            if stat.S_ISDIR(os.stat(d).st_mode):
-                if empty_subtree(d) is False:
-                    return False
-            else:
-                return False
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                pass
-            else:
-                raise
-    return True
 
 
 _names = set()  # type: Set[Text]
