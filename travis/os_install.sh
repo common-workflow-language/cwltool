@@ -11,10 +11,11 @@ elif [[ $TRAVIS_OS_NAME == 'osx' ]]; then
         PKG_URL='https://www.python.org/ftp/python/2.7.15/python-2.7.15-macosx10.9.pkg'
     elif [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
         PKG_URL='https://www.python.org/ftp/python/3.4.4/python-3.4.4-macosx10.6.pkg'
-        python=python3
+        alias python=python3
     fi
     wget $PKG_URL -O install_python.pkg;
-    sudo installer -pkg install_python.pkg -target / -verbose
+    sudo installer -pkg install_python.pkg -target /
+    export PATH=/Library/Frameworks/Python.framework/Versions/3.4/bin/:$PATH
     which python;
     python --version;
 fi
