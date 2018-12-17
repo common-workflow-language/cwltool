@@ -5,23 +5,12 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-key add .travis.singularity_key.txt;
     sudo apt-get update;
     sudo apt-get install -y singularity-container;
-elif [[ $TRAVIS_OS_NAME == 'osx' ]]; then
-    sudo mv /usr/bin/python /usr/bin/python_old
-    if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then
-        PKG_URL='https://www.python.org/ftp/python/2.7.15/python-2.7.15-macosx10.9.pkg'
-    elif [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
-        PKG_URL='https://www.python.org/ftp/python/3.4.4/python-3.4.4-macosx10.6.pkg'
-        alias python=python3
-    fi
-    wget $PKG_URL -O install_python.pkg;
-    sudo installer -pkg install_python.pkg -target /
-    /usr/bin/python --version
-    /usr/local/bin/python --version
-    /usr/share/file/magic/python --version
-   
-    export PATH=/Library/Frameworks/Python.framework/Versions/3.4/bin/:$PATH
-
-
-    which python;
-    python --version;
+elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
+    pyenv install $PYENV_VERSION -s;
+    eval "$(pyenv init -)";
+    pyenv global $PYENV_VERSION;
+    pip install -U virtualenv;
+    VIRTUAL_ENV="$HOME/ve-pyenv-$PYENV_VERSION";
+    virtualenv -p "$(which python)" ${VIRTUALENV_EXTRA_ARGS:-} "$VIRTUAL_ENV";
+    source "$VIRTUAL_ENV/bin/activate";
 fi
