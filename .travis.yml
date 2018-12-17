@@ -3,30 +3,30 @@ services:
 
 matrix:
   include:
-#    - os: linux WORKING
-#      language: python
-#      python: 2.7
-#    - os: linux WORKING
-#      language: python
-#      python: 3.4
-#    - os: linux
-#      language: python
-#      python: 3.5
-#    - os: linux
-#      language: python
-#      python: 3.6
-#    - os: linux
-#      dist: xenial
-#      language: python
-#      python: 3.7 # Sudo is required with xenial and python 3.7, see
-#      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
-#
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=2.7 WORKING
-#    - os: osx WORKING
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=3.4 PYENV_VERSION=3.4.7
+    - os: linux WORKING
+      language: python
+      python: 2.7
+    - os: linux WORKING
+      language: python
+      python: 3.4
+    - os: linux
+      language: python
+      python: 3.5
+    - os: linux
+      language: python
+      python: 3.6
+    - os: linux
+      dist: xenial
+      language: python
+      python: 3.7 # Sudo is required with xenial and python 3.7, see
+      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
+
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=2.7 PYENV_VERSION=2.7.15
+    - os: osx WORKING
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=3.4 PYENV_VERSION=3.4.7
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=3.5 PYENV_VERSION=3.5.4
@@ -37,11 +37,11 @@ matrix:
       language: generic
       env: TRAVIS_PYTHON_VERSION=3.7 PYENV_VERSION=3.7-dev
 
-#    - os: linux WORKING
-#      language: python
-#      python: 2.7
-#      name: RELEASE
-#      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+    - os: linux WORKING
+      language: python
+      python: 2.7
+      name: RELEASE
+      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 install:
   - source $TRAVIS_BUILD_DIR/travis/os_install.sh
   - python --version
