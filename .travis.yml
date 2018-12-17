@@ -24,11 +24,11 @@ matrix:
 
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=2.7.15
+      env: TRAVIS_PYTHON_VERSION=2.7
       sudo: true
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=3.4.4
+      env: TRAVIS_PYTHON_VERSION=3.4
       sudo: true
 #    - os: osx
 #      language: generic
