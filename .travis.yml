@@ -24,18 +24,18 @@ matrix:
 #    - os: osx
 #      language: generic
 #      env: TRAVIS_PYTHON_VERSION=2.7 WORKING
+#    - os: osx WORKING
+#      language: generic
+#      env: TRAVIS_PYTHON_VERSION=3.4 PYENV_VERSION=3.4.7
     - os: osx
       language: generic
-      env: TRAVIS_PYTHON_VERSION=3.4 PYENV_VERSION=3.4.7
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=3.5 PYENV_VERSION=3.5.4 TOXENV=py35
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=3.6 PYENV_VERSION=3.6.3 TOXENV=py36
-#    - os: osx
-#      language: generic
-#      env: TRAVIS_PYTHON_VERSION=3.7 PYENV_VERSION=3.7-dev TOXENV=py37
+      env: TRAVIS_PYTHON_VERSION=3.5 PYENV_VERSION=3.5.4
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=3.6 PYENV_VERSION=3.6.3
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION=3.7 PYENV_VERSION=3.7-dev
 
 #    - os: linux WORKING
 #      language: python
