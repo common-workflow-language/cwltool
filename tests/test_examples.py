@@ -856,8 +856,11 @@ def test_bad_basecommand():
     test_file = "tests/wf/missing-tool.cwl"
     error_code, stdout, stderr = get_main_output(
         [get_data(test_file)])
-    assert "No such file or directory: 'neenooGo'" in stderr, stderr
     assert error_code == 1
+    if not onWindows():
+        assert "No such file or directory: 'neenooGo'" in stderr, stderr
+    else:
+        assert "executable file not found" in stderr, stderr
 
 
 @needs_docker
