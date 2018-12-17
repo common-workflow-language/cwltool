@@ -12,7 +12,8 @@ Here's a rough
 - Create a virtual environment: ``virtualenv cwltool``
 - To begin using the virtual environment, it needs to be activated: ``source bin/activate``
 - To check if you have the virtual environment set up: ``which python`` and it should point to python executable in your virtual env
-- Install cwltool in the virtual environment: ``pip install .``
+- Install cwltool in the virtual environment: ``pip install -e .``
+- Install more tools via pip: ``pip install pytest arcp mock pytest-mock rdflib-jsonld``
 - Check the version which might be different from the version installed in general on any system: ``cwltool --version``
 - After you've made the changes, you can the complete test suite via tox: ``tox``
 	- If you want to run specific tests, say ``unit tests`` in Python 3.5, then: ``tox -e py35-unit``.
