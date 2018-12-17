@@ -17,7 +17,10 @@ elif [[ $TRAVIS_OS_NAME == 'osx' ]]; then
     sudo installer -pkg install_python.pkg -target /
     /usr/bin/python --version
     /usr/local/bin/python --version
+    /usr/share/file/magic/python --version
+   
     export PATH=/Library/Frameworks/Python.framework/Versions/3.4/bin/:$PATH
+
 
     which python;
     python --version;
