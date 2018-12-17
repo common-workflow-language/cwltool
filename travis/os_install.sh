@@ -14,7 +14,7 @@ elif [[ $TRAVIS_OS_NAME == 'osx' ]]; then
         python=python3
     fi
     wget $PKG_URL -O install_python.pkg;
-    sudo installer -pkg install_python.pkg -target /
+    sudo installer -pkg install_python.pkg -target / -verbose
     which python;
     python --version;
 fi
