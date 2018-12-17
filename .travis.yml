@@ -3,10 +3,10 @@ services:
 
 matrix:
   include:
-    - os: linux WORKING
+    - os: linux
       language: python
       python: 2.7
-    - os: linux WORKING
+    - os: linux
       language: python
       python: 3.4
     - os: linux
@@ -24,7 +24,7 @@ matrix:
     - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=2.7 PYENV_VERSION=2.7.15
-    - os: osx WORKING
+    - os: osx
       language: generic
       env: TRAVIS_PYTHON_VERSION=3.4 PYENV_VERSION=3.4.7
     - os: osx
@@ -37,7 +37,7 @@ matrix:
       language: generic
       env: TRAVIS_PYTHON_VERSION=3.7 PYENV_VERSION=3.7-dev
 
-    - os: linux WORKING
+    - os: linux
       language: python
       python: 2.7
       name: RELEASE
