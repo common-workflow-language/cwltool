@@ -48,7 +48,7 @@ matrix:
 install:
   - source $TRAVIS_BUILD_DIR/travis/os_install.sh
   - python --version
-  - pip install tox-travis
+  - pip install tox tox-travis
 
 script:
   - tox
