@@ -692,6 +692,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                  cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
             process.wait()
             stats_proc.kill()
+            if onWindows():
+                subprocess.call(['taskkill', '/F', '/T', '/PID',
+                                 str(stats_proc.pid)])
         max_mem_percent = 0
         with open(stats_file, mode="r") as stats:
             for line in stats:
