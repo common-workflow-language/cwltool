@@ -1,9 +1,12 @@
 import os.path
 import tempfile
+
+import pytest
+
 from cwltool.main import main
 from cwltool import load_tool
 from .util import (get_data, get_windows_safe_factory, windows_needs_docker,
-                   needs_docker, temp_dir, needs_singularity)
+                   needs_docker, temp_dir, needs_singularity, onWindows)
 
 @windows_needs_docker
 def test_newline_in_entry():
@@ -52,6 +55,8 @@ def test_iwdr_permutations():
                                              '--eighth', eighth]) == 0)
 
 @needs_docker
+@pytest.mark.skipif(onWindows(), reason="Literal writable directories are "
+                    "currently broken on MS Windows")
 def test_iwdr_permutations_inplace():
     load_tool.loaders = {}
     with temp_dir() as fifth:
