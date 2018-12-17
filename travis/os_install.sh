@@ -6,11 +6,8 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     sudo apt-get update;
     sudo apt-get install -y singularity-container;
 elif [[ $TRAVIS_OS_NAME == "osx" ]]; then
-    pyenv install $PYENV_VERSION -s;
-    eval "$(pyenv init -)";
-    pyenv global $PYENV_VERSION;
-    pip install -U virtualenv;
-    VIRTUAL_ENV="$HOME/ve-pyenv-$PYENV_VERSION";
-    virtualenv -p "$(which python)" ${VIRTUALENV_EXTRA_ARGS:-} "$VIRTUAL_ENV";
-    source "$VIRTUAL_ENV/bin/activate";
+    wget https://www.python.org/ftp/python/$TRAVIS_PYTHON_VERSION/python-$TRAVIS_PYTHON_VERSION-macosx10.9.pkg -O install_python.pkg;
+    sudo installer -pkg install_python.pkg -target /
+    which python;
+    python --version;
 fi
