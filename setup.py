@@ -60,7 +60,7 @@ setup(name='cwltool',
           'scandir',
           'prov >=1.5.1, !=1.5.2',
           'bagit >= 1.6.4',
-          'typing-extensions',
+          # 'typing-extensions',
       ],
       extras_require={
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
