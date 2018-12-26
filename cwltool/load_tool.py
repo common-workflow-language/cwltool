@@ -18,7 +18,7 @@ from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.validate import ValidationException
 from six import itervalues, string_types
 from six.moves import urllib
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import process, update

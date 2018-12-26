@@ -13,7 +13,7 @@ from schema_salad.schema import Names, convert_to_dict
 from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from six import iteritems, string_types
-from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+from typing import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 

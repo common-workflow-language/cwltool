@@ -17,7 +17,7 @@ from schema_salad import validate
 from schema_salad.sourceline import SourceLine
 from six import string_types, iteritems
 from six.moves import range
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, context, expression

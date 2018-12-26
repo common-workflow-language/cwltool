@@ -12,7 +12,7 @@ from io import open  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional, Tuple
 
 from schema_salad.sourceline import SourceLine
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .context import RuntimeContext  # pylint: disable=unused-import

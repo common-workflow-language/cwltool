@@ -23,7 +23,7 @@ import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from six import PY2, with_metaclass
-from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+from typing import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 
 from .builder import Builder, HasReqsHints  # pylint: disable=unused-import

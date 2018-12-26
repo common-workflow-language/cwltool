@@ -27,7 +27,7 @@ from prov.model import (PROV, ProvActivity,  # pylint: disable=unused-import
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
-from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+from typing import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 

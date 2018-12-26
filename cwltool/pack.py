@@ -10,7 +10,7 @@ from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from schema_salad.ref_resolver import SubLoader
 from six import iteritems, string_types
 from six.moves import urllib
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .process import shortname, uniquename

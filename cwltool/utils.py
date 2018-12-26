@@ -18,7 +18,7 @@ import pkg_resources
 from mypy_extensions import TypedDict
 from schema_salad.utils import json_dump, json_dumps  # pylint: disable=unused-import
 from six.moves import urllib, zip_longest
-from typing_extensions import Deque, Text  # pylint: disable=unused-import
+from typing import Deque, Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 # no imports from cwltool allowed

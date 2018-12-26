@@ -13,7 +13,7 @@ import os
 import string
 from typing import Dict, List, MutableSequence, Optional
 
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .builder import Builder, HasReqsHints

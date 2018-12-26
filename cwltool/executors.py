@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import psutil
 from six import string_types, with_metaclass
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 from schema_salad.validate import ValidationException
 
 from .builder import Builder  # pylint: disable=unused-import
