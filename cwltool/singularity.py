@@ -202,8 +202,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 runtime, volume.resolved, volume.target, writable=True)
             ensure_writable(volume.resolved)
         else:
+            tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             file_copy = os.path.join(
-                tempfile.mkdtemp(dir=tmpdir_prefix),
+                tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                 os.path.basename(volume.resolved))
             shutil.copy(volume.resolved, file_copy)
             #volume.resolved = file_copy
@@ -221,8 +222,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
             else:
+                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(dir=tmpdir_prefix),
+                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                     os.path.basename(volume.resolved))
             os.makedirs(new_dir, 0o0755)
         else:
@@ -235,8 +237,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 ensure_writable(host_outdir_tgt)
             else:
                 if not self.inplace_update:
+                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                     dir_copy = os.path.join(
-                        tempfile.mkdtemp(dir=tmpdir_prefix),
+                        tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                         os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, dir_copy)
                     source = dir_copy

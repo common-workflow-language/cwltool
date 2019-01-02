@@ -492,13 +492,15 @@ class CommandLineTool(Process):
                           json_dumps(builder.bindings, indent=4))
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
-            out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')
+            out_dir, out_prefix = os.path.split(
+                runtimeContext.tmp_outdir_prefix)
             j.outdir = runtimeContext.outdir or \
-                tempfile.mkdtemp(prefix=out_prefix)  # type: ignore
-            tmpdir_prefix = getdefault(runtimeContext.tmpdir_prefix, 'tmp')
+                tempfile.mkdtemp(prefix=out_prefix, dir=out_dir)
+            tmpdir_dir, tmpdir_prefix = os.path.split(
+                runtimeContext.tmpdir_prefix)
             j.tmpdir = runtimeContext.tmpdir or \
-                tempfile.mkdtemp(prefix=tmpdir_prefix)  # type: ignore
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
+                tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir

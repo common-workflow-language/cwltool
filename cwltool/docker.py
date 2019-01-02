@@ -231,7 +231,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # which is already going to be mounted
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
-                tmpdir = tempfile.mkdtemp(dir=tmpdir_prefix)
+                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+                tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
                 file_copy = os.path.join(
                     tmpdir, os.path.basename(volume.resolved))
                 shutil.copy(volume.resolved, file_copy)
@@ -249,8 +250,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
             if not host_outdir_tgt:
+                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(dir=tmpdir_prefix),
+                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                     os.path.basename(volume.target))
                 self.append_volume(runtime, new_dir, volume.target,
                                    writable=True)
@@ -262,7 +264,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                                    writable=True)
             else:
                 if not host_outdir_tgt:
-                    tmpdir = tempfile.mkdtemp(dir=tmpdir_prefix)
+                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+                    tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
                     new_dir = os.path.join(
                         tmpdir, os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, new_dir)
@@ -355,7 +358,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                                   "please check it first")
                     exit(2)
             else:
-                cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
+                tmp_dir, tmp_prefix = os.path.split(runtimeContext.tmpdir_prefix)
+                cidfile_dir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
 
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
             if runtimeContext.cidfile_prefix is not None:
