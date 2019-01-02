@@ -39,8 +39,8 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 @pytest.fixture
-def folder():
-    directory = tempfile.mkdtemp("ro")
+def folder(tmpdir):
+    directory = str(tmpdir)
     if os.environ.get("DEBUG"):
         print("%s folder: %s" % (__loader__.fullname, folder))
     yield directory
@@ -81,10 +81,9 @@ def test_nested_workflow(folder):
     check_provenance(folder, nested=True)
 
 @needs_docker
-def test_secondary_files_implicit(folder):
-    tmpdir = tempfile.mkdtemp("test_secondary_files_implicit")
-    file1 = os.path.join(tmpdir, "foo1.txt")
-    file1idx = os.path.join(tmpdir, "foo1.txt.idx")
+def test_secondary_files_implicit(folder, tmpdir):
+    file1 = tmpdir.join("foo1.txt")
+    file1idx = tmpdir.join("foo1.txt.idx")
 
     with open(file1, "w", encoding="ascii") as f:
         f.write(u"foo")
@@ -92,12 +91,14 @@ def test_secondary_files_implicit(folder):
         f.write(u"bar")
 
     # secondary will be picked up by .idx
-    cwltool(folder, get_data('tests/wf/sec-wf.cwl'), "--file1", file1)
+    cwltool(folder, get_data('tests/wf/sec-wf.cwl'), "--file1", str(file1))
     check_provenance(folder, secondary_files=True)
     check_secondary_files(folder)
 
 @needs_docker
-def test_secondary_files_explicit(folder):
+def test_secondary_files_explicit(folder, tmpdir):
+    orig_tempdir = tempfile.tempdir
+    tempfile.tempdir = str(tmpdir)
     # Deliberately do NOT have common basename or extension
     file1 = tempfile.mktemp("foo")
     file1idx = tempfile.mktemp("bar")
@@ -129,6 +130,7 @@ def test_secondary_files_explicit(folder):
     cwltool(folder, get_data('tests/wf/sec-wf.cwl'), jobJson)
     check_provenance(folder, secondary_files=True)
     check_secondary_files(folder)
+    tempfile.tempdir = orig_tempdir
 
 @needs_docker
 def test_secondary_files_output(folder):
@@ -139,31 +141,31 @@ def test_secondary_files_output(folder):
     #self.check_secondary_files()
 
 @needs_docker
-def test_directory_workflow(folder):
-    dir2 = os.path.join(tempfile.mkdtemp("test_directory_workflow"), "dir2")
+def test_directory_workflow(folder, tmpdir):
+    dir2 = tmpdir.join("dir2")
     os.makedirs(dir2)
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
-        ## for x in a b c ; do echo -n $x | sha1sum ; done
+        # for x in a b c ; do echo -n $x | sha1sum ; done
         "a": "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
         "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
         "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
     }
     for x in u"abc":
         # Make test files with predictable hashes
-        with open(os.path.join(dir2, x), "w", encoding="ascii") as f:
+        with open(dir2.join(x), "w", encoding="ascii") as f:
             f.write(x)
 
-    cwltool(folder, get_data('tests/wf/directory.cwl'), "--dir", dir2)
+    cwltool(folder, get_data('tests/wf/directory.cwl'), "--dir", str(dir2))
     check_provenance(folder, directory=True)
 
     # Output should include ls stdout of filenames a b c on each line
     file_list = os.path.join(
         folder, "data",
         # checksum as returned from:
-        ## echo -e "a\nb\nc" | sha1sum
-        ## 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
+        # echo -e "a\nb\nc" | sha1sum
+        # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
         "3c",
         "3ca69e8d6c234a469d16ac28a4a658c92267c423")
     assert os.path.isfile(file_list)
@@ -171,7 +173,7 @@ def test_directory_workflow(folder):
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
     for (l, l_hash) in sha1.items():
-        prefix = l_hash[:2] # first 2 letters
+        prefix = l_hash[:2]  # first 2 letters
         p = os.path.join(folder, "data", prefix, l_hash)
         assert os.path.isfile(p), "Could not find %s as %s" % (l, p)
 
@@ -521,6 +523,7 @@ valid_path_conversions = [
 def test_path_conversion(path, expected, from_type, to_type):
     assert provenance._convert_path(path, from_type, to_type) == expected
 
+
 invalid_path_conversions = [
     ('/absolute/path', posixpath, ntpath),
     ('D:\\absolute\\path', ntpath, posixpath)
@@ -619,6 +622,7 @@ def test_truncate_fails(research_object):
         with pytest.raises(IOError):
             file.truncate(0)
 
+
 mod_validness = [
     # Taken from "Some sample ORCID iDs" on
     # https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier
@@ -641,6 +645,7 @@ mod_validness = [
 def test_check_mod_11_2(mod11, valid):
     assert provenance._check_mod_11_2(mod11) == valid
 
+
 orcid_uris = [
     # https://orcid.org/ (Expected form)
     ("https://orcid.org/0000-0002-1694-233X", "https://orcid.org/0000-0002-1694-233X"),
@@ -659,6 +664,7 @@ orcid_uris = [
 @pytest.mark.parametrize('orcid,expected', orcid_uris)
 def test_valid_orcid(orcid, expected):
     assert provenance._valid_orcid(orcid) == expected
+
 
 invalid_orcids = [
     # missing digit fails (even if checksum is correct)

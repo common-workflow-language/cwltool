@@ -78,7 +78,7 @@ def temp_dir(suffix=""):
     try:
         yield c_dir
     finally:
-        shutil.rmtree(c_dir)
+        shutil.rmtree(c_dir, ignore_errors=True)
 
 @contextlib.contextmanager
 def working_directory(path):
