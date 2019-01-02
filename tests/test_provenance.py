@@ -85,9 +85,9 @@ def test_secondary_files_implicit(folder, tmpdir):
     file1 = tmpdir.join("foo1.txt")
     file1idx = tmpdir.join("foo1.txt.idx")
 
-    with open(file1, "w", encoding="ascii") as f:
+    with open(str(file1), "w", encoding="ascii") as f:
         f.write(u"foo")
-    with open(file1idx, "w", encoding="ascii") as f:
+    with open(str(file1idx), "w", encoding="ascii") as f:
         f.write(u"bar")
 
     # secondary will be picked up by .idx
@@ -143,7 +143,7 @@ def test_secondary_files_output(folder):
 @needs_docker
 def test_directory_workflow(folder, tmpdir):
     dir2 = tmpdir.join("dir2")
-    os.makedirs(dir2)
+    os.makedirs(str(dir2))
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
@@ -154,7 +154,7 @@ def test_directory_workflow(folder, tmpdir):
     }
     for x in u"abc":
         # Make test files with predictable hashes
-        with open(dir2.join(x), "w", encoding="ascii") as f:
+        with open(str(dir2.join(x)), "w", encoding="ascii") as f:
             f.write(x)
 
     cwltool(folder, get_data('tests/wf/directory.cwl'), "--dir", str(dir2))
