@@ -74,7 +74,7 @@ def get_main_output(args):
 
 @contextlib.contextmanager
 def temp_dir(suffix=""):
-    c_dir = tempfile.mkdtemp(suffix)
+    c_dir = tempfile.mkdtemp(suffix, dir=os.curdir)
     try:
         yield c_dir
     finally:
