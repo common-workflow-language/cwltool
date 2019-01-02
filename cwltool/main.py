@@ -754,6 +754,8 @@ def main(argsl=None,                   # type: List[str]
             default_mac_path = "/private/tmp/docker_tmp"
             if runtimeContext.tmp_outdir_prefix == DEFAULT_TMP_PREFIX:
                 runtimeContext.tmp_outdir_prefix = default_mac_path
+            if runtimeContext.tmpdir_prefix == DEFAULT_TMP_PREFIX:
+                runtimeContext.tmpdir_prefix = default_mac_path
 
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
             if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
