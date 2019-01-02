@@ -140,7 +140,6 @@ def test_disable_dir_creation_in_outdir_with_ext():
 @needs_docker
 def test_write_write_conflict():
     with temp_dir('tmp') as tmp:
-        tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
 
         before_value, expected_value = "1", "2"
@@ -158,7 +157,6 @@ def test_write_write_conflict():
 @pytest.mark.skip(reason="This test is non-deterministic")
 def test_read_write_conflict():
     with temp_dir('tmp') as tmp:
-        tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
 
         with open(tmp_name, "w") as f:
