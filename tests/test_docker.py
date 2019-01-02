@@ -8,9 +8,9 @@ from cwltool.main import main
 from .util import get_data, get_main_output, needs_docker, needs_singularity
 
 @needs_docker
-def test_docker_workflow():
+def test_docker_workflow(tmpdir):
     result_code, _, stderr = get_main_output(
-        ['--default-container', 'debian',
+        ['--default-container', 'debian', '--outdir', str(tmpdir),
          get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
     assert "completed success" in stderr
     assert result_code == 0

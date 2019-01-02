@@ -786,11 +786,11 @@ def test_cid_file_w_prefix(tmpdir):
 
 
 @needs_docker
-def test_wf_without_container():
+def test_wf_without_container(tmpdir):
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
         error_code, _, stderr = get_main_output(
-            ["--cachedir", cache_dir,
+            ["--cachedir", cache_dir, "--outdir", str(tmpdir),
              get_data("tests/wf/" + test_file),
              "--usermessage",
              "hello"]
@@ -832,11 +832,12 @@ def test_compute_checksum():
 
 
 @needs_docker
-def test_no_compute_checksum():
+def test_no_compute_chcksum(tmpdir):
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
     error_code, stdout, stderr = get_main_output(
-        ["--no-compute-checksum", get_data(test_file), get_data(job_file)])
+        ["--no-compute-checksum", "--outdir", str(tmpdir),
+         get_data(test_file), get_data(job_file)])
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout

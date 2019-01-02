@@ -54,7 +54,7 @@ def test_listing_v1_1():
     assert main([get_data('tests/wf/listing_v1_1.cwl'), get_data('tests/listing-job.yml')]) != 0
 
 @needs_docker
-def test_double_overwrite():
+def test_double_overwrite(tmpdir):
     try:
         tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
@@ -64,7 +64,8 @@ def test_double_overwrite():
         with open(tmp_name, "w") as f:
             f.write(before_value)
 
-        assert main(["--enable-ext", get_data('tests/wf/mut2.cwl'), "-a", tmp_name]) == 0
+        assert main(["--enable-ext", "--outdir", str(tmpdir),
+                     get_data('tests/wf/mut2.cwl'), "-a", tmp_name]) == 0
 
         with open(tmp_name, "r") as f:
             actual_value = f.read()
@@ -192,8 +193,8 @@ def test_require_prefix_networkaccess():
     assert main(["--enable-ext", get_data('tests/wf/networkaccess-fail.cwl')]) != 0
 
 @needs_docker
-def test_require_prefix_workreuse():
-    assert main(["--enable-ext", get_data('tests/wf/workreuse.cwl')]) == 0
+def test_require_prefix_workreuse(tmpdir):
+    assert main(["--enable-ext", '--outdir', str(tmpdir), get_data('tests/wf/workreuse.cwl')]) == 0
     assert main([get_data('tests/wf/workreuse.cwl')]) != 0
     assert main(["--enable-ext", get_data('tests/wf/workreuse-fail.cwl')]) != 0
 

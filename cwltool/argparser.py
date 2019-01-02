@@ -57,7 +57,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     cidgroup.add_argument(
         "--cidfile-dir", type=Text, help="Store the Docker "
-        "container ID into a file in the specifed directory.",
+        "container ID into a file in the specified directory.",
         default=None, dest="cidfile_dir")
 
     cidgroup.add_argument(
