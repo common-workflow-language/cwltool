@@ -519,8 +519,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                                    ):  # type: (...) -> Text
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
+            tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             new_file = os.path.join(
-                tempfile.mkdtemp(dir=tmpdir_prefix),
+                tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                 os.path.basename(volume.resolved))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
@@ -688,7 +689,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             except OSError:
                 cid = None
         max_mem = self.docker_get_memory(cid)
-        stats_file = tempfile.NamedTemporaryFile(dir=tmpdir_prefix)
+        tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+        stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         with open(stats_file.name, mode="w") as stats_file_handle:
             stats_proc = subprocess.Popen(
                 ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',

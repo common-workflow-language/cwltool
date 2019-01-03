@@ -13,7 +13,7 @@ from cwltool.main import main
 import cwltool.process
 
 
-from .util import get_data, needs_docker, temp_dir, windows_needs_docker, get_main_output
+from .util import get_data, needs_docker, temp_dir, windows_needs_docker
 
 
 @needs_docker
@@ -55,8 +55,7 @@ def test_listing_v1_1():
 
 @needs_docker
 def test_double_overwrite(tmpdir):
-    try:
-        tmp = tempfile.mkdtemp()
+    with temp_dir() as tmp:
         tmp_name = os.path.join(tmp, "value")
 
         before_value, expected_value = "1", "3"
@@ -71,96 +70,76 @@ def test_double_overwrite(tmpdir):
             actual_value = f.read()
 
         assert actual_value == expected_value
-    finally:
-        shutil.rmtree(tmp)
 
 @needs_docker
 def test_disable_file_overwrite_without_ext():
-    try:
-        tmp = tempfile.mkdtemp()
-        out = tempfile.mkdtemp()
+    with temp_dir() as tmp:
+        with temp_dir() as out:
+            tmp_name = os.path.join(tmp, "value")
+            out_name = os.path.join(out, "value")
 
-        tmp_name = os.path.join(tmp, "value")
-        out_name = os.path.join(out, "value")
+            before_value, expected_value = "1", "2"
 
-        before_value, expected_value = "1", "2"
+            with open(tmp_name, "w") as f:
+                f.write(before_value)
 
-        with open(tmp_name, "w") as f:
-            f.write(before_value)
+            assert main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", tmp_name]) == 0
 
-        assert main(["--outdir", out, get_data('tests/wf/updateval.cwl'), "-r", tmp_name]) == 0
+            with open(tmp_name, "r") as f:
+                tmp_value = f.read()
+            with open(out_name, "r") as f:
+                out_value = f.read()
 
-        with open(tmp_name, "r") as f:
-            tmp_value = f.read()
-        with open(out_name, "r") as f:
-            out_value = f.read()
-
-        assert tmp_value == before_value
-        assert out_value == expected_value
-    finally:
-        shutil.rmtree(tmp)
-        shutil.rmtree(out)
+            assert tmp_value == before_value
+            assert out_value == expected_value
 
 @needs_docker
 def test_disable_dir_overwrite_without_ext():
-    try:
-        tmp = tempfile.mkdtemp()
-        out = tempfile.mkdtemp()
+    with temp_dir() as tmp:
+        with temp_dir() as out:
 
-        assert main(["--outdir", out, get_data('tests/wf/updatedir.cwl'), "-r", tmp]) == 0
+            assert main(["--outdir", out, get_data('tests/wf/updatedir.cwl'), "-r", tmp]) == 0
 
-        assert not os.listdir(tmp)
-        assert os.listdir(out)
-    finally:
-        shutil.rmtree(tmp)
-        shutil.rmtree(out)
+            assert not os.listdir(tmp)
+            assert os.listdir(out)
 
 @needs_docker
 def test_disable_file_creation_in_outdir_with_ext():
-    try:
-        tmp = tempfile.mkdtemp()
-        out = tempfile.mkdtemp()
+    with temp_dir() as tmp:
+        with temp_dir() as out:
 
-        tmp_name = os.path.join(tmp, "value")
-        out_name = os.path.join(out, "value")
+            tmp_name = os.path.join(tmp, "value")
+            out_name = os.path.join(out, "value")
 
-        before_value, expected_value = "1", "2"
+            before_value, expected_value = "1", "2"
 
-        with open(tmp_name, "w") as f:
-            f.write(before_value)
+            with open(tmp_name, "w") as f:
+                f.write(before_value)
 
-        params = ["--enable-ext", "--leave-outputs", "--outdir",
-                  out, get_data('tests/wf/updateval_inplace.cwl'), "-r", tmp_name]
-        assert main(params) == 0
+            params = ["--enable-ext", "--leave-outputs", "--outdir",
+                      out, get_data('tests/wf/updateval_inplace.cwl'), "-r", tmp_name]
+            assert main(params) == 0
 
-        with open(tmp_name, "r") as f:
-            tmp_value = f.read()
+            with open(tmp_name, "r") as f:
+                tmp_value = f.read()
 
-        assert tmp_value == expected_value
-        assert not os.path.exists(out_name)
-    finally:
-        shutil.rmtree(tmp)
-        shutil.rmtree(out)
+            assert tmp_value == expected_value
+            assert not os.path.exists(out_name)
 
 @needs_docker
 def test_disable_dir_creation_in_outdir_with_ext():
-    try:
-        tmp = tempfile.mkdtemp()
-        out = tempfile.mkdtemp()
-        params = ["--enable-ext", "--leave-outputs", "--outdir",
-                  out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]
-        assert main(params) == 0
+    with temp_dir() as tmp:
+        with temp_dir() as out:
+            params = ["--enable-ext", "--leave-outputs", "--outdir",
+                      out, get_data('tests/wf/updatedir_inplace.cwl'), "-r", tmp]
+            assert main(params) == 0
 
-        assert os.listdir(tmp)
-        assert not os.listdir(out)
-    finally:
-        shutil.rmtree(tmp)
-        shutil.rmtree(out)
+            assert os.listdir(tmp)
+            assert not os.listdir(out)
 
 @needs_docker
 def test_write_write_conflict():
     with temp_dir('tmp') as tmp:
-        tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
 
         before_value, expected_value = "1", "2"
@@ -178,7 +157,6 @@ def test_write_write_conflict():
 @pytest.mark.skip(reason="This test is non-deterministic")
 def test_read_write_conflict():
     with temp_dir('tmp') as tmp:
-        tmp = tempfile.mkdtemp()
         tmp_name = os.path.join(tmp, "value")
 
         with open(tmp_name, "w") as f:

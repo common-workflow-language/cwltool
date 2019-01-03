@@ -947,7 +947,9 @@ class ResearchObject():
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
-        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=temp_prefix_ro))  # type: Text
+        tmp_dir, tmp_prefix = os.path.split(temp_prefix_ro)
+        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmp_prefix,
+            dir=tmp_dir))  # type: Text
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict
@@ -1394,8 +1396,9 @@ class ResearchObject():
         # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
         """Copy inputs to data/ folder."""
         self.self_check()
+        tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(
-                prefix=self.temp_prefix, delete=False) as tmp:
+                prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
             checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
