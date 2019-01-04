@@ -10,14 +10,14 @@ pipeline {
   stages {
     stage('build') {
       steps {
-        withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
+        withPythonEnv(pythonInstallation: 'Windows-CPython-37') {
           bat '.jenkins/test.bat'
         }
       }
     }
     stage('CWL-conformance-test') {
       steps {
-        withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
+        withPythonEnv(pythonInstallation: 'Windows-CPython-37') {
           bat '.jenkins/conformance.bat'
         }
       }
