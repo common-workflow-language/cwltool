@@ -12,11 +12,12 @@ import shutil
 import tempfile
 import threading
 from functools import cmp_to_key, partial
-from typing import (Any, Callable, Dict, Generator, List, MutableMapping,
+from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
                     MutableSequence, Optional, Set, Union, cast)
 
 import shellescape
 from schema_salad import validate
+from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from six import string_types
@@ -102,7 +103,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):
@@ -223,10 +224,17 @@ def check_adjust(builder, file_o):
     assert builder.pathmapper is not None
     file_o["path"] = docker_windows_path_adjust(
         builder.pathmapper.mapper(file_o["location"])[1])
-    file_o["dirname"], file_o["basename"] = os.path.split(file_o["path"])
+    dn, bn = os.path.split(file_o["path"])
+    if file_o.get("dirname") != dn:
+        file_o["dirname"] = Text(dn)
+    if file_o.get("basename") != bn:
+        file_o["basename"] = Text(bn)
     if file_o["class"] == "File":
-        file_o["nameroot"], file_o["nameext"] = os.path.splitext(
-            file_o["basename"])
+        nr, ne = os.path.splitext(file_o["basename"])
+        if file_o.get("nameroot") != nr:
+            file_o["nameroot"] = Text(nr)
+        if file_o.get("nameext") != ne:
+            file_o["nameext"] = Text(ne)
     if not ACCEPTLIST_RE.match(file_o["basename"]):
         raise WorkflowException(
             "Invalid filename: '{}' contains illegal characters".format(
@@ -296,7 +304,7 @@ class CommandLineTool(Process):
             self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # RuntimeContext
            ):
@@ -423,7 +431,7 @@ class CommandLineTool(Process):
                           self.tool.get("id", ""),
                           u" as part of %s" % runtimeContext.part_of
                           if runtimeContext.part_of else "")
-            _logger.debug(u"[job %s] %s", j.name, json_dumps(job_order,
+            _logger.debug(u"[job %s] %s", j.name, json_dumps(builder.job,
                                                              indent=4))
 
         builder.pathmapper = self.make_path_mapper(
@@ -505,13 +513,15 @@ class CommandLineTool(Process):
                           json_dumps(builder.bindings, indent=4))
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
-            out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')
+            out_dir, out_prefix = os.path.split(
+                runtimeContext.tmp_outdir_prefix)
             j.outdir = runtimeContext.outdir or \
-                tempfile.mkdtemp(prefix=out_prefix)  # type: ignore
-            tmpdir_prefix = getdefault(runtimeContext.tmpdir_prefix, 'tmp')
+                tempfile.mkdtemp(prefix=out_prefix, dir=out_dir)
+            tmpdir_dir, tmpdir_prefix = os.path.split(
+                runtimeContext.tmpdir_prefix)
             j.tmpdir = runtimeContext.tmpdir or \
-                tempfile.mkdtemp(prefix=tmpdir_prefix)  # type: ignore
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
+                tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
@@ -633,17 +643,17 @@ class CommandLineTool(Process):
 
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
-
-            validate.validate_ex(
-                self.names.get_name("outputs_record_schema", ""), ret,
+            expected_schema = cast(Schema, self.names.get_name(
+                "outputs_record_schema", ""))
+            validate.validate_ex(expected_schema, ret,
                 strict=False, logger=_logger_validation_warnings)
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException(
-                "Error validating output record. " + Text(e) + "\n in " +
-                json_dumps(ret, indent=4))
+                "Error validating output record. " + Text(e) + "\n in "
+                + json_dumps(ret, indent=4))
         finally:
             if builder.mutation_manager and readers:
                 for r in readers.values():

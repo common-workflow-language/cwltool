@@ -122,7 +122,7 @@ cwl_to_run = [
 
 @needs_docker
 @pytest.mark.parametrize('wf_path,job_path,namespaced', cwl_to_run)
-def test_packed_workflow_execution(wf_path, job_path, namespaced):
+def test_packed_workflow_execution(wf_path, job_path, namespaced, tmpdir):
     load_tool.loaders = {}
 
     document_loader, workflowobj, uri = fetch_document(
@@ -142,8 +142,8 @@ def test_packed_workflow_execution(wf_path, job_path, namespaced):
     normal_output = StringIO()
     packed_output = StringIO()
 
-    normal_params = [get_data(wf_path), get_data(job_path)]
-    packed_params = ['--debug', get_data(wf_packed_path), get_data(job_path)]
+    normal_params = ['--outdir', str(tmpdir), get_data(wf_path), get_data(job_path)]
+    packed_params = ['--outdir', str(tmpdir), '--debug', get_data(wf_packed_path), get_data(job_path)]
 
     assert main(normal_params, stdout=normal_output) == 0
     assert main(packed_params, stdout=packed_output) == 0

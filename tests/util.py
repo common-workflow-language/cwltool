@@ -74,11 +74,11 @@ def get_main_output(args):
 
 @contextlib.contextmanager
 def temp_dir(suffix=""):
-    c_dir = tempfile.mkdtemp(suffix)
+    c_dir = tempfile.mkdtemp(suffix, dir=os.curdir)
     try:
         yield c_dir
     finally:
-        shutil.rmtree(c_dir)
+        shutil.rmtree(c_dir, ignore_errors=True)
 
 @contextlib.contextmanager
 def working_directory(path):

@@ -9,6 +9,7 @@ import shutil
 import string
 import sys
 from glob import glob
+import tempfile
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
                     Dict, Iterable, List, MutableMapping, MutableSequence,
@@ -23,7 +24,10 @@ from typing_extensions import Deque, Text  # pylint: disable=unused-import
 
 # no imports from cwltool allowed
 if os.name == 'posix':
-    import subprocess32 as subprocess  # pylint: disable=unused-import
+    if sys.version_info < (3, 5):
+        import subprocess32 as subprocess  # pylint: disable=unused-import
+    else:
+        import subprocess  # pylint: disable=unused-import
 else:
     import subprocess  # type: ignore
 
@@ -38,7 +42,7 @@ Directory = TypedDict('Directory',
                       {'class': Text, 'listing': List[Dict[Text, Text]],
                        'basename': Text})
 
-DEFAULT_TMP_PREFIX = "tmp"
+DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen]
 

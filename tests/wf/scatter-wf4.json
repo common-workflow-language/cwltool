@@ -1,0 +1,103 @@
+{
+    "cwlVersion": "v1.0",
+    "$graph": [
+        {
+            "inputs": [
+                {
+                    "inputBinding": {},
+                    "type": "string",
+                    "id": "#echo/echo_in1"
+                },
+                {
+                    "inputBinding": {},
+                    "type": "string",
+                    "id": "#echo/echo_in2"
+                }
+            ],
+            "requirements": [
+                {
+                    "ramMin": 10,
+                    "class": "ResourceRequirement"
+                }
+            ],
+            "stdout": "step1_out",
+            "outputs": [
+                {
+                    "outputBinding": {
+                        "glob": "step1_out",
+                        "loadContents": true,
+                        "outputEval": "$(self[0].contents)"
+                    },
+                    "type": "string",
+                    "id": "#echo/echo_out"
+                }
+            ],
+            "baseCommand": "echo",
+            "class": "CommandLineTool",
+            "arguments": [
+                "-n",
+                "foo"
+            ],
+            "id": "#echo"
+        },
+        {
+            "inputs": [
+                {
+                    "type": {
+                        "items": "string",
+                        "type": "array"
+                    },
+                    "id": "#main/inp1"
+                },
+                {
+                    "type": {
+                        "items": "string",
+                        "type": "array"
+                    },
+                    "id": "#main/inp2"
+                }
+            ],
+            "requirements": [
+                {
+                    "class": "ScatterFeatureRequirement"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": {
+                        "items": "string",
+                        "type": "array"
+                    },
+                    "outputSource": "#main/step1/echo_out",
+                    "id": "#main/out"
+                }
+            ],
+            "class": "Workflow",
+            "steps": [
+                {
+                    "run": "#echo",
+                    "scatter": [
+                        "#main/step1/echo_in1",
+                        "#main/step1/echo_in2"
+                    ],
+                    "in": [
+                        {
+                            "source": "#main/inp1",
+                            "id": "#main/step1/echo_in1"
+                        },
+                        {
+                            "source": "#main/inp2",
+                            "id": "#main/step1/echo_in2"
+                        }
+                    ],
+                    "scatterMethod": "dotproduct",
+                    "id": "#main/step1",
+                    "out": [
+                        "#main/step1/echo_out"
+                    ]
+                }
+            ],
+            "id": "#main"
+        }
+    ]
+}

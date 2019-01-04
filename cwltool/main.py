@@ -13,6 +13,7 @@ import signal
 import sys
 import time
 from codecs import StreamWriter, getwriter  # pylint: disable=unused-import
+from six.moves import urllib
 from typing import (IO, Any, Callable, Dict, Iterable, List, Mapping,
                     MutableMapping, MutableSequence, Optional, TextIO, Tuple,
                     Union, cast)
@@ -508,6 +509,10 @@ def main(argsl=None,                   # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
+            if args.record_container_id:
+                if not args.cidfile_dir:
+                    args.cidfile_dir = os.getcwd()
+                del args.record_container_id
 
         if runtimeContext is None:
             runtimeContext = RuntimeContext(vars(args))
@@ -702,9 +707,13 @@ def main(argsl=None,                   # type: List[str]
 
             if args.target:
                 if isinstance(tool, Workflow):
-                    extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#"+r)
-                                              for r in args.target],
-                                             tool)
+                    url = urllib.parse.urlparse(tool.tool["id"])
+                    if url.fragment:
+                        extracted = get_subgraph([tool.tool["id"] + "/" + r for r in args.target], tool)
+                    else:
+                        extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#" + r)
+                                                 for r in args.target],
+                                                 tool)
                 else:
                     _logger.error("Can only use --target on Workflows")
                     return 1
@@ -745,6 +754,8 @@ def main(argsl=None,                   # type: List[str]
             default_mac_path = "/private/tmp/docker_tmp"
             if runtimeContext.tmp_outdir_prefix == DEFAULT_TMP_PREFIX:
                 runtimeContext.tmp_outdir_prefix = default_mac_path
+            if runtimeContext.tmpdir_prefix == DEFAULT_TMP_PREFIX:
+                runtimeContext.tmpdir_prefix = default_mac_path
 
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
             if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:

@@ -9,7 +9,8 @@ from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import validate
-from schema_salad.schema import AvroSchemaFromJSONData, Names
+from schema_salad.schema import Names, convert_to_dict
+from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from six import iteritems, string_types
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
@@ -109,27 +110,27 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                 # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
-                 files,               # type: List[Dict[Text, Text]]
-                 bindings,            # type: List[Dict[Text, Any]]
-                 schemaDefs,          # type: Dict[Text, Dict[Text, Any]]
-                 names,               # type: Names
-                 requirements,        # type: List[Dict[Text, Any]]
-                 hints,               # type: List[Dict[Text, Any]]
-                 resources,           # type: Dict[str, int]
-                 mutation_manager,    # type: Optional[MutationManager]
-                 formatgraph,         # type: Optional[Graph]
-                 make_fs_access,      # type: Type[StdFsAccess]
-                 fs_access,           # type: StdFsAccess
-                 job_script_provider, # type: Optional[Any]
-                 timeout,             # type: float
-                 debug,               # type: bool
-                 js_console,          # type: bool
-                 force_docker_pull,   # type: bool
-                 loadListing,         # type: Text
-                 outdir,              # type: Text
-                 tmpdir,              # type: Text
-                 stagedir,            # type: Text
+                 job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 files,                # type: List[Dict[Text, Text]]
+                 bindings,             # type: List[Dict[Text, Any]]
+                 schemaDefs,           # type: Dict[Text, Dict[Text, Any]]
+                 names,                # type: Names
+                 requirements,         # type: List[Dict[Text, Any]]
+                 hints,                # type: List[Dict[Text, Any]]
+                 resources,            # type: Dict[str, int]
+                 mutation_manager,     # type: Optional[MutationManager]
+                 formatgraph,          # type: Optional[Graph]
+                 make_fs_access,       # type: Type[StdFsAccess]
+                 fs_access,            # type: StdFsAccess
+                 job_script_provider,  # type: Optional[Any]
+                 timeout,              # type: float
+                 debug,                # type: bool
+                 js_console,           # type: bool
+                 force_docker_pull,    # type: bool
+                 loadListing,          # type: Text
+                 outdir,               # type: Text
+                 tmpdir,               # type: Text
+                 stagedir,             # type: Text
                 ):  # type: (...) -> None
 
         self.job = job
@@ -208,12 +209,14 @@ class Builder(HasReqsHints):
         if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
+                avsc = None  # type: Optional[Schema]
                 if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
                 elif isinstance(t, MutableMapping) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
-                else:
-                    avsc = AvroSchemaFromJSONData(t, self.names)
+                if not avsc:
+                    avsc = make_avsc_object(convert_to_dict(t), self.names)
+                assert avsc is not None
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
