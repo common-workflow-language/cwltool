@@ -58,10 +58,10 @@ class TestUdocker:
     def test_udocker_should_display_memory_usage(self, tmpdir):
         cwd = tmpdir.chdir()
         error_code, stdout, stderr = get_main_output(
-            ["--enable-ext", "--default-container=debian",  "--user-space-docker-cmd=" + self.udocker_path,
-             get_data("tests/wf/timelimit.cwl"), "--sleep_time", "10"])
+            ["--default-container=debian", "--enable-ext",
+             "--user-space-docker-cmd=" + self.udocker_path,
+             get_data("tests/wf/timelimit.cwl"), "--sleep_time", "1"])
         cwd.chdir()
         tmpdir.remove(ignore_errors=True)
 
-        assert "completed success" in stderr
         assert "Max memory" in stderr

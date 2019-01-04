@@ -849,7 +849,7 @@ def test_bad_userspace_runtime():
     error_code, stdout, stderr = get_main_output(
         ["--user-space-docker-cmd=quaquioN", "--default-container=debian",
          get_data(test_file), get_data(job_file)])
-    assert "'quaquioN' not found:" in stderr, stderr
+    assert "Error while running ['quaquioN'," in stderr, stderr
     assert error_code == 1
 
 @windows_needs_docker
@@ -857,8 +857,11 @@ def test_bad_basecommand():
     test_file = "tests/wf/missing-tool.cwl"
     error_code, stdout, stderr = get_main_output(
         [get_data(test_file)])
-    assert "'neenooGo' not found" in stderr, stderr
     assert error_code == 1
+    if not onWindows():
+        assert "No such file or directory: 'neenooGo'" in stderr, stderr
+    else:
+        assert "executable file not found" in stderr, stderr
 
 
 @needs_docker
