@@ -27,7 +27,7 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
-	pytest pytest-xdist isort
+	pytest pytest-xdist isort wheel
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=1.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
