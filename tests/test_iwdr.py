@@ -57,6 +57,7 @@ def test_iwdr_permutations():
                                                  '--sixth', sixth,
                                                  '--seventh', seventh,
                                                  '--eighth', eighth]) == 0)
+    tempfile.tempdir = saved_tempdir
 
 @needs_docker
 @pytest.mark.skipif(onWindows(), reason="Literal writable directories are "
@@ -102,6 +103,7 @@ def test_iwdr_permutations_inplace():
                                                  '--sixth', sixth,
                                                  '--seventh', seventh,
                                                  '--eighth', eighth]) == 0)
+    tempfile.tempdir = saved_tempdir
 
 @needs_singularity
 def test_iwdr_permutations_singularity():
