@@ -231,6 +231,24 @@ class MultithreadedJobExecutor(JobExecutor):
 
         return result
 
+    def _runner(self, job, runtime_context):
+        """ Job running thread. """
+        try:
+            job.run(runtime_context)
+        except WorkflowException as err:
+            _logger.exception("Got workflow error")
+            self.exceptions.append(err)
+        except Exception as err:  # pylint: disable=broad-except
+            _logger.exception("Got workflow error")
+            self.exceptions.append(WorkflowException(Text(err)))
+        finally:
+            with runtime_context.workflow_eval_lock:
+                self.threads.remove(threading.current_thread())
+                if isinstance(job, JobBase):
+                    self.allocated_ram -= job.builder.resources["ram"]
+                    self.allocated_cores -= job.builder.resources["cores"]
+                runtime_context.workflow_eval_lock.notifyAll()
+
     def run_job(self,
                 job,             # type: Union[JobBase, WorkflowJob]
                 runtime_context  # type: RuntimeContext
@@ -241,9 +259,10 @@ class MultithreadedJobExecutor(JobExecutor):
             with self.pending_jobs_lock:
                 self.pending_jobs.append(job)
 
-        while self.pending_jobs:
-            with self.pending_jobs_lock:
-                job = self.pending_jobs[0]
+        with self.pending_jobs_lock:
+            n = 0
+            while (n+1) <= len(self.pending_jobs):
+                job = self.pending_jobs[n]
                 if isinstance(job, JobBase):
                     if ((job.builder.resources["ram"])
                         > self.max_ram
@@ -251,7 +270,7 @@ class MultithreadedJobExecutor(JobExecutor):
                         > self.max_cores):
                         _logger.error(
                             'Job "%s" cannot be run, requests more resources (%s) '
-                            'than available on this host (max ram %f, max cores %f',
+                            'than available on this host (max ram %d, max cores %d',
                             job.name, job.builder.resources,
                             self.allocated_ram,
                             self.allocated_cores,
@@ -266,41 +285,23 @@ class MultithreadedJobExecutor(JobExecutor):
                         > self.max_cores):
                         _logger.debug(
                             'Job "%s" cannot run yet, resources (%s) are not '
-                            'available (already allocated ram is %f, allocated cores is %f, '
-                            'max ram %f, max cores %f',
+                            'available (already allocated ram is %d, allocated cores is %d, '
+                            'max ram %d, max cores %d',
                             job.name, job.builder.resources,
                             self.allocated_ram,
                             self.allocated_cores,
                             self.max_ram,
                             self.max_cores)
-                        return
+                        n += 1
+                        continue
 
-            def runner():
-                """ Job running thread. """
-                try:
-                    job.run(runtime_context)
-                except WorkflowException as err:
-                    _logger.exception("Got workflow error")
-                    self.exceptions.append(err)
-                except Exception as err:  # pylint: disable=broad-except
-                    _logger.exception("Got workflow error")
-                    self.exceptions.append(WorkflowException(Text(err)))
-                finally:
-                    with runtime_context.workflow_eval_lock:
-                        self.threads.remove(threading.current_thread())
-                        if isinstance(job, JobBase):
-                            self.allocated_ram -= job.builder.resources["ram"]
-                            self.allocated_cores -= job.builder.resources["cores"]
-                        runtime_context.workflow_eval_lock.notifyAll()
-
-            thread = threading.Thread(target=runner)
-            thread.daemon = True
-            self.threads.add(thread)
-            if isinstance(job, JobBase):
-                self.allocated_ram += job.builder.resources["ram"]
-                self.allocated_cores += job.builder.resources["cores"]
-            thread.start()
-            with self.pending_jobs_lock:
+                thread = threading.Thread(target=self._runner, args=(job, runtime_context))
+                thread.daemon = True
+                self.threads.add(thread)
+                if isinstance(job, JobBase):
+                    self.allocated_ram += job.builder.resources["ram"]
+                    self.allocated_cores += job.builder.resources["cores"]
+                thread.start()
                 self.pending_jobs.remove(job)
 
     def wait_for_next_completion(self, runtime_context):
@@ -342,6 +343,9 @@ class MultithreadedJobExecutor(JobExecutor):
                     logger.error("Workflow cannot make any more progress.")
                     break
 
+        self.run_job(None, runtime_context)
         while self.threads:
             self.wait_for_next_completion(runtime_context)
+            self.run_job(None, runtime_context)
+
         runtime_context.workflow_eval_lock.release()
