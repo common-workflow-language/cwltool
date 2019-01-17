@@ -252,8 +252,12 @@ class MultithreadedJobExecutor(JobExecutor):
                          > self.max_cores):
                     _logger.warning(
                         'Job "%s" requested more resources (%s) than are '
-                        'available (max ram is %f, max cores is %f)',
-                        job.name, job.builder.resources, self.max_ram,
+                        'available (already allocated ram is %f, allocated cores is %f, '
+                        'max ram is %f, max cores is %f',
+                        job.name, job.builder.resources,
+                        self.allocated_ram,
+                        self.allocated_cores,
+                        self.max_ram,
                         self.max_cores)
                     return
                 self.pending_jobs.remove(job)
