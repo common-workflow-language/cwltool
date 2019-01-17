@@ -443,7 +443,7 @@ class CommandLineTool(Process):
                         initwd_item = builder.do_eval(t)
                         if not initwd_item:
                             continue
-                        if isinstance(initwd_item, list):
+                        if isinstance(initwd_item, MutableSequence):
                             ls.extend(initwd_item)
                         else:
                             ls.append(initwd_item)
