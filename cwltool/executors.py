@@ -244,23 +244,36 @@ class MultithreadedJobExecutor(JobExecutor):
         while self.pending_jobs:
             with self.pending_jobs_lock:
                 job = self.pending_jobs[0]
-                if isinstance(job, JobBase) \
-                        and \
-                        ((self.allocated_ram + job.builder.resources["ram"])
-                         > self.max_ram
-                         or (self.allocated_cores + job.builder.resources["cores"])
-                         > self.max_cores):
-                    _logger.warning(
-                        'Job "%s" requested more resources (%s) than are '
-                        'available (already allocated ram is %f, allocated cores is %f, '
-                        'max ram is %f, max cores is %f',
-                        job.name, job.builder.resources,
-                        self.allocated_ram,
-                        self.allocated_cores,
-                        self.max_ram,
-                        self.max_cores)
-                    return
-                self.pending_jobs.remove(job)
+                if isinstance(job, JobBase):
+                    if ((job.builder.resources["ram"])
+                        > self.max_ram
+                        or (job.builder.resources["cores"])
+                        > self.max_cores):
+                        _logger.error(
+                            'Job "%s" cannot be run, requests more resources (%s) '
+                            'than available on this host (max ram %f, max cores %f',
+                            job.name, job.builder.resources,
+                            self.allocated_ram,
+                            self.allocated_cores,
+                            self.max_ram,
+                            self.max_cores)
+                        self.pending_jobs.remove(job)
+                        return
+
+                    if ((self.allocated_ram + job.builder.resources["ram"])
+                        > self.max_ram
+                        or (self.allocated_cores + job.builder.resources["cores"])
+                        > self.max_cores):
+                        _logger.debug(
+                            'Job "%s" cannot run yet, resources (%s) are not '
+                            'available (already allocated ram is %f, allocated cores is %f, '
+                            'max ram %f, max cores %f',
+                            job.name, job.builder.resources,
+                            self.allocated_ram,
+                            self.allocated_cores,
+                            self.max_ram,
+                            self.max_cores)
+                        return
 
             def runner():
                 """ Job running thread. """
@@ -287,7 +300,8 @@ class MultithreadedJobExecutor(JobExecutor):
                 self.allocated_ram += job.builder.resources["ram"]
                 self.allocated_cores += job.builder.resources["cores"]
             thread.start()
-
+            with self.pending_jobs_lock:
+                self.pending_jobs.remove(job)
 
     def wait_for_next_completion(self, runtime_context):
         # type: (RuntimeContext) -> None
