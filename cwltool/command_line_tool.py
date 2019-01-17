@@ -428,7 +428,7 @@ class CommandLineTool(Process):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in initialWorkdir["listing"]:
-                    if "entry" in t:
+                    if isinstance(t, Mapping) and "entry" in t:
                         entry_exp = builder.do_eval(t["entry"], strip_whitespace=False)
                         for entry in aslist(entry_exp):
                             et = {u"entry": entry}
