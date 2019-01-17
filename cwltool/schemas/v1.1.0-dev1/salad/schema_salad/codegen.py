@@ -10,7 +10,7 @@ from .codegen_base import shortname, CodeGenBase
 from .python_codegen import PythonCodeGen
 from .java_codegen import JavaCodeGen
 from .ref_resolver import Loader
-from typing import List, Dict, Text, Any, Union, Text
+from typing import Any, Dict, List, Optional, Text, Union
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 
 class GoCodeGen(object):
@@ -26,13 +26,14 @@ def codegen(lang,             # type: str
 
     j = schema.extend_and_specialize(i, loader)
 
-    cg = None  # type: CodeGenBase
+    cg = None  # type: Optional[CodeGenBase]
     if lang == "python":
         cg = PythonCodeGen(sys.stdout)
     elif lang == "java":
         cg = JavaCodeGen(schema_metadata.get("$base", schema_metadata.get("id")))
     else:
         raise Exception("Unsupported code generation language '%s'" % lang)
+    assert cg is not None
 
     cg.prologue()
 
@@ -52,7 +53,7 @@ def codegen(lang,             # type: str
             if rec.get("documentRoot"):
                 documentRoots.append(rec["name"])
             cg.begin_class(rec["name"], aslist(rec.get("extends", [])), rec.get("doc"),
-                           rec.get("abstract"))
+                           rec.get("abstract", False))
             cg.add_vocab(shortname(rec["name"]), rec["name"])
 
             for f in rec.get("fields", []):
@@ -73,7 +74,7 @@ def codegen(lang,             # type: str
                     if jld.get("typeDSL"):
                         tl = cg.typedsl_loader(tl, refScope)
                     elif jld.get("_type") == "@id":
-                        tl = cg.uri_loader(tl, jld.get("identity"), False, refScope)
+                        tl = cg.uri_loader(tl, jld.get("identity", False), False, refScope)
                     elif jld.get("_type") == "@vocab":
                         tl = cg.uri_loader(tl, False, True, refScope)
 
@@ -89,7 +90,13 @@ def codegen(lang,             # type: str
 
                 cg.declare_field(fieldpred, tl, f.get("doc"), optional)
 
-            cg.end_class(rec["name"])
+            field_names = []
+            for f in rec.get("fields", []):
+                jld = f.get("jsonldPredicate")
+                name = f["name"]
+                field_names.append(shortname(name))
+
+            cg.end_class(rec["name"], field_names)
 
     rootType = list(documentRoots)
     rootType.append({

@@ -16,7 +16,7 @@ import copy
 
 
 from . import validate
-from .utils import aslist, flatten
+from .utils import aslist, flatten, onWindows
 from .sourceline import SourceLine, add_lc_filename, relname
 
 import requests
@@ -582,8 +582,12 @@ class Loader(object):
             resolved_obj, metadata = self.resolve_all(
                 doc, base_url, file_base=doc_url, checklinks=checklinks)
         else:
+            if doc:
+                resolve_target = doc
+            else:
+                resolve_target = obj
             resolved_obj, metadata = self.resolve_all(
-                doc if doc else obj, doc_url, checklinks=checklinks)
+                resolve_target, doc_url, checklinks=checklinks)
 
         # Requested reference should be in the index now, otherwise it's a bad
         # reference
@@ -962,6 +966,8 @@ class Loader(object):
             if len(sp) == 0:
                 break
             sp.pop()
+        if onWindows() and link.startswith("file:"):
+            link = link.lower()
         raise validate.ValidationException(
             "Field `%s` references unknown identifier `%s`, tried %s" % (field, link, ", ".join(tried)))
 
