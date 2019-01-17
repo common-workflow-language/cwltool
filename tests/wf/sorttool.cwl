@@ -21,13 +21,13 @@ inputs:
     inputBinding:
       position: 1
       prefix: "--reverse"
-  - id: input
+  - id: sorted_input
     type: File
     inputBinding:
       position: 2
 
 outputs:
-  - id: output
+  - id: sorted_output
     type: File
     outputBinding:
       glob: output.txt

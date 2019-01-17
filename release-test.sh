@@ -46,6 +46,7 @@ then
 		&& pip install --force-reinstall -U pip==${pipver} \
 	        && pip install setuptools==${setuptoolsver} wheel
 	make install-dep
+	pip install .
 	#pip install 'galaxy-lib>=17.09.3'
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install

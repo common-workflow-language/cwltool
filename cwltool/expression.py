@@ -11,7 +11,7 @@ from six import string_types, u
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from . import sandboxjs
+from .sandboxjs import default_timeout, execjs, JavascriptException
 from .errors import WorkflowException
 from .utils import bytes2str_in_dicts, docker_windows_path_adjust, json_dumps
 
@@ -44,7 +44,7 @@ class SubstitutionError(Exception):
     pass
 
 
-def scanner(scan):  # type: (Text) -> Optional[List[int]]
+def scanner(scan):  # type: (Text) -> List[int]
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -116,7 +116,7 @@ def scanner(scan):  # type: (Text) -> Optional[List[int]]
         raise SubstitutionError(
             "Substitution error, unfinished block starting at position {}: {}".format(start, scan[start:]))
     else:
-        return None
+        return []
 
 
 def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, Any) -> Any
@@ -132,7 +132,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
         elif next_segment_str[1] in ("'", '"'):
             key = next_segment_str[2:-2].replace("\\'", "'").replace('\\"', '"')
 
-        if key:
+        if key is not None:
             if isinstance(current_value, MutableSequence) and key == "length" and not remaining_string[m.end(0):]:
                 return len(current_value)
             if not isinstance(current_value, MutableMapping):
@@ -160,8 +160,8 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
 def evaluator(ex,                       # type: Text
               jslib,                    # type: Text
               obj,                      # type: Dict[Text, Any]
+              timeout,                  # type: float
               fullJS=False,             # type: bool
-              timeout=None,             # type: float
               force_docker_pull=False,  # type: bool
               debug=False,              # type: bool
               js_console=False          # type: bool
@@ -172,7 +172,7 @@ def evaluator(ex,                       # type: Text
     expression_parse_exception = None
     expression_parse_succeeded = False
 
-    if match:
+    if match is not None:
         first_symbol = match.group(1)
         first_symbol_end = match.end(1)
 
@@ -189,18 +189,18 @@ def evaluator(ex,                       # type: Text
             expression_parse_succeeded = True
 
     if fullJS and not expression_parse_succeeded:
-        return sandboxjs.execjs(
-            ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull,
+        return execjs(
+            ex, jslib, timeout, force_docker_pull=force_docker_pull,
             debug=debug, js_console=js_console)
     else:
         if expression_parse_exception is not None:
-            raise sandboxjs.JavascriptException(
+            raise JavascriptException(
                 "Syntax error in parameter reference '%s': %s. This could be "
                 "due to using Javascript code without specifying "
                 "InlineJavascriptRequirement." % \
                     (ex[1:-1], expression_parse_exception))
         else:
-            raise sandboxjs.JavascriptException(
+            raise JavascriptException(
                 "Syntax error in parameter reference '%s'. This could be due "
                 "to using Javascript code without specifying "
                 "InlineJavascriptRequirement." % ex)
@@ -208,7 +208,7 @@ def evaluator(ex,                       # type: Text
 
 def interpolate(scan,                     # type: Text
                 rootvars,                 # type: Dict[Text, Any]
-                timeout=None,             # type: float
+                timeout=default_timeout,  # type: float
                 fullJS=False,             # type: bool
                 jslib="",                 # type: Text
                 force_docker_pull=False,  # type: bool
@@ -224,8 +224,8 @@ def interpolate(scan,                     # type: Text
         parts.append(scan[0:w[0]])
 
         if scan[w[0]] == '$':
-            e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, fullJS=fullJS,
-                          timeout=timeout, force_docker_pull=force_docker_pull,
+            e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, timeout,
+                          fullJS=fullJS, force_docker_pull=force_docker_pull,
                           debug=debug, js_console=js_console)
             if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
@@ -253,7 +253,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             tmpdir,                   # type: Optional[Text]
             resources,                # type: Dict[str, int]
             context=None,             # type: Any
-            timeout=None,             # type: float
+            timeout=default_timeout,  # type: float
             force_docker_pull=False,  # type: bool
             debug=False,              # type: bool
             js_console=False,         # type: bool

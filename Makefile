@@ -27,11 +27,11 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
-	pytest pytest-xdist isort
+	pytest pytest-xdist isort wheel
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
-	--max-count=1 --format=format:%cI`)
+VERSION=1.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
+	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
 ifeq ($(UNAME_S),Linux)
@@ -43,7 +43,7 @@ endif
 
 ## all         : default task
 all:
-	./setup.py develop
+	pip install -e .
 
 ## help        : print this help message and exit
 help: Makefile
@@ -89,9 +89,11 @@ pep8: pycodestyle
 pycodestyle: $(PYSOURCES)
 	pycodestyle --exclude=_version.py  --show-source --show-pep8 $^ || true
 
+pep8_report.txt: pycodestyle_report.txt
 pycodestyle_report.txt: $(PYSOURCES)
 	pycodestyle --exclude=_version.py $^ > $@ || true
 
+diff_pep8_report: diff_pycodestyle_report
 diff_pycodestyle_report: pycodestyle_report.txt
 	diff-quality --violations=pycodestyle $^
 
@@ -101,7 +103,7 @@ pydocstyle: $(PYSOURCES)
 	pydocstyle --ignore=D100,D101,D102,D103 $^ || true
 
 pydocstyle_report.txt: $(PYSOURCES)
-	pydocstyle setup.py $^ > pydocstyle_report.txt 2>&1 || true
+	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --violations=pycodestyle $^
@@ -122,7 +124,7 @@ pylint: $(PYSOURCES)
 
 pylint_report.txt: ${PYSOURCES}
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ -j$(nproc)> pylint_report.txt || true
+		$^ -j$(nproc)> $@ || true
 
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
@@ -139,6 +141,10 @@ coverage.html: htmlcov/index.html
 
 htmlcov/index.html: .coverage
 	coverage html
+	@echo Test coverage of the Python code is now in htmlcov/index.html
+
+coverage-report: .coverage
+	coverage report
 
 diff-cover: coverage.xml
 	diff-cover $^
@@ -155,7 +161,7 @@ testcov: $(pysources)
 	python setup.py test --addopts "--cov cwltool -n$(nproc) --dist=loadfile"
 
 sloccount.sc: ${PYSOURCES} Makefile
-	sloccount --duplicates --wide --details $^ > sloccount.sc
+	sloccount --duplicates --wide --details $^ > $@
 
 ## sloccount   : count lines of code
 sloccount: ${PYSOURCES} Makefile
@@ -164,7 +170,6 @@ sloccount: ${PYSOURCES} Makefile
 list-author-emails:
 	@echo 'name, E-Mail Address'
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
-
 
 mypy2: ${PYSOURCES}
 	rm -Rf typeshed/2and3/ruamel/yaml
@@ -187,9 +192,11 @@ mypy3: ${PYSOURCES}
 	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
-
-release: FORCE
+release-test: FORCE
+	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
+
+release: release-test
 	. testenv2/bin/activate && \
 		testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
 		pip install twine && \

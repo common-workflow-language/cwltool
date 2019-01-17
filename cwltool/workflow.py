@@ -8,7 +8,8 @@ import random
 import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
-                    MutableMapping, MutableSequence, Optional, Tuple, Union)
+                    Mapping, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union, cast)
 from uuid import UUID  # pylint: disable=unused-import
 
 from ruamel.yaml.comments import CommentedMap
@@ -30,7 +31,7 @@ from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import adjustDirObjs, get_listing
 from .process import Process, get_overrides, shortname, uniquename
-from .provenance import CreateProvProfile
+from .provenance import ProvenanceProfile
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
@@ -165,7 +166,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
                     return None
 
         if inputobj.get(iid) is None and "default" in inp:
-            inputobj[iid] = copy.deepcopy(inp["default"])
+            inputobj[iid] = inp["default"]
 
         if iid not in inputobj and ("valueFrom" in inp or incomplete):
             inputobj[iid] = None
@@ -189,7 +190,7 @@ class WorkflowJobStep(object):
         self.parent_wf = step.parent_wf
 
     def job(self,
-            joborder,         # type: MutableMapping[Text, Text]
+            joborder,         # type: Mapping[Text, Text]
             output_callback,  # type: functools.partial[None]
             runtimeContext    # type: RuntimeContext
            ):
@@ -208,10 +209,10 @@ class WorkflowJob(object):
     def __init__(self, workflow, runtimeContext):
         # type: (Workflow, RuntimeContext) -> None
         self.workflow = workflow
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
-        self.parent_wf = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.parent_wf = None  # type: Optional[ProvenanceProfile]
         self.tool = workflow.tool
-        if runtimeContext.research_obj:
+        if runtimeContext.research_obj is not None:
             self.prov_obj = workflow.provenance_object
             self.parent_wf = workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
@@ -220,7 +221,7 @@ class WorkflowJob(object):
         self.did_callback = False
         self.made_progress = None  # type: Optional[bool]
 
-        if runtimeContext.outdir:
+        if runtimeContext.outdir is not None:
             self.outdir = runtimeContext.outdir
         else:
             self.outdir = tempfile.mkdtemp(
@@ -290,6 +291,9 @@ class WorkflowJob(object):
             _logger.info(u"[%s] completed %s", step.name, processStatus)
 
         step.completed = True
+        # Release the iterable related to this step to
+        # reclaim memory.
+        step.iterable = None
         self.made_progress = True
 
         completed = sum(1 for s in self.steps if s.completed)
@@ -415,7 +419,7 @@ class WorkflowJob(object):
         _logger.info(u"[%s] start", self.name)
 
     def job(self,
-            joborder,         # type: MutableMapping[Text, Any]
+            joborder,         # type: Mapping[Text, Any]
             output_callback,  # type: Callable[[Any, Any], Any]
             runtimeContext    # type: RuntimeContext
            ):  # type: (...) -> Generator
@@ -434,10 +438,10 @@ class WorkflowJob(object):
                 inp_id = shortname(inp["id"])
                 if inp_id in joborder:
                     self.state[inp["id"]] = WorkflowStateItem(
-                        inp, copy.deepcopy(joborder[inp_id]), "success")
+                        inp, joborder[inp_id], "success")
                 elif "default" in inp:
                     self.state[inp["id"]] = WorkflowStateItem(
-                        inp, copy.deepcopy(inp["default"]), "success")
+                        inp, inp["default"], "success")
                 else:
                     raise WorkflowException(
                         u"Input '%s' not in input object and does not have a "
@@ -464,13 +468,13 @@ class WorkflowJob(object):
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
-                if step.iterable:
+                if step.iterable is not None:
                     try:
                         for newjob in step.iterable:
                             if getdefault(runtimeContext.on_error, "stop") == "stop" \
                                     and self.processStatus != "success":
                                 break
-                            if newjob:
+                            if newjob is not None:
                                 self.made_progress = True
                                 yield newjob
                             else:
@@ -500,19 +504,19 @@ class Workflow(Process):
                 ):  # type: (...) -> None
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
-        self.provenance_object = None  # type: Optional[CreateProvProfile]
-        if loadingContext.research_obj:
+        self.provenance_object = None  # type: Optional[ProvenanceProfile]
+        if loadingContext.research_obj is not None:
             run_uuid = None  # type: Optional[UUID]
-            is_master = not(loadingContext.prov_obj)  # Not yet set
+            is_master = not loadingContext.prov_obj  # Not yet set
             if is_master:
                 run_uuid = loadingContext.research_obj.ro_uuid
 
-            self.provenance_object = CreateProvProfile(
+            self.provenance_object = ProvenanceProfile(
                 loadingContext.research_obj,
                 full_name=loadingContext.cwl_full_name,
-                orcid=loadingContext.orcid,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
+                orcid=loadingContext.orcid,
                 run_uuid=run_uuid)  # inherit RO UUID for master wf run
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
@@ -527,8 +531,8 @@ class Workflow(Process):
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
-                self.steps.append(WorkflowStep(step, index, loadingContext,
-                                               loadingContext.prov_obj))
+                self.steps.append(self.make_workflow_step(step, index, loadingContext,
+                                                          loadingContext.prov_obj))
             except validate.ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
@@ -555,17 +559,23 @@ class Workflow(Process):
         if getdefault(loadingContext.do_validate, True):
             static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
 
+    def make_workflow_step(self,
+                           toolpath_object,      # type: Dict[Text, Any]
+                           pos,                  # type: int
+                           loadingContext,       # type: LoadingContext
+                           parentworkflowProv=None  # type: Optional[ProvenanceProfile]
+    ):
+        # (...) -> WorkflowStep
+        return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         builder = self._init_job(job_order, runtimeContext)
-        #relativeJob=copy.deepcopy(builder.job)
-        if runtimeContext.research_obj:
-            if not runtimeContext.research_obj.make_fs_access:
-                runtimeContext.research_obj.make_fs_access = runtimeContext.make_fs_access
+
+        if runtimeContext.research_obj is not None:
             if runtimeContext.toplevel:
                 # Record primary-job.json
                 runtimeContext.research_obj.create_job(builder.job, self.job)
@@ -592,7 +602,7 @@ class WorkflowStep(Process):
                  toolpath_object,      # type: Dict[Text, Any]
                  pos,                  # type: int
                  loadingContext,       # type: LoadingContext
-                 parentworkflowProv=None  # type: Optional[CreateProvProfile]
+                 parentworkflowProv=None  # type: Optional[ProvenanceProfile]
                 ):  # type: (...) -> None
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -674,16 +684,16 @@ class WorkflowStep(Process):
                 param.lc.filename = toolpath_object[stepfield].lc.filename
                 toolpath_object[toolfield].append(param)
 
-        missing = []
+        missing_values = []
         for _, tool_entry in enumerate(self.embedded_tool.tool["inputs"]):
             if shortname(tool_entry["id"]) not in bound:
                 if "null" not in tool_entry["type"] and "default" not in tool_entry:
-                    missing.append(shortname(tool_entry["id"]))
+                    missing_values.append(shortname(tool_entry["id"]))
 
-        if missing:
+        if missing_values:
             validation_errors.append(SourceLine(self.tool, "in").makeError(
                 "Step is missing required parameter%s '%s'" %
-                ("s" if len(missing) > 1 else "", "', '".join(missing))))
+                ("s" if len(missing_values) > 1 else "", "', '".join(missing_values))))
 
         if validation_errors:
             raise validate.ValidationException("\n".join(validation_errors))
@@ -735,8 +745,8 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
-        if loadingContext.research_obj:
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":
                 self.parent_wf = self.embedded_tool.parent_wf
@@ -755,7 +765,7 @@ class WorkflowStep(Process):
         output_callback(output, processStatus)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext,    # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -767,16 +777,18 @@ class WorkflowStep(Process):
             self.embedded_tool.parent_wf = self.prov_obj
             process_name = self.tool["id"].split("#")[1]
             self.prov_obj.start_process(
-                process_name, self.embedded_tool.provenance_object.workflow_run_uri)
+                process_name, datetime.datetime.now(),
+                self.embedded_tool.provenance_object.workflow_run_uri)
+
+        step_input = {}
         for inp in self.tool["inputs"]:
             field = shortname(inp["id"])
             if not inp.get("not_connected"):
-                job_order[field] = job_order[inp["id"]]
-            del job_order[inp["id"]]
+                step_input[field] = job_order[inp["id"]]
 
         try:
             for tool in self.embedded_tool.job(
-                    job_order,
+                    step_input,
                     functools.partial(self.receive_output, output_callbacks),
                     runtimeContext):
                 yield tool
@@ -802,11 +814,17 @@ class ReceiveScatterOutput(object):
         self.processStatus = u"success"
         self.total = total
         self.output_callback = output_callback
+        self.steps = []  # type: List[Optional[Generator]]
 
     def receive_scatter_output(self, index, jobout, processStatus):
         # type: (int, Dict[Text, Text], Text) -> None
         for key, val in jobout.items():
             self.dest[key][index] = val
+
+        # Release the iterable related to this step to
+        # reclaim memory.
+        if self.steps:
+            self.steps[index] = None
 
         if processStatus != "success":
             if self.processStatus != "permanentFail":
@@ -817,8 +835,9 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total):  # type: (int) -> None
+    def setTotal(self, total, steps):  # type: (int, List[Generator]) -> None
         self.total = total
+        self.steps = cast(List[Optional[Generator]], steps)
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
@@ -830,15 +849,19 @@ def parallel_steps(steps, rc, runtimeContext):
         for index, step in enumerate(steps):
             if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
                 break
+            if step is None:
+                continue
             try:
                 for j in step:
                     if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
                         break
-                    if j:
+                    if j is not None:
                         made_progress = True
                         yield j
                     else:
                         break
+                if made_progress:
+                    break
             except WorkflowException as exc:
                 _logger.error(u"Cannot make scatter job: %s", exc)
                 _logger.debug("", exc_info=True)
@@ -871,7 +894,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
     steps = []
     for index in range(0, jobl):
-        sjobo = copy.deepcopy(joborder)
+        sjobo = copy.copy(joborder)
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
@@ -882,7 +905,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
             sjobo, functools.partial(rc.receive_scatter_output, index),
             runtimeContext))
 
-    rc.setTotal(jobl)
+    rc.setTotal(jobl, steps)
     return parallel_steps(steps, rc, runtimeContext)
 
 
@@ -902,7 +925,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
 
     steps = []
     for index in range(0, jobl):
-        sjob = copy.deepcopy(joborder)
+        sjob = copy.copy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
@@ -917,7 +940,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
                 functools.partial(rc.receive_scatter_output, index),
                 runtimeContext))
 
-    rc.setTotal(jobl)
+    rc.setTotal(jobl, steps)
     return parallel_steps(steps, rc, runtimeContext)
 
 
@@ -944,7 +967,7 @@ def flat_crossproduct_scatter(process,          # type: WorkflowJobStep
     callback = ReceiveScatterOutput(output_callback, output, 0)
     (steps, total) = _flat_crossproduct_scatter(
         process, joborder, scatter_keys, callback, 0, runtimeContext)
-    callback.setTotal(total)
+    callback.setTotal(total, steps)
     return parallel_steps(steps, callback, runtimeContext)
 
 def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
@@ -960,7 +983,7 @@ def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
     steps = []
     put = startindex
     for index in range(0, jobl):
-        sjob = copy.deepcopy(joborder)
+        sjob = copy.copy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:

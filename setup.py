@@ -16,13 +16,14 @@ try:
 except ImportError:
     Tagger = egg_info_cmd.egg_info
 
-needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-pytest_runner = ['pytest-runner', 'pytest-cov'] if needs_pytest else []
+NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
+PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
 
 setup(name='cwltool',
       version='1.0',
       description='Common workflow language reference implementation',
       long_description=open(README).read(),
+      long_description_content_type="text/x-rst",
       author='Common workflow language working group',
       author_email='common-workflow-language@googlegroups.com',
       url="https://github.com/common-workflow-language/cwltool",
@@ -49,10 +50,10 @@ setup(name='cwltool',
           'setuptools',
           'requests >= 2.6.1',  # >= 2.6.1 to workaround
           # https://github.com/ionrock/cachecontrol/issues/137
-          'ruamel.yaml >= 0.12.4, <= 0.15.51',
+          'ruamel.yaml >= 0.12.4, <= 0.15.77',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 2.7.20180905124720, < 3',
+          'schema-salad >= 3.0, < 3.1',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
@@ -62,13 +63,13 @@ setup(name='cwltool',
           'typing-extensions',
       ],
       extras_require={
-          ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
+          ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
-          'deps': ["galaxy-lib >= 17.09.3"]
+          'deps': ["galaxy-lib >= 17.09.9"]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
-      setup_requires=[] + pytest_runner,
+      setup_requires=PYTEST_RUNNER,
       test_suite='tests',
       tests_require=['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
                      'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
@@ -97,7 +98,7 @@ setup(name='cwltool',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.4',  # except on MS Windows
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',

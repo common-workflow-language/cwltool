@@ -56,8 +56,8 @@ $graph:
         refScope: 0
 
 
-- type: record
-  name: TimeLimit
+- name: TimeLimit
+  type: record
   inVocab: false
   extends: cwl:ProcessRequirement
   doc: |
@@ -79,8 +79,8 @@ $graph:
         time limit.  Negative time limits are an error.
 
 
-- type: record
-  name: WorkReuse
+- name: WorkReuse
+  type: record
   inVocab: false
   extends: cwl:ProcessRequirement
   doc: |
@@ -105,8 +105,8 @@ $graph:
       #default: true
 
 
-- type: record
-  name: NetworkAccess
+- name: NetworkAccess
+  type: record
   inVocab: false
   extends: cwl:ProcessRequirement
   doc: |

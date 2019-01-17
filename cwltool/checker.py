@@ -26,9 +26,9 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
     """Check if the source and sink types are "pass", "warning", or "exception".
     """
 
-    if valueFrom:
+    if valueFrom is not None:
         return "pass"
-    if not linkMerge:
+    if linkMerge is None:
         if can_assign_src_to_sink(srctype, sinktype, strict=True):
             return "pass"
         if can_assign_src_to_sink(srctype, sinktype, strict=False):
@@ -39,7 +39,7 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
                            _get_type(sinktype), None, None)
     if linkMerge == "merge_flattened":
         return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
-    raise WorkflowException(u"Unrecognized linkMerge enu_m '{}'".format(linkMerge))
+    raise WorkflowException(u"Unrecognized linkMerge enum '{}'".format(linkMerge))
 
 
 def merge_flatten_type(src):
@@ -179,7 +179,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
                 SourceLine(sink, "type").makeError(
                     "  with sink '%s' of type %s"
                     % (shortname(sink["id"]), json_dumps(sink["type"])))
-            if linkMerge:
+            if linkMerge is not None:
                 msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
 
         warning_msgs.append(msg)
@@ -193,7 +193,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
             SourceLine(sink, "type").makeError(
                 "  with sink '%s' of type %s"
                 % (shortname(sink["id"]), json_dumps(sink["type"])))
-        if linkMerge:
+        if linkMerge is not None:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
 

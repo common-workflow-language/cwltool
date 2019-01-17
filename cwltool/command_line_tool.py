@@ -12,11 +12,12 @@ import shutil
 import tempfile
 import threading
 from functools import cmp_to_key, partial
-from typing import (Any, Callable, Dict, Generator, List, MutableMapping,
+from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
                     MutableSequence, Optional, Set, Union, cast)
 
 import shellescape
 from schema_salad import validate
+from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from six import string_types
@@ -49,7 +50,7 @@ from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     random_outdir, windows_default_container_id)
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
@@ -89,7 +90,7 @@ class ExpressionTool(Process):
             self.outdir = outdir
             self.tmpdir = tmpdir
             self.script = script
-            self.prov_obj = None  # type: Optional[CreateProvProfile]
+            self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
@@ -102,7 +103,7 @@ class ExpressionTool(Process):
                 self.output_callback({}, "permanentFail")
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):
@@ -179,7 +180,7 @@ class CallbackJob(object):
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
         self.outdir = jobcache
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
     def run(self, runtimeContext):
         # type: (RuntimeContext) -> None
@@ -202,10 +203,17 @@ def check_adjust(builder, file_o):
     assert builder.pathmapper is not None
     file_o["path"] = docker_windows_path_adjust(
         builder.pathmapper.mapper(file_o["location"])[1])
-    file_o["dirname"], file_o["basename"] = os.path.split(file_o["path"])
+    dn, bn = os.path.split(file_o["path"])
+    if file_o.get("dirname") != dn:
+        file_o["dirname"] = Text(dn)
+    if file_o.get("basename") != bn:
+        file_o["basename"] = Text(bn)
     if file_o["class"] == "File":
-        file_o["nameroot"], file_o["nameext"] = os.path.splitext(
-            file_o["basename"])
+        nr, ne = os.path.splitext(file_o["basename"])
+        if file_o.get("nameroot") != nr:
+            file_o["nameroot"] = Text(nr)
+        if file_o.get("nameext") != ne:
+            file_o["nameext"] = Text(ne)
     if not ACCEPTLIST_RE.match(file_o["basename"]):
         raise WorkflowException(
             "Invalid filename: '{}' contains illegal characters".format(
@@ -234,9 +242,9 @@ class CommandLineTool(Process):
                        ):  # type: (...) -> Type[JobBase]
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if not dockerReq and runtimeContext.use_container:
-            if runtimeContext.find_default_container:
+            if runtimeContext.find_default_container is not None:
                 default_container = runtimeContext.find_default_container(self)
-                if default_container:
+                if default_container is not None:
                     self.requirements.insert(0, {
                         "class": "DockerRequirement",
                         "dockerPull": default_container
@@ -248,7 +256,7 @@ class CommandLineTool(Process):
                             DEFAULT_CONTAINER_MSG, windows_default_container_id,
                             windows_default_container_id)
 
-        if dockerReq and runtimeContext.use_container:
+        if dockerReq is not None and runtimeContext.use_container:
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
             return DockerCommandLineJob
@@ -275,7 +283,7 @@ class CommandLineTool(Process):
             self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
     def job(self,
-            job_order,         # type: MutableMapping[Text, Text]
+            job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # RuntimeContext
            ):
@@ -285,7 +293,7 @@ class CommandLineTool(Process):
         if self.metadata["cwlVersion"] == "v1.0":
             require_prefix = "http://commonwl.org/cwltool#"
 
-        workReuse = self.get_requirement(require_prefix+"WorkReuse")[0]
+        workReuse, _ = self.get_requirement(require_prefix + "WorkReuse")
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
         jobname = uniquename(runtimeContext.name or shortname(self.tool.get("id", "job")))
@@ -304,15 +312,15 @@ class CommandLineTool(Process):
                         ("File", "Directory"), _check_adjust)
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
-            (docker_req, _) = self.get_requirement("DockerRequirement")
-            if docker_req and runtimeContext.use_container:
+            docker_req, _ = self.get_requirement("DockerRequirement")
+            if docker_req is not None and runtimeContext.use_container:
                 dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
             elif runtimeContext.default_container is not None and runtimeContext.use_container:
                 dockerimg = runtimeContext.default_container
             else:
                 dockerimg = None
 
-            if dockerimg:
+            if dockerimg is not None:
                 cmdline = ["docker", "run", dockerimg] + cmdline
                 # not really run using docker, just for hashing purposes
             keydict = {u"cmdline": cmdline}
@@ -329,7 +337,7 @@ class CommandLineTool(Process):
                          and 'checksum' in e
                          and e['checksum'] != 'sha1$hash'), None)
                     fobj_stat = os.stat(fobj.resolved)
-                    if checksum:
+                    if checksum is not None:
                         keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
                     else:
                         keydict[fobj.resolved] = [fobj_stat.st_size,
@@ -389,9 +397,10 @@ class CommandLineTool(Process):
             builder, builder.job, self.make_path_mapper, self.requirements,
             self.hints, jobname)
         j.prov_obj = self.prov_obj
-        j.successCodes = self.tool.get("successCodes")
-        j.temporaryFailCodes = self.tool.get("temporaryFailCodes")
-        j.permanentFailCodes = self.tool.get("permanentFailCodes")
+
+        j.successCodes = self.tool.get("successCodes", [])
+        j.temporaryFailCodes = self.tool.get("temporaryFailCodes", [])
+        j.permanentFailCodes = self.tool.get("permanentFailCodes", [])
 
         debug = _logger.isEnabledFor(logging.DEBUG)
 
@@ -401,7 +410,7 @@ class CommandLineTool(Process):
                           self.tool.get("id", ""),
                           u" as part of %s" % runtimeContext.part_of
                           if runtimeContext.part_of else "")
-            _logger.debug(u"[job %s] %s", j.name, json_dumps(job_order,
+            _logger.debug(u"[job %s] %s", j.name, json_dumps(builder.job,
                                                              indent=4))
 
         builder.pathmapper = self.make_path_mapper(
@@ -412,8 +421,8 @@ class CommandLineTool(Process):
 
         visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
-        initialWorkdir = self.get_requirement("InitialWorkDirRequirement")[0]
-        if initialWorkdir:
+        initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
+        if initialWorkdir is not None:
             ls = []  # type: List[Dict[Text, Any]]
             if isinstance(initialWorkdir["listing"], string_types):
                 ls = builder.do_eval(initialWorkdir["listing"])
@@ -490,30 +499,32 @@ class CommandLineTool(Process):
         if debug:
             _logger.debug(u"[job %s] command line bindings is %s", j.name,
                           json_dumps(builder.bindings, indent=4))
-        dockerReq = self.get_requirement("DockerRequirement")[0]
-        if dockerReq and runtimeContext.use_container:
-            out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')
+        dockerReq, _ = self.get_requirement("DockerRequirement")
+        if dockerReq is not None and runtimeContext.use_container:
+            out_dir, out_prefix = os.path.split(
+                runtimeContext.tmp_outdir_prefix)
             j.outdir = runtimeContext.outdir or \
-                tempfile.mkdtemp(prefix=out_prefix)  # type: ignore
-            tmpdir_prefix = getdefault(runtimeContext.tmpdir_prefix, 'tmp')
+                tempfile.mkdtemp(prefix=out_prefix, dir=out_dir)
+            tmpdir_dir, tmpdir_prefix = os.path.split(
+                runtimeContext.tmpdir_prefix)
             j.tmpdir = runtimeContext.tmpdir or \
-                tempfile.mkdtemp(prefix=tmpdir_prefix)  # type: ignore
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
+                tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
-        inplaceUpdateReq = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")[0]
+        inplaceUpdateReq, _ = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")
 
-        if inplaceUpdateReq:
+        if inplaceUpdateReq is not None:
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
 
         readers = {}  # type: Dict[Text, Any]
         muts = set()  # type: Set[Text]
 
-        if builder.mutation_manager:
+        if builder.mutation_manager is not None:
             def register_mut(f):
                 muts.add(f["location"])
                 builder.mutation_manager.register_mutation(j.name, f)
@@ -537,8 +548,8 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit = self.get_requirement(require_prefix+"TimeLimit")[0]
-        if timelimit:
+        timelimit, _ = self.get_requirement(require_prefix + "TimeLimit")
+        if timelimit is not None:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
                 if not isinstance(j.timelimit, int) or j.timelimit < 0:
@@ -546,21 +557,21 @@ class CommandLineTool(Process):
 
         if self.metadata["cwlVersion"] == "v1.0":
             j.networkaccess = True
-        networkaccess = self.get_requirement(require_prefix+"NetworkAccess")[0]
-        if networkaccess:
+        networkaccess, _ = self.get_requirement(require_prefix + "NetworkAccess")
+        if networkaccess is not None:
             with SourceLine(networkaccess, "networkAccess", validate.ValidationException, debug):
                 j.networkaccess = builder.do_eval(networkaccess["networkAccess"])
                 if not isinstance(j.networkaccess, bool):
                     raise Exception("networkAccess must be a boolean, got: %s" % j.networkaccess)
 
         j.environment = {}
-        evr = self.get_requirement("EnvVarRequirement")[0]
-        if evr:
+        evr, _ = self.get_requirement("EnvVarRequirement")
+        if evr is not None:
             for t in evr["envDef"]:
                 j.environment[t["envName"]] = builder.do_eval(t["envValue"])
 
-        shellcmd = self.get_requirement("ShellCommandRequirement")[0]
-        if shellcmd:
+        shellcmd, _ = self.get_requirement("ShellCommandRequirement")
+        if shellcmd is not None:
             cmd = []  # type: List[Text]
             for b in builder.bindings:
                 arg = builder.generate_arg(b)
@@ -620,17 +631,17 @@ class CommandLineTool(Process):
 
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
-
-            validate.validate_ex(
-                self.names.get_name("outputs_record_schema", ""), ret,
+            expected_schema = cast(Schema, self.names.get_name(
+                "outputs_record_schema", ""))
+            validate.validate_ex(expected_schema, ret,
                 strict=False, logger=_logger_validation_warnings)
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
             raise WorkflowException(
-                "Error validating output record. " + Text(e) + "\n in " +
-                json_dumps(ret, indent=4))
+                "Error validating output record. " + Text(e) + "\n in "
+                + json_dumps(ret, indent=4))
         finally:
             if builder.mutation_manager and readers:
                 for r in readers.values():

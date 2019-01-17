@@ -1,11 +1,14 @@
 include MANIFEST.in
+include LICENSE.txt
 include *requirements.txt
 include gittaggers.py Makefile cwltool.py
 include tests/*
 include tests/tmp1/tmp2/tmp3/.gitkeep
+include tests/tmp4/alpha/*
 include tests/wf/*
 include tests/override/*
 include tests/checker_wf/*
+include tests/subgraph/*
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
@@ -35,6 +38,6 @@ prune cwltool/schemas/v1.0/v1.0
 prune cwltool/schemas/v1.1.0-dev1/examples
 prune cwltool/schemas/v1.1.0-dev1/v1.1.0-dev1
 recursive-exclude cwltool/schemas *.py
-
+exclude debian.img
 global-exclude *~
 global-exclude *.pyc

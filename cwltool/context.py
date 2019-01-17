@@ -21,7 +21,7 @@ from .utils import DEFAULT_TMP_PREFIX
 if TYPE_CHECKING:
     from .process import Process
     from .provenance import (ResearchObject,  # pylint: disable=unused-import
-                             CreateProvProfile)
+                             ProvenanceProfile)
 
 class ContextBase(object):
     def __init__(self, kwargs=None):
@@ -59,11 +59,11 @@ class LoadingContext(ContextBase):
         self.fetcher_constructor = None
         self.construct_tool_object = default_make_tool
         self.research_obj = None           # type: Optional[ResearchObject]
-        self.orcid = None
-        self.cwl_full_name = None
+        self.orcid = ''                    # type: str
+        self.cwl_full_name = ""            # type: str
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
-        self.prov_obj = None               # type: Optional[CreateProvProfile]
+        self.prov_obj = None               # type: Optional[ProvenanceProfile]
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -95,7 +95,7 @@ class RuntimeContext(ContextBase):
         self.move_outputs = "move"      # type: Text
 
         self.singularity = False        # type: bool
-        self.disable_net = None
+        self.disable_net = False        # type: bool
         self.debug = False              # type: bool
         self.compute_checksum = True    # type: bool
         self.name = ""                  # type: Text
@@ -122,16 +122,15 @@ class RuntimeContext(ContextBase):
         self.on_error = "stop"          # type: Text
         self.strict_memory_limit = False  # type: bool
 
-        self.record_container_id = None
         self.cidfile_dir = None
         self.cidfile_prefix = None
 
         self.workflow_eval_lock = None  # type: Optional[threading.Condition]
         self.research_obj = None        # type: Optional[ResearchObject]
-        self.orcid = None
-        self.cwl_full_name = None
+        self.orcid = ''                 # type: str
+        self.cwl_full_name = ""         # type: str
         self.process_run_id = None      # type: Optional[str]
-        self.prov_obj = None            # type: Optional[CreateProvProfile]
+        self.prov_obj = None            # type: Optional[ProvenanceProfile]
         super(RuntimeContext, self).__init__(kwargs)
 
 

@@ -48,7 +48,7 @@ jobloaderctx = {
 overrides_ctx = {
     u"overrideTarget": {u"@type": u"@id"},
     u"cwltool": "http://commonwl.org/cwltool#",
-    u"overrides": {
+    u"http://commonwl.org/cwltool#overrides": {
         "@id": "cwltool:overrides",
         "mapSubject": "overrideTarget",
     },
@@ -86,7 +86,7 @@ def resolve_tool_uri(argsworkflow,  # type: Text
         uri = argsworkflow
     elif os.path.exists(os.path.abspath(argsworkflow)):
         uri = file_uri(str(os.path.abspath(argsworkflow)))
-    elif resolver:
+    elif resolver is not None:
         if document_loader is None:
             document_loader = default_loader(fetcher_constructor)  # type: ignore
         uri = resolver(document_loader, argsworkflow)
@@ -195,17 +195,17 @@ def _add_blank_ids(workflowobj):
         for entry in workflowobj:
             _add_blank_ids(entry)
 
-def validate_document(document_loader,  # type: Loader
-                      workflowobj,  # type: CommentedMap
-                      uri,  # type: Text
-                      enable_dev=False,  # type: bool
-                      strict=True,  # type: bool
-                      preprocess_only=False,  # type: bool
+def validate_document(document_loader,           # type: Loader
+                      workflowobj,               # type: CommentedMap
+                      uri,                       # type: Text
+                      overrides,                 # type: List[Dict]
+                      metadata,                  # type: Dict[Text, Any]
+                      enable_dev=False,          # type: bool
+                      strict=True,               # type: bool
+                      preprocess_only=False,     # type: bool
                       fetcher_constructor=None,  # type: FetcherConstructorType
-                      skip_schemas=None,  # type: bool
-                      overrides=None,  # type: List[Dict]
-                      metadata=None,  # type: Optional[Dict]
-                      do_validate=True
+                      skip_schemas=None,         # type: bool
+                      do_validate=True           # type: bool
                      ):
     # type: (...) -> Tuple[Loader, schema.Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -226,7 +226,7 @@ def validate_document(document_loader,  # type: Loader
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
-        if "http://commonwl.org/cwltool#overrides" in jobobj:
+        if isinstance(jobobj, CommentedMap) and "http://commonwl.org/cwltool#overrides" in jobobj:
             overrides.extend(resolve_overrides(jobobj, uri, uri))
             del jobobj["http://commonwl.org/cwltool#overrides"]
 
@@ -234,7 +234,7 @@ def validate_document(document_loader,  # type: Loader
 
     fileuri = urllib.parse.urldefrag(uri)[0]
     if "cwlVersion" not in workflowobj:
-        if metadata and 'cwlVersion' in metadata:
+        if 'cwlVersion' in metadata:
             workflowobj['cwlVersion'] = metadata['cwlVersion']
         else:
             raise ValidationException(
@@ -272,7 +272,7 @@ def validate_document(document_loader,  # type: Loader
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text]
+    processobj = None  # type: Union[CommentedMap, CommentedSeq, Text, None]
     document_loader = Loader(sch_document_loader.ctx, schemagraph=sch_document_loader.graph,
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
@@ -285,7 +285,7 @@ def validate_document(document_loader,  # type: Loader
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
-    if not new_metadata:
+    if not new_metadata and isinstance(processobj, CommentedMap):
         new_metadata = cast(CommentedMap, cmap(
             {"$namespaces": processobj.get("$namespaces", {}),
              "$schemas": processobj.get("$schemas", []),
@@ -303,7 +303,7 @@ def validate_document(document_loader,  # type: Loader
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, enable_dev, new_metadata)))
 
-    if jobobj:
+    if jobobj is not None:
         new_metadata[u"cwl:defaults"] = jobobj
 
     if overrides:
@@ -315,7 +315,7 @@ def validate_document(document_loader,  # type: Loader
 def make_tool(document_loader,    # type: Loader
               avsc_names,         # type: schema.Names
               metadata,           # type: Dict[Text, Any]
-              uri,                # type: Text
+              uri,                # type: Union[Text, CommentedMap, CommentedSeq]
               loadingContext      # type: LoadingContext
              ):  # type: (...) -> Process
     """Make a Python CWL object."""
@@ -387,7 +387,7 @@ def resolve_overrides(ov,      # Type: CommentedMap
         raise Exception("Expected CommentedMap, got %s" % type(ret))
     cwl_docloader = get_schema("v1.0")[0]
     cwl_docloader.resolve_all(ret, ov_uri)
-    return ret["overrides"]
+    return ret["http://commonwl.org/cwltool#overrides"]
 
 def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
