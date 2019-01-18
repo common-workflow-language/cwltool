@@ -36,7 +36,7 @@ $graph:
     - {$include: intro.md}
 
     - |
-      ## Introduction to CWL Command Line Tool standard v1.1.0-dev1
+      ## Introduction to the CWL Command Line Tool standard v1.1.0-dev1
 
       This specification represents the latest development release from the
       CWL group.  Since the v1.0 release, v1.1 introduces the
@@ -61,13 +61,17 @@ $graph:
           disappeared in `v1.0`)
         * Any `doc` field may be an array of strings in addition to the
           previously allowed single string.
-        * Addition of `stdin` type shortcut for `CommandInputParameter`.
+        * Addition of `stdin` type shortcut for
+          [`CommandInputParameter`](#CommandInputParameter).
         * Clarify that the designated output directory should be empty
           except for files or directories specified using
           [InitialWorkDirRequirement](#InitialWorkDirRequirement).
         * Clarify semantics of `shellQuote`
         * Expressions are now allowed to evaluate to `null` or `Dirent` in
           [InitialWorkDirRequirement.listing](#InitialWorkDirRequirement).
+        * [Addition](#Requirements_and_hints) of `cwl:requirements` field to
+          input object documents
+        * Clarify behavior of `glob` for absolute paths and symlinks.
 
       See also the [CWL Workflow Description, v1.1.0-dev1 changelog](Workflow.html#Changelog).
 
@@ -147,10 +151,14 @@ $graph:
       - **File**: Add `prefix` and the value of
         [`File.path`](#File) to the command line.
 
+      - **Directory**: Add `prefix` and the value of
+        [`Directory.path`](#Directory) to the command line.
+
       - **array**: If `itemSeparator` is specified, add `prefix` and the join
           the array into a single string with `itemSeparator` separating the
           items.  Otherwise first add `prefix`, then recursively process
           individual elements.
+          If the array is empty, it does not add anything to command line.
 
       - **object**: Add `prefix` only, and recursively add object fields for
           which `inputBinding` is specified.
@@ -205,7 +213,7 @@ $graph:
         this controls whether the value is quoted on the command line (default is true).
         Use `shellQuote: false` to inject metacharacters for operations such as pipes.
 
-        If `shellQuote` is true or null, the implementation must not
+        If `shellQuote` is true or not provided, the implementation must not
         permit interpretation of any shell metacharacters or directives.
 
 
@@ -238,6 +246,37 @@ $graph:
         return a string or an array of strings, which will then be evaluated as
         one or more glob patterns.  Must only match and return files which
         actually exist.
+
+        If the value of glob is a relative path pattern (does not
+        begin with a slash '/') then it is resolved relative to the
+        output directory.  If the value of the glob is an absolute
+        path pattern (it does begin with a slash '/') then it must
+        refer to a path within the output directory.  It is an error
+        if any glob resolves to a path outside the output directory.
+        Specifically this means globs with relative paths containing
+        '..' or absolute paths that refer outside the output directory
+        are illegal.
+
+        A glob may match a path within the output directory which is
+        actually a symlink to another file.  In this case, the
+        expected behavior is for the resulting File object to take the
+        `basename` (and corresponding `nameroot` and `nameext`) of the
+        symlink.  The `location` of the File is implementation
+        dependent, but logically the File should have the same content
+        as the symlink target.  Platforms may stage output files to
+        cloud storage that lack the concept of a symlink.  In
+        this case file content may be duplicated, or (to avoid
+        duplication) the File `location` may refer to the symlink
+        target.
+
+        It is an error if a symlink in the output directory (or any
+        symlink in a chain of links) refers to any file or directory
+        that is not under an input or output directory.
+
+        Implementations may shut down a container before globbing
+        output, so globs and expressions must not assume access to the
+        container filesystem except for declared input and output.
+
     - name: outputEval
       type:
         - "null"
@@ -670,9 +709,11 @@ $graph:
     the appropriate Docker image and tool command line.
 
     The workflow platform may provide input files and the designated output
-    directory through the use of volume bind mounts.  The platform may rewrite
+    directory through the use of volume bind mounts.  The platform should rewrite
     file paths in the input object to correspond to the Docker bind mounted
-    locations.
+    locations. That is, the platform should rewrite values in the parameter context
+    such as `runtime.outdir`, `runtime.tmpdir` and others to be valid paths
+    within the container.
 
     When running a tool contained in Docker, the workflow platform must not
     assume anything about the contents of the Docker container, such as the
@@ -1078,3 +1119,48 @@ $graph:
         "_type": "@vocab"
     - name: networkAccess
       type: [boolean, string, Expression]
+
+- name: InplaceUpdateRequirement
+  type: record
+  extends: cwl:ProcessRequirement
+  doc: |
+
+    If `inplaceUpdate` is true, then an implementation supporting this
+    feature may permit tools to directly update files with `writable:
+    true` in InitialWorkDirRequirement.  That is, as an optimization,
+    files may be destructively modified in place as opposed to copied
+    and updated.
+
+    An implementation must ensure that only one workflow step may
+    access a writable file at a time.  It is an error if a file which
+    is writable by one workflow step file is accessed (for reading or
+    writing) by any other workflow step running independently.
+    However, a file which has been updated in a previous completed
+    step may be used as input to multiple steps, provided it is
+    read-only in every step.
+
+    Workflow steps which modify a file must produce the modified file
+    as output.  Downstream steps which futher process the file must
+    use the output of previous steps, and not refer to a common input
+    (this is necessary for both ordering and correctness).
+
+    Workflow authors should provide this in the `hints` section.  The
+    intent of this feature is that workflows produce the same results
+    whether or not InplaceUpdateRequirement is supported by the
+    implementation, and this feature is primarily available as an
+    optimization for particular environments.
+
+    Users and implementers should be aware that workflows that
+    destructively modify inputs may not be repeatable or reproducible.
+    In particular, enabling this feature implies that WorkReuse should
+    not be enabled.
+
+  fields:
+    class:
+      type: string
+      doc: "Always 'InplaceUpdateRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    inplaceUpdate:
+      type: boolean
