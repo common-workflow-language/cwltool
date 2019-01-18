@@ -428,16 +428,25 @@ class CommandLineTool(Process):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in initialWorkdir["listing"]:
-                    if "entry" in t:
-                        et = {u"entry": builder.do_eval(t["entry"], strip_whitespace=False)}
-                        if "entryname" in t:
-                            et["entryname"] = builder.do_eval(t["entryname"])
-                        else:
-                            et["entryname"] = None
-                        et["writable"] = t.get("writable", False)
-                        ls.append(et)
+                    if isinstance(t, Mapping) and "entry" in t:
+                        entry_exp = builder.do_eval(t["entry"], strip_whitespace=False)
+                        for entry in aslist(entry_exp):
+                            et = {u"entry": entry}
+                            if "entryname" in t:
+                                et["entryname"] = builder.do_eval(t["entryname"])
+                            else:
+                                et["entryname"] = None
+                            et["writable"] = t.get("writable", False)
+                            if et[u"entry"]:
+                                ls.append(et)
                     else:
-                        ls.append(builder.do_eval(t))
+                        initwd_item = builder.do_eval(t)
+                        if not initwd_item:
+                            continue
+                        if isinstance(initwd_item, MutableSequence):
+                            ls.extend(initwd_item)
+                        else:
+                            ls.append(initwd_item)
             for i, t in enumerate(ls):
                 if "entry" in t:
                     if isinstance(t["entry"], string_types):

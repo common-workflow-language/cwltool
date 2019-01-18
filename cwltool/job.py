@@ -202,6 +202,9 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
+    def __repr__(self):
+        return "CommandLineJob(%s)" % self.name
+
     @abstractmethod
     def run(self,
             runtimeContext  # type: RuntimeContext
