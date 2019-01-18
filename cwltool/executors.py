@@ -250,7 +250,7 @@ class MultithreadedJobExecutor(JobExecutor):
                 runtime_context.workflow_eval_lock.notifyAll()
 
     def run_job(self,
-                job,             # type: Union[JobBase, WorkflowJob]
+                job,             # type: Union[JobBase, WorkflowJob, None]
                 runtime_context  # type: RuntimeContext
                ):  # type: (...) -> None
         """ Execute a single Job in a seperate thread. """
