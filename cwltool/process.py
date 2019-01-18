@@ -763,8 +763,8 @@ hints:
         request = {
             "coresMin": 1,
             "coresMax": 1,
-            "ramMin": 1024,
-            "ramMax": 1024,
+            "ramMin": 256,
+            "ramMax": 256,
             "tmpdirMin": 1024,
             "tmpdirMax": 1024,
             "outdirMin": 1024,

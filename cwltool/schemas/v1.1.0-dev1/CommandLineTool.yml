@@ -866,7 +866,17 @@ $graph:
     - name: listing
       type:
         - type: array
-          items: ["null", File, Directory, Dirent, string, Expression]
+          items:
+            - "null"
+            - File
+            - type: array
+              items:
+                - File
+                - Directory
+            - Directory
+            - Dirent
+            - string
+            - Expression
         - string
         - Expression
       jsonldPredicate:
@@ -875,8 +885,8 @@ $graph:
         The list of files or subdirectories that must be placed in the
         designated output directory prior to executing the command line tool.
 
-        May be an expression.  If so, the expression return value must validate
-        as `{type: array, items: ["null", File, Directory, Dirent]}`.
+        May be an expression. If so, the expression return value must validate as
+        `{type: array, items: ["null", File, File[], Directory, Directory[], Dirent]}`.
 
         Files or Directories which are listed in the input parameters and
         appear in the `InitialWorkDirRequirement` listing must have their
