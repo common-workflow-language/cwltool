@@ -14,7 +14,7 @@ import time
 import uuid
 from abc import ABCMeta, abstractmethod
 from io import IOBase, open  # pylint: disable=redefined-builtin
-from threading import Timer
+from threading import Timer, Lock
 from typing import (IO, Any, AnyStr, Callable, Dict, Iterable, List, Tuple,
                     MutableMapping, MutableSequence, Optional, Union, cast)
 
@@ -108,6 +108,7 @@ with open(sys.argv[1], "r") as f:
     sys.exit(rcode)
 """
 
+TMPDIR_LOCK = Lock()
 
 def deref_links(outputs):  # type: (Any) -> None
     if isinstance(outputs, MutableMapping):
@@ -417,8 +418,9 @@ class CommandLineJob(JobBase):
             runtimeContext  # type: RuntimeContext
             ):  # type: (...) -> None
 
-        if not os.path.exists(self.tmpdir):
-            os.makedirs(self.tmpdir)
+        with TMPDIR_LOCK:
+            if not os.path.exists(self.tmpdir):
+                os.makedirs(self.tmpdir)
         self._setup(runtimeContext)
 
         env = self.environment
