@@ -24,7 +24,7 @@ from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from six import PY3, iteritems, itervalues, string_types, with_metaclass
 from six.moves import urllib
-from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+from typing import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
 from schema_salad.ref_resolver import Loader, file_uri

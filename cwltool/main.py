@@ -25,7 +25,7 @@ from schema_salad import validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno, cmap
 from six import string_types, iteritems, PY3
-from typing_extensions import Text
+from typing import Text
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, workflow

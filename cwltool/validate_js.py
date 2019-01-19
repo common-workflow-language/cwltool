@@ -9,7 +9,7 @@ from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
 from six import string_types
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 from schema_salad import avro
 from schema_salad.sourceline import SourceLine
 from schema_salad.validate import Schema  # pylint: disable=unused-import

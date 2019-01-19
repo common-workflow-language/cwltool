@@ -23,7 +23,7 @@ from schema_salad.sourceline import SourceLine
 from six import string_types
 
 from six.moves import map, urllib
-from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+from typing import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, MutableMapping, MutableSequence, Optional
 import six
 from schema_salad import validate
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .errors import WorkflowException

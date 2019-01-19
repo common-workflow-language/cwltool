@@ -7,7 +7,7 @@ from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
 from schema_salad import schema
 from schema_salad.ref_resolver import (ContextType,  # pylint: disable=unused-import
                                        Fetcher, Loader)
-from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
+from typing import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from .builder import Builder, HasReqsHints

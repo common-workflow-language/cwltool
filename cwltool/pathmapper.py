@@ -17,7 +17,7 @@ from schema_salad import validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .loghandler import _logger

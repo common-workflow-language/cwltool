@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from collections import namedtuple
 from typing import Any, Dict
 
-from typing_extensions import Text  # pylint: disable=unused-import
+from typing import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .errors import WorkflowException

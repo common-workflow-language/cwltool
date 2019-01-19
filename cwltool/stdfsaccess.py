@@ -8,7 +8,7 @@ from typing import IO, Any, List
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from six.moves import urllib
-from typing_extensions import Text
+from typing import Text
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .utils import onWindows
