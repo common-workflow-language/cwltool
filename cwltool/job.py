@@ -414,11 +414,17 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
 class CommandLineJob(JobBase):
     def run(self,
-            runtimeContext  # type: RuntimeContext
+            runtimeContext,         # type: RuntimeContext
+            TMPDIR_LOCK=None        # type: threading.Lock
             ):  # type: (...) -> None
 
-        if not os.path.exists(self.tmpdir):
-            os.makedirs(self.tmpdir)
+        if TMPDIR_LOCK != None:
+            if not os.path.exists(self.tmpdir):
+                os.makedirs(self.tmpdir)
+        else:
+            if not os.path.exists(self.tmpdir):
+                os.makedirs(self.tmpdir)
+
         self._setup(runtimeContext)
 
         env = self.environment
