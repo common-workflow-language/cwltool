@@ -229,6 +229,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if host_outdir_tgt:
                 # shortcut, just copy to the output directory
                 # which is already going to be mounted
+                if not os.path.exists(os.path.dirname(host_outdir_tgt)):
+                    os.makedirs(os.path.dirname(host_outdir_tgt))
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
                 tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
