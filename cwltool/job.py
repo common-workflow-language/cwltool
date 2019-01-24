@@ -143,7 +143,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                 continue
             host_outdir_tgt = os.path.join(
                 host_outdir, vol.target[len(container_outdir) + 1:])
-            # Try to remove and relink only if write access is available
+            # Try to remove and relink only if remove is permitted
             if os.path.islink(host_outdir_tgt) \
                     or os.path.isfile(host_outdir_tgt):
                 try:
