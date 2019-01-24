@@ -161,7 +161,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
-            elif not vol.resolved.startswith("_:")\
+            elif not vol.resolved.startswith("_:") \
                     and not os.path.exists(host_outdir_tgt):
                     os.symlink(vol.resolved, host_outdir_tgt)
 
