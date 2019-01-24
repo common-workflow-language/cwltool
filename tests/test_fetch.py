@@ -68,13 +68,13 @@ path_fragments = [
     (str(root / "tests" / "echo.cwl") + "#main", "/tests/echo.cwl#main")
 ]
 
+def norm(uri):
+    if onWindows():
+        return uri.lower()
+    return uri
+
 @pytest.mark.parametrize('path,expected_path', path_fragments)
 def test_resolve_local(path, expected_path):
-    def norm(uri):
-        if onWindows():
-            return uri.lower()
-        return uri
-
     with working_directory(root):
         expected = norm(root.as_uri() + expected_path)
         assert norm(resolve_local(None, path)) == expected

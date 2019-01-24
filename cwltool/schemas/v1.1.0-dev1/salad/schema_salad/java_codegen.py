@@ -68,7 +68,7 @@ public class {cls}Impl implements {cls} {{
     void Load() {
 """)
 
-    def end_class(self, classname):
+    def end_class(self, classname, field_names):
         with open(os.path.join(self.outdir, "%s.java" % self.current_class), "a") as f:
             f.write("""
 }

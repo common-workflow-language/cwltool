@@ -1,0 +1,5 @@
+cwltool:overrides:
+  "iwdr_permutations.cwl":
+    requirements:
+      "http://commonwl.org/cwltool#InplaceUpdateRequirement":
+         inplaceUpdate: true

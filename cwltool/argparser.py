@@ -48,23 +48,24 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
         dest="rm_container")
 
     cidgroup = parser.add_argument_group(
-        "Options for recording the Docker container identifier into a file")
+        "Options for recording the Docker container identifier into a file.")
+    # Disabled as containerid is now saved by default
     cidgroup.add_argument("--record-container-id", action="store_true",
                           default=False,
-                          help="If enabled, store the Docker container ID into a file. "
-                          "See --cidfile-dir to specify the directory.",
+                          help = argparse.SUPPRESS,
                           dest="record_container_id")
 
     cidgroup.add_argument(
-        "--cidfile-dir", type=Text, help="Directory for storing the Docker "
-        "container ID file. The default is the current directory",
-        default="", dest="cidfile_dir")
+        "--cidfile-dir", type=Text, help="Store the Docker "
+        "container ID into a file in the specified directory.",
+        default=None, dest="cidfile_dir")
 
     cidgroup.add_argument(
         "--cidfile-prefix", type=Text,
         help="Specify a prefix to the container ID filename. "
-        "Final file name will be followed by a timestamp. The default is no prefix.",
-        default="", dest="cidfile_prefix")
+        "Final file name will be followed by a timestamp. "
+        "The default is no prefix.",
+        default=None, dest="cidfile_prefix")
 
     parser.add_argument("--tmpdir-prefix", type=Text,
                         help="Path prefix for temporary directories",
@@ -146,13 +147,13 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
         "--orcid", help="Record user ORCID identifier as part of "
         "provenance, e.g. https://orcid.org/0000-0002-1825-0097 "
         "or 0000-0002-1825-0097. Alternatively the environment variable "
-        "ORCID may be set.", dest="orcid", default=os.environ.get("ORCID"),
+        "ORCID may be set.", dest="orcid", default=os.environ.get("ORCID", ''),
         type=Text)
     provgroup.add_argument(
         "--full-name", help="Record full name of user as part of provenance, "
         "e.g. Josiah Carberry. You may need to use shell quotes to preserve "
         "spaces. Alternatively the environment variable CWL_FULL_NAME may "
-        "be set.", dest="cwl_full_name", default=os.environ.get("CWL_FULL_NAME"),
+        "be set.", dest="cwl_full_name", default=os.environ.get("CWL_FULL_NAME", ''),
         type=Text)
 
     exgroup = parser.add_mutually_exclusive_group()
@@ -167,6 +168,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--version", action="store_true", help="Print version and exit")
     exgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
     exgroup.add_argument("--print-supported-versions", action="store_true", help="Print supported CWL specs.")
+    exgroup.add_argument("--print-subgraph", action="store_true",
+                         help="Print workflow subgraph that will execute "
+                         "(can combine with --target)")
+    exgroup.add_argument("--print-targets", action="store_true", help="Print targets (output parameters)")
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--strict", action="store_true",
@@ -266,8 +271,9 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         dest="ga4gh_tool_registries", default=[])
 
     parser.add_argument("--on-error",
-                        help="Desired workflow behavior when a step fails.  One of 'stop' or 'continue'. "
-                             "Default is 'stop'.", default="stop", choices=("stop", "continue"))
+                        help="Desired workflow behavior when a step fails.  One of 'stop' (do not submit any more steps) or "
+                        "'continue' (may submit other steps that are not downstream from the error). Default is 'stop'.",
+                        default="stop", choices=("stop", "continue"))
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--compute-checksum", action="store_true", default=True,
@@ -292,6 +298,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     parser.add_argument("--overrides", type=str,
                         default=None, help="Read process requirement overrides from file.")
+
+    parser.add_argument("--target", "-t", action="append",
+                        help="Only execute steps that contribute to "
+                        "listed targets (can provide more than once).")
 
     parser.add_argument("workflow", type=Text, nargs="?", default=None,
             metavar='cwl_document', help="path or URL to a CWL Workflow, "
@@ -381,7 +391,7 @@ def add_argument(toolparser, name, inptype, records, description="",
     else:
         flag = "--"
 
-    required = True
+    required = default is None
     if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
@@ -418,7 +428,7 @@ def add_argument(toolparser, name, inptype, records, description="",
                 toolparser, fieldname, fieldtype, records,
                 fielddescription)
         return
-    if inptype == "string":
+    elif inptype == "string":
         atype = Text
     elif inptype == "int":
         atype = int
@@ -428,11 +438,7 @@ def add_argument(toolparser, name, inptype, records, description="",
         atype = float
     elif inptype == "boolean":
         action = "store_true"
-
-    if default:
-        required = False
-
-    if not atype and not action:
+    else:
         _logger.debug(u"Can't make command line argument from %s", inptype)
         return None
 

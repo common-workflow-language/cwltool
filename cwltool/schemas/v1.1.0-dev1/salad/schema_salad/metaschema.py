@@ -52,7 +52,7 @@ def indent(v, nolead=False, shift=u"  ", bullet=u"  "):  # type: (Text, bool, Te
     else:
         def lineno(i, l):  # type: (int, Text) -> Text
             r = lineno_re.match(l)
-            if bool(r):
+            if r is not None:
                 return r.group(1) + (bullet if i == 0 else shift) + r.group(2)
             else:
                 return (bullet if i == 0 else shift) + l
@@ -70,19 +70,26 @@ def strip_dup_lineno(text, maxline=None):  # type: (Text, int) -> Text
         maxline = int(os.environ.get("COLUMNS", "100"))
     pre = None
     msg = []
+    maxno = 0
+    for l in text.splitlines():
+        g = lineno_re.match(l)
+        if not g:
+            continue
+        maxno = max(maxno, len(g.group(1)))
+
     for l in text.splitlines():
         g = lineno_re.match(l)
         if not g:
             msg.append(l)
             continue
-        shift = len(g.group(1)) + len(g.group(3))
-        g2 = reflow(g.group(2), maxline-shift, " " * shift)
         if g.group(1) != pre:
+            shift = maxno + len(g.group(3))
+            g2 = reflow(g.group(2), maxline-shift, " " * shift)
             pre = g.group(1)
-            msg.append(pre + g2)
+            msg.append(pre + " " * (maxno-len(g.group(1))) + g2)
         else:
-            g2 = reflow(g.group(2), maxline-len(g.group(1)), " " * (len(g.group(1))+len(g.group(3))))
-            msg.append(" " * len(g.group(1)) + g2)
+            g2 = reflow(g.group(2), maxline-maxno, " " * (maxno+len(g.group(3))))
+            msg.append(" " * maxno + g2)
     return "\n".join(msg)
 
 def cmap(d, lc=None, fn=None):  # type: (Union[int, float, str, Text, Dict, List], List[int], Text) -> Union[int, float, str, Text, CommentedMap, CommentedSeq]
@@ -855,12 +862,12 @@ class SpecializeDef(Savable):
         errors = []
         #doc = {expand_url(d, u"", loadingOptions, scoped_id=False, vocab_term=True): v for d,v in doc.items()}
         try:
-            self.specializeFrom = load_field(doc.get('specializeFrom'), uri_strtype_None_False_1, baseuri, loadingOptions)
+            self.specializeFrom = load_field(doc.get('specializeFrom'), uri_strtype_False_False_1, baseuri, loadingOptions)
         except ValidationException as e:
             errors.append(SourceLine(doc, 'specializeFrom', str).makeError("the `specializeFrom` field is not valid because:\n"+str(e)))
 
         try:
-            self.specializeTo = load_field(doc.get('specializeTo'), uri_strtype_None_False_1, baseuri, loadingOptions)
+            self.specializeTo = load_field(doc.get('specializeTo'), uri_strtype_False_False_1, baseuri, loadingOptions)
         except ValidationException as e:
             errors.append(SourceLine(doc, 'specializeTo', str).makeError("the `specializeTo` field is not valid because:\n"+str(e)))
 
@@ -1018,7 +1025,7 @@ class SaladRecordSchema(NamedType, RecordSchema, SchemaDefinedType):
 
         if 'docParent' in doc:
             try:
-                self.docParent = load_field(doc.get('docParent'), uri_union_of_None_type_or_strtype_None_False_None, baseuri, loadingOptions)
+                self.docParent = load_field(doc.get('docParent'), uri_union_of_None_type_or_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docParent', str).makeError("the `docParent` field is not valid because:\n"+str(e)))
         else:
@@ -1026,7 +1033,7 @@ class SaladRecordSchema(NamedType, RecordSchema, SchemaDefinedType):
 
         if 'docChild' in doc:
             try:
-                self.docChild = load_field(doc.get('docChild'), uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_None, baseuri, loadingOptions)
+                self.docChild = load_field(doc.get('docChild'), uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docChild', str).makeError("the `docChild` field is not valid because:\n"+str(e)))
         else:
@@ -1034,7 +1041,7 @@ class SaladRecordSchema(NamedType, RecordSchema, SchemaDefinedType):
 
         if 'docAfter' in doc:
             try:
-                self.docAfter = load_field(doc.get('docAfter'), uri_union_of_None_type_or_strtype_None_False_None, baseuri, loadingOptions)
+                self.docAfter = load_field(doc.get('docAfter'), uri_union_of_None_type_or_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docAfter', str).makeError("the `docAfter` field is not valid because:\n"+str(e)))
         else:
@@ -1066,7 +1073,7 @@ class SaladRecordSchema(NamedType, RecordSchema, SchemaDefinedType):
 
         if 'extends' in doc:
             try:
-                self.extends = load_field(doc.get('extends'), uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_1, baseuri, loadingOptions)
+                self.extends = load_field(doc.get('extends'), uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_1, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'extends', str).makeError("the `extends` field is not valid because:\n"+str(e)))
         else:
@@ -1170,7 +1177,7 @@ Define an enumerated type.
 
         if 'docParent' in doc:
             try:
-                self.docParent = load_field(doc.get('docParent'), uri_union_of_None_type_or_strtype_None_False_None, baseuri, loadingOptions)
+                self.docParent = load_field(doc.get('docParent'), uri_union_of_None_type_or_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docParent', str).makeError("the `docParent` field is not valid because:\n"+str(e)))
         else:
@@ -1178,7 +1185,7 @@ Define an enumerated type.
 
         if 'docChild' in doc:
             try:
-                self.docChild = load_field(doc.get('docChild'), uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_None, baseuri, loadingOptions)
+                self.docChild = load_field(doc.get('docChild'), uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docChild', str).makeError("the `docChild` field is not valid because:\n"+str(e)))
         else:
@@ -1186,7 +1193,7 @@ Define an enumerated type.
 
         if 'docAfter' in doc:
             try:
-                self.docAfter = load_field(doc.get('docAfter'), uri_union_of_None_type_or_strtype_None_False_None, baseuri, loadingOptions)
+                self.docAfter = load_field(doc.get('docAfter'), uri_union_of_None_type_or_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docAfter', str).makeError("the `docAfter` field is not valid because:\n"+str(e)))
         else:
@@ -1210,7 +1217,7 @@ Define an enumerated type.
 
         if 'extends' in doc:
             try:
-                self.extends = load_field(doc.get('extends'), uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_1, baseuri, loadingOptions)
+                self.extends = load_field(doc.get('extends'), uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_1, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'extends', str).makeError("the `extends` field is not valid because:\n"+str(e)))
         else:
@@ -1293,7 +1300,7 @@ schemas but has no role in formal validation.
 
         if 'docParent' in doc:
             try:
-                self.docParent = load_field(doc.get('docParent'), uri_union_of_None_type_or_strtype_None_False_None, baseuri, loadingOptions)
+                self.docParent = load_field(doc.get('docParent'), uri_union_of_None_type_or_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docParent', str).makeError("the `docParent` field is not valid because:\n"+str(e)))
         else:
@@ -1301,7 +1308,7 @@ schemas but has no role in formal validation.
 
         if 'docChild' in doc:
             try:
-                self.docChild = load_field(doc.get('docChild'), uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_None, baseuri, loadingOptions)
+                self.docChild = load_field(doc.get('docChild'), uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docChild', str).makeError("the `docChild` field is not valid because:\n"+str(e)))
         else:
@@ -1309,7 +1316,7 @@ schemas but has no role in formal validation.
 
         if 'docAfter' in doc:
             try:
-                self.docAfter = load_field(doc.get('docAfter'), uri_union_of_None_type_or_strtype_None_False_None, baseuri, loadingOptions)
+                self.docAfter = load_field(doc.get('docAfter'), uri_union_of_None_type_or_strtype_False_False_None, baseuri, loadingOptions)
             except ValidationException as e:
                 errors.append(SourceLine(doc, 'docAfter', str).makeError("the `docAfter` field is not valid because:\n"+str(e)))
         else:
@@ -1406,8 +1413,8 @@ Any_type = _AnyLoader()
 floattype = _PrimitiveLoader(float)
 None_type = _PrimitiveLoader(type(None))
 booltype = _PrimitiveLoader(bool)
-strtype = _PrimitiveLoader((str, six.text_type))
 inttype = _PrimitiveLoader(int)
+strtype = _PrimitiveLoader((str, six.text_type))
 DocumentedLoader = _RecordLoader(Documented)
 PrimitiveTypeLoader = _EnumLoader(("null", "boolean", "int", "long", "float", "double", "string",))
 AnyLoader = _EnumLoader(("Any",))
@@ -1446,15 +1453,15 @@ union_of_None_type_or_strtype = _UnionLoader((None_type, strtype,))
 uri_union_of_None_type_or_strtype_True_False_None = _URILoader(union_of_None_type_or_strtype, True, False, None)
 union_of_None_type_or_booltype = _UnionLoader((None_type, booltype,))
 union_of_None_type_or_inttype = _UnionLoader((None_type, inttype,))
-uri_strtype_None_False_1 = _URILoader(strtype, None, False, 1)
-uri_union_of_None_type_or_strtype_None_False_None = _URILoader(union_of_None_type_or_strtype, None, False, None)
-uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_None = _URILoader(union_of_None_type_or_strtype_or_array_of_strtype, None, False, None)
+uri_strtype_False_False_1 = _URILoader(strtype, False, False, 1)
+uri_union_of_None_type_or_strtype_False_False_None = _URILoader(union_of_None_type_or_strtype, False, False, None)
+uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_None = _URILoader(union_of_None_type_or_strtype_or_array_of_strtype, False, False, None)
 union_of_None_type_or_strtype_or_JsonldPredicateLoader = _UnionLoader((None_type, strtype, JsonldPredicateLoader,))
 union_of_None_type_or_Any_type = _UnionLoader((None_type, Any_type,))
 array_of_SaladRecordFieldLoader = _ArrayLoader(SaladRecordFieldLoader)
 union_of_None_type_or_array_of_SaladRecordFieldLoader = _UnionLoader((None_type, array_of_SaladRecordFieldLoader,))
 idmap_fields_union_of_None_type_or_array_of_SaladRecordFieldLoader = _IdMapLoader(union_of_None_type_or_array_of_SaladRecordFieldLoader, 'name', 'type')
-uri_union_of_None_type_or_strtype_or_array_of_strtype_None_False_1 = _URILoader(union_of_None_type_or_strtype_or_array_of_strtype, None, False, 1)
+uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_1 = _URILoader(union_of_None_type_or_strtype_or_array_of_strtype, False, False, 1)
 array_of_SpecializeDefLoader = _ArrayLoader(SpecializeDefLoader)
 union_of_None_type_or_array_of_SpecializeDefLoader = _UnionLoader((None_type, array_of_SpecializeDefLoader,))
 idmap_specialize_union_of_None_type_or_array_of_SpecializeDefLoader = _IdMapLoader(union_of_None_type_or_array_of_SpecializeDefLoader, 'specializeFrom', 'specializeTo')

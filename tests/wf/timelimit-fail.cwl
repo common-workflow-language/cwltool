@@ -1,8 +1,10 @@
 class: CommandLineTool
 cwlVersion: v1.0
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
+requirements:
+  cwltool:TimeLimit:
+    timelimit: 3
 inputs: []
 outputs: []
-requirements:
-  TimeLimit:
-    timelimit: 15
-baseCommand: [sleep, "3"]
+baseCommand: [sleep, "5"]

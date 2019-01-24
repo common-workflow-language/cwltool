@@ -31,3 +31,16 @@ def test_bioconda():
         ["--beta-conda-dependencies", "--debug", wflow, job])
 
     assert error_code == 0, stderr
+
+import os
+from distutils import spawn
+@pytest.mark.skipif(not spawn.find_executable("modulecmd"), reason="modulecmd not installed")
+def test_modules():
+    wflow = get_data("tests/random_lines.cwl")
+    job = get_data("tests/random_lines_job.json")
+    os.environ["MODULEPATH"] = os.path.join(os.getcwd(), 'tests/test_deps_env/modulefiles')
+    error_code, _, stderr = get_main_output(
+        ["--beta-dependency-resolvers-configuration",
+             "tests/test_deps_env_modules_resolvers_conf.yml", "--debug", wflow, job])
+
+    assert error_code == 0, stderr

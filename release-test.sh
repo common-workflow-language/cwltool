@@ -18,8 +18,14 @@ if [[ "${OSTYPE}" == darwin* ]]
 then
 	parallel=-n$(( $(sysctl -n hw.physicalcpu) / 2 ))
 fi
-
-run_tests="bin/py.test --ignore ${module}/schemas/ --pyarg -x cwltool ${parallel} --dist=loadfile"
+test_prefix=""
+run_tests() {
+	local mod_loc
+	mod_loc=$(pip show ${package} | 
+		grep ^Location | awk '{print $2}')/${module}
+	${test_prefix}bin/py.test "--ignore=${mod_loc}/schemas/" \
+		--pyarg -x ${module} ${parallel} --dist=loadfile
+}
 pipver=7.0.2 # minimum required version of pip
 setuptoolsver=24.2.0 # required to generate correct metadata for
                      # python_requires
@@ -35,10 +41,12 @@ then
 	# First we test the head
 	# shellcheck source=/dev/null
 	source testenv1/bin/activate
+	rm -Rf testenv1/local
 	rm testenv1/lib/python-wheels/setuptools* \
 		&& pip install --force-reinstall -U pip==${pipver} \
 	        && pip install setuptools==${setuptoolsver} wheel
 	make install-dep
+	pip install .
 	#pip install 'galaxy-lib>=17.09.3'
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
@@ -47,13 +55,13 @@ then
 	# there instead of the installed module's tests
 	pushd testenv1/not-${module}
 	# shellcheck disable=SC2086
-	../${run_tests}; popd
+	test_prefix=../ run_tests; popd
 fi
 
 virtualenv testenv2
 virtualenv testenv3
 virtualenv testenv4
-
+rm -Rf testenv[234]/local
 
 # Secondly we test via pip
 
@@ -73,7 +81,7 @@ cp dist/${package}*tar.gz ../../../testenv3/
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 cd ../.. # no subdir named ${proj} here, safe for py.testing the installed module
 # shellcheck disable=SC2086
-${run_tests}
+run_tests
 
 # Is the distribution in testenv2 complete enough to build another
 # functional distribution?
@@ -98,4 +106,4 @@ pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make i
 mkdir ../not-${module}
 pushd ../not-${module}
 # shellcheck disable=SC2086
-../../${run_tests}; popd
+test_prefix=../../ run_tests; popd
