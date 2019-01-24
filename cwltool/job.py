@@ -138,13 +138,15 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                 ("WritableFile", "WritableDirectory"))):
             if not vol.target.startswith(container_outdir):
                 # this is an input file written outside of the working
-                # directory, so therefor ineligable for being an output file.
+                # directory, so therefore ineligible for being an output file.
                 # Thus, none of our business
                 continue
             host_outdir_tgt = os.path.join(
                 host_outdir, vol.target[len(container_outdir) + 1:])
+            # Try to remove and relink only if write access is available
             if os.path.islink(host_outdir_tgt) \
-                    or os.path.isfile(host_outdir_tgt):
+                    or os.path.isfile(host_outdir_tgt) \
+                    and os.access(host_outdir_tgt, os.W_OK):
                 os.remove(host_outdir_tgt)
             elif os.path.isdir(host_outdir_tgt) \
                     and not vol.resolved.startswith("_:"):
@@ -157,8 +159,9 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                     shutil.copy(vol.resolved, host_outdir_tgt)
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
-            elif not vol.resolved.startswith("_:"):
-                os.symlink(vol.resolved, host_outdir_tgt)
+            elif not vol.resolved.startswith("_:") \
+                    and not os.path.exists(host_outdir_tgt):
+                    os.symlink(vol.resolved, host_outdir_tgt)
 
 
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
