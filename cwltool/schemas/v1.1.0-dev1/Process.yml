@@ -237,7 +237,9 @@ $graph:
         - "null"
         - type: array
           items: [File, Directory]
-      jsonldPredicate: "cwl:secondaryFiles"
+      jsonldPredicate:
+        _id: "cwl:secondaryFiles"
+        secondaryFilesDSL: true
       doc: |
         A list of additional files or directories that are associated with the
         primary file and must be transferred alongside the primary file.
@@ -458,19 +460,25 @@ $graph:
     secondaryFiles:
       type:
         - "null"
-        - string
-        - Expression
         - SecondaryFileSchema
         - type: array
-          items: [string, Expression, SecondaryFileSchema, "null"]
-      jsonldPredicate: "cwl:secondaryFiles"
+          items: SecondaryFileSchema
+      jsonldPredicate:
+        _id: "cwl:secondaryFiles"
+        secondaryFilesDSL: true
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
-        Provides a pattern or expression specifying files or directories that
-        should be included alongside the primary file.
-        Secondary file is required for inputs and not required for outputs
-        unless specified otherwise.
+        Provides a pattern or expression specifying files or
+        directories that should be included alongside the primary
+        file.  Secondary files may be required or optional.  When not
+        explicitly specified, secondary files specified for `inputs`
+        are required and `outputs` are optional.  An implementation
+        must include matching Files and Directories in the
+        `secondaryFiles` property of the primary file.  These Files
+        and Directories must be transferred and staged alongside the
+        primary file.  An implementation may fail workflow execution
+        if a required secondary file does not exist.
 
         If the value is an expression, the value of `self` in the expression
         must be the primary input or output File object to which this binding
@@ -896,9 +904,9 @@ $graph:
             the resulting secondary file as optional.
           3. Append the remainder of the string to the end of the file path.
     - name: required
-      type: boolean?
+      type: ["null", boolean, string, Expression]
       doc: |
-        An implementation must not fail workflow execution if `required` is 
+        An implementation must not fail workflow execution if `required` is
         set to `false` and the expected secondary file does not exist.
         Default value for `required` field is `true` for secondary files on
         input and `false` for secondary files on output.

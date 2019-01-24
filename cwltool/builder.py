@@ -291,22 +291,20 @@ class Builder(HasReqsHints):
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, MutableMapping) and 'pattern' in sf:
+                        sf_required = True
+                        if isinstance(sf, MutableMapping) and "pattern" in sf and self.cwl_version in ['v1.1.0-dev1']:
                             if 'required' in sf:
-                                sf_required = sf['required']
-                            else:
-                                sf_required = True
-                            sf = sf['pattern']
+                                sf_required = self.do_eval(sf['required'], context=datum)
+                        elif isinstance(sf, six.string_types):
+                            sf = {"pattern": sf}
                         else:
-                            sf_required = True
-                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
-                            sfpath = self.do_eval(sf, context=datum)
+                            raise validate.ValidationException("Not a secondary file definition: %s" % sf)
+
+                        if "$(" in sf["pattern"] or "${" in sf["pattern"]:
+                            sfpath = self.do_eval(sf["pattern"], context=datum)
                         else:
-                            if sf.endswith('?') and \
-                               self.cwl_version in ['v1.1.0-dev1']:
-                                sf_required = False
-                                sf = sf[:-1]
-                            sfpath = substitute(datum["basename"], sf)
+                            sfpath = substitute(datum["basename"], sf["pattern"])
+
                         for sfname in aslist(sfpath):
                             if not sfname:
                                 continue
