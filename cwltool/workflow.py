@@ -21,7 +21,7 @@ from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, context, expression
-from .builder import CONTENT_LIMIT
+from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink, static_checker
 from .context import LoadingContext  # pylint: disable=unused-import
 from .context import RuntimeContext, getdefault
@@ -348,7 +348,7 @@ class WorkflowJob(object):
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:
-                            v["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
+                            v["contents"] = content_limit_respected_read(f)
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:

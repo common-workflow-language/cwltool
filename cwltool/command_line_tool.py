@@ -30,7 +30,7 @@ from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from .builder import (CONTENT_LIMIT, Builder,  # pylint: disable=unused-import
+from .builder import (Builder, content_limit_respected_read_bytes, # pylint: disable=unused-import
                       substitute)
 from .context import LoadingContext  # pylint: disable=unused-import
 from .context import RuntimeContext, getdefault
@@ -718,7 +718,7 @@ class CommandLineTool(Process):
                         with fs_access.open(rfile["location"], "rb") as f:
                             contents = b""
                             if binding.get("loadContents") or compute_checksum:
-                                contents = f.read(CONTENT_LIMIT)
+                                contents = content_limit_respected_read_bytes(f)
                             if binding.get("loadContents"):
                                 files["contents"] = contents.decode("utf-8")
                             if compute_checksum:

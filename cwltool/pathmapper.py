@@ -26,6 +26,8 @@ from .utils import Directory  # pylint: disable=unused-import
 from .utils import convert_pathsep_to_unix, visit_class
 
 
+CONTENT_LIMIT = 64 * 1024
+
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 
 
@@ -86,6 +88,11 @@ def normalizeFilesDirs(job):
                 d["nameroot"] = Text(nr)
             if d.get("nameext") != ne:
                 d["nameext"] = Text(ne)
+
+            contents = d.get("contents")
+            if contents and len(contents) > CONTENT_LIMIT:
+                if len(contents) > CONTENT_LIMIT:
+                    raise validate.ValidationException("File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)" % CONTENT_LIMIT)
 
     visit_class(job, ("File", "Directory"), addLocation)
 
