@@ -50,6 +50,7 @@ $graph:
 
       ## Changelog
 
+        * Clarify documentation around `valueFrom` and `null` inputs.
         * Default values for some fields are now expressed in the schema.
         * When defining record types with `CommandInputRecordSchema`, fields of
           type `File` may now include `format`, `loadContents`,
@@ -69,9 +70,12 @@ $graph:
         * Clarify semantics of `shellQuote`
         * Expressions are now allowed to evaluate to `null` or `Dirent` in
           [InitialWorkDirRequirement.listing](#InitialWorkDirRequirement).
+        * Clarify behavior of secondaryFiles on output.
         * [Addition](#Requirements_and_hints) of `cwl:requirements` field to
-          input object documents
+          input object documents.
         * Clarify behavior of `glob` for absolute paths and symlinks.
+        * Clarify behavior of `glob` to include directories.
+        * `secondaryFiles` can now be explicitly marked as `required` or not.
 
       See also the [CWL Workflow Description, v1.1.0-dev1 changelog](Workflow.html#Changelog).
 
@@ -202,6 +206,9 @@ $graph:
         `InputParameter.default` field) must be applied before evaluating the
         expression.
 
+        If the value of the associated input parameter is `null`, `valueFrom` is
+        not evaluated and nothing is added to the command line.
+
         When a binding is part of the `CommandLineTool.arguments` field,
         the `valueFrom` field is required.
 
@@ -240,12 +247,12 @@ $graph:
         - type: array
           items: string
       doc: |
-        Find files relative to the output directory, using POSIX glob(3)
-        pathname matching.  If an array is provided, find files that match any
-        pattern in the array.  If an expression is provided, the expression must
-        return a string or an array of strings, which will then be evaluated as
-        one or more glob patterns.  Must only match and return files which
-        actually exist.
+        Find files or directories relative to the output directory, using POSIX
+        glob(3) pathname matching.  If an array is provided, find files or
+        directories that match any pattern in the array.  If an expression is
+        provided, the expression must return a string or an array of strings,
+        which will then be evaluated as one or more glob patterns.  Must only
+        match and return files/directories which actually exist.
 
         If the value of glob is a relative path pattern (does not
         begin with a slash '/') then it is resolved relative to the
@@ -259,14 +266,14 @@ $graph:
 
         A glob may match a path within the output directory which is
         actually a symlink to another file.  In this case, the
-        expected behavior is for the resulting File object to take the
+        expected behavior is for the resulting File/Directory object to take the
         `basename` (and corresponding `nameroot` and `nameext`) of the
-        symlink.  The `location` of the File is implementation
-        dependent, but logically the File should have the same content
-        as the symlink target.  Platforms may stage output files to
+        symlink.  The `location` of the File/Directory is implementation
+        dependent, but logically the File/Directory should have the same content
+        as the symlink target.  Platforms may stage output files/directories to
         cloud storage that lack the concept of a symlink.  In
-        this case file content may be duplicated, or (to avoid
-        duplication) the File `location` may refer to the symlink
+        this case file content and directories may be duplicated, or (to avoid
+        duplication) the File/Directory `location` may refer to the symlink
         target.
 
         It is an error if a symlink in the output directory (or any

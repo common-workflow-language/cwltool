@@ -68,6 +68,7 @@ $graph:
         * `WorkflowStepInput` now has a `label` field
         * [Addition](#Requirements_and_hints) of `cwl:requirments` field to
           input object documents
+        * `secondaryFiles` can now be explicitly marked as `required` or not.
 
       See also the [CWL Command Line Tool Description, v1.1.0-dev1 changelog](CommandLineTool.html#Changelog).
 
@@ -327,7 +328,7 @@ $graph:
         1. `null` if there is no `source` field
         2. the value of the parameter(s) specified in the `source` field when this
         workflow input parameter **is not** specified in this workflow step's `scatter` field.
-        3. an element of the parameter specified in the `source` field when this workflow input 
+        3. an element of the parameter specified in the `source` field when this workflow input
         parameter **is** specified in this workflow step's `scatter` field.
 
         The value of `inputs` in the parameter reference or expression must be

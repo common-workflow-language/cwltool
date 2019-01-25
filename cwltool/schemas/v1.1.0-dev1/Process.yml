@@ -501,12 +501,12 @@ $graph:
         it specifies that the following pattern should be applied to the path
         of the primary file to yield a filename relative to the primary File:
 
-          1. If string begins with one or more caret `^` characters, for each
+          1. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          2. If string begins with one or more caret `^` characters, for each
             caret, remove the last file extension from the path (the last
             period `.` and all following characters).  If there are no file
             extensions, the path is unchanged.
-          2. If string ends with `?` character, remove the last `?` and mark
-            the resulting secondary file as optional.
           3. Append the remainder of the string to the end of the file path.
 
     streamable:
