@@ -148,7 +148,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
                     or os.path.isfile(host_outdir_tgt):
                 try:
                     os.remove(host_outdir_tgt)
-                except PermissionError:
+                except:
                     pass
             elif os.path.isdir(host_outdir_tgt) \
                     and not vol.resolved.startswith("_:"):
