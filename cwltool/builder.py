@@ -295,7 +295,7 @@ class Builder(HasReqsHints):
                         if isinstance(sf, MutableMapping) and "pattern" in sf and self.cwl_version in ['v1.1.0-dev1']:
                             if 'required' in sf:
                                 sf_required = self.do_eval(sf['required'], context=datum)
-                        elif isinstance(sf, six.string_types):
+                        elif isinstance(sf, string_types):
                             sf = {"pattern": sf}
                         else:
                             raise validate.ValidationException("Not a secondary file definition: %s" % sf)
