@@ -673,6 +673,7 @@ hints:
                                             or tempfile.mkdtemp())
                 stagedir = fs_access.realpath(runtime_context.stagedir
                                               or tempfile.mkdtemp())
+        cwl_version = self.metadata["cwlVersion"]
 
         builder = Builder(job,
                           files,
@@ -694,7 +695,8 @@ hints:
                           load_listing,
                           outdir,
                           tmpdir,
-                          stagedir)
+                          stagedir,
+                          cwl_version)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,

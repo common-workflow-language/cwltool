@@ -15,6 +15,9 @@ from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
                     MutableSequence, Optional, Set, Union, cast)
 
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+
 import shellescape
 from schema_salad import validate
 from schema_salad.avro.schema import Schema
@@ -759,18 +762,37 @@ class CommandLineTool(Process):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
+                                if isinstance(sf, MutableMapping) and 'pattern' in sf:
+                                    if 'required' in sf:
+                                        sf_required = sf['required']
+                                    else:
+                                        sf_required = False
+                                    sf = sf['pattern']
+                                else:
+                                    sf_required = False
+
                                 if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
                                     sfpath = builder.do_eval(sf, context=primary)
                                     subst = False
                                 else:
+                                    if sf.endswith('?') and \
+                                            self.metadata['cwlVersion'] in ['v1.1.0-dev1']:
+                                        sf_required = False
+                                        sf = sf[:-1]
                                     sfpath = sf
                                     subst = True
                                 for sfitem in aslist(sfpath):
+                                    if not sfitem:
+                                        continue
                                     if isinstance(sfitem, string_types):
                                         if subst:
                                             sfitem = {"path": substitute(primary["path"], sfitem)}
                                         else:
                                             sfitem = {"path": pathprefix+sfitem}
+                                    if not os.path.exists(sfitem['path']) and sf_required:
+                                        raise WorkflowException(
+                                            "Missing required secondary file '%s'" % (
+                                                sfitem["path"]))
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
                                     if fs_access.isfile(sfitem["location"]):

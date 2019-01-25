@@ -1,9 +1,13 @@
 from __future__ import absolute_import
 
 import copy
+import os
 import logging
 from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Set, Tuple, Union)
+
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
@@ -12,6 +16,7 @@ from schema_salad import validate
 from schema_salad.schema import Names, convert_to_dict
 from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
+from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
@@ -131,6 +136,7 @@ class Builder(HasReqsHints):
                  outdir,               # type: Text
                  tmpdir,               # type: Text
                  stagedir,             # type: Text
+                 cwl_version,          # type: Text
                 ):  # type: (...) -> None
 
         self.job = job
@@ -140,6 +146,7 @@ class Builder(HasReqsHints):
         self.names = names
         self.requirements = requirements
         self.hints = hints
+        self.cwl_version = cwl_version
         self.resources = resources
         self.mutation_manager = mutation_manager
         self.formatgraph = formatgraph
@@ -284,11 +291,23 @@ class Builder(HasReqsHints):
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
-                            sfpath = self.do_eval(sf, context=datum)
+                        sf_required = True
+                        if isinstance(sf, MutableMapping) and "pattern" in sf and self.cwl_version in ['v1.1.0-dev1']:
+                            if 'required' in sf:
+                                sf_required = self.do_eval(sf['required'], context=datum)
+                        elif isinstance(sf, string_types):
+                            sf = {"pattern": sf}
                         else:
-                            sfpath = substitute(datum["basename"], sf)
+                            raise validate.ValidationException("Not a secondary file definition: %s" % sf)
+
+                        if "$(" in sf["pattern"] or "${" in sf["pattern"]:
+                            sfpath = self.do_eval(sf["pattern"], context=datum)
+                        else:
+                            sfpath = substitute(datum["basename"], sf["pattern"])
+
                         for sfname in aslist(sfpath):
+                            if not sfname:
+                                continue
                             found = False
                             for d in datum["secondaryFiles"]:
                                 if not d.get("basename"):
@@ -296,14 +315,15 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
+                                sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
                                 if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
-                                elif discover_secondaryFiles:
+                                elif discover_secondaryFiles and os.path.exists(uri_file_path(sf_location)):
                                     datum["secondaryFiles"].append({
-                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "location": sf_location,
                                         "basename": sfname,
                                         "class": "File"})
-                                else:
+                                elif sf_required:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
                                         sfname, json_dumps(datum, indent=4)))
 

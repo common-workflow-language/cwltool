@@ -786,6 +786,25 @@ def test_cid_file_w_prefix(tmpdir):
 
 
 @needs_docker
+class TestSecondaryFiles():
+    def test_secondary_files(self):
+        test_file = "secondary-files.cwl"
+        test_job_file = "secondary-files-job.yml"
+        error_code, _, stderr = get_main_output(
+            ["--enable-dev",
+             get_data(os.path.join("tests", test_file)),
+             get_data(os.path.join("tests", test_job_file))])
+        assert "completed success" in stderr
+        assert error_code == 0
+
+
+@needs_docker
+class TestCache():
+    def setUp(self):
+        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
+
+
+@needs_docker
 def test_wf_without_container(tmpdir):
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
