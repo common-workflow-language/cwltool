@@ -757,7 +757,7 @@ def _job_popen(commands,                  # type: List[Text]
             sproc.stdin.close()
 
         tm = None
-        if timelimit is not None:
+        if timelimit is not None and timelimit > 0:
             def terminate():
                 try:
                     _logger.warning(
