@@ -13,7 +13,7 @@ from six.moves import urllib
 from typing_extensions import Text
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from .utils import visit_class
+from .utils import visit_class, visit_field
 
 
 def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
@@ -27,7 +27,32 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
             "networkAccess": True
             })
 
+    rewrite = {
+        "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
+        "http://commonwl.org/cwltool#TimeLimit": "TimeLimit",
+        "http://commonwl.org/cwltool#NetworkAccess": "NetworkAccess",
+        "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
+        "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement",
+        "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
+    }
+    def rewrite_requirements(t):
+        if "requirements" in t:
+            for r in t["requirements"]:
+                if r["class"] in rewrite:
+                    r["class"] = rewrite[r["class"]]
+        if "steps" in t:
+            for s in t["steps"]:
+                rewrite_requirements(s)
+
+    def update_secondaryFiles(t):
+        if isinstance(t, MutableSequence):
+            return [{"pattern": p} for p in t]
+        else:
+            return t
+
     visit_class(doc, ("CommandLineTool",), add_networkaccess)
+    visit_class(doc, ("CommandLineTool","Workflow"), rewrite_requirements)
+    visit_field(doc, "secondaryFiles", update_secondaryFiles)
 
     return (doc, "v1.1.0-dev1")
 
@@ -41,11 +66,13 @@ DEVUPDATES = {
     u"v1.1.0-dev1": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
+UPDATES=DEVUPDATES
+
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-LATEST = u"v1.0"
-#LATEST = u"v1.1.0-dev1"
+#LATEST = u"v1.0"
+LATEST = u"v1.1.0-dev1"
 
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
@@ -107,5 +134,6 @@ def update(doc, loader, baseuri, enable_dev, metadata):
         nextupdate = ALLUPDATES[version]
 
     cdoc[u"cwlVersion"] = version
+    metadata[u"cwlVersion"] = version
 
     return cdoc

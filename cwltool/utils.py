@@ -216,6 +216,20 @@ def visit_class(rec, cls, op):
         for d in rec:
             visit_class(d, cls, op)
 
+def visit_field(rec, field, op):
+    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to mapping with 'field'."""
+
+    if isinstance(rec, MutableMapping):
+        if field in rec:
+            rec[field] = op(rec[field])
+        for d in rec:
+            visit_field(rec[d], field, op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_field(d, field, op)
+
+
 def random_outdir():  # type: () -> Text
     """ Return the random directory name chosen to use for tool / workflow output """
     # compute this once and store it as a function attribute - each subsequent call will return the same value
