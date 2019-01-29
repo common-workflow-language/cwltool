@@ -702,7 +702,7 @@ class CommandLineTool(Process):
                     rfile = files.copy()
                     revmap(rfile)
                     if files["class"] == "Directory":
-                        ll = builder.loadListing or (binding and binding.get("loadListing"))
+                        ll = schema.get("loadListing") or builder.loadListing
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
