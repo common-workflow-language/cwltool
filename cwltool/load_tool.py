@@ -13,7 +13,7 @@ import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import schema
 from schema_salad.ref_resolver import (ContextType,  # pylint: disable=unused-import
-                                       Fetcher, Loader, file_uri)
+                                       Fetcher, Loader, file_uri, SubLoader)
 from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.validate import ValidationException
 from six import itervalues, string_types
@@ -64,6 +64,10 @@ FetcherConstructorType = Callable[
 ResolverType = Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
 
 loaders = {}  # type: Dict[Optional[FetcherConstructorType], Loader]
+
+def init_loaders():
+    global loaders
+    loaders = {}
 
 def default_loader(fetcher_constructor):
     # type: (Optional[FetcherConstructorType]) -> Loader
@@ -116,7 +120,8 @@ def fetch_document(argsworkflow,  # type: Union[Text, Dict[Text, Any]]
                                         document_loader=document_loader)
         workflowobj = document_loader.fetch(fileuri)
     elif isinstance(argsworkflow, MutableMapping):
-        uri = "#" + Text(id(argsworkflow))
+        uri = argsworkflow["id"] if argsworkflow.get("id") else "_:" + Text(uuid.uuid4())
+        document_loader.idx[uri] = argsworkflow
         workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
     else:
         raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
@@ -199,13 +204,13 @@ def validate_document(document_loader,           # type: Loader
                       workflowobj,               # type: CommentedMap
                       uri,                       # type: Text
                       overrides,                 # type: List[Dict]
-                      metadata,                  # type: Dict[Text, Any]
                       enable_dev=False,          # type: bool
                       strict=True,               # type: bool
                       preprocess_only=False,     # type: bool
                       fetcher_constructor=None,  # type: FetcherConstructorType
                       skip_schemas=None,         # type: bool
-                      do_validate=True           # type: bool
+                      do_validate=True,          # type: bool
+                      do_update=True             # type: bool
                      ):
     # type: (...) -> Tuple[Loader, schema.Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
     """Validate a CWL document."""
@@ -233,10 +238,12 @@ def validate_document(document_loader,           # type: Loader
         workflowobj = fetch_document(uri, fetcher_constructor=fetcher_constructor)[1]
 
     fileuri = urllib.parse.urldefrag(uri)[0]
-    if "cwlVersion" not in workflowobj:
-        if 'cwlVersion' in metadata:
-            workflowobj['cwlVersion'] = metadata['cwlVersion']
-        else:
+
+    cwlVersion = workflowobj.get("cwlVersion")
+    if not cwlVersion:
+        fileobj = fetch_document(fileuri, fetcher_constructor=fetcher_constructor)[1]
+        cwlVersion = fileobj.get("cwlVersion")
+        if not cwlVersion:
             raise ValidationException(
                 "No cwlVersion found. "
                 "Use the following syntax in your CWL document to declare "
@@ -244,16 +251,16 @@ def validate_document(document_loader,           # type: Loader
                 "Note: if this is a CWL draft-2 (pre v1.0) document then it "
                 "will need to be upgraded first.")
 
-    if not isinstance(workflowobj["cwlVersion"], string_types):
+    if not isinstance(cwlVersion, string_types):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException("'cwlVersion' must be a string, "
                                       "got {}".format(
-                                          type(workflowobj["cwlVersion"])))
+                                          type(metadata["cwlVersion"])))
     # strip out version
-    workflowobj["cwlVersion"] = re.sub(
+    cwlVersion = re.sub(
         r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
-        workflowobj["cwlVersion"])
-    if workflowobj["cwlVersion"] not in list(ALLUPDATES):
+        cwlVersion)
+    if cwlVersion not in list(ALLUPDATES):
         # print out all the Supported Versions of cwlVersion
         versions = []
         for version in list(ALLUPDATES):
@@ -267,7 +274,7 @@ def validate_document(document_loader,           # type: Loader
             "\n{}".format("\n".join(versions)))
 
     (sch_document_loader, avsc_names) = \
-        process.get_schema(workflowobj["cwlVersion"])[:2]
+        process.get_schema(cwlVersion)[:2]
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
@@ -277,39 +284,40 @@ def validate_document(document_loader,           # type: Loader
                              idx=document_loader.idx, cache=sch_document_loader.cache,
                              fetcher_constructor=fetcher_constructor, skip_schemas=skip_schemas)
 
-    _add_blank_ids(workflowobj)
+    if cwlVersion == "v1.0":
+        _add_blank_ids(workflowobj)
 
     workflowobj["id"] = fileuri
-    processobj, new_metadata = document_loader.resolve_all(
+    processobj, metadata = document_loader.resolve_all(
         workflowobj, fileuri, checklinks=do_validate)
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a dict or list.")
 
-    if not new_metadata and isinstance(processobj, CommentedMap):
-        new_metadata = cast(CommentedMap, cmap(
-            {"$namespaces": processobj.get("$namespaces", {}),
-             "$schemas": processobj.get("$schemas", []),
-             "cwlVersion": processobj["cwlVersion"]}, fn=fileuri))
-
     _convert_stdstreams_to_files(workflowobj)
 
     if preprocess_only:
-        return document_loader, avsc_names, processobj, new_metadata, uri
+        return document_loader, avsc_names, processobj, metadata, uri
 
     if do_validate:
         schema.validate_doc(avsc_names, processobj, document_loader, strict)
 
-    if new_metadata.get("cwlVersion") != update.LATEST:
+    if do_update:
         processobj = cast(CommentedMap, cmap(update.update(
-            processobj, document_loader, fileuri, enable_dev, new_metadata)))
+            processobj, document_loader, fileuri, enable_dev, metadata)))
+        if isinstance(processobj, MutableMapping):
+            document_loader.idx[processobj["id"]] = processobj
+        elif isinstance(processobj, MutableSequence):
+            document_loader.idx[metadata["id"]] = metadata
+            for po in processobj:
+                document_loader.idx[po["id"]] = po
 
     if jobobj is not None:
-        new_metadata[u"cwl:defaults"] = jobobj
+        metadata[u"cwl:defaults"] = jobobj
 
     if overrides:
-        new_metadata[u"cwltool:overrides"] = overrides
+        metadata[u"cwltool:overrides"] = overrides
 
-    return document_loader, avsc_names, processobj, new_metadata, uri
+    return document_loader, avsc_names, processobj, metadata, uri
 
 
 def make_tool(document_loader,    # type: Loader
@@ -365,11 +373,11 @@ def load_tool(argsworkflow,              # type: Union[Text, Dict[Text, Any]]
 
     document_loader, avsc_names, _, metadata, uri = validate_document(
         document_loader, workflowobj, uri,
+        overrides=loadingContext.overrides_list,
         enable_dev=loadingContext.enable_dev,
         strict=loadingContext.strict,
         fetcher_constructor=loadingContext.fetcher_constructor,
-        overrides=loadingContext.overrides_list,
-        metadata=loadingContext.metadata)
+        do_update=loadingContext.do_update)
 
     return make_tool(document_loader,
                      avsc_names,

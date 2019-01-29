@@ -38,7 +38,7 @@ from .executors import MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (FetcherConstructorType,  # pylint: disable=unused-import
                         fetch_document, jobloaderctx, load_overrides,
                         make_tool, resolve_overrides, resolve_tool_uri,
-                        validate_document)
+                        validate_document, init_loaders)
 from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
@@ -625,6 +625,7 @@ def main(argsl=None,                   # type: List[str]
         loadingContext.construct_tool_object = getdefault(
             loadingContext.construct_tool_object, workflow.default_make_tool)
         loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
+        loadingContext.do_update = not (args.pack or args.print_subgraph)
 
         uri, tool_file_uri = resolve_tool_uri(
             args.workflow, resolver=loadingContext.resolver,
@@ -641,6 +642,8 @@ def main(argsl=None,                   # type: List[str]
                 loadingContext.overrides_list.extend(load_overrides(
                     file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
+            init_loaders()
+
             document_loader, workflowobj, uri = fetch_document(
                 uri, resolver=loadingContext.resolver,
                 fetcher_constructor=loadingContext.fetcher_constructor)
@@ -652,13 +655,14 @@ def main(argsl=None,                   # type: List[str]
 
             document_loader, avsc_names, processobj, metadata, uri \
                 = validate_document(document_loader, workflowobj, uri,
-                                    loadingContext.overrides_list, {},
+                                    loadingContext.overrides_list,
                                     enable_dev=loadingContext.enable_dev,
                                     strict=loadingContext.strict,
                                     preprocess_only=(args.print_pre or args.pack),
                                     fetcher_constructor=loadingContext.fetcher_constructor,
                                     skip_schemas=args.skip_schemas,
-                                    do_validate=loadingContext.do_validate)
+                                    do_validate=loadingContext.do_validate,
+                                    do_update=loadingContext.do_update)
             if args.pack:
                 stdout.write(print_pack(document_loader, processobj, uri, metadata))
                 return 0

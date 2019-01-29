@@ -135,8 +135,7 @@ class Builder(HasReqsHints):
                  loadListing,          # type: Text
                  outdir,               # type: Text
                  tmpdir,               # type: Text
-                 stagedir,             # type: Text
-                 cwl_version,          # type: Text
+                 stagedir             # type: Text
                 ):  # type: (...) -> None
 
         self.job = job
@@ -146,7 +145,6 @@ class Builder(HasReqsHints):
         self.names = names
         self.requirements = requirements
         self.hints = hints
-        self.cwl_version = cwl_version
         self.resources = resources
         self.mutation_manager = mutation_manager
         self.formatgraph = formatgraph

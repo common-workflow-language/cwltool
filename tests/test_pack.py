@@ -22,7 +22,7 @@ def test_pack():
 
     document_loader, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
     document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
 
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
         expect_packed = json.load(packed_file)
@@ -45,7 +45,7 @@ def test_pack_single_tool():
     document_loader, workflowobj, uri = fetch_document(
         get_data("tests/wf/formattest.cwl"))
     document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
 
     packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
     assert "$schemas" in packed
@@ -56,7 +56,7 @@ def test_pack_rewrites():
 
     document_loader, workflowobj, uri = fetch_document(get_data("tests/wf/default-wf5.cwl"))
     document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
 
     cwltool.pack.pack(document_loader, processobj, uri, metadata, rewrite_out=rewrites)
 
@@ -75,7 +75,7 @@ def test_pack_missing_cwlVersion(cwl_path):
     # Testing single tool workflow
     document_loader, workflowobj, uri = fetch_document(get_data(cwl_path))
     document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
     # generate pack output dict
     packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 
@@ -99,13 +99,13 @@ def _pack_idempotently(document):
     document_loader, workflowobj, uri = fetch_document(
         get_data(document))
     document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
     # generate pack output dict
     packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 
     document_loader, workflowobj, uri2 = fetch_document(packed)
     document_loader, _, processobj, metadata, uri2 = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
     double_packed = json.loads(print_pack(document_loader, processobj, uri2, metadata))
     assert packed == double_packed
 
@@ -129,7 +129,7 @@ def test_packed_workflow_execution(wf_path, job_path, namespaced, tmpdir):
         get_data(wf_path), resolver=tool_resolver)
 
     document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+        document_loader, workflowobj, uri, [], do_update=False)
 
     packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 

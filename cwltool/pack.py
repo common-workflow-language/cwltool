@@ -125,6 +125,7 @@ def pack(document_loader,  # type: Loader
                 if po["id"].endswith("#main"):
                     uri = po["id"]
             document_loader.idx[po["id"]] = CommentedMap(iteritems(po))
+        document_loader.idx[metadata["id"]] = metadata
 
     def loadref(base, uri):
         # type: (Optional[Text], Text) -> Union[Dict, List, Text, None]
@@ -217,6 +218,5 @@ def pack(document_loader,  # type: Loader
     # always include $namespaces in the #main
     if namespaces:
         packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
-
 
     return packed

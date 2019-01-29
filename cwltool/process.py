@@ -83,6 +83,7 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "WorkReuse",
                                 "NetworkAccess",
                                 "InplaceUpdateRequirement",
+                                "LoadListingRequirement",
                                 "http://commonwl.org/cwltool#TimeLimit",
                                 "http://commonwl.org/cwltool#WorkReuse",
                                 "http://commonwl.org/cwltool#NetworkAccess",
@@ -584,11 +585,12 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         fs_access = make_fs_access(runtime_context.basedir)
 
         load_listing_req, _ = self.get_requirement(
-            "http://commonwl.org/cwltool#LoadListingRequirement")
+            "LoadListingRequirement")
+
         if load_listing_req is not None:
             load_listing = load_listing_req.get("loadListing")
         else:
-            load_listing = "deep_listing"   # will default to "no_listing" in CWL v1.1
+            load_listing = "no_listing"
 
         # Validate job order
         try:
@@ -607,7 +609,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
             visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
 
-            if load_listing == "deep_listing" and load_listing_req is None:
+            if load_listing == "deep_listing":
                 for i, inparm in enumerate(self.tool["inputs"]):
                     k = shortname(inparm["id"])
                     if k not in job:
@@ -673,7 +675,6 @@ hints:
                                             or tempfile.mkdtemp())
                 stagedir = fs_access.realpath(runtime_context.stagedir
                                               or tempfile.mkdtemp())
-        cwl_version = self.metadata["cwlVersion"]
 
         builder = Builder(job,
                           files,
@@ -695,8 +696,7 @@ hints:
                           load_listing,
                           outdir,
                           tmpdir,
-                          stagedir,
-                          cwl_version)
+                          stagedir)
 
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
@@ -809,8 +809,10 @@ hints:
                     validate.validate_ex(
                         avsc_names.get_name(plain_hint["class"], ""),
                         plain_hint, strict=strict)
+                elif r["class"] in ("NetworkAccess", "LoadListingRequirement"):
+                    pass
                 else:
-                    _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
+                    _logger.info(Text(sl.makeError(u"Unknown hint %s" % (r["class"]))))
 
     def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], None]) -> None
         op(self.tool)

@@ -514,10 +514,7 @@ class CommandLineTool(Process):
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
-        inplaceUpdateReq, _ = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")
-        if not inplaceUpdateReq and self.metadata["cwlVersion"] == "v1.1.0-dev1":
-            inplaceUpdateReq, _ = self.get_requirement("InplaceUpdateRequirement")
-
+        inplaceUpdateReq, _ = self.get_requirement("InplaceUpdateRequirement")
         if inplaceUpdateReq is not None:
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
