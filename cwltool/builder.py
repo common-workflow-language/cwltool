@@ -335,7 +335,7 @@ class Builder(HasReqsHints):
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
-                ll = self.loadListing or (binding and binding.get("loadListing"))
+                ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(self.fs_access, datum, (ll == "deep_listing"))
                 self.files.append(datum)
