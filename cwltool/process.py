@@ -296,6 +296,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
+        src = fs_access.realpath(src)
         src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
 
         _action = "move" if action == "move" and src_can_deleted else "copy"
