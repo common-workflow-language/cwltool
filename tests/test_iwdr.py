@@ -16,7 +16,6 @@ def test_newline_in_entry():
 
 @needs_docker
 def test_iwdr_permutations():
-    load_tool.loaders = {}
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
@@ -44,7 +43,6 @@ def test_iwdr_permutations():
 
 @needs_docker
 def test_iwdr_permutations_inplace():
-    load_tool.loaders = {}
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
@@ -75,7 +73,6 @@ def test_iwdr_permutations_inplace():
 
 @needs_singularity
 def test_iwdr_permutations_singularity():
-    load_tool.loaders = {}
     with temp_dir() as fifth:
         with temp_dir() as sixth:
             with temp_dir() as seventh:
@@ -100,7 +97,6 @@ def test_iwdr_permutations_singularity():
 
 @needs_singularity
 def test_iwdr_permutations_singularity_inplace():
-    load_tool.loaders = {}
     with temp_dir() as fifth:
         with temp_dir() as sixth:
             with temp_dir() as seventh:

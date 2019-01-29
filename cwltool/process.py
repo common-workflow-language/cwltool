@@ -464,6 +464,8 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         self.requirements.extend(self.tool.get("requirements", []))
+        if "id" not in self.tool:
+            self.tool["id"] = "_:" + Text(uuid.uuid4())
         self.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                self.tool["id"]).get("requirements", []))
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))

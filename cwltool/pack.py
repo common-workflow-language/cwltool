@@ -185,10 +185,9 @@ def pack(document_loader,  # type: Loader
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
-        for doc in (dcr, metadata):
-            if "$schemas" in doc:
-                for s in doc["$schemas"]:
-                    schemas.add(s)
+        if "$schemas" in metadata:
+            for s in metadata["$schemas"]:
+                schemas.add(s)
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
