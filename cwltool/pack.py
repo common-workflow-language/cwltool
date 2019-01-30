@@ -185,6 +185,7 @@ def pack(document_loader,  # type: Loader
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
+        metadata = cast(Dict[Text, Any], metadata)
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
