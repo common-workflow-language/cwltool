@@ -291,7 +291,9 @@ def resolve_and_validate_document(loadingContext,
     processobj, metadata = document_loader.resolve_all(
         workflowobj, fileuri, checklinks=loadingContext.do_validate)
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
-        raise ValidationException("Workflow must be a dict or list.")
+        raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
+    if not isinstance(metadata, CommentedMap):
+        raise ValidationException("metadata must be a CommentedMap, was %s" % type(metadata))
 
     _convert_stdstreams_to_files(workflowobj)
 

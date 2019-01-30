@@ -93,6 +93,8 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
 
     cdoc = None  # type: Optional[CommentedMap]
     if isinstance(doc, CommentedSeq):
+        if not isinstance(metadata, CommentedMap):
+            raise Exception("Expected metadata to be CommentedMap")
         lc = metadata.lc
         metadata = copy.deepcopy(metadata)
         metadata.lc.data = copy.copy(lc.data)
