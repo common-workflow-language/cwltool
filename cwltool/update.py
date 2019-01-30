@@ -81,8 +81,11 @@ def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, doc["cwlVersion"])
 
 
-def checkversion(doc, metadata, enable_dev):
-    # type: (Union[CommentedSeq, CommentedMap], CommentedMap, bool) -> Tuple[Dict[Text, Any], Text]  # pylint: disable=line-too-long
+def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
+                 metadata,   # type: CommentedMap
+                 enable_dev  # type: bool
+):
+    # type: (...) -> Tuple[Union[CommentedSeq, CommentedMap], Text]
     """Checks the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
@@ -123,7 +126,7 @@ def checkversion(doc, metadata, enable_dev):
 
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> dict
+    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> Union[CommentedSeq, CommentedMap]
 
     if (metadata.get("http://commonwl.org/cwltool#original_cwlVersion") or
         (isinstance(doc, CommentedMap) and doc.get("http://commonwl.org/cwltool#original_cwlVersion"))):

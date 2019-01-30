@@ -115,10 +115,10 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
                                         resolver=loadingContext.resolver,
                                         document_loader=loadingContext.loader)
         workflowobj = loadingContext.loader.fetch(fileuri)
-    elif isinstance(argsworkflow, MutableMapping):
+    elif isinstance(argsworkflow, dict):
         uri = argsworkflow["id"] if argsworkflow.get("id") else "_:" + Text(uuid.uuid4())
-        loadingContext.loader.idx[uri] = argsworkflow
         workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
+        loadingContext.loader.idx[uri] = workflowobj
     else:
         raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
     assert workflowobj is not None
@@ -202,7 +202,7 @@ def resolve_and_validate_document(loadingContext,
                       preprocess_only=False,     # type: bool
                       skip_schemas=None,         # type: bool
                      ):
-    # type: (...) -> Tuple[LoadingContext, schema.Names, Union[Dict[Text, Any], List[Dict[Text, Any]]], Dict[Text, Any], Text]
+    # type: (...) -> Tuple[LoadingContext, Text]
     """Validate a CWL document."""
 
     loadingContext = loadingContext.copy()
@@ -223,7 +223,7 @@ def resolve_and_validate_document(loadingContext,
 
     cwlVersion = workflowobj.get("cwlVersion")
     if not cwlVersion:
-        fileobj = fetch_document(fileuri, fetcher_constructor=fetcher_constructor)[1]
+        fileobj = fetch_document(fileuri, loadingContext)[1]
         cwlVersion = fileobj.get("cwlVersion")
         if not cwlVersion:
             raise ValidationException(
@@ -237,7 +237,7 @@ def resolve_and_validate_document(loadingContext,
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException("'cwlVersion' must be a string, "
                                       "got {}".format(
-                                          type(metadata["cwlVersion"])))
+                                          type(cwlVersion)))
     # strip out version
     cwlVersion = re.sub(
         r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "",
@@ -325,6 +325,8 @@ def make_tool(uri,                # type: Union[Text, CommentedMap, CommentedSeq
               loadingContext      # type: LoadingContext
              ):  # type: (...) -> Process
     """Make a Python CWL object."""
+    if loadingContext.loader is None:
+        raise ValueError("loadingContext must have a loader")
     resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
 
     processobj = None

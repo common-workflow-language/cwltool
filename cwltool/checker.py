@@ -127,6 +127,7 @@ def _compare_records(src, sink, strict=False):
     return True
 
 def missing_subset(fullset, subset):
+    # type: (List, List) -> List
     missing = []
     for i in subset:
         if i not in fullset:

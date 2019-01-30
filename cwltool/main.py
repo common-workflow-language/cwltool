@@ -451,7 +451,7 @@ def find_deps(obj,              # type: Mapping[Text, Any]
     return deps
 
 def print_pack(document_loader,  # type: Loader
-               processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+               processobj,       # type: CommentedMap
                uri,              # type: Text
                metadata          # type: Dict[Text, Any]
               ):  # type (...) -> Text
@@ -645,6 +645,8 @@ def main(argsl=None,                   # type: List[str]
             loadingContext, workflowobj, uri = fetch_document(
                 uri, loadingContext)
 
+            assert loadingContext.loader is not None
+
             if args.print_deps:
                 printdeps(workflowobj, loadingContext.loader, stdout,
                            args.relative_deps, uri)
@@ -654,8 +656,9 @@ def main(argsl=None,                   # type: List[str]
                 = resolve_and_validate_document(loadingContext, workflowobj, uri,
                                     preprocess_only=(args.print_pre or args.pack),
                                     skip_schemas=args.skip_schemas)
+            assert loadingContext.loader is not None
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
-
+            processobj = cast(CommentedMap, processobj)
             if args.pack:
                 stdout.write(print_pack(loadingContext.loader, processobj, uri, metadata))
                 return 0
@@ -864,6 +867,8 @@ def main(argsl=None,                   # type: List[str]
         if args and runtimeContext and runtimeContext.research_obj \
                 and workflowobj:
             research_obj = runtimeContext.research_obj
+            assert loadingContext is not None
+            assert loadingContext.loader is not None
             prov_dependencies = prov_deps(workflowobj, loadingContext.loader, uri)
             research_obj.generate_snapshot(prov_dependencies)
             if prov_log_handler is not None:
