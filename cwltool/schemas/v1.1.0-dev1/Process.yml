@@ -436,21 +436,44 @@ $graph:
       doc: "The unique identifier for this object."
 
 
+- name: LoadListingEnum
+  type: enum
+  symbols: [no_listing, shallow_listing, deep_listing]
+  doc:
+    - |
+      Specify the desired behavior for loading the `listing` field of
+      a Directory object for use by expressions.
+    - "no_listing: Do not load the directory listing."
+    - "shallow_listing: Only load the top level listing, do not recurse into subdirectories."
+    - "deep_listing: Load the directory listing and recursively load all subdirectories as well."
+
+
 - name: LoadContents
   type: record
   abstract: true
   fields:
     - name: loadContents
-      type:
-        - "null"
-        - boolean
+      type: boolean?
       jsonldPredicate: "cwl:loadContents"
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
         Read up to the first 64 KiB of text from the file and place it in the
         "contents" field of the file object for use by expressions.
+    - name: loadListing
+      type: LoadListingEnum?
+      jsonldPredicate: "cwl:loadListing"
+      doc: |
+        Only valid when `type: Directory` or is an array of `items: Directory`.
 
+        Specify the desired behavior for loading the `listing` field of
+        a Directory object for use by expressions.
+
+        The order of precedence for loadListing is:
+
+          1. `loadListing` on an individual parameter
+          2. Inherited from `LoadListingRequirement`
+          3. By default: `no_listing`
 
 - name: FieldBase
   type: record
@@ -602,7 +625,7 @@ $graph:
         "contents" field of the file object for use by expressions.
 
 
-- name: InputSchema
+- name: IOSchema
   extends: [Labeled, sld:Documented]
   type: record
   abstract: true
@@ -612,9 +635,13 @@ $graph:
       jsonldPredicate: "@id"
       doc: "The identifier for this type"
 
+- name: InputSchema
+  extends: [IOSchema]
+  type: record
+  abstract: true
 
 - name: OutputSchema
-  extends: [Labeled]
+  extends: [IOSchema]
   type: record
   abstract: true
 
@@ -896,12 +923,12 @@ $graph:
         it specifies that the following pattern should be applied to the path
         of the primary file to yield a filename relative to the primary File:
 
-          1. If string begins with one or more caret `^` characters, for each
+          1. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          2. If string begins with one or more caret `^` characters, for each
             caret, remove the last file extension from the path (the last
             period `.` and all following characters).  If there are no file
             extensions, the path is unchanged.
-          2. If string ends with `?` character, remove the last `?` and mark
-            the resulting secondary file as optional.
           3. Append the remainder of the string to the end of the file path.
     - name: required
       type: ["null", boolean, string, Expression]
@@ -910,3 +937,20 @@ $graph:
         set to `false` and the expected secondary file does not exist.
         Default value for `required` field is `true` for secondary files on
         input and `false` for secondary files on output.
+
+- name: LoadListingRequirement
+  type: record
+  extends: ProcessRequirement
+  doc: |
+    Specify the desired behavior for loading the `listing` field of
+    a Directory object for use by expressions.
+  fields:
+    class:
+      type: string
+      doc: "Always 'LoadListingRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    loadListing:
+      type: LoadListingEnum?
+      jsonldPredicate: "cwl:loadListing"

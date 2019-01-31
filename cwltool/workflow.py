@@ -625,6 +625,7 @@ class WorkflowStep(Process):
                 self.embedded_tool = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext)  # type: Process
             else:
+                loadingContext.metadata = {}
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
         except validate.ValidationException as vexc:
