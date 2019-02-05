@@ -18,6 +18,7 @@ from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
+from typing import IO
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -27,7 +28,7 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import PathMapper  # pylint: disable=unused-import
-from .pathmapper import get_listing, normalizeFilesDirs, visit_class
+from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
 
@@ -35,7 +36,17 @@ from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
 
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
-CONTENT_LIMIT = 64 * 1024
+
+
+def content_limit_respected_read_bytes(f):  # type: (IO) -> bytes
+    contents = f.read(CONTENT_LIMIT + 1)
+    if len(contents) > CONTENT_LIMIT:
+        raise WorkflowException("loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes" % CONTENT_LIMIT)
+    return contents
+
+
+def content_limit_respected_read(f):  # type: (IO) -> Text
+    return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
 def substitute(value, replace):  # type: (Text, Text) -> Text
@@ -283,7 +294,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
                     with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
+                        datum["contents"] = content_limit_respected_read(f)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
