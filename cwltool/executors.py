@@ -77,7 +77,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
 
         job_reqs = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
-            if process.metadata["cwlVersion"] == 'v1.0':
+            if process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion") == 'v1.0':
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
@@ -87,7 +87,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         elif ("cwl:defaults" in process.metadata
               and "https://w3id.org/cwl/cwl#requirements"
               in process.metadata["cwl:defaults"]):
-            if process.metadata["cwlVersion"] == 'v1.0':
+            if process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion") == 'v1.0':
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "

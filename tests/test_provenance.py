@@ -50,7 +50,6 @@ def folder(tmpdir):
 
 
 def cwltool(folder, *args):
-    load_tool.loaders = {}
     new_args = ['--provenance', folder]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout

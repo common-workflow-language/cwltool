@@ -146,8 +146,7 @@ class Builder(HasReqsHints):
                  loadListing,          # type: Text
                  outdir,               # type: Text
                  tmpdir,               # type: Text
-                 stagedir,             # type: Text
-                 cwl_version,          # type: Text
+                 stagedir             # type: Text
                 ):  # type: (...) -> None
 
         self.job = job
@@ -157,7 +156,6 @@ class Builder(HasReqsHints):
         self.names = names
         self.requirements = requirements
         self.hints = hints
-        self.cwl_version = cwl_version
         self.resources = resources
         self.mutation_manager = mutation_manager
         self.formatgraph = formatgraph
@@ -302,14 +300,10 @@ class Builder(HasReqsHints):
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        sf_required = True
-                        if isinstance(sf, MutableMapping) and "pattern" in sf and self.cwl_version in ['v1.1.0-dev1']:
-                            if 'required' in sf:
-                                sf_required = self.do_eval(sf['required'], context=datum)
-                        elif isinstance(sf, string_types):
-                            sf = {"pattern": sf}
+                        if 'required' in sf:
+                            sf_required = self.do_eval(sf['required'], context=datum)
                         else:
-                            raise validate.ValidationException("Not a secondary file definition: %s" % sf)
+                            sf_required = True
 
                         if "$(" in sf["pattern"] or "${" in sf["pattern"]:
                             sfpath = self.do_eval(sf["pattern"], context=datum)
@@ -329,7 +323,7 @@ class Builder(HasReqsHints):
                                 sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
                                 if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
-                                elif discover_secondaryFiles and os.path.exists(uri_file_path(sf_location)):
+                                elif discover_secondaryFiles and self.fs_access.exists(sf_location):
                                     datum["secondaryFiles"].append({
                                         "location": sf_location,
                                         "basename": sfname,
@@ -352,7 +346,7 @@ class Builder(HasReqsHints):
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
-                ll = self.loadListing or (binding and binding.get("loadListing"))
+                ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(self.fs_access, datum, (ll == "deep_listing"))
                 self.files.append(datum)
