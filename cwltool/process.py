@@ -439,6 +439,7 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         return builder.do_eval(resource_req)
     return resource_req
 
+
 # Threshold where the "too many files" warning kicks in
 FILE_COUNT_WARNING = 5000
 
@@ -619,6 +620,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                         continue
                     v = job[k]
                     dircount = [0]
+
                     def inc(d):  # type: (List[int]) -> None
                         d[0] += 1
                     visit_class(v, ("Directory",), lambda x: inc(dircount))
@@ -766,11 +768,17 @@ hints:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+        if cwl_version == "v1.0":
+            ram = 1024
+        else:
+            ram = 256
         request = {
             "coresMin": 1,
             "coresMax": 1,
-            "ramMin": 256,
-            "ramMax": 256,
+            "ramMin": ram,
+            "ramMax": ram,
             "tmpdirMin": 1024,
             "tmpdirMax": 1024,
             "outdirMin": 1024,
