@@ -24,7 +24,7 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
     rewrite = {
         "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
-        "http://commonwl.org/cwltool#TimeLimit": "TimeLimit",
+        "http://commonwl.org/cwltool#TimeLimit": "ToolTimeLimit",
         "http://commonwl.org/cwltool#NetworkAccess": "NetworkAccess",
         "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
         "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement",
