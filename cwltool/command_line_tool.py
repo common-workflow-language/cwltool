@@ -706,14 +706,13 @@ class CommandLineTool(Process):
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
-                        with fs_access.open(rfile["location"], "rb") as f:
-                            contents = b""
-                            if binding.get("loadContents") or compute_checksum:
-                                contents = content_limit_respected_read_bytes(f)
-                            if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8")
-                            if compute_checksum:
+                        if binding.get("loadContents"):
+                            with fs_access.open(rfile["location"], "rb") as f:
+                                files["contents"] = content_limit_respected_read_bytes(f).decode("utf-8")
+                        if compute_checksum:
+                            with fs_access.open(rfile["location"], "rb") as f:
                                 checksum = hashlib.sha1()
+                                contents = f.read(1024 * 1024)
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
