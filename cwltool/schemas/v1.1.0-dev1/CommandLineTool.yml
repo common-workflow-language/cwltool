@@ -41,25 +41,27 @@ $graph:
       This specification represents the latest development release from the
       CWL group.  Since the v1.0 release, v1.1 introduces the
       following updates to the CWL Command Line Tool standard.
-      Documents should to use `cwlVersion: v1.1.0-dev1` to make use of new
+      Documents should use `cwlVersion: v1.1.0-dev1` to make use of new
       syntax and features introduced in v1.1.0-dev1.  Existing v1.0 documents
-      should be trivially updatav1.1.0-dev1ble by changing `cwlVersion`, however
+      should be trivially updatable by changing `cwlVersion`, however
       CWL documents that relied on previously undefined or
       underspecified behavior may have slightly different behavior in
       v1.1.0-dev1.
 
       ## Changelog
 
+        * Clarify behavior around `ENTRYPOINT` and `CMD` in containers.
         * Clarify documentation around `valueFrom` and `null` inputs.
         * Default values for some fields are now expressed in the schema.
         * When defining record types with `CommandInputRecordSchema`, fields of
           type `File` may now include `format`, `loadContents`,
           `secondaryFiles` and `streamable`.
-        * `CommandInputRecordSchema`, `CommandInputEnumSchema`, and
-          `CommandInputArraySchema` now have an optional `doc` field.
+        * `CommandInputRecordSchema`, `CommandOutputRecordSchema`,
+          `CommandInputEnumSchema and `CommandInputArraySchema` now have an optional
+          `doc` field.
         * `inputBinding` has been added as an optional field for
           `CommandInputRecordSchema` (was previously in CWL `draft-3` but
-          disappeared in `v1.0`)
+          disappeared in `v1.0`).
         * Any `doc` field may be an array of strings in addition to the
           previously allowed single string.
         * Addition of `stdin` type shortcut for
@@ -67,15 +69,37 @@ $graph:
         * Clarify that the designated output directory should be empty
           except for files or directories specified using
           [InitialWorkDirRequirement](#InitialWorkDirRequirement).
-        * Clarify semantics of `shellQuote`
+        * Clarify semantics of `shellQuote`.
         * Expressions are now allowed to evaluate to `null` or `Dirent` in
           [InitialWorkDirRequirement.listing](#InitialWorkDirRequirement).
+        * Items in [InitialWorkDirRequirement.listing](#InitialWorkDirRequirement)
+          are now allowed to be `null` and `array<File | Directory>`.
         * Clarify behavior of secondaryFiles on output.
         * [Addition](#Requirements_and_hints) of `cwl:requirements` field to
           input object documents.
         * Clarify behavior of `glob` for absolute paths and symlinks.
         * Clarify behavior of `glob` to include directories.
         * `secondaryFiles` can now be explicitly marked as `required` or not.
+        * Clarify `CommandLineTool.arguments` documentation.
+        * Clarify that `runtime.outdir` and `runtime.tmpdir` must be distinct
+          directories.
+        * Clarify that unspecified details related to execution are left open to
+          the platform.
+        * Added `InputParameter.loadContents` field. Use of `loadContents` in
+          `InputBinding` is deprecated; it is preserved for v1.0 backwards
+           compatability and will be removed in CWL v2.0.
+        * [Added](#ToolTimeLimit) `ToolTimeLimit` feature, allowing to set an upper limit on the
+          execution time of a CommandLineTool.
+        * [Added](#WorkReuse) `WorkReuse` feature, allowing to enable or disable the reuse
+          behavior for a particular tool or step for implementations that
+          support reusing output from past work.
+        * [Added](#NetworkAccess) `NetworkAccess` feature, allowing to indicate whether a
+          process requires outgoing network access.
+        * [Added](#InplaceUpdateRequirement) `InplaceUpdateRequirement` feature, allowing tools to directly
+          update files with `writable: true` in `InitialWorkDirRequirement`.
+        * [Added](#LoadListingRequirement) `LoadListingRequirement`
+          and [loadListing](#LoadContents) to control whether and how
+          `Directory` listings should be loaded for use in expressions.
 
       See also the [CWL Workflow Description, v1.1.0-dev1 changelog](Workflow.html#Changelog).
 
@@ -105,10 +129,12 @@ $graph:
       provide a common standard description of grammar and semantics for
       invoking programs used in data-intensive fields such as Bioinformatics,
       Chemistry, Physics, Astronomy, and Statistics.  This specification
-      defines a precise data and execution model for Command Line Tools that
+      attempts to define a precise data and execution model for Command Line Tools that
       can be implemented on a variety of computing platforms, ranging from a
       single workstation to cluster, grid, cloud, and high performance
-      computing platforms.
+      computing platforms. Details related to execution of these programs not
+      laid out in this specification are open to interpretation by the computing
+      platform implementing this specification.
 
     - {$include: concepts.md}
     - {$include: invocation.md}
@@ -637,7 +663,10 @@ $graph:
         "_container": "@list"
     - name: arguments
       doc: |
-        Command line bindings which are not directly associated with input parameters.
+        Command line bindings which are not directly associated with input
+        parameters. If the value is a string, it is used as a string literal
+        argument. If it is an Expression, the result of the evaluation is used
+        as an argument.
       type:
         - "null"
         - type: array
@@ -702,8 +731,9 @@ $graph:
   extends: ProcessRequirement
   doc: |
     Indicates that a workflow component should be run in a
-    [Docker](http://docker.com) container, and specifies how to fetch or build
-    the image.
+    [Docker](http://docker.com) or Docker-compatible (such as
+    [Singularity](https://www.sylabs.io/) and [udocker](https://github.com/indigo-dc/udocker)) container environment and
+    specifies how to fetch or build the image.
 
     If a CommandLineTool lists `DockerRequirement` under
     `hints` (or `requirements`), it may (or must) be run in the specified Docker
@@ -720,13 +750,30 @@ $graph:
     file paths in the input object to correspond to the Docker bind mounted
     locations. That is, the platform should rewrite values in the parameter context
     such as `runtime.outdir`, `runtime.tmpdir` and others to be valid paths
-    within the container.
+    within the container. The platform must ensure that `runtime.outdir` and
+    `runtime.tmpdir` are distinct directories.
 
     When running a tool contained in Docker, the workflow platform must not
     assume anything about the contents of the Docker container, such as the
     presence or absence of specific software, except to assume that the
     generated command line represents a valid command within the runtime
     environment of the container.
+
+    A container image may specify an
+    [ENTRYPOINT](https://docs.docker.com/engine/reference/builder/#entrypoint)
+    and/or
+    [CMD](https://docs.docker.com/engine/reference/builder/#cmd).
+    Command line arguments will be appended after all elements of
+    ENTRYPOINT, and will override all elements specified using CMD (in
+    other words, CMD is only used when the CommandLineTool definition
+    produces an empty command line).
+
+    Use of implicit ENTRYPOINT or CMD are discouraged due to reproducibility
+    concerns of the implicit hidden execution point (For further discussion, see
+    [https://doi.org/10.12688/f1000research.15140.1](https://doi.org/10.12688/f1000research.15140.1)). Portable
+    CommandLineTool wrappers in which use of a container is optional must not rely on ENTRYPOINT or CMD.
+    CommandLineTools which do rely on ENTRYPOINT or CMD must list `DockerRequirement` in the
+    `requirements` section.
 
     ## Interaction with other requirements
 
@@ -1051,17 +1098,25 @@ $graph:
 
 
 - type: record
-  name: TimeLimit
+  name: ToolTimeLimit
   extends: ProcessRequirement
   doc: |
-    Set an upper limit on the execution time of a CommandLineTool or
-    ExpressionTool.  A tool execution which exceeds the time limit may
+    Set an upper limit on the execution time of a CommandLineTool.
+    A tool execution which exceeds the time limit may
     be preemptively terminated and considered failed.  May also be
     used by batch systems to make scheduling decisions.
+
+    Limit applies only to the command execution time. Time for
+    additional steps, such as file download/upload, docker pull or
+    expression evaluation is not considered for exceeding time limit.
+
+    If ToolTimeLimit is set on a workflow level, it propagates down to
+    individual processes, in line with requirement inheritance rules.
+    ToolTimeLimit is not used to limit the execution time of a Workflow.
   fields:
     - name: class
       type: string
-      doc: "Always 'TimeLimit'"
+      doc: "Always 'ToolTimeLimit'"
       jsonldPredicate:
         "_id": "@type"
         "_type": "@vocab"

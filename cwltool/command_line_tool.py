@@ -546,7 +546,7 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit, _ = self.get_requirement("TimeLimit")
+        timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
