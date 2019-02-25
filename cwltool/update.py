@@ -11,6 +11,9 @@ from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from six import string_types
 from six.moves import urllib
 from typing_extensions import Text
+from schema_salad.sourceline import SourceLine
+from .loghandler import _logger
+
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .utils import visit_class, visit_field, aslist
@@ -49,7 +52,18 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
         else:
             return t
 
+    def fix_inputBinding(t):
+        for i in t["inputs"]:
+            if "inputBinding" in i:
+                ib = i["inputBinding"]
+                for k in list(ib.keys()):
+                    if k != "loadContents":
+                        _logger.warning(SourceLine(ib, k).makeError("Will ignore field '%s' which is not valid in %s inputBinding" %
+                                                                    (k, t["class"])))
+                        del ib[k]
+
     visit_class(doc, ("CommandLineTool","Workflow"), rewrite_requirements)
+    visit_class(doc, ("ExpressionTool","Workflow"), fix_inputBinding)
     visit_field(doc, "secondaryFiles", update_secondaryFiles)
 
     upd = doc
