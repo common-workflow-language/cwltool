@@ -703,9 +703,13 @@ hints:
                           tmpdir,
                           stagedir)
 
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
-            discover_secondaryFiles=getdefault(runtime_context.toplevel, False)))
+            discover_secondaryFiles=getdefault(runtime_context.toplevel, False),
+            cwl_version=cwl_version))
 
         if self.tool.get("baseCommand"):
             for index, command in enumerate(aslist(self.tool["baseCommand"])):
@@ -722,7 +726,12 @@ hints:
                 if isinstance(arg, MutableMapping):
                     arg = copy.deepcopy(arg)
                     if arg.get("position"):
-                        arg["position"] = [arg["position"], i]
+                        position = arg.get("position")
+                        if isinstance(position, str) and cwl_version != "v1.0":
+                            position = builder.do_eval(position)
+                            if position is None:
+                                position = 0
+                        arg["position"] = [position, i]
                     else:
                         arg["position"] = [0, i]
                     bindings.append(arg)

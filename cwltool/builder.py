@@ -195,6 +195,7 @@ class Builder(HasReqsHints):
                    discover_secondaryFiles,  # type: bool
                    lead_pos=None,            # type: Optional[Union[int, List[int]]]
                    tail_pos=None,            # type: Optional[List[int]]
+                   cwl_version=None          # type: Optional[Text]
                   ):  # type: (...) -> List[MutableMapping[Text, Any]]
 
         if tail_pos is None:
@@ -211,7 +212,12 @@ class Builder(HasReqsHints):
 
             bp = list(aslist(lead_pos))
             if "position" in binding:
-                bp.extend(aslist(binding["position"]))
+                position = binding["position"]
+                if isinstance(position, str) and cwl_version != "v1.0":
+                    binding['position'] = self.do_eval(position, context=datum)
+                    bp.append(binding['position'])
+                else:
+                    bp.extend(aslist(binding['position']))
             else:
                 bp.append(0)
             bp.extend(aslist(tail_pos))
