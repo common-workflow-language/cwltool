@@ -703,13 +703,9 @@ hints:
                           tmpdir,
                           stagedir)
 
-        cwl_version = self.metadata.get(
-            "http://commonwl.org/cwltool#original_cwlVersion", None)
-
         bindings.extend(builder.bind_input(
             self.inputs_record_schema, job,
-            discover_secondaryFiles=getdefault(runtime_context.toplevel, False),
-            cwl_version=cwl_version))
+            discover_secondaryFiles=getdefault(runtime_context.toplevel, False)))
 
         if self.tool.get("baseCommand"):
             for index, command in enumerate(aslist(self.tool["baseCommand"])):
@@ -727,7 +723,9 @@ hints:
                     arg = copy.deepcopy(arg)
                     if arg.get("position"):
                         position = arg.get("position")
-                        if isinstance(position, str) and cwl_version != "v1.0":
+                        if isinstance(position, str):  # no need to test the
+                                                       # CWLVersion as the v1.0
+                                                       # schema only allows ints
                             position = builder.do_eval(position)
                             if position is None:
                                 position = 0

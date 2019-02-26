@@ -887,3 +887,11 @@ def test_bad_basecommand_docker():
         ["--debug", "--default-container", "debian", get_data(test_file)])
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
+
+def test_v1_0_position_expression():
+    test_file = "tests/echo-position-expr.cwl"
+    test_job = "tests/echo-position-expr-job.yml"
+    error_code, stdout, stderr = get_main_output(
+        [get_data(test_file), get_data(test_job)])
+    assert "is not int" in stderr, stderr
+    assert error_code == 1
