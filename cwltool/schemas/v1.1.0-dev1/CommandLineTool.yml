@@ -56,8 +56,8 @@ $graph:
         * When defining record types with `CommandInputRecordSchema`, fields of
           type `File` may now include `format`, `loadContents`,
           `secondaryFiles` and `streamable`.
-        * `CommandInputRecordSchema`, `CommandOutputRecordSchema`,
-          `CommandInputEnumSchema and `CommandInputArraySchema` now have an optional
+        * `CommandInputRecordSchema`, `CommandOutputRecordSchema`, 
+          `CommandInputEnumSchema and `CommandInputArraySchema` now have an optional 
           `doc` field.
         * `inputBinding` has been added as an optional field for
           `CommandInputRecordSchema` (was previously in CWL `draft-3` but
@@ -88,8 +88,8 @@ $graph:
         * Added `InputParameter.loadContents` field. Use of `loadContents` in
           `InputBinding` is deprecated; it is preserved for v1.0 backwards
            compatability and will be removed in CWL v2.0.
-        * [Added](#ToolTimeLimit) `ToolTimeLimit` feature, allowing to set an upper limit on the
-          execution time of a CommandLineTool.
+        * [Added](#ToolTimeLimit) `ToolTimeLimit` feature, allows setting
+          an upper limit on the execution time of a CommandLineTool.
         * [Added](#WorkReuse) `WorkReuse` feature, allowing to enable or disable the reuse
           behavior for a particular tool or step for implementations that
           support reusing output from past work.
@@ -197,8 +197,14 @@ $graph:
 
   fields:
     - name: position
-      type: int?
-      doc: "The sorting key.  Default position is 0."
+      type: [ int, Expression, string, "null" ]
+      doc: |
+        The sorting key.  Default position is 0. If the inputBinding is
+        associated with an input parameter, then the value of `self` in the
+        expression will be the value of the input parameter.  Input parameter
+        defaults (as specified by the `InputParameter.default` field) must be
+        applied before evaluating the expression. Expressions must return a
+        single value of type int or a null.
     - name: prefix
       type: string?
       doc: "Command line prefix to add before the value."
@@ -1098,36 +1104,6 @@ $graph:
 
 
 - type: record
-  name: ToolTimeLimit
-  extends: ProcessRequirement
-  doc: |
-    Set an upper limit on the execution time of a CommandLineTool.
-    A tool execution which exceeds the time limit may
-    be preemptively terminated and considered failed.  May also be
-    used by batch systems to make scheduling decisions.
-
-    Limit applies only to the command execution time. Time for
-    additional steps, such as file download/upload, docker pull or
-    expression evaluation is not considered for exceeding time limit.
-
-    If ToolTimeLimit is set on a workflow level, it propagates down to
-    individual processes, in line with requirement inheritance rules.
-    ToolTimeLimit is not used to limit the execution time of a Workflow.
-  fields:
-    - name: class
-      type: string
-      doc: "Always 'ToolTimeLimit'"
-      jsonldPredicate:
-        "_id": "@type"
-        "_type": "@vocab"
-    - name: timelimit
-      type: [long, string, Expression]
-      doc: |
-        The time limit, in seconds.  A time limit of zero means no
-        time limit.  Negative time limits are an error.
-
-
-- type: record
   name: WorkReuse
   extends: ProcessRequirement
   doc: |
@@ -1226,3 +1202,27 @@ $graph:
         "_type": "@vocab"
     inplaceUpdate:
       type: boolean
+
+- type: record
+  name: ToolTimeLimit
+  extends: ProcessRequirement
+  doc: |
+    Set an upper limit on the execution time of a CommandLineTool.
+    A CommandLineTool whose execution duration exceeds the time
+    limit may be preemptively terminated and considered failed.
+    May also be used by batch systems to make scheduling decisions.
+    The execution duration excludes external operations, such as
+    staging of files, pulling a docker image etc, and only counts
+    wall-time for the execution of the command line itself.
+  fields:
+    - name: class
+      type: string
+      doc: "Always 'ToolTimeLimit'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: timelimit
+      type: [long, string, Expression]
+      doc: |
+        The time limit, in seconds.  A time limit of zero means no
+        time limit.  Negative time limits are an error.
