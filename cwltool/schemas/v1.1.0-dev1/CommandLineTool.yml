@@ -103,6 +103,13 @@ $graph:
           `Directory` listings should be loaded for use in expressions.
         * The position field of the [CommandLineBinding](#CommandLineBinding) can
           now be calculated from a CWL Expression.
+        * The exit code of a CommandLineTool invocation is now
+          available to expressions in `outputEval` as `runtime.exitCode`
+        * [Better explain](#map) the `map<…>` notation that has existed since v1.0.
+        * Fixed schema error where the `type` field inside the `inputs` and
+          `outputs` field was incorrectly listed as optional.
+        * For multi-Process CWL documents, if no particular process is named then
+          the process with the `id` of `#main` is chosen.
 
       See also the [CWL Workflow Description, v1.1.0-dev1 changelog](Workflow.html#Changelog).
 
@@ -325,13 +332,15 @@ $graph:
         - string
         - Expression
       doc: |
-        Evaluate an expression to generate the output value.  If `glob` was
-        specified, the value of `self` must be an array containing file objects
-        that were matched.  If no files were matched, `self` must be a zero
-        length array; if a single file was matched, the value of `self` is an
-        array of a single element.  Additionally, if `loadContents` is `true`,
-        the File objects must include up to the first 64 KiB of file contents
-        in the `contents` field.
+        Evaluate an expression to generate the output value.  If
+        `glob` was specified, the value of `self` must be an array
+        containing file objects that were matched.  If no files were
+        matched, `self` must be a zero length array; if a single file
+        was matched, the value of `self` is an array of a single
+        element.  Additionally, if `loadContents` is `true`, the File
+        objects must include up to the first 64 KiB of file contents
+        in the `contents` field.  The exit code of the process is
+        available in the expression as `runtime.exitCode`.
 
 - name: CommandLineBindable
   type: record
@@ -445,7 +454,6 @@ $graph:
   fields:
     - name: type
       type:
-        - "null"
         - CWLType
         - stdin
         - CommandInputRecordSchema
@@ -480,7 +488,6 @@ $graph:
   fields:
     - name: type
       type:
-        - "null"
         - CWLType
         - stdout
         - stderr
