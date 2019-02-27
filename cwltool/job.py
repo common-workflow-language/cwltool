@@ -328,7 +328,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                     self.generatemapper, self.outdir, self.builder.outdir,
                     inplace_update=self.inplace_update)
 
-            outputs = self.collect_outputs(self.outdir)
+            outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
             if e.errno == 2:

@@ -592,12 +592,14 @@ class CommandLineTool(Process):
                              ports,                  # type: Set[Dict[Text, Any]]
                              builder,                # type: Builder
                              outdir,                 # type: Text
+                             rcode,                  # type: int
                              compute_checksum=True,  # type: bool
                              jobname="",             # type: Text
                              readers=None            # type: Dict[Text, Any]
                             ):  # type: (...) -> OutputPorts
         ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
+        builder.resources["exitCode"] = rcode
         try:
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
