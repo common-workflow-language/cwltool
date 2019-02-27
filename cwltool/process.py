@@ -13,7 +13,11 @@ import stat
 import tempfile
 import textwrap
 import uuid
-from collections import Iterable  # pylint: disable=unused-import
+
+try:
+    from collections.abc import Iterable # only works on python 3.3+
+except ImportError:
+    from collections import Iterable  # pylint: disable=unused-import
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
                     Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,

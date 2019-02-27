@@ -24,6 +24,8 @@ from cwltool.process import CWL_IANA
 from .util import (get_data, get_main_output, get_windows_safe_factory,
                    needs_docker, working_directory, needs_singularity, temp_dir, windows_needs_docker)
 
+import six
+
 try:
     reload
 except:  # pylint: disable=bare-except
@@ -888,6 +890,7 @@ def test_bad_basecommand_docker():
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
 
+@pytest.mark.skipif(onWindows() and six.PY2, reason="emojis not supported with Py2 under Windows")
 def test_v1_0_position_expression():
     test_file = "tests/echo-position-expr.cwl"
     test_job = "tests/echo-position-expr-job.yml"
