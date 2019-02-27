@@ -1,3 +1,4 @@
+saladVersion: v1.1
 $base: "https://w3id.org/cwl/cwl#"
 
 $namespaces:
@@ -100,6 +101,8 @@ $graph:
         * [Added](#LoadListingRequirement) `LoadListingRequirement`
           and [loadListing](#LoadContents) to control whether and how
           `Directory` listings should be loaded for use in expressions.
+        * The position field of the [CommandLineBinding](#CommandLineBinding) can
+          now be calculated from a CWL Expression.
 
       See also the [CWL Workflow Description, v1.1.0-dev1 changelog](Workflow.html#Changelog).
 

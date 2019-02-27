@@ -17,8 +17,6 @@ inputs:
 arguments:
   - position: ${return 2;}
     valueFrom: singular
-  - position: ${return null;}
-    valueFrom: "\U0001F57A"
 outputs:
   out:
     type: string

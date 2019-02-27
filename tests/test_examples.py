@@ -890,7 +890,6 @@ def test_bad_basecommand_docker():
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
 
-#@pytest.mark.skipif(onWindows() and six.PY2, reason="emojis not supported with Py2 under Windows")
 def test_v1_0_position_expression():
     test_file = "tests/echo-position-expr.cwl"
     test_job = "tests/echo-position-expr-job.yml"

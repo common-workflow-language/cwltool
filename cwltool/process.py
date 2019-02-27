@@ -14,10 +14,6 @@ import tempfile
 import textwrap
 import uuid
 
-try:
-    from collections.abc import Iterable # only works on python 3.3+
-except ImportError:
-    from collections import Iterable  # pylint: disable=unused-import
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
                     Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
@@ -57,6 +53,10 @@ except ImportError:
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
+if PY3:
+    from collections.abc import Iterable # only works on python 3.3+
+else:
+    from collections import Iterable  # pylint: disable=unused-import
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
