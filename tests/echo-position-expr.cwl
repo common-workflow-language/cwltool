@@ -18,7 +18,7 @@ arguments:
   - position: ${return 2;}
     valueFrom: singular
   - position: ${return null;}
-    valueFrom: 🕺
+    valueFrom: "\U0001F57A"
 outputs:
   out:
     type: string
