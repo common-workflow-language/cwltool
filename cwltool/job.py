@@ -187,8 +187,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatemapper = None  # type: Optional[PathMapper]
 
         # set in CommandLineTool.job(i)
-        self.collect_outputs = cast(Callable[[Any], Any],
-                                    None)  # type: Union[Callable[[Any], Any], functools.partial[Any]]
+        self.collect_outputs = cast(Callable[[Text, int], MutableMapping[Text, Any]],
+                                    None)  # type: Union[Callable[[Text, int], MutableMapping[Text, Any]], functools.partial[MutableMapping[Text, Any]]]
         self.output_callback = cast(Callable[[Any, Any], Any], None)
         self.outdir = u""
         self.tmpdir = u""
@@ -261,7 +261,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             assert runtimeContext.prov_obj is not None
             runtimeContext.prov_obj.used_artefacts(
                 job_order, runtimeContext.process_run_id, str(self.name))
-        outputs = {}  # type: Dict[Text,Text]
+        outputs = {}  # type: MutableMapping[Text,Any]
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -328,7 +328,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                     self.generatemapper, self.outdir, self.builder.outdir,
                     inplace_update=self.inplace_update)
 
-            outputs = self.collect_outputs(self.outdir)
+            outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
             if e.errno == 2:
