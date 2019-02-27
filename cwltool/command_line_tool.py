@@ -599,7 +599,10 @@ class CommandLineTool(Process):
                             ):  # type: (...) -> OutputPorts
         ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
-        builder.resources["exitCode"] = rcode
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+        if cwl_version != "v1.0":
+            builder.resources["exitCode"] = rcode
         try:
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
