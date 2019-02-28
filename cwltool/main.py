@@ -38,7 +38,7 @@ from .executors import MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (FetcherConstructorType,  # pylint: disable=unused-import
                         fetch_document, jobloaderctx, load_overrides,
                         make_tool, resolve_overrides, resolve_tool_uri,
-                        validate_document)
+                        resolve_and_validate_document, default_loader)
 from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
@@ -300,7 +300,6 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                 record[key[len(record_name) + 1:]] = value
                 del cmd_line[key]
             cmd_line[str(record_name)] = record
-
         if 'job_order' in cmd_line and cmd_line["job_order"]:
             try:
                 job_order_object = cast(
@@ -452,7 +451,7 @@ def find_deps(obj,              # type: Mapping[Text, Any]
     return deps
 
 def print_pack(document_loader,  # type: Loader
-               processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+               processobj,       # type: CommentedMap
                uri,              # type: Text
                metadata          # type: Dict[Text, Any]
               ):  # type (...) -> Text
@@ -509,6 +508,10 @@ def main(argsl=None,                   # type: List[str]
             if argsl is None:
                 argsl = sys.argv[1:]
             args = arg_parser().parse_args(argsl)
+            if args.record_container_id:
+                if not args.cidfile_dir:
+                    args.cidfile_dir = os.getcwd()
+                del args.record_container_id
 
         if runtimeContext is None:
             runtimeContext = RuntimeContext(vars(args))
@@ -615,12 +618,14 @@ def main(argsl=None,                   # type: List[str]
             loadingContext = LoadingContext(vars(args))
         else:
             loadingContext = loadingContext.copy()
+        loadingContext.loader = default_loader(loadingContext.fetcher_constructor)
         loadingContext.research_obj = runtimeContext.research_obj
         loadingContext.disable_js_validation = \
             args.disable_js_validation or (not args.do_validate)
         loadingContext.construct_tool_object = getdefault(
             loadingContext.construct_tool_object, workflow.default_make_tool)
         loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
+        loadingContext.do_update = not (args.pack or args.print_subgraph)
 
         uri, tool_file_uri = resolve_tool_uri(
             args.workflow, resolver=loadingContext.resolver,
@@ -637,41 +642,37 @@ def main(argsl=None,                   # type: List[str]
                 loadingContext.overrides_list.extend(load_overrides(
                     file_uri(os.path.abspath(args.overrides)), tool_file_uri))
 
-            document_loader, workflowobj, uri = fetch_document(
-                uri, resolver=loadingContext.resolver,
-                fetcher_constructor=loadingContext.fetcher_constructor)
+            loadingContext, workflowobj, uri = fetch_document(
+                uri, loadingContext)
+
+            assert loadingContext.loader is not None
 
             if args.print_deps:
-                printdeps(workflowobj, document_loader, stdout,
+                printdeps(workflowobj, loadingContext.loader, stdout,
                            args.relative_deps, uri)
                 return 0
 
-            document_loader, avsc_names, processobj, metadata, uri \
-                = validate_document(document_loader, workflowobj, uri,
-                                    loadingContext.overrides_list, {},
-                                    enable_dev=loadingContext.enable_dev,
-                                    strict=loadingContext.strict,
+            loadingContext, uri \
+                = resolve_and_validate_document(loadingContext, workflowobj, uri,
                                     preprocess_only=(args.print_pre or args.pack),
-                                    fetcher_constructor=loadingContext.fetcher_constructor,
-                                    skip_schemas=args.skip_schemas,
-                                    do_validate=loadingContext.do_validate)
+                                    skip_schemas=args.skip_schemas)
+            assert loadingContext.loader is not None
+            processobj, metadata = loadingContext.loader.resolve_ref(uri)
+            processobj = cast(CommentedMap, processobj)
             if args.pack:
-                stdout.write(print_pack(document_loader, processobj, uri, metadata))
+                stdout.write(print_pack(loadingContext.loader, processobj, uri, metadata))
                 return 0
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
                 runtimeContext.research_obj.packed_workflow(
-                    print_pack(document_loader, processobj, uri, metadata))
+                    print_pack(loadingContext.loader, processobj, uri, metadata))
 
             if args.print_pre:
                 stdout.write(json_dumps(processobj, indent=4, sort_keys=True, separators=(',', ': ')))
                 return 0
 
-            loadingContext.overrides_list.extend(metadata.get("cwltool:overrides", []))
-
-            tool = make_tool(document_loader, avsc_names,
-                             metadata, uri, loadingContext)
+            tool = make_tool(uri, loadingContext)
             if args.make_template:
                 def my_represent_none(self, data):  # pylint: disable=unused-argument
                     """Force clean representation of 'null'."""
@@ -687,11 +688,11 @@ def main(argsl=None,                   # type: List[str]
                 return 0
 
             if args.print_rdf:
-                stdout.write(printrdf(tool, document_loader.ctx, args.rdf_serializer))
+                stdout.write(printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer))
                 return 0
 
             if args.print_dot:
-                printdot(tool, document_loader.ctx, stdout)
+                printdot(tool, loadingContext.loader.ctx, stdout)
                 return 0
 
             if args.print_targets:
@@ -707,16 +708,14 @@ def main(argsl=None,                   # type: List[str]
                     if url.fragment:
                         extracted = get_subgraph([tool.tool["id"] + "/" + r for r in args.target], tool)
                     else:
-                        extracted = get_subgraph([document_loader.fetcher.urljoin(tool.tool["id"], "#" + r)
+                        extracted = get_subgraph([loadingContext.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
                                                  for r in args.target],
                                                  tool)
                 else:
                     _logger.error("Can only use --target on Workflows")
                     return 1
-                del document_loader.idx[extracted["id"]]
-                tool = make_tool(document_loader, avsc_names,
-                                 metadata,
-                                 cast(CommentedMap, cmap(extracted)),
+                loadingContext.loader.idx[extracted["id"]] = extracted
+                tool = make_tool(extracted["id"],
                                  loadingContext)
 
             if args.print_subgraph:
@@ -750,6 +749,8 @@ def main(argsl=None,                   # type: List[str]
             default_mac_path = "/private/tmp/docker_tmp"
             if runtimeContext.tmp_outdir_prefix == DEFAULT_TMP_PREFIX:
                 runtimeContext.tmp_outdir_prefix = default_mac_path
+            if runtimeContext.tmpdir_prefix == DEFAULT_TMP_PREFIX:
+                runtimeContext.tmpdir_prefix = default_mac_path
 
         for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
             if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
@@ -866,7 +867,9 @@ def main(argsl=None,                   # type: List[str]
         if args and runtimeContext and runtimeContext.research_obj \
                 and workflowobj:
             research_obj = runtimeContext.research_obj
-            prov_dependencies = prov_deps(workflowobj, document_loader, uri)
+            assert loadingContext is not None
+            assert loadingContext.loader is not None
+            prov_dependencies = prov_deps(workflowobj, loadingContext.loader, uri)
             research_obj.generate_snapshot(prov_dependencies)
             if prov_log_handler is not None:
                 # Stop logging so we won't half-log adding ourself to RO

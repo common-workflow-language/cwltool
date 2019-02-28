@@ -1,0 +1,3 @@
+fasta_path:
+  class: File
+  location: 2.fasta

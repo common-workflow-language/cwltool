@@ -64,6 +64,8 @@ class LoadingContext(ContextBase):
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
         self.prov_obj = None               # type: Optional[ProvenanceProfile]
+        self.do_update = True              # type: bool
+        self.jobdefaults = None            # type: Optional[MutableMapping[Text, Any]]
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -122,7 +124,6 @@ class RuntimeContext(ContextBase):
         self.on_error = "stop"          # type: Text
         self.strict_memory_limit = False  # type: bool
 
-        self.record_container_id = False
         self.cidfile_dir = None
         self.cidfile_prefix = None
 

@@ -78,13 +78,15 @@ scripts_argparse_params = [
 
 @needs_docker
 @pytest.mark.parametrize('name,script_contents,params', scripts_argparse_params)
-def test_argparse(name, script_contents, params):
+def test_argparse(name, script_contents, params, tmpdir):
     try:
         script = NamedTemporaryFile(mode='w', delete=False)
         script.write(script_contents)
         script.close()
 
-        assert main(params(script.name)) == 0, name
+        my_params = ["--outdir", str(tmpdir)]
+        my_params.extend(params(script.name))
+        assert main(my_params) == 0, name
 
     except SystemExit as err:
         assert err.code == 0, name

@@ -53,7 +53,7 @@ setup(name='cwltool',
           'ruamel.yaml >= 0.12.4, <= 0.15.77',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 3.0, < 3.1',
+          'schema-salad >= 4.1, < 5',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
@@ -63,7 +63,7 @@ setup(name='cwltool',
           'typing-extensions',
       ],
       extras_require={
-          ':os.name=="posix"': ['subprocess32 >= 3.5.0'],
+          ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
           'deps': ["galaxy-lib >= 17.09.9"]

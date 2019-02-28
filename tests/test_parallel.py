@@ -2,15 +2,17 @@ import json
 
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
+from cwltool import load_tool
 
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 
 @windows_needs_docker
-def test_sequential_workflow():
+def test_sequential_workflow(tmpdir):
     test_file = "tests/wf/count-lines1-wf.cwl"
     executor = MultithreadedJobExecutor()
     runtime_context = RuntimeContext()
+    runtime_context.outdir = str(tmpdir)
     runtime_context.select_resources = executor.select_resources
     factory = get_windows_safe_factory(
         executor=executor, runtime_context=runtime_context)

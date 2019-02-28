@@ -8,6 +8,7 @@ import random
 import shutil
 import string
 import sys
+import tempfile
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
                     Dict, Iterable, List, MutableMapping, MutableSequence,
@@ -22,7 +23,10 @@ from typing_extensions import Deque, Text  # pylint: disable=unused-import
 
 # no imports from cwltool allowed
 if os.name == 'posix':
-    import subprocess32 as subprocess  # pylint: disable=unused-import
+    if sys.version_info < (3, 5):
+        import subprocess32 as subprocess  # pylint: disable=unused-import
+    else:
+        import subprocess  # pylint: disable=unused-import
 else:
     import subprocess  # type: ignore
 
@@ -32,7 +36,7 @@ Directory = TypedDict('Directory',
                       {'class': Text, 'listing': List[Dict[Text, Text]],
                        'basename': Text})
 
-DEFAULT_TMP_PREFIX = "tmp"
+DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen]
 
@@ -211,6 +215,20 @@ def visit_class(rec, cls, op):
     if isinstance(rec, MutableSequence):
         for d in rec:
             visit_class(d, cls, op)
+
+def visit_field(rec, field, op):
+    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to mapping with 'field'."""
+
+    if isinstance(rec, MutableMapping):
+        if field in rec:
+            rec[field] = op(rec[field])
+        for d in rec:
+            visit_field(rec[d], field, op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_field(d, field, op)
+
 
 def random_outdir():  # type: () -> Text
     """ Return the random directory name chosen to use for tool / workflow output """

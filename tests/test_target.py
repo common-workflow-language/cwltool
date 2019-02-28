@@ -1,4 +1,5 @@
 from cwltool.main import main
+from cwltool import load_tool
 
 from .util import get_data, windows_needs_docker
 
@@ -21,7 +22,7 @@ def test_wrong_target():
     assert exit_code == 1
 
 
-@windows_needs_docker    
+@windows_needs_docker
 def test_target_packed():
     """Test --target option with packed workflow schema."""
     test_file = "tests/wf/scatter-wf4.json"

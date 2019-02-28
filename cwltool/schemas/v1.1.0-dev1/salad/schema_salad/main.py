@@ -28,7 +28,8 @@ from .sourceline import strip_dup_lineno
 from .ref_resolver import Loader, file_uri
 _logger = logging.getLogger("salad")
 
-from rdflib.plugin import register, Parser
+from rdflib.plugin import register
+from rdflib.parser import Parser
 register('json-ld', Parser, 'rdflib_jsonld.parser', 'JsonLDParser')
 
 
@@ -39,7 +40,7 @@ def printrdf(workflow,  # type: str
              ):
     # type: (...) -> None
     g = jsonld_context.makerdf(workflow, wf, ctx)
-    print(g.serialize(format=sr, encoding='utf-8').decode('utf-8'))
+    print(g.serialize(format=sr, encoding='utf-8').decode('utf-8'))  # type: ignore
 
 def regex_chunk(lines, regex):
     # type: (List[str], Pattern[str]) -> List[List[str]]
@@ -61,21 +62,20 @@ def chunk_messages(message):  # type: (str) -> List[Tuple[int, str]]
     for chun in regex_chunk(message.splitlines(), file_regex):
         fst = chun[0]
         mat = file_regex.match(fst)
-        place = mat.group(1)
-        indent = len(mat.group(2))
+        if mat:
+            place = mat.group(1)
+            indent = len(mat.group(2))
 
-        lst = [mat.group(3)]+chun[1:]
-        if [x for x in lst if item_regex.match(x)]:
-            for item in regex_chunk(lst, item_regex):
-                msg = re.sub(item_regex, '', "\n".join(item))
-                arr.append((indent, place+' '+re.sub(r'[\n\s]+',
-                                                     ' ',
-                                                     msg)))
-        else:
-            msg = re.sub(item_regex, '', "\n".join(lst))
-            arr.append((indent, place+' '+re.sub(r'[\n\s]+',
-                                                 ' ',
-                                                 msg)))
+            lst = [mat.group(3)]+chun[1:]
+            if [x for x in lst if item_regex.match(x)]:
+                for item in regex_chunk(lst, item_regex):
+                    msg = re.sub(item_regex, '', "\n".join(item))
+                    arr.append((indent, place+' '+re.sub(
+                        r'[\n\s]+', ' ', msg)))
+            else:
+                msg = re.sub(item_regex, '', "\n".join(lst))
+                arr.append((indent, place+' '+re.sub(
+                    r'[\n\s]+', ' ', msg)))
     return arr
 
 
@@ -94,7 +94,7 @@ def to_one_line_messages(message):  # type: (str) -> str
 
 def reformat_yaml_exception_message(message):  # type: (str) -> str
     line_regex = re.compile(r'^\s+in "(.+)", line (\d+), column (\d+)$')
-    fname_regex = re.compile(r'^file://'+os.getcwd()+'/')
+    fname_regex = re.compile(r'^file://'+re.escape(os.getcwd())+'/')
     msgs = message.splitlines()
     ret = []
 
@@ -103,17 +103,21 @@ def reformat_yaml_exception_message(message):  # type: (str) -> str
         nblanks = 0
     elif len(msgs) == 4:
         c_msg = msgs[0]
-        c_file, c_line, c_column = line_regex.match(msgs[1]).groups()
-        c_file = re.sub(fname_regex, '', c_file)
-        ret.append("%s:%s:%s: %s" % (c_file, c_line, c_column, c_msg))
+        match = line_regex.match(msgs[1])
+        if match:
+            c_file, c_line, c_column = match.groups()
+            c_file = re.sub(fname_regex, '', c_file)
+            ret.append("%s:%s:%s: %s" % (c_file, c_line, c_column, c_msg))
 
         msgs = msgs[2:]
         nblanks = 2
 
     p_msg = msgs[0]
-    p_file, p_line, p_column = line_regex.match(msgs[1]).groups()
-    p_file = re.sub(fname_regex, '', p_file)
-    ret.append("%s:%s:%s:%s %s" % (p_file, p_line, p_column, ' '*nblanks, p_msg))
+    match = line_regex.match(msgs[1])
+    if match:
+        p_file, p_line, p_column = match.groups()
+        p_file = re.sub(fname_regex, '', p_file)
+        ret.append("%s:%s:%s:%s %s" % (p_file, p_line, p_column, ' '*nblanks, p_msg))
     return "\n".join(ret)
 
 
@@ -264,9 +268,10 @@ def main(argsl=None):  # type: (List[str]) -> int
         return 1
 
     if isinstance(avsc_names, Exception):
-        _logger.error("Schema `%s` error:\n%s", args.schema,
-                      avsc_names, exc_info=((type(avsc_names), avsc_names,
-                                             None) if args.debug else None))
+        _logger.error("Schema `%s` error:\n%s", args.schema,  # type: ignore
+                      avsc_names, exc_info=(
+                          (type(avsc_names), avsc_names, None) if args.debug
+                          else None))
         if args.print_avro:
             print(json.dumps(avsc_obj, indent=4))
         return 1
@@ -284,7 +289,7 @@ def main(argsl=None):  # type: (List[str]) -> int
 
     # Optionally print the RDFS graph from the schema
     if args.print_rdfs:
-        print(rdfs.serialize(format=args.rdf_serializer))
+        print(rdfs.serialize(format=args.rdf_serializer).decode('utf-8'))  # type: ignore
         return 0
 
     if args.print_metadata and not args.document:

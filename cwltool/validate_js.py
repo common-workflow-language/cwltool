@@ -126,7 +126,7 @@ def jshint_js(js_text, globals=None, options=None):
         ))
 
     if returncode == -1:
-        _logger.warn("jshint process timed out")
+        _logger.warning("jshint process timed out")
 
     if returncode != 0:
         dump_jshint_error()
@@ -153,7 +153,7 @@ def print_js_hint_messages(js_hint_messages, source_line):
     # type: (List[Text], Optional[SourceLine]) -> None
     if source_line is not None:
         for js_hint_message in js_hint_messages:
-            _logger.warn(source_line.makeError(js_hint_message))
+            _logger.warning(source_line.makeError(js_hint_message))
 
 def validate_js_expressions(tool, schema, jshint_options=None):
     # type: (CommentedMap, Schema, Dict) -> None

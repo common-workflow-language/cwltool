@@ -26,6 +26,8 @@ from .utils import Directory  # pylint: disable=unused-import
 from .utils import convert_pathsep_to_unix, visit_class
 
 
+CONTENT_LIMIT = 64 * 1024
+
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 
 
@@ -74,11 +76,23 @@ def normalizeFilesDirs(job):
             path = path.rstrip("/")
             d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
 
-        if "basename" not in d:
-            d["basename"] = os.path.basename(urllib.request.url2pathname(path))
+        if not d.get("basename"):
+            if path.startswith("_:"):
+                d["basename"] = Text(path[2:])
+            else:
+                d["basename"] = Text(os.path.basename(urllib.request.url2pathname(path)))
 
         if d["class"] == "File":
-            d["nameroot"], d["nameext"] = os.path.splitext(d["basename"])
+            nr, ne = os.path.splitext(d["basename"])
+            if d.get("nameroot") != nr:
+                d["nameroot"] = Text(nr)
+            if d.get("nameext") != ne:
+                d["nameext"] = Text(ne)
+
+            contents = d.get("contents")
+            if contents and len(contents) > CONTENT_LIMIT:
+                if len(contents) > CONTENT_LIMIT:
+                    raise validate.ValidationException("File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)" % CONTENT_LIMIT)
 
     visit_class(job, ("File", "Directory"), addLocation)
 
@@ -106,6 +120,12 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 
 def get_listing(fs_access, rec, recursive=True):
     # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
+    if rec.get("class") != "Directory":
+        finddirs = []  # type: List[MutableMapping]
+        visit_class(rec, ("Directory",), finddirs.append)
+        for f in finddirs:
+            get_listing(fs_access, f, recursive=recursive)
+        return
     if "listing" in rec:
         return
     listing = []

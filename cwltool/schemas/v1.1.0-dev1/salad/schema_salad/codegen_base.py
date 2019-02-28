@@ -38,8 +38,8 @@ class CodeGenBase(object):
         # type: (Text, List[Text], Text, bool) -> None
         raise NotImplementedError()
 
-    def end_class(self, classname):
-        # type: (Text) -> None
+    def end_class(self, classname, field_names):
+        # type: (Text, List[Text]) -> None
         raise NotImplementedError()
 
     def type_loader(self, t):

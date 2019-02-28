@@ -126,6 +126,14 @@ def _compare_records(src, sink, strict=False):
             return False
     return True
 
+def missing_subset(fullset, subset):
+    # type: (List, List) -> List
+    missing = []
+    for i in subset:
+        if i not in fullset:
+            missing.append(i)
+    return missing
+
 def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step):
     # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], Dict[Text, Dict[Text, Any]]) -> None
     """Check if all source and sink types of a workflow are compatible before run time.
@@ -152,19 +160,18 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         src = warning.src
         sink = warning.sink
         linkMerge = warning.linkMerge
-        if sink.get("secondaryFiles") and sorted(
-                sink.get("secondaryFiles", [])) != sorted(src.get("secondaryFiles", [])):
-            msg1 = "Sink '%s'" % (shortname(sink["id"]))
-            msg2 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError(
-                "expects secondaryFiles: %s but" % (sink.get("secondaryFiles")))
-            if "secondaryFiles" in src:
-                msg3 = SourceLine(src, "secondaryFiles").makeError(
-                    "source '%s' has secondaryFiles %s." % (shortname(src["id"]), src.get("secondaryFiles")))
-            else:
-                msg3 = SourceLine(src, "id").makeError(
-                    "source '%s' does not include secondaryFiles." % (shortname(src["id"])))
-            msg4 = SourceLine(src, "id").makeError("To fix, add secondaryFiles: %s to definition of '%s'." % (sink.get("secondaryFiles"), shortname(src["id"])))
-            msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg2, msg3, msg4], "  ")))
+        sinksf = sorted([p["pattern"] for p in sink.get("secondaryFiles", []) if p.get("required", True)])
+        srcsf = sorted([p["pattern"] for p in src.get("secondaryFiles", [])])
+        # Every secondaryFile required by the sink, should be declared
+        # by the source
+        missing = missing_subset(srcsf, sinksf)
+        if missing:
+            msg1 = "Parameter '%s' requires secondaryFiles %s but" % (shortname(sink["id"]), missing)
+            msg3 = SourceLine(src, "id").makeError(
+                "source '%s' does not provide those secondaryFiles." % (shortname(src["id"])))
+            msg4 = SourceLine(src.get("_tool_entry", src), "secondaryFiles").makeError("To resolve, add missing secondaryFiles patterns to definition of '%s' or" % (shortname(src["id"])))
+            msg5 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError("mark missing secondaryFiles in definition of '%s' as optional." % shortname(sink["id"]))
+            msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg3, msg4, msg5], "  ")))
         elif sink.get("not_connected"):
             msg = SourceLine(sink, "type").makeError(
                 "'%s' is not an input parameter of %s, expected %s"
