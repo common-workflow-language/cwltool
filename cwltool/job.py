@@ -689,7 +689,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
-            except OSError:
+            except (OSError, IOError):
                 cid = None
         max_mem = self.docker_get_memory(cid)
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
