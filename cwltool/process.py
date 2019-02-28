@@ -13,7 +13,7 @@ import stat
 import tempfile
 import textwrap
 import uuid
-from collections import Iterable  # pylint: disable=unused-import
+
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
                     Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
@@ -53,6 +53,10 @@ except ImportError:
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
+if PY3:
+    from collections.abc import Iterable # only works on python 3.3+
+else:
+    from collections import Iterable  # pylint: disable=unused-import
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
@@ -722,7 +726,14 @@ hints:
                 if isinstance(arg, MutableMapping):
                     arg = copy.deepcopy(arg)
                     if arg.get("position"):
-                        arg["position"] = [arg["position"], i]
+                        position = arg.get("position")
+                        if isinstance(position, str):  # no need to test the
+                                                       # CWLVersion as the v1.0
+                                                       # schema only allows ints
+                            position = builder.do_eval(position)
+                            if position is None:
+                                position = 0
+                        arg["position"] = [position, i]
                     else:
                         arg["position"] = [0, i]
                     bindings.append(arg)
