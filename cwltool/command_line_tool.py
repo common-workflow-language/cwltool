@@ -97,6 +97,7 @@ class ExpressionTool(Process):
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
+                normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
@@ -546,7 +547,7 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit, _ = self.get_requirement("TimeLimit")
+        timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
@@ -592,12 +593,17 @@ class CommandLineTool(Process):
                              ports,                  # type: Set[Dict[Text, Any]]
                              builder,                # type: Builder
                              outdir,                 # type: Text
+                             rcode,                  # type: int
                              compute_checksum=True,  # type: bool
                              jobname="",             # type: Text
                              readers=None            # type: Dict[Text, Any]
                             ):  # type: (...) -> OutputPorts
         ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+        if cwl_version != "v1.0":
+            builder.resources["exitCode"] = rcode
         try:
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
@@ -706,14 +712,13 @@ class CommandLineTool(Process):
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
-                        with fs_access.open(rfile["location"], "rb") as f:
-                            contents = b""
-                            if binding.get("loadContents") or compute_checksum:
-                                contents = content_limit_respected_read_bytes(f)
-                            if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8")
-                            if compute_checksum:
+                        if binding.get("loadContents"):
+                            with fs_access.open(rfile["location"], "rb") as f:
+                                files["contents"] = content_limit_respected_read_bytes(f).decode("utf-8")
+                        if compute_checksum:
+                            with fs_access.open(rfile["location"], "rb") as f:
                                 checksum = hashlib.sha1()
+                                contents = f.read(1024 * 1024)
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)

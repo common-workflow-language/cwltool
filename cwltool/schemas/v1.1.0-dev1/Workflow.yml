@@ -1,3 +1,4 @@
+saladVersion: v1.1
 $base: "https://w3id.org/cwl/cwl#"
 
 $namespaces:
@@ -48,10 +49,16 @@ $graph:
 
       ## Changelog
 
-        * Default values for some fields are now expressed in the schema
+        * Clarify intent of ExpressionTool and clarify that they can be run standalone. 
+        * Clarify how Requirements are inherited by step processes.
+        * Clarify behavior around step inputs not consumed by the target
+          run process.
+        * Document explicitly that CWL allows pass-through of workflow inputs to outputs.
+        * Added optional name and doc fields to `OutputRecordSchema`.
+        * Default values for some fields are now expressed in the schema.
         * When defining record types, fields of type `File` may now include
           `format`, `secondaryFiles`, and `streamable`.
-        * The Input schemas (Record, Array, Enum),  now permits a `doc` field
+        * The `Input` schemas (`Record`, `Array`, `Enum`),  now permits a `doc` field.
         * Any `doc` field may be an array of strings in addition to the
           previously allowed single string.
         * The `run` field now introduces a subscope so that embedded
@@ -65,10 +72,28 @@ $graph:
           `WorkflowInputParameter.loadContents` instead.
         * The presence of `OutputRecordField.outputBinding` in v1.0 was due to
           a technical error and as it makes no semantic sense it was removed.
-        * `WorkflowStepInput` now has a `label` field
-        * [Addition](#Requirements_and_hints) of `cwl:requirments` field to
-          input object documents
+        * `WorkflowStepInput` now has a `label` field.
+        * [Addition](#Requirements_and_hints) of `cwl:requirements` field to
+          input object documents.
         * `secondaryFiles` can now be explicitly marked as `required` or not.
+        * Add note that undefined details related to execution are left open to
+          the platform.
+        * [Added](#WorkReuse) `WorkReuse` feature, allowing to enable or disable the reuse
+          behavior for a particular tool or step for implementations that
+          support reusing output from past work.
+        * [Added](#NetworkAccess) `NetworkAccess` feature, allowing to indicate whether a
+          process requires outgoing network access.
+        * [Added](#InplaceUpdateRequirement) `InplaceUpdateRequirement` feature, allowing tools to directly
+          update files with `writable: true` in `InitialWorkDirRequirement`.
+        * [Added](#LoadListingRequirement) `LoadListingRequirement`
+          and [loadListing](#LoadContents) to control whether and how
+          `Directory` listings should be loaded for use in expressions.
+        * [Better explain](#map) the `map<…>` notation that has existed since v1.0.
+        * Fixed schema error where the `type` field inside the `inputs` and
+          `outputs` fields for both `Workflow` and `ExpressionTool` was
+           incorrectly listed as optional.
+        * For multi-Process CWL documents, if no particular process is named then
+          the process with the `id` of `#main` is chosen.
 
       See also the [CWL Command Line Tool Description, v1.1.0-dev1 changelog](CommandLineTool.html#Changelog).
 
@@ -79,7 +104,9 @@ $graph:
       Physics, and Astronomy.  This specification is intended to define a data
       and execution model for Workflows that can be implemented on top of a
       variety of computing platforms, ranging from an individual workstation to
-      cluster, grid, cloud, and high performance computing systems.
+      cluster, grid, cloud, and high performance computing systems. Details related
+      to execution of these workflow not laid out in this specification are open to
+      interpretation by the computing platform implementing this specification.
 
     - {$include: concepts.md}
 
@@ -89,7 +116,6 @@ $graph:
   fields:
     - name: type
       type:
-        - "null"
         - CWLType
         - OutputRecordSchema
         - OutputEnumSchema
@@ -118,7 +144,6 @@ $graph:
   fields:
     - name: type
       type:
-        - "null"
         - CWLType
         - InputRecordSchema
         - InputEnumSchema
@@ -156,7 +181,13 @@ $graph:
       specializeTo: ExpressionToolOutputParameter
   documentRoot: true
   doc: |
-    Execute an expression as a Workflow step.
+    An ExpressionTool is a type of Process object that can be run by itself
+    or as a Workflow step. It executes a pure Javascript expression that has
+    access to the same input parameters as a workflow. It is meant to be used
+    sparingly as a way to isolate complex Javascript expressions that need to
+    operate on input data and produce some result; perhaps just a
+    rearrangement of the inputs. No Docker software container is required
+    or allowed.
   fields:
     - name: class
       jsonldPredicate:
@@ -184,8 +215,9 @@ $graph:
   docParent: "#Workflow"
   doc: |
     Describe an output parameter of a workflow.  The parameter must be
-    connected to one or more parameters defined in the workflow that will
-    provide the value of the output parameter.
+    connected to one or more parameters defined in the workflow that
+    will provide the value of the output parameter. It is legal to
+    connect a WorkflowInputParameter to a WorkflowOutputParameter.
   fields:
     - name: outputSource
       doc: |
@@ -207,7 +239,6 @@ $graph:
         If not specified, the default method is "merge_nested".
     - name: type
       type:
-        - "null"
         - CWLType
         - OutputRecordSchema
         - OutputEnumSchema
@@ -260,7 +291,11 @@ $graph:
   doc: |
     The input of a workflow step connects an upstream parameter (from the
     workflow inputs, or the outputs of other workflows steps) with the input
-    parameters of the underlying step.
+    parameters of the process specified by the `run` field. Only input parameters
+    declared by the target process will be passed through at runtime to the process
+    though additonal parameters may be specified (for use within `valueFrom`
+    expressions for instance) - unconnected or unused parameters do not represent an
+    error condition.
 
     ## Input object
 

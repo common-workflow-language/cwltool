@@ -146,6 +146,9 @@ providing the fields `successCodes`, `temporaryFailCodes`, and
 `permanentFailCodes`.  An implementation may choose to default unspecified
 non-zero exit codes to either `temporaryFailure` or `permanentFailure`.
 
+The exit code of the process is available to expressions in
+`outputEval` as `runtime.exitCode`.
+
 ## Output binding
 
 If the output directory contains a file named "cwl.output.json", that file
