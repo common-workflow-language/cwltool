@@ -1,3 +1,4 @@
+saladVersion: v1.1
 $base: "https://w3id.org/cwl/cwl#"
 
 $namespaces:
@@ -56,8 +57,8 @@ $graph:
         * When defining record types with `CommandInputRecordSchema`, fields of
           type `File` may now include `format`, `loadContents`,
           `secondaryFiles` and `streamable`.
-        * `CommandInputRecordSchema`, `CommandOutputRecordSchema`,
-          `CommandInputEnumSchema and `CommandInputArraySchema` now have an optional
+        * `CommandInputRecordSchema`, `CommandOutputRecordSchema`, 
+          `CommandInputEnumSchema and `CommandInputArraySchema` now have an optional 
           `doc` field.
         * `inputBinding` has been added as an optional field for
           `CommandInputRecordSchema` (was previously in CWL `draft-3` but
@@ -88,8 +89,8 @@ $graph:
         * Added `InputParameter.loadContents` field. Use of `loadContents` in
           `InputBinding` is deprecated; it is preserved for v1.0 backwards
            compatability and will be removed in CWL v2.0.
-        * [Added](#ToolTimeLimit) `ToolTimeLimit` feature, allowing to set an upper limit on the
-          execution time of a CommandLineTool.
+        * [Added](#ToolTimeLimit) `ToolTimeLimit` feature, allows setting
+          an upper limit on the execution time of a CommandLineTool.
         * [Added](#WorkReuse) `WorkReuse` feature, allowing to enable or disable the reuse
           behavior for a particular tool or step for implementations that
           support reusing output from past work.
@@ -100,6 +101,15 @@ $graph:
         * [Added](#LoadListingRequirement) `LoadListingRequirement`
           and [loadListing](#LoadContents) to control whether and how
           `Directory` listings should be loaded for use in expressions.
+        * The position field of the [CommandLineBinding](#CommandLineBinding) can
+          now be calculated from a CWL Expression.
+        * The exit code of a CommandLineTool invocation is now
+          available to expressions in `outputEval` as `runtime.exitCode`
+        * [Better explain](#map) the `map<…>` notation that has existed since v1.0.
+        * Fixed schema error where the `type` field inside the `inputs` and
+          `outputs` field was incorrectly listed as optional.
+        * For multi-Process CWL documents, if no particular process is named then
+          the process with the `id` of `#main` is chosen.
 
       See also the [CWL Workflow Description, v1.1.0-dev1 changelog](Workflow.html#Changelog).
 
@@ -197,8 +207,14 @@ $graph:
 
   fields:
     - name: position
-      type: int?
-      doc: "The sorting key.  Default position is 0."
+      type: [ int, Expression, string, "null" ]
+      doc: |
+        The sorting key.  Default position is 0. If the inputBinding is
+        associated with an input parameter, then the value of `self` in the
+        expression will be the value of the input parameter.  Input parameter
+        defaults (as specified by the `InputParameter.default` field) must be
+        applied before evaluating the expression. Expressions must return a
+        single value of type int or a null.
     - name: prefix
       type: string?
       doc: "Command line prefix to add before the value."
@@ -316,13 +332,15 @@ $graph:
         - string
         - Expression
       doc: |
-        Evaluate an expression to generate the output value.  If `glob` was
-        specified, the value of `self` must be an array containing file objects
-        that were matched.  If no files were matched, `self` must be a zero
-        length array; if a single file was matched, the value of `self` is an
-        array of a single element.  Additionally, if `loadContents` is `true`,
-        the File objects must include up to the first 64 KiB of file contents
-        in the `contents` field.
+        Evaluate an expression to generate the output value.  If
+        `glob` was specified, the value of `self` must be an array
+        containing file objects that were matched.  If no files were
+        matched, `self` must be a zero length array; if a single file
+        was matched, the value of `self` is an array of a single
+        element.  Additionally, if `loadContents` is `true`, the File
+        objects must include up to the first 64 KiB of file contents
+        in the `contents` field.  The exit code of the process is
+        available in the expression as `runtime.exitCode`.
 
 - name: CommandLineBindable
   type: record
@@ -436,7 +454,6 @@ $graph:
   fields:
     - name: type
       type:
-        - "null"
         - CWLType
         - stdin
         - CommandInputRecordSchema
@@ -471,7 +488,6 @@ $graph:
   fields:
     - name: type
       type:
-        - "null"
         - CWLType
         - stdout
         - stderr
@@ -1098,36 +1114,6 @@ $graph:
 
 
 - type: record
-  name: ToolTimeLimit
-  extends: ProcessRequirement
-  doc: |
-    Set an upper limit on the execution time of a CommandLineTool.
-    A tool execution which exceeds the time limit may
-    be preemptively terminated and considered failed.  May also be
-    used by batch systems to make scheduling decisions.
-
-    Limit applies only to the command execution time. Time for
-    additional steps, such as file download/upload, docker pull or
-    expression evaluation is not considered for exceeding time limit.
-
-    If ToolTimeLimit is set on a workflow level, it propagates down to
-    individual processes, in line with requirement inheritance rules.
-    ToolTimeLimit is not used to limit the execution time of a Workflow.
-  fields:
-    - name: class
-      type: string
-      doc: "Always 'ToolTimeLimit'"
-      jsonldPredicate:
-        "_id": "@type"
-        "_type": "@vocab"
-    - name: timelimit
-      type: [long, string, Expression]
-      doc: |
-        The time limit, in seconds.  A time limit of zero means no
-        time limit.  Negative time limits are an error.
-
-
-- type: record
   name: WorkReuse
   extends: ProcessRequirement
   doc: |
@@ -1226,3 +1212,27 @@ $graph:
         "_type": "@vocab"
     inplaceUpdate:
       type: boolean
+
+- type: record
+  name: ToolTimeLimit
+  extends: ProcessRequirement
+  doc: |
+    Set an upper limit on the execution time of a CommandLineTool.
+    A CommandLineTool whose execution duration exceeds the time
+    limit may be preemptively terminated and considered failed.
+    May also be used by batch systems to make scheduling decisions.
+    The execution duration excludes external operations, such as
+    staging of files, pulling a docker image etc, and only counts
+    wall-time for the execution of the command line itself.
+  fields:
+    - name: class
+      type: string
+      doc: "Always 'ToolTimeLimit'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: timelimit
+      type: [long, string, Expression]
+      doc: |
+        The time limit, in seconds.  A time limit of zero means no
+        time limit.  Negative time limits are an error.

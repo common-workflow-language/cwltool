@@ -211,7 +211,13 @@ class Builder(HasReqsHints):
 
             bp = list(aslist(lead_pos))
             if "position" in binding:
-                bp.extend(aslist(binding["position"]))
+                position = binding["position"]
+                if isinstance(position, str):  # no need to test the CWL Version
+                                               # the schema for v1.0 only allow ints
+                    binding['position'] = self.do_eval(position, context=datum)
+                    bp.append(binding['position'])
+                else:
+                    bp.extend(aslist(binding['position']))
             else:
                 bp.append(0)
             bp.extend(aslist(tail_pos))

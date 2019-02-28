@@ -83,7 +83,7 @@ EOF
 	fi
 	# shellcheck disable=SC2086
 	LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
-		RUNNER=${CWLTOOL_WITH_COV} "-j$(($(nproc) / 2))"\
+		RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)"\
 		${DRAFT} "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
