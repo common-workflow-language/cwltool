@@ -97,6 +97,7 @@ class ExpressionTool(Process):
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
+                normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
