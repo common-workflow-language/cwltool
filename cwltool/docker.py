@@ -259,7 +259,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 self.append_volume(runtime, new_dir, volume.target,
                                    writable=True)
             elif not os.path.exists(host_outdir_tgt):
-                os.makedirs(host_outdir_tgt, 0o0755)
+                os.makedirs(host_outdir_tgt)
         else:
             if self.inplace_update:
                 self.append_volume(runtime, volume.resolved, volume.target,
