@@ -81,9 +81,13 @@ EOF
 	then
 		EXTRA="EXTRA=${EXTRA}"
 	fi
+	if [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
+	then
+		BADGE=" --badgedir=badges"
+	fi
 	# shellcheck disable=SC2086
 	LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
-		RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)"\
+		RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
 		${DRAFT} "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
@@ -100,5 +104,12 @@ if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
   ./build-cwl-docker.sh
 fi
+
+if [ "$GIT_BRANCH" = "origin/master" ] && [ -e badges ]
+then
+    # TODO: push badgedir to the badge repository
+    true
+fi
+
 #docker rm -v $(docker ps -a -f status=exited | sed 's/  */ /g' | cut -d' ' -f1)
 exit ${CODE}
