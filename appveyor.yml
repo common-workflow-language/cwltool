@@ -32,7 +32,7 @@ install:
   - ps: 'Install-Product node 0.12 x64'
   - "set PATH=%PYTHON%\\Scripts;%PATH%"
   - "%PYTHON%\\python.exe -m pip install -U pip setuptools^>=20.3 wheel"
-  - "%PYTHON%\\python.exe -m pip install -U codecov pytest-xdist pytest-cov -rtest-requirements.txt"
+  - "%PYTHON%\\python.exe -m pip install -U codecov -rtest-requirements.txt pytest-xdist "
     # Note the use of a `^` to escape the `>`
 
 build_script:
