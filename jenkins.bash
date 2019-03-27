@@ -85,7 +85,7 @@ EOF
 	then
 		tool_ver=$(cwltool --version | awk '{ print $2 }')
 		badgedir=${PWD}/conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
-		mkdir -p "$badgedir"
+		mkdir -p ${PWD}/conformance/cwltool/cwl_${version}/
 		BADGE=" --badgedir=${badgedir}"
 	fi
 	# shellcheck disable=SC2086
