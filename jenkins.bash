@@ -83,7 +83,10 @@ EOF
 	fi
 	if [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
 	then
-		BADGE=" --badgedir=badges"
+		tool_ver=master
+		badgedir=conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
+		mkdir -p "$badgedir"
+		BADGE=" --badgedir=${badgedir}"
 	fi
 	# shellcheck disable=SC2086
 	LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
@@ -103,12 +106,6 @@ done
 if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
   ./build-cwl-docker.sh
-fi
-
-if [ "$GIT_BRANCH" = "origin/master" ] && [ -e badges ]
-then
-    # TODO: push badgedir to the badge repository
-    true
 fi
 
 #docker rm -v $(docker ps -a -f status=exited | sed 's/  */ /g' | cut -d' ' -f1)
