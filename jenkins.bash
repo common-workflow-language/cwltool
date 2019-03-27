@@ -83,8 +83,8 @@ EOF
 	fi
 	if [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
 	then
-		tool_ver=master
-		badgedir=conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
+		tool_ver=$(cwltool --version | awk '{ print $2 }')
+		badgedir=${PWD}/conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
 		mkdir -p "$badgedir"
 		BADGE=" --badgedir=${badgedir}"
 	fi
