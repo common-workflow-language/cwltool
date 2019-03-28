@@ -8,6 +8,7 @@ import random
 import shutil
 import string
 import sys
+from glob import glob
 import tempfile
 from functools import partial  # pylint: disable=unused-import
 from typing import (IO, Any, AnyStr, Callable,  # pylint: disable=unused-import
@@ -29,6 +30,11 @@ if os.name == 'posix':
         import subprocess  # pylint: disable=unused-import
 else:
     import subprocess  # type: ignore
+
+if sys.version_info < (3, 4):
+    from pathlib2 import Path, PurePosixPath  # pylint: disable=import-error
+else:
+    from pathlib import Path, PurePosixPath
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -79,6 +85,7 @@ def docker_windows_path_adjust(path):
     (Docker toolbox).
     """
     if path is not None and onWindows():
+        path = get_actual_filename(path)
         split = path.split(':')
         if len(split) == 2:
             if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
@@ -91,6 +98,30 @@ def docker_windows_path_adjust(path):
         return path if path[0] == '/' else '/' + path
     return path
 
+
+def get_actual_filename(name):  # type: (Text) -> Text
+    """Get a correctly cased path even on case insensitive filesystems."""
+    # Adapted from https://stackoverflow.com/a/30374360
+    if not os.path.exists(name):
+        return name
+    sep = os.path.sep
+    parts = os.path.normpath(name).split(sep)
+    dirs = parts[0:-1]
+    filename = parts[-1]
+    if dirs[0] == os.path.splitdrive(name)[0]:
+        test_name = [dirs[0].upper()]
+    else:
+        test_name = [sep + dirs[0]]
+    for d in dirs[1:]:
+        test_name += ["%s[%s]" % (d[:-1], d[-1])]
+    path_glob = glob(sep.join(test_name))
+    if path_glob:
+        res = glob(sep.join((path_glob[0], filename)))
+    else:
+        res = glob(filename)
+    if not res:
+        return name  # we failed, so don't change anything
+    return res[0]
 
 def docker_windows_reverse_path_adjust(path):
     # type: (Text) -> (Text)

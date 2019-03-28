@@ -40,7 +40,7 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 @pytest.fixture
 def folder(tmpdir):
-    directory = str(tmpdir)
+    directory = tempfile.mkdtemp("ro", dir=str(tmpdir))
     if os.environ.get("DEBUG"):
         print("%s folder: %s" % (__loader__.fullname, folder))
     yield directory
@@ -317,10 +317,12 @@ def check_ro(base_path, nested=False):
     assert externals, "Didn't find any data URIs"
 
     for ext in ["provn", "xml", "json", "jsonld", "nt", "ttl"]:
-        f = "metadata/provenance/primary.cwlprov.%s" % ext
+        f = os.path.join("metadata", "provenance", "primary.cwlprov.%s" % ext)
         assert f in paths, "provenance file missing " + f
 
-    for f in ["workflow/primary-job.json", "workflow/packed.cwl", "workflow/primary-output.json"]:
+    for f in [os.path.join("workflow", "primary-job.json"),
+              os.path.join("workflow", "packed.cwl"),
+              os.path.join("workflow", "primary-output.json")]:
         assert f in paths, "workflow file missing " + f
     # Can't test snapshot/ files directly as their name varies
 
@@ -693,7 +695,7 @@ def test_invalid_orcid(orcid):
 def test_whoami():
     username, fullname = provenance._whoami()
     assert username and isinstance(username, str)
-    assert fullname and isinstance(fullname, str)
+    assert fullname is not None and isinstance(fullname, str)
 
 def test_research_object():
     # TODO: Test ResearchObject methods

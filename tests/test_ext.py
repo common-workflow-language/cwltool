@@ -12,8 +12,8 @@ import pytest
 from cwltool.main import main
 import cwltool.process
 
-
-from .util import get_data, needs_docker, temp_dir, windows_needs_docker
+from .util import (get_data, needs_docker, temp_dir, windows_needs_docker,
+                   get_main_output, onWindows)
 
 
 @needs_docker

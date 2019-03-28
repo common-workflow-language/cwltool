@@ -3,25 +3,29 @@ pipeline {
     node {
       label 'windows'
     }
-
   }
-  options {
-    timeout(30)
+  environment {
+    CODECOV_TOKEN = credentials('jenkins-codecov-token')
   }
   stages {
     stage('build') {
       steps {
-        withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
-          pybat(script: 'pip install .', returnStdout: true)
-          pybat 'jenkins.bat'
+        withPythonEnv(pythonInstallation: 'Windows-CPython-37') {
+          bat '.jenkins/test.bat'
         }
-
+      }
+    }
+    stage('CWL-conformance-test') {
+      steps {
+        withPythonEnv(pythonInstallation: 'Windows-CPython-37') {
+          bat '.jenkins/conformance.bat'
+        }
       }
     }
   }
   post {
     always {
-      junit 'tests.xml'
+      junit 'tests.xml,**/conformance.xml'
 
     }
 

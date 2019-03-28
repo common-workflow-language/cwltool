@@ -93,8 +93,8 @@ setup(name='cwltool',
           'Operating System :: Microsoft :: Windows',
           'Operating System :: Microsoft :: Windows :: Windows 10',
           'Operating System :: Microsoft :: Windows :: Windows 8.1',
-          # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
-          # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
+          'Operating System :: Microsoft :: Windows :: Windows 8',
+          'Operating System :: Microsoft :: Windows :: Windows 7',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
@@ -109,6 +109,6 @@ setup(name='cwltool',
           'Topic :: Scientific/Engineering :: Information Analysis',
           'Topic :: Scientific/Engineering :: Medical Science Apps.',
           'Topic :: System :: Distributed Computing',
-          'Topic :: Utilities',
+          'Topic :: Utilities'
       ]
      )

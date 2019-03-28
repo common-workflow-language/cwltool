@@ -49,7 +49,7 @@ from .singularity import SingularityCommandLineJob
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, convert_pathsep_to_unix,
+from .utils import (PurePosixPath, aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     random_outdir, windows_default_container_id)
 if TYPE_CHECKING:
@@ -128,17 +128,25 @@ def remove_path(f):  # type: (Dict[Text, Any]) -> None
 
 def revmap_file(builder, outdir, f):
     # type: (Builder, Text, Dict[Text, Any]) -> Union[Dict[Text, Any], None]
-
-    """Remap a file from internal path to external path.
+    """
+    Remap a file from internal path to external path.
 
     For Docker, this maps from the path inside tho container to the path
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
 
-    split = urllib.parse.urlsplit(outdir)
-    if not split.scheme:
-        outdir = file_uri(str(outdir))
+    # If a local path, then normalize on MS Windows
+    _logger.error("revmap_file: %s", f)
+    builder_outdir = builder.outdir
+    if os.path.exists(builder_outdir):
+        builder_outdir = os.path.normcase(builder_outdir)
+    if os.path.exists(outdir):
+        outdir = file_uri(str(os.path.normcase(outdir)))
+    else:
+        split = urllib.parse.urlsplit(outdir)
+        if not split.scheme:
+            outdir = file_uri(str(outdir))
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
@@ -148,9 +156,15 @@ def revmap_file(builder, outdir, f):
             f["path"] = convert_pathsep_to_unix(uri_file_path(f["location"]))
         else:
             return f
+    _logger.error("revmap_file2: %s", f)
 
     if "path" in f:
         path = f["path"]
+        if os.path.exists(path):
+            # local path, therefore normalize on MS Windows
+            path = os.path.normcase(path)
+            _logger.error("revmap_file3: %s", path)
+
         uripath = file_uri(path)
         del f["path"]
 
@@ -160,17 +174,24 @@ def revmap_file(builder, outdir, f):
         assert builder.pathmapper is not None
         revmap_f = builder.pathmapper.reversemap(path)
 
-        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
+        if revmap_f and not builder.pathmapper.mapper(
+                revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-        elif uripath == outdir or uripath.startswith(outdir+os.sep):
-            f["location"] = file_uri(path)
-        elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
-            f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
+        elif uripath == outdir or uripath.startswith(outdir+'/'):
+            f["location"] = uripath
+        elif path == builder_outdir or path.startswith(builder_outdir+'/') \
+                or path.startswith(builder_outdir+os.path.sep):
+            f["location"] = builder.fs_access.join(outdir, path[len(builder_outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = builder.fs_access.join(outdir, path)
         else:
-            raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input "
-                                    u"file pass through." % (path, builder.outdir))
+            raise WorkflowException(
+                u"Output file path {} must be within designated output "
+                "directory ({}) or an input file pass through. Host outdir "
+                "is {}, uripath: {}. Pathmapper items: {}"
+                "{}.".format(
+                    path, builder_outdir, outdir, uripath, f,
+                    builder.pathmapper.items()))
         return f
 
     raise WorkflowException(u"Output File object is missing both 'location' "
@@ -686,11 +707,11 @@ class CommandLineTool(Process):
                             r.extend([{"location": g,
                                        "path": fs_access.join(builder.outdir,
                                            g[len(prefix[0])+1:]),
-                                       "basename": os.path.basename(g),
+                                       "basename": PurePosixPath(g).name,
                                        "nameroot": os.path.splitext(
-                                           os.path.basename(g))[0],
+                                           PurePosixPath(g).name)[0],
                                        "nameext": os.path.splitext(
-                                           os.path.basename(g))[1],
+                                           PurePosixPath(g).name)[1],
                                        "class": "File" if fs_access.isfile(g)
                                        else "Directory"}
                                       for g in sorted(fs_access.glob(
