@@ -3,7 +3,6 @@ from __future__ import absolute_import
 
 import os
 import sys
-import json
 
 from six.moves import urllib
 
@@ -47,6 +46,7 @@ def tool_resolver(document_loader, uri):
             return ret
     return None
 
+
 ga4gh_tool_registries = ["https://dockstore.org/api"]
 # in the TRS registry, a primary descriptor can be reached at {0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor
 # The primary descriptor is a CommandLineTool in the case that the files endpoint only describes one file
@@ -56,26 +56,27 @@ ga4gh_tool_registries = ["https://dockstore.org/api"]
 GA4GH_TRS_FILES = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/CWL/files"
 GA4GH_TRS_PRIMARY_DESCRIPTOR = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor/{3}"
 
+
 def resolve_ga4gh_tool(document_loader, uri):
     path, version = uri.partition(":")[::2]
     if not version:
         version = "latest"
     for reg in ga4gh_tool_registries:
-        ds = GA4GH_TRS_FILES.format(reg, urllib.parse.quote(path, ""),
-                              urllib.parse.quote(version, ""))
+        ds = GA4GH_TRS_FILES.format(reg, urllib.parse.quote(path, ""), urllib.parse.quote(version, ""))
         try:
-            _logger.debug("Head path is %s", ds)
+            _logger.warn("Head path is %s", ds)
             resp = document_loader.session.head(ds)
             resp.raise_for_status()
 
+            _logger.warn("Passed head path of %s", ds)
+
             resp = document_loader.session.get(ds)
-            for file in resp.json():
-              if file.get('file_type') == 'PRIMARY_DESCRIPTOR':
-                primaryPath = file.get('path')
-                ds2 = GA4GH_TRS_PRIMARY_DESCRIPTOR.format(reg, urllib.parse.quote(path, ""),
-                              urllib.parse.quote(version, ""), urllib.parse.quote(primaryPath, ""))
-                _logger.debug("Resolved %s", ds2)
-                return ds2
+            for file_listing in resp.json():
+                if file_listing.get('file_type') == 'PRIMARY_DESCRIPTOR':
+                    primary_path = file_listing.get('path')
+                    ds2 = GA4GH_TRS_PRIMARY_DESCRIPTOR.format(reg, urllib.parse.quote(path, ""), urllib.parse.quote(version, ""), urllib.parse.quote(primary_path, ""))
+                    _logger.debug("Resolved %s", ds2)
+                    return ds2
         except Exception:
             pass
     return None
