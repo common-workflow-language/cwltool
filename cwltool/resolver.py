@@ -64,11 +64,11 @@ def resolve_ga4gh_tool(document_loader, uri):
     for reg in ga4gh_tool_registries:
         ds = GA4GH_TRS_FILES.format(reg, urllib.parse.quote(path, ""), urllib.parse.quote(version, ""))
         try:
-            _logger.warn("Head path is %s", ds)
+            _logger.debug("Head path is %s", ds)
             resp = document_loader.session.head(ds)
             resp.raise_for_status()
 
-            _logger.warn("Passed head path of %s", ds)
+            _logger.debug("Passed head path of %s", ds)
 
             resp = document_loader.session.get(ds)
             for file_listing in resp.json():
