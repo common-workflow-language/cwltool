@@ -1,41 +1,70 @@
-dist: trusty
-sudo: required
-services:
-  - docker
+matrix:
+  include:
+#    - os: linux
+#      language: python
+#      python: 2.7
+#      env: TRAVIS_PYTHON_VERSION=py27
+#    - os: linux
+#      language: python
+#      python: 3.4
+#      env: TRAVIS_PYTHON_VERSION=py34
+#    - os: linux
+#      language: python
+#      python: 3.5
+#      env: TRAVIS_PYTHON_VERSION=py35
+#    - os: linux
+#      language: python
+#      python: 3.6
+#      env: TRAVIS_PYTHON_VERSION=py36
+#    - os: linux
+#      dist: xenial
+#      language: python
+#      python: 3.7 # Sudo is required with xenial and python 3.7, see
+#      sudo: true # https://github.com/travis-ci/travis-ci/issues/9831#issuecomment-401757065
+#      env: TRAVIS_PYTHON_VERSION=py37
 
-before_install:
-- wget -O- http://neuro.debian.net/lists/trusty.us-nh.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
-- sudo apt-key add .travis.singularity_key.txt
-- sudo apt-get update
-- sudo apt-get install -y singularity-container
+    - os: osx
+      language: generic
+      env: PYENV_VERSION='2.7.14' PYENV_VERSION_STRING='Python 2.7.14' TOXENV=py27 TRAVIS_PYTHON_VERSION=py27
+#    - os: osx
+#      language: generic
+#      env: PYENV_VERSION='3.4.7' PYENV_VERSION_STRING='Python 3.4.7' TOXENV=py34
+#    - os: osx
+#      language: generic
+#      env: PYENV_VERSION='3.5.4' PYENV_VERSION_STRING='Python 3.5.4' TOXENV=py35
+#    - os: osx
+#      language: generic
+#      env: PYENV_VERSION='3.6.3' PYENV_VERSION_STRING='Python 3.6.3' TOXENV=py36
+#    - os: osx
+#      language: generic
+#      env: PYENV_VERSION='3.7.1' PYENV_VERSION_STRING='Python 3.7-dev' TOXENV=py37
 
-language: python
+#    - os: linux
+#      language: python
+#      python: 2.7
+#      name: RELEASE
+#      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+install:
+  - |
+      if [[ $TRAVIS_OS_NAME == "osx" ]]; then
+        wget https://github.com/praekeltfoundation/travis-pyenv/releases/download/0.4.0/setup-pyenv.sh
+        source setup-pyenv.sh
+      fi
+  - bash $TRAVIS_BUILD_DIR/travis/singularity_install.sh
+  - python --version
+  - pip install tox-travis
+
+script:
+  - tox -v
+
+before_cache:
+  - brew cleanup
+
 cache:
   pip: true
   directories:
-    - .mypy_cache
+    - $HOME/.pyenv_cache
 
-os:
-  - linux
-install:
-  - pip install tox-travis
-jobs:
-  include:
-    - stage: test
-      python: "2.7"
-    - stage: test
-      python: "3.4"
-    - stage: test
-      python: "3.5"
-    - stage: test
-      python: "3.6"
-    - stage: test
-      python: "3.7"
-      dist: xenial
-    - stage: release-test
-      python: "2.7"
-      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
-script: tox
 branches:
   only:
     - master
