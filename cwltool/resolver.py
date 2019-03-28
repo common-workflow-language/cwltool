@@ -16,7 +16,10 @@ else:
 
 def resolve_local(document_loader, uri):
     pathpart, frag = urllib.parse.urldefrag(uri)
-    pathobj = Path(pathpart).resolve()
+    try:
+        pathobj = Path(pathpart).resolve()
+    except WindowsError:
+        return None
 
     if pathobj.is_file():
         if frag:
