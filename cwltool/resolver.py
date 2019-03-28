@@ -13,12 +13,16 @@ if sys.version_info < (3, 4):
 else:
     from pathlib import Path
 
+if not getattr(__builtins__, "WindowsError", None):
+    class WindowsError(OSError): pass
 
 def resolve_local(document_loader, uri):
     pathpart, frag = urllib.parse.urldefrag(uri)
+
     try:
         pathobj = Path(pathpart).resolve()
-    except WindowsError:
+    except (WindowsError, OSError):
+        _logger.debug("local resolver could not resolve %s", uri)
         return None
 
     if pathobj.is_file():
