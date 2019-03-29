@@ -62,12 +62,17 @@ def mocked_requests_get(*args):
 @mock.patch('requests.Session.get', side_effect=mocked_requests_get)
 def test_tool_trs_template(mock_head, mock_get):
     params = ["--make-template", r"quay.io/briandoconnor/dockstore-tool-md5sum:1.0.4"]
-    assert main(params) == 0
+    return_value = main(params)
+    mock_head.assert_called()
+    mock_get.assert_called()
+    assert return_value == 0
 
 
 @mock.patch('requests.Session.head', side_effect=mocked_requests_head)
 @mock.patch('requests.Session.get', side_effect=mocked_requests_get)
 def test_workflow_trs_template(mock_head, mock_get):
     params = ["--make-template", r"#workflow/github.com/dockstore-testing/md5sum-checker:develop"]
-    assert main(params) == 0
-
+    return_value = main(params)
+    mock_head.assert_called()
+    mock_get.assert_called()
+    assert return_value == 0
