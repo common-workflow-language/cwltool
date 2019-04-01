@@ -225,7 +225,7 @@ def stage_files(pathmapper,             # type: PathMapper
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
-            os.makedirs(os.path.dirname(entry.target), 0o0755)
+            os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if symlink:  # Use symlink func if allowed
                 if onWindows():
@@ -242,13 +242,13 @@ def stage_files(pathmapper,             # type: PathMapper
                 stage_func(entry.resolved, entry.target)
         elif entry.type == "Directory" and not os.path.exists(entry.target) \
                 and entry.resolved.startswith("_:"):
-            os.makedirs(entry.target, 0o0755)
+            os.makedirs(entry.target)
         elif entry.type == "WritableFile" and not ignore_writable:
             shutil.copy(entry.resolved, entry.target)
             ensure_writable(entry.target)
         elif entry.type == "WritableDirectory" and not ignore_writable:
             if entry.resolved.startswith("_:"):
-                os.makedirs(entry.target, 0o0755)
+                os.makedirs(entry.target)
             else:
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target)
