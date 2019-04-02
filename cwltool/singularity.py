@@ -226,7 +226,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 new_dir = os.path.join(
                     tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                     os.path.basename(volume.resolved))
-            os.makedirs(new_dir, 0o0755)
+            os.makedirs(new_dir)
         else:
             if host_outdir_tgt is not None:
                 # workaround for lack of overlapping mounts in Singularity

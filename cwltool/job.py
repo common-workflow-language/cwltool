@@ -533,7 +533,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             contents = volume.resolved
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
-            os.makedirs(dirname, 0o0755)
+            os.makedirs(dirname)
         with open(host_outdir_tgt or new_file, "wb") as file_literal:
             file_literal.write(contents.encode("utf-8"))
         if not host_outdir_tgt:

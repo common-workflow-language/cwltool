@@ -498,7 +498,7 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
-To run the basis tests after installing `cwltool` execute the following:
+To run the basic tests after installing `cwltool` execute the following:
 
 .. code:: bash
 
