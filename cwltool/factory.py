@@ -4,6 +4,11 @@ from __future__ import absolute_import
 import functools
 import os
 import sys
+from typing import Callable as tCallable  # pylint: disable=unused-import
+from typing import Any, Dict, Tuple, Union
+
+from typing_extensions import Text  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import load_tool
 from .argparser import arg_parser
@@ -42,8 +47,7 @@ class Factory(object):
     def __init__(self,
                  argsl=None,                   # type: List[str]
                  args=None,                    # type: argparse.Namespace
-                 # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-                 executor=None,
+                 executor=None,                # type: Callable[..., Tuple[Dict[Text, Any], Text]]
                  loadingContext=None,          # type: LoadingContext
                  runtimeContext=None           # type: RuntimeContext
                  ):  # type: (...) -> None
