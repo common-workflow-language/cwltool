@@ -302,7 +302,7 @@ class CommandLineTool(Process):
         if runtimeContext.cachedir and enableReuse:
             cachecontext = runtimeContext.copy()
             cachecontext.outdir = "/out"
-            cachecontext.tmpdir = "/tmp"
+            cachecontext.tmpdir = "/tmp"  # nosec
             cachecontext.stagedir = "/stage"
             cachebuilder = self._init_job(job_order, cachecontext)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,

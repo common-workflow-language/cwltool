@@ -296,7 +296,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime = [u"docker", u"run", u"-i"]
         self.append_volume(runtime, os.path.realpath(self.outdir),
                            self.builder.outdir, writable=True)
-        self.append_volume(runtime, os.path.realpath(self.tmpdir), "/tmp",
+        tmpdir = "/tmp"  # nosec
+        self.append_volume(runtime, os.path.realpath(self.tmpdir), tmpdir,
                            writable=True)
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
                          secret_store=runtimeContext.secret_store,

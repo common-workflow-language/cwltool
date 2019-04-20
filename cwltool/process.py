@@ -672,7 +672,7 @@ hints:
                         runtime_context.docker_outdir or random_outdir()
             elif default_docker is not None:
                 outdir = runtime_context.docker_outdir or random_outdir()
-            tmpdir = runtime_context.docker_tmpdir or "/tmp"
+            tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(
