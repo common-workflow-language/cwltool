@@ -84,6 +84,6 @@ def resolve_ga4gh_tool(document_loader, uri):
                     ds2 = GA4GH_TRS_PRIMARY_DESCRIPTOR.format(reg, urllib.parse.quote(path, ""), urllib.parse.quote(version, ""), urllib.parse.quote(primary_path, ""))
                     _logger.debug("Resolved %s", ds2)
                     return ds2
-        except Exception:
+        except Exception:  # nosec
             pass
     return None
