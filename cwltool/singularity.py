@@ -26,11 +26,11 @@ from .utils import docker_windows_path_adjust
 
 if os.name == 'posix':
     if sys.version_info < (3, 5):
-        from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
+        from subprocess32 import (  # nosec # pylint: disable=import-error,no-name-in-module
             check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
             TimeoutExpired)
     else:
-        from subprocess import (  # pylint: disable=import-error,no-name-in-module
+        from subprocess import (  # nosec # pylint: disable=import-error,no-name-in-module
             check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
             TimeoutExpired)
 
@@ -44,7 +44,7 @@ def _singularity_supports_userns():  # type: ()->bool
     if _USERNS is None:
         try:
             hello_image = os.path.join(os.path.dirname(__file__), 'hello.simg')
-            result = Popen(
+            result = Popen(  # nosec
                 [u"singularity", u"exec", u"--userns", hello_image, u"true"],
                 stderr=PIPE, stdout=DEVNULL,
                 universal_newlines=True).communicate(timeout=60)[1]
@@ -110,7 +110,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        str(dockerRequirement["dockerImageId"]),
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
-                check_call(cmd, stdout=sys.stderr)
+                check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerFile" in dockerRequirement:
                 raise WorkflowException(SourceLine(

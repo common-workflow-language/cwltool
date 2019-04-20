@@ -24,11 +24,11 @@ from typing_extensions import Deque, Text  # pylint: disable=unused-import
 # no imports from cwltool allowed
 if os.name == 'posix':
     if sys.version_info < (3, 5):
-        import subprocess32 as subprocess  # pylint: disable=unused-import
+        import subprocess32 as subprocess  # nosec # pylint: disable=unused-import
     else:
-        import subprocess  # pylint: disable=unused-import
+        import subprocess  # nosec # pylint: disable=unused-import
 else:
-    import subprocess  # type: ignore
+    import subprocess  # type: ignore  # nosec
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
