@@ -70,7 +70,7 @@ def copytree_with_merge(src, dst):  # type: (Text, Text) -> None
             shutil.copy2(spath, dpath)
 
 def docker_windows_path_adjust(path):
-    # type: (Optional[Text]) -> Optional[Text]
+    # type: (Text) -> Text
     r"""
     Changes only windows paths so that the can be appropriately passed to the
     docker run command as as docker treats them as unix paths.
@@ -78,7 +78,7 @@ def docker_windows_path_adjust(path):
     Example: 'C:\Users\foo to /C/Users/foo (Docker for Windows) or /c/Users/foo
     (Docker toolbox).
     """
-    if path is not None and onWindows():
+    if onWindows():
         split = path.split(':')
         if len(split) == 2:
             if platform.win32_ver()[0] in ('7', '8'):  # type: ignore

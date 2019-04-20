@@ -119,7 +119,6 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
         cdoc = doc
     else:
         raise Exception("Expected CommentedMap or CommentedSeq")
-    assert cdoc is not None
 
     version = cdoc[u"cwlVersion"]
 

@@ -155,7 +155,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                                 stdout=sys.stderr)
-                    assert loadproc.stdin is not None
+                    assert loadproc.stdin is not None  # nosec
                     _logger.info(u"Sending GET request to %s", docker_requirement["dockerLoad"])
                     req = requests.get(docker_requirement["dockerLoad"], stream=True)
                     size = 0
