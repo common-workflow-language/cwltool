@@ -234,5 +234,5 @@ def random_outdir():  # type: () -> Text
     """ Return the random directory name chosen to use for tool / workflow output """
     # compute this once and store it as a function attribute - each subsequent call will return the same value
     if not hasattr(random_outdir, 'outdir'):
-        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore
+        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore  # nosec
     return random_outdir.outdir  # type: ignore

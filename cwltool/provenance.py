@@ -164,7 +164,7 @@ class WritableBagFile(FileIO):
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         self.rel_path = rel_path
-        self.hashes = {SHA1: hashlib.sha1(),
+        self.hashes = {SHA1: hashlib.sha1(),  # nosec
                        SHA256: hashlib.sha256(),
                        SHA512: hashlib.sha512()}
         # Open file in Research Object folder

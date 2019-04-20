@@ -1018,7 +1018,7 @@ def scandeps(base,                          # type: Text
 
 def compute_checksums(fs_access, fileobj):
     if "checksum" not in fileobj:
-        checksum = hashlib.sha1()
+        checksum = hashlib.sha1()  # nosec
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
             while contents != b"":

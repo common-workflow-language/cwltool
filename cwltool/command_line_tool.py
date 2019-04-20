@@ -354,7 +354,8 @@ class CommandLineTool(Process):
 
             keydictstr = json_dumps(keydict, separators=(',', ':'),
                                     sort_keys=True)
-            cachekey = hashlib.md5(keydictstr.encode('utf-8')).hexdigest()
+            cachekey = hashlib.md5(  # nosec
+                keydictstr.encode('utf-8')).hexdigest()
 
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
                           keydictstr, cachekey)
@@ -717,7 +718,7 @@ class CommandLineTool(Process):
                                 files["contents"] = content_limit_respected_read_bytes(f).decode("utf-8")
                         if compute_checksum:
                             with fs_access.open(rfile["location"], "rb") as f:
-                                checksum = hashlib.sha1()
+                                checksum = hashlib.sha1()  # nosec
                                 contents = f.read(1024 * 1024)
                                 while contents != b"":
                                     checksum.update(contents)

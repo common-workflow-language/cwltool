@@ -152,10 +152,9 @@ def _convert_stdstreams_to_files(workflowobj):
                                 filename = workflowobj[streamtype]
                             else:
                                 filename = Text(
-                                    hashlib.sha1(json_dumps(workflowobj,
-                                                            sort_keys=True
-                                                           ).encode('utf-8')
-                                                ).hexdigest())
+                                    hashlib.sha1(  # nosec
+                                        json_dumps(workflowobj, sort_keys=True
+                                                  ).encode('utf-8')).hexdigest())
                                 workflowobj[streamtype] = filename
                             out['type'] = 'File'
                             out['outputBinding'] = cmap({'glob': filename})
