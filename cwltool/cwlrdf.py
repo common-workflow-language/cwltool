@@ -27,7 +27,6 @@ def printrdf(wflow, ctx, style):  # type: (Process, ContextType, Text) -> Text
     rdf = gather(wflow, ctx).serialize(format=style, encoding='utf-8')
     if not rdf:
         return u""
-    assert rdf is not None
     return rdf.decode('utf-8')
 
 

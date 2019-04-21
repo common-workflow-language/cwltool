@@ -672,7 +672,7 @@ hints:
                         runtime_context.docker_outdir or random_outdir()
             elif default_docker is not None:
                 outdir = runtime_context.docker_outdir or random_outdir()
-            tmpdir = runtime_context.docker_tmpdir or "/tmp"
+            tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(
@@ -1018,7 +1018,7 @@ def scandeps(base,                          # type: Text
 
 def compute_checksums(fs_access, fileobj):
     if "checksum" not in fileobj:
-        checksum = hashlib.sha1()
+        checksum = hashlib.sha1()  # nosec
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
             while contents != b"":
