@@ -89,6 +89,8 @@ DEVUPDATES = {
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
+INTERNAL_VERSION = u"v1.1.0-dev1"
+
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]
     """The default, do-nothing, CWL document upgrade function."""
