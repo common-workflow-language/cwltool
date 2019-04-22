@@ -1,17 +1,24 @@
 from __future__ import absolute_import
 
 import copy
+import os
 import logging
 from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Set, Tuple, Union)
+
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import validate
-from schema_salad.schema import AvroSchemaFromJSONData, Names
+from schema_salad.schema import Names, convert_to_dict
+from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
+from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
+from typing import IO
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -21,15 +28,25 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import PathMapper  # pylint: disable=unused-import
-from .pathmapper import get_listing, normalizeFilesDirs, visit_class
+from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
 
 
 
 if TYPE_CHECKING:
-    from .provenance import CreateProvProfile  # pylint: disable=unused-import
-CONTENT_LIMIT = 64 * 1024
+    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
+
+
+def content_limit_respected_read_bytes(f):  # type: (IO) -> bytes
+    contents = f.read(CONTENT_LIMIT + 1)
+    if len(contents) > CONTENT_LIMIT:
+        raise WorkflowException("loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes" % CONTENT_LIMIT)
+    return contents
+
+
+def content_limit_respected_read(f):  # type: (IO) -> Text
+    return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
 def substitute(value, replace):  # type: (Text, Text) -> Text
@@ -101,8 +118,8 @@ class HasReqsHints(object):
         self.hints = []         # List[Dict[Text, Any]]
 
     def get_requirement(self,
-                    feature  # type: Text
-                   ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+                        feature  # type: Text
+                       ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
         for item in reversed(self.requirements):
             if item["class"] == feature:
                 return (item, True)
@@ -113,93 +130,68 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                       # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
-                 files=None,                # type: List[Dict[Text, Text]]
-                 bindings=None,             # type: List[Dict[Text, Any]]
-                 schemaDefs=None,           # type: Dict[Text, Dict[Text, Any]]
-                 names=None,                # type: Names
-                 requirements=None,         # type: List[Dict[Text, Any]]
-                 hints=None,                # type: List[Dict[Text, Any]]
-                 timeout=None,              # type: float
-                 debug=False,               # type: bool
-                 resources=None,            # type: Dict[str, int]
-                 js_console=False,          # type: bool
-                 mutation_manager=None,     # type: Optional[MutationManager]
-                 formatgraph=None,          # type: Optional[Graph]
-                 make_fs_access=None,       # type: Type[StdFsAccess]
-                 fs_access=None,            # type: StdFsAccess
-                 force_docker_pull=False,   # type: bool
-                 loadListing=u"",           # type: Text
-                 outdir=u"",                # type: Text
-                 tmpdir=u"",                # type: Text
-                 stagedir=u"",              # type: Text
-                 job_script_provider=None   # type: Optional[Any]
+                 job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 files,                # type: List[Dict[Text, Text]]
+                 bindings,             # type: List[Dict[Text, Any]]
+                 schemaDefs,           # type: Dict[Text, Dict[Text, Any]]
+                 names,                # type: Names
+                 requirements,         # type: List[Dict[Text, Any]]
+                 hints,                # type: List[Dict[Text, Any]]
+                 resources,            # type: Dict[str, int]
+                 mutation_manager,     # type: Optional[MutationManager]
+                 formatgraph,          # type: Optional[Graph]
+                 make_fs_access,       # type: Type[StdFsAccess]
+                 fs_access,            # type: StdFsAccess
+                 job_script_provider,  # type: Optional[Any]
+                 timeout,              # type: float
+                 debug,                # type: bool
+                 js_console,           # type: bool
+                 force_docker_pull,    # type: bool
+                 loadListing,          # type: Text
+                 outdir,               # type: Text
+                 tmpdir,               # type: Text
+                 stagedir             # type: Text
                 ):  # type: (...) -> None
 
-        if names is None:
-            self.names = Names()
-        else:
-            self.names = names
-
-        if schemaDefs is None:
-            self.schemaDefs = {}  # type: Dict[Text, Dict[Text, Any]]
-        else:
-            self.schemaDefs = schemaDefs
-
-        if files is None:
-            self.files = []  # type: List[Dict[Text, Text]]
-        else:
-            self.files = files
-
         self.job = job
+        self.files = files
+        self.bindings = bindings
+        self.schemaDefs = schemaDefs
+        self.names = names
         self.requirements = requirements
         self.hints = hints
-        self.outdir = outdir
-        self.tmpdir = tmpdir
+        self.resources = resources
+        self.mutation_manager = mutation_manager
+        self.formatgraph = formatgraph
 
-        if resources is None:
-            self.resources = {}  # type: Dict[str, int]
-        else:
-            self.resources = resources
+        self.make_fs_access = make_fs_access
+        self.fs_access = fs_access
 
-        if bindings is None:
-            self.bindings = []  # type: List[Dict[Text, Any]]
-        else:
-            self.bindings = bindings
+        self.job_script_provider = job_script_provider
+
         self.timeout = timeout
-        self.pathmapper = None  # type: Optional[PathMapper]
-        self.stagedir = stagedir
-
-        if make_fs_access is None:
-            self.make_fs_access = StdFsAccess
-        else:
-            self.make_fs_access = make_fs_access
-
-        if fs_access is None:
-            self.fs_access = self.make_fs_access("")
-        else:
-            self.fs_access = fs_access
 
         self.debug = debug
         self.js_console = js_console
-        self.mutation_manager = mutation_manager
         self.force_docker_pull = force_docker_pull
-        self.formatgraph = formatgraph
 
         # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
-        self.prov_obj = None  # type: Optional[CreateProvProfile]
 
+        self.outdir = outdir
+        self.tmpdir = tmpdir
+        self.stagedir = stagedir
+
+        self.pathmapper = None  # type: Optional[PathMapper]
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
-        self.job_script_provider = job_script_provider
 
     def build_job_script(self, commands):
         # type: (List[Text]) -> Text
         build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
-        if build_job_script_method:
+        if build_job_script_method is not None:
             return build_job_script_method(self, commands)
-        else:
-            return None
+        return None
 
     def bind_input(self,
                    schema,                   # type: MutableMapping[Text, Any]
@@ -213,17 +205,26 @@ class Builder(HasReqsHints):
             tail_pos = []
         if lead_pos is None:
             lead_pos = []
+
         bindings = []  # type: List[MutableMapping[Text, Text]]
         binding = None  # type: Optional[MutableMapping[Text,Any]]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
-            assert binding is not None
 
+            bp = list(aslist(lead_pos))
             if "position" in binding:
-                binding["position"] = aslist(lead_pos) + aslist(binding["position"]) + aslist(tail_pos)
+                position = binding["position"]
+                if isinstance(position, str):   # no need to test the CWL Version
+                                                # the schema for v1.0 only allow ints
+                    binding['position'] = self.do_eval(position, context=datum)
+                    bp.append(binding['position'])
+                else:
+                    bp.extend(aslist(binding['position']))
             else:
-                binding["position"] = aslist(lead_pos) + [0] + aslist(tail_pos)
+                bp.append(0)
+            bp.extend(aslist(tail_pos))
+            binding["position"] = bp
 
             binding["datum"] = datum
             if "valueFrom" in binding:
@@ -233,12 +234,13 @@ class Builder(HasReqsHints):
         if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
+                avsc = None  # type: Optional[Schema]
                 if isinstance(t, string_types) and self.names.has_name(t, ""):
                     avsc = self.names.get_name(t, "")
                 elif isinstance(t, MutableMapping) and "name" in t and self.names.has_name(t["name"], ""):
                     avsc = self.names.get_name(t["name"], "")
-                else:
-                    avsc = AvroSchemaFromJSONData(t, self.names)
+                if not avsc:
+                    avsc = make_avsc_object(convert_to_dict(t), self.names)
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
@@ -251,7 +253,11 @@ class Builder(HasReqsHints):
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
-            if binding and "inputBinding" not in st and st["type"] == "array" and "itemSeparator" not in binding:
+            if binding is not None\
+                    and "inputBinding" not in st\
+                    and "type" in st\
+                    and st["type"] == "array"\
+                    and "itemSeparator" not in binding:
                 st["inputBinding"] = {}
             for k in ("secondaryFiles", "format", "streamable"):
                 if k in schema:
@@ -274,7 +280,7 @@ class Builder(HasReqsHints):
             if schema["type"] == "array":
                 for n, item in enumerate(datum):
                     b2 = None
-                    if binding:
+                    if binding is not None:
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
                     itemschema = {
@@ -288,21 +294,33 @@ class Builder(HasReqsHints):
                         self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
                 binding = None
 
+            def _capture_files(f):
+                self.files.append(f)
+                return f
+
             if schema["type"] == "File":
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
                     with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
+                        datum["contents"] = content_limit_respected_read(f)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
-                            sfpath = self.do_eval(sf, context=datum)
+                        if 'required' in sf:
+                            sf_required = self.do_eval(sf['required'], context=datum)
                         else:
-                            sfpath = substitute(datum["basename"], sf)
+                            sf_required = True
+
+                        if "$(" in sf["pattern"] or "${" in sf["pattern"]:
+                            sfpath = self.do_eval(sf["pattern"], context=datum)
+                        else:
+                            sfpath = substitute(datum["basename"], sf["pattern"])
+
                         for sfname in aslist(sfpath):
+                            if not sfname:
+                                continue
                             found = False
                             for d in datum["secondaryFiles"]:
                                 if not d.get("basename"):
@@ -310,14 +328,15 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
+                                sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
                                 if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
-                                elif discover_secondaryFiles:
+                                elif discover_secondaryFiles and self.fs_access.exists(sf_location):
                                     datum["secondaryFiles"].append({
-                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "location": sf_location,
                                         "basename": sfname,
                                         "class": "File"})
-                                else:
+                                elif sf_required:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
                                         sfname, json_dumps(datum, indent=4)))
 
@@ -332,20 +351,19 @@ class Builder(HasReqsHints):
                             "Expected value of '%s' to have format %s but\n "
                             " %s" % (schema["name"], schema["format"], ve))
 
-                def _capture_files(f):
-                    self.files.append(f)
-                    return f
-
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
-                ll = self.loadListing or (binding and binding.get("loadListing"))
+                ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(self.fs_access, datum, (ll == "deep_listing"))
                 self.files.append(datum)
 
+            if schema["type"] == "Any":
+                visit_class(datum, ("File", "Directory"), _capture_files)
+
         # Position to front of the sort key
-        if binding:
+        if binding is not None:
             for bi in bindings:
                 bi["position"] = binding["position"] + bi["position"]
             bindings.append(binding)
@@ -363,7 +381,6 @@ class Builder(HasReqsHints):
                 # docker_req is none only when there is no dockerRequirement
                 # mentioned in hints and Requirement
                 path = docker_windows_path_adjust(value["path"])
-                assert path is not None
                 return path
             return value["path"]
         else:
@@ -408,8 +425,7 @@ class Builder(HasReqsHints):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                assert prefix is not None
-                args.append(prefix + self.tostr(j))
+                args.append("" if not prefix else prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 

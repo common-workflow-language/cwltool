@@ -125,6 +125,7 @@ def pack(document_loader,  # type: Loader
                 if po["id"].endswith("#main"):
                     uri = po["id"]
             document_loader.idx[po["id"]] = CommentedMap(iteritems(po))
+        document_loader.idx[metadata["id"]] = CommentedMap(iteritems(metadata))
 
     def loadref(base, uri):
         # type: (Optional[Text], Text) -> Union[Dict, List, Text, None]
@@ -174,6 +175,9 @@ def pack(document_loader,  # type: Loader
     namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]
+    if '$schemas' in metadata:
+        for each_schema in metadata["$schemas"]:
+            schemas.add(each_schema)
     for r in sorted(runs):
         dcr, metadata = document_loader.resolve_ref(r)
         if isinstance(dcr, CommentedSeq):
@@ -181,10 +185,10 @@ def pack(document_loader,  # type: Loader
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
-        for doc in (dcr, metadata):
-            if "$schemas" in doc:
-                for s in doc["$schemas"]:
-                    schemas.add(s)
+        metadata = cast(Dict[Text, Any], metadata)
+        if "$schemas" in metadata:
+            for s in metadata["$schemas"]:
+                schemas.add(s)
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
@@ -205,9 +209,13 @@ def pack(document_loader,  # type: Loader
     import_embed(packed, set())
 
     if len(packed["$graph"]) == 1:
-        # duplicate 'cwlVersion' inside $graph when there is a single item
-        # because we're printing contents inside '$graph' rather than whole dict
+        # duplicate 'cwlVersion' and $schemas inside $graph when there is only
+        # a single item because we will print the contents inside '$graph'
+        # rather than whole dict
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
+        if schemas:
+            packed["$graph"][0]["$schemas"] = list(schemas)
+    # always include $namespaces in the #main
     if namespaces:
         packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
 

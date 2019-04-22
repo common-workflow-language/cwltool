@@ -21,9 +21,10 @@ hints:
 # field "reverse_sort" is not provided in the input object, the default value will
 # be used.
 inputs:
-  input:
+  workflow_input:
     type: File
     doc: "The input file to be processed."
+    format: iana:text/plain
     default:
       class: File
       location: hello.txt
@@ -36,34 +37,40 @@ inputs:
 # the outputs of the workflow.
 #
 # Each output field must be connected to the output of one of the workflow
-# steps using the "connect" field.  Here, the parameter "#output" of the
-# workflow comes from the "#sorted" output of the "sort" step.
+# steps using the "outputSource" field.  Here, the parameter "sorted_output" of the
+# workflow comes from the "sorted_output" output of the "sorted" step.
 outputs:
-  output:
+  sorted_output:
     type: File
-    outputSource: sorted/output
+    outputSource: sorted/sorted_output
     doc: "The output with the lines reversed and sorted."
 
 # The "steps" array lists the executable steps that make up the workflow.
 # The tool to execute each step is listed in the "run" field.
 #
-# In the first step, the "inputs" field of the step connects the upstream
-# parameter "#input" of the workflow to the input parameter of the tool
-# "revtool.cwl#input"
+# In the first step, the "in" field of the step connects the upstream
+# parameter "workflow_input" of the workflow to the input parameter of the tool
+# "revtool_input"
 #
-# In the second step, the "inputs" field of the step connects the output
-# parameter "#reversed" from the first step to the input parameter of the
-# tool "sorttool.cwl#input".
+# In the second step, the "in" field of the step connects the output
+# parameter "revtool_output" from the first step to the input parameter of the
+# tool "sorted_input".
 steps:
   rev:
     in:
-      input: input
-    out: [output]
+      revtool_input: workflow_input
+    out: [revtool_output]
     run: revtool.cwl
 
   sorted:
     in:
-      input: rev/output
+      sorted_input: rev/revtool_output
       reverse: reverse_sort
-    out: [output]
+    out: [sorted_output]
     run: sorttool.cwl
+
+$namespaces:
+  iana: https://www.iana.org/assignments/media-types/
+
+$schemas:
+ - empty2.ttl

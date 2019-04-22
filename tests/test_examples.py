@@ -1,10 +1,11 @@
 import json
 import logging
 import os
-import shutil
+import stat
 import sys
 from io import BytesIO, StringIO
 import pytest
+from typing_extensions import Text
 
 import schema_salad.validate
 
@@ -18,10 +19,13 @@ from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.utils import onWindows
+from cwltool.resolver import Path
+from cwltool.process import CWL_IANA
 
-from .util import (get_data, get_main_output, get_windows_safe_factory, needs_docker,
-                   needs_singularity, temp_dir, windows_needs_docker)
+from .util import (get_data, get_main_output, get_windows_safe_factory,
+                   needs_docker, working_directory, needs_singularity, temp_dir, windows_needs_docker)
 
+import six
 
 try:
     reload
@@ -61,10 +65,12 @@ expression_match = [
     ("(foo bar", False)
 ]
 
+
 @pytest.mark.parametrize('expression,expected', expression_match)
 def test_expression_match(expression, expected):
     match = expr.param_re.match(expression)
     assert (match is not None) == expected
+
 
 interpolate_input = {
     "foo": {
@@ -134,9 +140,11 @@ interpolate_parameters = [
     ("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", "null null")
 ]
 
+
 @pytest.mark.parametrize('pattern,expected', interpolate_parameters)
 def test_expression_interpolate(pattern, expected):
     assert expr.interpolate(pattern, interpolate_input) == expected
+
 
 @windows_needs_docker
 def test_factory():
@@ -145,17 +153,20 @@ def test_factory():
 
     assert echo(inp="foo") == {"out": "foo\n"}
 
+
 def test_factory_bad_outputs():
     factory = cwltool.factory.Factory()
 
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/echo_broken_outputs.cwl"))
 
+
 def test_factory_default_args():
     factory = cwltool.factory.Factory()
 
     assert factory.runtime_context.use_container is True
     assert factory.runtime_context.on_error == "stop"
+
 
 def test_factory_redefined_args():
     runtime_context = RuntimeContext()
@@ -165,6 +176,7 @@ def test_factory_redefined_args():
 
     assert factory.runtime_context.use_container is False
     assert factory.runtime_context.on_error == "continue"
+
 
 def test_factory_partial_scatter():
     runtime_context = RuntimeContext()
@@ -179,6 +191,7 @@ def test_factory_partial_scatter():
     assert err.out["out"][1] is None
     assert err.out["out"][2]["checksum"] == 'sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436'
 
+
 def test_factory_partial_output():
     runtime_context = RuntimeContext()
     runtime_context.on_error = "continue"
@@ -190,6 +203,7 @@ def test_factory_partial_output():
     err = err_info.value
     assert err.out["out1"]["checksum"] == 'sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e'
     assert err.out["out2"] is None
+
 
 def test_scandeps():
     obj = {
@@ -258,6 +272,7 @@ def test_scandeps():
         {"basename": "bar.cwl",
          "nameroot": "bar",
          "class": "File",
+         "format": CWL_IANA,
          "nameext": ".cwl",
          "location": "file:///example/bar.cwl"},
         {"basename": "data.txt",
@@ -280,9 +295,9 @@ def test_scandeps():
                    "location": "file:///example/data5.txt",
                    "nameext": ".txt",
                    "nameroot": "data5"
-                  }]
-             }]
-        }, {
+                   }]
+              }]
+         }, {
             "basename": "data4.txt",
             "nameroot": "data4",
             "class": "File",
@@ -302,12 +317,14 @@ def test_scandeps():
     expected_deps = [{
         "basename": "bar.cwl",
         "nameroot": "bar",
+        "format": CWL_IANA,
         "class": "File",
         "nameext": ".cwl",
         "location": "file:///example/bar.cwl"
     }]
 
     assert scanned_deps == expected_deps
+
 
 def test_trick_scandeps():
     if sys.version_info[0] < 3:
@@ -317,6 +334,71 @@ def test_trick_scandeps():
 
     main(["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")], stdout=stream)
     assert json.loads(stream.getvalue())["secondaryFiles"][0]["location"][:2] != "_:"
+
+
+def test_input_deps():
+    if sys.version_info[0] < 3:
+        stream = BytesIO()
+    else:
+        stream = StringIO()
+
+    main(["--print-input-deps", get_data("tests/wf/count-lines1-wf.cwl"),
+          get_data("tests/wf/wc-job.json")], stdout=stream)
+
+    expected = {"class": "File",
+                "location": "wc-job.json",
+                "format": CWL_IANA,
+                "secondaryFiles": [{"class": "File",
+                                    "location": "whale.txt",
+                                    "basename": "whale.txt",
+                                    "nameroot": "whale",
+                                    "nameext": ".txt"}]}
+    assert json.loads(stream.getvalue()) == expected
+
+
+def test_input_deps_cmdline_opts():
+    if sys.version_info[0] < 3:
+        stream = BytesIO()
+    else:
+        stream = StringIO()
+
+    main(["--print-input-deps",
+          get_data("tests/wf/count-lines1-wf.cwl"),
+          "--file1", get_data("tests/wf/whale.txt")], stdout=stream)
+    expected = {"class": "File",
+                "location": "",
+                "format": CWL_IANA,
+                "secondaryFiles": [{"class": "File",
+                                    "location": "whale.txt",
+                                    "basename": "whale.txt",
+                                    "nameroot": "whale",
+                                    "nameext": ".txt"}]}
+    assert json.loads(stream.getvalue()) == expected
+
+
+def test_input_deps_cmdline_opts_relative_deps_cwd():
+    if sys.version_info[0] < 3:
+        stream = BytesIO()
+    else:
+        stream = StringIO()
+
+    data_path = get_data("tests/wf/whale.txt")
+    main(["--print-input-deps", "--relative-deps", "cwd",
+          get_data("tests/wf/count-lines1-wf.cwl"),
+          "--file1", data_path], stdout=stream)
+
+    goal = {"class": "File",
+            "location": "",
+            "format": CWL_IANA,
+            "secondaryFiles": [{"class": "File",
+                                "location": str(
+                                    Path(os.path.relpath(
+                                        data_path, os.path.curdir))),
+                                "basename": "whale.txt",
+                                "nameroot": "whale",
+                                "nameext": ".txt"}]}
+    assert json.loads(stream.getvalue()) == goal
+
 
 def test_dedupe():
     not_deduped = [
@@ -347,14 +429,15 @@ def test_dedupe():
 
     assert cwltool.pathmapper.dedup(not_deduped) == expected
 
+
 record = {
     'fields': [
         {'type': {'items': 'string', 'type': 'array'},
          'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description'
-        },
+         },
         {'type': {'items': 'File', 'type': 'array'},
          'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file'
-        }],
+         }],
     'type': 'record',
     'name': u'file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec'
 }
@@ -390,9 +473,11 @@ source_to_sink = [
      )
 ]
 
+
 @pytest.mark.parametrize('name, source, sink, expected', source_to_sink)
 def test_compare_types(name, source, sink, expected):
     assert cwltool.workflow.can_assign_src_to_sink(source, sink) == expected, name
+
 
 source_to_sink_strict = [
     ('0',
@@ -419,9 +504,11 @@ source_to_sink_strict = [
      )
 ]
 
+
 @pytest.mark.parametrize('name, source, sink, expected', source_to_sink_strict)
 def test_compare_types_strict(name, source, sink, expected):
     assert cwltool.workflow.can_assign_src_to_sink(source, sink, strict=True) == expected, name
+
 
 typechecks = [
     (['string', 'int'], ['string', 'int', 'null'],
@@ -530,11 +617,13 @@ typechecks = [
      )
 ]
 
+
 @pytest.mark.parametrize('src_type,sink_type,link_merge,value_from,expected_type', typechecks)
 def test_typechecking(src_type, sink_type, link_merge, value_from, expected_type):
     assert cwltool.checker.check_types(
         src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
     ) == expected_type
+
 
 def test_lifting():
     # check that lifting the types of the process outputs to the workflow step
@@ -544,11 +633,13 @@ def test_lifting():
         echo = factory.make(get_data("tests/test_bad_outputs_wf.cwl"))
         assert echo(inp="foo") == {"out": "foo\n"}
 
+
 def test_malformed_outputs():
     # check that tool validation fails if one of the outputs is not a valid CWL type
     factory = cwltool.factory.Factory()
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/wf/malformed_outputs.cwl"))()
+
 
 def test_separate_without_prefix():
     # check that setting 'separate = false' on an inputBinding without prefix fails the workflow
@@ -568,6 +659,7 @@ def test_static_checker():
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
+
 def test_var_spool_cwl_checker1():
     """ Confirm that references to /var/spool/cwl are caught."""
 
@@ -582,6 +674,7 @@ def test_var_spool_cwl_checker1():
         assert "non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected" in stream.getvalue()
     finally:
         _logger.removeHandler(streamhandler)
+
 
 def test_var_spool_cwl_checker2():
     """ Confirm that references to /var/spool/cwl are caught."""
@@ -598,6 +691,7 @@ def test_var_spool_cwl_checker2():
     finally:
         _logger.removeHandler(streamhandler)
 
+
 def test_var_spool_cwl_checker3():
     """ Confirm that references to /var/spool/cwl are caught."""
 
@@ -613,8 +707,10 @@ def test_var_spool_cwl_checker3():
     finally:
         _logger.removeHandler(streamhandler)
 
+
 def test_print_dot():
     assert main(["--print-dot", get_data('tests/wf/revsort.cwl')]) == 0
+
 
 def test_js_console_cmd_line_tool():
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
@@ -626,6 +722,7 @@ def test_js_console_cmd_line_tool():
 
         assert error_code == 0, stderr
 
+
 def test_no_js_console():
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         _, _, stderr = get_main_output(
@@ -634,24 +731,93 @@ def test_no_js_console():
         assert "[log] Log message" not in stderr
         assert "[err] Error message" not in stderr
 
+
 @needs_docker
-def test_record_container_id():
+def test_cid_file_dir(tmpdir):
     test_file = "cache_test_workflow.cwl"
-    with temp_dir('cidr') as cid_dir:
-        error_code, _, stderr = get_main_output(
-            ["--record-container-id", "--cidfile-dir", cid_dir,
+    cwd = tmpdir.chdir()
+    error_code, stdout, stderr = get_main_output(
+        ["--cidfile-dir", str(tmpdir), get_data("tests/wf/" + test_file)])
+    assert "completed success" in stderr
+    assert error_code == 0
+    cidfiles_count = sum(1 for _ in tmpdir.visit(fil="*"))
+    assert cidfiles_count == 2
+    cwd.chdir()
+    tmpdir.remove(ignore_errors=True)
+
+
+@needs_docker
+def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir):
+    test_file = "cache_test_workflow.cwl"
+    bad_cidfile_dir = Text(tmpdir.ensure("cidfile-dir-actually-a-file"))
+    error_code, _, stderr = get_main_output(
+        ["--cidfile-dir", bad_cidfile_dir,
+         get_data("tests/wf/" + test_file)])
+    assert "is not a directory, please check it first" in stderr, stderr
+    assert error_code == 2
+    tmpdir.remove(ignore_errors=True)
+
+
+@needs_docker
+def test_cid_file_non_existing_dir(tmpdir):
+    test_file = "cache_test_workflow.cwl"
+    bad_cidfile_dir = Text(tmpdir.join("cidfile-dir-badpath"))
+    error_code, _, stderr = get_main_output(
+        ['--record-container-id',"--cidfile-dir", bad_cidfile_dir,
+         get_data("tests/wf/" + test_file)])
+    assert "directory doesn't exist, please create it first" in stderr, stderr
+    assert error_code == 2
+    tmpdir.remove(ignore_errors=True)
+
+
+@needs_docker
+def test_cid_file_w_prefix(tmpdir):
+    test_file = "cache_test_workflow.cwl"
+    cwd = tmpdir.chdir()
+    try:
+        error_code, stdout, stderr = get_main_output(
+            ['--record-container-id', '--cidfile-prefix=pytestcid',
              get_data("tests/wf/" + test_file)])
+    finally:
+        listing = tmpdir.listdir()
+        cwd.chdir()
+        cidfiles_count = sum(1 for _ in tmpdir.visit(fil="pytestcid*"))
+        tmpdir.remove(ignore_errors=True)
+    assert "completed success" in stderr
+    assert error_code == 0
+    assert cidfiles_count == 2, '{}/n{}'.format(listing, stderr)
+
+
+@needs_docker
+class TestSecondaryFiles():
+    def test_secondary_files(self):
+        test_file = "secondary-files.cwl"
+        test_job_file = "secondary-files-job.yml"
+        try:
+            old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
+            error_code, _, stderr = get_main_output(
+                ["--enable-dev",
+                get_data(os.path.join("tests", test_file)),
+                get_data(os.path.join("tests", test_job_file))])
+        finally:
+            assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+            os.umask(old_umask)  # revert back to original umask
         assert "completed success" in stderr
         assert error_code == 0
-        assert len(os.listdir(cid_dir)) == 2
 
 
 @needs_docker
-def test_wf_without_container():
+class TestCache():
+    def setUp(self):
+        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
+
+
+@needs_docker
+def test_wf_without_container(tmpdir):
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
         error_code, _, stderr = get_main_output(
-            ["--cachedir", cache_dir,
+            ["--cachedir", cache_dir, "--outdir", str(tmpdir),
              get_data("tests/wf/" + test_file),
              "--usermessage",
              "hello"]
@@ -659,6 +825,7 @@ def test_wf_without_container():
 
     assert "completed success" in stderr
     assert error_code == 0
+
 
 @needs_docker
 def test_issue_740_fixed():
@@ -690,20 +857,49 @@ def test_compute_checksum():
         reverse=False)
     assert output['output']["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
 
+
 @needs_docker
-def test_no_compute_checksum():
+def test_no_compute_chcksum(tmpdir):
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
     error_code, stdout, stderr = get_main_output(
-        ["--no-compute-checksum", get_data(test_file), get_data(job_file)])
+        ["--no-compute-checksum", "--outdir", str(tmpdir),
+         get_data(test_file), get_data(job_file)])
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout
 
-@needs_singularity
-def test_singularity_workflow():
-    error_code, _, stderr = get_main_output(
-        ['--singularity', '--default-container', 'debian',
-         get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
-    assert "completed success" in stderr
-    assert error_code == 0
+
+def test_bad_userspace_runtime():
+    test_file = "tests/wf/wc-tool.cwl"
+    job_file = "tests/wf/wc-job.json"
+    error_code, stdout, stderr = get_main_output(
+        ["--user-space-docker-cmd=quaquioN", "--default-container=debian",
+         get_data(test_file), get_data(job_file)])
+    assert "'quaquioN' not found:" in stderr, stderr
+    assert error_code == 1
+
+@windows_needs_docker
+def test_bad_basecommand():
+    test_file = "tests/wf/missing-tool.cwl"
+    error_code, stdout, stderr = get_main_output(
+        [get_data(test_file)])
+    assert "'neenooGo' not found" in stderr, stderr
+    assert error_code == 1
+
+
+@needs_docker
+def test_bad_basecommand_docker():
+    test_file = "tests/wf/missing-tool.cwl"
+    error_code, stdout, stderr = get_main_output(
+        ["--debug", "--default-container", "debian", get_data(test_file)])
+    assert "permanentFail" in stderr, stderr
+    assert error_code == 1
+
+def test_v1_0_position_expression():
+    test_file = "tests/echo-position-expr.cwl"
+    test_job = "tests/echo-position-expr-job.yml"
+    error_code, stdout, stderr = get_main_output(
+        ['--debug', get_data(test_file), get_data(test_job)])
+    assert "is not int" in stderr, stderr
+    assert error_code == 1
