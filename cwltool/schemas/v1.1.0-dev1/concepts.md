@@ -91,6 +91,185 @@ An implementation may formally validate the structure of a CWL document using
 SALAD schemas located at
 https://github.com/common-workflow-language/common-workflow-language/tree/master/v1.1.0-dev1
 
+### map
+
+Note: This section is non-normative.
+> type: array&lt;ComplexType&gt; |  
+> map&lt;`key_field`, ComplexType&gt;
+
+The above syntax in the CWL specifications means there are two or more ways to write the given value.
+
+Option one is a array and is the most verbose option.
+
+Option one generic example:
+```
+some_cwl_field:
+  - key_field: a_complex_type1
+    field2: foo
+    field3: bar
+  - key_field: a_complex_type2
+    field2: foo2
+    field3: bar2
+  - key_field: a_complex_type3
+```
+
+Option one specific example using [Workflow](Workflow.html#Workflow).[inputs](Workflow.html#WorkflowInputParameter):
+> array&lt;InputParameter&gt; |  
+> map&lt;`id`, `type` | InputParameter&gt;
+
+
+```
+inputs:
+  - id: workflow_input01
+    type: string
+  - id: workflow_input02
+    type: File
+    format: http://edamontology.org/format_2572
+```
+
+Option two is enabled by the `map<…>` syntax. Instead of an array of entries we
+use a mapping, where one field of the `ComplexType` (here named `key_field`)
+becomes the key in the map, and its value is the rest of the `ComplexType`
+without the key field. If all of the other fields of the `ComplexType` are
+optional and unneeded, then we can indicate this with an empty mapping as the
+value: `a_complex_type3: {}`
+
+Option two generic example:
+```
+some_cwl_field:
+  a_complex_type1:  # this was the "key_field" from above
+    field2: foo
+    field3: bar
+  a_complex_type2:
+    field2: foo2
+    field3: bar2
+  a_complex_type3: {}  # we accept the defualt values for "field2" and "field3"
+```
+
+Option two specific example using [Workflow](Workflow.html#Workflow).[inputs](Workflow.html#WorkflowInputParameter):
+> array&lt;InputParameter&gt; |  
+> map&lt;`id`, `type` | InputParameter&gt;
+
+
+```
+inputs:
+  workflow_input01:
+    type: string
+  workflow_input02:
+    type: File
+    format: http://edamontology.org/format_2572
+```
+
+Option two specific example using [SoftwareRequirement](#SoftwareRequirement).[packages](#SoftwarePackage):
+> array&lt;SoftwarePackage&gt; |  
+> map&lt;`package`, `specs` | SoftwarePackage&gt;
+
+
+```
+hints:
+  SoftwareRequirement:
+    packages:
+      sourmash:
+        specs: [ https://doi.org/10.21105/joss.00027 ]
+      screed:
+        version: [ "1.0" ]
+      python: {}
+```
+`
+Sometimes we have a third and even more compact option denoted like this:
+> type: array&lt;ComplexType&gt; |  
+> map&lt;`key_field`, `field2` | ComplexType&gt;
+
+For this example, if we only need the `key_field` and `field2` when specifying
+our `ComplexType`s (because the other fields are optional and we are fine with
+their default values) then we can abbreviate.
+
+Option three generic example:
+```
+some_cwl_field:
+  a_complex_type1: foo   # we accept the default value for field3
+  a_complex_type2: foo2  # we accept the default value for field3
+  a_complex_type3: {}    # we accept the default values for "field2" and "field3"
+```
+
+Option three specific example using [Workflow](Workflow.html#Workflow).[inputs](Workflow.html#WorkflowInputParameter):
+> array&lt;InputParameter&gt; |
+> map&lt;`id`, `type` | InputParameter&gt;
+
+
+```
+inputs:
+  workflow_input01: string
+  workflow_input02: File  # we accept the default of no File format
+```
+
+Option three specific example using [SoftwareRequirement](#SoftwareRequirement).[packages](#SoftwarePackage):
+> array&lt;SoftwarePackage&gt; |  
+> map&lt;`package`, `specs` | SoftwarePackage&gt;
+
+
+```
+hints:
+  SoftwareRequirement:
+    packages:
+      sourmash: [ https://doi.org/10.21105/joss.00027 ]
+      python: {}
+```
+
+
+What if some entries we want to mix the option 2 and 3? You can!
+
+Mixed option 2 and 3 generic example:
+```
+some_cwl_field:
+  my_complex_type1: foo   # we accept the default value for field3
+  my_complex_type2:
+    field2: foo2
+    field3: bar2          # we did not accept the default value for field3
+                          # so we had to use the slightly expanded syntax
+  my_complex_type3: {}    # as before, we accept the default values for both
+                          # "field2" and "field3"
+```
+
+Mixed option 2 and 3 specific example using [Workflow](Workflow.html#Workflow).[inputs](Workflow.html#WorkflowInputParameter):
+> array&lt;InputParameter&gt; |
+> map&lt;`id`, `type` | InputParameter&gt;
+
+
+```
+inputs:
+  workflow_input01: string
+  workflow_input02:     # we use the longer way
+    type: File          # because we want to specify the "format" too
+    format: http://edamontology.org/format_2572
+  workflow_input03: {}  # back to the short form as this entry
+                        # uses the default of no "type" just like the prior
+                        # examples
+```
+
+Mixed option 2 and 3 specific example using [SoftwareRequirement](#SoftwareRequirement).[packages](#SoftwarePackage):
+> array&lt;SoftwarePackage&gt; |  
+> map&lt;`package`, `specs` | SoftwarePackage&gt;
+
+
+```
+hints:
+  SoftwareRequirement:
+    packages:
+      sourmash: [ https://doi.org/10.21105/joss.00027 ]
+      screed:
+        specs: [ https://github.com/dib-lab/screed ]
+        version: [ "1.0" ]
+      python: {}
+```
+
+Note: The `map<…>` (compact) versions are optional, the verbose option #1 is
+always allowed, but for presentation reasons option 3 and 2 may be preferred
+by human readers.
+
+The normative explanation for these variations, aimed at implementors, is in the
+[Schema Salad specification](SchemaSalad.html#Identifier_maps).
+
 ## Identifiers
 
 If an object contains an `id` field, that is used to uniquely identify the
@@ -187,15 +366,19 @@ of [process requirements](#Requirements_and_hints).
 The generic execution sequence of a CWL process (including workflows and
 command line line tools) is as follows.
 
-1. Load, process and validate a CWL document, yielding a process object.
-2. Load input object.
-3. Validate the input object against the `inputs` schema for the process.
-4. Validate process requirements are met.
-5. Perform any further setup required by the specific process type.
-6. Execute the process.
-7. Capture results of process execution into the output object.
-8. Validate the output object against the `outputs` schema for the process.
-9. Report the output object to the process caller.
+1. Load input object.
+1. Load, process and validate a CWL document, yielding one or more process objects.
+1. If there are multiple process objects (due to [`$graph`](SchemaSalad.html#Document_graph))
+and which process object to start with is not specified in the input object (via
+a [`cwl:tool`](#Executing_CWL_documents_as_scripts) entry) or by any other means
+(like a URL fragment) then choose the process with the `id` of "#main" or "main".
+1. Validate the input object against the `inputs` schema for the process.
+1. Validate process requirements are met.
+1. Perform any further setup required by the specific process type.
+1. Execute the process.
+1. Capture results of process execution into the output object.
+1. Validate the output object against the `outputs` schema for the process.
+1. Report the output object to the process caller.
 
 ## Requirements and hints
 
@@ -215,9 +398,14 @@ object document as an array of requirements under the field name
 should be combined with any requirements present in the corresponding Process
 as if they were specified there.
 
-Requirements are inherited.  A requirement specified in a Workflow applies
-to all workflow steps; a requirement specified on a workflow step will
-apply to the process implementation of that step and any of its substeps.
+Requirements specified in a parent Workflow are inherited by step processes
+if they are valid for that step. If the substep is a CommandLineTool
+only the `InlineJavascriptRequirement`, `SchemaDefRequirement`, `DockerRequirement`,
+`SoftwareRequirement`, `InitialWorkDirRequirement`, `EnvVarRequirement`, 
+`ShellCommandRequirement`, `ResourceRequirement` are valid.
+
+*As good practice, it is best to have process requirements be self-contained,
+such that each process can run successfully by itself.*
 
 If the same process requirement appears at different levels of the
 workflow, the most specific instance of the requirement is used, that is,

@@ -125,6 +125,7 @@ def pack(document_loader,  # type: Loader
                 if po["id"].endswith("#main"):
                     uri = po["id"]
             document_loader.idx[po["id"]] = CommentedMap(iteritems(po))
+        document_loader.idx[metadata["id"]] = CommentedMap(iteritems(metadata))
 
     def loadref(base, uri):
         # type: (Optional[Text], Text) -> Union[Dict, List, Text, None]
@@ -184,10 +185,10 @@ def pack(document_loader,  # type: Loader
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
-        for doc in (dcr, metadata):
-            if "$schemas" in doc:
-                for s in doc["$schemas"]:
-                    schemas.add(s)
+        metadata = cast(Dict[Text, Any], metadata)
+        if "$schemas" in metadata:
+            for s in metadata["$schemas"]:
+                schemas.add(s)
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
         dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
@@ -217,6 +218,5 @@ def pack(document_loader,  # type: Loader
     # always include $namespaces in the #main
     if namespaces:
         packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
-
 
     return packed

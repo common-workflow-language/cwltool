@@ -192,8 +192,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.generatemapper = None  # type: Optional[PathMapper]
 
         # set in CommandLineTool.job(i)
-        self.collect_outputs = cast(Callable[[Any], Any],
-                                    None)  # type: Union[Callable[[Any], Any], functools.partial[Any]]
+        self.collect_outputs = cast(Callable[[Text, int], MutableMapping[Text, Any]],
+                                    None)  # type: Union[Callable[[Text, int], MutableMapping[Text, Any]], functools.partial[MutableMapping[Text, Any]]]
         self.output_callback = cast(Callable[[Any, Any], Any], None)
         self.outdir = u""
         self.tmpdir = u""
@@ -262,11 +262,15 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                      u' 2> %s' % os.path.join(self.outdir, self.stderr) if self.stderr else '')
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
-            assert runtimeContext.process_run_id is not None
-            assert runtimeContext.prov_obj is not None
-            runtimeContext.prov_obj.used_artefacts(
-                job_order, runtimeContext.process_run_id, str(self.name))
-        outputs = {}  # type: Dict[Text,Text]
+            if runtimeContext.process_run_id is not None \
+                    and runtimeContext.prov_obj is not None:
+                runtimeContext.prov_obj.used_artefacts(
+                    job_order, runtimeContext.process_run_id, str(self.name))
+            else:
+                _logger.warning("research_obj set but one of process_run_id "
+                        "or prov_obj is missing from runtimeContext: "
+                        "{}". format(runtimeContext))
+        outputs = {}  # type: MutableMapping[Text,Any]
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -328,12 +332,15 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                 processStatus = "permanentFail"
 
             if 'listing' in self.generatefiles:
-                assert self.generatemapper is not None
-                relink_initialworkdir(
-                    self.generatemapper, self.outdir, self.builder.outdir,
-                    inplace_update=self.inplace_update)
+                if self.generatemapper:
+                    relink_initialworkdir(
+                        self.generatemapper, self.outdir, self.builder.outdir,
+                        inplace_update=self.inplace_update)
+                else:
+                    raise ValueError("'lsiting' in self.generatefiles but no "
+                        "generatemapper was setup.")
 
-            outputs = self.collect_outputs(self.outdir)
+            outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
             if e.errno == 2:
@@ -538,7 +545,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             contents = volume.resolved
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
-            os.makedirs(dirname, 0o0755)
+            os.makedirs(dirname)
         with open(host_outdir_tgt or new_file, "wb") as file_literal:
             file_literal.write(contents.encode("utf-8"))
         if not host_outdir_tgt:
@@ -694,7 +701,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
-            except OSError:
+            except (OSError, IOError):
                 cid = None
         max_mem = self.docker_get_memory(cid)
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
@@ -762,7 +769,7 @@ def _job_popen(commands,                  # type: List[Text]
             sproc.stdin.close()
 
         tm = None
-        if timelimit is not None:
+        if timelimit is not None and timelimit > 0:
             def terminate():
                 try:
                     _logger.warning(

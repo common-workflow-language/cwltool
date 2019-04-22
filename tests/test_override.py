@@ -57,7 +57,6 @@ override_parameters = [
 @needs_docker
 @pytest.mark.parametrize('parameters,result', override_parameters)
 def test_overrides(parameters, result):
-    load_tool.loaders = {}
     sio = StringIO()
 
     assert main(parameters, stdout=sio) == 0
@@ -92,7 +91,6 @@ failing_override_parameters = [
 @needs_docker
 @pytest.mark.parametrize('parameters,expected_error', failing_override_parameters)
 def test_overrides_fails(parameters, expected_error):
-    load_tool.loaders = {}
     sio = StringIO()
 
     assert main(parameters, stderr=sio) == 1
