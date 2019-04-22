@@ -53,7 +53,7 @@ setup(name='cwltool',
           'ruamel.yaml >= 0.12.4, <= 0.15.77',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 4.0, < 5',
+          'schema-salad >= 4.1, < 5',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
@@ -66,12 +66,12 @@ setup(name='cwltool',
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
-          'deps': ["galaxy-lib >= 17.09.9"]
+          'deps': ["galaxy-lib >= 17.09.9, <= 18.9.2 "]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       setup_requires=PYTEST_RUNNER,
       test_suite='tests',
-      tests_require=['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
+      tests_require=['pytest < 4.3.0', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
                      'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:run"]

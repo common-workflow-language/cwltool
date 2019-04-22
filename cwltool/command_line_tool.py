@@ -97,6 +97,7 @@ class ExpressionTool(Process):
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
+                normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
@@ -156,7 +157,8 @@ def revmap_file(builder, outdir, f):
         if "basename" not in f:
             f["basename"] = os.path.basename(path)
 
-        assert builder.pathmapper is not None
+        if not builder.pathmapper:
+            raise ValueError("Do not call revmap_file using a builder that doesn't have a pathmapper.")
         revmap_f = builder.pathmapper.reversemap(path)
 
         if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
@@ -203,7 +205,8 @@ def check_adjust(builder, file_o):
     doesn't reach everything in builder.bindings
     """
 
-    assert builder.pathmapper is not None
+    if not builder.pathmapper:
+            raise ValueError("Do not call check_adjust using a builder that doesn't have a pathmapper.")
     file_o["path"] = docker_windows_path_adjust(
         builder.pathmapper.mapper(file_o["location"])[1])
     dn, bn = os.path.split(file_o["path"])
@@ -299,7 +302,7 @@ class CommandLineTool(Process):
         if runtimeContext.cachedir and enableReuse:
             cachecontext = runtimeContext.copy()
             cachecontext.outdir = "/out"
-            cachecontext.tmpdir = "/tmp"
+            cachecontext.tmpdir = "/tmp"  # nosec
             cachecontext.stagedir = "/stage"
             cachebuilder = self._init_job(job_order, cachecontext)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,
@@ -353,7 +356,8 @@ class CommandLineTool(Process):
 
             keydictstr = json_dumps(keydict, separators=(',', ':'),
                                     sort_keys=True)
-            cachekey = hashlib.md5(keydictstr.encode('utf-8')).hexdigest()
+            cachekey = hashlib.md5(  # nosec
+                keydictstr.encode('utf-8')).hexdigest()
 
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
                           keydictstr, cachekey)
@@ -476,24 +480,24 @@ class CommandLineTool(Process):
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", validate.ValidationException, debug):
                 j.stdin = builder.do_eval(self.tool["stdin"])
-                assert j.stdin is not None
-                reffiles.append({"class": "File", "path": j.stdin})
+                if j.stdin:
+                    reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
             with SourceLine(self.tool, "stderr", validate.ValidationException, debug):
                 j.stderr = builder.do_eval(self.tool["stderr"])
-                assert j.stderr is not None
-                if os.path.isabs(j.stderr) or ".." in j.stderr:
-                    raise validate.ValidationException(
-                        "stderr must be a relative path, got '%s'" % j.stderr)
+                if j.stderr:
+                    if os.path.isabs(j.stderr) or ".." in j.stderr:
+                        raise validate.ValidationException(
+                            "stderr must be a relative path, got '%s'" % j.stderr)
 
         if self.tool.get("stdout"):
             with SourceLine(self.tool, "stdout", validate.ValidationException, debug):
                 j.stdout = builder.do_eval(self.tool["stdout"])
-                assert j.stdout is not None
-                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                    raise validate.ValidationException(
-                        "stdout must be a relative path, got '%s'" % j.stdout)
+                if j.stdout:
+                    if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
+                        raise validate.ValidationException(
+                            "stdout must be a relative path, got '%s'" % j.stdout)
 
         if debug:
             _logger.debug(u"[job %s] command line bindings is %s", j.name,
@@ -546,7 +550,7 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit, _ = self.get_requirement("TimeLimit")
+        timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
@@ -592,12 +596,17 @@ class CommandLineTool(Process):
                              ports,                  # type: Set[Dict[Text, Any]]
                              builder,                # type: Builder
                              outdir,                 # type: Text
+                             rcode,                  # type: int
                              compute_checksum=True,  # type: bool
                              jobname="",             # type: Text
                              readers=None            # type: Dict[Text, Any]
                             ):  # type: (...) -> OutputPorts
         ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+        if cwl_version != "v1.0":
+            builder.resources["exitCode"] = rcode
         try:
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
@@ -706,14 +715,13 @@ class CommandLineTool(Process):
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
-                        with fs_access.open(rfile["location"], "rb") as f:
-                            contents = b""
-                            if binding.get("loadContents") or compute_checksum:
-                                contents = content_limit_respected_read_bytes(f)
-                            if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8")
-                            if compute_checksum:
-                                checksum = hashlib.sha1()
+                        if binding.get("loadContents"):
+                            with fs_access.open(rfile["location"], "rb") as f:
+                                files["contents"] = content_limit_respected_read_bytes(f).decode("utf-8")
+                        if compute_checksum:
+                            with fs_access.open(rfile["location"], "rb") as f:
+                                checksum = hashlib.sha1()  # nosec
+                                contents = f.read(1024 * 1024)
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)

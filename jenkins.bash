@@ -81,9 +81,16 @@ EOF
 	then
 		EXTRA="EXTRA=${EXTRA}"
 	fi
+	if [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
+	then
+		tool_ver=$(cwltool --version | awk '{ print $2 }')
+		badgedir=${PWD}/conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
+		mkdir -p ${PWD}/conformance/cwltool/cwl_${version}/
+		BADGE=" --badgedir=${badgedir}"
+	fi
 	# shellcheck disable=SC2086
 	LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
-		RUNNER=${CWLTOOL_WITH_COV} "-j$(($(nproc) / 2))"\
+		RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
 		${DRAFT} "${EXTRA}" \
 		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug

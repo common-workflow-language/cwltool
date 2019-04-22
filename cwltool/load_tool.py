@@ -108,22 +108,18 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
         if loadingContext.loader is None:
             loadingContext.loader = default_loader(loadingContext.fetcher_constructor)
 
-    uri = None  # type: Optional[Text]
-    workflowobj = None  # type: Optional[CommentedMap]
     if isinstance(argsworkflow, string_types):
         uri, fileuri = resolve_tool_uri(argsworkflow,
                                         resolver=loadingContext.resolver,
                                         document_loader=loadingContext.loader)
         workflowobj = loadingContext.loader.fetch(fileuri)
-    elif isinstance(argsworkflow, dict):
+        return loadingContext, workflowobj, uri
+    if isinstance(argsworkflow, dict):
         uri = argsworkflow["id"] if argsworkflow.get("id") else "_:" + Text(uuid.uuid4())
         workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
         loadingContext.loader.idx[uri] = workflowobj
-    else:
-        raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
-    assert workflowobj is not None
-
-    return loadingContext, workflowobj, uri
+        return loadingContext, workflowobj, uri
+    raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
 
 def _convert_stdstreams_to_files(workflowobj):
@@ -152,10 +148,9 @@ def _convert_stdstreams_to_files(workflowobj):
                                 filename = workflowobj[streamtype]
                             else:
                                 filename = Text(
-                                    hashlib.sha1(json_dumps(workflowobj,
-                                                            sort_keys=True
-                                                           ).encode('utf-8')
-                                                ).hexdigest())
+                                    hashlib.sha1(  # nosec
+                                        json_dumps(workflowobj, sort_keys=True
+                                                  ).encode('utf-8')).hexdigest())
                                 workflowobj[streamtype] = filename
                             out['type'] = 'File'
                             out['outputBinding'] = cmap({'glob': filename})

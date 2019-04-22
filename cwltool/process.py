@@ -13,7 +13,7 @@ import stat
 import tempfile
 import textwrap
 import uuid
-from collections import Iterable  # pylint: disable=unused-import
+
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
                     Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
@@ -53,6 +53,10 @@ except ImportError:
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
+if PY3:
+    from collections.abc import Iterable # only works on python 3.3+
+else:
+    from collections import Iterable  # pylint: disable=unused-import
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
@@ -79,7 +83,7 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement",
-                                "TimeLimit",
+                                "ToolTimeLimit",
                                 "WorkReuse",
                                 "NetworkAccess",
                                 "InplaceUpdateRequirement",
@@ -221,7 +225,7 @@ def stage_files(pathmapper,             # type: PathMapper
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
-            os.makedirs(os.path.dirname(entry.target), 0o0755)
+            os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if symlink:  # Use symlink func if allowed
                 if onWindows():
@@ -238,13 +242,13 @@ def stage_files(pathmapper,             # type: PathMapper
                 stage_func(entry.resolved, entry.target)
         elif entry.type == "Directory" and not os.path.exists(entry.target) \
                 and entry.resolved.startswith("_:"):
-            os.makedirs(entry.target, 0o0755)
+            os.makedirs(entry.target)
         elif entry.type == "WritableFile" and not ignore_writable:
             shutil.copy(entry.resolved, entry.target)
             ensure_writable(entry.target)
         elif entry.type == "WritableDirectory" and not ignore_writable:
             if entry.resolved.startswith("_:"):
-                os.makedirs(entry.target, 0o0755)
+                os.makedirs(entry.target)
             else:
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target)
@@ -439,6 +443,7 @@ def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
         return builder.do_eval(resource_req)
     return resource_req
 
+
 # Threshold where the "too many files" warning kicks in
 FILE_COUNT_WARNING = 5000
 
@@ -619,6 +624,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                         continue
                     v = job[k]
                     dircount = [0]
+
                     def inc(d):  # type: (List[int]) -> None
                         d[0] += 1
                     visit_class(v, ("Directory",), lambda x: inc(dircount))
@@ -666,7 +672,7 @@ hints:
                         runtime_context.docker_outdir or random_outdir()
             elif default_docker is not None:
                 outdir = runtime_context.docker_outdir or random_outdir()
-            tmpdir = runtime_context.docker_tmpdir or "/tmp"
+            tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(
@@ -720,7 +726,14 @@ hints:
                 if isinstance(arg, MutableMapping):
                     arg = copy.deepcopy(arg)
                     if arg.get("position"):
-                        arg["position"] = [arg["position"], i]
+                        position = arg.get("position")
+                        if isinstance(position, str):  # no need to test the
+                                                       # CWLVersion as the v1.0
+                                                       # schema only allows ints
+                            position = builder.do_eval(position)
+                            if position is None:
+                                position = 0
+                        arg["position"] = [position, i]
                     else:
                         arg["position"] = [0, i]
                     bindings.append(arg)
@@ -766,11 +779,17 @@ hints:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+        if cwl_version == "v1.0":
+            ram = 1024
+        else:
+            ram = 256
         request = {
             "coresMin": 1,
             "coresMax": 1,
-            "ramMin": 256,
-            "ramMax": 256,
+            "ramMin": ram,
+            "ramMax": ram,
             "tmpdirMin": 1024,
             "tmpdirMax": 1024,
             "outdirMin": 1024,
@@ -999,7 +1018,7 @@ def scandeps(base,                          # type: Text
 
 def compute_checksums(fs_access, fileobj):
     if "checksum" not in fileobj:
-        checksum = hashlib.sha1()
+        checksum = hashlib.sha1()  # nosec
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
             while contents != b"":
