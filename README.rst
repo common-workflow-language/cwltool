@@ -2,7 +2,7 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status|
+CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status| |Downloads|
 
 
 .. |Conformance Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
@@ -15,7 +15,10 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
    :target: https://ci.appveyor.com/project/mr-c/cwltool
 
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
-  :target: https://codecov.io/gh/common-workflow-language/cwltool
+   :target: https://codecov.io/gh/common-workflow-language/cwltool
+
+.. |Downloads| image:: https://pepy.tech/badge/cwltool/month
+   :target: https://pepy.tech/project/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
@@ -495,7 +498,7 @@ Running tests locally
 
 -  Running basic tests ``(/tests)``:
 
-To run the basis tests after installing `cwltool` execute the following:
+To run the basic tests after installing `cwltool` execute the following:
 
 .. code:: bash
 

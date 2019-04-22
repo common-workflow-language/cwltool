@@ -9,25 +9,26 @@ import pytest
 import cwltool.pack
 import cwltool.workflow
 from cwltool import load_tool
-from cwltool.load_tool import fetch_document, validate_document
+from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
 from cwltool.resolver import tool_resolver
+from cwltool.context import LoadingContext
 
 from .util import get_data, needs_docker
 
 
 def test_pack():
-    load_tool.loaders = {}
-
-    document_loader, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
-    document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
         expect_packed = json.load(packed_file)
 
-    packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
+    packed = cwltool.pack.pack(loadingContext.loader, processobj, uri, loadingContext.metadata)
     adjustFileObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
@@ -40,25 +41,26 @@ def test_pack():
 
 
 def test_pack_single_tool():
-    load_tool.loaders = {}
-
-    document_loader, workflowobj, uri = fetch_document(
+    loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/formattest.cwl"))
-    document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
 
-    packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
+    packed = cwltool.pack.pack(loadingContext.loader, processobj, uri, loadingContext.metadata)
     assert "$schemas" in packed
 
 def test_pack_rewrites():
-    load_tool.loaders = {}
     rewrites = {}
 
-    document_loader, workflowobj, uri = fetch_document(get_data("tests/wf/default-wf5.cwl"))
-    document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/default-wf5.cwl"))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
 
-    cwltool.pack.pack(document_loader, processobj, uri, metadata, rewrite_out=rewrites)
+    cwltool.pack.pack(loadingContext.loader, processobj, uri, loadingContext.metadata, rewrite_out=rewrites)
 
     assert len(rewrites) == 6
 
@@ -73,11 +75,14 @@ def test_pack_missing_cwlVersion(cwl_path):
     the `cwlVersion` in case of single tool workflow and single step workflow"""
 
     # Testing single tool workflow
-    document_loader, workflowobj, uri = fetch_document(get_data(cwl_path))
-    document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
+    loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
+
     # generate pack output dict
-    packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+    packed = json.loads(print_pack(loadingContext.loader, processobj, uri, loadingContext.metadata))
 
     assert packed["cwlVersion"] == 'v1.0'
 
@@ -96,17 +101,22 @@ def test_pack_idempotence_workflow():
     _pack_idempotently("tests/wf/count-lines1-wf.cwl")
 
 def _pack_idempotently(document):
-    document_loader, workflowobj, uri = fetch_document(
+    loadingContext, workflowobj, uri = fetch_document(
         get_data(document))
-    document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
-    # generate pack output dict
-    packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
 
-    document_loader, workflowobj, uri2 = fetch_document(packed)
-    document_loader, _, processobj, metadata, uri2 = validate_document(
-        document_loader, workflowobj, uri, [], {})
-    double_packed = json.loads(print_pack(document_loader, processobj, uri2, metadata))
+    # generate pack output dict
+    packed = json.loads(print_pack(loadingContext.loader, processobj, uri, loadingContext.metadata))
+
+    loadingContext, workflowobj, uri2 = fetch_document(packed)
+    loadingContext.do_update = False
+    loadingContext, uri2 = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    double_packed = json.loads(print_pack(loadingContext.loader, processobj, uri2, loadingContext.metadata))
     assert packed == double_packed
 
 cwl_to_run = [
@@ -122,16 +132,16 @@ cwl_to_run = [
 
 @needs_docker
 @pytest.mark.parametrize('wf_path,job_path,namespaced', cwl_to_run)
-def test_packed_workflow_execution(wf_path, job_path, namespaced):
-    load_tool.loaders = {}
-
-    document_loader, workflowobj, uri = fetch_document(
-        get_data(wf_path), resolver=tool_resolver)
-
-    document_loader, _, processobj, metadata, uri = validate_document(
-        document_loader, workflowobj, uri, [], {})
-
-    packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+def test_packed_workflow_execution(wf_path, job_path, namespaced, tmpdir):
+    loadingContext = LoadingContext()
+    loadingContext.resolver = tool_resolver
+    loadingContext, workflowobj, uri = fetch_document(
+        get_data(wf_path), loadingContext)
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri)
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    packed = json.loads(print_pack(loadingContext.loader, processobj, uri, loadingContext.metadata))
 
     assert not namespaced or "$namespaces" in packed
 
@@ -142,8 +152,8 @@ def test_packed_workflow_execution(wf_path, job_path, namespaced):
     normal_output = StringIO()
     packed_output = StringIO()
 
-    normal_params = [get_data(wf_path), get_data(job_path)]
-    packed_params = ['--debug', get_data(wf_packed_path), get_data(job_path)]
+    normal_params = ['--outdir', str(tmpdir), get_data(wf_path), get_data(job_path)]
+    packed_params = ['--outdir', str(tmpdir), '--debug', get_data(wf_packed_path), get_data(job_path)]
 
     assert main(normal_params, stdout=normal_output) == 0
     assert main(packed_params, stdout=packed_output) == 0

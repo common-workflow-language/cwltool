@@ -21,7 +21,7 @@ from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, context, expression
-from .builder import CONTENT_LIMIT
+from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink, static_checker
 from .context import LoadingContext  # pylint: disable=unused-import
 from .context import RuntimeContext, getdefault
@@ -348,7 +348,7 @@ class WorkflowJob(object):
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:
-                            v["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
+                            v["contents"] = content_limit_respected_read(f)
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
@@ -612,7 +612,7 @@ class WorkflowStep(Process):
         loadingContext = loadingContext.copy()
 
         loadingContext.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        assert loadingContext.requirements is not None
+        assert loadingContext.requirements is not None  # nosec
         loadingContext.requirements.extend(toolpath_object.get("requirements", []))
         loadingContext.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
@@ -625,6 +625,7 @@ class WorkflowStep(Process):
                 self.embedded_tool = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext)  # type: Process
             else:
+                loadingContext.metadata = {}
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
         except validate.ValidationException as vexc:
@@ -884,7 +885,8 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
             raise WorkflowException(
                 "Length of input arrays must be equal when performing "
                 "dotproduct scatter.")
-    assert jobl is not None
+    if jobl is None:
+        raise Exception("Impossible codepath")
 
     output = {}  # type: Dict[Text,List[Optional[Text]]]
     for i in process.tool["outputs"]:

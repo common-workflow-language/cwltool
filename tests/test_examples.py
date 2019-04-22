@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import stat
 import sys
 from io import BytesIO, StringIO
 import pytest
@@ -23,6 +24,8 @@ from cwltool.process import CWL_IANA
 
 from .util import (get_data, get_main_output, get_windows_safe_factory,
                    needs_docker, working_directory, needs_singularity, temp_dir, windows_needs_docker)
+
+import six
 
 try:
     reload
@@ -786,11 +789,35 @@ def test_cid_file_w_prefix(tmpdir):
 
 
 @needs_docker
-def test_wf_without_container():
+class TestSecondaryFiles():
+    def test_secondary_files(self):
+        test_file = "secondary-files.cwl"
+        test_job_file = "secondary-files-job.yml"
+        try:
+            old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
+            error_code, _, stderr = get_main_output(
+                ["--enable-dev",
+                get_data(os.path.join("tests", test_file)),
+                get_data(os.path.join("tests", test_job_file))])
+        finally:
+            assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+            os.umask(old_umask)  # revert back to original umask
+        assert "completed success" in stderr
+        assert error_code == 0
+
+
+@needs_docker
+class TestCache():
+    def setUp(self):
+        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
+
+
+@needs_docker
+def test_wf_without_container(tmpdir):
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
         error_code, _, stderr = get_main_output(
-            ["--cachedir", cache_dir,
+            ["--cachedir", cache_dir, "--outdir", str(tmpdir),
              get_data("tests/wf/" + test_file),
              "--usermessage",
              "hello"]
@@ -832,11 +859,12 @@ def test_compute_checksum():
 
 
 @needs_docker
-def test_no_compute_checksum():
+def test_no_compute_chcksum(tmpdir):
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
     error_code, stdout, stderr = get_main_output(
-        ["--no-compute-checksum", get_data(test_file), get_data(job_file)])
+        ["--no-compute-checksum", "--outdir", str(tmpdir),
+         get_data(test_file), get_data(job_file)])
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout
@@ -866,4 +894,12 @@ def test_bad_basecommand_docker():
     error_code, stdout, stderr = get_main_output(
         ["--debug", "--default-container", "debian", get_data(test_file)])
     assert "permanentFail" in stderr, stderr
+    assert error_code == 1
+
+def test_v1_0_position_expression():
+    test_file = "tests/echo-position-expr.cwl"
+    test_job = "tests/echo-position-expr-job.yml"
+    error_code, stdout, stderr = get_main_output(
+        ['--debug', get_data(test_file), get_data(test_job)])
+    assert "is not int" in stderr, stderr
     assert error_code == 1

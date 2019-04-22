@@ -164,7 +164,7 @@ class WritableBagFile(FileIO):
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         self.rel_path = rel_path
-        self.hashes = {SHA1: hashlib.sha1(),
+        self.hashes = {SHA1: hashlib.sha1(),  # nosec
                        SHA256: hashlib.sha256(),
                        SHA512: hashlib.sha512()}
         # Open file in Research Object folder
@@ -501,14 +501,13 @@ class ProvenanceProfile():
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
-        entity = None # type: Optional[ProvEntity]
+        entity = None  # type: Optional[ProvEntity]
         checksum = None
         if 'checksum' in value:
             csum = value['checksum']
             (method, checksum) = csum.split("$", 1)
-            assert checksum
             if method == SHA1 and \
-                self.research_object.has_data_file(checksum):
+                    self.research_object.has_data_file(checksum):
                 entity = self.document.entity("data:" + checksum)
 
         if not entity and 'location' in value:
@@ -530,7 +529,7 @@ class ProvenanceProfile():
             entity, checksum = self.declare_string(value["contents"])
 
         # By here one of them should have worked!
-        if not entity:
+        if not entity or not checksum:
             raise ValueError("class:File but missing checksum/location/content: %r" % value)
 
 
@@ -564,8 +563,6 @@ class ProvenanceProfile():
                 sec_entity, file_entity,
                 other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
 
-        assert entity
-        assert checksum
         return file_entity, entity, checksum
 
     def declare_directory(self, value):  # type: (MutableMapping) -> ProvEntity
@@ -603,7 +600,7 @@ class ProvenanceProfile():
         # a later call to this method will sort that
         is_empty = True
 
-        if not "listing" in value:
+        if "listing" not in value:
             fsaccess = StdFsAccess("")
             get_listing(fsaccess, value)
         for entry in value.get("listing", []):
@@ -947,7 +944,9 @@ class ResearchObject():
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
-        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=temp_prefix_ro))  # type: Text
+        tmp_dir, tmp_prefix = os.path.split(temp_prefix_ro)
+        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmp_prefix,
+            dir=tmp_dir))  # type: Text
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict
@@ -1394,8 +1393,9 @@ class ResearchObject():
         # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
         """Copy inputs to data/ folder."""
         self.self_check()
+        tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(
-                prefix=self.temp_prefix, delete=False) as tmp:
+                prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
             checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path

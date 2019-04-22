@@ -27,11 +27,11 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
-	pytest pytest-xdist isort
+	pytest-xdist==1.27.0 isort wheel -rtest-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
-	--max-count=1 --format=format:%cI`)
+VERSION=1.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
+	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
 ifeq ($(UNAME_S),Linux)
@@ -51,7 +51,7 @@ help: Makefile
 
 ## install-dep : install most of the development dependencies via pip
 install-dep:
-	pip install --upgrade $(DEVPKGS) -rtest-requirements.txt
+	pip install --upgrade $(DEVPKGS)
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:

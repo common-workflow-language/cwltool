@@ -1,3 +1,4 @@
+saladVersion: v1.1
 $base: "https://w3id.org/cwl/cwl#"
 
 $namespaces:
@@ -237,7 +238,9 @@ $graph:
         - "null"
         - type: array
           items: [File, Directory]
-      jsonldPredicate: "cwl:secondaryFiles"
+      jsonldPredicate:
+        _id: "cwl:secondaryFiles"
+        secondaryFilesDSL: true
       doc: |
         A list of additional files or directories that are associated with the
         primary file and must be transferred alongside the primary file.
@@ -293,7 +296,7 @@ $graph:
     The `location` property of a Directory is a URI that uniquely identifies
     the directory.  Implementations must support the file:// URI scheme and may
     support other schemes such as http://.  Alternately to `location`,
-    implementations must also accept the `path` property on Direcotry, which
+    implementations must also accept the `path` property on Directory, which
     must be a filesystem path available on the same host as the CWL runner (for
     inputs) or the runtime environment of a command line tool execution (for
     command line tool outputs).
@@ -434,21 +437,44 @@ $graph:
       doc: "The unique identifier for this object."
 
 
+- name: LoadListingEnum
+  type: enum
+  symbols: [no_listing, shallow_listing, deep_listing]
+  doc:
+    - |
+      Specify the desired behavior for loading the `listing` field of
+      a Directory object for use by expressions.
+    - "no_listing: Do not load the directory listing."
+    - "shallow_listing: Only load the top level listing, do not recurse into subdirectories."
+    - "deep_listing: Load the directory listing and recursively load all subdirectories as well."
+
+
 - name: LoadContents
   type: record
   abstract: true
   fields:
     - name: loadContents
-      type:
-        - "null"
-        - boolean
+      type: boolean?
       jsonldPredicate: "cwl:loadContents"
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
         Read up to the first 64 KiB of text from the file and place it in the
         "contents" field of the file object for use by expressions.
+    - name: loadListing
+      type: LoadListingEnum?
+      jsonldPredicate: "cwl:loadListing"
+      doc: |
+        Only valid when `type: Directory` or is an array of `items: Directory`.
 
+        Specify the desired behavior for loading the `listing` field of
+        a Directory object for use by expressions.
+
+        The order of precedence for loadListing is:
+
+          1. `loadListing` on an individual parameter
+          2. Inherited from `LoadListingRequirement`
+          3. By default: `no_listing`
 
 - name: FieldBase
   type: record
@@ -458,18 +484,25 @@ $graph:
     secondaryFiles:
       type:
         - "null"
-        - string
-        - Expression
+        - SecondaryFileSchema
         - type: array
-          items: [string, Expression]
-      jsonldPredicate: "cwl:secondaryFiles"
+          items: SecondaryFileSchema
+      jsonldPredicate:
+        _id: "cwl:secondaryFiles"
+        secondaryFilesDSL: true
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
-        Provides a pattern or expression specifying files or directories that
-        must be included alongside the primary file.  All listed secondary
-        files must be present.  An implementation may fail workflow execution
-        if an expected secondary file does not exist.
+        Provides a pattern or expression specifying files or
+        directories that should be included alongside the primary
+        file.  Secondary files may be required or optional.  When not
+        explicitly specified, secondary files specified for `inputs`
+        are required and `outputs` are optional.  An implementation
+        must include matching Files and Directories in the
+        `secondaryFiles` property of the primary file.  These Files
+        and Directories must be transferred and staged alongside the
+        primary file.  An implementation may fail workflow execution
+        if a required secondary file does not exist.
 
         If the value is an expression, the value of `self` in the expression
         must be the primary input or output File object to which this binding
@@ -480,6 +513,8 @@ $graph:
         `path` or `location` and `basename` fields set, or an array consisting
         of strings or File or Directory objects.  It is legal to reference an
         unchanged File or Directory object taken from input as a secondaryFile.
+        The expression may return "null" in which case there is no secondaryFile
+        from that expression.
 
         To work on non-filename-preserving storage systems, portable tool
         descriptions should avoid constructing new values from `location`, but
@@ -490,11 +525,13 @@ $graph:
         it specifies that the following pattern should be applied to the path
         of the primary file to yield a filename relative to the primary File:
 
-          1. If string begins with one or more caret `^` characters, for each
+          1. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          2. If string begins with one or more caret `^` characters, for each
             caret, remove the last file extension from the path (the last
             period `.` and all following characters).  If there are no file
             extensions, the path is unchanged.
-          2. Append the remainder of the string to the end of the file path.
+          3. Append the remainder of the string to the end of the file path.
 
     streamable:
       type: boolean?
@@ -589,7 +626,7 @@ $graph:
         "contents" field of the file object for use by expressions.
 
 
-- name: InputSchema
+- name: IOSchema
   extends: [Labeled, sld:Documented]
   type: record
   abstract: true
@@ -599,9 +636,13 @@ $graph:
       jsonldPredicate: "@id"
       doc: "The identifier for this type"
 
+- name: InputSchema
+  extends: [IOSchema]
+  type: record
+  abstract: true
 
 - name: OutputSchema
-  extends: [Labeled]
+  extends: [IOSchema]
   type: record
   abstract: true
 
@@ -850,3 +891,67 @@ $graph:
         type: array
         items: CommandInputSchema
       doc: The list of type definitions.
+
+- name: SecondaryFileSchema
+  type: record
+  fields:
+    - name: pattern
+      type:
+        - string
+        - Expression
+      doc: |
+        Provides a pattern or expression specifying files or directories that
+        should be included alongside the primary file.
+
+        If the value is an expression, the value of `self` in the expression
+        must be the primary input or output File object to which this binding
+        applies.  The `basename`, `nameroot` and `nameext` fields must be
+        present in `self`.  For `CommandLineTool` outputs the `path` field must
+        also be present.  The expression must return a filename string relative
+        to the path to the primary File, a File or Directory object with either
+        `path` or `location` and `basename` fields set, or an array consisting
+        of strings or File or Directory objects.  It is legal to reference an
+        unchanged File or Directory object taken from input as a secondaryFile.
+        The expression may return "null" in which case there is no secondaryFile
+        from that expression.
+
+        To work on non-filename-preserving storage systems, portable tool
+        descriptions should avoid constructing new values from `location`, but
+        should construct relative references using `basename` or `nameroot`
+        instead.
+
+        If a value in `secondaryFiles` is a string that is not an expression,
+        it specifies that the following pattern should be applied to the path
+        of the primary file to yield a filename relative to the primary File:
+
+          1. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          2. If string begins with one or more caret `^` characters, for each
+            caret, remove the last file extension from the path (the last
+            period `.` and all following characters).  If there are no file
+            extensions, the path is unchanged.
+          3. Append the remainder of the string to the end of the file path.
+    - name: required
+      type: ["null", boolean, string, Expression]
+      doc: |
+        An implementation must not fail workflow execution if `required` is
+        set to `false` and the expected secondary file does not exist.
+        Default value for `required` field is `true` for secondary files on
+        input and `false` for secondary files on output.
+
+- name: LoadListingRequirement
+  type: record
+  extends: ProcessRequirement
+  doc: |
+    Specify the desired behavior for loading the `listing` field of
+    a Directory object for use by expressions.
+  fields:
+    class:
+      type: string
+      doc: "Always 'LoadListingRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    loadListing:
+      type: LoadListingEnum?
+      jsonldPredicate: "cwl:loadListing"

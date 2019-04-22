@@ -26,11 +26,11 @@ from .utils import docker_windows_path_adjust
 
 if os.name == 'posix':
     if sys.version_info < (3, 5):
-        from subprocess32 import (  # pylint: disable=import-error,no-name-in-module
+        from subprocess32 import (  # nosec # pylint: disable=import-error,no-name-in-module
             check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
             TimeoutExpired)
     else:
-        from subprocess import (  # pylint: disable=import-error,no-name-in-module
+        from subprocess import (  # nosec # pylint: disable=import-error,no-name-in-module
             check_call, check_output, CalledProcessError, DEVNULL, PIPE, Popen,
             TimeoutExpired)
 
@@ -44,7 +44,7 @@ def _singularity_supports_userns():  # type: ()->bool
     if _USERNS is None:
         try:
             hello_image = os.path.join(os.path.dirname(__file__), 'hello.simg')
-            result = Popen(
+            result = Popen(  # nosec
                 [u"singularity", u"exec", u"--userns", hello_image, u"true"],
                 stderr=PIPE, stdout=DEVNULL,
                 universal_newlines=True).communicate(timeout=60)[1]
@@ -110,7 +110,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        str(dockerRequirement["dockerImageId"]),
                        str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
-                check_call(cmd, stdout=sys.stderr)
+                check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerFile" in dockerRequirement:
                 raise WorkflowException(SourceLine(
@@ -202,8 +202,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 runtime, volume.resolved, volume.target, writable=True)
             ensure_writable(volume.resolved)
         else:
+            tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             file_copy = os.path.join(
-                tempfile.mkdtemp(dir=tmpdir_prefix),
+                tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                 os.path.basename(volume.resolved))
             shutil.copy(volume.resolved, file_copy)
             #volume.resolved = file_copy
@@ -221,10 +222,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
             else:
+                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(dir=tmpdir_prefix),
+                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                     os.path.basename(volume.resolved))
-            os.makedirs(new_dir, 0o0755)
+            os.makedirs(new_dir)
         else:
             if host_outdir_tgt is not None:
                 # workaround for lack of overlapping mounts in Singularity
@@ -235,8 +237,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 ensure_writable(host_outdir_tgt)
             else:
                 if not self.inplace_update:
+                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                     dir_copy = os.path.join(
-                        tempfile.mkdtemp(dir=tmpdir_prefix),
+                        tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                         os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, dir_copy)
                     source = dir_copy
@@ -264,8 +267,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             docker_windows_path_adjust(os.path.realpath(self.outdir)),
             self.builder.outdir))
         runtime.append(u"--bind")
+        tmpdir = "/tmp"  # nosec
         runtime.append(u"{}:{}:rw".format(
-            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), "/tmp"))
+            docker_windows_path_adjust(os.path.realpath(self.tmpdir)), tmpdir))
 
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
                          secret_store=runtime_context.secret_store,
@@ -285,9 +289,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif runtime_context.disable_net:
             runtime.append(u"--net")
 
-        env["SINGULARITYENV_TMPDIR"] = "/tmp"
+        env["SINGULARITYENV_TMPDIR"] = tmpdir
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
-            env["SINGULARITYENV_{}".format(name)] = value
+            env["SINGULARITYENV_{}".format(name)] = str(value)
         return (runtime, None)
+

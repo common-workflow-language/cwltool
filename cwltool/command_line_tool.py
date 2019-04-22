@@ -15,6 +15,9 @@ from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
                     MutableSequence, Optional, Set, Union, cast)
 
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+
 import shellescape
 from schema_salad import validate
 from schema_salad.avro.schema import Schema
@@ -27,7 +30,7 @@ from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from .builder import (CONTENT_LIMIT, Builder,  # pylint: disable=unused-import
+from .builder import (Builder, content_limit_respected_read_bytes, # pylint: disable=unused-import
                       substitute)
 from .context import LoadingContext  # pylint: disable=unused-import
 from .context import RuntimeContext, getdefault
@@ -94,6 +97,7 @@ class ExpressionTool(Process):
 
         def run(self, runtimeContext):  # type: (RuntimeContext) -> None
             try:
+                normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
@@ -153,7 +157,8 @@ def revmap_file(builder, outdir, f):
         if "basename" not in f:
             f["basename"] = os.path.basename(path)
 
-        assert builder.pathmapper is not None
+        if not builder.pathmapper:
+            raise ValueError("Do not call revmap_file using a builder that doesn't have a pathmapper.")
         revmap_f = builder.pathmapper.reversemap(path)
 
         if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
@@ -200,7 +205,8 @@ def check_adjust(builder, file_o):
     doesn't reach everything in builder.bindings
     """
 
-    assert builder.pathmapper is not None
+    if not builder.pathmapper:
+            raise ValueError("Do not call check_adjust using a builder that doesn't have a pathmapper.")
     file_o["path"] = docker_windows_path_adjust(
         builder.pathmapper.mapper(file_o["location"])[1])
     dn, bn = os.path.split(file_o["path"])
@@ -289,18 +295,14 @@ class CommandLineTool(Process):
            ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
-        require_prefix = ""
-        if self.metadata["cwlVersion"] == "v1.0":
-            require_prefix = "http://commonwl.org/cwltool#"
-
-        workReuse, _ = self.get_requirement(require_prefix + "WorkReuse")
+        workReuse, _ = self.get_requirement("WorkReuse")
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
         jobname = uniquename(runtimeContext.name or shortname(self.tool.get("id", "job")))
         if runtimeContext.cachedir and enableReuse:
             cachecontext = runtimeContext.copy()
             cachecontext.outdir = "/out"
-            cachecontext.tmpdir = "/tmp"
+            cachecontext.tmpdir = "/tmp"  # nosec
             cachecontext.stagedir = "/stage"
             cachebuilder = self._init_job(job_order, cachecontext)
             cachebuilder.pathmapper = PathMapper(cachebuilder.files,
@@ -354,7 +356,8 @@ class CommandLineTool(Process):
 
             keydictstr = json_dumps(keydict, separators=(',', ':'),
                                     sort_keys=True)
-            cachekey = hashlib.md5(keydictstr.encode('utf-8')).hexdigest()
+            cachekey = hashlib.md5(  # nosec
+                keydictstr.encode('utf-8')).hexdigest()
 
             _logger.debug("[job %s] keydictstr is %s -> %s", jobname,
                           keydictstr, cachekey)
@@ -428,16 +431,25 @@ class CommandLineTool(Process):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in initialWorkdir["listing"]:
-                    if "entry" in t:
-                        et = {u"entry": builder.do_eval(t["entry"], strip_whitespace=False)}
-                        if "entryname" in t:
-                            et["entryname"] = builder.do_eval(t["entryname"])
-                        else:
-                            et["entryname"] = None
-                        et["writable"] = t.get("writable", False)
-                        ls.append(et)
+                    if isinstance(t, Mapping) and "entry" in t:
+                        entry_exp = builder.do_eval(t["entry"], strip_whitespace=False)
+                        for entry in aslist(entry_exp):
+                            et = {u"entry": entry}
+                            if "entryname" in t:
+                                et["entryname"] = builder.do_eval(t["entryname"])
+                            else:
+                                et["entryname"] = None
+                            et["writable"] = t.get("writable", False)
+                            if et[u"entry"]:
+                                ls.append(et)
                     else:
-                        ls.append(builder.do_eval(t))
+                        initwd_item = builder.do_eval(t)
+                        if not initwd_item:
+                            continue
+                        if isinstance(initwd_item, MutableSequence):
+                            ls.extend(initwd_item)
+                        else:
+                            ls.append(initwd_item)
             for i, t in enumerate(ls):
                 if "entry" in t:
                     if isinstance(t["entry"], string_types):
@@ -468,44 +480,45 @@ class CommandLineTool(Process):
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", validate.ValidationException, debug):
                 j.stdin = builder.do_eval(self.tool["stdin"])
-                assert j.stdin is not None
-                reffiles.append({"class": "File", "path": j.stdin})
+                if j.stdin:
+                    reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
             with SourceLine(self.tool, "stderr", validate.ValidationException, debug):
                 j.stderr = builder.do_eval(self.tool["stderr"])
-                assert j.stderr is not None
-                if os.path.isabs(j.stderr) or ".." in j.stderr:
-                    raise validate.ValidationException(
-                        "stderr must be a relative path, got '%s'" % j.stderr)
+                if j.stderr:
+                    if os.path.isabs(j.stderr) or ".." in j.stderr:
+                        raise validate.ValidationException(
+                            "stderr must be a relative path, got '%s'" % j.stderr)
 
         if self.tool.get("stdout"):
             with SourceLine(self.tool, "stdout", validate.ValidationException, debug):
                 j.stdout = builder.do_eval(self.tool["stdout"])
-                assert j.stdout is not None
-                if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                    raise validate.ValidationException(
-                        "stdout must be a relative path, got '%s'" % j.stdout)
+                if j.stdout:
+                    if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
+                        raise validate.ValidationException(
+                            "stdout must be a relative path, got '%s'" % j.stdout)
 
         if debug:
             _logger.debug(u"[job %s] command line bindings is %s", j.name,
                           json_dumps(builder.bindings, indent=4))
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
-            out_prefix = getdefault(runtimeContext.tmp_outdir_prefix, 'tmp')
+            out_dir, out_prefix = os.path.split(
+                runtimeContext.tmp_outdir_prefix)
             j.outdir = runtimeContext.outdir or \
-                tempfile.mkdtemp(prefix=out_prefix)  # type: ignore
-            tmpdir_prefix = getdefault(runtimeContext.tmpdir_prefix, 'tmp')
+                tempfile.mkdtemp(prefix=out_prefix, dir=out_dir)
+            tmpdir_dir, tmpdir_prefix = os.path.split(
+                runtimeContext.tmpdir_prefix)
             j.tmpdir = runtimeContext.tmpdir or \
-                tempfile.mkdtemp(prefix=tmpdir_prefix)  # type: ignore
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix)
+                tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
-        inplaceUpdateReq, _ = self.get_requirement("http://commonwl.org/cwltool#InplaceUpdateRequirement")
-
+        inplaceUpdateReq, _ = self.get_requirement("InplaceUpdateRequirement")
         if inplaceUpdateReq is not None:
             j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
@@ -537,16 +550,14 @@ class CommandLineTool(Process):
             adjustDirObjs(builder.files, register_reader)
             adjustDirObjs(builder.bindings, register_reader)
 
-        timelimit, _ = self.get_requirement(require_prefix + "TimeLimit")
+        timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
             with SourceLine(timelimit, "timelimit", validate.ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
                 if not isinstance(j.timelimit, int) or j.timelimit < 0:
                     raise Exception("timelimit must be an integer >= 0, got: %s" % j.timelimit)
 
-        if self.metadata["cwlVersion"] == "v1.0":
-            j.networkaccess = True
-        networkaccess, _ = self.get_requirement(require_prefix + "NetworkAccess")
+        networkaccess, _ = self.get_requirement("NetworkAccess")
         if networkaccess is not None:
             with SourceLine(networkaccess, "networkAccess", validate.ValidationException, debug):
                 j.networkaccess = builder.do_eval(networkaccess["networkAccess"])
@@ -585,12 +596,17 @@ class CommandLineTool(Process):
                              ports,                  # type: Set[Dict[Text, Any]]
                              builder,                # type: Builder
                              outdir,                 # type: Text
+                             rcode,                  # type: int
                              compute_checksum=True,  # type: bool
                              jobname="",             # type: Text
                              readers=None            # type: Dict[Text, Any]
                             ):  # type: (...) -> OutputPorts
         ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
+        cwl_version = self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None)
+        if cwl_version != "v1.0":
+            builder.resources["exitCode"] = rcode
         try:
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
@@ -695,18 +711,17 @@ class CommandLineTool(Process):
                     rfile = files.copy()
                     revmap(rfile)
                     if files["class"] == "Directory":
-                        ll = builder.loadListing or (binding and binding.get("loadListing"))
+                        ll = schema.get("loadListing") or builder.loadListing
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
-                        with fs_access.open(rfile["location"], "rb") as f:
-                            contents = b""
-                            if binding.get("loadContents") or compute_checksum:
-                                contents = f.read(CONTENT_LIMIT)
-                            if binding.get("loadContents"):
-                                files["contents"] = contents.decode("utf-8")
-                            if compute_checksum:
-                                checksum = hashlib.sha1()
+                        if binding.get("loadContents"):
+                            with fs_access.open(rfile["location"], "rb") as f:
+                                files["contents"] = content_limit_respected_read_bytes(f).decode("utf-8")
+                        if compute_checksum:
+                            with fs_access.open(rfile["location"], "rb") as f:
+                                checksum = hashlib.sha1()  # nosec
+                                contents = f.read(1024 * 1024)
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
@@ -746,18 +761,25 @@ class CommandLineTool(Process):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][0:primary["path"].rindex("/")+1]
                             for sf in aslist(schema["secondaryFiles"]):
-                                if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
-                                    sfpath = builder.do_eval(sf, context=primary)
-                                    subst = False
+                                if 'required' in sf:
+                                    sf_required = builder.do_eval(sf['required'], context=primary)
                                 else:
-                                    sfpath = sf
-                                    subst = True
+                                    sf_required = False
+
+                                if "$(" in sf["pattern"] or "${" in sf["pattern"]:
+                                    sfpath = builder.do_eval(sf["pattern"], context=primary)
+                                else:
+                                    sfpath = substitute(primary["basename"], sf["pattern"])
+
                                 for sfitem in aslist(sfpath):
+                                    if not sfitem:
+                                        continue
                                     if isinstance(sfitem, string_types):
-                                        if subst:
-                                            sfitem = {"path": substitute(primary["path"], sfitem)}
-                                        else:
-                                            sfitem = {"path": pathprefix+sfitem}
+                                        sfitem = {"path": pathprefix+sfitem}
+                                    if not fs_access.exists(sfitem['path']) and sf_required:
+                                        raise WorkflowException(
+                                            "Missing required secondary file '%s'" % (
+                                                sfitem["path"]))
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
                                     if fs_access.isfile(sfitem["location"]):

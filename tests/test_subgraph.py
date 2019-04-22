@@ -18,6 +18,7 @@ from .test_fetch import norm
 def test_get_subgraph():
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
     wf = norm(Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri())
+    loadingContext.do_update = False
     tool = load_tool(wf, loadingContext)
 
     sg = norm(Path(get_data("tests/subgraph")).as_uri())
