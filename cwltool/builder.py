@@ -50,8 +50,12 @@ def content_limit_respected_read(f):  # type: (IO) -> Text
 
 
 def substitute(value, replace):  # type: (Text, Text) -> Text
-    if replace[0] == "^":
-        return substitute(value[0:value.rindex('.')], replace[1:])
+    if replace.startswith("^"):
+        try:
+            return substitute(value[0:value.rindex('.')], replace[1:])
+        except ValueError:
+            # No extension to remove
+            return value + replace.lstrip("^")
     return value + replace
 
 def formatSubclassOf(fmt, cls, ontology, visited):
