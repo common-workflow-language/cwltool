@@ -1,5 +1,4 @@
-dist: trusty
-sudo: required
+dist: xenial
 services:
   - docker
 
@@ -31,7 +30,8 @@ jobs:
       python: "3.6"
     - stage: test
       python: "3.7"
-      dist: xenial
+    - stage: test
+      python: "3.8-dev"
     - stage: release-test
       python: "2.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
