@@ -28,8 +28,8 @@ jobs:
       python: "3.6"
     - stage: test
       python: "3.7"
-    - stage: test
-      python: "3.8-dev"
+    #- stage: test
+    #  python: "3.8-dev"  # ruamel.yaml doesn't support 3.8 yet
     - stage: release-test
       python: "2.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
