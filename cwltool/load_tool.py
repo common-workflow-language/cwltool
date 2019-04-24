@@ -298,7 +298,8 @@ def resolve_and_validate_document(loadingContext,
     if loadingContext.do_validate:
         schema.validate_doc(avsc_names, processobj, document_loader, loadingContext.strict)
 
-    if loadingContext.do_update:
+    # None means default behavior (do update)
+    if loadingContext.do_update in (True, None):
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
         if isinstance(processobj, MutableMapping):
