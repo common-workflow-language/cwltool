@@ -122,7 +122,8 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
     else:
         raise Exception("Expected CommentedMap or CommentedSeq")
 
-    version = cdoc[u"cwlVersion"]
+    version = metadata[u"cwlVersion"]
+    cdoc["cwlVersion"] = version
 
     if version not in UPDATES:
         if version in DEVUPDATES:
