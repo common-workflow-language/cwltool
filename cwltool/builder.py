@@ -50,8 +50,12 @@ def content_limit_respected_read(f):  # type: (IO) -> Text
 
 
 def substitute(value, replace):  # type: (Text, Text) -> Text
-    if replace[0] == "^":
-        return substitute(value[0:value.rindex('.')], replace[1:])
+    if replace.startswith("^"):
+        try:
+            return substitute(value[0:value.rindex('.')], replace[1:])
+        except ValueError:
+            # No extension to remove
+            return value + replace.lstrip("^")
     return value + replace
 
 def formatSubclassOf(fmt, cls, ontology, visited):
@@ -207,13 +211,12 @@ class Builder(HasReqsHints):
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
-            assert binding is not None
 
             bp = list(aslist(lead_pos))
             if "position" in binding:
                 position = binding["position"]
-                if isinstance(position, str):  # no need to test the CWL Version
-                                               # the schema for v1.0 only allow ints
+                if isinstance(position, str):   # no need to test the CWL Version
+                                                # the schema for v1.0 only allow ints
                     binding['position'] = self.do_eval(position, context=datum)
                     bp.append(binding['position'])
                 else:
@@ -238,7 +241,6 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(t["name"], "")
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                assert avsc is not None
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
@@ -379,7 +381,6 @@ class Builder(HasReqsHints):
                 # docker_req is none only when there is no dockerRequirement
                 # mentioned in hints and Requirement
                 path = docker_windows_path_adjust(value["path"])
-                assert path is not None
                 return path
             return value["path"]
         else:
@@ -424,8 +425,7 @@ class Builder(HasReqsHints):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                assert prefix is not None
-                args.append(prefix + self.tostr(j))
+                args.append("" if not prefix else prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 

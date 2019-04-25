@@ -645,18 +645,18 @@ def main(argsl=None,                   # type: List[str]
             loadingContext, workflowobj, uri = fetch_document(
                 uri, loadingContext)
 
-            assert loadingContext.loader is not None
-
-            if args.print_deps:
+            if args.print_deps and loadingContext.loader:
                 printdeps(workflowobj, loadingContext.loader, stdout,
-                           args.relative_deps, uri)
+                          args.relative_deps, uri)
                 return 0
 
             loadingContext, uri \
                 = resolve_and_validate_document(loadingContext, workflowobj, uri,
                                     preprocess_only=(args.print_pre or args.pack),
                                     skip_schemas=args.skip_schemas)
-            assert loadingContext.loader is not None
+            
+            if loadingContext.loader is None:
+                raise Exception("Impossible code path.")
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
             processobj = cast(CommentedMap, processobj)
             if args.pack:
@@ -789,7 +789,6 @@ def main(argsl=None,                   # type: List[str]
                 runtimeContext.select_resources = executor.select_resources
             else:
                 executor = SingleJobExecutor()
-        assert executor is not None
 
         try:
             runtimeContext.basedir = input_basedir
@@ -865,12 +864,14 @@ def main(argsl=None,                   # type: List[str]
 
     finally:
         if args and runtimeContext and runtimeContext.research_obj \
-                and workflowobj:
+                and workflowobj and loadingContext:
             research_obj = runtimeContext.research_obj
-            assert loadingContext is not None
-            assert loadingContext.loader is not None
-            prov_dependencies = prov_deps(workflowobj, loadingContext.loader, uri)
-            research_obj.generate_snapshot(prov_dependencies)
+            if loadingContext.loader is not None:
+                research_obj.generate_snapshot(prov_deps(
+                    workflowobj, loadingContext.loader, uri))
+            else:
+                _logger.warning("Unable to generate provenance snapshot "
+                    " due to missing loadingContext.loader.")
             if prov_log_handler is not None:
                 # Stop logging so we won't half-log adding ourself to RO
                 _logger.debug(u"[provenance] Closing provenance log file %s",

@@ -261,8 +261,8 @@ def do_eval(ex,                       # type: Union[Text, Dict]
            ):  # type: (...) -> Any
 
     runtime = copy.deepcopy(resources)  # type: Dict[str, Any]
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
-    runtime["outdir"] = docker_windows_path_adjust(outdir)
+    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
+    runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
 
     rootvars = {
         u"inputs": jobinput,
@@ -274,8 +274,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
     if six.PY3:
         rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
-    if needs_parsing(ex):
-        assert isinstance(ex, string_types)
+    if isinstance(ex, string_types) and needs_parsing(ex):
         fullJS = False
         jslib = u""
         for r in reversed(requirements):

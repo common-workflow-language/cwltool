@@ -155,7 +155,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                                 stdout=sys.stderr)
-                    assert loadproc.stdin is not None
+                    assert loadproc.stdin is not None  # nosec
                     _logger.info(u"Sending GET request to %s", docker_requirement["dockerLoad"])
                     req = requests.get(docker_requirement["dockerLoad"], stream=True)
                     size = 0
@@ -296,7 +296,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime = [u"docker", u"run", u"-i"]
         self.append_volume(runtime, os.path.realpath(self.outdir),
                            self.builder.outdir, writable=True)
-        self.append_volume(runtime, os.path.realpath(self.tmpdir), "/tmp",
+        tmpdir = "/tmp"  # nosec
+        self.append_volume(runtime, os.path.realpath(self.tmpdir), tmpdir,
                            writable=True)
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
                          secret_store=runtimeContext.secret_store,
