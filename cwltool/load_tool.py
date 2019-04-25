@@ -282,8 +282,7 @@ def resolve_and_validate_document(loadingContext,
         _add_blank_ids(workflowobj)
 
     workflowobj["id"] = fileuri
-    processobj, metadata = document_loader.resolve_all(
-        workflowobj, fileuri, checklinks=loadingContext.do_validate)
+    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if loadingContext.metadata:
         metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
