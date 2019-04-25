@@ -625,7 +625,8 @@ def main(argsl=None,                   # type: List[str]
         loadingContext.construct_tool_object = getdefault(
             loadingContext.construct_tool_object, workflow.default_make_tool)
         loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
-        loadingContext.do_update = not (args.pack or args.print_subgraph)
+        if loadingContext.do_update is None:
+            loadingContext.do_update = not (args.pack or args.print_subgraph)
 
         uri, tool_file_uri = resolve_tool_uri(
             args.workflow, resolver=loadingContext.resolver,
@@ -654,7 +655,7 @@ def main(argsl=None,                   # type: List[str]
                 = resolve_and_validate_document(loadingContext, workflowobj, uri,
                                     preprocess_only=(args.print_pre or args.pack),
                                     skip_schemas=args.skip_schemas)
-            
+
             if loadingContext.loader is None:
                 raise Exception("Impossible code path.")
             processobj, metadata = loadingContext.loader.resolve_ref(uri)

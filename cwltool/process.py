@@ -46,6 +46,8 @@ from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows, random_outdir)
 from .validate_js import validate_js_expressions
+from .update import INTERNAL_VERSION
+
 try:
     from os import scandir  # type: ignore
 except ImportError:
@@ -585,6 +587,10 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
     def _init_job(self, joborder, runtime_context):
         # type: (Mapping[Text, Text], RuntimeContext) -> Builder
+
+        if self.metadata.get("cwlVersion") != INTERNAL_VERSION:
+            raise WorkflowException("Process object loaded with version '%s', must update to '%s' in order to execute." % (
+                self.metadata.get("cwlVersion"), INTERNAL_VERSION))
 
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))

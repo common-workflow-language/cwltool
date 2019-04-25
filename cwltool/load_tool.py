@@ -216,17 +216,16 @@ def resolve_and_validate_document(loadingContext,
 
     fileuri = urllib.parse.urldefrag(uri)[0]
 
-    cwlVersion = workflowobj.get("cwlVersion")
+    cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
-        fileobj = fetch_document(fileuri, loadingContext)[1]
-        cwlVersion = fileobj.get("cwlVersion")
-        if not cwlVersion:
-            raise ValidationException(
-                "No cwlVersion found. "
-                "Use the following syntax in your CWL document to declare "
-                "the version: cwlVersion: <version>.\n"
-                "Note: if this is a CWL draft-2 (pre v1.0) document then it "
-                "will need to be upgraded first.")
+        cwlVersion = workflowobj.get("cwlVersion")
+    if not cwlVersion:
+        raise ValidationException(
+            "No cwlVersion found. "
+            "Use the following syntax in your CWL document to declare "
+            "the version: cwlVersion: <version>.\n"
+            "Note: if this is a CWL draft-2 (pre v1.0) document then it "
+            "will need to be upgraded first.")
 
     if not isinstance(cwlVersion, string_types):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
@@ -285,6 +284,8 @@ def resolve_and_validate_document(loadingContext,
     workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(
         workflowobj, fileuri, checklinks=loadingContext.do_validate)
+    if loadingContext.metadata:
+        metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
     if not isinstance(metadata, CommentedMap):
@@ -298,7 +299,8 @@ def resolve_and_validate_document(loadingContext,
     if loadingContext.do_validate:
         schema.validate_doc(avsc_names, processobj, document_loader, loadingContext.strict)
 
-    if loadingContext.do_update:
+    # None means default behavior (do update)
+    if loadingContext.do_update in (True, None):
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
         if isinstance(processobj, MutableMapping):

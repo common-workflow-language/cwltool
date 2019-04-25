@@ -64,7 +64,7 @@ class LoadingContext(ContextBase):
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
         self.prov_obj = None               # type: Optional[ProvenanceProfile]
-        self.do_update = True              # type: bool
+        self.do_update = None              # type: Optional[bool]
         self.jobdefaults = None            # type: Optional[MutableMapping[Text, Any]]
 
         super(LoadingContext, self).__init__(kwargs)

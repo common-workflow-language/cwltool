@@ -89,6 +89,8 @@ DEVUPDATES = {
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
+INTERNAL_VERSION = u"v1.1.0-dev1"
+
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]
     """The default, do-nothing, CWL document upgrade function."""
@@ -120,7 +122,8 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
     else:
         raise Exception("Expected CommentedMap or CommentedSeq")
 
-    version = cdoc[u"cwlVersion"]
+    version = metadata[u"cwlVersion"]
+    cdoc["cwlVersion"] = version
 
     if version not in UPDATES:
         if version in DEVUPDATES:
