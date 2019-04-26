@@ -73,6 +73,8 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
         proc.setdefault("hints", [])
         proc["hints"].insert(0, {"class": "NetworkAccess", "networkAccess": True})
         proc["hints"].insert(0, {"class": "LoadListingRequirement", "loadListing": "deep_listing"})
+        if "cwlVersion" in proc:
+            del proc["cwlVersion"]
 
     return (doc, "v1.1.0-dev1")
 

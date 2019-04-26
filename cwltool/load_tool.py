@@ -219,6 +219,11 @@ def resolve_and_validate_document(loadingContext,
     cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
         cwlVersion = workflowobj.get("cwlVersion")
+    if not cwlVersion and fileuri != uri:
+        # The tool we're loading is a fragment of a bigger file.  Get
+        # the document root element and look for cwlVersion there
+        metadata = fetch_document(fileuri, loadingContext)[1]
+        cwlVersion = metadata.get("cwlVersion")
     if not cwlVersion:
         raise ValidationException(
             "No cwlVersion found. "
@@ -281,7 +286,6 @@ def resolve_and_validate_document(loadingContext,
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    workflowobj["id"] = fileuri
     processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if loadingContext.metadata:
         metadata = loadingContext.metadata
@@ -308,6 +312,8 @@ def resolve_and_validate_document(loadingContext,
             document_loader.idx[metadata["id"]] = metadata
             for po in processobj:
                 document_loader.idx[po["id"]] = po
+        else:
+            raise Exception("Whoops processobj was not MutableMapping or MutableSequence %s", type(processobj))
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj
