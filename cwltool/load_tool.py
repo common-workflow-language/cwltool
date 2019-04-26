@@ -286,7 +286,7 @@ def resolve_and_validate_document(loadingContext,
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
+    processobj, metadata = document_loader.resolve_all(workflowobj, uri)
     if loadingContext.metadata:
         metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
@@ -313,7 +313,7 @@ def resolve_and_validate_document(loadingContext,
             for po in processobj:
                 document_loader.idx[po["id"]] = po
         else:
-            raise Exception("Whoops processobj was not MutableMapping or MutableSequence %s", type(processobj))
+            raise Exception("'processobj' was not MutableMapping or MutableSequence %s" % type(processobj))
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj
