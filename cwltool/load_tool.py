@@ -286,7 +286,7 @@ def resolve_and_validate_document(loadingContext,
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    processobj, metadata = document_loader.resolve_all(workflowobj, uri)
+    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if loadingContext.metadata:
         metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
