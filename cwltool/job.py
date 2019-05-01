@@ -413,10 +413,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         sproc.wait()
         mem_tm.cancel()
         if memory_usage[0] is not None:
-            _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+            _logger.info(u"[job {}] Max memory used: {}MiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
-            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
+            _logger.info(u"[job {}] Could not collect memory usage, job ended "
+                         "before monitoring began.".format(self.name))
 
 
 class CommandLineJob(JobBase):
