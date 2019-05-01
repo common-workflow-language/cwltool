@@ -335,6 +335,7 @@ class ProvenanceProfile():
             run_uuid = uuid.uuid4()
         self.workflow_run_uuid = run_uuid
         self.workflow_run_uri = run_uuid.urn
+        self.relationships = {}
         self.generate_prov_doc()
 
     def __str__(self):
@@ -451,6 +452,7 @@ class ProvenanceProfile():
                  research_obj       # type: ResearchObject
                 ):  # type: (...) -> None
         """Evaluate the nature of job"""
+        self._find_relationships(process)
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
@@ -462,6 +464,16 @@ class ProvenanceProfile():
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
+
+    def _find_relationships(self, process):
+        # type: (Process) -> None
+        outputs = process.tool.get("outputs", {})
+        relationships = dict(
+            (o.get("id"), o.get("https://w3id.org/cwl/prov#relationships"))
+                for o in outputs
+                    if "https://w3id.org/cwl/prov#relationships" in o)
+        _logger.error("[provenance] Added relationships %s", relationships)
+        self.relationships.update(relationships)
 
     def record_process_start(self, process, job, process_run_id=None):
         # type: (Process, Any, str) -> Optional[str]
@@ -789,18 +801,20 @@ class ProvenanceProfile():
             self.research_object.add_uri(entity.identifier.uri)
             return entity
 
+    def _to_wf_ns(self, name, stepname=None, base="main"):
+        # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
+        if stepname is not None:
+            base += "/" + urllib.parse.quote(str(stepname), safe=":/,#")
+        return self.wf_ns["%s/%s" % (base, name)]
+
     def used_artefacts(self,
                        job_order,            # type: Dict
                        process_run_id,       # type: str
                        name=None             # type: str
                       ):  # type: (...) -> None
         """Add used() for each data artefact."""
-        # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
-        base = "main"
-        if name is not None:
-            base += "/" + name
         for key, value in job_order.items():
-            prov_role = self.wf_ns["%s/%s" % (base, key)]
+            prov_role = self._to_wf_ns(key)
             entity = self.declare_artefact(value)
             self.document.used(
                 process_run_id, entity, datetime.datetime.now(), None,
@@ -814,18 +828,16 @@ class ProvenanceProfile():
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
         # Timestamp should be created at the earliest
         timestamp = datetime.datetime.now()
-
+        _logger.error("[provenance] Checking relationships %s", self.relationships)
         # For each output, find/register the corresponding
         # entity (UUID) and document it as generated in
         # a role corresponding to the output
         for output, value in final_output.items():
             entity = self.declare_artefact(value)
-            if name is not None:
-                name = urllib.parse.quote(str(name), safe=":/,#")
-                # FIXME: Probably not "main" in nested workflows
-                role = self.wf_ns["main/%s/%s" % (name, output)]
-            else:
-                role = self.wf_ns["main/%s" % output]
+            _logger.error("[provenance] output %s name %s", output, name)
+            role = self._to_wf_ns(output, name)
+            # FIXME: Probably not "main" in nested workflows
+            _logger.error("[provenance] role %s", role.uri)
 
             if not process_run_id:
                 process_run_id = self.workflow_run_uri
