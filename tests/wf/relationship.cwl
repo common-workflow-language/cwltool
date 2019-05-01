@@ -15,8 +15,8 @@ outputs:
     type: File
     outputSource: first_input
     cwlprov:relationships:
-       prov:wasDerivedFrom: [ '#inputs.first_input' ]
-       prov:wasInfluencedBy: [ '#inputs.second_input' ]
+       prov:wasDerivedFrom: [ '#first_input' ]
+       prov:wasInfluencedBy: [ '#second_input' ]
 
 $namespaces:
   prov: http://www.w3.org/ns/prov#

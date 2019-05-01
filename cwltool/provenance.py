@@ -856,7 +856,10 @@ class ProvenanceProfile():
             _logger.error("[provenance] output %s name %s", output, name)
             role = self._to_wf_ns(output, name)
             # FIXME: Probably not "main" in nested workflows
-            _logger.error("[provenance] role %s", role.uri)
+            _logger.error("[provenance] role %r", role)
+
+            rels = self.relationships.get(role, [])
+            _logger.error("[provenance] registering relationships %s", rels)
 
             if not process_run_id:
                 process_run_id = self.workflow_run_uri
