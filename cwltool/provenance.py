@@ -23,7 +23,8 @@ import prov.model as provM
 import six
 from prov.identifier import Identifier, Namespace
 from prov.model import (PROV, ProvActivity,  # pylint: disable=unused-import
-                        ProvDocument, ProvEntity)
+                        ProvDocument, ProvEntity, PROV_ROLE,
+                        PROV_ATTR_ACTIVITY, PROV_ATTR_ENTITY, ProvUsage)
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from six.moves import urllib
@@ -851,6 +852,10 @@ class ProvenanceProfile():
         # For each output, find/register the corresponding
         # entity (UUID) and document it as generated in
         # a role corresponding to the output
+
+        # FIXME: Why is name sometimes "primary" here???
+        if name == "primary":
+            name = None
         for output, value in final_output.items():
             entity = self.declare_artefact(value)
             _logger.error("[provenance] output %s name %s", output, name)
@@ -858,14 +863,35 @@ class ProvenanceProfile():
             # FIXME: Probably not "main" in nested workflows
             _logger.error("[provenance] role %r", role)
 
-            rels = self.relationships.get(role, [])
-            _logger.error("[provenance] registering relationships %s", rels)
-
             if not process_run_id:
                 process_run_id = self.workflow_run_uri
 
+            rels = self.relationships.get(role, [])
+            for rel in rels:
+                self._register_output_rel(rel, rels[rel], entity)
+
             self.document.wasGeneratedBy(
                 entity, process_run_id, timestamp, None, {"prov:role": role})
+
+    def _record_with_attr(self, prov_type, attrib_value, with_attrib=PROV_ATTR_ACTIVITY):
+        for elem in self.document.get_records(prov_type):
+            if (with_attrib, attrib_value) in elem.attributes:
+                yield elem
+
+    def _register_output_rel(self, relation, input_patterns, entity):
+        _logger.error("[provenance] registering relationship %s for %s with %s",
+            relation, input_patterns, entity)
+        for pattern in input_patterns:
+            usages = list(self._record_with_attr(ProvUsage, pattern, PROV_ROLE))
+            _logger.error("[provenance] checking usage %s", usages)
+            for u in usages:
+                for ent in u.get_attribute(PROV_ATTR_ENTITY):
+                    _logger.error("[provenance] entity %s", ent)
+                    entity.add_attributes([(relation, ent)])
+            if not usages:
+                # Could not map it, assume arbitrary identifier..
+                entity.add_attributes([(relation, pattern)])
+
 
     def prospective_prov(self, job):
         # type: (Any) -> None
