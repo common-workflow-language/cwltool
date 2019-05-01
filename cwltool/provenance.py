@@ -467,13 +467,32 @@ class ProvenanceProfile():
 
     def _find_relationships(self, process):
         # type: (Process) -> None
-        outputs = process.tool.get("outputs", {})
-        relationships = dict(
-            (o.get("id"), o.get("https://w3id.org/cwl/prov#relationships"))
-                for o in outputs
-                    if "https://w3id.org/cwl/prov#relationships" in o)
-        _logger.error("[provenance] Added relationships %s", relationships)
-        self.relationships.update(relationships)
+
+        ## outputs:
+        ##   first_output:
+        ##     type: File
+        ##     outputSource: first_input
+        ##     cwlprov:relationships:
+        ##        prov:wasDerivedFrom: [ '#inputs.second_input' ]
+
+        # These URIs were expanded at load, e.g. file:///foo/something.cwl#second_input
+        # and needs to be converted to absolute roles as used in PROV, e.g.
+        # arcp://uuid,a3135dbe-a4cf-4b98-af87-6376e3a78828/workflow/packed.cwl#main/primary/first_output
+
+        for o in process.tool.get("outputs", {}):
+            relationships = o.get("https://w3id.org/cwl/prov#relationships", [])
+            if not relationships:
+                continue
+            ## Map roles to packed.cwl PROV Identifiers
+            # FIXME: This naive mapping only works for #main/ workflow
+            # input/outputs, not for nested workflows or tools
+            output_uri = self._to_wf_ns(shortname(o.get("id")))
+            props = {}
+            for p in relationships:
+                objects = [self._to_wf_ns(shortname(obj)) for obj in relationships[p]]
+                props[Identifier(p)] = objects
+            self.relationships[output_uri] = props
+            _logger.error("[provenance] Added relationships for %s: %s", output_uri, props)
 
     def record_process_start(self, process, job, process_run_id=None):
         # type: (Process, Any, str) -> Optional[str]
