@@ -42,3 +42,17 @@ def test_use_metadata():
     tooldata = tool.tool.copy()
     del tooldata["cwlVersion"]
     tool2 = load_tool(tooldata, loadingContext)
+
+def test_checklink_outputSource():
+    """Test that outputSource is resolved correctly independent of value
+    of do_validate.
+
+    """
+
+    loadingContext = LoadingContext({"do_validate": True})
+    tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
+    assert tool.tool["outputs"][0]["outputSource"] == "file://"+get_data("tests/wf/1st-workflow.cwl")+"#argument/classfile"
+
+    loadingContext = LoadingContext({"do_validate": False})
+    tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
+    assert tool.tool["outputs"][0]["outputSource"] == "file://"+get_data("tests/wf/1st-workflow.cwl")+"#argument/classfile"

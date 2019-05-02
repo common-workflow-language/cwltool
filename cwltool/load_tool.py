@@ -208,7 +208,7 @@ def resolve_and_validate_document(loadingContext,
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri, checklinks=loadingContext.do_validate)
+        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
