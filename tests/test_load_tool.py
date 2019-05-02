@@ -7,6 +7,8 @@ from .util import (get_data, get_main_output,
                    needs_docker, working_directory,
                    needs_singularity, temp_dir,
                    windows_needs_docker)
+from cwltool.resolver import Path, resolve_local
+from .test_fetch import norm
 
 @windows_needs_docker
 def test_check_version():
@@ -49,10 +51,12 @@ def test_checklink_outputSource():
 
     """
 
+    outsrc = norm(Path(get_data("tests/wf/1st-workflow.cwl")).as_uri())+"#argument/classfile"
+
     loadingContext = LoadingContext({"do_validate": True})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
-    assert tool.tool["outputs"][0]["outputSource"] == "file://"+get_data("tests/wf/1st-workflow.cwl")+"#argument/classfile"
+    assert tool.tool["outputs"][0]["outputSource"] == outsrc
 
     loadingContext = LoadingContext({"do_validate": False})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
-    assert tool.tool["outputs"][0]["outputSource"] == "file://"+get_data("tests/wf/1st-workflow.cwl")+"#argument/classfile"
+    assert tool.tool["outputs"][0]["outputSource"] == outsrc
