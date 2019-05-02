@@ -55,8 +55,8 @@ def test_checklink_outputSource():
 
     loadingContext = LoadingContext({"do_validate": True})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
-    assert tool.tool["outputs"][0]["outputSource"] == outsrc
+    assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
 
     loadingContext = LoadingContext({"do_validate": False})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
-    assert tool.tool["outputs"][0]["outputSource"] == outsrc
+    assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
