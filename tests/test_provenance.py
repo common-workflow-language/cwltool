@@ -176,6 +176,11 @@ def test_directory_workflow(folder, tmpdir):
         p = os.path.join(folder, "data", prefix, l_hash)
         assert os.path.isfile(p), "Could not find %s as %s" % (l, p)
 
+def test_relationship(folder):
+    cwltool(folder, get_data('tests/wf/relationship.cwl'), get_data('tests/wf/relationship-job.json'))
+    check_provenance(folder, single_tool=True)
+    ## TODO: Check relationship
+
 def check_output_object(base_path):
     output_obj = os.path.join(base_path, "workflow", "primary-output.json")
     compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
@@ -185,7 +190,6 @@ def check_output_object(base_path):
     f1 = out_json["sorted_output"]
     assert f1["checksum"] == compare_checksum
     assert f1["location"] == compare_location
-
 
 def check_secondary_files(base_path):
     foo_data = os.path.join(

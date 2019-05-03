@@ -17,7 +17,7 @@ outputs:
     cwlprov:relationships:
        prov:wasDerivedFrom: [ '#first_input' ]
        prov:wasInfluencedBy: [ '#second_input' ]
-       prov:wasInformedBy: [ 'http://example.com/Cool' ]
+#       prov:wasInformedBy: [ 'http://example.com/Cool' ]
 
 $namespaces:
   prov: http://www.w3.org/ns/prov#
