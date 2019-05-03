@@ -677,8 +677,8 @@ class CommandLineTool(Process):
                             globpatterns.extend(aslist(gb))
 
                     for gb in globpatterns:
-                        if gb.startswith(outdir):
-                            gb = gb[len(outdir) + 1:]
+                        if gb.startswith(builder.outdir):
+                            gb = gb[len(builder.outdir) + 1:]
                         elif gb == ".":
                             gb = outdir
                         elif gb.startswith("/"):
