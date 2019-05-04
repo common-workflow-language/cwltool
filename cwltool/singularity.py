@@ -57,6 +57,12 @@ def _normalize_image_id(string):  # type: (Text)->Text
     candidate = re.sub(pattern=r'([a-z]*://)', repl=r'', string=string)
     return re.sub(pattern=r'[:/]', repl=r'-', string=candidate) + ".img"
 
+def _normalize_sif_id(string): # type: (Text)->Text
+    candidate = re.sub(pattern=r'([a-z]*://)', repl=r'', string=string)
+    candidate_new = re.sub(pattern=r'[::]', repl=r'_', string=candidate) + ".sif"
+    candidate_split = candidate_new.split('/')[1]
+    return candidate_split
+
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
 
@@ -79,9 +85,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r'([a-z]*://)', string=dockerRequirement["dockerPull"])
-            candidate = _normalize_image_id(dockerRequirement['dockerPull'])
-            candidates.append(candidate)
-            dockerRequirement['dockerImageId'] = candidate
+            candidate_image = _normalize_image_id(dockerRequirement['dockerPull'])
+            candidates.append(candidate_image)
+            candidate_sif = _normalize_sif_id(dockerRequirement['dockerPull'])
+            candidates.append(candidate_sif)
+            dockerRequirement['dockerImageId'] = candidate_image
             if not match:
                 dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
         elif "dockerImageId" in dockerRequirement:
@@ -89,19 +97,22 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             candidates.append(_normalize_image_id(dockerRequirement['dockerImageId']))
 
         # check if Singularity image is available in $SINGULARITY_CACHEDIR
+        # or any subdirs created in cachedir
         targets = [os.getcwd()]
         for env in ("SINGULARITY_CACHEDIR", "SINGULARITY_PULLFOLDER"):
             if env in os.environ:
                 targets.append(os.environ[env])
         for target in targets:
-            for candidate in candidates:
-                path = os.path.join(target, candidate)
-                if os.path.isfile(path):
-                    _logger.info(
-                        "Using local copy of Singularity image found in %s",
-                        target)
-                    dockerRequirement["dockerImageId"] = path
-                    found = True
+            for dirpath, subdirs, files in os.walk(target):
+                for sif in files:
+                    if sif in candidates:
+                        path = os.path.join(dirpath, sif)
+                        if os.path.isfile(path):
+                            _logger.info(
+                                "Using local copy of Singularity image found in %s",
+                                dirpath)
+                            dockerRequirement["dockerImageId"] = path
+                            found = True
 
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]

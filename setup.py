@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Setup for the reference implementation of the CWL standards."""
+"""Adding Implementation for Singularity 2 and 3 compatability."""
 import os
 import sys
 
