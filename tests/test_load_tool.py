@@ -1,6 +1,7 @@
 from cwltool.load_tool import load_tool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
+from cwltool.update import INTERNAL_VERSION
 import pytest
 from .util import (get_data, get_main_output,
                    get_windows_safe_factory,
@@ -60,3 +61,21 @@ def test_checklink_outputSource():
     loadingContext = LoadingContext({"do_validate": False})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
     assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
+
+def test_load_graph_fragment():
+    """Test that outputSource is resolved correctly independent of value
+    of do_validate.
+
+    """
+
+    loadingContext = LoadingContext()
+    uri = Path(get_data("tests/wf/scatter-wf4.cwl")).as_uri()+"#main"
+    tool = load_tool(uri, loadingContext)
+
+    rs, metadata = tool.doc_loader.resolve_ref(uri)
+    # Reload from a dict (in 'rs'), not a URI.  The dict is a fragment
+    # of original document and doesn't have cwlVersion set, so test
+    # that it correctly looks up the root document to get the
+    # cwlVersion.
+    tool = load_tool(tool.tool, loadingContext)
+    assert tool.metadata["cwlVersion"] == INTERNAL_VERSION

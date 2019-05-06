@@ -221,7 +221,7 @@ def resolve_and_validate_document(loadingContext,
         cwlVersion = workflowobj.get("cwlVersion")
     if not cwlVersion and fileuri != uri:
         # The tool we're loading is a fragment of a bigger file.  Get
-        # the document root element and look for cwlVersion there
+        # the document root element and look for cwlVersion there.
         metadata = fetch_document(fileuri, loadingContext)[1]
         cwlVersion = metadata.get("cwlVersion")
     if not cwlVersion:
@@ -304,6 +304,8 @@ def resolve_and_validate_document(loadingContext,
 
     # None means default behavior (do update)
     if loadingContext.do_update in (True, None):
+        if "cwlVersion" not in metadata:
+            metadata["cwlVersion"] = cwlVersion
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
         if isinstance(processobj, MutableMapping):
