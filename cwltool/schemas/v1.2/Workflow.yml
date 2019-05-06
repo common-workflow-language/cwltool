@@ -11,10 +11,10 @@ $graph:
   type: documentation
   doc:
     - |
-      # Common Workflow Language (CWL) Workflow Description, v1.1.0-dev1
+      # Common Workflow Language (CWL) Workflow Description, v1.2
 
       This version:
-        * https://w3id.org/cwl/v1.1.0-dev1/
+        * https://w3id.org/cwl/v1.2/
 
       Current version:
         * https://w3id.org/cwl/
@@ -35,65 +35,24 @@ $graph:
 
     - |
 
-      ## Introduction to CWL Workflow standard v1.1.0-dev1
+      ## Introduction to CWL Workflow standard v1.2
 
       This specification represents the latest stable release from the
-      CWL group.  Since the v1.0 release, v1.1.0-dev1 introduces the
+      CWL group.  Since the v1.1.0 release, v1.2 introduces the
       following updates to the CWL Workflow standard.
-      Documents should to use `cwlVersion: v1.1.0-dev1` to make use of new
-      syntax and features introduced in v1.1.0-dev1.  Existing v1.0 documents
-      should be trivially updatable by changing `cwlVersion`, however
+      Documents should to use `cwlVersion: v1.2` to make use of new
+      syntax and features introduced in v1.2.  Existing v1.0 and
+      v1.1 documents should be trivially updatable by changing `cwlVersion`, however
       CWL documents that relied on previously undefined or
       underspecified behavior may have slightly different behavior in
-      v1.1.0-dev1.
+      v1.2.
 
       ## Changelog
 
-        * Clarify intent of ExpressionTool and clarify that they can be run standalone. 
-        * Clarify how Requirements are inherited by step processes.
-        * Clarify behavior around step inputs not consumed by the target
-          run process.
-        * Document explicitly that CWL allows pass-through of workflow inputs to outputs.
-        * Added optional name and doc fields to `OutputRecordSchema`.
-        * Default values for some fields are now expressed in the schema.
-        * When defining record types, fields of type `File` may now include
-          `format`, `secondaryFiles`, and `streamable`.
-        * The `Input` schemas (`Record`, `Array`, `Enum`),  now permits a `doc` field.
-        * Any `doc` field may be an array of strings in addition to the
-          previously allowed single string.
-        * The `run` field now introduces a subscope so that embedded
-          definitions do not have identifier conflicts with the
-          outer workflow.
-        * `Workflow.inputs` and `ExpressionTool.inputs` now refer to the type
-          `WorkflowInputParameter` instead of `InputParameter`; the only syntax
-          difference from v1.0 is that `inputBinding` is now deprecated (as
-          there is no command line to bind input values to) and `inputBinding`
-          in a `Workflow` context will be removed in v2.0. Use the new
-          `WorkflowInputParameter.loadContents` instead.
-        * The presence of `OutputRecordField.outputBinding` in v1.0 was due to
-          a technical error and as it makes no semantic sense it was removed.
-        * `WorkflowStepInput` now has a `label` field.
-        * [Addition](#Requirements_and_hints) of `cwl:requirements` field to
-          input object documents.
-        * `secondaryFiles` can now be explicitly marked as `required` or not.
-        * Add note that undefined details related to execution are left open to
-          the platform.
-        * [Added](#WorkReuse) `WorkReuse` feature, allowing to enable or disable the reuse
-          behavior for a particular tool or step for implementations that
-          support reusing output from past work.
-        * [Added](#NetworkAccess) `NetworkAccess` feature, allowing to indicate whether a
-          process requires outgoing network access.
-        * [Added](#InplaceUpdateRequirement) `InplaceUpdateRequirement` feature, allowing tools to directly
-          update files with `writable: true` in `InitialWorkDirRequirement`.
-        * [Added](#LoadListingRequirement) `LoadListingRequirement`
-          and [loadListing](#LoadContents) to control whether and how
-          `Directory` listings should be loaded for use in expressions.
-        * [Better explain](#map) the `map<…>` notation that has existed since v1.0.
-        * Fixed schema error where the `type` field inside the `inputs` and
-          `outputs` fields for both `Workflow` and `ExpressionTool` was
-           incorrectly listed as optional.
-        * For multi-Process CWL documents, if no particular process is named then
-          the process with the `id` of `#main` is chosen.
+        * Adds new `WorkflowStep` field: `run_if: ("default"|Expression)` for conditional executions
+        * Adds new `Sink` and `WorkflowOutputParameter` field:  `condMerge: first_non_null | ignore_null
+         | only_one
+
 
       See also the [CWL Command Line Tool Description, v1.1.0-dev1 changelog](CommandLineTool.html#Changelog).
 
@@ -209,6 +168,42 @@ $graph:
     - merge_flattened
 
 
+- name: CondMergeMethod
+  type: enum
+  docParent: "#WorkflowStepInput"
+  doc: |
+    - `condMerge` is evaluated before `linkMerge` and before `scatter`
+    - The `condMerge` is evaluated after all ancestor workflow steps have completed.
+    - Also see the documentation for `run_if`. `condMerge` is only needed when a predecessor node
+      has a `run_if` field.
+
+    ## `condMerge:first_non_skip`
+    In a list pick the first value that was produced by a task that ran
+    - `[skipped, null, x, skipped, null] -> null`
+    - `[skipped, x, null, y] -> x`
+    - `[skipped, [x], null] -> [x]`
+    - `[skipped, skipped, skipped] -> null`
+
+    ## `condMerge: ignore_skip`
+    For the first level of a list input, discard the `skipped` values
+    - `[skipped, null, x, skipped, null] -> [null, x, null]`
+    - `[skipped, x, null, y] -> [x, null, y]`
+    - `[skipped, [x], null] -> [[x], null]`
+    - `[skipped, skipped, skipped] -> []`
+
+    ## `condMerge: only_one`
+    For the first level of a list input, pick the single non-null element and pass as a scalar. It is a step level error if there is more than one non-skipped element.
+    - `[skipped, x, skipped] -> x`
+    - `[skipped, x, skipped, y] -> workflow step error!!`
+    - `[skipped, [x], skipped] -> [x]`
+    - `[skipped, skipped, skipped] -> null`
+
+  symbols:
+    - first_non_skip
+    - ignore_skip
+    - only_one
+
+
 - name: WorkflowOutputParameter
   type: record
   extends: OutputParameter
@@ -237,6 +232,15 @@ $graph:
       doc: |
         The method to use to merge multiple sources into a single array.
         If not specified, the default method is "merge_nested".
+
+    - name: condMerge
+      type: ["null", CondMergeMethod]
+      jsonldPredicate: "cwl:condMerge"
+      default: first_non_skip
+      doc: |
+        The method to use to merge multiple sources when they come from conditional steps.
+        If not specified, the default method is "first_non_skip".
+
     - name: type
       type:
         - CWLType
@@ -282,6 +286,13 @@ $graph:
       doc: |
         The method to use to merge multiple inbound links into a single array.
         If not specified, the default method is "merge_nested".
+    - name: condMerge
+      type: ["null", CondMergeMethod]
+      jsonldPredicate: "cwl:condMerge"
+      default: first_non_skip
+      doc: |
+        The method to use to merge multiple sources when they come from conditional steps.
+        If not specified, the default method is "first_non_skip".
 
 
 - type: record
@@ -515,6 +526,23 @@ $graph:
         subscope: run
       doc: |
         Specifies the process to run.
+    - name: run_if
+      type:
+        - "null"
+        - string
+        - Expression
+      jsonldPredicate: "cwl:run_if"
+      doc: |
+        - If this is an `Expression` the step will only be run if the expression evaluates to `True`. If it evaluates to `False` the step will be skipped and all outputs will be `null`.
+        - If this is the literal string "default"
+          - It is only legal to use this if at least one output port goes to at least one destination port which is
+            - a list
+            - and is marked with `condMerge:  only_one`
+            - and has no other input that leads to a step marked `run_if:default`
+          - In such a case, this step will only run if no other input in that destination port evaluates to non-null
+          - In any other graph condition it is an error to use `default` for this field and the document will not pass validation. (This is because there is no other use case for `run_if: default` and this graph is the result of user error)
+          - The combination of `run_if:default` and `condMerge:  only_one` implements the catch all nature of a `default` in a switch array.
+
     - name: scatter
       type:
         - string?

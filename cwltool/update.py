@@ -19,6 +19,22 @@ from .loghandler import _logger
 from .utils import visit_class, visit_field, aslist
 
 
+def v1_1_0dev1tov1_2(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
+    """Public updater for v1.0 to v1.1.0-dev1."""
+
+    doc = copy.deepcopy(doc)
+
+    upd = doc
+    if isinstance(upd, MutableMapping) and "$graph" in upd:
+        upd = upd["$graph"]
+    for proc in aslist(upd):
+        if "cwlVersion" in proc:
+            del proc["cwlVersion"]
+
+    return doc, "v1.2"
+
+
 def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0 to v1.1.0-dev1."""
@@ -80,7 +96,9 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
 
 UPDATES = {
-    u"v1.0": v1_0to1_1_0dev1
+    u"v1.0": v1_0to1_1_0dev1,
+    u"v1.1.0-dev1": v1_1_0dev1tov1_2,
+    u"v1.2": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 DEVUPDATES = {
@@ -91,7 +109,7 @@ DEVUPDATES = {
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.1.0-dev1"
+INTERNAL_VERSION = u"v1.2"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]

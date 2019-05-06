@@ -8,7 +8,7 @@ $namespaces:
 
 $graph:
 
-- name: "Common Workflow Language, v1.1.0-dev1"
+- name: "Common Workflow Language, v1.2"
   type: documentation
   doc: {$include: concepts.md}
 
@@ -39,6 +39,7 @@ $graph:
     - cwl:v1.0.dev4
     - cwl:v1.0
     - cwl:v1.1.0-dev1 # a dash is required by the semver 2.0 rules
+    - cwl:v1.2
 
 - name: CWLType
   type: enum
