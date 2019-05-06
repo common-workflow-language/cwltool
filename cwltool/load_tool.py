@@ -259,12 +259,11 @@ def resolve_and_validate_document(loadingContext,
         del jobobj["http://commonwl.org/cwltool#overrides"]
 
     if isinstance(jobobj, CommentedMap) and "https://w3id.org/cwl/cwl#requirements" in jobobj:
-        if cwlVersion not in ("v1.1.0-dev1",):
+        if cwlVersion not in ("v1.1.0-dev1","v1.1"):
             raise ValidationException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
-                    "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
-                    "--enable-dev.")
+                    "can set the cwlVersion to v1.1 or greater.")
         loadingContext.overrides_list.append({"overrideTarget": uri,
                                               "requirements": jobobj["https://w3id.org/cwl/cwl#requirements"]})
         del jobobj["https://w3id.org/cwl/cwl#requirements"]
