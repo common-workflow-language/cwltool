@@ -27,11 +27,11 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
     rewrite = {
         "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
+        "http://arvados.org/cwl#ReuseRequirement": "WorkReuse",
         "http://commonwl.org/cwltool#TimeLimit": "ToolTimeLimit",
         "http://commonwl.org/cwltool#NetworkAccess": "NetworkAccess",
         "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
-        "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement",
-        "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
+        "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement"
     }
     def rewrite_requirements(t):
         if "requirements" in t:
@@ -73,6 +73,8 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
         proc.setdefault("hints", [])
         proc["hints"].insert(0, {"class": "NetworkAccess", "networkAccess": True})
         proc["hints"].insert(0, {"class": "LoadListingRequirement", "loadListing": "deep_listing"})
+        if "cwlVersion" in proc:
+            del proc["cwlVersion"]
 
     return (doc, "v1.1.0-dev1")
 

@@ -208,7 +208,7 @@ def resolve_and_validate_document(loadingContext,
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri, checklinks=loadingContext.do_validate)
+        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
@@ -219,6 +219,11 @@ def resolve_and_validate_document(loadingContext,
     cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
         cwlVersion = workflowobj.get("cwlVersion")
+    if not cwlVersion and fileuri != uri:
+        # The tool we're loading is a fragment of a bigger file.  Get
+        # the document root element and look for cwlVersion there.
+        metadata = fetch_document(fileuri, loadingContext)[1]
+        cwlVersion = metadata.get("cwlVersion")
     if not cwlVersion:
         raise ValidationException(
             "No cwlVersion found. "
@@ -281,9 +286,7 @@ def resolve_and_validate_document(loadingContext,
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    workflowobj["id"] = fileuri
-    processobj, metadata = document_loader.resolve_all(
-        workflowobj, fileuri, checklinks=loadingContext.do_validate)
+    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if loadingContext.metadata:
         metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
@@ -301,6 +304,8 @@ def resolve_and_validate_document(loadingContext,
 
     # None means default behavior (do update)
     if loadingContext.do_update in (True, None):
+        if "cwlVersion" not in metadata:
+            metadata["cwlVersion"] = cwlVersion
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
         if isinstance(processobj, MutableMapping):
@@ -309,6 +314,8 @@ def resolve_and_validate_document(loadingContext,
             document_loader.idx[metadata["id"]] = metadata
             for po in processobj:
                 document_loader.idx[po["id"]] = po
+        else:
+            raise Exception("'processobj' was not MutableMapping or MutableSequence %s" % type(processobj))
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj
