@@ -124,7 +124,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                            str(dockerRequirement["dockerPull"])]
                     _logger.info(Text(cmd))
                     check_call(cmd, stdout=sys.stderr)  # nosec
-                    dockerRequirement["dockerImageId"] = pull_folder + '/' + str(dockerRequirement["dockerImageId"])
+                    dockerRequirement["dockerImageId"] = pull_folder + '/' + \
+                                                         str(dockerRequirement["dockerImageId"])
                     found = True
                 else:
                     cmd = ["singularity", "pull", "--force", "--name",
