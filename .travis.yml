@@ -39,5 +39,6 @@ script: tox
 branches:
   only:
     - master
+    - singularity23_fix
 notifications:
   email: false
