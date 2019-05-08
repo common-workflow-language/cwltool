@@ -108,22 +108,18 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
         if loadingContext.loader is None:
             loadingContext.loader = default_loader(loadingContext.fetcher_constructor)
 
-    uri = None  # type: Optional[Text]
-    workflowobj = None  # type: Optional[CommentedMap]
     if isinstance(argsworkflow, string_types):
         uri, fileuri = resolve_tool_uri(argsworkflow,
                                         resolver=loadingContext.resolver,
                                         document_loader=loadingContext.loader)
         workflowobj = loadingContext.loader.fetch(fileuri)
-    elif isinstance(argsworkflow, dict):
+        return loadingContext, workflowobj, uri
+    if isinstance(argsworkflow, dict):
         uri = argsworkflow["id"] if argsworkflow.get("id") else "_:" + Text(uuid.uuid4())
         workflowobj = cast(CommentedMap, cmap(argsworkflow, fn=uri))
         loadingContext.loader.idx[uri] = workflowobj
-    else:
-        raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
-    assert workflowobj is not None
-
-    return loadingContext, workflowobj, uri
+        return loadingContext, workflowobj, uri
+    raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
 
 def _convert_stdstreams_to_files(workflowobj):
@@ -152,10 +148,9 @@ def _convert_stdstreams_to_files(workflowobj):
                                 filename = workflowobj[streamtype]
                             else:
                                 filename = Text(
-                                    hashlib.sha1(json_dumps(workflowobj,
-                                                            sort_keys=True
-                                                           ).encode('utf-8')
-                                                ).hexdigest())
+                                    hashlib.sha1(  # nosec
+                                        json_dumps(workflowobj, sort_keys=True
+                                                  ).encode('utf-8')).hexdigest())
                                 workflowobj[streamtype] = filename
                             out['type'] = 'File'
                             out['outputBinding'] = cmap({'glob': filename})
@@ -213,7 +208,7 @@ def resolve_and_validate_document(loadingContext,
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri, checklinks=loadingContext.do_validate)
+        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
@@ -221,17 +216,21 @@ def resolve_and_validate_document(loadingContext,
 
     fileuri = urllib.parse.urldefrag(uri)[0]
 
-    cwlVersion = workflowobj.get("cwlVersion")
+    cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
-        fileobj = fetch_document(fileuri, loadingContext)[1]
-        cwlVersion = fileobj.get("cwlVersion")
-        if not cwlVersion:
-            raise ValidationException(
-                "No cwlVersion found. "
-                "Use the following syntax in your CWL document to declare "
-                "the version: cwlVersion: <version>.\n"
-                "Note: if this is a CWL draft-2 (pre v1.0) document then it "
-                "will need to be upgraded first.")
+        cwlVersion = workflowobj.get("cwlVersion")
+    if not cwlVersion and fileuri != uri:
+        # The tool we're loading is a fragment of a bigger file.  Get
+        # the document root element and look for cwlVersion there.
+        metadata = fetch_document(fileuri, loadingContext)[1]
+        cwlVersion = metadata.get("cwlVersion")
+    if not cwlVersion:
+        raise ValidationException(
+            "No cwlVersion found. "
+            "Use the following syntax in your CWL document to declare "
+            "the version: cwlVersion: <version>.\n"
+            "Note: if this is a CWL draft-2 (pre v1.0) document then it "
+            "will need to be upgraded first.")
 
     if not isinstance(cwlVersion, string_types):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
@@ -287,9 +286,9 @@ def resolve_and_validate_document(loadingContext,
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    workflowobj["id"] = fileuri
-    processobj, metadata = document_loader.resolve_all(
-        workflowobj, fileuri, checklinks=loadingContext.do_validate)
+    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
+    if loadingContext.metadata:
+        metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
     if not isinstance(metadata, CommentedMap):
@@ -303,7 +302,10 @@ def resolve_and_validate_document(loadingContext,
     if loadingContext.do_validate:
         schema.validate_doc(avsc_names, processobj, document_loader, loadingContext.strict)
 
-    if loadingContext.do_update:
+    # None means default behavior (do update)
+    if loadingContext.do_update in (True, None):
+        if "cwlVersion" not in metadata:
+            metadata["cwlVersion"] = cwlVersion
         processobj = cast(CommentedMap, cmap(update.update(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
         if isinstance(processobj, MutableMapping):
@@ -312,6 +314,8 @@ def resolve_and_validate_document(loadingContext,
             document_loader.idx[metadata["id"]] = metadata
             for po in processobj:
                 document_loader.idx[po["id"]] = po
+        else:
+            raise Exception("'processobj' was not MutableMapping or MutableSequence %s" % type(processobj))
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj

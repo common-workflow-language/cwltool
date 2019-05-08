@@ -105,10 +105,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
-                         help="Try to pull Docker images", dest="enable_pull")
+                         help="Try to pull Docker images", dest="pull_image")
 
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
-                         help="Do not try to pull Docker images", dest="enable_pull")
+                         help="Do not try to pull Docker images", dest="pull_image")
 
     parser.add_argument("--rdf-serializer",
                         help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",

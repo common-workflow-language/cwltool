@@ -66,12 +66,12 @@ setup(name='cwltool',
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
           ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
-          'deps': ["galaxy-lib >= 17.09.9"]
+          'deps': ["galaxy-lib >= 17.09.9, <= 18.9.2 "]
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       setup_requires=PYTEST_RUNNER,
       test_suite='tests',
-      tests_require=['pytest', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
+      tests_require=['pytest < 4.3.0', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
                      'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
       entry_points={
           'console_scripts': ["cwltool=cwltool.main:run"]
@@ -98,7 +98,6 @@ setup(name='cwltool',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.4',  # except on MS Windows
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',

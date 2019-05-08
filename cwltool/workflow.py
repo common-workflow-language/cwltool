@@ -612,7 +612,7 @@ class WorkflowStep(Process):
         loadingContext = loadingContext.copy()
 
         loadingContext.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        assert loadingContext.requirements is not None
+        assert loadingContext.requirements is not None  # nosec
         loadingContext.requirements.extend(toolpath_object.get("requirements", []))
         loadingContext.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
@@ -885,7 +885,8 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
             raise WorkflowException(
                 "Length of input arrays must be equal when performing "
                 "dotproduct scatter.")
-    assert jobl is not None
+    if jobl is None:
+        raise Exception("Impossible codepath")
 
     output = {}  # type: Dict[Text,List[Optional[Text]]]
     for i in process.tool["outputs"]:

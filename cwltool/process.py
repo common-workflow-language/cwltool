@@ -46,6 +46,8 @@ from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
                     copytree_with_merge, onWindows, random_outdir)
 from .validate_js import validate_js_expressions
+from .update import INTERNAL_VERSION
+
 try:
     from os import scandir  # type: ignore
 except ImportError:
@@ -225,7 +227,7 @@ def stage_files(pathmapper,             # type: PathMapper
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
-            os.makedirs(os.path.dirname(entry.target), 0o0755)
+            os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if symlink:  # Use symlink func if allowed
                 if onWindows():
@@ -242,13 +244,13 @@ def stage_files(pathmapper,             # type: PathMapper
                 stage_func(entry.resolved, entry.target)
         elif entry.type == "Directory" and not os.path.exists(entry.target) \
                 and entry.resolved.startswith("_:"):
-            os.makedirs(entry.target, 0o0755)
+            os.makedirs(entry.target)
         elif entry.type == "WritableFile" and not ignore_writable:
             shutil.copy(entry.resolved, entry.target)
             ensure_writable(entry.target)
         elif entry.type == "WritableDirectory" and not ignore_writable:
             if entry.resolved.startswith("_:"):
-                os.makedirs(entry.target, 0o0755)
+                os.makedirs(entry.target)
             else:
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target)
@@ -586,6 +588,10 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
     def _init_job(self, joborder, runtime_context):
         # type: (Mapping[Text, Text], RuntimeContext) -> Builder
 
+        if self.metadata.get("cwlVersion") != INTERNAL_VERSION:
+            raise WorkflowException("Process object loaded with version '%s', must update to '%s' in order to execute." % (
+                self.metadata.get("cwlVersion"), INTERNAL_VERSION))
+
         job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
                    copy.deepcopy(joborder))
 
@@ -672,7 +678,7 @@ hints:
                         runtime_context.docker_outdir or random_outdir()
             elif default_docker is not None:
                 outdir = runtime_context.docker_outdir or random_outdir()
-            tmpdir = runtime_context.docker_tmpdir or "/tmp"
+            tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
             outdir = fs_access.realpath(
@@ -1018,7 +1024,7 @@ def scandeps(base,                          # type: Text
 
 def compute_checksums(fs_access, fileobj):
     if "checksum" not in fileobj:
-        checksum = hashlib.sha1()
+        checksum = hashlib.sha1()  # nosec
         with fs_access.open(fileobj["location"], "rb") as f:
             contents = f.read(1024 * 1024)
             while contents != b"":
