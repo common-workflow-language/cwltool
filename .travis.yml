@@ -1,5 +1,4 @@
-dist: trusty
-sudo: required
+dist: xenial
 services:
   - docker
 
@@ -24,14 +23,13 @@ jobs:
     - stage: test
       python: "2.7"
     - stage: test
-      python: "3.4"
-    - stage: test
       python: "3.5"
     - stage: test
       python: "3.6"
     - stage: test
       python: "3.7"
-      dist: xenial
+    #- stage: test
+    #  python: "3.8-dev"  # ruamel.yaml doesn't support 3.8 yet
     - stage: release-test
       python: "2.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
@@ -39,6 +37,5 @@ script: tox
 branches:
   only:
     - master
-    - singularity23_fix
 notifications:
   email: false

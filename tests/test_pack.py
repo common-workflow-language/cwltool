@@ -1,4 +1,5 @@
 import json
+from ruamel import yaml
 import os
 import tempfile
 from functools import partial
@@ -26,7 +27,7 @@ def test_pack():
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
-        expect_packed = json.load(packed_file)
+        expect_packed = yaml.safe_load(packed_file)
 
     packed = cwltool.pack.pack(loadingContext.loader, processobj, uri, loadingContext.metadata)
     adjustFileObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
