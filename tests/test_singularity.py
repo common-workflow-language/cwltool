@@ -1,4 +1,5 @@
 import sys
+import os
 import pytest
 
 import distutils.spawn
@@ -38,3 +39,25 @@ def test_singularity_incorrect_image_pull():
         ['--singularity', '--default-container', 'non-existant-weird-image',
          get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
     assert result_code != 0
+
+@needs_singularity
+def test_singularity_local():
+    result_code, _, stderr = get_main_output(
+        ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
+    file_in_dir = os.listdir(os.getcwd())
+    assert 'debian.img' in file_in_dir
+
+@needs_singularity
+def test_singularity_pullfolder():
+    filepath = str(os.getcwd())
+    tmp = '/tmp/'
+    pull_folder = filepath+tmp
+    if not os.path.exists(pull_folder):
+        os.makedirs(pull_folder)
+    os.environ["SINGULARITY_PULLFOLDER"] = pull_folder
+    result_code, _, stderr = get_main_output(
+        ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
+    file_in_dir = os.listdir(pull_folder)
+    assert 'debian.img' in file_in_dir
+
+
