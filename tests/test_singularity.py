@@ -41,11 +41,14 @@ def test_singularity_incorrect_image_pull():
     assert result_code != 0
 
 @needs_singularity
-def test_singularity_local():
-    result_code, _, stderr = get_main_output(
+def test_singularity_local(tmp_path):
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    os.chdir(str(workdir))
+    result_code, stdout, stderr = get_main_output(
         ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
     file_in_dir = os.listdir(os.getcwd())
-    assert 'debian.img' in file_in_dir
+    assert 'debian.img' in file_in_dir, stderr
 
 @needs_singularity
 def test_singularity_pullfolder(tmp_path):
