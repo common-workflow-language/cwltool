@@ -50,7 +50,7 @@ $graph:
       ## Changelog
 
         * Adds new `WorkflowStep` field: `run_if: ("default"|Expression)` for conditional executions
-        * Adds new `Sink` and `WorkflowOutputParameter` field:  `condMerge: first_non_null | ignore_null
+        * Adds new `Sink` and `WorkflowOutputParameter` field:  `condMerge: first_non_skip | ignore_skip
          | only_one
 
 
@@ -174,8 +174,10 @@ $graph:
   doc: |
     - `condMerge` is evaluated before `linkMerge` and before `scatter`
     - The `condMerge` is evaluated after all ancestor workflow steps have completed.
-    - Also see the documentation for `run_if`. `condMerge` is only needed when a predecessor node
-      has a `run_if` field.
+    - Also see the documentation for `run_if`. `condMerge` only has an effect
+      when a predecessor node has a `run_if` field.
+    - If a conditional step does not run, and if `condMerge` is not specified the
+      outputs of the skipped step are all converted into `null`s
 
     ## `condMerge:first_non_skip`
     In a list pick the first value that was produced by a task that ran
@@ -529,20 +531,13 @@ $graph:
     - name: run_if
       type:
         - "null"
-        - string
         - Expression
       jsonldPredicate: "cwl:run_if"
       doc: |
-        - If this is an `Expression` the step will only be run if the expression evaluates to `True`. If it evaluates to `False` the step will be skipped and all outputs will be `null`.
-        - If this is the literal string "default"
-          - It is only legal to use this if at least one output port goes to at least one destination port which is
-            - a list
-            - and is marked with `condMerge:  only_one`
-            - and has no other input that leads to a step marked `run_if:default`
-          - In such a case, this step will only run if no other input in that destination port evaluates to non-null
-          - In any other graph condition it is an error to use `default` for this field and the document will not pass validation. (This is because there is no other use case for `run_if: default` and this graph is the result of user error)
-          - The combination of `run_if:default` and `condMerge:  only_one` implements the catch all nature of a `default` in a switch array.
-
+        - The step will only be run if the expression evaluates to `True`.
+        - If the step does not run and if `condMerge` is used the workflow
+          behaves as if that step was never there in the DAG. If condMerge is not
+          used, the workflow behaves as if that step produced null for each of its outputs.
     - name: scatter
       type:
         - string?
