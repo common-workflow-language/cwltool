@@ -34,18 +34,6 @@ def test_singularity_iwdr():
         assert result_code != 0
 
 @needs_singularity
-def test_singularity_pullfolder_in_env():
-    os.environ["SINGULARITY_PULLFOLDER"] = str(os.getcwd())
-    os.environ["SINGULARITY_CACHEDIR"] = str(os.getcwd())
-    result_code = main(
-        ['--singularity', '--default-container', 'debian',
-         get_data("tests/wf/iwdr-entry.cwl"), "--message", "hello"])
-    for env in ("SINGULARITY_PULLFOLDER", "SINGULARITY_CACHEDIR"):
-        if env in os.environ:
-            assert result_code == 0
-        else:
-            assert result_code != 0
-@needs_singularity
 def test_singularity_incorrect_image_pull():
     result_code, _, stderr = get_main_output(
         ['--singularity', '--default-container', 'non-existant-weird-image',
@@ -77,3 +65,15 @@ def test_singularity_pullfolder(tmp_path):
     else:
         assert result_code != 0
 
+@needs_singularity
+def test_singularity_pullfolder_in_env():
+    os.environ["SINGULARITY_PULLFOLDER"] = str(os.getcwd())
+    os.environ["SINGULARITY_CACHEDIR"] = str(os.getcwd())
+    result_code = main(
+        ['--singularity', '--default-container', 'debian',
+         get_data("tests/wf/iwdr-entry.cwl"), "--message", "hello"])
+    for env in ("SINGULARITY_PULLFOLDER", "SINGULARITY_CACHEDIR"):
+        if env in os.environ:
+            assert result_code == 0
+        else:
+            assert result_code != 0
