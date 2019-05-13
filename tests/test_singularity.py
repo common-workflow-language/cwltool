@@ -75,5 +75,5 @@ def test_singularity_pullfolder(tmp_path):
         file_in_dir = os.listdir(str(pull_folder))
         assert 'debian.img' in file_in_dir, stderr
     else:
-        asset result_code != 0
+        assert result_code != 0
 
