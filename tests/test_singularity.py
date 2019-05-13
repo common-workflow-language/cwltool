@@ -33,6 +33,7 @@ def test_singularity_iwdr():
     else:
         assert result_code != 0
 
+@needs_singularity
 def test_singularity_pullfolder_in_env():
     os.environ["SINGULARITY_PULLFOLDER"] = str(os.getcwd())
     os.environ["SINGULARITY_CACHEDIR"] = str(os.getcwd())
