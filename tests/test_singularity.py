@@ -74,6 +74,6 @@ def test_singularity_pullfolder_in_env():
          get_data("tests/wf/iwdr-entry.cwl"), "--message", "hello"])
     for env in ("SINGULARITY_PULLFOLDER", "SINGULARITY_CACHEDIR"):
         if env in os.environ:
-            assert result_code == 0
+            assert result_code == 33
         else:
-            assert result_code != 0
+            assert result_code == 0
