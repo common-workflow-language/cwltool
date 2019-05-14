@@ -16,18 +16,21 @@ sys.argv = ['']
 
 @needs_singularity
 def test_singularity_pullfolder(tmp_path):
-    workdir = tmp_path / "working_dir_new"
-    workdir.mkdir()
-    os.chdir(str(workdir))
-    pull_folder = tmp_path / "pull_folder"
-    pull_folder.mkdir()
-    os.environ["SINGULARITY_PULLFOLDER"] = str(pull_folder)
-    if "SINGULARITY_PULLFOLDER" in os.environ:
-        result_code, stdout, stderr = get_main_output(
-            ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
-        assert result_code == 0
-    else:
-        assert result_code != 0
+    try:
+        del os.environ["SINGULARITY_PULLFOLDER"]
+    finally:
+        workdir = tmp_path / "working_dir_new"
+        workdir.mkdir()
+        os.chdir(str(workdir))
+        pull_folder = tmp_path / "pull_folder"
+        pull_folder.mkdir()
+        os.environ["SINGULARITY_PULLFOLDER"] = str(pull_folder)
+        if "SINGULARITY_PULLFOLDER" in os.environ:
+            result_code, stdout, stderr = get_main_output(
+                ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
+            assert result_code == 0
+        else:
+            assert result_code != 0
 
 @needs_singularity
 def test_singularity_workflow(tmpdir):
