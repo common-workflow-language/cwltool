@@ -69,11 +69,13 @@ def test_singularity_pullfolder(tmp_path):
 def test_singularity_pullfolder_in_env():
     os.environ["SINGULARITY_PULLFOLDER"] = str(os.getcwd())
     os.environ["SINGULARITY_CACHEDIR"] = str(os.getcwd())
-    result_code = main(
-        ['--singularity', '--default-container', 'debian',
-         get_data("tests/wf/iwdr-entry.cwl"), "--message", "hello"])
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    os.chdir(str(workdir))
+    result_code, stdout, stderr = get_main_output(
+        ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
     for env in ("SINGULARITY_PULLFOLDER", "SINGULARITY_CACHEDIR"):
         if env in os.environ:
-            assert result_code == 33
-        else:
             assert result_code == 0
+        else:
+            assert result_code != 0
