@@ -41,18 +41,8 @@ def test_singularity_incorrect_image_pull():
     assert result_code != 0
 
 @needs_singularity
-def test_singularity_local(tmp_path):
-    workdir = tmp_path / "working_dir"
-    workdir.mkdir()
-    os.chdir(str(workdir))
-    result_code, stdout, stderr = get_main_output(
-        ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
-    file_in_dir = os.listdir(os.getcwd())
-    assert result_code == 0
-
-@needs_singularity
 def test_singularity_pullfolder(tmp_path):
-    workdir = tmp_path / "working_dir"
+    workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
     os.chdir(str(workdir))
     pull_folder = tmp_path / "pull_folder"
@@ -66,16 +56,12 @@ def test_singularity_pullfolder(tmp_path):
         assert result_code != 0
 
 @needs_singularity
-def test_singularity_pullfolder_in_env(tmp_path):
-    os.environ["SINGULARITY_PULLFOLDER"] = str(os.getcwd())
-    os.environ["SINGULARITY_CACHEDIR"] = str(os.getcwd())
+def test_singularity_local(tmp_path):
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     os.chdir(str(workdir))
     result_code, stdout, stderr = get_main_output(
         ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
-    for env in ("SINGULARITY_PULLFOLDER", "SINGULARITY_CACHEDIR"):
-        if env in os.environ:
-            assert result_code == 0
-        else:
-            assert result_code != 0
+    file_in_dir = os.listdir(os.getcwd())
+    assert result_code == 0
+
