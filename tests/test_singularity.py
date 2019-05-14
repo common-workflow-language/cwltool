@@ -66,7 +66,7 @@ def test_singularity_pullfolder(tmp_path):
         assert result_code != 0
 
 @needs_singularity
-def test_singularity_pullfolder_in_env():
+def test_singularity_pullfolder_in_env(tmp_path):
     os.environ["SINGULARITY_PULLFOLDER"] = str(os.getcwd())
     os.environ["SINGULARITY_CACHEDIR"] = str(os.getcwd())
     workdir = tmp_path / "working_dir"
