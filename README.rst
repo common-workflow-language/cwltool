@@ -38,7 +38,21 @@ default CWL interpreter installed on a host.
 Install
 -------
 
-It is highly recommended to setup virtual environment before installing `cwltool`:
+Your operating system may offer cwltool directly. For [Debian](https://tracker.debian.org/pkg/cwltool "Debian cwltool package tracker") or [Ubuntu](https://launchpad.net/ubuntu/+source/cwltool "Ubuntu Launchpad overview for cwltool") try
+
+.. code:: bash
+
+  apt-get install cwltool
+
+For MacOS X, other UNIXes or Windows packages prepared by the Bioconda project. Please follow instructions of Bioconda (https://bioconda.github.io/) for its installation, then perform: 
+
+.. code:: bash
+
+  conda install -c bioconda cwltool 
+
+Under the hood, conda setups virtual environments before installing `cwltool` to
+avoid conflicting versions of the same library. When installing cwltool directly,
+it is recommended to do the same manually:
 
 .. code:: bash
 
