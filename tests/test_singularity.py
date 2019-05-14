@@ -16,20 +16,15 @@ sys.argv = ['']
 
 @needs_singularity
 def test_singularity_pullfolder(tmp_path):
-    for directory, subdir, files in os.walk(os.getcwd()):
-        for image in files:
-            if image.startswith("debian"):
-                os.remove(os.path.join(directory, image))
-                print("removed image hiding away deep within!")
 
     if "SINGULARITY_PULLFOLDER" in os.environ:
         del os.environ["SINGULARITY_PULLFOLDER"]
         workdir = tmp_path / "working_dir_new"
         workdir.mkdir()
         os.chdir(str(workdir))
-        pull_folder = tmp_path / "pull_folder"
-        pull_folder.mkdir()
-        os.environ["SINGULARITY_PULLFOLDER"] = str(pull_folder)
+        pullfolder = tmp_path / "pull_folder"
+        pullfolder.mkdir()
+        os.environ["SINGULARITY_PULLFOLDER"] = str(pullfolder)
         if "SINGULARITY_PULLFOLDER" in os.environ:
             result_code, stdout, stderr = get_main_output(
                 ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
@@ -40,9 +35,9 @@ def test_singularity_pullfolder(tmp_path):
         workdir = tmp_path / "working_dir_new"
         workdir.mkdir()
         os.chdir(str(workdir))
-        pull_folder = tmp_path / "pull_folder"
-        pull_folder.mkdir()
-        os.environ["SINGULARITY_PULLFOLDER"] = str(pull_folder)
+        pullfolder = tmp_path / "pullfolder"
+        pullfolder.mkdir()
+        os.environ["SINGULARITY_PULLFOLDER"] = str(pullfolder)
         if "SINGULARITY_PULLFOLDER" in os.environ:
             result_code, stdout, stderr = get_main_output(
                 ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
