@@ -17,9 +17,10 @@ sys.argv = ['']
 @needs_singularity
 def test_singularity_pullfolder(tmp_path):
     for directory, subdir, files in os.walk(os.getcwd()):
-        if 'debian.img' in files:
-            os.remove(os.path.join(directory, files))
-            print("removed image hiding away deep within!")
+        for image in files:
+            if image.startswith("debian"):
+                os.remove(os.path.join(directory, image))
+                print("removed image hiding away deep within!")
 
     if "SINGULARITY_PULLFOLDER" in os.environ:
         del os.environ["SINGULARITY_PULLFOLDER"]
