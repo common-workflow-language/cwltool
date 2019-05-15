@@ -83,7 +83,6 @@ def test_singularity_local(tmp_path):
 
 @needs_singularity
 def test_singularity_docker_image_id_in_tool():
-    result_code, _, stderr = get_main_output(
-        ['--singularity', '--default-container',
-         get_data("tests/debian_image_id.cwl"), "--message", "hello"])
+    result_code, _, stderr = main(
+        ['--singularity', get_data("tests/debian_image_id.cwl"), "--message", "hello"])
     assert result_code != 0
