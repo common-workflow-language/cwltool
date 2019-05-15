@@ -78,11 +78,15 @@ def test_singularity_local(tmp_path):
     os.chdir(str(workdir))
     result_code, stdout, stderr = get_main_output(
         ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
-    file_in_dir = os.listdir(os.getcwd())
     assert result_code == 0
 
 @needs_singularity
 def test_singularity_docker_image_id_in_tool():
-    result_code, _, stderr = main(
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    os.chdir(str(workdir))
+    result_code, stdout, stderr = get_main_output(
+        ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
+    result_code1, stdout, stderr = get_main_output(
         ['--singularity', get_data("tests/debian_image_id.cwl"), "--message", "hello"])
-    assert result_code != 0
+    assert result_code1 == 0
