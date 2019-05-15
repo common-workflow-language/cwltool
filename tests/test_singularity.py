@@ -81,7 +81,7 @@ def test_singularity_local(tmp_path):
     assert result_code == 0
 
 @needs_singularity
-def test_singularity_docker_image_id_in_tool():
+def test_singularity_docker_image_id_in_tool(tmp_path):
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     os.chdir(str(workdir))
