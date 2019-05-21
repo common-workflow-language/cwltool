@@ -294,6 +294,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime = [user_space_docker_cmd, u"run"]
         else:
             runtime = [u"docker", u"run", u"-i"]
+        if runtimeContext.mount_docker_socket_volume:
+            runtime.append(u"--volume=/var/run/docker.sock:/var/run/docker.sock")
         self.append_volume(runtime, os.path.realpath(self.outdir),
                            self.builder.outdir, writable=True)
         tmpdir = "/tmp"  # nosec

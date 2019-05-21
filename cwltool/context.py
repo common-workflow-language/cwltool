@@ -87,6 +87,7 @@ class RuntimeContext(ContextBase):
         self.preserve_entire_environment = False  # type: bool
         self.use_container = True       # type: bool
         self.force_docker_pull = False  # type: bool
+        self.mount_docker_socket_volume = False  # type: bool
 
         self.tmp_outdir_prefix = DEFAULT_TMP_PREFIX  # type: Text
         self.tmpdir_prefix = DEFAULT_TMP_PREFIX  # type: Text
