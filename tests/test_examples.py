@@ -790,8 +790,23 @@ def test_cid_file_w_prefix(tmpdir):
 
 @needs_docker
 class TestSecondaryFiles():
-    def test_secondary_files(self):
+    def test_secondary_files_v1_1(self):
         test_file = "secondary-files.cwl"
+        test_job_file = "secondary-files-job.yml"
+        try:
+            old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
+            error_code, _, stderr = get_main_output(
+                ["--enable-dev",
+                get_data(os.path.join("tests", test_file)),
+                get_data(os.path.join("tests", test_job_file))])
+        finally:
+            assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+            os.umask(old_umask)  # revert back to original umask
+        assert "completed success" in stderr
+        assert error_code == 0
+
+    def test_secondary_files_v1_0(self):
+        test_file = "secondary-files-string-v1.cwl"
         test_job_file = "secondary-files-job.yml"
         try:
             old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
