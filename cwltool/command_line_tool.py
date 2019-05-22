@@ -766,6 +766,10 @@ class CommandLineTool(Process):
                                 else:
                                     sf_required = False
 
+                                # Convert to secondaryFileSchema for cw1.0 tools
+                                if isinstance(sf, str):
+                                    sf = {"pattern": sf}
+
                                 if "$(" in sf["pattern"] or "${" in sf["pattern"]:
                                     sfpath = builder.do_eval(sf["pattern"], context=primary)
                                 else:
