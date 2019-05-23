@@ -2,8 +2,7 @@
 from __future__ import absolute_import
 
 import copy
-import pathlib
-import urllib
+from .resolver import Path
 import os
 from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Set, Union, cast)
@@ -198,7 +197,7 @@ def pack(document_loader,  # type: Loader
         try:
             v = rewrite[r]
         except KeyError:
-            absolute_uri = pathlib.Path(urllib.parse.urljoin(os.getcwd()+'/',r)).as_uri()
+            absolute_uri = Path(urllib.parse.urljoin(os.getcwd()+'/',r)).as_uri()
             v = rewrite[absolute_uri]
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
