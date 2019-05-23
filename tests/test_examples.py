@@ -811,9 +811,11 @@ class TestSecondaryFiles():
         try:
             old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
             error_code, _, stderr = get_main_output(
-                ["--enable-dev",
-                get_data(os.path.join("tests", test_file)),
-                get_data(os.path.join("tests", test_job_file))])
+                [
+                    get_data(os.path.join("tests", test_file)),
+                    get_data(os.path.join("tests", test_job_file))
+                ]
+            )
         finally:
             assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
             os.umask(old_umask)  # revert back to original umask
