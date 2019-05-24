@@ -44,7 +44,7 @@ override_parameters = [
       get_data('tests/override/echo-job.yml')],
      {"out": "zing hello6\n"}
      ),
-    (["--enable-dev", get_data('tests/override/env-tool_v1.1.0-dev1.cwl'),
+    ([get_data('tests/override/env-tool_v1.1.cwl'),
       get_data('tests/override/env-tool_cwl-requirement_override.yaml')],
      {"value": "hello test env"}
      ),
