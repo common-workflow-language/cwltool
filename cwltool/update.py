@@ -50,7 +50,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
         if isinstance(t, MutableSequence):
             return [{"pattern": p} for p in t]
         else:
-            return t
+            return {"pattern": t}
 
     def fix_inputBinding(t):
         for i in t["inputs"]:
