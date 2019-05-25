@@ -136,12 +136,13 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
             if enable_dev:
                 pass
             else:
+                keys = list(UPDATES.keys())
+                keys.sort()
                 raise validate.ValidationException(
                     u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
-                    "deprecated versions." % (version, ", ".join(
-                        list(UPDATES.keys()))))
+                    "deprecated versions." % (version, ", ".join(keys)))
         else:
             raise validate.ValidationException(
                 u"Unrecognized version %s" % version)
