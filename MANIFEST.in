@@ -15,6 +15,10 @@ include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
 include cwltool/schemas/v1.0/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.0/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.1/*.yml
+include cwltool/schemas/v1.1/*.md
+include cwltool/schemas/v1.1/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.1/salad/schema_salad/metaschema/*.md
 include cwltool/schemas/v1.1.0-dev1/*.yml
 include cwltool/schemas/v1.1.0-dev1/*.md
 include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml
