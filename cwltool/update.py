@@ -19,9 +19,9 @@ from .loghandler import _logger
 from .utils import visit_class, visit_field, aslist
 
 
-def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
+def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
-    """Public updater for v1.0 to v1.1.0-dev1."""
+    """Public updater for v1.0 to v1.1."""
 
     doc = copy.deepcopy(doc)
 
@@ -50,7 +50,7 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
         if isinstance(t, MutableSequence):
             return [{"pattern": p} for p in t]
         else:
-            return t
+            return {"pattern": t}
 
     def fix_inputBinding(t):
         for i in t["inputs"]:
@@ -76,22 +76,26 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
-    return (doc, "v1.1.0-dev1")
+    return (doc, "v1.1")
 
+def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
+    return (doc, "v1.1")
 
 UPDATES = {
-    u"v1.0": v1_0to1_1_0dev1
+    u"v1.0": v1_0to1_1,
+    u"v1.1": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 DEVUPDATES = {
-    u"v1.0": v1_0to1_1_0dev1,
-    u"v1.1.0-dev1": None
+    u"v1.0": v1_0to1_1,
+    u"v1.1.0-dev1": v1_1_0dev1to1_1,
+    u"v1.1": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.1.0-dev1"
+INTERNAL_VERSION = u"v1.1"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]
@@ -132,12 +136,13 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
             if enable_dev:
                 pass
             else:
+                keys = list(UPDATES.keys())
+                keys.sort()
                 raise validate.ValidationException(
                     u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
-                    "deprecated versions." % (version, ", ".join(
-                        list(UPDATES.keys()))))
+                    "deprecated versions." % (version, ", ".join(keys)))
         else:
             raise validate.ValidationException(
                 u"Unrecognized version %s" % version)
