@@ -796,7 +796,7 @@ class CommandLineTool(Process):
             # Ensure files point to local references outside of the run environment
             adjustFileObjs(r, revmap)
 
-            if not r and optional:
+            if r is None and optional:
                 return None
 
         if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
