@@ -440,7 +440,7 @@ class CommandLineTool(Process):
                             else:
                                 et["entryname"] = None
                             et["writable"] = t.get("writable", False)
-                            if et[u"entry"]:
+                            if et[u"entry"] is not None:
                                 ls.append(et)
                     else:
                         initwd_item = builder.do_eval(t)
