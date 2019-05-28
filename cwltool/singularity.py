@@ -54,16 +54,10 @@ def _singularity_supports_userns():  # type: ()->bool
     return _USERNS
 
 def _normalize_image_id(string):  # type: (Text)->Text
-    candidate = re.sub(pattern=r'([a-z]*://)', repl=r'', string=string)
-    return re.sub(pattern=r'[:/]', repl=r'-', string=candidate) + ".img"
+    return string.replace('/', '_') + '.img'
 
 def _normalize_sif_id(string): # type: (Text)->Text
-    candidate = re.sub(pattern=r'([a-z]*://)', repl=r'', string=string)
-    candidate_new = re.sub(pattern=r'[::]', repl=r'_', string=candidate) + ".sif"
-    if '/' in candidate_new:
-        return candidate_new.split('/')[1]
-    else:
-        return candidate_new
+    return string.replace('/', '_') + '.sif'
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
 
