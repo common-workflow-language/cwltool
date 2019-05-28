@@ -211,7 +211,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     dockergroup.add_argument("--singularity", action="store_true",
                              default=False, help="[experimental] Use "
                              "Singularity runtime for running containers. "
-                             "Requires Singularity v2.3.2+ and Linux with kernel "
+                             "Requires Singularity v2.6.1+ and Linux with kernel "
                              "version v3.18+ or with overlayfs support "
                              "backported.")
     dockergroup.add_argument("--no-container", action="store_false",
