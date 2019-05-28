@@ -920,3 +920,13 @@ def test_v1_0_position_expression():
         ['--debug', get_data(test_file), get_data(test_job)])
     assert "is not int" in stderr, stderr
     assert error_code == 1
+
+
+def test_optional_numeric_output_0():
+    test_file = "tests/wf/optional-numerical-output-0.cwl"
+    error_code, stdout, stderr = get_main_output(
+        [get_data(test_file)])
+
+    assert "completed success" in stderr
+    assert error_code == 0
+    assert json.loads(stdout)['out'] == 0
