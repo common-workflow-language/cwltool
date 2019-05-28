@@ -49,12 +49,12 @@ $graph:
 
       ## Changelog
 
-        * Adds new `WorkflowStep` field: `run_if: ("default"|Expression)` for conditional executions
-        * Adds new `Sink` and `WorkflowOutputParameter` field:  `condMerge: first_non_skip | ignore_skip
-         | only_one
+        * Adds new `WorkflowStep` field: `runIf: Expression` for conditional executions
+        * Adds new `Sink` and `WorkflowOutputParameter` field:  `branchSelect: first_that_ran | all_that_ran
+         | the_one_that_ran
 
 
-      See also the [CWL Command Line Tool Description, v1.1.0-dev1 changelog](CommandLineTool.html#Changelog).
+      See also the [CWL Command Line Tool Description, v1.2 changelog](CommandLineTool.html#Changelog).
 
       ## Purpose
 
@@ -168,32 +168,32 @@ $graph:
     - merge_flattened
 
 
-- name: CondMergeMethod
+- name: ConditionalBranchSelectMethod
   type: enum
   docParent: "#WorkflowStepInput"
   doc: |
-    - `condMerge` is evaluated before `linkMerge` and before `scatter`
-    - The `condMerge` is evaluated after all ancestor workflow steps have completed.
-    - Also see the documentation for `run_if`. `condMerge` only has an effect
-      when a predecessor node has a `run_if` field.
-    - If a conditional step does not run, and if `condMerge` is not specified the
+    - `branchSelect` is evaluated before `linkMerge` and before `scatter`
+    - The `branchSelect` is evaluated after all ancestor workflow steps have completed.
+    - Also see the documentation for `runIf`. `branchSelect` only has an effect
+      when a predecessor node has a `runIf` field.
+    - If a conditional step does not run, and if `branchSelect` is not specified the
       outputs of the skipped step are all converted into `null`s
 
-    ## `condMerge:first_non_skip`
+    ## `branchSelect: first_that_ran`
     In a list pick the first value that was produced by a task that ran
     - `[skipped, null, x, skipped, null] -> null`
     - `[skipped, x, null, y] -> x`
     - `[skipped, [x], null] -> [x]`
     - `[skipped, skipped, skipped] -> null`
 
-    ## `condMerge: ignore_skip`
+    ## `branchSelect: all_that_ran`
     For the first level of a list input, discard the `skipped` values
     - `[skipped, null, x, skipped, null] -> [null, x, null]`
     - `[skipped, x, null, y] -> [x, null, y]`
     - `[skipped, [x], null] -> [[x], null]`
     - `[skipped, skipped, skipped] -> []`
 
-    ## `condMerge: only_one`
+    ## `branchSelect: the_one_that_ran`
     For the first level of a list input, pick the single non-null element and pass as a scalar. It is a step level error if there is more than one non-skipped element.
     - `[skipped, x, skipped] -> x`
     - `[skipped, x, skipped, y] -> workflow step error!!`
@@ -201,9 +201,9 @@ $graph:
     - `[skipped, skipped, skipped] -> null`
 
   symbols:
-    - first_non_skip
-    - ignore_skip
-    - only_one
+    - first_that_ran
+    - all_that_ran
+    - the_one_that_ran
 
 
 - name: WorkflowOutputParameter
@@ -235,13 +235,13 @@ $graph:
         The method to use to merge multiple sources into a single array.
         If not specified, the default method is "merge_nested".
 
-    - name: condMerge
-      type: ["null", CondMergeMethod]
-      jsonldPredicate: "cwl:condMerge"
-      default: first_non_skip
+    - name: branchSelect
+      type: ["null", ConditionalBranchSelectMethod]
+      jsonldPredicate: "cwl:branchSelect"
+      default: first_that_ran
       doc: |
         The method to use to merge multiple sources when they come from conditional steps.
-        If not specified, the default method is "first_non_skip".
+        If not specified, the default method is "first_that_ran".
 
     - name: type
       type:
@@ -288,13 +288,13 @@ $graph:
       doc: |
         The method to use to merge multiple inbound links into a single array.
         If not specified, the default method is "merge_nested".
-    - name: condMerge
-      type: ["null", CondMergeMethod]
-      jsonldPredicate: "cwl:condMerge"
-      default: first_non_skip
+    - name: branchSelect
+      type: ["null", ConditionalBranchSelectMethod]
+      jsonldPredicate: "cwl:branchSelect"
+      default: first_that_ran
       doc: |
         The method to use to merge multiple sources when they come from conditional steps.
-        If not specified, the default method is "first_non_skip".
+        If not specified, the default method is "first_that_ran".
 
 
 - type: record
@@ -528,15 +528,15 @@ $graph:
         subscope: run
       doc: |
         Specifies the process to run.
-    - name: run_if
+    - name: runIf
       type:
         - "null"
         - Expression
-      jsonldPredicate: "cwl:run_if"
+      jsonldPredicate: "cwl:runIf"
       doc: |
         - The step will only be run if the expression evaluates to `True`.
-        - If the step does not run and if `condMerge` is used the workflow
-          behaves as if that step was never there in the DAG. If condMerge is not
+        - If the step does not run and if `branchSelect` is used the workflow
+          behaves as if that step was never there in the DAG. If branchSelect is not
           used, the workflow behaves as if that step produced null for each of its outputs.
     - name: scatter
       type:
