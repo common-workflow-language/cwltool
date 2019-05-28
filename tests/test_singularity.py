@@ -1,5 +1,4 @@
 import sys
-import copy
 import os
 import pytest
 
@@ -22,7 +21,7 @@ def test_singularity_pullfolder(tmp_path):
     os.chdir(str(workdir))
     pullfolder = tmp_path / "pullfolder"
     pullfolder.mkdir()
-    env = copy.deepcopy(os.environ)
+    env = os.environ.copy()
     env["SINGULARITY_PULLFOLDER"] = str(pullfolder)
     result_code, stdout, stderr = get_main_output(
         ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"], env=env)
