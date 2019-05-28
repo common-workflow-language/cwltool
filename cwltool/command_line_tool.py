@@ -796,8 +796,13 @@ class CommandLineTool(Process):
             # Ensure files point to local references outside of the run environment
             adjustFileObjs(r, revmap)
 
-            if r is None and optional:
-                return None
+            if not r and optional:
+                # Don't convert zero or empty string to None
+                if r in [0, '']:
+                    return r
+                # For [] or None, return None
+                else:
+                    return None
 
         if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
                 and schema["type"]["type"] == "record"):
