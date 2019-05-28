@@ -797,7 +797,12 @@ class CommandLineTool(Process):
             adjustFileObjs(r, revmap)
 
             if not r and optional:
-                return None
+                # Don't convert zero or empty string to None
+                if r in [0, '']:
+                    return r
+                # For [] or None, return None
+                else:
+                    return None
 
         if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
                 and schema["type"]["type"] == "record"):
