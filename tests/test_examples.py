@@ -922,6 +922,7 @@ def test_v1_0_position_expression():
     assert error_code == 1
 
 
+@windows_needs_docker
 def test_optional_numeric_output_0():
     test_file = "tests/wf/optional-numerical-output-0.cwl"
     error_code, stdout, stderr = get_main_output(
