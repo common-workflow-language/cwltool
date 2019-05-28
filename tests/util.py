@@ -64,10 +64,10 @@ windows_needs_docker = pytest.mark.skipif(
     reason="Running this test on MS Windows requires the docker executable "
     "on the system path.")
 
-def get_main_output(args):
+def get_main_output(args, env=None):
     process = subprocess.Popen(
         [sys.executable, "-m", "cwltool"] + args,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
 
     stdout, stderr = process.communicate()
     return process.returncode, stdout.decode(), stderr.decode()

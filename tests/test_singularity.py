@@ -1,4 +1,5 @@
 import sys
+import copy
 import os
 import pytest
 
@@ -16,34 +17,17 @@ sys.argv = ['']
 
 @needs_singularity
 def test_singularity_pullfolder(tmp_path):
-
-    if "SINGULARITY_PULLFOLDER" in os.environ:
-        del os.environ["SINGULARITY_PULLFOLDER"]
-        workdir = tmp_path / "working_dir_new"
-        workdir.mkdir()
-        os.chdir(str(workdir))
-        pullfolder = tmp_path / "pull_folder"
-        pullfolder.mkdir()
-        os.environ["SINGULARITY_PULLFOLDER"] = str(pullfolder)
-        if "SINGULARITY_PULLFOLDER" in os.environ:
-            result_code, stdout, stderr = get_main_output(
-                ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
-            assert result_code == 0
-        else:
-            assert result_code != 0
-    else:
-        workdir = tmp_path / "working_dir_new"
-        workdir.mkdir()
-        os.chdir(str(workdir))
-        pullfolder = tmp_path / "pullfolder"
-        pullfolder.mkdir()
-        os.environ["SINGULARITY_PULLFOLDER"] = str(pullfolder)
-        if "SINGULARITY_PULLFOLDER" in os.environ:
-            result_code, stdout, stderr = get_main_output(
-                ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
-            assert result_code == 0
-        else:
-            assert result_code != 0
+    workdir = tmp_path / "working_dir_new"
+    workdir.mkdir()
+    os.chdir(str(workdir))
+    pullfolder = tmp_path / "pullfolder"
+    pullfolder.mkdir()
+    env = copy.deepcopy(os.environ)
+    env["SINGULARITY_PULLFOLDER"] = str(pullfolder)
+    result_code, stdout, stderr = get_main_output(
+        ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"], env=env)
+    assert result_code == 0
+    # TODO, confirm that the image is in the pullfolder
 
 @needs_singularity
 def test_singularity_workflow(tmpdir):
