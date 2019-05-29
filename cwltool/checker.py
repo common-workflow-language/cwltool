@@ -21,6 +21,7 @@ def _get_type(tp):
             return tp["type"]
     return tp
 
+
 def check_types(srctype, sinktype, linkMerge, valueFrom):
     # type: (Any, Any, Optional[Text], Optional[Text]) -> Text
     """Check if the source and sink types are "pass", "warning", or "exception".
@@ -194,12 +195,16 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         src = exception.src
         sink = exception.sink
         linkMerge = exception.linkMerge
+        extra_message = exception.message
         msg = SourceLine(src, "type").makeError(
             "Source '%s' of type %s is incompatible"
             % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
             SourceLine(sink, "type").makeError(
                 "  with sink '%s' of type %s"
                 % (shortname(sink["id"]), json_dumps(sink["type"])))
+        if extra_message is not None:
+            msg += "\n" + SourceLine(sink).makeError("  " + extra_message)
+
         if linkMerge is not None:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
@@ -213,7 +218,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
             exception_msgs.append(msg)
 
     all_warning_msg = strip_dup_lineno("\n".join(warning_msgs))
-    all_exception_msg = strip_dup_lineno("\n".join(exception_msgs))
+    all_exception_msg = strip_dup_lineno("\n" + "\n".join(exception_msgs))
 
     if warnings:
         _logger.warning("Workflow checker warning:\n%s", all_warning_msg)
@@ -221,30 +226,51 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         raise validate.ValidationException(all_exception_msg)
 
 
-SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
+SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
+
 
 def check_all_types(src_dict, sinks, sourceField):
     # type: (Dict[Text, Any], List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
-    # sourceField is either "soure" or "outputSource"
+    # sourceField is either "source" or "outputSource"
     """Given a list of sinks, check if their types match with the types of their sources.
     """
 
     validation = {"warning": [], "exception": []}  # type: Dict[Text, List[SrcSink]]
     for sink in sinks:
         if sourceField in sink:
+
             valueFrom = sink.get("valueFrom")
+            branchSelect = sink.get("branchSelect")
+
+            extra_message = None
+            if branchSelect is not None:
+                extra_message = "branchSelect is: %s" % branchSelect
+
             if isinstance(sink[sourceField], MutableSequence):
                 srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
                 linkMerge = sink.get("linkMerge", ("merge_nested"
                                                    if len(sink[sourceField]) > 1 else None))
+
+                if branchSelect in ["first_that_ran", "the_one_that_ran"]:
+                    linkMerge = None
+
             else:
                 parm_id = sink[sourceField]
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
+
+                if branchSelect is not None:
+                    validation["exception"].append(
+                        SrcSink(src_dict[parm_id], sink, linkMerge,
+                                message="branchSelect is used but only a single input source is declared"))
+
             for src in srcs_of_sink:
                 check_result = check_types(src, sink, linkMerge, valueFrom)
                 if check_result == "warning":
-                    validation["warning"].append(SrcSink(src, sink, linkMerge))
+                    validation["warning"].append(SrcSink(src, sink, linkMerge,
+                                                         message=extra_message))
                 elif check_result == "exception":
-                    validation["exception"].append(SrcSink(src, sink, linkMerge))
+                    validation["exception"].append(SrcSink(src, sink, linkMerge,
+                                                           message=extra_message))
+
     return validation
