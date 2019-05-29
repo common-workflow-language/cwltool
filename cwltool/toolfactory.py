@@ -51,8 +51,12 @@ class ToolFactoryJob(object):
                     u"Tool definition %s failed validation:\n%s" %
                     (toolpath_object["run"], validate.indent(str(vexc))))
 
+            runinputs = job_order
+            if "runInputs" in self.jobout:
+                runinputs = self.jobout
+
             for tool in self.embedded_tool.job(
-                    self.jobout["runInputs"],
+                    runinputs,
                     output_callbacks,
                     runtimeContext):
                 yield tool

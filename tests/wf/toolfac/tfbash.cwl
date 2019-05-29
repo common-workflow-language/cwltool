@@ -18,9 +18,5 @@ run:
       type: File
       outputBinding:
         glob: main.cwl
-    runInputs:
-      type: Any
-      outputBinding:
-        outputEval: $(inputs)
   arguments: [$(inputs.tfbash_py), $(inputs.processSource)]
   stdout: main.cwl
