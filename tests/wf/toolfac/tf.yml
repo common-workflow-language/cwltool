@@ -1,0 +1,4 @@
+processSource:
+  class: File
+  location: makeawf.py
+zing: zip

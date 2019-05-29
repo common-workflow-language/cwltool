@@ -135,3 +135,22 @@ $graph:
         "_type": "@vocab"
     - name: networkAccess
       type: [boolean, string]
+
+- name: ToolFactory
+  type: record
+  inVocab: true
+  extends: cwl:Process
+  documentRoot: true
+  fields:
+    - name: class
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+      type: string
+    - name: run
+      type: [string, cwl:Process]
+      jsonldPredicate:
+        _id: "cwl:run"
+        _type: "@id"
+      doc: |
+        Specifies the process to run.

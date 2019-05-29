@@ -1,0 +1,8 @@
+processSource:
+  class: File
+  location: tfbash.sh
+FOO:
+  class: File
+  location: makeawf.py
+BAR: xyz
+BAZ: tfy
