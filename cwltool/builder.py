@@ -313,6 +313,7 @@ class Builder(HasReqsHints):
                         else:
                             sf_required = True
 
+
                         if "$(" in sf["pattern"] or "${" in sf["pattern"]:
                             sfpath = self.do_eval(sf["pattern"], context=datum)
                         else:
