@@ -186,6 +186,11 @@ $graph:
     - `[skipped, [x], null] -> [x]`
     - `[skipped, skipped, skipped] -> null`
 
+      *Targeted use case*: If-Else pattern where one input is always present and another
+       comes from a conditional step. The conditional step(s) should be placed first in
+       the list.
+
+
     ## `branchSelect: all_that_ran`
     For the first level of a list input, discard the `skipped` values
     - `[skipped, null, x, skipped, null] -> [null, x, null]`
@@ -193,12 +198,19 @@ $graph:
     - `[skipped, [x], null] -> [[x], null]`
     - `[skipped, skipped, skipped] -> []`
 
+      *Targeted use case*: Parallel nodes, zero or more of which may run
+
+
     ## `branchSelect: the_one_that_ran`
     For the first level of a list input, pick the single non-null element and pass as a scalar. It is a step level error if there is more than one non-skipped element.
     - `[skipped, x, skipped] -> x`
     - `[skipped, x, skipped, y] -> workflow step error!!`
     - `[skipped, [x], skipped] -> [x]`
     - `[skipped, skipped, skipped] -> null`
+
+      *Targeted use case*: Switch type patterns where developer considers
+      more than one active code path as a workflow error
+      (possibly indicating an error in writing `runIf` condition expressions).
 
   symbols:
     - first_that_ran
