@@ -9,12 +9,12 @@ import schema_salad.validate
 from cwltool.main import main
 
 from .util import (get_data, get_main_output, needs_singularity,
-                   working_directory)
+                   needs_singularity_2_6, working_directory)
 
 sys.argv = ['']
 
 
-@needs_singularity
+@needs_singularity_2_6
 def test_singularity_pullfolder(tmp_path):
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
@@ -25,8 +25,11 @@ def test_singularity_pullfolder(tmp_path):
     env["SINGULARITY_PULLFOLDER"] = str(pullfolder)
     result_code, stdout, stderr = get_main_output(
         ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"], env=env)
+    print(stdout)
+    print(stderr)
     assert result_code == 0
-    # TODO, confirm that the image is in the pullfolder
+    image = pullfolder/"debian.img"
+    assert image.exists()
 
 @needs_singularity
 def test_singularity_workflow(tmpdir):
