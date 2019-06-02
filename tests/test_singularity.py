@@ -66,7 +66,7 @@ def test_singularity_local(tmp_path):
         ['--singularity', get_data("tests/sing_pullfolder_test.cwl"), "--message", "hello"])
     assert result_code == 0
 
-@needs_singularity
+@needs_singularity_2_6
 def test_singularity_docker_image_id_in_tool(tmp_path):
     workdir = tmp_path / "working_dir"
     workdir.mkdir()

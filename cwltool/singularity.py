@@ -55,21 +55,21 @@ def _singularity_supports_userns():  # type: ()->bool
     return _USERNS
 
 
-def get_version():
+def get_version():  # type: ()->Text
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     if not _SINGULARITY_VERSION:
-       _SINGULARITY_VERSION = check_output(["singularity", "--version"], text=True)
+       _SINGULARITY_VERSION = check_output(["singularity", "--version"], universal_newlines=True)
        if _SINGULARITY_VERSION.startswith("singularity version "):
            _SINGULARITY_VERSION = _SINGULARITY_VERSION[20:]
     return _SINGULARITY_VERSION
 
-def is_version_2_6():
+def is_version_2_6():  # type: ()->bool
     return get_version().startswith("2.6")
 
-def is_version_3_or_newer():
+def is_version_3_or_newer():  # type: ()->bool
     return int(get_version()[0]) >= 3
 
-def is_version_3_1_or_newer():  # OCI compatible ??
+def is_version_3_1_or_newer():  # type: ()->bool
     version = get_version().split('.')
     return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 1)
 
@@ -179,7 +179,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         name = "{}.sif".format(dockerRequirement["dockerImageId"])
                     else:
                         name = "{}.sif".format(dockerRequirement["dockerLoad"])
-                    cmd ["singularity", "build", name,
+                    cmd = ["singularity", "build", name,
                          "docker-archive://{}".format(dockerRequirement["dockerLoad"])]
                     _logger.info(Text(cmd))
                     check_call(cmd, stdout=sys.stderr)  # nosec
