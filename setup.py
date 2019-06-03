@@ -54,10 +54,10 @@ setup(name='cwltool',
           'setuptools',
           'requests >= 2.6.1',  # >= 2.6.1 to workaround
           # https://github.com/ionrock/cachecontrol/issues/137
-          'ruamel.yaml >= 0.12.4, <= 0.15.77',
+          'ruamel.yaml >= 0.12.4, <= 0.15.96',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 4.2, < 5',
+          'schema-salad >= 4.3, < 5',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',

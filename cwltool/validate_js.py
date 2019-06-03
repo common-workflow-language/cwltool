@@ -3,8 +3,8 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
-                    Tuple, Union)
+from typing import (cast, Any, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union)
 
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
@@ -44,13 +44,13 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
                     source_line=None  # type: Optional[SourceLine]
                    ):  # type: (...) -> List[Tuple[Text, Optional[SourceLine]]]
     if is_expression(tool, schema):
-        return [(tool, source_line)]
+        return [(cast(Text, tool), source_line)]
     elif isinstance(schema, avro.schema.UnionSchema):
         valid_schema = None
 
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
-                return [(tool, source_line)]
+                return [(cast(Text, tool), source_line)]
             elif validate_ex(possible_schema, tool, raise_ex=False,
                              logger=_logger_validation_warnings):
                 valid_schema = possible_schema
