@@ -88,8 +88,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                  ):
         # type: (...) -> bool
         """
-        Acquire the software container image in the specified dockerRequirement
-        using Singularity and returns the success as a bool. Updates the
+        Acquire the software container image in the specified dockerRequirement.
+
+        Uses Singularity and returns the success as a bool. Updates the
         provided dockerRequirement with the specific dockerImageId to the full
         path of the local image, if found. Likewise the
         dockerRequirement['dockerPull'] is updated to a docker:// URI if needed.
@@ -205,10 +206,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                              ):
         # type: (...) -> Optional[Text]
         """
-        Returns the filename of the Singularity image (e.g.
-        hello-world-latest.img).
-        """
+        Return the filename of the Singularity image.
 
+        (e.g. hello-world-latest.{img,sif}).
+        """
         if not bool(spawn.find_executable('singularity')):
             raise WorkflowException('singularity executable is not available')
 
@@ -322,7 +323,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                        env,              # type: MutableMapping[Text, Text]
                        runtime_context   # type: RuntimeContext
                       ):  # type: (...) -> Tuple[List, Optional[Text]]
-        """ Returns the Singularity runtime list of commands and options."""
+        """Return the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
             or False
         runtime = [u"singularity", u"--quiet", u"exec", u"--contain", u"--pid",

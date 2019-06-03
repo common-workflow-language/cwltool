@@ -6,7 +6,7 @@ from .util import get_data
 
 
 def test_default_path():
-    """Testing that error is not raised when default path is not present"""
+    """Error is not raised when default path is not present."""
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/default_path.cwl"))
     loadingContext, uri = resolve_and_validate_document(

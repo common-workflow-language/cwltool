@@ -91,7 +91,7 @@ def temp_dir(suffix=""):
 
 @contextlib.contextmanager
 def working_directory(path):
-    """Changes working directory and returns to previous on exit."""
+    """Change working directory and returns to previous on exit."""
     prev_cwd = Path.cwd()
     # before python 3.6 chdir doesn't support paths from pathlib
     os.chdir(str(path))

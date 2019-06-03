@@ -16,6 +16,7 @@ from .process import Process
 class WorkflowStatus(Exception):
     def __init__(self, out, status):
         # type: (Dict[Text,Any], Text) -> None
+        """Signaling exception for the status of a Workflow."""
         super(WorkflowStatus, self).__init__("Completed %s" % status)
         self.out = out
         self.status = status
@@ -23,6 +24,7 @@ class WorkflowStatus(Exception):
 
 class Callable(object):
     def __init__(self, t, factory):  # type: (Process, Factory) -> None
+        """Initialize."""
         self.t = t
         self.factory = factory
 
@@ -42,6 +44,7 @@ class Factory(object):
                  loading_context=None,  # type: LoadingContext
                  runtime_context=None   # type: RuntimeContext
                 ):  # type: (...) -> None
+        """Easy way to load a CWL document for execution."""
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor

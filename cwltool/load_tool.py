@@ -99,7 +99,6 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
                    loadingContext=None  # type: Optional[LoadingContext]
                   ):  # type: (...) -> Tuple[LoadingContext, CommentedMap, Text]
     """Retrieve a CWL document."""
-
     if loadingContext is None:
         loadingContext = LoadingContext()
         loadingContext.loader = default_loader()
@@ -199,7 +198,6 @@ def resolve_and_validate_document(loadingContext,
                      ):
     # type: (...) -> Tuple[LoadingContext, Text]
     """Validate a CWL document."""
-
     loadingContext = loadingContext.copy()
 
     if not isinstance(workflowobj, MutableMapping):
