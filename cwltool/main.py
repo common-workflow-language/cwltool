@@ -501,7 +501,7 @@ def main(argsl=None,                   # type: List[str]
     if logger_handler is not None:
         _logger.addHandler(stderr_handler)
     else:
-        coloredlogs.install(logger=_logger)
+        coloredlogs.install(logger=_logger, stream=stderr)
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
     prov_log_handler = None  # type: Optional[logging.StreamHandler]
@@ -544,6 +544,7 @@ def main(argsl=None,                   # type: List[str]
         if runtimeContext.debug:
             # Increase to debug for both stderr and provenance log file
             _logger.setLevel(logging.DEBUG)
+            stderr_handler.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
         if args.timestamps:
