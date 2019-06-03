@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Single and multi-threaded executors."""
+""" Single and multi-threaded executors."""
 import datetime
 import os
 import tempfile
 import threading
+from threading import Lock
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
@@ -24,6 +25,8 @@ from .process import cleanIntermediate, relocateOutputs
 from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
+
+TMPDIR_LOCK = Lock()
 
 
 class JobExecutor(with_metaclass(ABCMeta, object)):
@@ -231,10 +234,10 @@ class MultithreadedJobExecutor(JobExecutor):
 
         return result
 
-    def _runner(self, job, runtime_context):
+    def _runner(self, job, runtime_context, TMPDIR_LOCK):
         """Job running thread."""
         try:
-            job.run(runtime_context)
+            job.run(runtime_context, TMPDIR_LOCK)
         except WorkflowException as err:
             _logger.exception("Got workflow error")
             self.exceptions.append(err)
@@ -294,7 +297,7 @@ class MultithreadedJobExecutor(JobExecutor):
                         n += 1
                         continue
 
-                thread = threading.Thread(target=self._runner, args=(job, runtime_context))
+                thread = threading.Thread(target=self._runner, args=(job, runtime_context, TMPDIR_LOCK))
                 thread.daemon = True
                 self.threads.add(thread)
                 if isinstance(job, JobBase):

@@ -414,7 +414,7 @@ class WorkflowJob(object):
             step.completed = True
 
 
-    def run(self, runtimeContext):
+    def run(self, runtimeContext, tmpdir_lock=None):
         """Log the start of each workflow."""
         _logger.info(u"[%s] start", self.name)
 
