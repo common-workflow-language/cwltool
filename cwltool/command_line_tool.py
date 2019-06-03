@@ -95,7 +95,10 @@ class ExpressionTool(Process):
             self.script = script
             self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
-        def run(self, runtimeContext):  # type: (RuntimeContext) -> None
+        def run(self,
+                runtimeContext,   # type: RuntimeContext
+                tmpdir_lock=None  # type: threading.Lock
+               ):  # type: (...) -> None
             try:
                 normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
