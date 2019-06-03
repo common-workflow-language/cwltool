@@ -59,6 +59,8 @@ from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
                     windows_default_container_id)
 from .subgraph import get_subgraph
 
+import coloredlogs
+
 def _terminate_processes():
     # type: () -> None
     """Kill all spawned processes.
@@ -495,12 +497,12 @@ def main(argsl=None,                   # type: List[str]
             stdout = cast(TextIO, sys.stdout)  # type: ignore
 
     _logger.removeHandler(defaultStreamHandler)
+    stderr_handler = logger_handler
     if logger_handler is not None:
-        stderr_handler = logger_handler
+        _logger.addHandler(stderr_handler)
     else:
-        stderr_handler = logging.StreamHandler(stderr)
-    _logger.addHandler(stderr_handler)
-    # pre-declared for finally block
+        coloredlogs.install(logger=_logger, stream=stderr)
+        stderr_handler = _logger.handlers[-1]
     workflowobj = None
     prov_log_handler = None  # type: Optional[logging.StreamHandler]
     try:
@@ -542,12 +544,16 @@ def main(argsl=None,                   # type: List[str]
         if runtimeContext.debug:
             # Increase to debug for both stderr and provenance log file
             _logger.setLevel(logging.DEBUG)
+            stderr_handler.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
         if args.timestamps:
-            formatter = logging.Formatter("[%(asctime)s] %(message)s",
-                                          "%Y-%m-%d %H:%M:%S")
-            stderr_handler.setFormatter(formatter)
+            formatter = coloredlogs.ColoredFormatter(
+                "[%(asctime)s] %(levelname)s %(message)s",
+                "%Y-%m-%d %H:%M:%S")
+        else:
+            formatter = coloredlogs.ColoredFormatter("%(levelname)s %(message)s")
+        stderr_handler.setFormatter(formatter)
         ##
 
         if args.version:
