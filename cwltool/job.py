@@ -4,6 +4,7 @@ import datetime
 import functools
 import itertools
 import logging
+import threading
 import os
 import re
 import shutil
@@ -207,7 +208,8 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
     @abstractmethod
     def run(self,
-            runtimeContext  # type: RuntimeContext
+            runtimeContext,   # type: RuntimeContext
+            tmpdir_lock=None  # type: threading.Lock
             ):  # type: (...) -> None
         pass
 
@@ -425,7 +427,7 @@ class CommandLineJob(JobBase):
             tmpdir_lock=None        # type: threading.Lock
             ):  # type: (...) -> None
 
-        if tmpdir_lock != None:
+        if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
                     os.makedirs(self.tmpdir)
@@ -594,9 +596,18 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 pathmapper.update(
                     key, new_path, vol.target, vol.type, vol.staged)
 
-    def run(self, runtimeContext):  # type: (RuntimeContext) -> None
-        if not os.path.exists(self.tmpdir):
-            os.makedirs(self.tmpdir)
+    def run(self,
+            runtimeContext,   # type: RuntimeContext
+            tmpdir_lock=None  # type: threading.Lock
+            ):  # type: (...) -> None
+        if tmpdir_lock:
+            with tmpdir_lock:
+                if not os.path.exists(self.tmpdir):
+                    os.makedirs(self.tmpdir)
+        else:
+            if not os.path.exists(self.tmpdir):
+                os.makedirs(self.tmpdir)
+
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
         img_id = None
