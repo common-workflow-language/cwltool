@@ -22,7 +22,6 @@ from .utils import visit_class, visit_field, aslist
 def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
     """Public updater for v1.0 to v1.1."""
-
     doc = copy.deepcopy(doc)
 
     rewrite = {
@@ -99,7 +98,7 @@ INTERNAL_VERSION = u"v1.1"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]
-    """The default, do-nothing, CWL document upgrade function."""
+    """Default, do-nothing, CWL document upgrade function."""
     return (doc, doc["cwlVersion"])
 
 
@@ -108,11 +107,10 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
                  enable_dev  # type: bool
 ):
     # type: (...) -> Tuple[Union[CommentedSeq, CommentedMap], Text]
-    """Checks the validity of the version of the give CWL document.
+    """Check the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
     """
-
     cdoc = None  # type: Optional[CommentedMap]
     if isinstance(doc, CommentedSeq):
         if not isinstance(metadata, CommentedMap):

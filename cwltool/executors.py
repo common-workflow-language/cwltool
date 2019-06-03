@@ -30,10 +30,11 @@ TMPDIR_LOCK = Lock()
 
 
 class JobExecutor(with_metaclass(ABCMeta, object)):
-    """ Abstract base job executor. """
+    """Abstract base job executor."""
 
     def __init__(self):
         # type: (...) -> None
+        """Initialize."""
         self.final_output = []  # type: List
         self.final_status = []  # type: List
         self.output_dirs = set()  # type: Set
@@ -42,7 +43,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         return self.execute(*args, **kwargs)
 
     def output_callback(self, out, process_status):
-        """ Collect the final status and outputs. """
+        """Collect the final status and outputs."""
         self.final_status.append(process_status)
         self.final_output.append(out)
 
@@ -53,7 +54,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                  logger,
                  runtime_context     # type: RuntimeContext
                 ):  # type: (...) -> None
-        """ Execute the jobs for the given Process. """
+        """Execute the jobs for the given Process."""
 
     def execute(self,
                 process,           # type: Process
@@ -61,8 +62,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                 runtime_context,    # type: RuntimeContext
                 logger=_logger,
                ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Text]
-        """ Execute the process. """
-
+        """Execute the process."""
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
 
@@ -134,7 +134,8 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
 
 
 class SingleJobExecutor(JobExecutor):
-    """ Default single-threaded CWL reference executor. """
+    """Default single-threaded CWL reference executor."""
+
     def run_jobs(self,
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
@@ -201,6 +202,7 @@ class MultithreadedJobExecutor(JobExecutor):
     """
 
     def __init__(self):  # type: () -> None
+        """Initialize."""
         super(MultithreadedJobExecutor, self).__init__()
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
@@ -214,7 +216,7 @@ class MultithreadedJobExecutor(JobExecutor):
 
     def select_resources(self, request, runtime_context):  # pylint: disable=unused-argument
         # type: (Dict[str, int], RuntimeContext) -> Dict[str, int]
-        """ Naïve check for available cpu cores and memory. """
+        """Naïve check for available cpu cores and memory."""
         result = {}  # type: Dict[str, int]
         maxrsc = {
             "cores": self.max_cores,
@@ -233,7 +235,7 @@ class MultithreadedJobExecutor(JobExecutor):
         return result
 
     def _runner(self, job, runtime_context, TMPDIR_LOCK):
-        """ Job running thread. """
+        """Job running thread."""
         try:
             job.run(runtime_context, TMPDIR_LOCK)
         except WorkflowException as err:
@@ -254,8 +256,7 @@ class MultithreadedJobExecutor(JobExecutor):
                 job,             # type: Union[JobBase, WorkflowJob, None]
                 runtime_context  # type: RuntimeContext
                ):  # type: (...) -> None
-        """ Execute a single Job in a seperate thread. """
-
+        """Execute a single Job in a seperate thread."""
         if job is not None:
             with self.pending_jobs_lock:
                 self.pending_jobs.append(job)
@@ -307,7 +308,7 @@ class MultithreadedJobExecutor(JobExecutor):
 
     def wait_for_next_completion(self, runtime_context):
         # type: (RuntimeContext) -> None
-        """ Wait for jobs to finish. """
+        """Wait for jobs to finish."""
         if runtime_context.workflow_eval_lock is not None:
             runtime_context.workflow_eval_lock.wait()
         if self.exceptions:

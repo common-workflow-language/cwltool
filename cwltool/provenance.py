@@ -316,7 +316,7 @@ class ProvenanceProfile():
                  orcid,                  # type: str
                  run_uuid=None           # type: uuid.UUID
                 ):  # type: (...) -> None
-
+        """Initialize the provenance profile."""
         self.orcid = orcid
         self.research_object = research_object
         self.folder = self.research_object.folder
@@ -338,6 +338,7 @@ class ProvenanceProfile():
         self.generate_prov_doc()
 
     def __str__(self):
+        """Represent this Provenvance profile as a string."""
         return "ProvenanceProfile <%s> in <%s>" % (
             self.workflow_run_uri, self.research_object)
 
@@ -450,7 +451,7 @@ class ProvenanceProfile():
                  job_order_object,  # type: Dict[Text, Text]
                  research_obj       # type: ResearchObject
                 ):  # type: (...) -> None
-        """Evaluate the nature of job"""
+        """Evaluate the nature of job."""
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
@@ -940,7 +941,7 @@ class ResearchObject():
 
     def __init__(self, temp_prefix_ro="tmp", orcid='', full_name=''):
         # type: (str, Text, Text) -> None
-
+        """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
@@ -969,13 +970,14 @@ class ResearchObject():
                       self.folder)
 
     def self_check(self):  # type: () -> None
-        """Raises ValueError if this RO is closed."""
+        """Raise ValueError if this RO is closed."""
         if self.closed:
             raise ValueError(
                 "This ResearchObject has already been closed and is not "
                 "available for futher manipulation.")
 
     def __str__(self):
+        """Represent this RO as a string."""
         return "ResearchObject <{}> in <{}>".format(self.ro_uuid, self.folder)
 
     def _initialize(self):  # type: () -> None
@@ -1384,7 +1386,7 @@ class ResearchObject():
         _logger.debug(u"[provenance] Added packed workflow: %s", rel_path)
 
     def has_data_file(self, sha1hash):  # type: (str) -> bool
-        """Confirms the presence of the given file in the RO."""
+        """Confirm the presence of the given file in the RO."""
         folder = os.path.join(self.folder, DATA, sha1hash[0:2])
         hash_path = os.path.join(folder, sha1hash)
         return os.path.isfile(hash_path)

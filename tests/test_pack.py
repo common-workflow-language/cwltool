@@ -72,9 +72,7 @@ cwl_missing_version_paths = [
 
 @pytest.mark.parametrize('cwl_path', cwl_missing_version_paths)
 def test_pack_missing_cwlVersion(cwl_path):
-    """Test to ensure the generated pack output is not missing
-    the `cwlVersion` in case of single tool workflow and single step workflow"""
-
+    """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
     # Testing single tool workflow
     loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
     loadingContext.do_update = False
@@ -88,17 +86,11 @@ def test_pack_missing_cwlVersion(cwl_path):
     assert packed["cwlVersion"] == 'v1.0'
 
 def test_pack_idempotence_tool():
-    """Test to ensure that pack produces exactly the same document for
-       an already packed document"""
-
-    # Testing single tool
+    """Ensure that pack produces exactly the same document for an already packed CommandLineTool."""
     _pack_idempotently("tests/wf/hello_single_tool.cwl")
 
 def test_pack_idempotence_workflow():
-    """Test to ensure that pack produces exactly the same document for
-       an already packed document"""
-
-    # Testing workflow
+    """Ensure that pack produces exactly the same document for an already packed workflow."""
     _pack_idempotently("tests/wf/count-lines1-wf.cwl")
 
 def _pack_idempotently(document):

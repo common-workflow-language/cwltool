@@ -39,9 +39,9 @@ minimum_node_version_str = '0.10.26'
 
 def check_js_threshold_version(working_alias):
     # type: (str) -> bool
+    """
+    Check if the nodeJS engine version on the system with the allowed minimum version.
 
-    """Checks if the nodeJS engine version on the system
-    with the allowed minimum version.
     https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog
     """
     # parse nodejs version into int Tuple: 'v4.2.6\n' -> [4, 2, 6]
@@ -171,7 +171,7 @@ def exec_js_process(js_text,                  # type: Text
     killed = []
 
     def terminate():
-        """ Kill the node process if it exceeds timeout limit"""
+        """Kill the node process if it exceeds timeout limit."""
         try:
             killed.append(True)
             nodejs.kill()

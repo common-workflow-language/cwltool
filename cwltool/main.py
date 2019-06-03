@@ -95,7 +95,7 @@ def _signal_handler(signum, _):
 def generate_example_input(inptype,     # type: Any
                            default      # type: Optional[Any]
                           ):  # type: (...) -> Tuple[Any, Text]
-    """Converts a single input schema into an example."""
+    """Convert a single input schema into an example."""
     example = None
     comment = u""
     defaults = {u'null': 'null',
@@ -602,6 +602,7 @@ def main(argsl=None,                   # type: List[str]
 
             class ProvLogFormatter(logging.Formatter):
                 """Enforce ISO8601 with both T and Z."""
+
                 def __init__(self):  # type: () -> None
                     super(ProvLogFormatter, self).__init__(
                         "[%(asctime)sZ] %(message)s")
@@ -899,7 +900,7 @@ def find_default_container(builder,                  # type: HasReqsHints
                            default_container=None,   # type: Text
                            use_biocontainers=None,  # type: bool
                           ):  # type: (...) -> Optional[Text]
-    """Default finder for default containers."""
+    """Find a container."""
     if not default_container and use_biocontainers:
         default_container = get_container_from_software_requirements(
             use_biocontainers, builder)
