@@ -240,8 +240,8 @@ OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], D
 
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, loadingContext):
-        """Initialize this CommandLineTool."""
         # type: (MutableMapping[Text, Any], LoadingContext) -> None
+        """Initialize this CommandLineTool."""
         super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
 
