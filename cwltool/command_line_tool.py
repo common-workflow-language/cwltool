@@ -440,7 +440,7 @@ class CommandLineTool(Process):
                             else:
                                 et["entryname"] = None
                             et["writable"] = t.get("writable", False)
-                            if et[u"entry"]:
+                            if et[u"entry"] is not None:
                                 ls.append(et)
                     else:
                         initwd_item = builder.do_eval(t)
@@ -797,7 +797,12 @@ class CommandLineTool(Process):
             adjustFileObjs(r, revmap)
 
             if not r and optional:
-                return None
+                # Don't convert zero or empty string to None
+                if r in [0, '']:
+                    return r
+                # For [] or None, return None
+                else:
+                    return None
 
         if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
                 and schema["type"]["type"] == "record"):

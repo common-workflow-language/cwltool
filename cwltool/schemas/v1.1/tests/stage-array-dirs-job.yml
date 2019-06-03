@@ -1,0 +1,5 @@
+input_list:
+  - class: Directory
+    location: testdir
+  - class: Directory
+    location: rec
