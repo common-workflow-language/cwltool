@@ -105,10 +105,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
-                         help="Try to pull Docker images", dest="enable_pull")
+                         help="Try to pull Docker images", dest="pull_image")
 
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
-                         help="Do not try to pull Docker images", dest="enable_pull")
+                         help="Do not try to pull Docker images", dest="pull_image")
 
     parser.add_argument("--rdf-serializer",
                         help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",
@@ -211,7 +211,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     dockergroup.add_argument("--singularity", action="store_true",
                              default=False, help="[experimental] Use "
                              "Singularity runtime for running containers. "
-                             "Requires Singularity v2.3.2+ and Linux with kernel "
+                             "Requires Singularity v2.6.1+ and Linux with kernel "
                              "version v3.18+ or with overlayfs support "
                              "backported.")
     dockergroup.add_argument("--no-container", action="store_false",

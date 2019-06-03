@@ -80,22 +80,20 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
 
         job_reqs = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
-            if process.metadata["cwlVersion"] == 'v1.0':
+            if process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion") == 'v1.0':
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
-                    "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
-                    "--enable-dev.")
+                    "can set the cwlVersion to v1.1")
             job_reqs = job_order_object["https://w3id.org/cwl/cwl#requirements"]
         elif ("cwl:defaults" in process.metadata
               and "https://w3id.org/cwl/cwl#requirements"
               in process.metadata["cwl:defaults"]):
-            if process.metadata["cwlVersion"] == 'v1.0':
+            if process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion") == 'v1.0':
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
-                    "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
-                    "--enable-dev.")
+                    "can set the cwlVersion to v1.1")
             job_reqs = process.metadata["cwl:defaults"]["https://w3id.org/cwl/cwl#requirements"]
         if job_reqs is not None:
             for req in job_reqs:
@@ -170,17 +168,17 @@ class SingleJobExecutor(JobExecutor):
                         self.output_dirs.add(job.outdir)
                     if runtime_context.research_obj is not None:
                         if not isinstance(process, Workflow):
-                            runtime_context.prov_obj = process.provenance_object
+                            prov_obj = process.provenance_object
                         else:
-                            runtime_context.prov_obj = job.prov_obj
-                        assert runtime_context.prov_obj
-                        runtime_context.prov_obj.evaluate(
-                            process, job, job_order_object,
-                            runtime_context.research_obj)
-                        process_run_id =\
-                            runtime_context.prov_obj.record_process_start(
-                                process, job)
-                        runtime_context = runtime_context.copy()
+                            prov_obj = job.prov_obj
+                        if prov_obj:
+                            runtime_context.prov_obj = prov_obj
+                            prov_obj.evaluate(
+                                process, job, job_order_object,
+                                runtime_context.research_obj)
+                            process_run_id =\
+                                prov_obj.record_process_start(process, job)
+                            runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
                     job.run(runtime_context)
                 else:

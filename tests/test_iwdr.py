@@ -3,7 +3,7 @@ import os
 from cwltool.main import main
 from cwltool import load_tool
 from .util import (get_data, get_windows_safe_factory, windows_needs_docker,
-                   needs_docker, temp_dir, needs_singularity)
+                   needs_docker, temp_dir, needs_singularity, get_main_output)
 
 @windows_needs_docker
 def test_newline_in_entry():
@@ -14,9 +14,18 @@ def test_newline_in_entry():
     echo = factory.make(get_data("tests/wf/iwdr-entry.cwl"))
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
 
+
+@needs_docker
+def test_empty_file_creation():
+    """
+    test that empty file can be created in InitialWorkingDirectory
+    """
+    err_code, _, _ = get_main_output([get_data("tests/wf/iwdr-empty.cwl")])
+    assert err_code == 0
+
+
 @needs_docker
 def test_iwdr_permutations():
-    load_tool.loaders = {}
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
@@ -44,7 +53,6 @@ def test_iwdr_permutations():
 
 @needs_docker
 def test_iwdr_permutations_inplace():
-    load_tool.loaders = {}
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
@@ -75,7 +83,6 @@ def test_iwdr_permutations_inplace():
 
 @needs_singularity
 def test_iwdr_permutations_singularity():
-    load_tool.loaders = {}
     with temp_dir() as fifth:
         with temp_dir() as sixth:
             with temp_dir() as seventh:
@@ -100,7 +107,6 @@ def test_iwdr_permutations_singularity():
 
 @needs_singularity
 def test_iwdr_permutations_singularity_inplace():
-    load_tool.loaders = {}
     with temp_dir() as fifth:
         with temp_dir() as sixth:
             with temp_dir() as seventh:

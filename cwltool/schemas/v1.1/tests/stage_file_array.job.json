@@ -1,0 +1,12 @@
+{
+    "input_list": [
+        {
+            "class": "File",
+            "location": "sfa-1.txt"
+        },
+        {
+            "class": "File",
+            "location": "sfa-2.txt"
+        }
+    ]
+}

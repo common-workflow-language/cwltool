@@ -1,0 +1,12 @@
+{
+    "input_file": {
+        "class": "File",
+        "location": "whale.txt"
+    },
+    "input_list": [
+        {
+            "class": "File",
+            "location": "hello.txt"
+        }
+    ]
+}

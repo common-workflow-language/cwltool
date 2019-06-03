@@ -24,11 +24,11 @@ from typing_extensions import Deque, Text  # pylint: disable=unused-import
 # no imports from cwltool allowed
 if os.name == 'posix':
     if sys.version_info < (3, 5):
-        import subprocess32 as subprocess  # pylint: disable=unused-import
+        import subprocess32 as subprocess  # nosec # pylint: disable=unused-import
     else:
-        import subprocess  # pylint: disable=unused-import
+        import subprocess  # nosec # pylint: disable=unused-import
 else:
-    import subprocess  # type: ignore
+    import subprocess  # type: ignore  # nosec
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -70,7 +70,7 @@ def copytree_with_merge(src, dst):  # type: (Text, Text) -> None
             shutil.copy2(spath, dpath)
 
 def docker_windows_path_adjust(path):
-    # type: (Optional[Text]) -> Optional[Text]
+    # type: (Text) -> Text
     r"""
     Changes only windows paths so that the can be appropriately passed to the
     docker run command as as docker treats them as unix paths.
@@ -78,7 +78,7 @@ def docker_windows_path_adjust(path):
     Example: 'C:\Users\foo to /C/Users/foo (Docker for Windows) or /c/Users/foo
     (Docker toolbox).
     """
-    if path is not None and onWindows():
+    if onWindows():
         split = path.split(':')
         if len(split) == 2:
             if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
@@ -216,9 +216,23 @@ def visit_class(rec, cls, op):
         for d in rec:
             visit_class(d, cls, op)
 
+def visit_field(rec, field, op):
+    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to mapping with 'field'."""
+
+    if isinstance(rec, MutableMapping):
+        if field in rec:
+            rec[field] = op(rec[field])
+        for d in rec:
+            visit_field(rec[d], field, op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_field(d, field, op)
+
+
 def random_outdir():  # type: () -> Text
     """ Return the random directory name chosen to use for tool / workflow output """
     # compute this once and store it as a function attribute - each subsequent call will return the same value
     if not hasattr(random_outdir, 'outdir'):
-        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore
+        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore  # nosec
     return random_outdir.outdir  # type: ignore
