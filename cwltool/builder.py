@@ -186,6 +186,12 @@ class Builder(HasReqsHints):
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.find_default_container = None  # type: Optional[Callable[[], Text]]
 
+        self.subst_prefix = "$"
+        prefixReq, _ = self.get_requirement("http://commonwl.org/cwltool#SubstitutionPrefix")
+        if prefixReq:
+            self.subst_prefix = prefixReq["substitutionPrefix"]
+
+
     def build_job_script(self, commands):
         # type: (List[Text]) -> Text
         build_job_script_method = getattr(self.job_script_provider, "build_job_script", None)  # type: Callable[[Builder, Union[List[str],List[Text]]], Text]
@@ -448,4 +454,5 @@ class Builder(HasReqsHints):
                                   debug=self.debug,
                                   js_console=self.js_console,
                                   force_docker_pull=self.force_docker_pull,
-                                  strip_whitespace=strip_whitespace)
+                                  strip_whitespace=strip_whitespace,
+                                  prefix=self.subst_prefix)

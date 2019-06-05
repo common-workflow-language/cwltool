@@ -44,9 +44,9 @@ class SubstitutionError(Exception):
     pass
 
 
-def scanner(scan):  # type: (Text) -> List[int]
+def scanner(scan, prefix):  # type: (Text) -> List[int]
     DEFAULT = 0
-    DOLLAR = 1
+    PREFIX = 1
     PAREN = 2
     BRACE = 3
     SINGLE_QUOTE = 4
@@ -56,34 +56,42 @@ def scanner(scan):  # type: (Text) -> List[int]
     i = 0
     stack = [DEFAULT]
     start = 0
+    prefixpos = 0
     while i < len(scan):
         state = stack[-1]
         c = scan[i]
 
         if state == DEFAULT:
-            if c == '$':
-                stack.append(DOLLAR)
+            if c == prefix[0]:
+                prefixpos = 1
+                stack.append(PREFIX)
             elif c == '\\':
                 stack.append(BACKSLASH)
         elif state == BACKSLASH:
             stack.pop()
             if stack[-1] == DEFAULT:
                 return [i - 1, i + 1]
-        elif state == DOLLAR:
-            if c == '(':
-                start = i - 1
-                stack.append(PAREN)
-            elif c == '{':
-                start = i - 1
-                stack.append(BRACE)
+        elif state == PREFIX:
+            if prefixpos < len(prefix):
+                if c == prefix[prefixpos]:
+                    prefixpos += 1
+                else:
+                    stack.pop()
             else:
-                stack.pop()
+                if c == '(':
+                    start = i - len(prefix)
+                    stack.append(PAREN)
+                elif c == '{':
+                    start = i - len(prefix)
+                    stack.append(BRACE)
+                else:
+                    stack.pop()
         elif state == PAREN:
             if c == '(':
                 stack.append(PAREN)
             elif c == ')':
                 stack.pop()
-                if stack[-1] == DOLLAR:
+                if stack[-1] == PREFIX:
                     return [start, i + 1]
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
@@ -94,7 +102,7 @@ def scanner(scan):  # type: (Text) -> List[int]
                 stack.append(BRACE)
             elif c == '}':
                 stack.pop()
-                if stack[-1] == DOLLAR:
+                if stack[-1] == PREFIX:
                     return [start, i + 1]
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
@@ -214,17 +222,22 @@ def interpolate(scan,                     # type: Text
                 force_docker_pull=False,  # type: bool
                 debug=False,              # type: bool
                 js_console=False,         # type: bool
-                strip_whitespace=True     # type: bool
+                strip_whitespace=True,    # type: bool
+                prefix=None,              # type: Optional[Text]
                ):  # type: (...) -> JSON
     if strip_whitespace:
         scan = scan.strip()
     parts = []
-    w = scanner(scan)
+
+    if prefix is None:
+        prefix = "$"
+
+    w = scanner(scan, prefix)
     while w:
         parts.append(scan[0:w[0]])
 
-        if scan[w[0]] == '$':
-            e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, timeout,
+        if scan[w[0]:w[0]+len(prefix)] == prefix:
+            e = evaluator(scan[w[0]+len(prefix):w[1]], jslib, rootvars, timeout,
                           fullJS=fullJS, force_docker_pull=force_docker_pull,
                           debug=debug, js_console=js_console)
             if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
@@ -238,13 +251,13 @@ def interpolate(scan,                     # type: Text
             parts.append(e)
 
         scan = scan[w[1]:]
-        w = scanner(scan)
+        w = scanner(scan, prefix)
     parts.append(scan)
     return ''.join(parts)
 
-def needs_parsing(snippet):  # type: (Any) -> bool
+def needs_parsing(snippet, prefix):  # type: (Any) -> bool
     return isinstance(snippet, string_types) \
-        and ("$(" in snippet or "${" in snippet)
+        and ((prefix+"(") in snippet or (prefix+"{") in snippet)
 
 def do_eval(ex,                       # type: Union[Text, Dict]
             jobinput,                 # type: Dict[Text, Union[Dict, List, Text, None]]
@@ -257,7 +270,8 @@ def do_eval(ex,                       # type: Union[Text, Dict]
             force_docker_pull=False,  # type: bool
             debug=False,              # type: bool
             js_console=False,         # type: bool
-            strip_whitespace=True     # type: bool
+            strip_whitespace=True,    # type: bool
+            prefix=None               # type: Optional[Text]
            ):  # type: (...) -> Any
 
     runtime = copy.deepcopy(resources)  # type: Dict[str, Any]
@@ -274,7 +288,7 @@ def do_eval(ex,                       # type: Union[Text, Dict]
     if six.PY3:
         rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
-    if isinstance(ex, string_types) and needs_parsing(ex):
+    if isinstance(ex, string_types) and needs_parsing(ex, prefix):
         fullJS = False
         jslib = u""
         for r in reversed(requirements):
@@ -292,7 +306,8 @@ def do_eval(ex,                       # type: Union[Text, Dict]
                                force_docker_pull=force_docker_pull,
                                debug=debug,
                                js_console=js_console,
-                               strip_whitespace=strip_whitespace)
+                               strip_whitespace=strip_whitespace,
+                               prefix=prefix)
 
         except Exception as e:
             raise WorkflowException("Expression evaluation error:\n%s" % e)
