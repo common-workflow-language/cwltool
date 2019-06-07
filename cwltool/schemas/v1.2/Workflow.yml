@@ -178,6 +178,8 @@ $graph:
       when a predecessor node has a `runIf` field.
     - If a conditional step does not run, and if `branchSelect` is not specified the
       outputs of the skipped step are all converted into `null`s
+    - Static type checkers should check for type consistency after infering what the type
+      will be after `branchSelect` is applied, just as they do currently for `linkMerge`
 
     ## `branchSelect: first_that_ran`
     In a list pick the first value that was produced by a task that ran
@@ -250,10 +252,8 @@ $graph:
     - name: branchSelect
       type: ["null", ConditionalBranchSelectMethod]
       jsonldPredicate: "cwl:branchSelect"
-      default: first_that_ran
       doc: |
         The method to use to merge multiple sources when they come from conditional steps.
-        If not specified, the default method is "first_that_ran".
 
     - name: type
       type:
@@ -303,10 +303,8 @@ $graph:
     - name: branchSelect
       type: ["null", ConditionalBranchSelectMethod]
       jsonldPredicate: "cwl:branchSelect"
-      default: first_that_ran
       doc: |
         The method to use to merge multiple sources when they come from conditional steps.
-        If not specified, the default method is "first_that_ran".
 
 
 - type: record
