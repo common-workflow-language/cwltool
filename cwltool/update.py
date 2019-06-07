@@ -47,7 +47,9 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
     def update_secondaryFiles(t):
         if isinstance(t, MutableSequence):
-            return [{"pattern": p} for p in t]
+            return [update_secondaryFiles(p) for p in t]
+        elif isinstance(t, MutableMapping):
+            return t
         else:
             return {"pattern": t}
 
