@@ -211,7 +211,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     dockergroup.add_argument("--singularity", action="store_true",
                              default=False, help="[experimental] Use "
                              "Singularity runtime for running containers. "
-                             "Requires Singularity v2.3.2+ and Linux with kernel "
+                             "Requires Singularity v2.6.1+ and Linux with kernel "
                              "version v3.18+ or with overlayfs support "
                              "backported.")
     dockergroup.add_argument("--no-container", action="store_false",
@@ -318,9 +318,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
 def get_default_args():
     # type: () -> Dict[str, Any]
-    """
-    Get default values of cwltool's command line options
-    """
+    """Get default values of cwltool's command line options."""
     ap = arg_parser()
     args = ap.parse_args([])
     return vars(args)
@@ -331,6 +329,7 @@ class FSAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
+        """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FSAction, self).__init__(option_strings, dest, **kwargs)
@@ -348,6 +347,7 @@ class FSAppendAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
+        """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)

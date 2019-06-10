@@ -28,6 +28,7 @@ def is_expression(tool, schema):
 
 class SuppressLog(logging.Filter):
     def __init__(self, name):  # type: (Text) -> None
+        """Initialize this log suppressor."""
         name = str(name)
         super(SuppressLog, self).__init__(name)
 

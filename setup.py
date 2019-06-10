@@ -65,6 +65,7 @@ setup(name='cwltool',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
           'typing-extensions',
+          'coloredlogs',
       ],
       extras_require={
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],

@@ -51,7 +51,7 @@ class TestUdocker:
 
         tmpdir.remove(ignore_errors=True)
 
-        assert "completed success" in stderr
+        assert "completed success" in stderr, stderr
         assert cidfiles_count == 0
 
     @pytest.mark.skipif(TRAVIS, reason='Not reliable on single threaded test on travis.')
@@ -63,5 +63,5 @@ class TestUdocker:
         cwd.chdir()
         tmpdir.remove(ignore_errors=True)
 
-        assert "completed success" in stderr
-        assert "Max memory" in stderr
+        assert "completed success" in stderr, stderr
+        assert "Max memory" in stderr, stderr

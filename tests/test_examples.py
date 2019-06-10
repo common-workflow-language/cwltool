@@ -666,8 +666,7 @@ def test_static_checker():
 
 
 def test_var_spool_cwl_checker1():
-    """ Confirm that references to /var/spool/cwl are caught."""
-
+    """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
     _logger = logging.getLogger("cwltool")
@@ -682,8 +681,7 @@ def test_var_spool_cwl_checker1():
 
 
 def test_var_spool_cwl_checker2():
-    """ Confirm that references to /var/spool/cwl are caught."""
-
+    """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
     _logger = logging.getLogger("cwltool")
@@ -698,8 +696,7 @@ def test_var_spool_cwl_checker2():
 
 
 def test_var_spool_cwl_checker3():
-    """ Confirm that references to /var/spool/cwl are caught."""
-
+    """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
     _logger = logging.getLogger("cwltool")

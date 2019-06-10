@@ -23,9 +23,11 @@ def _get_type(tp):
 
 def check_types(srctype, sinktype, linkMerge, valueFrom):
     # type: (Any, Any, Optional[Text], Optional[Text]) -> Text
-    """Check if the source and sink types are "pass", "warning", or "exception".
     """
+    Check if the source and sink types are correct.
 
+    Acceptable types are "pass", "warning", or "exception".
+    """
     if valueFrom is not None:
         return "pass"
     if linkMerge is None:
@@ -44,9 +46,7 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
 
 def merge_flatten_type(src):
     # type: (Any) -> Any
-    """Return the merge flattened type of the source type
-    """
-
+    """Return the merge flattened type of the source type."""
     if isinstance(src, MutableSequence):
         return [merge_flatten_type(t) for t in src]
     if isinstance(src, MutableMapping) and src.get("type") == "array":
@@ -55,7 +55,8 @@ def merge_flatten_type(src):
 
 
 def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -> bool
-    """Check for identical type specifications, ignoring extra keys like inputBinding.
+    """
+    Check for identical type specifications, ignoring extra keys like inputBinding.
 
     src: admissible source types
     sink: admissible sink types
@@ -63,7 +64,6 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
     In non-strict comparison, at least one source type must match one sink type.
     In strict comparison, all source types must match at least one sink type.
     """
-
     if src == "Any" or sink == "Any":
         return True
     if isinstance(src, MutableMapping) and isinstance(sink, MutableMapping):
@@ -100,12 +100,12 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
 
 def _compare_records(src, sink, strict=False):
     # type: (MutableMapping[Text, Any], MutableMapping[Text, Any], bool) -> bool
-    """Compare two records, ensuring they have compatible fields.
+    """
+    Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
     """
-
     def _rec_fields(rec):  # type: (MutableMapping[Text, Any]) -> MutableMapping[Text, Any]
         out = {}
         for field in rec["fields"]:
@@ -136,9 +136,7 @@ def missing_subset(fullset, subset):
 
 def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step):
     # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], Dict[Text, Dict[Text, Any]]) -> None
-    """Check if all source and sink types of a workflow are compatible before run time.
-    """
-
+    """Check if all source and sink types of a workflow are compatible before run time."""
     # source parameters: workflow_inputs and step_outputs
     # sink parameters: step_inputs and workflow_outputs
 
@@ -225,10 +223,11 @@ SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
 
 def check_all_types(src_dict, sinks, sourceField):
     # type: (Dict[Text, Any], List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
-    # sourceField is either "soure" or "outputSource"
-    """Given a list of sinks, check if their types match with the types of their sources.
     """
+    Given a list of sinks, check if their types match with the types of their sources.
 
+    sourceField is either "soure" or "outputSource"
+    """
     validation = {"warning": [], "exception": []}  # type: Dict[Text, List[SrcSink]]
     for sink in sinks:
         if sourceField in sink:

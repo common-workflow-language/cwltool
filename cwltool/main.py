@@ -59,6 +59,8 @@ from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
                     windows_default_container_id)
 from .subgraph import get_subgraph
 
+import coloredlogs
+
 def _terminate_processes():
     # type: () -> None
     """Kill all spawned processes.
@@ -93,7 +95,7 @@ def _signal_handler(signum, _):
 def generate_example_input(inptype,     # type: Any
                            default      # type: Optional[Any]
                           ):  # type: (...) -> Tuple[Any, Text]
-    """Converts a single input schema into an example."""
+    """Convert a single input schema into an example."""
     example = None
     comment = u""
     defaults = {u'null': 'null',
@@ -495,12 +497,12 @@ def main(argsl=None,                   # type: List[str]
             stdout = cast(TextIO, sys.stdout)  # type: ignore
 
     _logger.removeHandler(defaultStreamHandler)
+    stderr_handler = logger_handler
     if logger_handler is not None:
-        stderr_handler = logger_handler
+        _logger.addHandler(stderr_handler)
     else:
-        stderr_handler = logging.StreamHandler(stderr)
-    _logger.addHandler(stderr_handler)
-    # pre-declared for finally block
+        coloredlogs.install(logger=_logger, stream=stderr)
+        stderr_handler = _logger.handlers[-1]
     workflowobj = None
     prov_log_handler = None  # type: Optional[logging.StreamHandler]
     try:
@@ -542,12 +544,16 @@ def main(argsl=None,                   # type: List[str]
         if runtimeContext.debug:
             # Increase to debug for both stderr and provenance log file
             _logger.setLevel(logging.DEBUG)
+            stderr_handler.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
         if args.timestamps:
-            formatter = logging.Formatter("[%(asctime)s] %(message)s",
-                                          "%Y-%m-%d %H:%M:%S")
-            stderr_handler.setFormatter(formatter)
+            formatter = coloredlogs.ColoredFormatter(
+                "[%(asctime)s] %(levelname)s %(message)s",
+                "%Y-%m-%d %H:%M:%S")
+        else:
+            formatter = coloredlogs.ColoredFormatter("%(levelname)s %(message)s")
+        stderr_handler.setFormatter(formatter)
         ##
 
         if args.version:
@@ -596,6 +602,7 @@ def main(argsl=None,                   # type: List[str]
 
             class ProvLogFormatter(logging.Formatter):
                 """Enforce ISO8601 with both T and Z."""
+
                 def __init__(self):  # type: () -> None
                     super(ProvLogFormatter, self).__init__(
                         "[%(asctime)sZ] %(message)s")
@@ -893,7 +900,7 @@ def find_default_container(builder,                  # type: HasReqsHints
                            default_container=None,   # type: Text
                            use_biocontainers=None,  # type: bool
                           ):  # type: (...) -> Optional[Text]
-    """Default finder for default containers."""
+    """Find a container."""
     if not default_container and use_biocontainers:
         default_container = get_container_from_software_requirements(
             use_biocontainers, builder)

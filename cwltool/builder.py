@@ -61,7 +61,6 @@ def substitute(value, replace):  # type: (Text, Text) -> Text
 def formatSubclassOf(fmt, cls, ontology, visited):
     # type: (Text, Text, Optional[Graph], Set[Text]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
-
     if URIRef(fmt) == URIRef(cls):
         return True
 
@@ -96,7 +95,7 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
                  input_formats,  # type: Union[List[Text], Text]
                  ontology        # type: Optional[Graph]
                 ):  # type: (...) -> None
-    """ Confirms that the format present is valid for the allowed formats."""
+    """Confirm that the format present is valid for the allowed formats."""
     for afile in aslist(actual_file):
         if not afile:
             continue
@@ -114,6 +113,7 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
 
 class HasReqsHints(object):
     def __init__(self):
+        """Initialize this reqs decorator."""
         self.requirements = []  # List[Dict[Text, Any]]
         self.hints = []         # List[Dict[Text, Any]]
 
@@ -152,7 +152,7 @@ class Builder(HasReqsHints):
                  tmpdir,               # type: Text
                  stagedir             # type: Text
                 ):  # type: (...) -> None
-
+        """Initialize this Builder."""
         self.job = job
         self.files = files
         self.bindings = bindings

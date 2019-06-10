@@ -138,10 +138,14 @@ or
 
   cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
 
-``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ as a Docker container runtime, an experimental feature.
-Singularity will run software containers specified in ``DockerRequirement`` and therefore works with Docker images only,
-native Singularity images are not supported.
-To use Singularity as the Docker container runtime, provide ``--singularity`` command line option to ``cwltool``.
+``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ version 2.6.1
+or later as a Docker container runtime.
+``cwltool`` with Singularity will run software containers specified in
+``DockerRequirement`` and therefore works with Docker images only, native
+Singularity images are not supported. To use Singularity as the Docker container
+runtime, provide ``--singularity`` command line option to ``cwltool``.
+With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
+those involving Docker container ENTRYPOINTs.
 
 
 .. code:: bash

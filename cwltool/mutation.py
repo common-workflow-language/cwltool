@@ -23,6 +23,7 @@ class MutationManager(object):
     """
 
     def __init__(self):  # type: () -> None
+        """Initialize."""
         self.generations = {}  # type: Dict[Text, MutationState]
 
     def register_reader(self, stepname, obj):

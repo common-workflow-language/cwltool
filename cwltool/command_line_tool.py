@@ -75,6 +75,7 @@ hints:
 
 class ExpressionTool(Process):
     class ExpressionJob(object):
+        """Job for ExpressionTools."""
 
         def __init__(self,
                      builder,          # type: Builder
@@ -85,6 +86,7 @@ class ExpressionTool(Process):
                      outdir=None,      # type: Optional[Text]
                      tmpdir=None,      # type: Optional[Text]
                     ):  # type: (...) -> None
+            """Initializet this ExpressionJob."""
             self.builder = builder
             self.requirements = requirements
             self.hints = hints
@@ -95,7 +97,10 @@ class ExpressionTool(Process):
             self.script = script
             self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
-        def run(self, runtimeContext):  # type: (RuntimeContext) -> None
+        def run(self,
+                runtimeContext,   # type: RuntimeContext
+                tmpdir_lock=None  # type: threading.Lock
+               ):  # type: (...) -> None
             try:
                 normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
@@ -128,14 +133,13 @@ def remove_path(f):  # type: (Dict[Text, Any]) -> None
 
 def revmap_file(builder, outdir, f):
     # type: (Builder, Text, Dict[Text, Any]) -> Union[Dict[Text, Any], None]
-
-    """Remap a file from internal path to external path.
+    """
+    Remap a file from internal path to external path.
 
     For Docker, this maps from the path inside tho container to the path
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-
     split = urllib.parse.urlsplit(outdir)
     if not split.scheme:
         outdir = file_uri(str(outdir))
@@ -181,6 +185,7 @@ def revmap_file(builder, outdir, f):
 class CallbackJob(object):
     def __init__(self, job, output_callback, cachebuilder, jobcache):
         # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, Text) -> None
+        """Initialize this CallbackJob."""
         self.job = job
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
@@ -204,7 +209,6 @@ def check_adjust(builder, file_o):
     We need to also explicitly walk over input, as implicit reassignment
     doesn't reach everything in builder.bindings
     """
-
     if not builder.pathmapper:
             raise ValueError("Do not call check_adjust using a builder that doesn't have a pathmapper.")
     file_o["path"] = docker_windows_path_adjust(
@@ -240,6 +244,7 @@ OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], D
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, loadingContext):
         # type: (MutableMapping[Text, Any], LoadingContext) -> None
+        """Initialize this CommandLineTool."""
         super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
 

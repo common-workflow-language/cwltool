@@ -18,7 +18,7 @@ from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
 from cwltool.resolver import Path
 from cwltool.utils import onWindows, subprocess, windows_default_container_id
-
+from cwltool.singularity import is_version_2_6, is_version_3_or_newer
 
 
 def get_windows_safe_factory(runtime_context=None,  # type: RuntimeContext
@@ -55,19 +55,28 @@ needs_docker = pytest.mark.skipif(not bool(distutils.spawn.find_executable('dock
                                   reason="Requires the docker executable on the "
                                   "system path.")
 
-needs_singularity = pytest.mark.skipif(not bool(distutils.spawn.find_executable('singularity')),
-                                       reason="Requires the singularity executable on the "
-                                       "system path.")
+needs_singularity = pytest.mark.skipif(
+    not bool(distutils.spawn.find_executable('singularity')),
+    reason="Requires the singularity executable on the system path.")
+
+needs_singularity_2_6 = pytest.mark.skipif(
+    not (distutils.spawn.find_executable('singularity') and is_version_2_6()),
+    reason="Requires that version 2.6.x of singularity executable version is on the system path.")
+
+needs_singularity_3_or_newer = pytest.mark.skipif(
+    not (distutils.spawn.find_executable('singularity') and is_version_3_or_newer),
+    reason="Requires that version 2.6.x of singularity executable version is on the system path.")
+
 
 windows_needs_docker = pytest.mark.skipif(
     onWindows() and not bool(distutils.spawn.find_executable('docker')),
     reason="Running this test on MS Windows requires the docker executable "
     "on the system path.")
 
-def get_main_output(args):
+def get_main_output(args, env=None):
     process = subprocess.Popen(
         [sys.executable, "-m", "cwltool"] + args,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
 
     stdout, stderr = process.communicate()
     return process.returncode, stdout.decode(), stderr.decode()
@@ -82,7 +91,7 @@ def temp_dir(suffix=""):
 
 @contextlib.contextmanager
 def working_directory(path):
-    """Changes working directory and returns to previous on exit."""
+    """Change working directory and returns to previous on exit."""
     prev_cwd = Path.cwd()
     # before python 3.6 chdir doesn't support paths from pathlib
     os.chdir(str(path))
