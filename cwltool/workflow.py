@@ -672,10 +672,14 @@ class WorkflowStep(Process):
                         param["type"] = "Any"
                         param["not_connected"] = True
                     else:
+                        if isinstance(step_entry, Mapping):
+                            step_entry_name = step_entry['id']
+                        else:
+                            step_entry_name = step_entry
                         validation_errors.append(
                             SourceLine(self.tool["out"], index).makeError(
                                 "Workflow step output '%s' does not correspond to"
-                                % shortname(step_entry['id']))
+                                % shortname(step_entry_name))
                             + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
                                 "  tool output (expected '%s')" % (
                                     "', '".join(
