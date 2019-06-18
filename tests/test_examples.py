@@ -659,6 +659,9 @@ def test_static_checker():
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
+    with pytest.raises(schema_salad.validate.ValidationException):
+        factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
+
 
 def test_var_spool_cwl_checker1():
     """Confirm that references to /var/spool/cwl are caught."""
