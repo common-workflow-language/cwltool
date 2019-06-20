@@ -378,7 +378,7 @@ class CommandLineTool(Process):
             jobstatus = None
 
             # Opens the file for read/write, or creates an empty file.
-            jobcachefd = open(jobcachepending, "a+")
+            jobcachelock = open(jobcachepending, "a+")
 
             # get the shared lock to ensure no other process is trying
             # to write to this cache
