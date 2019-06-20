@@ -228,6 +228,8 @@ def stage_files(pathmapper,             # type: PathMapper
 
     targets = {}
     for key, entry in pathmapper.items():
+        if not 'File' in entry.type:
+            continue
         if entry.target not in targets:
             targets[entry.target] = entry
         else:
