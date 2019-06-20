@@ -242,22 +242,23 @@ def random_outdir():  # type: () -> Text
     return random_outdir.outdir  # type: ignore
 
 
-# Simple multi-platform (fcntl/msvrt) file locking
-
+#
+# Simple multi-platform (fcntl/msvrt) file locking wrapper
+#
 try:
-    import fcntl
+    import fcntl  # type: ignore
 
-    def shared_file_lock(fd):  # type (file) -> None
+    def shared_file_lock(fd):  # type (IO) -> None
         fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
 
-    def upgrade_lock(fd):
+    def upgrade_lock(fd):  # type (IO) -> None
         fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
 
 except ImportError:
-    import msvcrt
+    import msvcrt  # type: ignore
 
-    def shared_file_lock(fd):
+    def shared_file_lock(fd):  # type (IO) -> None
         msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
 
-    def upgrade_lock(fd):
+    def upgrade_lock(fd):  # type (IO) -> None
         pass
