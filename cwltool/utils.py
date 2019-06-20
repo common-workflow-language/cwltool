@@ -254,7 +254,7 @@ try:
         fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
 
 except ImportError:
-    import mscvrt
+    import msvcrt
 
     def shared_file_lock(fd):
         msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
