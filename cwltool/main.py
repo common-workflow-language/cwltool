@@ -547,12 +547,14 @@ def main(argsl=None,                   # type: List[str]
             stderr_handler.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
+        fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
         if args.timestamps:
-            formatter = coloredlogs.ColoredFormatter(
+            formatter = fmtclass(
                 "[%(asctime)s] %(levelname)s %(message)s",
                 "%Y-%m-%d %H:%M:%S")
+
         else:
-            formatter = coloredlogs.ColoredFormatter("%(levelname)s %(message)s")
+            formatter = fmtclass("%(levelname)s %(message)s")
         stderr_handler.setFormatter(formatter)
         ##
 
