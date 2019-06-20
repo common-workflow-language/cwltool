@@ -374,7 +374,7 @@ class CommandLineTool(Process):
 
             # Create a lockfile to manage cache status.
             jobcachepending = "{}.status".format(jobcache)
-            jobcachefd = None
+            jobcachelock = None
             jobstatus = None
 
             # Opens the file for read/write, or creates an empty file.
@@ -419,7 +419,7 @@ class CommandLineTool(Process):
                     output_callbacks(outputs, processStatus)
 
                 output_callbacks = partial(
-                    update_status_output_callback, output_callbacks, jobcachefd)
+                    update_status_output_callback, output_callbacks, jobcachelock)
 
         builder = self._init_job(job_order, runtimeContext)
 
