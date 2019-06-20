@@ -17,6 +17,7 @@ from schema_salad import validate
 from schema_salad.sourceline import SourceLine
 from six import string_types, iteritems
 from six.moves import range
+from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -249,7 +250,7 @@ class WorkflowJob(object):
                 "outputSource", incomplete=True)
         except WorkflowException as err:
             _logger.error(
-                u"[%s] Cannot collect workflow output: %s", self.name, err)
+                u"[%s] Cannot collect workflow output: %s", self.name, Text(err))
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
@@ -464,7 +465,7 @@ class WorkflowJob(object):
                         step.iterable = self.try_make_job(
                             step, output_callback, runtimeContext)
                     except WorkflowException as exc:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, Text(exc))
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -480,7 +481,7 @@ class WorkflowJob(object):
                             else:
                                 break
                     except WorkflowException as exc:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, Text(exc))
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -633,9 +634,9 @@ class WorkflowStep(Process):
         except validate.ValidationException as vexc:
             if loadingContext.debug:
                 _logger.exception("Validation exception")
-            raise WorkflowException(
+            raise_from(WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], validate.indent(str(vexc))))
+                (toolpath_object["run"], validate.indent(str(vexc)))), vexc)
 
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
@@ -804,7 +805,7 @@ class WorkflowStep(Process):
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(Text(exc))
+            raise_from(WorkflowException(Text(exc)), exc)
 
     def visit(self, op):
         self.embedded_tool.visit(op)
@@ -871,7 +872,7 @@ def parallel_steps(steps, rc, runtimeContext):
                 if made_progress:
                     break
             except WorkflowException as exc:
-                _logger.error(u"Cannot make scatter job: %s", exc)
+                _logger.error(u"Cannot make scatter job: %s", Text(exc))
                 _logger.debug("", exc_info=True)
                 rc.receive_scatter_output(index, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:

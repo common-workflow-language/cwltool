@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 import psutil
 from six import string_types, with_metaclass
 from typing_extensions import Text  # pylint: disable=unused-import
+from future.utils import raise_from
 from schema_salad.validate import ValidationException
 
 from .builder import Builder  # pylint: disable=unused-import
@@ -189,7 +190,7 @@ class SingleJobExecutor(JobExecutor):
             raise
         except Exception as err:
             logger.exception("Got workflow error")
-            raise WorkflowException(Text(err))
+            raise_from(WorkflowException(Text(err)), err)
 
 
 class MultithreadedJobExecutor(JobExecutor):

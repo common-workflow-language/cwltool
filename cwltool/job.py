@@ -24,6 +24,7 @@ import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from six import PY2, with_metaclass
+from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 
@@ -344,14 +345,14 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except OSError as e:
             if e.errno == 2:
                 if runtime:
-                    _logger.error(u"'%s' not found: %s", runtime[0], e)
+                    _logger.error(u"'%s' not found: %s", runtime[0], Text(e))
                 else:
-                    _logger.error(u"'%s' not found: %s", self.command_line[0], e)
+                    _logger.error(u"'%s' not found: %s", self.command_line[0], Text(e))
             else:
                 _logger.exception(u"Exception while running job")
             processStatus = "permanentFail"
         except WorkflowException as err:
-            _logger.error(u"[job %s] Job error:\n%s", self.name, err)
+            _logger.error(u"[job %s] Job error:\n%s", self.name, Text(err))
             processStatus = "permanentFail"
         except Exception as e:
             _logger.exception(u"Exception while running job")
@@ -659,8 +660,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 container = "Singularity" if runtimeContext.singularity else "Docker"
                 _logger.debug(u"%s error", container, exc_info=True)
                 if docker_is_req:
-                    raise UnsupportedRequirement(
-                        "%s is required to run this tool: %s" % (container, err))
+                    raise_from(UnsupportedRequirement(
+                        "%s is required to run this tool: %s" % (container, Text(err))), err)
                 else:
                     raise WorkflowException(
                         "{0} is not available for this tool, try "

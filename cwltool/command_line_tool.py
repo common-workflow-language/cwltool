@@ -24,6 +24,7 @@ from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from six import string_types
+from future.utils import raise_from
 
 from six.moves import map, urllib
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
@@ -108,7 +109,7 @@ class ExpressionTool(Process):
                 self.output_callback(ev, "success")
             except Exception as err:
                 _logger.warning(u"Failed to evaluate expression:\n%s",
-                                err, exc_info=runtimeContext.debug)
+                                Text(err), exc_info=runtimeContext.debug)
                 self.output_callback({}, "permanentFail")
 
     def job(self,
@@ -649,9 +650,9 @@ class CommandLineTool(Process):
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
-            raise WorkflowException(
+            raise_from(WorkflowException(
                 "Error validating output record. " + Text(e) + "\n in "
-                + json_dumps(ret, indent=4))
+                + json_dumps(ret, indent=4)), e)
         finally:
             if builder.mutation_manager and readers:
                 for r in readers.values():

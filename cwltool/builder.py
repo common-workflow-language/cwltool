@@ -18,6 +18,7 @@ from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
+from future.utils import raise_from
 from typing import IO
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
@@ -348,9 +349,9 @@ class Builder(HasReqsHints):
                         check_format(datum, self.do_eval(schema["format"]),
                                      self.formatgraph)
                     except validate.ValidationException as ve:
-                        raise WorkflowException(
+                        raise_from(WorkflowException(
                             "Expected value of '%s' to have format %s but\n "
-                            " %s" % (schema["name"], schema["format"], ve))
+                            " %s" % (schema["name"], schema["format"], ve)), ve)
 
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
