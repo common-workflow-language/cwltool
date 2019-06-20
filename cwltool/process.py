@@ -225,6 +225,15 @@ def stage_files(pathmapper,             # type: PathMapper
                 secret_store=None       # type: SecretStore
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
+
+    targets = {}
+    for key, entry in pathmapper.items():
+        if entry.target not in targets:
+            targets[entry.target] = entry
+        else:
+            raise WorkflowException("File staging conflict, want to stage both %s and %s to the same target %s" % (
+                targets[entry.target], entry, entry.target))
+
     for key, entry in pathmapper.items():
         if not entry.staged:
             continue
