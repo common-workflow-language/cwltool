@@ -8,6 +8,7 @@ from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
 
 import six
 from six import string_types, u
+from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -143,7 +144,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
             try:
                 key = int(next_segment_str[1:-1])
             except ValueError as v:
-                raise WorkflowException(u(str(v)))
+                raise_from(WorkflowException(u(str(v))), v)
             if not isinstance(current_value, MutableSequence):
                 raise WorkflowException("%s is a %s, cannot index on int '%s'" % (parsed_string, type(current_value).__name__, key))
             if key >= len(current_value):
@@ -151,8 +152,8 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
 
         try:
             return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
-        except KeyError:
-            raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
+        except KeyError as e:
+            raise_from(WorkflowException("%s doesn't have property %s" % (parsed_string, key)), e)
     else:
         return current_value
 
@@ -295,6 +296,6 @@ def do_eval(ex,                       # type: Union[Text, Dict]
                                strip_whitespace=strip_whitespace)
 
         except Exception as e:
-            raise WorkflowException("Expression evaluation error:\n%s" % e)
+            raise_from(WorkflowException("Expression evaluation error:\n%s" % Text(e)), e)
     else:
         return ex
