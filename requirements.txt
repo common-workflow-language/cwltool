@@ -13,3 +13,4 @@ scandir
 subprocess32 >= 3.5.0; os.name=="posix" and python_version<"3.5"
 typing-extensions
 coloredlogs
+future
