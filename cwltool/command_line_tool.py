@@ -11,7 +11,6 @@ import re
 import shutil
 import tempfile
 import threading
-import fcntl
 from functools import cmp_to_key, partial
 from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
                     MutableSequence, Optional, Set, Union, cast)
@@ -53,7 +52,8 @@ from .software_requirements import (  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
-                    random_outdir, windows_default_container_id)
+                    random_outdir, windows_default_container_id,
+                    shared_file_lock, upgrade_lock)
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
@@ -382,7 +382,7 @@ class CommandLineTool(Process):
 
             # get the shared lock to ensure no other process is trying
             # to write to this cache
-            fcntl.flock(jobcachelock, fcntl.LOCK_SH)
+            shared_file_lock(jobcachelock)
             jobcachelock.seek(0)
             jobstatus = jobcachelock.read()
 
@@ -402,7 +402,7 @@ class CommandLineTool(Process):
 
                 # turn shared lock into an exclusive lock since we'll
                 # be writing the cache directory
-                fcntl.flock(jobcachelock, fcntl.LOCK_EX)
+                upgrade_lock(jobcachelock)
 
                 shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)

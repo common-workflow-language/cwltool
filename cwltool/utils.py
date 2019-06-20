@@ -240,3 +240,24 @@ def random_outdir():  # type: () -> Text
     if not hasattr(random_outdir, 'outdir'):
         random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore  # nosec
     return random_outdir.outdir  # type: ignore
+
+
+# Simple multi-platform (fcntl/msvrt) file locking
+
+try:
+    import fcntl
+
+    def shared_file_lock(fd):  # type (file) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
+
+    def upgrade_lock(fd):
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
+
+except ImportError:
+    import mscvrt
+
+    def shared_file_lock(fd):
+        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
+
+    def upgrade_lock(fd):
+        pass
