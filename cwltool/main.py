@@ -358,6 +358,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             del p["path"]
 
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
+    ns.update(job_order_object.get("$namespaces", {}))
     ns.update(process.metadata.get("$namespaces", {}))
     ld = Loader(ns)
 
