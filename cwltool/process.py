@@ -39,7 +39,8 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
-                         get_listing, normalizeFilesDirs, visit_class)
+                         get_listing, normalizeFilesDirs, visit_class,
+                         MapperEnt)
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
@@ -226,7 +227,7 @@ def stage_files(pathmapper,             # type: PathMapper
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
 
-    targets = {}
+    targets = {}  # type: Dict[Text, MapperEnt]
     for key, entry in pathmapper.items():
         if not 'File' in entry.type:
             continue
