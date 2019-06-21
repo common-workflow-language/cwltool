@@ -40,7 +40,6 @@ jobloaderctx = {
     u"cwltool": "http://commonwl.org/cwltool#",
     u"path": {u"@type": u"@id"},
     u"location": {u"@type": u"@id"},
-    u"format": {u"@type": u"@id"},
     u"id": u"@id"
 }  # type: ContextType
 
