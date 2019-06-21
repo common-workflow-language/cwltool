@@ -52,7 +52,8 @@ from .software_requirements import (  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
-                    random_outdir, windows_default_container_id)
+                    random_outdir, windows_default_container_id,
+                    shared_file_lock, upgrade_lock)
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
@@ -353,8 +354,9 @@ class CommandLineTool(Process):
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
-                           "CreateFileRequirement",
-                           "ShellCommandRequirement"}
+                           "InitialWorkDirRequirement",
+                           "ShellCommandRequirement",
+                           "NetworkAccess"}
             for rh in (self.original_requirements, self.original_hints):
                 for r in reversed(rh):
                     if r["class"] in interesting and r["class"] not in keydict:
@@ -369,10 +371,22 @@ class CommandLineTool(Process):
                           keydictstr, cachekey)
 
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
-            jobcachepending = "{}.{}.pending".format(
-                jobcache, threading.current_thread().ident)
 
-            if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
+            # Create a lockfile to manage cache status.
+            jobcachepending = "{}.status".format(jobcache)
+            jobcachelock = None
+            jobstatus = None
+
+            # Opens the file for read/write, or creates an empty file.
+            jobcachelock = open(jobcachepending, "a+")
+
+            # get the shared lock to ensure no other process is trying
+            # to write to this cache
+            shared_file_lock(jobcachelock)
+            jobcachelock.seek(0)
+            jobstatus = jobcachelock.read()
+
+            if os.path.isdir(jobcache) and jobstatus == "success":
                 if docker_req and runtimeContext.use_container:
                     cachebuilder.outdir = runtimeContext.docker_outdir or random_outdir()
                 else:
@@ -380,23 +394,32 @@ class CommandLineTool(Process):
 
                 _logger.info("[job %s] Using cached output in %s", jobname, jobcache)
                 yield CallbackJob(self, output_callbacks, cachebuilder, jobcache)
+                # we're done with the cache so release lock
+                jobcachelock.close()
                 return
             else:
                 _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
+
+                # turn shared lock into an exclusive lock since we'll
+                # be writing the cache directory
+                upgrade_lock(jobcachelock)
+
                 shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)
                 runtimeContext = runtimeContext.copy()
                 runtimeContext.outdir = jobcache
-                open(jobcachepending, "w").close()
 
-                def rm_pending_output_callback(output_callbacks, jobcachepending,
+                def update_status_output_callback(output_callbacks, jobcachelock,
                                                outputs, processStatus):
-                    if processStatus == "success":
-                        os.remove(jobcachepending)
+                    # save status to the lockfile then release the lock
+                    jobcachelock.seek(0)
+                    jobcachelock.truncate()
+                    jobcachelock.write(processStatus)
+                    jobcachelock.close()
                     output_callbacks(outputs, processStatus)
 
                 output_callbacks = partial(
-                    rm_pending_output_callback, output_callbacks, jobcachepending)
+                    update_status_output_callback, output_callbacks, jobcachelock)
 
         builder = self._init_job(job_order, runtimeContext)
 
