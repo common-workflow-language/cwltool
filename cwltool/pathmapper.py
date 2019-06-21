@@ -340,8 +340,10 @@ class PathMapper(object):
         return None
 
     def update(self, key, resolved, target, ctype, stage):
-        # type: (Text, Text, Text, Text, bool) -> None
-        self._pathmap[key] = MapperEnt(resolved, target, ctype, stage)
+        # type: (Text, Text, Text, Text, bool) -> MapperEnt
+        m = MapperEnt(resolved, target, ctype, stage)
+        self._pathmap[key] = m
+        return m
 
     def __contains__(self, key):
         """Test for the presence of the given relative path in this mapper."""

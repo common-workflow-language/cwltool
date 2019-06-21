@@ -223,7 +223,8 @@ def stage_files(pathmapper,             # type: PathMapper
                 stage_func=None,        # type: Callable[..., Any]
                 ignore_writable=False,  # type: bool
                 symlink=True,           # type: bool
-                secret_store=None       # type: SecretStore
+                secret_store=None,      # type: SecretStore
+                fix_conflicts=False     # type: bool
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
 
@@ -234,8 +235,17 @@ def stage_files(pathmapper,             # type: PathMapper
         if entry.target not in targets:
             targets[entry.target] = entry
         elif targets[entry.target].resolved != entry.resolved:
-            raise WorkflowException("File staging conflict, want to stage both %s and %s to the same target %s" % (
-                targets[entry.target], entry, entry.target))
+            if fix_conflicts:
+                tgt = entry.target
+                i = 2
+                tgt = "%s_%s" % (tgt, i)
+                while tgt in targets:
+                    i += 1
+                    tgt = "%s_%s" % (tgt, i)
+                targets[tgt] = pathmapper.update(key, entry.resolved, tgt, entry.type, entry.staged)
+            else:
+                raise WorkflowException("File staging conflict, trying to stage both %s and %s to the same target %s" % (
+                    targets[entry.target].resolved, entry.resolved, entry.target))
 
     for key, entry in pathmapper.items():
         if not entry.staged:
@@ -343,7 +353,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
 
     outfiles = list(_collectDirEntries(outputObj))
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
-    stage_files(pm, stage_func=_relocate, symlink=False)
+    stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
     def _check_adjust(a_file):
         a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
