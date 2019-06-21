@@ -248,17 +248,17 @@ def random_outdir():  # type: () -> Text
 try:
     import fcntl  # type: ignore
 
-    def shared_file_lock(fd):  # type (IO) -> None
-        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
+    def shared_file_lock(fd):  # type: (IO) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
 
-    def upgrade_lock(fd):  # type (IO) -> None
-        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
+    def upgrade_lock(fd):  # type: (IO) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
 
 except ImportError:
     import msvcrt  # type: ignore
 
-    def shared_file_lock(fd):  # type (IO) -> None
-        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
+    def shared_file_lock(fd):  # type: (IO) -> None
+        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
 
-    def upgrade_lock(fd):  # type (IO) -> None
+    def upgrade_lock(fd):  # type: (IO) -> None
         pass
