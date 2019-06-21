@@ -291,6 +291,9 @@ def resolve_and_validate_document(loadingContext,
     if not isinstance(metadata, CommentedMap):
         raise ValidationException("metadata must be a CommentedMap, was %s" % type(metadata))
 
+    if isinstance(processobj, CommentedMap):
+        uri = processobj["id"]
+
     _convert_stdstreams_to_files(workflowobj)
 
     if preprocess_only:
