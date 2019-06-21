@@ -233,7 +233,7 @@ def stage_files(pathmapper,             # type: PathMapper
             continue
         if entry.target not in targets:
             targets[entry.target] = entry
-        else:
+        elif targets[entry.target].resolved != entry.resolved:
             raise WorkflowException("File staging conflict, want to stage both %s and %s to the same target %s" % (
                 targets[entry.target], entry, entry.target))
 
