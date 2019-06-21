@@ -108,7 +108,7 @@ def _pack_idempotently(document):
     loadingContext.do_update = False
     loadingContext, uri2 = resolve_and_validate_document(
         loadingContext, workflowobj, uri)
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    processobj = loadingContext.loader.resolve_ref(uri2)[0]
     double_packed = json.loads(print_pack(loadingContext.loader, processobj, uri2, loadingContext.metadata))
     assert packed == double_packed
 
