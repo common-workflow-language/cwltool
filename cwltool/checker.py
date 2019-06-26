@@ -149,8 +149,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
     for parm in src_parms:
         src_dict[parm["id"]] = parm
 
-    step_inputs_val = check_all_types(src_dict, step_inputs, "source")
-    workflow_outputs_val = check_all_types(src_dict, workflow_outputs, "outputSource")
+    step_inputs_val = check_all_types(src_dict, step_inputs, "source", param_to_step)
+    workflow_outputs_val = check_all_types(src_dict, workflow_outputs, "outputSource", param_to_step)
 
     warnings = step_inputs_val["warning"] + workflow_outputs_val["warning"]
     exceptions = step_inputs_val["exception"] + workflow_outputs_val["exception"]
@@ -190,7 +190,11 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
             if linkMerge is not None:
                 msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
 
+        if warning.message is not None:
+            msg += "\n" + SourceLine(sink).makeError("  " + warning.message)
+
         warning_msgs.append(msg)
+
     for exception in exceptions:
         src = exception.src
         sink = exception.sink
@@ -229,7 +233,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
 SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 
 
-def check_all_types(src_dict, sinks, sourceField):
+def check_all_types(src_dict, sinks, sourceField, param_to_step):
     # type: (Dict[Text, Any], List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
     # sourceField is either "source" or "outputSource"
     """Given a list of sinks, check if their types match with the types of their sources.
@@ -247,12 +251,20 @@ def check_all_types(src_dict, sinks, sourceField):
                 extra_message = "branchSelect is: %s" % branchSelect
 
             if isinstance(sink[sourceField], MutableSequence):
-                srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
+
                 linkMerge = sink.get("linkMerge", ("merge_nested"
                                                    if len(sink[sourceField]) > 1 else None))
 
                 if branchSelect in ["first_that_ran", "the_one_that_ran"]:
                     linkMerge = None
+
+                srcs_of_sink = []
+                for parm_id in sink[sourceField]:
+                    srcs_of_sink += [src_dict[parm_id]]
+                    if is_conditional_step(param_to_step, parm_id) and branchSelect is None:
+                        validation["warning"].append(
+                            SrcSink(src_dict[parm_id], sink, linkMerge,
+                                    message="Source is from conditional step, but branchSelect is not used"))
 
             else:
                 parm_id = sink[sourceField]
@@ -260,9 +272,25 @@ def check_all_types(src_dict, sinks, sourceField):
                 linkMerge = None
 
                 if branchSelect is not None:
-                    validation["exception"].append(
+                    validation["warning"].append(
                         SrcSink(src_dict[parm_id], sink, linkMerge,
                                 message="branchSelect is used but only a single input source is declared"))
+
+                if is_conditional_step(param_to_step, parm_id):
+                    src_typ = srcs_of_sink[0]["type"]
+                    snk_typ = sink["type"]
+
+                    if not isinstance(src_typ, list):
+                        src_typ = [src_typ]
+                    if "null" not in src_typ:
+                        src_typ = ["null"] + src_typ
+
+                    if "null" not in snk_typ:  # Given our type names this works even if not a list
+                        validation["warning"].append(
+                            SrcSink(src_dict[parm_id], sink, linkMerge,
+                                    message="Source is from conditional step and behaves as optional type"))
+
+                    srcs_of_sink[0]["type"] = src_typ
 
             for src in srcs_of_sink:
                 check_result = check_types(src, sink, linkMerge, valueFrom)
@@ -274,3 +302,11 @@ def check_all_types(src_dict, sinks, sourceField):
                                                            message=extra_message))
 
     return validation
+
+
+def is_conditional_step(param_to_step, parm_id):
+    source_step = param_to_step.get(parm_id)
+    if source_step is not None:
+        if source_step.get("runIf") is not None:
+            return True
+    return False

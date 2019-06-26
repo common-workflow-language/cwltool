@@ -555,6 +555,8 @@ class Workflow(Process):
             step_outputs.extend(step.tool["outputs"])
             for s in step.tool["inputs"]:
                 param_to_step[s["id"]] = step.tool
+            for s in step.tool["outputs"]:
+                param_to_step[s["id"]] = step.tool
 
         if getdefault(loadingContext.do_validate, True):
             static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step)
