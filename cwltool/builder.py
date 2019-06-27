@@ -39,14 +39,14 @@ if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
 
-def content_limit_respected_read_bytes(f):  # type: (IO) -> bytes
+def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException("loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes" % CONTENT_LIMIT)
     return contents
 
 
-def content_limit_respected_read(f):  # type: (IO) -> Text
+def content_limit_respected_read(f):  # type: (IO[bytes]) -> Text
     return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
@@ -92,7 +92,7 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     return False
 
-def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
+def check_format(actual_file,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]], Text]
                  input_formats,  # type: Union[List[Text], Text]
                  ontology        # type: Optional[Graph]
                 ):  # type: (...) -> None
@@ -113,10 +113,10 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
                 json_dumps(afile, indent=4)))
 
 class HasReqsHints(object):
-    def __init__(self):
+    def __init__(self):  # type: () -> None
         """Initialize this reqs decorator."""
-        self.requirements = []  # List[Dict[Text, Any]]
-        self.hints = []         # List[Dict[Text, Any]]
+        self.requirements = []  # type: List[Dict[Text, Any]]
+        self.hints = []         # type: List[Dict[Text, Any]]
 
     def get_requirement(self,
                         feature  # type: Text
@@ -131,7 +131,7 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 job,                  # type: Dict[Text, expression.JSON]
                  files,                # type: List[Dict[Text, Text]]
                  bindings,             # type: List[Dict[Text, Any]]
                  schemaDefs,           # type: Dict[Text, Dict[Text, Any]]
@@ -208,7 +208,7 @@ class Builder(HasReqsHints):
             lead_pos = []
 
         bindings = []  # type: List[MutableMapping[Text, Text]]
-        binding = None  # type: Optional[MutableMapping[Text,Any]]
+        binding = {}  # type: Union[MutableMapping[Text, Text], CommentedMap]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
@@ -281,7 +281,7 @@ class Builder(HasReqsHints):
             if schema["type"] == "array":
                 for n, item in enumerate(datum):
                     b2 = None
-                    if binding is not None:
+                    if binding:
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
                     itemschema = {
@@ -293,9 +293,9 @@ class Builder(HasReqsHints):
                             itemschema[k] = schema[k]
                     bindings.extend(
                         self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
-                binding = None
+                binding = {}
 
-            def _capture_files(f):
+            def _capture_files(f):  # type: (Dict[Text, Text]) -> Dict[Text, Text]
                 self.files.append(f)
                 return f
 
@@ -372,7 +372,7 @@ class Builder(HasReqsHints):
 
         return bindings
 
-    def tostr(self, value):  # type: (Any) -> Text
+    def tostr(self, value):  # type: (Union[MutableMapping[Text, Text], Any]) -> Text
         if isinstance(value, MutableMapping) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))

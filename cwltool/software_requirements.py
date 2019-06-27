@@ -58,7 +58,7 @@ class DependenciesConfiguration(object):
             self.use_tool_dependencies = False
 
     @property
-    def config_dict(self):
+    def config_dict(self):  # type: () -> Dict[Text, bool]
         return {
             'conda_auto_install': True,
             'conda_auto_init': True,
@@ -116,7 +116,7 @@ def get_container_from_software_requirements(use_biocontainers, builder):
         container_registry = ContainerRegistry(app_info)  # type: ContainerRegistry
         requirements = get_dependencies(builder)
         tool_info = ToolInfo(requirements=requirements)  # type: ToolInfo
-        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)  # type: ignore
+        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)
         if container_description:
             return container_description.identifier
 

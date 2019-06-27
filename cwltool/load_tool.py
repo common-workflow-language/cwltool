@@ -66,10 +66,10 @@ def default_loader(fetcher_constructor=None):
     # type: (Optional[FetcherConstructorType]) -> Loader
     return Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
 
-def resolve_tool_uri(argsworkflow,  # type: Text
-                     resolver=None,  # type: ResolverType
-                     fetcher_constructor=None,  # type: FetcherConstructorType
-                     document_loader=None  # type: Loader
+def resolve_tool_uri(argsworkflow,              # type: Text
+                     resolver=None,             # type: Optional[ResolverType]
+                     fetcher_constructor=None,  # type: Optional[FetcherConstructorType]
+                     document_loader=None       # type: Optional[Loader]
                     ):  # type: (...) -> Tuple[Text, Text]
 
     uri = None  # type: Optional[Text]
@@ -81,7 +81,7 @@ def resolve_tool_uri(argsworkflow,  # type: Text
         uri = file_uri(str(os.path.abspath(argsworkflow)))
     elif resolver is not None:
         if document_loader is None:
-            document_loader = default_loader(fetcher_constructor)  # type: ignore
+            document_loader = default_loader(fetcher_constructor)
         uri = resolver(document_loader, argsworkflow)
 
     if uri is None:
@@ -189,12 +189,13 @@ def _add_blank_ids(workflowobj):
         for entry in workflowobj:
             _add_blank_ids(entry)
 
-def resolve_and_validate_document(loadingContext,
-                      workflowobj,
-                      uri,
-                      preprocess_only=False,     # type: bool
-                      skip_schemas=None,         # type: bool
-                     ):
+def resolve_and_validate_document(
+        loadingContext,            # type: LoadingContext
+        workflowobj,               # type: Union[CommentedMap, CommentedSeq]
+        uri,                       # type: Text
+        preprocess_only=False,     # type: bool
+        skip_schemas=None,         # type: Optional[bool]
+                                 ):
     # type: (...) -> Tuple[LoadingContext, Text]
     """Validate a CWL document."""
     loadingContext = loadingContext.copy()
@@ -207,7 +208,7 @@ def resolve_and_validate_document(loadingContext,
     if "cwl:tool" in workflowobj:
         jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
-        del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
+        del cast(Dict[Text, Any], jobobj)["https://w3id.org/cwl/cwl#tool"]
 
         workflowobj = fetch_document(uri, loadingContext)[1]
 
@@ -375,8 +376,8 @@ def load_tool(argsworkflow,         # type: Union[Text, Dict[Text, Any]]
     return make_tool(uri,
                      loadingContext)
 
-def resolve_overrides(ov,      # Type: CommentedMap
-                      ov_uri,  # Type: Text
+def resolve_overrides(ov,      # type: CommentedMap
+                      ov_uri,  # type: Text
                       baseurl  # type: Text
                      ):  # type: (...) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
@@ -385,7 +386,8 @@ def resolve_overrides(ov,      # Type: CommentedMap
         raise Exception("Expected CommentedMap, got %s" % type(ret))
     cwl_docloader = get_schema("v1.0")[0]
     cwl_docloader.resolve_all(ret, ov_uri)
-    return ret["http://commonwl.org/cwltool#overrides"]
+    return cast(List[Dict[Text, Any]],
+                ret["http://commonwl.org/cwltool#overrides"])
 
 def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)

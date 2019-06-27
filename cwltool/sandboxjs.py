@@ -9,7 +9,7 @@ import select
 import sys
 import threading
 from io import BytesIO
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import six
 from future.utils import raise_from
@@ -17,8 +17,10 @@ from pkg_resources import resource_stream
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
+from schema_salad.utils import json_dumps
+
 from .loghandler import _logger
-from .utils import json_dumps, onWindows, processes_to_kill, subprocess
+from .utils import onWindows, processes_to_kill, subprocess
 try:
     import queue  # type: ignore
 except ImportError:
@@ -125,7 +127,7 @@ PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 def exec_js_process(js_text,                  # type: Text
                     timeout=default_timeout,  # type: float
                     js_console=False,         # type: bool
-                    context=None,             # type: Text
+                    context=None,             # type: Optional[Text]
                     force_docker_pull=False,  # type: bool
                    ):
     # type: (...) -> Tuple[int, Text, Text]
@@ -171,7 +173,7 @@ def exec_js_process(js_text,                  # type: Text
 
     killed = []
 
-    def terminate():
+    def terminate():  # type: () -> None
         """Kill the node process if it exceeds timeout limit."""
         try:
             killed.append(True)
@@ -373,7 +375,7 @@ def execjs(js,                       # type: Text
             raise JavascriptException(info)
 
     try:
-        return json.loads(stdout)
+        return cast(JSON, json.loads(stdout))
     except ValueError as err:
         raise_from(JavascriptException(
             u"{}\nscript was:\n{}\nstdout was: '{}'\nstderr was: '{}'\n".format(

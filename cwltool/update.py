@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Callable, Dict, MutableMapping, MutableSequence,
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Tuple, Union)
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -32,35 +32,55 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
         "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
         "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement"
     }
-    def rewrite_requirements(t):
+    def rewrite_requirements(t):  # type: (MutableMapping[Text, Union[Text, Dict[Text, Any]]]) -> None
         if "requirements" in t:
             for r in t["requirements"]:
-                if r["class"] in rewrite:
-                    r["class"] = rewrite[r["class"]]
+                if isinstance(r, MutableMapping):
+                    if r["class"] in rewrite:
+                        r["class"] = rewrite[r["class"]]
+                else:
+                    raise validate.ValidationException(
+                            "requirements entries must be dictionaries: {} {}.".format(
+                                type(r), r))
         if "hints" in t:
             for r in t["hints"]:
-                if r["class"] in rewrite:
-                    r["class"] = rewrite[r["class"]]
+                if isinstance(r, MutableMapping):
+                    if r["class"] in rewrite:
+                        r["class"] = rewrite[r["class"]]
+                else:
+                    raise validate.ValidationException(
+                        "hints entries must be dictionaries: {} {}.".format(
+                            type(r), r))
         if "steps" in t:
             for s in t["steps"]:
-                rewrite_requirements(s)
+                if isinstance(s, MutableMapping):
+                    rewrite_requirements(s)
+                else:
+                    raise validate.ValidationException(
+                        "steps entries must be dictionaries: {} {}.".format(
+                            type(s), s))
+
 
     def update_secondaryFiles(t):
+        # type: (Any) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
         if isinstance(t, MutableSequence):
-            return [update_secondaryFiles(p) for p in t]
+            for index, item in enumerate(t):
+                t[index] = update_secondaryFiles(item)
+            return t
         elif isinstance(t, MutableMapping):
             return t
         else:
             return {"pattern": t}
 
-    def fix_inputBinding(t):
+    def fix_inputBinding(t):  # type: (Dict[Text, Any]) -> None
         for i in t["inputs"]:
             if "inputBinding" in i:
                 ib = i["inputBinding"]
                 for k in list(ib.keys()):
                     if k != "loadContents":
-                        _logger.warning(SourceLine(ib, k).makeError("Will ignore field '%s' which is not valid in %s inputBinding" %
-                                                                    (k, t["class"])))
+                        _logger.warning(SourceLine(ib, k).makeError(
+                            "Will ignore field '{}' which is not valid in {} "
+                            "inputBinding".format(k, t["class"])))
                         del ib[k]
 
     visit_class(doc, ("CommandLineTool","Workflow"), rewrite_requirements)
@@ -80,6 +100,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, "v1.1")
 
 def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (doc, "v1.1")
 
 UPDATES = {

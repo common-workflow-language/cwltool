@@ -21,6 +21,8 @@ from six.moves import urllib, zip_longest
 from typing_extensions import Deque, Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
+from pathlib2 import Path
+
 # no imports from cwltool allowed
 if os.name == 'posix':
     if sys.version_info < (3, 5):
@@ -80,7 +82,7 @@ def docker_windows_path_adjust(path):
     if onWindows():
         split = path.split(':')
         if len(split) == 2:
-            if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
+            if platform.win32_ver()[0] in ('7', '8'):
                 split[0] = split[0].lower()  # Docker toolbox uses lowecase windows Drive letters
             else:
                 split[0] = split[0].capitalize()
@@ -210,7 +212,7 @@ def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequ
 
 
 def visit_class(rec, cls, op):
-    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    # type: (Union[MutableMapping[Text, Text], MutableSequence[MutableMapping[Text, Text]], Any], Iterable[Text], Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to with "class" in cls."""
     if isinstance(rec, MutableMapping):
         if "class" in rec and rec.get("class") in cls:
@@ -222,7 +224,7 @@ def visit_class(rec, cls, op):
             visit_class(d, cls, op)
 
 def visit_field(rec, field, op):
-    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    # type: (Any, Text, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to mapping with 'field'."""
     if isinstance(rec, MutableMapping):
         if field in rec:
@@ -241,24 +243,23 @@ def random_outdir():  # type: () -> Text
         random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore  # nosec
     return random_outdir.outdir  # type: ignore
 
-
 #
 # Simple multi-platform (fcntl/msvrt) file locking wrapper
 #
 try:
-    import fcntl  # type: ignore
+    import fcntl
 
-    def shared_file_lock(fd):  # type: (IO) -> None
-        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
+    def shared_file_lock(fd):  # type: (IO[Any]) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
 
-    def upgrade_lock(fd):  # type: (IO) -> None
-        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
+    def upgrade_lock(fd):  # type: (IO[Any]) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
 
 except ImportError:
-    import msvcrt  # type: ignore
+    import msvcrt
 
-    def shared_file_lock(fd):  # type: (IO) -> None
+    def shared_file_lock(fd):  # type: (IO[Any]) -> None
         msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
 
-    def upgrade_lock(fd):  # type: (IO) -> None
+    def upgrade_lock(fd):  # type: (IO[Any]) -> None
         pass

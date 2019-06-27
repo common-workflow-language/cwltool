@@ -166,7 +166,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,           # type: Builder
-                 joborder,          # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 joborder,          # type: Dict[Text, Union[Dict[Text, Any], List[Dict[Text, Any]], Text, None]]
                  make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,      # type: List[Dict[Text, Text]]
                  hints,             # type: List[Dict[Text, Text]]
@@ -205,14 +205,14 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
-    def __repr__(self):
+    def __repr__(self):  # type: () -> Text
         """Represent this Job object."""
         return "CommandLineJob(%s)" % self.name
 
     @abstractmethod
     def run(self,
             runtimeContext,   # type: RuntimeContext
-            tmpdir_lock=None  # type: threading.Lock
+            tmpdir_lock=None  # type: Optional[threading.Lock]
             ):  # type: (...) -> None
         pass
 
@@ -243,7 +243,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                  runtime,                # type: List[Text]
                  env,                    # type: MutableMapping[Text, Text]
                  runtimeContext,         # type: RuntimeContext
-                 monitor_function=None,  # type: Optional[Callable]
+                 monitor_function=None,  # type: Optional[Callable[[subprocess.Popen], None]]
                  ):                      # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
@@ -399,11 +399,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
-    def process_monitor(self, sproc):
+    def process_monitor(self, sproc):  # type: (subprocess.Popen) -> None
         monitor = psutil.Process(sproc.pid)
         memory_usage = [None]  # Value must be list rather than integer to utilise pass-by-reference in python
 
-        def get_tree_mem_usage(memory_usage):
+        def get_tree_mem_usage(memory_usage):  # type: (List[int]) -> None
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):
@@ -427,7 +427,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 class CommandLineJob(JobBase):
     def run(self,
             runtimeContext,         # type: RuntimeContext
-            tmpdir_lock=None        # type: threading.Lock
+            tmpdir_lock=None        # type: Optional[threading.Lock]
             ):  # type: (...) -> None
 
         if tmpdir_lock:
@@ -598,7 +598,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     def run(self,
             runtimeContext,   # type: RuntimeContext
-            tmpdir_lock=None  # type: threading.Lock
+            tmpdir_lock=None  # type: Optional[threading.Lock]
             ):  # type: (...) -> None
         if tmpdir_lock:
             with tmpdir_lock:
@@ -687,7 +687,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         try:
             memory = subprocess.check_output(
                 ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  # type: ignore
+                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError:
             pass
         if memory:
@@ -748,10 +748,10 @@ def _job_popen(commands,                  # type: List[Text]
                env,                       # type: MutableMapping[AnyStr, AnyStr]
                cwd,                       # type: Text
                job_dir,                   # type: Text
-               job_script_contents=None,  # type: Text
-               timelimit=None,            # type: int
-               name=None,                 # type: Text
-               monitor_function=None      # type: Optional[Callable]
+               job_script_contents=None,  # type: Optional[Text]
+               timelimit=None,            # type: Optional[int]
+               name=None,                 # type: Optional[Text]
+               monitor_function=None      # type: Optional[Callable[[subprocess.Popen], None]]
                ):  # type: (...) -> int
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
@@ -783,7 +783,7 @@ def _job_popen(commands,                  # type: List[Text]
 
         tm = None
         if timelimit is not None and timelimit > 0:
-            def terminate():
+            def terminate():  # type: () -> None
                 try:
                     _logger.warning(
                         u"[job %s] exceeded time limit of %d seconds and will"

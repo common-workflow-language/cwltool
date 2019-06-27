@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
+from typing import (Any, Dict, List, Mapping, MutableMapping, MutableSequence, Optional,
                     Union)
 
 import six
@@ -120,7 +120,7 @@ def scanner(scan):  # type: (Text) -> List[int]
         return []
 
 
-def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, Any) -> Any
+def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, JSON) -> JSON
     if remaining_string:
         m = segment_re.match(remaining_string)
         if not m:
@@ -150,10 +150,13 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
             if key >= len(current_value):
                 raise WorkflowException("%s list index %i out of range" % (parsed_string, key))
 
-        try:
-            return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
-        except KeyError as e:
-            raise_from(WorkflowException("%s doesn't have property %s" % (parsed_string, key)), e)
+         if isinstance(current_value, Mapping):
+            try:
+                return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
+            except KeyError:
+                raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
+        else:
+            raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
     else:
         return current_value
 
@@ -247,8 +250,8 @@ def needs_parsing(snippet):  # type: (Any) -> bool
     return isinstance(snippet, string_types) \
         and ("$(" in snippet or "${" in snippet)
 
-def do_eval(ex,                       # type: Union[Text, Dict]
-            jobinput,                 # type: Dict[Text, Union[Dict, List, Text, None]]
+def do_eval(ex,                       # type: Union[Text, Dict[Text, Text]]
+            jobinput,                 # type: Dict[Text, JSON]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]

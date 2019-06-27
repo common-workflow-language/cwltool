@@ -95,7 +95,7 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
             if can_assign_src_to_sink(src, this_sink):
                 return True
         return False
-    return src == sink
+    return bool(src == sink)
 
 
 def _compare_records(src, sink, strict=False):
@@ -126,8 +126,7 @@ def _compare_records(src, sink, strict=False):
             return False
     return True
 
-def missing_subset(fullset, subset):
-    # type: (List, List) -> List
+def missing_subset(fullset, subset): # type: (List[Any], List[Any]) -> List[Any]
     missing = []
     for i in subset:
         if i not in fullset:
