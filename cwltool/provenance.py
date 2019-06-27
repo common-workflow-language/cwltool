@@ -798,7 +798,7 @@ class ProvenanceProfile():
                 {"prov:role": prov_role})
 
     def generate_output_prov(self,
-                             final_output,    # type: Dict[Text, Any]
+                             final_output,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
                              process_run_id,  # type: Optional[str]
                              name             # type: Optional[Text]
                             ):   # type: (...) -> None

@@ -150,7 +150,7 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
             if key >= len(current_value):
                 raise WorkflowException("%s list index %i out of range" % (parsed_string, key))
 
-         if isinstance(current_value, Mapping):
+        if isinstance(current_value, Mapping):
             try:
                 return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
             except KeyError:

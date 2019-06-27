@@ -43,7 +43,7 @@ def declare_node(nodes, nodeid, tp):
 
 def get_subgraph(roots,  # type: MutableSequence[Text]
                  tool    # type: Workflow
-):
+                 ):  # type: (...) -> Optional[MutableMapping[Text, Any]]
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
@@ -88,7 +88,7 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
         else:
             subgraph_visit(r, nodes, visited_down, DOWN)
 
-    def find_step(stepid):  # type: (Text) -> Optional[MutableMapping]
+    def find_step(stepid):  # type: (Text) -> Optional[MutableMapping[Text, Any]]
         for st in tool.steps:
             if st.tool["id"] == stepid:
                 return st.tool
