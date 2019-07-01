@@ -22,7 +22,7 @@ import pkg_resources  # part of setuptools
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate
-from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
+from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno, cmap
 from six import string_types, iteritems, PY3
 from typing_extensions import Text
@@ -34,7 +34,7 @@ from .builder import HasReqsHints  # pylint: disable=unused-import
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
 from .errors import UnsupportedRequirement, WorkflowException
-from .executors import MultithreadedJobExecutor, SingleJobExecutor
+from .executors import MultithreadedJobExecutor, SingleJobExecutor, JobExecutor
 from .load_tool import (FetcherConstructorType,  # pylint: disable=unused-import
                         fetch_document, jobloaderctx, load_overrides,
                         make_tool, resolve_overrides, resolve_tool_uri,
@@ -227,7 +227,7 @@ def generate_input_template(tool):
 
 def load_job_order(args,                 # type: argparse.Namespace
                    stdin,                # type: IO[Any]
-                   fetcher_constructor,  # Fetcher
+                   fetcher_constructor,  # type: Optional[Fetcher]
                    overrides_list,       # type: List[Dict[Text, Any]]
                    tool_file_uri         # type: Text
                   ):  # type: (...) -> Tuple[Optional[MutableMapping[Text, Any]], Text, Loader]
@@ -281,7 +281,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    relative_deps=False,     # type: bool
                    make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
-                   secret_store=None        # type: SecretStore
+                   secret_store=None        # type: Optional[SecretStore]
                   ):  # type: (...) -> MutableMapping[Text, Any]
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
@@ -305,7 +305,8 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
         if 'job_order' in cmd_line and cmd_line["job_order"]:
             try:
                 job_order_object = cast(
-                    MutableMapping, loader.resolve_ref(cmd_line["job_order"])[0])
+                    MutableMapping[Text, Any],
+                    loader.resolve_ref(cmd_line["job_order"])[0])
             except Exception as err:
                 _logger.error(Text(err), exc_info=args.debug)
                 exit(1)
@@ -343,7 +344,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             job_order_object = {}
 
     if print_input_deps:
-        basedir = None
+        basedir = None  # type: Optional[Text]
         uri = job_order_object["id"]
         if uri == args.workflow:
             basedir = os.path.dirname(uri)
@@ -352,7 +353,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                   basedir=basedir, nestdirs=False)
         exit(0)
 
-    def path_to_loc(p):
+    def path_to_loc(p):  # type: (Dict[Text, Any]) -> None
         if "location" not in p and "path" in p:
             p["location"] = p["path"]
             del p["path"]
@@ -362,7 +363,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
     ns.update(process.metadata.get("$namespaces", {}))
     ld = Loader(ns)
 
-    def expand_formats(p):
+    def expand_formats(p):  # type: (Dict[Text, Any]) -> None
         if "format" in p:
             p["format"] = ld.expand_url(p["format"], "")
 
@@ -384,7 +385,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
 
 
 
-def make_relative(base, obj):
+def make_relative(base, obj):  # type: (Text, Dict[Text, Any]) -> None
     """Relativize the location URI of a File or Directory object."""
     uri = obj.get("location", obj.get("path"))
     if ":" in uri.split("/")[0] and not uri.startswith("file://"):
@@ -399,7 +400,7 @@ def printdeps(obj,              # type: Mapping[Text, Any]
               stdout,           # type: Union[TextIO, StreamWriter]
               relative_deps,    # type: bool
               uri,              # type: Text
-              basedir=None,     # type: Text
+              basedir=None,     # type: Optional[Text]
               nestdirs=True     # type: bool
              ):  # type: (...) -> None
     """Print a JSON representation of the dependencies of the CWL document."""
@@ -416,7 +417,7 @@ def printdeps(obj,              # type: Mapping[Text, Any]
 def prov_deps(obj,              # type: Mapping[Text, Any]
               document_loader,  # type: Loader
               uri,              # type: Text
-              basedir=None      # type: Text
+              basedir=None      # type: Optional[Text]
              ):  # type: (...) -> MutableMapping[Text, Any]
     deps = find_deps(obj, document_loader, uri, basedir=basedir)
 
@@ -436,13 +437,13 @@ def prov_deps(obj,              # type: Mapping[Text, Any]
 def find_deps(obj,              # type: Mapping[Text, Any]
               document_loader,  # type: Loader
               uri,              # type: Text
-              basedir=None,     # type: Text
+              basedir=None,     # type: Optional[Text]
               nestdirs=True     # type: bool
              ):  # type: (...) -> Dict[Text, Any]
     """Find the dependencies of the CWL document."""
     deps = {"class": "File", "location": uri, "format": CWL_IANA}  # type: Dict[Text, Any]
 
-    def loadref(base, uri):
+    def loadref(base, uri):  # type: (Text, Text) -> Any
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
 
     sfs = scandeps(
@@ -457,7 +458,7 @@ def print_pack(document_loader,  # type: Loader
                processobj,       # type: CommentedMap
                uri,              # type: Text
                metadata          # type: Dict[Text, Any]
-              ):  # type (...) -> Text
+              ):  # type: (...) -> Text
     """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(document_loader, processobj, uri, metadata)
     if len(packed["$graph"]) > 1:
@@ -474,22 +475,22 @@ def supported_cwl_versions(enable_dev):  # type: (bool) -> List[Text]
     versions.sort()
     return versions
 
-def main(argsl=None,                   # type: List[str]
-         args=None,                    # type: argparse.Namespace
-         job_order_object=None,        # type: MutableMapping[Text, Any]
+def main(argsl=None,                   # type: Optional[List[str]]
+         args=None,                    # type: Optional[argparse.Namespace]
+         job_order_object=None,        # type: Optional[MutableMapping[Text, Any]]
          stdin=sys.stdin,              # type: IO[Any]
-         stdout=None,                  # type: Union[TextIO, StreamWriter]
+         stdout=None,                  # type: Optional[Union[TextIO, StreamWriter]]
          stderr=sys.stderr,            # type: IO[Any]
          versionfunc=versionstring,    # type: Callable[[], Text]
-         logger_handler=None,          #
-         custom_schema_callback=None,  # type: Callable[[], None]
-         executor=None,                # type: Callable[..., Tuple[Dict[Text, Any], Text]]
-         loadingContext=None,          # type: LoadingContext
-         runtimeContext=None           # type: RuntimeContext
+         logger_handler=None,          # type: Optional[logging.Handler]
+         custom_schema_callback=None,  # type: Optional[Callable[[], None]]
+         executor=None,                # type: Optional[JobExecutor]
+         loadingContext=None,          # type: Optional[LoadingContext]
+         runtimeContext=None           # type: Optional[RuntimeContext]
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
-        if (hasattr(sys.stdout, "encoding")  # type: ignore
-                and sys.stdout.encoding != 'UTF-8'):  # type: ignore
+        if (hasattr(sys.stdout, "encoding")
+                and sys.stdout.encoding != 'UTF-8'):
             if PY3 and hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
             else:
@@ -499,7 +500,7 @@ def main(argsl=None,                   # type: List[str]
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logger_handler
-    if logger_handler is not None:
+    if stderr_handler is not None:
         _logger.addHandler(stderr_handler)
     else:
         coloredlogs.install(logger=_logger, stream=stderr)
@@ -547,15 +548,12 @@ def main(argsl=None,                   # type: List[str]
             _logger.setLevel(logging.DEBUG)
             stderr_handler.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
-        formatter = None  # type: Optional[logging.Formatter]
         fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
+        formatter = fmtclass("%(levelname)s %(message)s")
         if args.timestamps:
             formatter = fmtclass(
                 "[%(asctime)s] %(levelname)s %(message)s",
                 "%Y-%m-%d %H:%M:%S")
-
-        else:
-            formatter = fmtclass("%(levelname)s %(message)s")
         stderr_handler.setFormatter(formatter)
         ##
 
@@ -611,7 +609,7 @@ def main(argsl=None,                   # type: List[str]
                         "[%(asctime)sZ] %(message)s")
 
                 def formatTime(self, record, datefmt=None):
-                    # type: (logging.LogRecord, str) -> str
+                    # type: (logging.LogRecord, Optional[str]) -> str
                     record_time = time.gmtime(record.created)
                     formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
                     with_msecs = "%s,%03d" % (formatted_time, record.msecs)
@@ -686,6 +684,7 @@ def main(argsl=None,                   # type: List[str]
             tool = make_tool(uri, loadingContext)
             if args.make_template:
                 def my_represent_none(self, data):  # pylint: disable=unused-argument
+                    # type: (Any, Any) -> Any
                     """Force clean representation of 'null'."""
                     return self.represent_scalar(u'tag:yaml.org,2002:null', u'null')
                 yaml.RoundTripRepresenter.add_representer(type(None), my_represent_none)
@@ -796,10 +795,13 @@ def main(argsl=None,                   # type: List[str]
 
         if not executor:
             if args.parallel:
-                executor = MultithreadedJobExecutor()
-                runtimeContext.select_resources = executor.select_resources
+                executor3 = MultithreadedJobExecutor()
+                runtimeContext.select_resources = executor3.select_resources
+                executor2 = executor3 # type: JobExecutor
             else:
-                executor = SingleJobExecutor()
+                executor2 = SingleJobExecutor()
+        else:
+            executor2 = executor
 
         try:
             runtimeContext.basedir = input_basedir
@@ -817,17 +819,17 @@ def main(argsl=None,                   # type: List[str]
                     default_container=runtimeContext.default_container,
                     use_biocontainers=args.beta_use_biocontainers)
 
-            (out, status) = executor(tool,
-                                     initialized_job_order_object,
-                                     runtimeContext,
-                                     logger=_logger)
+            (out, status) = executor2(tool,
+                                      initialized_job_order_object,
+                                      runtimeContext,
+                                      logger=_logger)
 
             if out is not None:
                 if runtimeContext.research_obj is not None:
                     runtimeContext.research_obj.create_job(
                         out, None, True)
 
-                def loc_to_path(obj):
+                def loc_to_path(obj):  # type: (Dict[Text, Any]) -> None
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in obj:
                             del obj[field]
@@ -842,11 +844,10 @@ def main(argsl=None,                   # type: List[str]
                 if isinstance(out, string_types):
                     stdout.write(out)
                 else:
-                    stdout.write(json_dumps(out, indent=4,  # type: ignore
-                                            ensure_ascii=False))
+                    stdout.write(json_dumps(out, indent=4, ensure_ascii=False))
                 stdout.write("\n")
                 if hasattr(stdout, "flush"):
-                    stdout.flush()  # type: ignore
+                    stdout.flush()
 
             if status != "success":
                 _logger.warning(u"Final process status is %s", status)
@@ -899,9 +900,9 @@ def main(argsl=None,                   # type: List[str]
         _logger.addHandler(defaultStreamHandler)
 
 
-def find_default_container(builder,                  # type: HasReqsHints
-                           default_container=None,   # type: Text
-                           use_biocontainers=None,  # type: bool
+def find_default_container(builder,                 # type: HasReqsHints
+                           default_container=None,  # type: Optional[Text]
+                           use_biocontainers=None,  # type: Optional[bool]
                           ):  # type: (...) -> Optional[Text]
     """Find a container."""
     if not default_container and use_biocontainers:
@@ -911,7 +912,7 @@ def find_default_container(builder,                  # type: HasReqsHints
 
 
 def run(*args, **kwargs):
-    # type: (...) -> None
+    # type: (*Any, **Any) -> None
     """Run cwltool."""
     signal.signal(signal.SIGTERM, _signal_handler)
     try:

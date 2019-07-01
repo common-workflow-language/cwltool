@@ -340,10 +340,14 @@ class FSAction(argparse.Action):
             raise ValueError("nargs not allowed")
         super(FSAction, self).__init__(option_strings, dest, **kwargs)
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
+    def __call__(self,
+                 parser,             # type: argparse.ArgumentParser
+                 namespace,          # type: argparse.Namespace
+                 values,             # type: Union[AnyStr, Sequence[Any], None]
+                 option_string=None  # type: Optional[Text]
+                ):  # type: (...) -> None
         setattr(namespace,
-                self.dest,  # type: ignore
+                self.dest,
                 {"class": self.objclass,
                  "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
 
@@ -358,16 +362,16 @@ class FSAppendAction(argparse.Action):
             raise ValueError("nargs not allowed")
         super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
-        g = getattr(namespace,
-                    self.dest  # type: ignore
-                    )
+    def __call__(self,
+                 parser,             # type: argparse.ArgumentParser
+                 namespace,          # type: argparse.Namespace
+                 values,             # type: Union[AnyStr, Sequence[Any], None]
+                 option_string=None  # type: Optional[Text]
+                ):  # type: (...) -> None
+        g = getattr(namespace, self.dest)
         if not g:
             g = []
-            setattr(namespace,
-                    self.dest,  # type: ignore
-                    g)
+            setattr(namespace, self.dest, g)
         g.append(
             {"class": self.objclass,
              "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})

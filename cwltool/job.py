@@ -32,6 +32,7 @@ from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .context import RuntimeContext  # pylint: disable=unused-import
 from .context import getdefault
 from .errors import WorkflowException
+from .expression import JSON
 from .loghandler import _logger
 from .pathmapper import (MapperEnt, PathMapper,  # pylint: disable=unused-import
                          ensure_writable, ensure_non_writable)
@@ -166,7 +167,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,           # type: Builder
-                 joborder,          # type: Dict[Text, Union[Dict[Text, Any], List[Dict[Text, Any]], Text, None]]
+                 joborder,          # type: JSON
                  make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,      # type: List[Dict[Text, Text]]
                  hints,             # type: List[Dict[Text, Text]]

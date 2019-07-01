@@ -83,8 +83,8 @@ class ExpressionTool(Process):
                      builder,          # type: Builder
                      script,           # type: Dict[Text, Text]
                      output_callback,  # type: Callable[[Any, Any], Any]
-                     requirements,     # type: Dict[Text, Text]
-                     hints,            # type: Dict[Text, Text]
+                     requirements,     # type: List[Dict[Text, Text]]
+                     hints,            # type: List[Dict[Text, Text]]
                      outdir=None,      # type: Optional[Text]
                      tmpdir=None,      # type: Optional[Text]
                     ):  # type: (...) -> None
@@ -332,9 +332,9 @@ class CommandLineTool(Process):
             if dockerimg is not None:
                 cmdline = ["docker", "run", dockerimg] + cmdline
                 # not really run using docker, just for hashing purposes
-            keydict = {u"cmdline": cmdline}
+            keydict = {u"cmdline": cmdline}  # type: Dict[Text, Union[Dict[Text, Any], List[Any]]]
 
-            for shortcut in ["stdout", "stderr"]:  # later, add "stdin"
+            for shortcut in ["stdin", "stdout", "stderr"]:
                 if shortcut in self.tool:
                     keydict[shortcut] = self.tool[shortcut]
 

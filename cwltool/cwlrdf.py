@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from typing import IO, Any, Dict
+from typing import IO, Any, Dict, MutableMapping
 
 from rdflib import Graph
 from schema_salad.jsonld_context import makerdf
@@ -15,7 +15,7 @@ from .process import Process
 def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     g = Graph()
 
-    def visitor(t):
+    def visitor(t):  # type: (MutableMapping[Text, Any]) -> None
         makerdf(t["id"], t, ctx, graph=g)
 
     tool.visit(visitor)
@@ -31,10 +31,10 @@ def printrdf(wflow, ctx, style):  # type: (Process, ContextType, Text) -> Text
 
 
 def lastpart(uri):  # type: (Any) -> Text
-    uri = Text(uri)
-    if "/" in uri:
-        return uri[uri.rindex("/") + 1:]
-    return uri
+    uri2 = Text(uri)
+    if "/" in uri2:
+        return uri2[uri2.rindex("/") + 1:]
+    return uri2
 
 
 def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
