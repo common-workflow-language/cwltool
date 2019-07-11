@@ -56,7 +56,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
         elif isinstance(t, MutableMapping):
             return t
         else:
-            return CommentedMap({"pattern": t})
+            return CommentedMap([("pattern", t)])
 
     def fix_inputBinding(t):
         for i in t["inputs"]:
@@ -77,8 +77,8 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
         upd = upd["$graph"]
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
-        proc["hints"].insert(0, CommentedMap({"class": "NetworkAccess", "networkAccess": True}))
-        proc["hints"].insert(0, CommentedMap({"class": "LoadListingRequirement", "loadListing": "deep_listing"}))
+        proc["hints"].insert(0, CommentedMap([("class", "NetworkAccess"),( "networkAccess", True)]))
+        proc["hints"].insert(0, CommentedMap([("class", "LoadListingRequirement"),("loadListing", "deep_listing")]))
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
