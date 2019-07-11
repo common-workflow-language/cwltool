@@ -166,10 +166,12 @@ def validate_js_expressions(tool, schema, jshint_options=None):
 
     default_globals = [u"self", u"inputs", u"runtime", u"console"]
 
+    subst_prefix = "$"
     for prop in reversed(requirements):
         if prop["class"] == "InlineJavascriptRequirement":
             expression_lib = prop.get("expressionLib", [])
-            break
+        if prop["class"] == "http://commonwl.org/cwltool#SubstitutionPrefix":
+            subst_prefix = prop["substitutionPrefix"]
     else:
         return
 
@@ -184,7 +186,7 @@ def validate_js_expressions(tool, schema, jshint_options=None):
 
     for expression, source_line in expressions:
         unscanned_str = expression.strip()
-        scan_slice = scan_expression(unscanned_str)
+        scan_slice = scan_expression(unscanned_str, subst_prefix)
 
         while scan_slice:
             if unscanned_str[scan_slice[0]] == '$':

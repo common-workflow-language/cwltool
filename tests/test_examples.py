@@ -140,10 +140,15 @@ interpolate_parameters = [
     ("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", "null null")
 ]
 
+alternate_prefix_interpolate_parameters = [(i.replace("$(", "ABC("), j) for i,j in interpolate_parameters]
 
 @pytest.mark.parametrize('pattern,expected', interpolate_parameters)
 def test_expression_interpolate(pattern, expected):
     assert expr.interpolate(pattern, interpolate_input) == expected
+
+@pytest.mark.parametrize('pattern,expected', alternate_prefix_interpolate_parameters)
+def test_expression_interpolate(pattern, expected):
+    assert expr.interpolate(pattern, interpolate_input, prefix="ABC") == expected
 
 
 @windows_needs_docker

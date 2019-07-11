@@ -96,7 +96,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "http://commonwl.org/cwltool#WorkReuse",
                                 "http://commonwl.org/cwltool#NetworkAccess",
                                 "http://commonwl.org/cwltool#LoadListingRequirement",
-                                "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
+                                "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+                                "http://commonwl.org/cwltool#SubstitutionPrefix"]
 
 cwl_files = (
     "Workflow.yml",
@@ -744,7 +745,7 @@ hints:
                     else:
                         arg["position"] = [0, i]
                     bindings.append(arg)
-                elif ("$(" in arg) or ("${" in arg):
+                elif (builder.subst_prefix+"(" in arg) or (builder.subst_prefix+"{" in arg):
                     cm = CommentedMap((
                         ("position", [0, i]),
                         ("valueFrom", arg)

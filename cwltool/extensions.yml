@@ -135,3 +135,17 @@ $graph:
         "_type": "@vocab"
     - name: networkAccess
       type: [boolean, string]
+
+- name: SubstitutionPrefix
+  type: record
+  inVocab: false
+  extends: cwl:ProcessRequirement
+  fields:
+    - name: class
+      type: string
+      doc: "Always 'SubstitutionPrefix"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: substitutionPrefix
+      type: string
