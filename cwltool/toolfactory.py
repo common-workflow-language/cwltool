@@ -2,6 +2,7 @@ from .process import Process
 from .load_tool import load_tool
 from schema_salad import validate
 from .errors import WorkflowException
+from .context import RuntimeContext, LoadingContext
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
                     Mapping, MutableMapping, MutableSequence,
                     Optional, Tuple, Union, cast)
@@ -10,17 +11,18 @@ from typing_extensions import Text  # pylint: disable=unused-import
 
 class ToolFactoryJob(object):
     def __init__(self, toolfactory):
+        # type: (ToolFactory) -> None
         self.toolfactory = toolfactory
-        self.jobout = None
-        self.processStatus = None
+        self.jobout = None         # type: Optional[Dict[Text, Any]]
+        self.processStatus = None  # type: Optional[Text]
 
     def receive_output(self, jobout, processStatus):
-        # type: (Callable[...,Any], Dict[Text, Text], Text) -> None
+        # type: (Dict[Text, Any], Text) -> None
         self.jobout = jobout
         self.processStatus = processStatus
 
     def job(self,
-            job_order,         # type: Mapping[Text, Text]
+            job_order,         # type: Mapping[Text, Any]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
@@ -40,16 +42,19 @@ class ToolFactoryJob(object):
                 output_callbacks(self.jobout, self.processStatus)
                 return
 
+            if self.jobout is None:
+                raise WorkflowException("jobout should not be None")
+
             try:
                 self.toolfactory.loadingContext.metadata = {}
                 self.embedded_tool = load_tool(
                     self.jobout["runProcess"]["location"], self.toolfactory.loadingContext)
             except validate.ValidationException as vexc:
-                if loadingContext.debug:
+                if runtimeContext.debug:
                     _logger.exception("Validation exception")
                 raise WorkflowException(
                     u"Tool definition %s failed validation:\n%s" %
-                    (toolpath_object["run"], validate.indent(str(vexc))))
+                    (self.jobout["runProcess"], validate.indent(str(vexc))))
 
             runinputs = job_order
             if "runInputs" in self.jobout:
@@ -75,7 +80,7 @@ class ToolFactory(Process):
     ):  # type: (...) -> None
         super(ToolFactory, self).__init__(
             toolpath_object, loadingContext)
-        self.loadingContext = loadingContext
+        self.loadingContext = loadingContext  # type: LoadingContext
         try:
             if isinstance(toolpath_object["run"], MutableMapping):
                 self.embedded_tool = loadingContext.construct_tool_object(

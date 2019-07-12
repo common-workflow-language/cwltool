@@ -576,7 +576,7 @@ class Workflow(Process):
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(self,
-            job_order,         # type: Mapping[Text, Text]
+            job_order,         # type: Mapping[Text, Any]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Union[WorkflowJob, ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
