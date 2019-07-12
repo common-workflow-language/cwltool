@@ -15,7 +15,9 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.validate import Schema  # pylint: disable=unused-import
 from schema_salad.validate import validate_ex
 
+from .errors import WorkflowException
 from .expression import scanner as scan_expression
+from .expression import SubstitutionError
 from .loghandler import _logger
 from .sandboxjs import code_fragment_to_js, exec_js_process
 from .utils import json_dumps
@@ -184,7 +186,11 @@ def validate_js_expressions(tool, schema, jshint_options=None):
 
     for expression, source_line in expressions:
         unscanned_str = expression.strip()
-        scan_slice = scan_expression(unscanned_str)
+        try:
+            scan_slice = scan_expression(unscanned_str)
+        except SubstitutionError as se:
+            source_line.raise_type = WorkflowException
+            raise source_line.makeError(se.message)
 
         while scan_slice:
             if unscanned_str[scan_slice[0]] == '$':
