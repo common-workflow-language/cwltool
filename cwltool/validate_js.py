@@ -189,8 +189,11 @@ def validate_js_expressions(tool, schema, jshint_options=None):
         try:
             scan_slice = scan_expression(unscanned_str)
         except SubstitutionError as se:
-            source_line.raise_type = WorkflowException
-            raise source_line.makeError(se.message)
+            if source_line:
+                source_line.raise_type = WorkflowException
+                raise source_line.makeError(str(se))
+            else:
+                raise se
 
         while scan_slice:
             if unscanned_str[scan_slice[0]] == '$':
