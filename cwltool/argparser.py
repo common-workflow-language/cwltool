@@ -57,7 +57,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     cidgroup.add_argument(
         "--cidfile-dir", type=Text, help="Store the Docker "
-        "container ID into a file in the specifed directory.",
+        "container ID into a file in the specified directory.",
         default=None, dest="cidfile_dir")
 
     cidgroup.add_argument(
@@ -105,10 +105,10 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-pull", default=True, action="store_true",
-                         help="Try to pull Docker images", dest="enable_pull")
+                         help="Try to pull Docker images", dest="pull_image")
 
     exgroup.add_argument("--disable-pull", default=True, action="store_false",
-                         help="Do not try to pull Docker images", dest="enable_pull")
+                         help="Do not try to pull Docker images", dest="pull_image")
 
     parser.add_argument("--rdf-serializer",
                         help="Output RDF serialization format used by --print-rdf (one of turtle (default), n3, nt, xml)",
@@ -211,7 +211,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     dockergroup.add_argument("--singularity", action="store_true",
                              default=False, help="[experimental] Use "
                              "Singularity runtime for running containers. "
-                             "Requires Singularity v2.3.2+ and Linux with kernel "
+                             "Requires Singularity v2.6.1+ and Linux with kernel "
                              "version v3.18+ or with overlayfs support "
                              "backported.")
     dockergroup.add_argument("--no-container", action="store_false",
@@ -249,6 +249,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     parser.add_argument("--enable-ext", action="store_true",
                         help="Enable loading and running cwltool extensions "
                              "to CWL spec.", default=False)
+
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--enable-color", action="store_true",
+                        help="Enable colored logging (default true)", default=True)
+    exgroup.add_argument("--disable-color", action="store_false", dest="enable_color",
+                        help="Disable colored logging (default false)")
 
     parser.add_argument("--default-container",
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")
@@ -318,9 +324,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
 def get_default_args():
     # type: () -> Dict[str, Any]
-    """
-    Get default values of cwltool's command line options
-    """
+    """Get default values of cwltool's command line options."""
     ap = arg_parser()
     args = ap.parse_args([])
     return vars(args)
@@ -331,6 +335,7 @@ class FSAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
+        """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FSAction, self).__init__(option_strings, dest, **kwargs)
@@ -348,6 +353,7 @@ class FSAppendAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         # type: (List[Text], Text, Any, **Any) -> None
+        """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
         super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)

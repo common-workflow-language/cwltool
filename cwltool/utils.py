@@ -24,11 +24,11 @@ from typing_extensions import Deque, Text  # pylint: disable=unused-import
 # no imports from cwltool allowed
 if os.name == 'posix':
     if sys.version_info < (3, 5):
-        import subprocess32 as subprocess  # pylint: disable=unused-import
+        import subprocess32 as subprocess  # nosec # pylint: disable=unused-import
     else:
-        import subprocess  # pylint: disable=unused-import
+        import subprocess  # nosec # pylint: disable=unused-import
 else:
-    import subprocess  # type: ignore
+    import subprocess  # type: ignore  # nosec
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -42,16 +42,14 @@ processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen]
 
 def versionstring():
     # type: () -> Text
-    '''
-    version of CWLtool used to execute the workflow.
-    '''
+    """Version of CWLtool used to execute the workflow."""
     pkg = pkg_resources.require("cwltool")
     if pkg:
         return u"%s %s" % (sys.argv[0], pkg[0].version)
     return u"%s %s" % (sys.argv[0], "unknown version")
 
 def aslist(l):  # type: (Any) -> MutableSequence[Any]
-    """Wraps any non-MutableSequence/list in a list."""
+    """Wrap any non-MutableSequence/list in a list."""
     if isinstance(l, MutableSequence):
         return l
     return [l]
@@ -70,15 +68,16 @@ def copytree_with_merge(src, dst):  # type: (Text, Text) -> None
             shutil.copy2(spath, dpath)
 
 def docker_windows_path_adjust(path):
-    # type: (Optional[Text]) -> Optional[Text]
+    # type: (Text) -> Text
     r"""
-    Changes only windows paths so that the can be appropriately passed to the
-    docker run command as as docker treats them as unix paths.
+    Adjust only windows paths for Docker.
+
+    The docker run command treats them as unix paths.
 
     Example: 'C:\Users\foo to /C/Users/foo (Docker for Windows) or /c/Users/foo
     (Docker toolbox).
     """
-    if path is not None and onWindows():
+    if onWindows():
         split = path.split(':')
         if len(split) == 2:
             if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
@@ -95,7 +94,8 @@ def docker_windows_path_adjust(path):
 def docker_windows_reverse_path_adjust(path):
     # type: (Text) -> (Text)
     r"""
-    Change docker path (only on windows os) appropriately back to Window path/
+    Change docker path (only on windows os) appropriately back to Windows path.
+
     Example:  /C/Users/foo to C:\Users\foo
     """
     if path is not None and onWindows():
@@ -112,6 +112,8 @@ def docker_windows_reverse_path_adjust(path):
 def docker_windows_reverse_fileuri_adjust(fileuri):
     # type: (Text) -> (Text)
     r"""
+    Convert fileuri to be MS Windows comptabile, if needed.
+
     On docker in windows fileuri do not contain : in path
     To convert this file uri to windows compatible add : after drive letter,
     so file:///E/var becomes file:///E:/var
@@ -129,12 +131,14 @@ def docker_windows_reverse_fileuri_adjust(fileuri):
 
 def onWindows():
     # type: () -> (bool)
-    """ Check if we are on Windows OS. """
+    """Check if we are on Windows OS."""
     return os.name == 'nt'
 
 
 def convert_pathsep_to_unix(path):  # type: (Text) -> (Text)
     """
+    Convert path seperators to unix style.
+
     On windows os.path.join would use backslash to join path, since we would
     use these paths in Docker we would convert it to use forward slashes: /
     """
@@ -144,6 +148,8 @@ def convert_pathsep_to_unix(path):  # type: (Text) -> (Text)
 
 def cmp_like_py2(dict1, dict2):  # type: (Dict[Text, Any], Dict[Text, Any]) -> int
     """
+    Compare in the same manner as Python2.
+
     Comparision function to be used in sorting as python3 doesn't allow sorting
     of different types like str() and int().
     This function re-creates sorting nature in py2 of heterogeneous list of
@@ -179,9 +185,9 @@ def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequ
     # type: (...) -> Union[Text, MutableSequence[Any], MutableMapping[Text, Any]]
     """
     Convert any present byte string to unicode string, inplace.
+
     input is a dict of nested dicts and lists
     """
-
     # if input is dict, recursively call for each value
     if isinstance(inp, MutableMapping):
         for k in inp:
@@ -206,7 +212,6 @@ def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequ
 def visit_class(rec, cls, op):
     # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to with "class" in cls."""
-
     if isinstance(rec, MutableMapping):
         if "class" in rec and rec.get("class") in cls:
             op(rec)
@@ -216,9 +221,44 @@ def visit_class(rec, cls, op):
         for d in rec:
             visit_class(d, cls, op)
 
+def visit_field(rec, field, op):
+    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply a function to mapping with 'field'."""
+    if isinstance(rec, MutableMapping):
+        if field in rec:
+            rec[field] = op(rec[field])
+        for d in rec:
+            visit_field(rec[d], field, op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_field(d, field, op)
+
+
 def random_outdir():  # type: () -> Text
-    """ Return the random directory name chosen to use for tool / workflow output """
+    """Return the random directory name chosen to use for tool / workflow output."""
     # compute this once and store it as a function attribute - each subsequent call will return the same value
     if not hasattr(random_outdir, 'outdir'):
-        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore
+        random_outdir.outdir = '/' + ''.join([random.choice(string.ascii_letters) for _ in range(6)])  # type: ignore  # nosec
     return random_outdir.outdir  # type: ignore
+
+
+#
+# Simple multi-platform (fcntl/msvrt) file locking wrapper
+#
+try:
+    import fcntl  # type: ignore
+
+    def shared_file_lock(fd):  # type: (IO) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
+
+    def upgrade_lock(fd):  # type: (IO) -> None
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
+
+except ImportError:
+    import msvcrt  # type: ignore
+
+    def shared_file_lock(fd):  # type: (IO) -> None
+        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
+
+    def upgrade_lock(fd):  # type: (IO) -> None
+        pass

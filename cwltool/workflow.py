@@ -17,11 +17,12 @@ from schema_salad import validate
 from schema_salad.sourceline import SourceLine
 from six import string_types, iteritems
 from six.moves import range
+from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from . import command_line_tool, context, expression
-from .builder import CONTENT_LIMIT
+from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink, static_checker
 from .context import LoadingContext  # pylint: disable=unused-import
 from .context import RuntimeContext, getdefault
@@ -179,6 +180,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
 class WorkflowJobStep(object):
     def __init__(self, step):
         # type: (WorkflowStep) -> None
+        """Initialize this WorkflowJobStep."""
         self.step = step
         self.tool = step.tool
         self.id = step.id
@@ -208,6 +210,7 @@ class WorkflowJobStep(object):
 class WorkflowJob(object):
     def __init__(self, workflow, runtimeContext):
         # type: (Workflow, RuntimeContext) -> None
+        """Initialize this WorkflowJob."""
         self.workflow = workflow
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
@@ -247,7 +250,7 @@ class WorkflowJob(object):
                 "outputSource", incomplete=True)
         except WorkflowException as err:
             _logger.error(
-                u"[%s] Cannot collect workflow output: %s", self.name, err)
+                u"[%s] Cannot collect workflow output: %s", self.name, Text(err))
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
@@ -348,7 +351,7 @@ class WorkflowJob(object):
                 for k, v in io.items():
                     if k in loadContents and v.get("contents") is None:
                         with fs_access.open(v["location"], "rb") as f:
-                            v["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
+                            v["contents"] = content_limit_respected_read(f)
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:
@@ -412,10 +415,8 @@ class WorkflowJob(object):
             step.completed = True
 
 
-    def run(self, runtimeContext):
-        '''
-        logs the start of each workflow
-        '''
+    def run(self, runtimeContext, tmpdir_lock=None):
+        """Log the start of each workflow."""
         _logger.info(u"[%s] start", self.name)
 
     def job(self,
@@ -464,7 +465,7 @@ class WorkflowJob(object):
                         step.iterable = self.try_make_job(
                             step, output_callback, runtimeContext)
                     except WorkflowException as exc:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, Text(exc))
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -480,7 +481,7 @@ class WorkflowJob(object):
                             else:
                                 break
                     except WorkflowException as exc:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, Text(exc))
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -502,6 +503,7 @@ class Workflow(Process):
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
+        """Initializet this Workflow."""
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
@@ -604,6 +606,7 @@ class WorkflowStep(Process):
                  loadingContext,       # type: LoadingContext
                  parentworkflowProv=None  # type: Optional[ProvenanceProfile]
                 ):  # type: (...) -> None
+        """Initialize this WorkflowStep."""
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -612,7 +615,7 @@ class WorkflowStep(Process):
         loadingContext = loadingContext.copy()
 
         loadingContext.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        assert loadingContext.requirements is not None
+        assert loadingContext.requirements is not None  # nosec
         loadingContext.requirements.extend(toolpath_object.get("requirements", []))
         loadingContext.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
@@ -625,14 +628,15 @@ class WorkflowStep(Process):
                 self.embedded_tool = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext)  # type: Process
             else:
+                loadingContext.metadata = {}
                 self.embedded_tool = load_tool(
                     toolpath_object["run"], loadingContext)
         except validate.ValidationException as vexc:
             if loadingContext.debug:
                 _logger.exception("Validation exception")
-            raise WorkflowException(
+            raise_from(WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], validate.indent(str(vexc))))
+                (toolpath_object["run"], validate.indent(str(vexc)))), vexc)
 
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
@@ -669,15 +673,19 @@ class WorkflowStep(Process):
                         param["type"] = "Any"
                         param["not_connected"] = True
                     else:
+                        if isinstance(step_entry, Mapping):
+                            step_entry_name = step_entry['id']
+                        else:
+                            step_entry_name = step_entry
                         validation_errors.append(
                             SourceLine(self.tool["out"], index).makeError(
                                 "Workflow step output '%s' does not correspond to"
-                                % shortname(step_entry))
+                                % shortname(step_entry_name))
                             + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
                                 "  tool output (expected '%s')" % (
                                     "', '".join(
                                         [shortname(tool_entry["id"]) for tool_entry in
-                                         self.embedded_tool.tool[toolfield]]))))
+                                         self.embedded_tool.tool['outputs']]))))
                 param["id"] = inputid
                 param.lc.line = toolpath_object[stepfield].lc.data[index][0]
                 param.lc.col = toolpath_object[stepfield].lc.data[index][1]
@@ -797,7 +805,7 @@ class WorkflowStep(Process):
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(Text(exc))
+            raise_from(WorkflowException(Text(exc)), exc)
 
     def visit(self, op):
         self.embedded_tool.visit(op)
@@ -809,6 +817,7 @@ class ReceiveScatterOutput(object):
                  dest,             # type: Dict[Text, List[Optional[Text]]]
                  total             # type: int
                 ):  # type: (...) -> None
+        """Initialize."""
         self.dest = dest
         self.completed = 0
         self.processStatus = u"success"
@@ -863,7 +872,7 @@ def parallel_steps(steps, rc, runtimeContext):
                 if made_progress:
                     break
             except WorkflowException as exc:
-                _logger.error(u"Cannot make scatter job: %s", exc)
+                _logger.error(u"Cannot make scatter job: %s", Text(exc))
                 _logger.debug("", exc_info=True)
                 rc.receive_scatter_output(index, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
@@ -884,7 +893,8 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
             raise WorkflowException(
                 "Length of input arrays must be equal when performing "
                 "dotproduct scatter.")
-    assert jobl is not None
+    if jobl is None:
+        raise Exception("Impossible codepath")
 
     output = {}  # type: Dict[Text,List[Optional[Text]]]
     for i in process.tool["outputs"]:
@@ -977,7 +987,7 @@ def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
                                startindex,     # type: int
                                runtimeContext  # type: RuntimeContext
                               ):  # type: (...) -> Tuple[List[Generator], int]
-    """ Inner loop. """
+    """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
     steps = []

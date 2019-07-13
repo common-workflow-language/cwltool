@@ -24,8 +24,8 @@ if TYPE_CHECKING:
                              ProvenanceProfile)
 
 class ContextBase(object):
-    def __init__(self, kwargs=None):
-        # type: (Optional[Dict[str, Any]]) -> None
+    def __init__(self, kwargs=None):  # type: (Optional[Dict[str, Any]]) -> None
+        """Initialize."""
         if kwargs:
             for k, v in kwargs.items():
                 if hasattr(self, k):
@@ -41,8 +41,8 @@ default_make_tool = make_tool_notimpl  # type: Callable[[MutableMapping[Text, An
 
 class LoadingContext(ContextBase):
 
-    def __init__(self, kwargs=None):
-        # type: (Optional[Dict[str, Any]]) -> None
+    def __init__(self, kwargs=None):  # type: (Optional[Dict[str, Any]]) -> None
+        """Initialize the LoadingContext from the kwargs."""
         self.debug = False                 # type: bool
         self.metadata = {}                 # type: Dict[Text, Any]
         self.requirements = None
@@ -64,6 +64,8 @@ class LoadingContext(ContextBase):
         self.host_provenance = False       # type: bool
         self.user_provenance = False       # type: bool
         self.prov_obj = None               # type: Optional[ProvenanceProfile]
+        self.do_update = None              # type: Optional[bool]
+        self.jobdefaults = None            # type: Optional[MutableMapping[Text, Any]]
 
         super(LoadingContext, self).__init__(kwargs)
 
@@ -72,8 +74,8 @@ class LoadingContext(ContextBase):
         return copy.copy(self)
 
 class RuntimeContext(ContextBase):
-    def __init__(self, kwargs=None):
-        # type: (Optional[Dict[str, Any]]) -> None
+    def __init__(self, kwargs=None):  # type: (Optional[Dict[str, Any]]) -> None
+        """Initializet the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[  # pylint: disable=unused-variable
             [Dict[str, int], RuntimeContext], Dict[str, int]]
         self.user_space_docker_cmd = ""  # type: Text

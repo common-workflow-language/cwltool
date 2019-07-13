@@ -44,7 +44,7 @@ override_parameters = [
       get_data('tests/override/echo-job.yml')],
      {"out": "zing hello6\n"}
      ),
-    (["--enable-dev", get_data('tests/override/env-tool_v1.1.0-dev1.cwl'),
+    ([get_data('tests/override/env-tool_v1.1.cwl'),
       get_data('tests/override/env-tool_cwl-requirement_override.yaml')],
      {"value": "hello test env"}
      ),
@@ -57,7 +57,6 @@ override_parameters = [
 @needs_docker
 @pytest.mark.parametrize('parameters,result', override_parameters)
 def test_overrides(parameters, result):
-    load_tool.loaders = {}
     sio = StringIO()
 
     assert main(parameters, stdout=sio) == 0
@@ -69,22 +68,22 @@ failing_override_parameters = [
       get_data('tests/override/env-tool_cwl-requirement_override.yaml')],
      "`cwl:requirements` in the input object is not part of CWL v1.0. You can "
      "adjust to use `cwltool:overrides` instead; or you can set the cwlVersion to "
-     "v1.1.0-dev1 or greater and re-run with --enable-dev."
+     "v1.1"
      ),
     ([get_data('tests/override/env-tool_v1.1.0-dev1.cwl'),
       get_data('tests/override/env-tool_cwl-requirement_override.yaml')],
      "Version 'v1.1.0-dev1' is a development or deprecated version.\n"
-     " Update your document to a stable version (v1.0) or use --enable-dev to "
+     " Update your document to a stable version (v1.0, v1.1) or use --enable-dev to "
      "enable support for development and deprecated versions."
      ),
     ([get_data('tests/override/env-tool_cwl-requirement_override_default_wrongver.yaml')],
      "`cwl:requirements` in the input object is not part of CWL v1.0. You can "
      "adjust to use `cwltool:overrides` instead; or you can set the cwlVersion to "
-     "v1.1.0-dev1 or greater and re-run with --enable-dev."
+     "v1.1 or greater."
      ),
     ([get_data('tests/override/env-tool_cwl-requirement_override_default.yaml')],
      "Version 'v1.1.0-dev1' is a development or deprecated version.\n"
-     " Update your document to a stable version (v1.0) or use --enable-dev to "
+     " Update your document to a stable version (v1.0, v1.1) or use --enable-dev to "
      "enable support for development and deprecated versions."
      ),
 ]
@@ -92,7 +91,6 @@ failing_override_parameters = [
 @needs_docker
 @pytest.mark.parametrize('parameters,expected_error', failing_override_parameters)
 def test_overrides_fails(parameters, expected_error):
-    load_tool.loaders = {}
     sio = StringIO()
 
     assert main(parameters, stderr=sio) == 1

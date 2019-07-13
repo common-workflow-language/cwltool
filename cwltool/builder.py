@@ -1,9 +1,13 @@
 from __future__ import absolute_import
 
 import copy
+import os
 import logging
 from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Set, Tuple, Union)
+
+from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from rdflib import Graph, URIRef  # pylint: disable=unused-import
 from rdflib.namespace import OWL, RDFS
@@ -12,7 +16,10 @@ from schema_salad import validate
 from schema_salad.schema import Names, convert_to_dict
 from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
+from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
+from future.utils import raise_from
+from typing import IO
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -22,7 +29,7 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import PathMapper  # pylint: disable=unused-import
-from .pathmapper import get_listing, normalizeFilesDirs, visit_class
+from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
 
@@ -30,18 +37,31 @@ from .utils import aslist, docker_windows_path_adjust, json_dumps, onWindows
 
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
-CONTENT_LIMIT = 64 * 1024
+
+
+def content_limit_respected_read_bytes(f):  # type: (IO) -> bytes
+    contents = f.read(CONTENT_LIMIT + 1)
+    if len(contents) > CONTENT_LIMIT:
+        raise WorkflowException("loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes" % CONTENT_LIMIT)
+    return contents
+
+
+def content_limit_respected_read(f):  # type: (IO) -> Text
+    return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
 def substitute(value, replace):  # type: (Text, Text) -> Text
-    if replace[0] == "^":
-        return substitute(value[0:value.rindex('.')], replace[1:])
+    if replace.startswith("^"):
+        try:
+            return substitute(value[0:value.rindex('.')], replace[1:])
+        except ValueError:
+            # No extension to remove
+            return value + replace.lstrip("^")
     return value + replace
 
 def formatSubclassOf(fmt, cls, ontology, visited):
     # type: (Text, Text, Optional[Graph], Set[Text]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
-
     if URIRef(fmt) == URIRef(cls):
         return True
 
@@ -76,7 +96,7 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
                  input_formats,  # type: Union[List[Text], Text]
                  ontology        # type: Optional[Graph]
                 ):  # type: (...) -> None
-    """ Confirms that the format present is valid for the allowed formats."""
+    """Confirm that the format present is valid for the allowed formats."""
     for afile in aslist(actual_file):
         if not afile:
             continue
@@ -94,6 +114,7 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
 
 class HasReqsHints(object):
     def __init__(self):
+        """Initialize this reqs decorator."""
         self.requirements = []  # List[Dict[Text, Any]]
         self.hints = []         # List[Dict[Text, Any]]
 
@@ -130,9 +151,9 @@ class Builder(HasReqsHints):
                  loadListing,          # type: Text
                  outdir,               # type: Text
                  tmpdir,               # type: Text
-                 stagedir,             # type: Text
+                 stagedir             # type: Text
                 ):  # type: (...) -> None
-
+        """Initialize this Builder."""
         self.job = job
         self.files = files
         self.bindings = bindings
@@ -191,11 +212,16 @@ class Builder(HasReqsHints):
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
-            assert binding is not None
 
             bp = list(aslist(lead_pos))
             if "position" in binding:
-                bp.extend(aslist(binding["position"]))
+                position = binding["position"]
+                if isinstance(position, str):   # no need to test the CWL Version
+                                                # the schema for v1.0 only allow ints
+                    binding['position'] = self.do_eval(position, context=datum)
+                    bp.append(binding['position'])
+                else:
+                    bp.extend(aslist(binding['position']))
             else:
                 bp.append(0)
             bp.extend(aslist(tail_pos))
@@ -216,7 +242,6 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(t["name"], "")
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                assert avsc is not None
                 if validate.validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
@@ -278,17 +303,26 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get("loadContents"):
                     with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = f.read(CONTENT_LIMIT).decode("utf-8")
+                        datum["contents"] = content_limit_respected_read(f)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
                     for sf in aslist(schema["secondaryFiles"]):
-                        if isinstance(sf, MutableMapping) or "$(" in sf or "${" in sf:
-                            sfpath = self.do_eval(sf, context=datum)
+                        if 'required' in sf:
+                            sf_required = self.do_eval(sf['required'], context=datum)
                         else:
-                            sfpath = substitute(datum["basename"], sf)
+                            sf_required = True
+
+
+                        if "$(" in sf["pattern"] or "${" in sf["pattern"]:
+                            sfpath = self.do_eval(sf["pattern"], context=datum)
+                        else:
+                            sfpath = substitute(datum["basename"], sf["pattern"])
+
                         for sfname in aslist(sfpath):
+                            if not sfname:
+                                continue
                             found = False
                             for d in datum["secondaryFiles"]:
                                 if not d.get("basename"):
@@ -296,14 +330,15 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
+                                sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
                                 if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
-                                elif discover_secondaryFiles:
+                                elif discover_secondaryFiles and self.fs_access.exists(sf_location):
                                     datum["secondaryFiles"].append({
-                                        "location": datum["location"][0:datum["location"].rindex("/")+1]+sfname,
+                                        "location": sf_location,
                                         "basename": sfname,
                                         "class": "File"})
-                                else:
+                                elif sf_required:
                                     raise WorkflowException("Missing required secondary file '%s' from file object: %s" % (
                                         sfname, json_dumps(datum, indent=4)))
 
@@ -314,14 +349,14 @@ class Builder(HasReqsHints):
                         check_format(datum, self.do_eval(schema["format"]),
                                      self.formatgraph)
                     except validate.ValidationException as ve:
-                        raise WorkflowException(
+                        raise_from(WorkflowException(
                             "Expected value of '%s' to have format %s but\n "
-                            " %s" % (schema["name"], schema["format"], ve))
+                            " %s" % (schema["name"], schema["format"], ve)), ve)
 
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
             if schema["type"] == "Directory":
-                ll = self.loadListing or (binding and binding.get("loadListing"))
+                ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(self.fs_access, datum, (ll == "deep_listing"))
                 self.files.append(datum)
@@ -348,7 +383,6 @@ class Builder(HasReqsHints):
                 # docker_req is none only when there is no dockerRequirement
                 # mentioned in hints and Requirement
                 path = docker_windows_path_adjust(value["path"])
-                assert path is not None
                 return path
             return value["path"]
         else:
@@ -393,8 +427,7 @@ class Builder(HasReqsHints):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                assert prefix is not None
-                args.append(prefix + self.tostr(j))
+                args.append("" if not prefix else prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 

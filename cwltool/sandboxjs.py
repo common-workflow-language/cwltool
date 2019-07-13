@@ -12,6 +12,7 @@ from io import BytesIO
 from typing import Any, Dict, List, Tuple, Union
 
 import six
+from future.utils import raise_from
 from pkg_resources import resource_stream
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -39,9 +40,9 @@ minimum_node_version_str = '0.10.26'
 
 def check_js_threshold_version(working_alias):
     # type: (str) -> bool
+    """
+    Check if the nodeJS engine version on the system with the allowed minimum version.
 
-    """Checks if the nodeJS engine version on the system
-    with the allowed minimum version.
     https://github.com/nodejs/node/blob/master/CHANGELOG.md#nodejs-changelog
     """
     # parse nodejs version into int Tuple: 'v4.2.6\n' -> [4, 2, 6]
@@ -171,7 +172,7 @@ def exec_js_process(js_text,                  # type: Text
     killed = []
 
     def terminate():
-        """ Kill the node process if it exceeds timeout limit"""
+        """Kill the node process if it exceeds timeout limit."""
         try:
             killed.append(True)
             nodejs.kill()
@@ -374,6 +375,6 @@ def execjs(js,                       # type: Text
     try:
         return json.loads(stdout)
     except ValueError as err:
-        raise JavascriptException(
+        raise_from(JavascriptException(
             u"{}\nscript was:\n{}\nstdout was: '{}'\nstderr was: '{}'\n".format(
-                err, fn_linenum(), stdout, stderr))
+                err, fn_linenum(), stdout, stderr)), err)

@@ -26,12 +26,13 @@ from .utils import Directory  # pylint: disable=unused-import
 from .utils import convert_pathsep_to_unix, visit_class
 
 
+CONTENT_LIMIT = 64 * 1024
+
 MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 
 
 def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
-
     if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"])
@@ -87,6 +88,11 @@ def normalizeFilesDirs(job):
             if d.get("nameext") != ne:
                 d["nameext"] = Text(ne)
 
+            contents = d.get("contents")
+            if contents and len(contents) > CONTENT_LIMIT:
+                if len(contents) > CONTENT_LIMIT:
+                    raise validate.ValidationException("File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)" % CONTENT_LIMIT)
+
     visit_class(job, ("File", "Directory"), addLocation)
 
 
@@ -138,14 +144,13 @@ def get_listing(fs_access, rec, recursive=True):
     rec["listing"] = listing
 
 def trim_listing(obj):
-    """Remove 'listing' field from Directory objects that are file references.
+    """
+    Remove 'listing' field from Directory objects that are file references.
 
     It redundant and potentially expensive to pass fully enumerated Directory
     objects around if not explicitly needed, so delete the 'listing' field when
     it is safe to do so.
-
     """
-
     if obj.get("location", "").startswith("file://") and "listing" in obj:
         del obj["listing"]
 
@@ -212,7 +217,9 @@ def ensure_non_writable(path):  # type: (Text) -> None
         os.chmod(path, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
 
 class PathMapper(object):
-    """Mapping of files from relative path provided in the file to a tuple of
+    """
+    Mapping of files from relative path provided in the file to a tuple.
+
     (absolute local path, absolute container path)
 
     The tao of PathMapper:
@@ -248,6 +255,7 @@ class PathMapper(object):
 
     def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
         # type: (List[Any], Text, Text, bool) -> None
+        """Initialize the PathMapper."""
         self._pathmap = {}  # type: Dict[Text, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
@@ -336,4 +344,5 @@ class PathMapper(object):
         self._pathmap[key] = MapperEnt(resolved, target, ctype, stage)
 
     def __contains__(self, key):
+        """Test for the presence of the given relative path in this mapper."""
         return key in self._pathmap

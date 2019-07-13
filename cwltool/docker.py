@@ -155,7 +155,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 else:
                     loadproc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                                 stdout=sys.stderr)
-                    assert loadproc.stdin is not None
+                    assert loadproc.stdin is not None  # nosec
                     _logger.info(u"Sending GET request to %s", docker_requirement["dockerLoad"])
                     req = requests.get(docker_requirement["dockerLoad"], stream=True)
                     size = 0
@@ -229,9 +229,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if host_outdir_tgt:
                 # shortcut, just copy to the output directory
                 # which is already going to be mounted
+                if not os.path.exists(os.path.dirname(host_outdir_tgt)):
+                    os.makedirs(os.path.dirname(host_outdir_tgt))
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
-                tmpdir = tempfile.mkdtemp(dir=tmpdir_prefix)
+                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+                tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
                 file_copy = os.path.join(
                     tmpdir, os.path.basename(volume.resolved))
                 shutil.copy(volume.resolved, file_copy)
@@ -249,20 +252,22 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
             if not host_outdir_tgt:
+                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(dir=tmpdir_prefix),
+                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
                     os.path.basename(volume.target))
                 self.append_volume(runtime, new_dir, volume.target,
                                    writable=True)
             elif not os.path.exists(host_outdir_tgt):
-                os.makedirs(host_outdir_tgt, 0o0755)
+                os.makedirs(host_outdir_tgt)
         else:
             if self.inplace_update:
                 self.append_volume(runtime, volume.resolved, volume.target,
                                    writable=True)
             else:
                 if not host_outdir_tgt:
-                    tmpdir = tempfile.mkdtemp(dir=tmpdir_prefix)
+                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+                    tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
                     new_dir = os.path.join(
                         tmpdir, os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, new_dir)
@@ -291,7 +296,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime = [u"docker", u"run", u"-i"]
         self.append_volume(runtime, os.path.realpath(self.outdir),
                            self.builder.outdir, writable=True)
-        self.append_volume(runtime, os.path.realpath(self.tmpdir), "/tmp",
+        tmpdir = "/tmp"  # nosec
+        self.append_volume(runtime, os.path.realpath(self.tmpdir), tmpdir,
                            writable=True)
         self.add_volumes(self.pathmapper, runtime, any_path_okay=True,
                          secret_store=runtimeContext.secret_store,
@@ -355,7 +361,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                                   "please check it first")
                     exit(2)
             else:
-                cidfile_dir = tempfile.mkdtemp(dir=runtimeContext.tmpdir_prefix)
+                tmp_dir, tmp_prefix = os.path.split(runtimeContext.tmpdir_prefix)
+                cidfile_dir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
 
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
             if runtimeContext.cidfile_prefix is not None:

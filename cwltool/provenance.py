@@ -164,7 +164,7 @@ class WritableBagFile(FileIO):
         if posixpath.isabs(rel_path):
             raise ValueError("rel_path must be relative: %s" % rel_path)
         self.rel_path = rel_path
-        self.hashes = {SHA1: hashlib.sha1(),
+        self.hashes = {SHA1: hashlib.sha1(),  # nosec
                        SHA256: hashlib.sha256(),
                        SHA512: hashlib.sha512()}
         # Open file in Research Object folder
@@ -316,7 +316,7 @@ class ProvenanceProfile():
                  orcid,                  # type: str
                  run_uuid=None           # type: uuid.UUID
                 ):  # type: (...) -> None
-
+        """Initialize the provenance profile."""
         self.orcid = orcid
         self.research_object = research_object
         self.folder = self.research_object.folder
@@ -338,6 +338,7 @@ class ProvenanceProfile():
         self.generate_prov_doc()
 
     def __str__(self):
+        """Represent this Provenvance profile as a string."""
         return "ProvenanceProfile <%s> in <%s>" % (
             self.workflow_run_uri, self.research_object)
 
@@ -450,7 +451,7 @@ class ProvenanceProfile():
                  job_order_object,  # type: Dict[Text, Text]
                  research_obj       # type: ResearchObject
                 ):  # type: (...) -> None
-        """Evaluate the nature of job"""
+        """Evaluate the nature of job."""
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
@@ -501,14 +502,13 @@ class ProvenanceProfile():
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
-        entity = None # type: Optional[ProvEntity]
+        entity = None  # type: Optional[ProvEntity]
         checksum = None
         if 'checksum' in value:
             csum = value['checksum']
             (method, checksum) = csum.split("$", 1)
-            assert checksum
             if method == SHA1 and \
-                self.research_object.has_data_file(checksum):
+                    self.research_object.has_data_file(checksum):
                 entity = self.document.entity("data:" + checksum)
 
         if not entity and 'location' in value:
@@ -530,7 +530,7 @@ class ProvenanceProfile():
             entity, checksum = self.declare_string(value["contents"])
 
         # By here one of them should have worked!
-        if not entity:
+        if not entity or not checksum:
             raise ValueError("class:File but missing checksum/location/content: %r" % value)
 
 
@@ -564,8 +564,6 @@ class ProvenanceProfile():
                 sec_entity, file_entity,
                 other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]})
 
-        assert entity
-        assert checksum
         return file_entity, entity, checksum
 
     def declare_directory(self, value):  # type: (MutableMapping) -> ProvEntity
@@ -603,7 +601,7 @@ class ProvenanceProfile():
         # a later call to this method will sort that
         is_empty = True
 
-        if not "listing" in value:
+        if "listing" not in value:
             fsaccess = StdFsAccess("")
             get_listing(fsaccess, value)
         for entry in value.get("listing", []):
@@ -943,11 +941,13 @@ class ResearchObject():
 
     def __init__(self, temp_prefix_ro="tmp", orcid='', full_name=''):
         # type: (str, Text, Text) -> None
-
+        """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
-        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=temp_prefix_ro))  # type: Text
+        tmp_dir, tmp_prefix = os.path.split(temp_prefix_ro)
+        self.folder = os.path.abspath(tempfile.mkdtemp(prefix=tmp_prefix,
+            dir=tmp_dir))  # type: Text
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict
@@ -970,13 +970,14 @@ class ResearchObject():
                       self.folder)
 
     def self_check(self):  # type: () -> None
-        """Raises ValueError if this RO is closed."""
+        """Raise ValueError if this RO is closed."""
         if self.closed:
             raise ValueError(
                 "This ResearchObject has already been closed and is not "
                 "available for futher manipulation.")
 
     def __str__(self):
+        """Represent this RO as a string."""
         return "ResearchObject <{}> in <{}>".format(self.ro_uuid, self.folder)
 
     def _initialize(self):  # type: () -> None
@@ -1385,7 +1386,7 @@ class ResearchObject():
         _logger.debug(u"[provenance] Added packed workflow: %s", rel_path)
 
     def has_data_file(self, sha1hash):  # type: (str) -> bool
-        """Confirms the presence of the given file in the RO."""
+        """Confirm the presence of the given file in the RO."""
         folder = os.path.join(self.folder, DATA, sha1hash[0:2])
         hash_path = os.path.join(folder, sha1hash)
         return os.path.isfile(hash_path)
@@ -1394,8 +1395,9 @@ class ResearchObject():
         # type: (IO, Optional[datetime.datetime], Optional[str]) -> Text
         """Copy inputs to data/ folder."""
         self.self_check()
+        tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(
-                prefix=self.temp_prefix, delete=False) as tmp:
+                prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
             checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
