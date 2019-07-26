@@ -178,7 +178,7 @@ def test_directory_workflow(folder, tmpdir):
 
 def test_relationship(folder):
     cwltool(folder, get_data('tests/wf/relationship.cwl'), get_data('tests/wf/relationship-job.json'))
-    check_provenance(folder, single_tool=True)
+    check_provenance(folder, single_tool=True, relationship=True)
     ## TODO: Check relationship
 
 def check_output_object(base_path):
@@ -219,12 +219,12 @@ def check_secondary_files(base_path):
     assert f1idx["basename"], "foo1.txt.idx"
 
 def check_provenance(base_path, nested=False, single_tool=False, directory=False,
-                     secondary_files=False):
+                     secondary_files=False, relationship=False):
     check_folders(base_path)
     check_bagit(base_path)
     check_ro(base_path, nested=nested)
     check_prov(base_path, nested=nested, single_tool=single_tool, directory=directory,
-               secondary_files=secondary_files)
+               secondary_files=secondary_files, relationship=False)
 
 def check_folders(base_path):
     required_folders = [
@@ -384,7 +384,7 @@ def check_ro(base_path, nested=False):
         assert otherRuns, "Could not find nested workflow run prov annotations"
 
 def check_prov(base_path, nested=False, single_tool=False, directory=False,
-               secondary_files=False):
+               secondary_files=False, relationship=False):
     prov_file = os.path.join(base_path, "metadata", "provenance", "primary.cwlprov.nt")
     assert os.path.isfile(prov_file), "Can't find " + prov_file
     arcp_root = find_arcp(base_path)
@@ -513,6 +513,8 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
             prim_nameroot = set(g.objects(prim, CWLPROV.nameroot)).pop()
             prim_nameext = set(g.objects(prim, CWLPROV.nameext)).pop()
             assert str(prim_basename) == "%s%s" % (prim_nameroot, prim_nameext)
+    if relationship:
+            sec = set(g.subjects(PROV.qualifiedDerivation, der)).pop()
 
 
 valid_path_conversions = [
