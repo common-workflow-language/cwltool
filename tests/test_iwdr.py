@@ -3,16 +3,22 @@ import os
 from cwltool.main import main
 from cwltool import load_tool
 from .util import (get_data, get_windows_safe_factory, windows_needs_docker,
-                   needs_docker, temp_dir, needs_singularity)
+                   needs_docker, temp_dir, needs_singularity, get_main_output)
 
 @windows_needs_docker
 def test_newline_in_entry():
-    """
-    test that files in InitialWorkingDirectory are created with a newline character
-    """
+    """Files in a InitialWorkingDirectory are created with a newline character."""
     factory = get_windows_safe_factory()
     echo = factory.make(get_data("tests/wf/iwdr-entry.cwl"))
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
+
+
+@needs_docker
+def test_empty_file_creation():
+    """An empty file can be created in InitialWorkingDirectory."""
+    err_code, _, _ = get_main_output([get_data("tests/wf/iwdr-empty.cwl")])
+    assert err_code == 0
+
 
 @needs_docker
 def test_iwdr_permutations():

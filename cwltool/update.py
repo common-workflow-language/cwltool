@@ -19,19 +19,18 @@ from .loghandler import _logger
 from .utils import visit_class, visit_field, aslist
 
 
-def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
+def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Text]
-    """Public updater for v1.0 to v1.1.0-dev1."""
-
+    """Public updater for v1.0 to v1.1."""
     doc = copy.deepcopy(doc)
 
     rewrite = {
         "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
+        "http://arvados.org/cwl#ReuseRequirement": "WorkReuse",
         "http://commonwl.org/cwltool#TimeLimit": "ToolTimeLimit",
         "http://commonwl.org/cwltool#NetworkAccess": "NetworkAccess",
         "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
-        "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement",
-        "http://commonwl.org/cwltool#WorkReuse": "WorkReuse",
+        "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement"
     }
     def rewrite_requirements(t):
         if "requirements" in t:
@@ -47,10 +46,17 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
                 rewrite_requirements(s)
 
     def update_secondaryFiles(t):
-        if isinstance(t, MutableSequence):
-            return [{"pattern": p} for p in t]
-        else:
+        if isinstance(t, CommentedSeq):
+            new_seq = copy.deepcopy(t)
+            for index, entry in enumerate(t):
+                new_seq[index] = update_secondaryFiles(entry)
+            return new_seq
+        elif isinstance(t, MutableSequence):
+            return CommentedSeq([update_secondaryFiles(p) for p in t])
+        elif isinstance(t, MutableMapping):
             return t
+        else:
+            return CommentedMap([("pattern", t)])
 
     def fix_inputBinding(t):
         for i in t["inputs"]:
@@ -70,30 +76,36 @@ def v1_0to1_1_0dev1(doc, loader, baseuri):  # pylint: disable=unused-argument
     if isinstance(upd, MutableMapping) and "$graph" in upd:
         upd = upd["$graph"]
     for proc in aslist(upd):
-        proc.setdefault("hints", [])
-        proc["hints"].insert(0, {"class": "NetworkAccess", "networkAccess": True})
-        proc["hints"].insert(0, {"class": "LoadListingRequirement", "loadListing": "deep_listing"})
+        proc.setdefault("hints", CommentedSeq())
+        proc["hints"].insert(0, CommentedMap([("class", "NetworkAccess"),( "networkAccess", True)]))
+        proc["hints"].insert(0, CommentedMap([("class", "LoadListingRequirement"),("loadListing", "deep_listing")]))
+        if "cwlVersion" in proc:
+            del proc["cwlVersion"]
 
-    return (doc, "v1.1.0-dev1")
+    return (doc, "v1.1")
 
+def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
+    return (doc, "v1.1")
 
 UPDATES = {
-    u"v1.0": v1_0to1_1_0dev1
+    u"v1.0": v1_0to1_1,
+    u"v1.1": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 DEVUPDATES = {
-    u"v1.0": v1_0to1_1_0dev1,
-    u"v1.1.0-dev1": None
+    u"v1.0": v1_0to1_1,
+    u"v1.1.0-dev1": v1_1_0dev1to1_1,
+    u"v1.1": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.1.0-dev1"
+INTERNAL_VERSION = u"v1.1"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]
-    """The default, do-nothing, CWL document upgrade function."""
+    """Default, do-nothing, CWL document upgrade function."""
     return (doc, doc["cwlVersion"])
 
 
@@ -101,12 +113,11 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
                  metadata,   # type: CommentedMap
                  enable_dev  # type: bool
 ):
-    # type: (...) -> Tuple[Union[CommentedSeq, CommentedMap], Text]
-    """Checks the validity of the version of the give CWL document.
+    # type: (...) -> Tuple[CommentedMap, Text]
+    """Check the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
     """
-
     cdoc = None  # type: Optional[CommentedMap]
     if isinstance(doc, CommentedSeq):
         if not isinstance(metadata, CommentedMap):
@@ -130,12 +141,13 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
             if enable_dev:
                 pass
             else:
+                keys = list(UPDATES.keys())
+                keys.sort()
                 raise validate.ValidationException(
                     u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
-                    "deprecated versions." % (version, ", ".join(
-                        list(UPDATES.keys()))))
+                    "deprecated versions." % (version, ", ".join(keys)))
         else:
             raise validate.ValidationException(
                 u"Unrecognized version %s" % version)
@@ -144,16 +156,15 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
 
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> Union[CommentedSeq, CommentedMap]
+    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> CommentedMap
 
-    if (metadata.get("http://commonwl.org/cwltool#original_cwlVersion") or
-        (isinstance(doc, CommentedMap) and doc.get("http://commonwl.org/cwltool#original_cwlVersion"))):
-        return doc
-
-    (cdoc, originalversion) = checkversion(doc, metadata, enable_dev)
-    version = originalversion
+    if isinstance(doc, CommentedMap):
+            if metadata.get("http://commonwl.org/cwltool#original_cwlVersion") \
+                    or doc.get("http://commonwl.org/cwltool#original_cwlVersion"):
+                return doc
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
+    originalversion = copy.copy(version)
 
     nextupdate = identity  # type: Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 

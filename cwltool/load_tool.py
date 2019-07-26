@@ -40,7 +40,6 @@ jobloaderctx = {
     u"cwltool": "http://commonwl.org/cwltool#",
     u"path": {u"@type": u"@id"},
     u"location": {u"@type": u"@id"},
-    u"format": {u"@type": u"@id"},
     u"id": u"@id"
 }  # type: ContextType
 
@@ -99,7 +98,6 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
                    loadingContext=None  # type: Optional[LoadingContext]
                   ):  # type: (...) -> Tuple[LoadingContext, CommentedMap, Text]
     """Retrieve a CWL document."""
-
     if loadingContext is None:
         loadingContext = LoadingContext()
         loadingContext.loader = default_loader()
@@ -199,7 +197,6 @@ def resolve_and_validate_document(loadingContext,
                      ):
     # type: (...) -> Tuple[LoadingContext, Text]
     """Validate a CWL document."""
-
     loadingContext = loadingContext.copy()
 
     if not isinstance(workflowobj, MutableMapping):
@@ -208,7 +205,7 @@ def resolve_and_validate_document(loadingContext,
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri, checklinks=loadingContext.do_validate)
+        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
 
@@ -219,6 +216,11 @@ def resolve_and_validate_document(loadingContext,
     cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
         cwlVersion = workflowobj.get("cwlVersion")
+    if not cwlVersion and fileuri != uri:
+        # The tool we're loading is a fragment of a bigger file.  Get
+        # the document root element and look for cwlVersion there.
+        metadata = fetch_document(fileuri, loadingContext)[1]
+        cwlVersion = metadata.get("cwlVersion")
     if not cwlVersion:
         raise ValidationException(
             "No cwlVersion found. "
@@ -254,12 +256,11 @@ def resolve_and_validate_document(loadingContext,
         del jobobj["http://commonwl.org/cwltool#overrides"]
 
     if isinstance(jobobj, CommentedMap) and "https://w3id.org/cwl/cwl#requirements" in jobobj:
-        if cwlVersion not in ("v1.1.0-dev1",):
+        if cwlVersion not in ("v1.1.0-dev1","v1.1"):
             raise ValidationException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
-                    "can set the cwlVersion to v1.1.0-dev1 or greater and re-run with "
-                    "--enable-dev.")
+                    "can set the cwlVersion to v1.1 or greater.")
         loadingContext.overrides_list.append({"overrideTarget": uri,
                                               "requirements": jobobj["https://w3id.org/cwl/cwl#requirements"]})
         del jobobj["https://w3id.org/cwl/cwl#requirements"]
@@ -281,15 +282,16 @@ def resolve_and_validate_document(loadingContext,
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    workflowobj["id"] = fileuri
-    processobj, metadata = document_loader.resolve_all(
-        workflowobj, fileuri, checklinks=loadingContext.do_validate)
+    processobj, metadata = document_loader.resolve_all(workflowobj, fileuri)
     if loadingContext.metadata:
         metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
     if not isinstance(metadata, CommentedMap):
         raise ValidationException("metadata must be a CommentedMap, was %s" % type(metadata))
+
+    if isinstance(processobj, CommentedMap):
+        uri = processobj["id"]
 
     _convert_stdstreams_to_files(workflowobj)
 
@@ -301,14 +303,11 @@ def resolve_and_validate_document(loadingContext,
 
     # None means default behavior (do update)
     if loadingContext.do_update in (True, None):
-        processobj = cast(CommentedMap, cmap(update.update(
-            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
-        if isinstance(processobj, MutableMapping):
-            document_loader.idx[processobj["id"]] = processobj
-        elif isinstance(processobj, MutableSequence):
-            document_loader.idx[metadata["id"]] = metadata
-            for po in processobj:
-                document_loader.idx[po["id"]] = po
+        if "cwlVersion" not in metadata:
+            metadata["cwlVersion"] = cwlVersion
+        processobj = update.update(
+            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)
+        document_loader.idx[processobj["id"]] = processobj
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj

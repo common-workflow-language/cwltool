@@ -100,13 +100,13 @@ diff_pycodestyle_report: pycodestyle_report.txt
 pep257: pydocstyle
 ## pydocstyle      : check Python code style
 pydocstyle: $(PYSOURCES)
-	pydocstyle --ignore=D100,D101,D102,D103 $^ || true
+	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
 pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --violations=pycodestyle $^
+	diff-quality --violations=pycodestyle --fail-under=100 $^
 
 ## autopep8    : fix most Python code indentation and formatting
 autopep8: $(PYSOURCES)

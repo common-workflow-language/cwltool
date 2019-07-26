@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Setup for the reference implementation of the CWL standards."""
+from __future__ import print_function
 import os
 import sys
 
@@ -18,6 +19,13 @@ except ImportError:
 
 NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
+
+if sys.version_info < (3, 0):
+    print("""
+DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020.
+Please upgrade your Python as the Python 2.7 version of cwltool won't be
+maintained after that date.
+""", file=sys.stderr)
 
 setup(name='cwltool',
       version='1.0',
@@ -41,6 +49,10 @@ setup(name='cwltool',
           'schemas/v1.1.0-dev1/*.md',
           'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml',
           'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
+          'schemas/v1.1/*.yml',
+          'schemas/v1.1/*.md',
+          'schemas/v1.1/salad/schema_salad/metaschema/*.yml',
+          'schemas/v1.1/salad/schema_salad/metaschema/*.md',
           'cwlNodeEngine.js',
           'cwlNodeEngineJSConsole.js',
           'extensions.yml',
@@ -53,7 +65,7 @@ setup(name='cwltool',
           'ruamel.yaml >= 0.12.4, <= 0.15.77',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 4.1, < 5',
+          'schema-salad >= 4.5, < 5',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
@@ -61,6 +73,8 @@ setup(name='cwltool',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
           'typing-extensions',
+          'coloredlogs',
+          'future',
       ],
       extras_require={
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],

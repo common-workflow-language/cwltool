@@ -24,6 +24,7 @@ from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from six import string_types
+from future.utils import raise_from
 
 from six.moves import map, urllib
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
@@ -51,7 +52,8 @@ from .software_requirements import (  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
 from .utils import (aslist, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
-                    random_outdir, windows_default_container_id)
+                    random_outdir, windows_default_container_id,
+                    shared_file_lock, upgrade_lock)
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
@@ -75,6 +77,7 @@ hints:
 
 class ExpressionTool(Process):
     class ExpressionJob(object):
+        """Job for ExpressionTools."""
 
         def __init__(self,
                      builder,          # type: Builder
@@ -85,6 +88,7 @@ class ExpressionTool(Process):
                      outdir=None,      # type: Optional[Text]
                      tmpdir=None,      # type: Optional[Text]
                     ):  # type: (...) -> None
+            """Initializet this ExpressionJob."""
             self.builder = builder
             self.requirements = requirements
             self.hints = hints
@@ -95,7 +99,10 @@ class ExpressionTool(Process):
             self.script = script
             self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
-        def run(self, runtimeContext):  # type: (RuntimeContext) -> None
+        def run(self,
+                runtimeContext,   # type: RuntimeContext
+                tmpdir_lock=None  # type: threading.Lock
+               ):  # type: (...) -> None
             try:
                 normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
@@ -103,7 +110,7 @@ class ExpressionTool(Process):
                 self.output_callback(ev, "success")
             except Exception as err:
                 _logger.warning(u"Failed to evaluate expression:\n%s",
-                                err, exc_info=runtimeContext.debug)
+                                Text(err), exc_info=runtimeContext.debug)
                 self.output_callback({}, "permanentFail")
 
     def job(self,
@@ -128,14 +135,13 @@ def remove_path(f):  # type: (Dict[Text, Any]) -> None
 
 def revmap_file(builder, outdir, f):
     # type: (Builder, Text, Dict[Text, Any]) -> Union[Dict[Text, Any], None]
-
-    """Remap a file from internal path to external path.
+    """
+    Remap a file from internal path to external path.
 
     For Docker, this maps from the path inside tho container to the path
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-
     split = urllib.parse.urlsplit(outdir)
     if not split.scheme:
         outdir = file_uri(str(outdir))
@@ -181,6 +187,7 @@ def revmap_file(builder, outdir, f):
 class CallbackJob(object):
     def __init__(self, job, output_callback, cachebuilder, jobcache):
         # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, Text) -> None
+        """Initialize this CallbackJob."""
         self.job = job
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
@@ -204,7 +211,6 @@ def check_adjust(builder, file_o):
     We need to also explicitly walk over input, as implicit reassignment
     doesn't reach everything in builder.bindings
     """
-
     if not builder.pathmapper:
             raise ValueError("Do not call check_adjust using a builder that doesn't have a pathmapper.")
     file_o["path"] = docker_windows_path_adjust(
@@ -240,6 +246,7 @@ OutputPorts = Dict[Text, Union[None, Text, List[Union[Dict[Text, Any], Text]], D
 class CommandLineTool(Process):
     def __init__(self, toolpath_object, loadingContext):
         # type: (MutableMapping[Text, Any], LoadingContext) -> None
+        """Initialize this CommandLineTool."""
         super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
 
@@ -347,8 +354,9 @@ class CommandLineTool(Process):
 
             interesting = {"DockerRequirement",
                            "EnvVarRequirement",
-                           "CreateFileRequirement",
-                           "ShellCommandRequirement"}
+                           "InitialWorkDirRequirement",
+                           "ShellCommandRequirement",
+                           "NetworkAccess"}
             for rh in (self.original_requirements, self.original_hints):
                 for r in reversed(rh):
                     if r["class"] in interesting and r["class"] not in keydict:
@@ -363,10 +371,22 @@ class CommandLineTool(Process):
                           keydictstr, cachekey)
 
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
-            jobcachepending = "{}.{}.pending".format(
-                jobcache, threading.current_thread().ident)
 
-            if os.path.isdir(jobcache) and not os.path.isfile(jobcachepending):
+            # Create a lockfile to manage cache status.
+            jobcachepending = "{}.status".format(jobcache)
+            jobcachelock = None
+            jobstatus = None
+
+            # Opens the file for read/write, or creates an empty file.
+            jobcachelock = open(jobcachepending, "a+")
+
+            # get the shared lock to ensure no other process is trying
+            # to write to this cache
+            shared_file_lock(jobcachelock)
+            jobcachelock.seek(0)
+            jobstatus = jobcachelock.read()
+
+            if os.path.isdir(jobcache) and jobstatus == "success":
                 if docker_req and runtimeContext.use_container:
                     cachebuilder.outdir = runtimeContext.docker_outdir or random_outdir()
                 else:
@@ -374,23 +394,32 @@ class CommandLineTool(Process):
 
                 _logger.info("[job %s] Using cached output in %s", jobname, jobcache)
                 yield CallbackJob(self, output_callbacks, cachebuilder, jobcache)
+                # we're done with the cache so release lock
+                jobcachelock.close()
                 return
             else:
                 _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
+
+                # turn shared lock into an exclusive lock since we'll
+                # be writing the cache directory
+                upgrade_lock(jobcachelock)
+
                 shutil.rmtree(jobcache, True)
                 os.makedirs(jobcache)
                 runtimeContext = runtimeContext.copy()
                 runtimeContext.outdir = jobcache
-                open(jobcachepending, "w").close()
 
-                def rm_pending_output_callback(output_callbacks, jobcachepending,
+                def update_status_output_callback(output_callbacks, jobcachelock,
                                                outputs, processStatus):
-                    if processStatus == "success":
-                        os.remove(jobcachepending)
+                    # save status to the lockfile then release the lock
+                    jobcachelock.seek(0)
+                    jobcachelock.truncate()
+                    jobcachelock.write(processStatus)
+                    jobcachelock.close()
                     output_callbacks(outputs, processStatus)
 
                 output_callbacks = partial(
-                    rm_pending_output_callback, output_callbacks, jobcachepending)
+                    update_status_output_callback, output_callbacks, jobcachelock)
 
         builder = self._init_job(job_order, runtimeContext)
 
@@ -440,7 +469,7 @@ class CommandLineTool(Process):
                             else:
                                 et["entryname"] = None
                             et["writable"] = t.get("writable", False)
-                            if et[u"entry"]:
+                            if et[u"entry"] is not None:
                                 ls.append(et)
                     else:
                         initwd_item = builder.do_eval(t)
@@ -644,9 +673,9 @@ class CommandLineTool(Process):
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
         except validate.ValidationException as e:
-            raise WorkflowException(
+            raise_from(WorkflowException(
                 "Error validating output record. " + Text(e) + "\n in "
-                + json_dumps(ret, indent=4))
+                + json_dumps(ret, indent=4)), e)
         finally:
             if builder.mutation_manager and readers:
                 for r in readers.values():
@@ -677,8 +706,8 @@ class CommandLineTool(Process):
                             globpatterns.extend(aslist(gb))
 
                     for gb in globpatterns:
-                        if gb.startswith(outdir):
-                            gb = gb[len(outdir) + 1:]
+                        if gb.startswith(builder.outdir):
+                            gb = gb[len(builder.outdir) + 1:]
                         elif gb == ".":
                             gb = outdir
                         elif gb.startswith("/"):
@@ -797,7 +826,12 @@ class CommandLineTool(Process):
             adjustFileObjs(r, revmap)
 
             if not r and optional:
-                return None
+                # Don't convert zero or empty string to None
+                if r in [0, '']:
+                    return r
+                # For [] or None, return None
+                else:
+                    return None
 
         if (not empty_and_optional and isinstance(schema["type"], MutableMapping)
                 and schema["type"]["type"] == "record"):

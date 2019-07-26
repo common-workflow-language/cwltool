@@ -24,6 +24,7 @@ from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from six import PY3, iteritems, itervalues, string_types, with_metaclass
 from six.moves import urllib
+from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
@@ -62,6 +63,7 @@ else:
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
+        """Initialize."""
         name = str(name)
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
@@ -382,9 +384,7 @@ def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
 
 def avroize_type(field_type, name_prefix=""):
     # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Text) -> Any
-    """
-    adds missing information to a type so that CWL types are valid in schema_salad.
-    """
+    """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
         for field in field_type:
             avroize_type(field, name_prefix)
@@ -424,7 +424,7 @@ def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Te
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
                           ):              # type: (...)->bool
-    """ Detects any textual reference to /var/spool/cwl. """
+    """Detect any textual reference to /var/spool/cwl."""
     r = False
     if isinstance(obj, string_types):
         if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
@@ -454,6 +454,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
+        """Build a Process object from the provided dictionary."""
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None          # type: Optional[ProvenanceProfile]
@@ -556,7 +557,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                     _logger.error(
                         "Failed to read options file %s",
                         loadingContext.js_hint_options_file)
-                    raise err
+                    raise
             else:
                 validate_js_options = None
             if self.doc_schema is not None:
@@ -654,7 +655,7 @@ hints:
 """ % (filecount[0], k))))
 
         except (validate.ValidationException, WorkflowException) as err:
-            raise WorkflowException("Invalid job input record:\n" + Text(err))
+            raise_from(WorkflowException("Invalid job input record:\n" + Text(err)), err)
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()

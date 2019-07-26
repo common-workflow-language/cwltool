@@ -18,6 +18,7 @@ from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
+from future.utils import raise_from
 from typing import IO
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
@@ -61,7 +62,6 @@ def substitute(value, replace):  # type: (Text, Text) -> Text
 def formatSubclassOf(fmt, cls, ontology, visited):
     # type: (Text, Text, Optional[Graph], Set[Text]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
-
     if URIRef(fmt) == URIRef(cls):
         return True
 
@@ -96,7 +96,7 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
                  input_formats,  # type: Union[List[Text], Text]
                  ontology        # type: Optional[Graph]
                 ):  # type: (...) -> None
-    """ Confirms that the format present is valid for the allowed formats."""
+    """Confirm that the format present is valid for the allowed formats."""
     for afile in aslist(actual_file):
         if not afile:
             continue
@@ -114,6 +114,7 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
 
 class HasReqsHints(object):
     def __init__(self):
+        """Initialize this reqs decorator."""
         self.requirements = []  # List[Dict[Text, Any]]
         self.hints = []         # List[Dict[Text, Any]]
 
@@ -152,7 +153,7 @@ class Builder(HasReqsHints):
                  tmpdir,               # type: Text
                  stagedir             # type: Text
                 ):  # type: (...) -> None
-
+        """Initialize this Builder."""
         self.job = job
         self.files = files
         self.bindings = bindings
@@ -313,6 +314,7 @@ class Builder(HasReqsHints):
                         else:
                             sf_required = True
 
+
                         if "$(" in sf["pattern"] or "${" in sf["pattern"]:
                             sfpath = self.do_eval(sf["pattern"], context=datum)
                         else:
@@ -347,9 +349,9 @@ class Builder(HasReqsHints):
                         check_format(datum, self.do_eval(schema["format"]),
                                      self.formatgraph)
                     except validate.ValidationException as ve:
-                        raise WorkflowException(
+                        raise_from(WorkflowException(
                             "Expected value of '%s' to have format %s but\n "
-                            " %s" % (schema["name"], schema["format"], ve))
+                            " %s" % (schema["name"], schema["format"], ve)), ve)
 
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
