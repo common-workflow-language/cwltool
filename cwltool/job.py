@@ -681,21 +681,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             monitor_function = functools.partial(self.process_monitor)
         self._execute(runtime, env, runtimeContext, monitor_function)
 
-    @staticmethod
-    def docker_get_memory(cid):  # type: (Text) -> int
-        memory = None
-        try:
-            memory = subprocess.check_output(
-                ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  # type: ignore
-        except subprocess.CalledProcessError:
-            pass
-        if memory:
-            value = int(memory)
-            if value != 0:
-                return value
-        return psutil.virtual_memory().total
-
     def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
         # type: (Text, Text, bool, subprocess.Popen) -> None
         """Record memory usage of the running Docker container."""
@@ -716,7 +701,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     cid = cidhandle.readline().strip()
             except (OSError, IOError):
                 cid = None
-        max_mem = self.docker_get_memory(cid)
+        max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         with open(stats_file.name, mode="w") as stats_file_handle:
@@ -736,7 +721,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 except ValueError:
                     break
         _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     int((max_mem_percent * max_mem) / (2 ** 20)))
+                     int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 
