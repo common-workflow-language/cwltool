@@ -736,7 +736,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 except ValueError:
                     break
         _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     int((max_mem_percent * max_mem) / (2 ** 20)))
+                     int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 
