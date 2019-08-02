@@ -421,7 +421,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
-            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
+            _logger.debug(u"Could not collect memory usage, job ended before monitoring began.")
 
 
 class CommandLineJob(JobBase):
