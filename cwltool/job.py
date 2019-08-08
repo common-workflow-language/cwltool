@@ -442,9 +442,9 @@ class CommandLineJob(JobBase):
 
         env = self.environment
         vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not None:
+        if runtimeContext.preserve_entire_environment is not False:
             vars_to_preserve = os.environ
-        if vars_to_preserve is not None:
+        if vars_to_preserve:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
                     # On Windows, subprocess env can't handle unicode.

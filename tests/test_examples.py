@@ -931,3 +931,12 @@ def test_optional_numeric_output_0():
     assert "completed success" in stderr
     assert error_code == 0
     assert json.loads(stdout)['out'] == 0
+
+def test_env_filtering():
+    test_file = "tests/env.cwl"
+    error_code, stdout, stderr = get_main_output(
+        [get_data(test_file)])
+
+    assert "completed success" in stderr
+    assert error_code == 0
+    assert json.loads(stdout)['env_count'] == 4
