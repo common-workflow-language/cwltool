@@ -940,7 +940,7 @@ def test_env_filtering():
 
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
-    if onWindows:
+    if onWindows():
         target = 5
     else:
         target = 4
