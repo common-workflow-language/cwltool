@@ -922,6 +922,7 @@ def test_v1_0_position_expression():
     assert error_code == 1
 
 
+@windows_needs_docker
 def test_v1_0_arg_empty_prefix_separate_false():
     test_file = "tests/arg-empty-prefix-separate-false.cwl"
     error_code, stdout, stderr = get_main_output(
