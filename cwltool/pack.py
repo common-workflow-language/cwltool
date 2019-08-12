@@ -172,7 +172,7 @@ def pack(document_loader,  # type: Loader
         rewrite_id(r, uri)
 
     packed = CommentedMap((("$graph", CommentedSeq()),
-                           ("cwlVersion", metadata["cwlVersion"])))  # type: CommentedMap[Text, Any]
+                           ("cwlVersion", metadata["cwlVersion"])))
     namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]
