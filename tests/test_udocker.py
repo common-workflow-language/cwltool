@@ -22,16 +22,26 @@ class TestUdocker:
             "./udocker install"]
 
         test_cwd = os.getcwd()
+        test_environ = os.environ.copy()
 
         cls.docker_install_dir = tempfile.mkdtemp()
         os.chdir(cls.docker_install_dir)
 
         os.environ['UDOCKER_DIR'] = os.path.join(cls.docker_install_dir, ".udocker")
+        os.environ['HOME'] = cls.docker_install_dir
 
-        assert sum([subprocess.call(cmd.split()) for cmd in install_cmds]) == 0
+        results = []
+        for _ in range(3):
+              results = [subprocess.call(cmd.split()) for cmd in install_cmds]
+              if sum(results) == 0:
+                  break
+              subprocess.call(["rm", "./udocker"])
+
+        assert sum(results) == 0
 
         cls.udocker_path = os.path.join(cls.docker_install_dir, 'udocker')
         os.chdir(test_cwd)
+        os.environ = test_environ
         print('Udocker install dir: ' + cls.docker_install_dir)
 
     @classmethod
