@@ -391,7 +391,7 @@ class DirectoryAppendAction(FSAppendAction):
 
 def add_argument(toolparser, name, inptype, records, description="",
                  default=None, input_required=True):
-    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any) -> None
+    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any, bool) -> None
     if len(name) == 1:
         flag = "-"
     else:
@@ -461,7 +461,7 @@ def add_argument(toolparser, name, inptype, records, description="",
 
 
 def generate_parser(toolparser, tool, namemap, records, input_required=True):
-    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text]) -> argparse.ArgumentParser
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text], bool) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
