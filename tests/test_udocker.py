@@ -22,7 +22,7 @@ class TestUdocker:
             "./udocker install"]
 
         test_cwd = os.getcwd()
-        test_environ = os.environ.copy()
+        cls.test_environ = os.environ.copy()
 
         cls.docker_install_dir = tempfile.mkdtemp()
         os.chdir(cls.docker_install_dir)
@@ -41,12 +41,12 @@ class TestUdocker:
 
         cls.udocker_path = os.path.join(cls.docker_install_dir, 'udocker')
         os.chdir(test_cwd)
-        os.environ = test_environ
         print('Udocker install dir: ' + cls.docker_install_dir)
 
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls.docker_install_dir)
+        os.environ = cls.test_environ
 
     def test_udocker_usage_should_not_write_cid_file(self, tmpdir):
         cwd = tmpdir.chdir()
