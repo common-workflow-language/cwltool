@@ -931,3 +931,17 @@ def test_optional_numeric_output_0():
     assert "completed success" in stderr
     assert error_code == 0
     assert json.loads(stdout)['out'] == 0
+
+@windows_needs_docker
+def test_env_filtering():
+    test_file = "tests/env.cwl"
+    error_code, stdout, stderr = get_main_output(
+        [get_data(test_file)])
+
+    assert "completed success" in stderr, (error_code, stdout, stderr)
+    assert error_code == 0, (error_code, stdout, stderr)
+    if onWindows():
+        target = 5
+    else:
+        target = 4
+    assert json.loads(stdout)['env_count'] == target, (error_code, stdout, stderr)
