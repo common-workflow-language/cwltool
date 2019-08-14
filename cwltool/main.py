@@ -494,7 +494,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")
-                and sys.stdout.encoding != 'UTF-8'):
+                and sys.stdout.encoding != 'UTF-8'):  # type: ignore
             if PY3 and hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
             else:
@@ -602,7 +602,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 full_name=args.cwl_full_name)
             runtimeContext.research_obj = ro
             log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
-            prov_log_handler = logging.StreamHandler(log_file_io)
+            prov_log_handler = logging.StreamHandler(cast(IO[str], log_file_io))
 
             class ProvLogFormatter(logging.Formatter):
                 """Enforce ISO8601 with both T and Z."""
@@ -727,9 +727,12 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 else:
                     _logger.error("Can only use --target on Workflows")
                     return 1
-                loadingContext.loader.idx[extracted["id"]] = extracted
-                tool = make_tool(extracted["id"],
-                                 loadingContext)
+                if isinstance(loadingContext.loader.idx, CommentedMap):
+                    loadingContext.loader.idx[extracted["id"]] = extracted
+                    tool = make_tool(extracted["id"],
+                                     loadingContext)
+                else:
+                    raise Exception("Missing loadingContext.loader.idx!")
 
             if args.print_subgraph:
                 if "name" in tool.tool:

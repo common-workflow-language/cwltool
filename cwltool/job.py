@@ -206,7 +206,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
-    def __repr__(self):  # type: () -> Text
+    def __repr__(self):  # type: () -> str
         """Represent this Job object."""
         return "CommandLineJob(%s)" % self.name
 
@@ -264,7 +264,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
             if runtimeContext.process_run_id is not None \
-                    and runtimeContext.prov_obj is not None:
+                    and runtimeContext.prov_obj is not None and isinstance(job_order, (list, dict)):
                 runtimeContext.prov_obj.used_artefacts(
                     job_order, runtimeContext.process_run_id, str(self.name))
             else:

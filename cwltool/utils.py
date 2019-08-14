@@ -82,7 +82,7 @@ def docker_windows_path_adjust(path):
     if onWindows():
         split = path.split(':')
         if len(split) == 2:
-            if platform.win32_ver()[0] in ('7', '8'):
+            if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
                 split[0] = split[0].lower()  # Docker toolbox uses lowecase windows Drive letters
             else:
                 split[0] = split[0].capitalize()
@@ -212,7 +212,7 @@ def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequ
 
 
 def visit_class(rec, cls, op):
-    # type: (Union[MutableMapping[Text, Text], MutableSequence[MutableMapping[Text, Text]], Any], Iterable[Text], Union[Callable[..., Any], partial[Any]]) -> None
+    # type: (Any, Iterable[Any], Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to with "class" in cls."""
     if isinstance(rec, MutableMapping):
         if "class" in rec and rec.get("class") in cls:

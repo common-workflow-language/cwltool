@@ -155,6 +155,11 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
                 return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
             except KeyError:
                 raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
+        elif isinstance(current_value, list) and isinstance(key, int):
+            try:
+                return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
+            except KeyError:
+                raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
         else:
             raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
     else:

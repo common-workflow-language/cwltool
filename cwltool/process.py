@@ -160,14 +160,14 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[Text, Text]
+    cache = {}  # type: Dict[Text, Any]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
             res = resource_stream(__name__, 'schemas/%s/%s' % (version, f))
-            cache["https://w3id.org/cwl/" + f] = str(res.read())
+            cache["https://w3id.org/cwl/" + f] = res.read()
             res.close()
         except IOError:
             pass
@@ -178,7 +178,7 @@ def get_schema(version):
                 __name__, 'schemas/{}/salad/schema_salad/metaschema/{}'.format(
                     version, f))
             cache["https://w3id.org/cwl/salad/schema_salad/metaschema/"
-                  + f] = str(res.read())
+                  + f] = res.read()
             res.close()
         except IOError:
             pass

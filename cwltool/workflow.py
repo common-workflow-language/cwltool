@@ -149,7 +149,7 @@ def object_from_state(state,                  # type: Dict[Text, Optional[Workfl
                     "parameter but MultipleInputFeatureRequirement is not "
                     "declared.")
             for src in connections:
-                a_state = state.get(src, default=None)
+                a_state = state.get(src, None)
                 if a_state is not None and (a_state.success == "success" or incomplete):
                     if not match_types(
                             inp["type"], a_state, iid, inputobj,

@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from typing import IO, Any, Dict, MutableMapping
+from typing import cast, IO, Any, Dict, MutableMapping
 
 from rdflib import Graph
 from schema_salad.jsonld_context import makerdf
@@ -22,12 +22,12 @@ def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     return g
 
 
-def printrdf(wflow, ctx, style):  # type: (Process, ContextType, Text) -> Text
+def printrdf(wflow, ctx, style):  # type: (Process, ContextType, str) -> Text
     """Serialize the CWL document into a string, ready for printing."""
     rdf = gather(wflow, ctx).serialize(format=style, encoding='utf-8')
     if not rdf:
         return u""
-    return rdf.decode('utf-8')
+    return cast(Text, rdf.decode('utf-8'))
 
 
 def lastpart(uri):  # type: (Any) -> Text

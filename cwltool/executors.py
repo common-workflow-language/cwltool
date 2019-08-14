@@ -73,9 +73,10 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         if isinstance(original_outdir, string_types):
             finaloutdir = os.path.abspath(original_outdir)
         runtime_context = runtime_context.copy()
-        runtime_context.outdir = tempfile.mkdtemp(
+        outdir = tempfile.mkdtemp(
             prefix=getdefault(runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
-        self.output_dirs.add(runtime_context.outdir)
+        self.output_dirs.add(outdir)
+        runtime_context.outdir = outdir
         runtime_context.mutation_manager = MutationManager()
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())

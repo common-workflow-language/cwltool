@@ -14,7 +14,7 @@ from collections import OrderedDict
 from getpass import getuser
 from io import BytesIO, FileIO, TextIOWrapper, open
 from socket import getfqdn
-from typing import (IO, Any, Callable, Collection, Dict, List, Generator,
+from typing import (IO, Any, Callable, Dict, List, Generator,
                     MutableMapping, Optional, Set, Tuple, Union, cast)
 from types import ModuleType
 
@@ -140,7 +140,7 @@ def _whoami():
     return (username, fullname)
 
 
-class WritableBagFile(FileIO): 
+class WritableBagFile(FileIO):
     """Writes files in research object."""
 
     def __init__(self, research_object, rel_path):
@@ -157,9 +157,9 @@ class WritableBagFile(FileIO):
         path = os.path.abspath(os.path.join(research_object.folder, _local_path(rel_path)))
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
-        super(WritableBagFile, self).__init__(path, mode="w")
+        super(WritableBagFile, self).__init__(str(path), mode="w")
 
-    
+
     def write(self, b):
         # type: (Union[bytes, Text]) -> int
         if isinstance(b, bytes):
@@ -328,7 +328,7 @@ class ProvenanceProfile():
         self.workflow_run_uri = run_uuid.urn
         self.generate_prov_doc()
 
-    def __str__(self):  # type: () -> Text
+    def __str__(self):  # type: () -> str
         """Represent this Provenvance profile as a string."""
         return "ProvenanceProfile <%s> in <%s>" % (
             self.workflow_run_uri, self.research_object)
@@ -702,7 +702,7 @@ class ProvenanceProfile():
                 # Already processed this value, but it might not be in this PROV
                 entities = self.document.get_record(value["@id"])
                 if entities:
-                    return entities
+                    return entities[0]
                 # else, unknown in PROV, re-add below as if it's fresh
 
             # Base case - we found a File we need to update
@@ -781,21 +781,25 @@ class ProvenanceProfile():
             return entity
 
     def used_artefacts(self,
-                       job_order,            # type: Dict[Text, Any]
+                       job_order,            # type: Union[Dict[Any, Any], List[Dict[Any, Any]]]
                        process_run_id,       # type: str
                        name=None             # type: Optional[str]
                       ):  # type: (...) -> None
         """Add used() for each data artefact."""
-        # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
-        base = "main"
-        if name is not None:
-            base += "/" + name
-        for key, value in job_order.items():
-            prov_role = self.wf_ns["%s/%s" % (base, key)]
-            entity = self.declare_artefact(value)
-            self.document.used(
-                process_run_id, entity, datetime.datetime.now(), None,
-                {"prov:role": prov_role})
+        if isinstance(job_order, list):
+            for entry in job_order:
+                self.used_artefacts(entry, process_run_id, name)
+        else:
+            # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
+            base = "main"
+            if name is not None:
+                base += "/" + name
+            for key, value in job_order.items():
+                prov_role = self.wf_ns["%s/%s" % (base, key)]
+                entity = self.declare_artefact(value)
+                self.document.used(
+                    process_run_id, entity, datetime.datetime.now(), None,
+                    {"prov:role": prov_role})
 
     def generate_output_prov(self,
                              final_output,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -803,26 +807,30 @@ class ProvenanceProfile():
                              name             # type: Optional[Text]
                             ):   # type: (...) -> None
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
-        # Timestamp should be created at the earliest
-        timestamp = datetime.datetime.now()
+        if isinstance(final_output, list):
+            for entry in final_output:
+                self.generate_output_prov(entry, process_run_id, name)
+        else:
+            # Timestamp should be created at the earliest
+            timestamp = datetime.datetime.now()
 
-        # For each output, find/register the corresponding
-        # entity (UUID) and document it as generated in
-        # a role corresponding to the output
-        for output, value in final_output.items():
-            entity = self.declare_artefact(value)
-            if name is not None:
-                name = urllib.parse.quote(str(name), safe=":/,#")
-                # FIXME: Probably not "main" in nested workflows
-                role = self.wf_ns["main/%s/%s" % (name, output)]
-            else:
-                role = self.wf_ns["main/%s" % output]
+            # For each output, find/register the corresponding
+            # entity (UUID) and document it as generated in
+            # a role corresponding to the output
+            for output, value in final_output.items():
+                entity = self.declare_artefact(value)
+                if name is not None:
+                    name = urllib.parse.quote(str(name), safe=":/,#")
+                    # FIXME: Probably not "main" in nested workflows
+                    role = self.wf_ns["main/%s/%s" % (name, output)]
+                else:
+                    role = self.wf_ns["main/%s" % output]
 
-            if not process_run_id:
-                process_run_id = self.workflow_run_uri
+                if not process_run_id:
+                    process_run_id = self.workflow_run_uri
 
-            self.document.wasGeneratedBy(
-                entity, process_run_id, timestamp, None, {"prov:role": role})
+                self.document.wasGeneratedBy(
+                    entity, process_run_id, timestamp, None, {"prov:role": role})
 
     def prospective_prov(self, job):
         # type: (Any) -> None
@@ -966,7 +974,7 @@ class ResearchObject():
                 "This ResearchObject has already been closed and is not "
                 "available for futher manipulation.")
 
-    def __str__(self):  # type: () -> Text
+    def __str__(self):  # type: () -> str
         """Represent this RO as a string."""
         return "ResearchObject <{}> in <{}>".format(self.ro_uuid, self.folder)
 
@@ -1083,10 +1091,10 @@ class ResearchObject():
             self._file_provenance[rel_path] = {"createdOn": timestamp.isoformat()}
 
     def _ro_aggregates(self):
-        # type: () -> List[Dict[str, Any]]
+        # type: () -> List[Dict[Text, Any]]
         """Gather dictionary of files to be added to the manifest."""
         def guess_mediatype(rel_path):
-            # type: (str) -> Dict[str, str]
+            # type: (Text) -> Dict[Text, Any]
             """Return the mediatypes."""
             media_types = {
                 # Adapted from
@@ -1102,11 +1110,11 @@ class ResearchObject():
                 "cwl": 'text/x+yaml; charset="UTF-8"',
                 "provn": 'text/provenance-notation; charset="UTF-8"',
                 "nt": 'application/n-triples',
-            }
+                }  # type: Dict[Text, Text]
             conforms_to = {
                 "provn": 'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
                 "cwl": 'https://w3id.org/cwl/',
-            }
+                }  # type: Dict[Text, Text]
 
             prov_conforms_to = {
                 "provn": 'http://www.w3.org/TR/2013/REC-prov-n-20130430/',
@@ -1116,15 +1124,15 @@ class ResearchObject():
                 "jsonld": 'http://www.w3.org/TR/2013/REC-prov-o-20130430/',
                 "xml": 'http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/',
                 "json": 'http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/',
-            }
+                }  # type: Dict[Text, Text]
 
 
-            extension = rel_path.rsplit(".", 1)[-1].lower()  # type: Optional[str]
+            extension = rel_path.rsplit(".", 1)[-1].lower()  # type: Optional[Text]
             if extension == rel_path:
                 # No ".", no extension
                 extension = None
 
-            local_aggregate = {}  # type: Dict[str, Any]
+            local_aggregate = {}  # type: Dict[Text, Any]
             if extension in media_types:
                 local_aggregate["mediatype"] = media_types[extension]
 
@@ -1144,9 +1152,9 @@ class ResearchObject():
                     local_aggregate["conformsTo"] = prov_conforms_to[extension]
             return local_aggregate
 
-        aggregates = [] # type: List[Dict[Text, Text]]
+        aggregates = [] # type: List[Dict[Text, Any]]
         for path in self.bagged_size.keys():
-            aggregate_dict = {}  # type: Dict[str, Any]
+            aggregate_dict = {}  # type: Dict[Text, Any]
 
             temp_path = PurePosixPath(path)
             folder = temp_path.parent
@@ -1188,11 +1196,11 @@ class ResearchObject():
                 # aggregate it.
                 continue
 
-            rel_aggregates = {} # type: Dict[str, Any]
+            rel_aggregates = {} # type: Dict[Text, Any]
             # These are local paths like metadata/provenance - but
             # we need to relativize them for our current directory for
             # as we are saved in metadata/manifest.json
-            uri = PurePosixPath(METADATA).relative_to(path)
+            uri = str(Path(os.pardir)/path)
 
             rel_aggregates["uri"] = uri
             rel_aggregates.update(guess_mediatype(path))
@@ -1208,7 +1216,7 @@ class ResearchObject():
         return aggregates
 
     def add_uri(self, uri, timestamp=None):
-        # type: (str, Optional[datetime.datetime]) -> Dict[Text, Text]
+        # type: (str, Optional[datetime.datetime]) -> Dict[Text, Any]
         self.self_check()
         aggr = self._self_made(timestamp=timestamp)
         aggr["uri"] = uri
@@ -1224,10 +1232,10 @@ class ResearchObject():
                    for c in content]
         uri = uuid.uuid4().urn
         ann = {
-            "uri": uri,
-            "about": about,
-            "content": content,
-            "oa:motivatedBy": {"@id": motivated_by}
+            u"uri": uri,
+            u"about": about,
+            u"content": content,
+            u"oa:motivatedBy": {"@id": motivated_by}
         }
         self.annotations.append(ann)
         return uri
@@ -1245,7 +1253,7 @@ class ResearchObject():
 
         # How was it run?
         # FIXME: Only primary*
-        prov_files = [PurePosixPath(METADATA).relative_to(p) for p in self.tagfiles
+        prov_files = [str(PurePosixPath(p).relative_to(METADATA)) for p in self.tagfiles
                       if p.startswith(_posix_path(PROVENANCE))
                       and "/primary." in p]
         annotations.append({
@@ -1293,7 +1301,7 @@ class ResearchObject():
         # type: () -> None
 
         # Does not have to be this order, but it's nice to be consistent
-        manifest = OrderedDict()  # type: Dict[str, Any]
+        manifest = OrderedDict()  # type: Dict[Text, Any]
         manifest["@context"] = [
             {"@base": "%s%s/" % (self.base_uri, _posix_path(METADATA))},
             "https://w3id.org/bundle/context"
@@ -1426,7 +1434,7 @@ class ResearchObject():
         return rel_path
 
     def _self_made(self, timestamp=None):
-        # type: (Optional[datetime.datetime]) -> Dict[str, Any]
+        # type: (Optional[datetime.datetime]) -> Dict[Text, Any]
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return {

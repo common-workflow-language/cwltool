@@ -176,7 +176,7 @@ def downloadHttpFile(httpurl):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
     r.close()
-    return f.name
+    return str(f.name)
 
 def ensure_writable(path):  # type: (Text) -> None
     if os.path.isdir(path):

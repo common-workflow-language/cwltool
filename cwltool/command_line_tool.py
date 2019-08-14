@@ -415,8 +415,6 @@ class CommandLineTool(Process):
                         outputs,           # type: List[Dict[Text, Any]]
                         processStatus      # type: Text
                         ):  # type: (...) -> None
-                    if processStatus == "success":
-                        os.remove(jobcachepending)
                     # save status to the lockfile then release the lock
                     jobcachelock.seek(0)
                     jobcachelock.truncate()
@@ -655,11 +653,12 @@ class CommandLineTool(Process):
                                   json_dumps(ret, indent=4))
             else:
                 for i, port in enumerate(ports):
-                    def makeWorkflowException(msg):  # type: (Text) -> WorkflowException
-                        return WorkflowException(
-                            u"Error collecting output for parameter '%s':\n%s"
-                            % (shortname(port["id"]), msg))
-                    with SourceLine(ports, i, makeWorkflowException, debug):
+                    class ParameterOutputWorkflowException(WorkflowException):
+                        def __init__(self, msg, **kwargs):  # type: (Text, **Any) -> None
+                            super(ParameterOutputWorkflowException, self).__init__(
+                                u"Error collecting output for parameter '%s':\n%s"
+                                % (shortname(port["id"]), msg), kwargs)
+                    with SourceLine(ports, i, ParameterOutputWorkflowException, debug):
                         fragment = shortname(port["id"])
                         ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
                                                             compute_checksum=compute_checksum)

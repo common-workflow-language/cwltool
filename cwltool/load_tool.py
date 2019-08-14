@@ -198,6 +198,10 @@ def resolve_and_validate_document(
                                  ):
     # type: (...) -> Tuple[LoadingContext, Text]
     """Validate a CWL document."""
+    if not loadingContext.loader:
+        raise ValueError("loadingContext must have a loader.")
+    else:
+        loader = loadingContext.loader
     loadingContext = loadingContext.copy()
 
     if not isinstance(workflowobj, MutableMapping):
@@ -206,7 +210,7 @@ def resolve_and_validate_document(
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
+        jobobj, _ = loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
         del cast(Dict[Text, Any], jobobj)["https://w3id.org/cwl/cwl#tool"]
 
@@ -220,7 +224,7 @@ def resolve_and_validate_document(
     if not cwlVersion and fileuri != uri:
         # The tool we're loading is a fragment of a bigger file.  Get
         # the document root element and look for cwlVersion there.
-        metadata = fetch_document(fileuri, loadingContext)[1]
+        metadata = fetch_document(fileuri, loadingContext)[1]  # type: Dict[Text, Any]
         cwlVersion = metadata.get("cwlVersion")
     if not cwlVersion:
         raise ValidationException(
@@ -275,7 +279,7 @@ def resolve_and_validate_document(
     processobj = None  # type: Union[CommentedMap, CommentedSeq, Text, None]
     document_loader = Loader(sch_document_loader.ctx,
                              schemagraph=sch_document_loader.graph,
-                             idx=loadingContext.loader.idx,
+                             idx=loader.idx,
                              cache=sch_document_loader.cache,
                              fetcher_constructor=loadingContext.fetcher_constructor,
                              skip_schemas=skip_schemas)

@@ -365,7 +365,7 @@ class Builder(HasReqsHints):
                 visit_class(datum, ("File", "Directory"), _capture_files)
 
         # Position to front of the sort key
-        if binding is not None:
+        if binding:
             for bi in bindings:
                 bi["position"] = binding["position"] + bi["position"]
             bindings.append(binding)

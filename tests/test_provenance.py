@@ -266,7 +266,7 @@ def _arcp2file(base_path, uri):
 
     path = parsed.path[1:]  # Strip first /
     # Convert to local path, in case it uses \ on Windows
-    lpath = provenance._convert_path(path, posixpath, os.path)
+    lpath = str(Path(path))
     return os.path.join(base_path, lpath)
 
 def check_ro(base_path, nested=False):
@@ -510,28 +510,6 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
             prim_nameext = set(g.objects(prim, CWLPROV.nameext)).pop()
             assert str(prim_basename) == "%s%s" % (prim_nameroot, prim_nameext)
 
-
-valid_path_conversions = [
-    ('a\\b\\c', ntpath, posixpath, 'a/b/c'),
-    ('a/b/c', posixpath, ntpath, 'a\\b\\c'),
-    ('a/b/c', posixpath, posixpath, 'a/b/c'),
-    ('a\\b\\c', posixpath, ntpath, 'a\\b\\c')
-]
-
-@pytest.mark.parametrize('path,from_type,to_type,expected', valid_path_conversions)
-def test_path_conversion(path, expected, from_type, to_type):
-    assert provenance._convert_path(path, from_type, to_type) == expected
-
-
-invalid_path_conversions = [
-    ('/absolute/path', posixpath, ntpath),
-    ('D:\\absolute\\path', ntpath, posixpath)
-]
-
-@pytest.mark.parametrize('path,from_type,to_type', invalid_path_conversions)
-def test_failing_path_conversion(path, from_type, to_type):
-    with pytest.raises(ValueError):
-        provenance._convert_path(path, from_type, to_type)
 
 @pytest.fixture
 def research_object():
