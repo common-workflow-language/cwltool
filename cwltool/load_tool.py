@@ -40,7 +40,6 @@ jobloaderctx = {
     u"cwltool": "http://commonwl.org/cwltool#",
     u"path": {u"@type": u"@id"},
     u"location": {u"@type": u"@id"},
-    u"format": {u"@type": u"@id"},
     u"id": u"@id"
 }  # type: ContextType
 
@@ -291,6 +290,9 @@ def resolve_and_validate_document(loadingContext,
     if not isinstance(metadata, CommentedMap):
         raise ValidationException("metadata must be a CommentedMap, was %s" % type(metadata))
 
+    if isinstance(processobj, CommentedMap):
+        uri = processobj["id"]
+
     _convert_stdstreams_to_files(workflowobj)
 
     if preprocess_only:
@@ -303,16 +305,9 @@ def resolve_and_validate_document(loadingContext,
     if loadingContext.do_update in (True, None):
         if "cwlVersion" not in metadata:
             metadata["cwlVersion"] = cwlVersion
-        processobj = cast(CommentedMap, cmap(update.update(
-            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
-        if isinstance(processobj, MutableMapping):
-            document_loader.idx[processobj["id"]] = processobj
-        elif isinstance(processobj, MutableSequence):
-            document_loader.idx[metadata["id"]] = metadata
-            for po in processobj:
-                document_loader.idx[po["id"]] = po
-        else:
-            raise Exception("'processobj' was not MutableMapping or MutableSequence %s" % type(processobj))
+        processobj = update.update(
+            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)
+        document_loader.idx[processobj["id"]] = processobj
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj

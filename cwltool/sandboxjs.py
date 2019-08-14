@@ -12,6 +12,7 @@ from io import BytesIO
 from typing import Any, Dict, List, Tuple, Union
 
 import six
+from future.utils import raise_from
 from pkg_resources import resource_stream
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -374,6 +375,6 @@ def execjs(js,                       # type: Text
     try:
         return json.loads(stdout)
     except ValueError as err:
-        raise JavascriptException(
+        raise_from(JavascriptException(
             u"{}\nscript was:\n{}\nstdout was: '{}'\nstderr was: '{}'\n".format(
-                err, fn_linenum(), stdout, stderr))
+                err, fn_linenum(), stdout, stderr)), err)

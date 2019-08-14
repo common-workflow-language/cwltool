@@ -24,6 +24,7 @@ import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from six import PY2, with_metaclass
+from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 
@@ -344,14 +345,14 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         except OSError as e:
             if e.errno == 2:
                 if runtime:
-                    _logger.error(u"'%s' not found: %s", runtime[0], e)
+                    _logger.error(u"'%s' not found: %s", runtime[0], Text(e))
                 else:
-                    _logger.error(u"'%s' not found: %s", self.command_line[0], e)
+                    _logger.error(u"'%s' not found: %s", self.command_line[0], Text(e))
             else:
                 _logger.exception(u"Exception while running job")
             processStatus = "permanentFail"
         except WorkflowException as err:
-            _logger.error(u"[job %s] Job error:\n%s", self.name, err)
+            _logger.error(u"[job %s] Job error:\n%s", self.name, Text(err))
             processStatus = "permanentFail"
         except Exception as e:
             _logger.exception(u"Exception while running job")
@@ -420,7 +421,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
-            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
+            _logger.debug(u"Could not collect memory usage, job ended before monitoring began.")
 
 
 class CommandLineJob(JobBase):
@@ -441,9 +442,9 @@ class CommandLineJob(JobBase):
 
         env = self.environment
         vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not None:
+        if runtimeContext.preserve_entire_environment is not False:
             vars_to_preserve = os.environ
-        if vars_to_preserve is not None:
+        if vars_to_preserve:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
                     # On Windows, subprocess env can't handle unicode.
@@ -659,8 +660,8 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 container = "Singularity" if runtimeContext.singularity else "Docker"
                 _logger.debug(u"%s error", container, exc_info=True)
                 if docker_is_req:
-                    raise UnsupportedRequirement(
-                        "%s is required to run this tool: %s" % (container, err))
+                    raise_from(UnsupportedRequirement(
+                        "%s is required to run this tool: %s" % (container, Text(err))), err)
                 else:
                     raise WorkflowException(
                         "{0} is not available for this tool, try "
@@ -679,21 +680,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         elif runtimeContext.user_space_docker_cmd:
             monitor_function = functools.partial(self.process_monitor)
         self._execute(runtime, env, runtimeContext, monitor_function)
-
-    @staticmethod
-    def docker_get_memory(cid):  # type: (Text) -> int
-        memory = None
-        try:
-            memory = subprocess.check_output(
-                ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  # type: ignore
-        except subprocess.CalledProcessError:
-            pass
-        if memory:
-            value = int(memory)
-            if value != 0:
-                return value
-        return psutil.virtual_memory().total
 
     def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
         # type: (Text, Text, bool, subprocess.Popen) -> None
@@ -715,7 +701,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     cid = cidhandle.readline().strip()
             except (OSError, IOError):
                 cid = None
-        max_mem = self.docker_get_memory(cid)
+        max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         with open(stats_file.name, mode="w") as stats_file_handle:
@@ -735,7 +721,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 except ValueError:
                     break
         _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     int((max_mem_percent * max_mem) / (2 ** 20)))
+                     int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 

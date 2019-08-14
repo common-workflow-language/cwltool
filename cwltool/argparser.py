@@ -250,6 +250,12 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
                         help="Enable loading and running cwltool extensions "
                              "to CWL spec.", default=False)
 
+    exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument("--enable-color", action="store_true",
+                        help="Enable colored logging (default true)", default=True)
+    exgroup.add_argument("--disable-color", action="store_false", dest="enable_color",
+                        help="Disable colored logging (default false)")
+
     parser.add_argument("--default-container",
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")
     parser.add_argument("--no-match-user", action="store_true",

@@ -362,6 +362,7 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
             del p["path"]
 
     ns = {}  # type: Dict[Text, Union[Dict[Any, Any], Text, Iterable[Text]]]
+    ns.update(job_order_object.get("$namespaces", {}))
     ns.update(process.metadata.get("$namespaces", {}))
     ld = Loader(ns)
 
@@ -551,12 +552,14 @@ def main(argsl=None,                   # type: List[str]
             stderr_handler.setLevel(logging.DEBUG)
             rdflib_logger.setLevel(logging.DEBUG)
         formatter = None  # type: Optional[logging.Formatter]
+        fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
         if args.timestamps:
-            formatter = coloredlogs.ColoredFormatter(
+            formatter = fmtclass(
                 "[%(asctime)s] %(levelname)s %(message)s",
                 "%Y-%m-%d %H:%M:%S")
+
         else:
-            formatter = coloredlogs.ColoredFormatter("%(levelname)s %(message)s")
+            formatter = fmtclass("%(levelname)s %(message)s")
         stderr_handler.setFormatter(formatter)
         ##
 
@@ -573,7 +576,6 @@ def main(argsl=None,                   # type: List[str]
             if os.path.isfile("CWLFile"):
                 setattr(args, "workflow", "CWLFile")
             else:
-                _logger.error("")
                 _logger.error("CWL document required, no input file was provided")
                 arg_parser().print_help()
                 return 1
@@ -737,18 +739,18 @@ def main(argsl=None,                   # type: List[str]
                 return 0
 
         except (validate.ValidationException) as exc:
-            _logger.error(u"Tool definition failed validation:\n%s", exc,
+            _logger.error(u"Tool definition failed validation:\n%s", Text(exc),
                           exc_info=args.debug)
             return 1
         except (RuntimeError, WorkflowException) as exc:
-            _logger.error(u"Tool definition failed initialization:\n%s", exc,
+            _logger.error(u"Tool definition failed initialization:\n%s", Text(exc),
                           exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
                 u"I'm sorry, I couldn't load this CWL file%s.\nThe error was: %s",
                 try_again_msg,
-                exc if not args.debug else "",
+                Text(exc) if not args.debug else "",
                 exc_info=args.debug)
             return 1
 
@@ -774,7 +776,7 @@ def main(argsl=None,                   # type: List[str]
                     try:
                         os.makedirs(os.path.dirname(getattr(runtimeContext, dirprefix)))
                     except Exception as e:
-                        _logger.error("Failed to create directory: %s", e)
+                        _logger.error("Failed to create directory: %s", Text(e))
                         return 1
 
         if args.cachedir:
@@ -856,12 +858,12 @@ def main(argsl=None,                   # type: List[str]
             return 0
 
         except (validate.ValidationException) as exc:
-            _logger.error(u"Input object failed validation:\n%s", exc,
+            _logger.error(u"Input object failed validation:\n%s", Text(exc),
                           exc_info=args.debug)
             return 1
         except UnsupportedRequirement as exc:
             _logger.error(
-                u"Workflow or tool uses unsupported feature:\n%s", exc,
+                u"Workflow or tool uses unsupported feature:\n%s", Text(exc),
                 exc_info=args.debug)
             return 33
         except WorkflowException as exc:
@@ -871,7 +873,7 @@ def main(argsl=None,                   # type: List[str]
             return 1
         except Exception as exc:  # pylint: disable=broad-except
             _logger.error(
-                u"Unhandled error%s:\n  %s", try_again_msg, exc, exc_info=args.debug)
+                u"Unhandled error%s:\n  %s", try_again_msg, Text(exc), exc_info=args.debug)
             return 1
 
     finally:

@@ -24,6 +24,7 @@ from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from six import PY3, iteritems, itervalues, string_types, with_metaclass
 from six.moves import urllib
+from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
@@ -556,7 +557,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                     _logger.error(
                         "Failed to read options file %s",
                         loadingContext.js_hint_options_file)
-                    raise err
+                    raise
             else:
                 validate_js_options = None
             if self.doc_schema is not None:
@@ -654,7 +655,7 @@ hints:
 """ % (filecount[0], k))))
 
         except (validate.ValidationException, WorkflowException) as err:
-            raise WorkflowException("Invalid job input record:\n" + Text(err))
+            raise_from(WorkflowException("Invalid job input record:\n" + Text(err)), err)
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()
@@ -981,8 +982,12 @@ def scandeps(base,                          # type: Text
                             base, u, reffields, urlfields, loadref,
                             urljoin=urljoin, nestdirs=nestdirs))
                     else:
-                        sub = loadref(base, u)
                         subid = urljoin(base, u)
+                        basedf, _ = urllib.parse.urldefrag(base)
+                        subiddf, _ = urllib.parse.urldefrag(subid)
+                        if basedf == subiddf:
+                            continue
+                        sub = loadref(base, u)
                         deps = {
                             "class": "File",
                             "location": subid,
