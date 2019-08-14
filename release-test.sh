@@ -37,7 +37,7 @@ export HEAD=${TRAVIS_PULL_REQUEST_SHA:-$(git rev-parse HEAD)}
 
 if [ "${RELEASE_SKIP}" != "head" ]
 then
-	virtualenv testenv1
+	virtualenv testenv1 -p python3
 	# First we test the head
 	# shellcheck source=/dev/null
 	source testenv1/bin/activate
@@ -58,9 +58,9 @@ then
 	test_prefix=../ run_tests; popd
 fi
 
-virtualenv testenv2
-virtualenv testenv3
-virtualenv testenv4
+virtualenv testenv2 -p python3
+virtualenv testenv3 -p python3
+virtualenv testenv4 -p python3
 rm -Rf testenv[234]/local
 
 # Secondly we test via pip

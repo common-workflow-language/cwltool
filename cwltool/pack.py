@@ -8,6 +8,7 @@ from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from schema_salad.ref_resolver import SubLoader
+from schema_salad.sourceline import cmap
 from six import iteritems, string_types
 from six.moves import urllib
 from typing_extensions import Text  # pylint: disable=unused-import
@@ -170,8 +171,8 @@ def pack(document_loader,  # type: Loader
     for r in sortedids:
         rewrite_id(r, uri)
 
-    packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
-              }  # type: Dict[Text, Any]
+    packed = CommentedMap((("$graph", CommentedSeq()),
+                           ("cwlVersion", metadata["cwlVersion"])))
     namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]

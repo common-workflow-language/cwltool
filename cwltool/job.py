@@ -422,7 +422,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
-            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
+            _logger.debug(u"Could not collect memory usage, job ended before monitoring began.")
 
 
 class CommandLineJob(JobBase):
@@ -443,9 +443,9 @@ class CommandLineJob(JobBase):
 
         env = self.environment
         vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not None:
+        if runtimeContext.preserve_entire_environment is not False:
             vars_to_preserve = os.environ
-        if vars_to_preserve is not None:
+        if vars_to_preserve:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
                     # On Windows, subprocess env can't handle unicode.
@@ -717,7 +717,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                     cid = cidhandle.readline().strip()
             except (OSError, IOError):
                 cid = None
-        max_mem = self.docker_get_memory(cid)
+        max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         with open(stats_file.name, mode="w") as stats_file_handle:
@@ -737,7 +737,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 except ValueError:
                     break
         _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     int((max_mem_percent * max_mem) / (2 ** 20)))
+                     int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 

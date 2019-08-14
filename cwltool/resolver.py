@@ -4,13 +4,14 @@ from __future__ import absolute_import
 import os
 import sys
 
-from typing import Optional, Text
+from typing import Any, Optional, Text
 
 from six.moves import urllib
 
 from schema_salad.ref_resolver import Loader
 
 from .loghandler import _logger
+from schema_salad.ref_resolver import Loader
 
 from pathlib2 import Path
 

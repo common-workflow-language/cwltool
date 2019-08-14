@@ -981,8 +981,12 @@ def scandeps(base,                          # type: Text
                             base, u, reffields, urlfields, loadref,
                             urljoin=urljoin, nestdirs=nestdirs))
                     else:
-                        sub = loadref(base, u)
                         subid = urljoin(base, u)
+                        basedf, _ = urllib.parse.urldefrag(base)
+                        subiddf, _ = urllib.parse.urldefrag(subid)
+                        if basedf == subiddf:
+                            continue
+                        sub = loadref(base, u)
                         deps = {
                             "class": "File",
                             "location": subid,

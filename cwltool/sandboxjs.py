@@ -9,7 +9,7 @@ import select
 import sys
 import threading
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import cast, Any, Dict, List, Optional, Tuple, Union
 
 import six
 from future.utils import raise_from

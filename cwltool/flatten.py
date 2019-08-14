@@ -24,4 +24,4 @@ def flatten(l, ltypes=(list, tuple)):
             else:
                 l[i:i + 1] = l[i]
         i += 1
-    return cast(Callable[[Any], List[Text]], ltype)(l)
+    return cast(Callable[[Any], List[Any]], ltype)(l)

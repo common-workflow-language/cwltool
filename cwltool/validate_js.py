@@ -3,8 +3,8 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
-                    Tuple, Union, cast)
+from typing import (cast, Any, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union)
 
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
@@ -15,7 +15,9 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.validate import Schema  # pylint: disable=unused-import
 from schema_salad.validate import validate_ex
 
+from .errors import WorkflowException
 from .expression import scanner as scan_expression
+from .expression import SubstitutionError
 from .loghandler import _logger
 from .sandboxjs import code_fragment_to_js, exec_js_process
 from .utils import json_dumps
@@ -188,7 +190,14 @@ def validate_js_expressions(tool,                # type: CommentedMap
 
     for expression, source_line in expressions:
         unscanned_str = expression.strip()
-        scan_slice = scan_expression(unscanned_str)
+        try:
+            scan_slice = scan_expression(unscanned_str)
+        except SubstitutionError as se:
+            if source_line:
+                source_line.raise_type = WorkflowException
+                raise source_line.makeError(str(se))
+            else:
+                raise se
 
         while scan_slice:
             if unscanned_str[scan_slice[0]] == '$':

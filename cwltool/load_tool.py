@@ -306,16 +306,9 @@ def resolve_and_validate_document(
     if loadingContext.do_update in (True, None):
         if "cwlVersion" not in metadata:
             metadata["cwlVersion"] = cwlVersion
-        processobj = cast(CommentedMap, cmap(update.update(
-            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
-        if isinstance(processobj, MutableMapping):
-            document_loader.idx[processobj["id"]] = processobj
-        elif isinstance(processobj, MutableSequence):
-            document_loader.idx[metadata["id"]] = metadata
-            for po in processobj:
-                document_loader.idx[po["id"]] = po
-        else:
-            raise Exception("'processobj' was not MutableMapping or MutableSequence %s" % type(processobj))
+        processobj = update.update(
+            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)
+        document_loader.idx[processobj["id"]] = processobj
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj

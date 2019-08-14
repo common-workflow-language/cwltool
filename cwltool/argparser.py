@@ -254,7 +254,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--enable-color", action="store_true",
                         help="Enable colored logging (default true)", default=True)
     exgroup.add_argument("--disable-color", action="store_false", dest="enable_color",
-                        help="Enable colored logging (default true)")
+                        help="Disable colored logging (default false)")
 
     parser.add_argument("--default-container",
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")

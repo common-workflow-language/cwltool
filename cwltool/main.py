@@ -3,7 +3,6 @@
 from __future__ import absolute_import, print_function
 
 import argparse
-import collections
 import copy
 import functools
 import io
@@ -27,6 +26,11 @@ from schema_salad.sourceline import strip_dup_lineno, cmap
 from six import string_types, iteritems, PY3
 from typing_extensions import Text
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
+
+if PY3:
+  from collections.abc import Iterable, Sequence, MutableSequence
+else:  # Needed for Py3.8
+  from collections import Iterable, Sequence, MutableSequence
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -111,7 +115,7 @@ def generate_example_input(inptype,     # type: Any
                 u'Directory': yaml.comments.CommentedMap([
                     ('class', 'Directory'), ('path', 'a/directory/path')])
                }  # type: Dict[Text, Any]
-    if isinstance(inptype, collections.MutableSequence):
+    if isinstance(inptype, MutableSequence):
         optional = False
         if 'null' in inptype:
             inptype.remove('null')
@@ -131,7 +135,7 @@ def generate_example_input(inptype,     # type: Any
                 example.yaml_add_eol_comment(e_comment, index)
             if optional:
                 comment = u"optional"
-    elif isinstance(inptype, collections.Mapping) and 'type' in inptype:
+    elif isinstance(inptype, Mapping) and 'type' in inptype:
         if inptype['type'] == 'array':
             if len(inptype['items']) == 1 and 'type' in inptype['items'][0] \
                     and inptype['items'][0]['type'] == 'enum':
@@ -193,16 +197,16 @@ def realize_input_schema(input_types,  # type: MutableSequence[Dict[Text, Any]]
                 input_type_name = entry
             if input_type_name in schema_defs:
                 entry = input_types[index] = schema_defs[input_type_name]
-        if isinstance(entry, collections.Mapping):
+        if isinstance(entry, Mapping):
             if isinstance(entry['type'], string_types) and '#' in entry['type']:
                 _, input_type_name = entry['type'].split('#')
                 if input_type_name in schema_defs:
                     input_types[index]['type'] = realize_input_schema(
                         schema_defs[input_type_name], schema_defs)
-            if isinstance(entry['type'], collections.MutableSequence):
+            if isinstance(entry['type'], MutableSequence):
                 input_types[index]['type'] = realize_input_schema(
                     entry['type'], schema_defs)
-            if isinstance(entry['type'], collections.Mapping):
+            if isinstance(entry['type'], Mapping):
                 input_types[index]['type'] = realize_input_schema(
                     [input_types[index]['type']], schema_defs)
             if entry['type'] == 'array':
@@ -570,7 +574,6 @@ def main(argsl=None,                   # type: Optional[List[str]]
             if os.path.isfile("CWLFile"):
                 setattr(args, "workflow", "CWLFile")
             else:
-                _logger.error("")
                 _logger.error("CWL document required, no input file was provided")
                 arg_parser().print_help()
                 return 1

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Setup for the reference implementation of the CWL standards."""
+from __future__ import print_function
 import os
 import sys
 
@@ -18,6 +19,13 @@ except ImportError:
 
 NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
+
+if sys.version_info < (3, 0):
+    print("""
+DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020.
+Please upgrade your Python as the Python 2.7 version of cwltool won't be
+maintained after that date.
+""", file=sys.stderr)
 
 setup(name='cwltool',
       version='1.0',

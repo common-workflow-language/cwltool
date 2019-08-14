@@ -63,14 +63,17 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
     def update_secondaryFiles(t):
         # type: (Any) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
-        if isinstance(t, MutableSequence):
-            for index, item in enumerate(t):
-                t[index] = update_secondaryFiles(item)
-            return t
+        if isinstance(t, CommentedSeq):
+            new_seq = copy.deepcopy(t)
+            for index, entry in enumerate(t):
+                new_seq[index] = update_secondaryFiles(entry)
+            return new_seq
+        elif isinstance(t, MutableSequence):
+            return CommentedSeq([update_secondaryFiles(p) for p in t])
         elif isinstance(t, MutableMapping):
             return t
         else:
-            return {"pattern": t}
+            return CommentedMap([("pattern", t)])
 
     def fix_inputBinding(t):  # type: (Dict[Text, Any]) -> None
         for i in t["inputs"]:
@@ -91,9 +94,9 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     if isinstance(upd, MutableMapping) and "$graph" in upd:
         upd = upd["$graph"]
     for proc in aslist(upd):
-        proc.setdefault("hints", [])
-        proc["hints"].insert(0, {"class": "NetworkAccess", "networkAccess": True})
-        proc["hints"].insert(0, {"class": "LoadListingRequirement", "loadListing": "deep_listing"})
+        proc.setdefault("hints", CommentedSeq())
+        proc["hints"].insert(0, CommentedMap([("class", "NetworkAccess"),( "networkAccess", True)]))
+        proc["hints"].insert(0, CommentedMap([("class", "LoadListingRequirement"),("loadListing", "deep_listing")]))
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
@@ -129,7 +132,7 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
                  metadata,   # type: CommentedMap
                  enable_dev  # type: bool
 ):
-    # type: (...) -> Tuple[Union[CommentedSeq, CommentedMap], Text]
+    # type: (...) -> Tuple[CommentedMap, Text]
     """Check the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
@@ -172,16 +175,15 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
 
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> Union[CommentedSeq, CommentedMap]
+    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> CommentedMap
 
-    if (metadata.get("http://commonwl.org/cwltool#original_cwlVersion") or
-        (isinstance(doc, CommentedMap) and doc.get("http://commonwl.org/cwltool#original_cwlVersion"))):
-        return doc
-
-    (cdoc, originalversion) = checkversion(doc, metadata, enable_dev)
-    version = originalversion
+    if isinstance(doc, CommentedMap):
+            if metadata.get("http://commonwl.org/cwltool#original_cwlVersion") \
+                    or doc.get("http://commonwl.org/cwltool#original_cwlVersion"):
+                return doc
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
+    originalversion = copy.copy(version)
 
     nextupdate = identity  # type: Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 
