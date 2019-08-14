@@ -801,13 +801,13 @@ def main(argsl=None,                   # type: Optional[List[str]]
 
         if not executor:
             if args.parallel:
-                executor3 = MultithreadedJobExecutor()
-                runtimeContext.select_resources = executor3.select_resources
-                executor2 = executor3 # type: JobExecutor
+                temp_executor = MultithreadedJobExecutor()
+                runtimeContext.select_resources = temp_executor.select_resources
+                real_executor = temp_executor  # type: JobExecutor
             else:
-                executor2 = SingleJobExecutor()
+                real_executor = SingleJobExecutor()
         else:
-            executor2 = executor
+            real_executor = executor
 
         try:
             runtimeContext.basedir = input_basedir
@@ -825,10 +825,9 @@ def main(argsl=None,                   # type: Optional[List[str]]
                     default_container=runtimeContext.default_container,
                     use_biocontainers=args.beta_use_biocontainers)
 
-            (out, status) = executor2(tool,
-                                      initialized_job_order_object,
-                                      runtimeContext,
-                                      logger=_logger)
+            (out, status) = real_executor(
+                tool, initialized_job_order_object, runtimeContext,
+                logger=_logger)
 
             if out is not None:
                 if runtimeContext.research_obj is not None:
