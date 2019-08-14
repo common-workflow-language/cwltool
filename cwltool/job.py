@@ -682,21 +682,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             monitor_function = functools.partial(self.process_monitor)
         self._execute(runtime, env, runtimeContext, monitor_function)
 
-    @staticmethod
-    def docker_get_memory(cid):  # type: (Text) -> int
-        memory = None
-        try:
-            memory = subprocess.check_output(
-                ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError:
-            pass
-        if memory:
-            value = int(memory)
-            if value != 0:
-                return value
-        return psutil.virtual_memory().total
-
     def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
         # type: (Text, Text, bool, subprocess.Popen) -> None
         """Record memory usage of the running Docker container."""
