@@ -36,7 +36,7 @@ def check_output_and_strip(cmd):  # type: (List[Text]) -> Optional[Text]
     """
     try:
         result = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        return result.strip()
+        return Text(result.strip())
     except (OSError, subprocess.CalledProcessError, TypeError, AttributeError):
         # OSError is raised if command doesn't exist
         # CalledProcessError is raised if command returns nonzero

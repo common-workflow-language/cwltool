@@ -4,9 +4,12 @@ from __future__ import absolute_import
 import os
 import sys
 
+from typing import Any, Optional, Text
+
 from six.moves import urllib
 
 from .loghandler import _logger
+from schema_salad.ref_resolver import Loader
 
 if sys.version_info < (3, 4):
     from pathlib2 import Path  # pylint: disable=import-error
@@ -16,7 +19,7 @@ else:
 if not getattr(__builtins__, "WindowsError", None):
     class WindowsError(OSError): pass
 
-def resolve_local(document_loader, uri):
+def resolve_local(document_loader, uri):  # type: (Loader, Text) -> Optional[Text]
     pathpart, frag = urllib.parse.urldefrag(uri)
 
     try:
@@ -46,7 +49,7 @@ def resolve_local(document_loader, uri):
     return None
 
 
-def tool_resolver(document_loader, uri):
+def tool_resolver(document_loader, uri):  # type: (Loader, Text) -> Optional[Text]
     for r in [resolve_local, resolve_ga4gh_tool]:
         ret = r(document_loader, uri)
         if ret is not None:
@@ -64,7 +67,7 @@ GA4GH_TRS_FILES = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/CWL/files"
 GA4GH_TRS_PRIMARY_DESCRIPTOR = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor/{3}"
 
 
-def resolve_ga4gh_tool(document_loader, uri):
+def resolve_ga4gh_tool(document_loader, uri):  # type: (Loader, Text) -> Optional[Text]
     path, version = uri.partition(":")[::2]
     if not version:
         version = "latest"

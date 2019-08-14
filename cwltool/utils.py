@@ -80,7 +80,7 @@ def docker_windows_path_adjust(path):
     if onWindows():
         split = path.split(':')
         if len(split) == 2:
-            if platform.win32_ver()[0] in ('7', '8'):  # type: ignore
+            if platform.win32_ver()[0] in ('7', '8'):
                 split[0] = split[0].lower()  # Docker toolbox uses lowecase windows Drive letters
             else:
                 split[0] = split[0].capitalize()
@@ -210,7 +210,7 @@ def bytes2str_in_dicts(inp  # type: Union[MutableMapping[Text, Any], MutableSequ
 
 
 def visit_class(rec, cls, op):
-    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    # type: (Any, Iterable[Any], Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to with "class" in cls."""
     if isinstance(rec, MutableMapping):
         if "class" in rec and rec.get("class") in cls:
@@ -222,7 +222,7 @@ def visit_class(rec, cls, op):
             visit_class(d, cls, op)
 
 def visit_field(rec, field, op):
-    # type: (Any, Iterable, Union[Callable[..., Any], partial[Any]]) -> None
+    # type: (Any, Iterable[Any], Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a function to mapping with 'field'."""
     if isinstance(rec, MutableMapping):
         if field in rec:
@@ -248,17 +248,17 @@ def random_outdir():  # type: () -> Text
 try:
     import fcntl  # type: ignore
 
-    def shared_file_lock(fd):  # type: (IO) -> None
+    def shared_file_lock(fd):  # type: (IO[Any]) -> None
         fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
 
-    def upgrade_lock(fd):  # type: (IO) -> None
+    def upgrade_lock(fd):  # type: (IO[Any]) -> None
         fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
 
 except ImportError:
     import msvcrt  # type: ignore
 
-    def shared_file_lock(fd):  # type: (IO) -> None
+    def shared_file_lock(fd):  # type: (IO[Any]) -> None
         msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
 
-    def upgrade_lock(fd):  # type: (IO) -> None
+    def upgrade_lock(fd):  # type: (IO[Any]) -> None
         pass
