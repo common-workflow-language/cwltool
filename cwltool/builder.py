@@ -254,8 +254,7 @@ class Builder(HasReqsHints):
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
-            if binding is not None\
-                    and "inputBinding" not in st\
+            if binding and "inputBinding" not in st\
                     and "type" in st\
                     and st["type"] == "array"\
                     and "itemSeparator" not in binding:
