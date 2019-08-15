@@ -38,7 +38,7 @@ else:  # we're not on Unix, so none of this matters
     pass
 
 _USERNS = None
-_SINGULARITY_VERSION = None
+_SINGULARITY_VERSION = ""
 
 def _singularity_supports_userns():  # type: ()->bool
     global _USERNS  # pylint: disable=global-statement
@@ -202,7 +202,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                               r,                      # type: Dict[Text, Text]
                               pull_image,             # type: bool
                               force_pull=False,       # type: bool
-                              tmp_outdir_prefix=None  # type: Text
+                              tmp_outdir_prefix=None  # type: Optional[Text]
                              ):
         # type: (...) -> Optional[Text]
         """
@@ -322,7 +322,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def create_runtime(self,
                        env,              # type: MutableMapping[Text, Text]
                        runtime_context   # type: RuntimeContext
-                      ):  # type: (...) -> Tuple[List, Optional[Text]]
+                      ):  # type: (...) -> Tuple[List[Text], Optional[Text]]
         """Return the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] \
             or False

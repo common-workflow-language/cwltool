@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import os
 from typing import Callable as tCallable  # pylint: disable=unused-import
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -40,9 +40,9 @@ class Callable(object):
 
 class Factory(object):
     def __init__(self,
-                 executor=None,        # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
-                 loading_context=None,  # type: LoadingContext
-                 runtime_context=None   # type: RuntimeContext
+                 executor=None,         # type: Optional[tCallable[...,Tuple[Dict[Text,Any], Text]]]
+                 loading_context=None,  # type: Optional[LoadingContext]
+                 runtime_context=None   # type: Optional[RuntimeContext]
                 ):  # type: (...) -> None
         """Easy way to load a CWL document for execution."""
         if executor is None:
@@ -56,7 +56,7 @@ class Factory(object):
         else:
             self.runtime_context = runtime_context
 
-    def make(self, cwl):
+    def make(self, cwl):  # type: (Union[Text, Dict[Text, Any]]) -> Callable
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):

@@ -54,7 +54,7 @@ def adjustDirObjs(rec, op):
 
 def normalizeFilesDirs(job):
     # type: (Optional[Union[List[Dict[Text, Any]], MutableMapping[Text, Any], Directory]]) -> None
-    def addLocation(d):
+    def addLocation(d):  # type: (Dict[Text, Any]) -> None
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
                 raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
@@ -99,7 +99,7 @@ def normalizeFilesDirs(job):
 def dedup(listing):  # type: (List[Any]) -> List[Any]
     marksub = set()
 
-    def mark(d):
+    def mark(d):  # type: (Dict[Text, Text]) -> None
         marksub.add(d["location"])
 
     for l in listing:
@@ -120,7 +120,7 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 def get_listing(fs_access, rec, recursive=True):
     # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
     if rec.get("class") != "Directory":
-        finddirs = []  # type: List[MutableMapping]
+        finddirs = []  # type: List[MutableMapping[Text, Text]]
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
             get_listing(fs_access, f, recursive=recursive)
@@ -143,7 +143,7 @@ def get_listing(fs_access, rec, recursive=True):
             listing.append({"class": "File", "location": ld, "basename": bn})
     rec["listing"] = listing
 
-def trim_listing(obj):
+def trim_listing(obj):  # type: (Dict[Text, Any]) -> None
     """
     Remove 'listing' field from Directory objects that are file references.
 
@@ -176,7 +176,7 @@ def downloadHttpFile(httpurl):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
     r.close()
-    return f.name
+    return str(f.name)
 
 def ensure_writable(path):  # type: (Text) -> None
     if os.path.isdir(path):
@@ -343,6 +343,6 @@ class PathMapper(object):
         # type: (Text, Text, Text, Text, bool) -> None
         self._pathmap[key] = MapperEnt(resolved, target, ctype, stage)
 
-    def __contains__(self, key):
+    def __contains__(self, key):  # type: (Text) -> bool
         """Test for the presence of the given relative path in this mapper."""
         return key in self._pathmap
