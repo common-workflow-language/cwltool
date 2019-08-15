@@ -5,6 +5,8 @@ import re
 from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Tuple, Union)
 
+from functools import partial
+
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
@@ -61,8 +63,8 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
                             type(s), s))
 
 
-    def update_secondaryFiles(t):
-        # type: (Any) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
+    def update_secondaryFiles(t, top=False):
+        # type: (Any, bool) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)
             for index, entry in enumerate(t):
@@ -72,6 +74,8 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
             return CommentedSeq([update_secondaryFiles(p) for p in t])
         elif isinstance(t, MutableMapping):
             return t
+        elif top:
+            return CommentedSeq([CommentedMap([("pattern", t)])])
         else:
             return CommentedMap([("pattern", t)])
 
@@ -88,7 +92,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
     visit_class(doc, ("CommandLineTool","Workflow"), rewrite_requirements)
     visit_class(doc, ("ExpressionTool","Workflow"), fix_inputBinding)
-    visit_field(doc, "secondaryFiles", update_secondaryFiles)
+    visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
     upd = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
