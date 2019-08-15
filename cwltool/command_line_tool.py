@@ -347,7 +347,7 @@ class CommandLineTool(Process):
                          if 'location' in e and e['location'] == location
                          and 'checksum' in e
                          and e['checksum'] != 'sha1$hash'), None)
-                    fobj_stat = os.stat(fobj.resolved)
+                    fobj_stat = os.stat(os.path.realpath(fobj.resolved))
                     if checksum is not None:
                         keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
                     else:
@@ -358,8 +358,9 @@ class CommandLineTool(Process):
                            "EnvVarRequirement",
                            "InitialWorkDirRequirement",
                            "ShellCommandRequirement",
-                           "NetworkAccess"}
-            for rh in (self.original_requirements, self.original_hints):
+                           "NetworkAccess",
+                           "InplaceWorkDirRequirement"}
+            for rh in (self.requirements, self.hints, self.original_requirements, self.original_hints):
                 for r in reversed(rh):
                     if r["class"] in interesting and r["class"] not in keydict:
                         keydict[r["class"]] = r
