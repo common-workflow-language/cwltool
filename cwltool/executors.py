@@ -27,6 +27,7 @@ from .process import cleanIntermediate, relocateOutputs
 from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
+from .command_line_tool import CallbackJob
 
 TMPDIR_LOCK = Lock()
 
@@ -238,9 +239,10 @@ class MultithreadedJobExecutor(JobExecutor):
         return result
 
     def _runner(self, job, runtime_context, TMPDIR_LOCK):
-        # type: (Union[JobBase, WorkflowJob], RuntimeContext, threading.Lock) -> None
+        # type: (Union[JobBase, WorkflowJob, CallbackJob], RuntimeContext, threading.Lock) -> None
         """Job running thread."""
         try:
+            _logger.debug("job: {}, runtime_context: {}, TMPDIR_LOCK: {}".format(job, runtime_context, TMPDIR_LOCK))
             job.run(runtime_context, TMPDIR_LOCK)
         except WorkflowException as err:
             _logger.exception("Got workflow error")

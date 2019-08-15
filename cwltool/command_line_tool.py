@@ -194,8 +194,10 @@ class CallbackJob(object):
         self.outdir = jobcache
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
-    def run(self, runtimeContext):
-        # type: (RuntimeContext) -> None
+    def run(self,
+            runtimeContext,   # type: RuntimeContext
+            tmpdir_lock=None  # type: Optional[threading.Lock]
+            ):  # type: (...) -> None
         self.output_callback(self.job.collect_output_ports(
             self.job.tool["outputs"],
             self.cachebuilder,
