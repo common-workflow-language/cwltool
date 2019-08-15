@@ -17,7 +17,7 @@ import uuid
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
                     Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
-                    Union, cast)
+                    Type, Union, cast)
 
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
@@ -68,7 +68,7 @@ class LogAsDebugFilter(logging.Filter):
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
-    def filter(self, record):
+    def filter(self, record):  # type: (logging.LogRecord) -> bool
         return self.parent.isEnabledFor(logging.DEBUG)
 
 
@@ -160,7 +160,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[Text, Union[bytes, Text]]
+    cache = {}  # type: Dict[Text, Any]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
@@ -219,10 +219,10 @@ def checkRequirements(rec, supported_process_requirements):
 
 
 def stage_files(pathmapper,             # type: PathMapper
-                stage_func=None,        # type: Callable[..., Any]
+                stage_func=None,        # type: Optional[Callable[..., Any]]
                 ignore_writable=False,  # type: bool
                 symlink=True,           # type: bool
-                secret_store=None       # type: SecretStore
+                secret_store=None       # type: Optional[SecretStore]
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
     for key, entry in pathmapper.items():
@@ -271,13 +271,13 @@ def stage_files(pathmapper,             # type: PathMapper
                 key, entry.target, entry.target, entry.type, entry.staged)
 
 
-def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
-                    destination_path,      # type: Text
-                    source_directories,    # type: Set[Text]
-                    action,                # type: Text
-                    fs_access,             # type: StdFsAccess
+def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+                    destination_path,       # type: Text
+                    source_directories,     # type: Set[Text]
+                    action,                 # type: Text
+                    fs_access,              # type: StdFsAccess
                     compute_checksum=True,  # type: bool
-                    path_mapper=PathMapper
+                    path_mapper=PathMapper  # type: Type[PathMapper]
                     ):
     # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
@@ -299,7 +299,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                 for dir_entry in _collectDirEntries(sub_obj):
                     yield dir_entry
 
-    def _relocate(src, dst):
+    def _relocate(src, dst):  # type: (Text, Text) -> None
         if src == dst:
             return
 
@@ -333,7 +333,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
     stage_files(pm, stage_func=_relocate, symlink=False)
 
-    def _check_adjust(a_file):
+    def _check_adjust(a_file):  # type: (Dict[Text, Text]) -> Dict[Text, Text]
         a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
         if "contents" in a_file:
             del a_file["contents"]
@@ -366,7 +366,7 @@ def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
         return  # best effort
 
 def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
-                     job,      # type: Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]]
+                     job,      # type: Dict[Text, expression.JSON]
                      fsaccess  # type: StdFsAccess
                     ):  # type: (...) -> None
     for e, inp in enumerate(inputs):
@@ -420,7 +420,7 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
     """)
 
 
-def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Text]
+def var_spool_cwl_detector(obj,           # type: Union[MutableMapping[Text, Text], List[Dict[Text, Any]], Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
                           ):              # type: (...)->bool
@@ -433,11 +433,11 @@ def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Te
                     _VAR_SPOOL_ERROR.format(obj)))
             r = True
     elif isinstance(obj, MutableMapping):
-        for key, value in iteritems(obj):
-            r = var_spool_cwl_detector(value, obj, key) or r
+        for mkey, mvalue in iteritems(obj):
+            r = var_spool_cwl_detector(mvalue, obj, mkey) or r
     elif isinstance(obj, MutableSequence):
-        for key, value in enumerate(obj):
-            r = var_spool_cwl_detector(value, obj, key) or r
+        for lkey, lvalue in enumerate(obj):
+            r = var_spool_cwl_detector(lvalue, obj, lkey) or r
     return r
 
 def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
@@ -593,8 +593,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             raise WorkflowException("Process object loaded with version '%s', must update to '%s' in order to execute." % (
                 self.metadata.get("cwlVersion"), INTERNAL_VERSION))
 
-        job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
-                   copy.deepcopy(joborder))
+        job = cast(Dict[Text, expression.JSON], copy.deepcopy(joborder))
 
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)
@@ -859,7 +858,7 @@ hints:
 _names = set()  # type: Set[Text]
 
 
-def uniquename(stem, names=None):  # type: (Text, Set[Text]) -> Text
+def uniquename(stem, names=None):  # type: (Text, Optional[Set[Text]]) -> Text
     global _names
     if names is None:
         names = _names
@@ -1027,7 +1026,7 @@ def scandeps(base,                          # type: Text
     return r
 
 
-def compute_checksums(fs_access, fileobj):
+def compute_checksums(fs_access, fileobj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()  # nosec
         with fs_access.open(fileobj["location"], "rb") as f:

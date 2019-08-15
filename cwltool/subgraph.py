@@ -6,6 +6,7 @@ from .process import shortname
 from six import itervalues
 from six.moves import urllib
 from .workflow import Workflow
+from ruamel.yaml.comments import CommentedMap
 
 Node = namedtuple('Node', ('up', 'down', 'type'))
 UP = "up"
@@ -43,7 +44,7 @@ def declare_node(nodes, nodeid, tp):
 
 def get_subgraph(roots,  # type: MutableSequence[Text]
                  tool    # type: Workflow
-):
+                 ):  # type: (...) -> Optional[CommentedMap]
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
@@ -88,7 +89,7 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
         else:
             subgraph_visit(r, nodes, visited_down, DOWN)
 
-    def find_step(stepid):  # type: (Text) -> Optional[MutableMapping]
+    def find_step(stepid):  # type: (Text) -> Optional[MutableMapping[Text, Any]]
         for st in tool.steps:
             if st.tool["id"] == stepid:
                 return st.tool
@@ -120,7 +121,7 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
                             raise Exception("Could not find step %s" % v)
 
 
-    extracted = {}  # type: MutableMapping[Text, Any]
+    extracted = CommentedMap()
     for f in tool.tool:
         if f in ("steps", "inputs", "outputs"):
             extracted[f] = []

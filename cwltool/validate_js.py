@@ -3,8 +3,8 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
-                    Tuple, Union)
+from typing import (cast, Any, Dict, List, MutableMapping, MutableSequence,
+                    Optional, Tuple, Union)
 
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap  # pylint: disable=unused-import
@@ -24,7 +24,7 @@ from .utils import json_dumps
 
 
 def is_expression(tool, schema):
-    # type: (Union[CommentedMap, Any], Optional[Schema]) -> bool
+    # type: (Any, Optional[Schema]) -> bool
     return isinstance(schema, avro.schema.EnumSchema) \
         and schema.name == "Expression" and isinstance(tool, string_types)
 
@@ -34,25 +34,25 @@ class SuppressLog(logging.Filter):
         name = str(name)
         super(SuppressLog, self).__init__(name)
 
-    def filter(self, record):
+    def filter(self, record):  # type: (logging.LogRecord) -> bool
         return False
 
 
 _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
 _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings"))
 
-def get_expressions(tool,             # type: Union[CommentedMap, Any]
+def get_expressions(tool,             # type: Union[CommentedMap, Text]
                     schema,           # type: Optional[avro.schema.Schema]
                     source_line=None  # type: Optional[SourceLine]
                    ):  # type: (...) -> List[Tuple[Text, Optional[SourceLine]]]
     if is_expression(tool, schema):
-        return [(tool, source_line)]
+        return [(cast(Text, tool), source_line)]
     elif isinstance(schema, avro.schema.UnionSchema):
         valid_schema = None
 
         for possible_schema in schema.schemas:
             if is_expression(tool, possible_schema):
-                return [(tool, source_line)]
+                return [(cast(Text, tool), source_line)]
             elif validate_ex(possible_schema, tool, raise_ex=False,
                              logger=_logger_validation_warnings):
                 valid_schema = possible_schema
@@ -63,7 +63,7 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
             return []
 
         return list(itertools.chain(
-            *map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool))  # type: ignore # https://github.com/python/mypy/issues/4679
+            *map(lambda x: get_expressions(x[1], schema.items, SourceLine(tool, x[0])), enumerate(tool))
         ))
 
     elif isinstance(schema, avro.schema.RecordSchema):
@@ -87,8 +87,10 @@ def get_expressions(tool,             # type: Union[CommentedMap, Any]
 
 JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
 
-def jshint_js(js_text, globals=None, options=None):
-    # type: (Text, List[Text], Dict) -> Tuple[List[Text], List[Text]]
+def jshint_js(js_text,       # type: Text
+              globals=None,  # type: Optional[List[Text]]
+              options=None   # type: Optional[Dict[Text, Union[List[Text], Text, int]]]
+             ):  # type: (...) -> Tuple[List[Text], List[Text]]
     if globals is None:
         globals = []
     if options is None:
@@ -158,8 +160,10 @@ def print_js_hint_messages(js_hint_messages, source_line):
         for js_hint_message in js_hint_messages:
             _logger.warning(source_line.makeError(js_hint_message))
 
-def validate_js_expressions(tool, schema, jshint_options=None):
-    # type: (CommentedMap, Schema, Dict) -> None
+def validate_js_expressions(tool,                # type: CommentedMap
+                            schema,              # type: Schema
+                            jshint_options=None  # type: Optional[Dict[Text, Union[List[Text], Text, int]]]
+                           ):  # type: (...) -> None
 
     if tool.get("requirements") is None:
         return
