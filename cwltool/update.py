@@ -64,7 +64,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
 
     def update_secondaryFiles(t, top=False):
-        # type: (Any) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
+        # type: (Any, bool) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)
             for index, entry in enumerate(t):
