@@ -987,7 +987,7 @@ def test_v1_0_position_expression(factor):
     commands.extend(
         ['--debug', get_data(test_file), get_data(test_job)])
     error_code, stdout, stderr = get_main_output(commands)
-    assert "is not int" in stderr, stderr
+    assert "not int" in stderr, stderr
     assert error_code == 1
 
 

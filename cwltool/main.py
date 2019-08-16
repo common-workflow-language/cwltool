@@ -58,7 +58,7 @@ from .software_requirements import (DependenciesConfiguration,
                                     get_container_from_software_requirements)
 from .stdfsaccess import StdFsAccess
 from .update import ALLUPDATES, UPDATES
-from .utils import (DEFAULT_TMP_PREFIX, json_dumps, onWindows,
+from .utils import (DEFAULT_TMP_PREFIX, json_dump, json_dumps, onWindows,
                     processes_to_kill, versionstring, visit_class,
                     windows_default_container_id)
 from .subgraph import get_subgraph
@@ -416,7 +416,7 @@ def printdeps(obj,              # type: Mapping[Text, Any]
         base = os.getcwd()
     visit_class(deps, ("File", "Directory"), functools.partial(
         make_relative, base))
-    stdout.write(json_dumps(deps, indent=4))
+    json_dump(deps, stdout, indent=4)
 
 def prov_deps(obj,              # type: Mapping[Text, Any]
               document_loader,  # type: Loader
@@ -493,8 +493,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
          runtimeContext=None           # type: Optional[RuntimeContext]
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
-        if (hasattr(sys.stdout, "encoding")
-                and sys.stdout.encoding != 'UTF-8'):  # type: ignore
+        if (hasattr(sys.stdout, "encoding") and
+                not (sys.stdout.encoding == 'UTF-8' or sys.stdout.encoding == 'UTF8')):  # type: ignore
             if PY3 and hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
             else:
@@ -681,7 +681,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                     print_pack(loadingContext.loader, processobj, uri, metadata))
 
             if args.print_pre:
-                stdout.write(json_dumps(processobj, indent=4, sort_keys=True, separators=(',', ': ')))
+                json_dump(processobj, stdout, indent=4, sort_keys=True, separators=(',', ': '))
                 return 0
 
             tool = make_tool(uri, loadingContext)
@@ -737,7 +737,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
             if args.print_subgraph:
                 if "name" in tool.tool:
                     del tool.tool["name"]
-                stdout.write(json_dumps(tool.tool, indent=4, sort_keys=True, separators=(',', ': ')))
+                json_dump(tool.tool, stdout, indent=4, sort_keys=True, separators=(',', ': '))
                 return 0
 
         except (validate.ValidationException) as exc:
@@ -849,7 +849,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 if isinstance(out, string_types):
                     stdout.write(out)
                 else:
-                    stdout.write(json_dumps(out, indent=4, ensure_ascii=False))
+                    json_dump(out, stdout, indent=4, ensure_ascii=False)
                 stdout.write("\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()
