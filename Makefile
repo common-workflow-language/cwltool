@@ -148,11 +148,11 @@ diff-cover.html:  coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
-	python setup.py test --addopts "-n auto"
+	python setup.py test --addopts "-n auto --dist=loadfile"
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool -n auto"
+	python setup.py test --addopts "--cov cwltool -n auto --dist=loadfile"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > $@

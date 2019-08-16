@@ -15,7 +15,7 @@ run_tests() {
 	mod_loc=$(pip show ${package} | 
 		grep ^Location | awk '{print $2}')/${module}
 	${test_prefix}bin/py.test "--ignore=${mod_loc}/schemas/" \
-		--pyarg -x ${module} -n auto
+		--pyarg -x ${module} -n auto --dist=loadfile
 }
 pipver=7.0.2 # minimum required version of pip
 setuptoolsver=24.2.0 # required to generate correct metadata for
