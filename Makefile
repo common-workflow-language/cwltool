@@ -173,16 +173,24 @@ list-author-emails:
 
 mypy2: ${PYSOURCES}
 	rm -Rf typeshed/2and3/ruamel/yaml
-	ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-		typeshed/2and3/ruamel/yaml
+	if ! test -f $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+	then \
+		rm -rf typeshed/2and3/ruamel/yaml ; \
+		ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+			typeshed/2and3/ruamel/ ; \
+	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
 
 mypy3: ${PYSOURCES}
 	rm -Rf typeshed/2and3/ruamel/yaml
-	ln -s $(shell python3 -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-		typeshed/2and3/ruamel/yaml
+	if ! test -f $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+	then \
+		rm -rf typeshed/2and3/ruamel/yaml ; \
+		ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+			typeshed/2and3/ruamel/ ; \
+	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
