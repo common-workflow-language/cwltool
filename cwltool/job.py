@@ -621,6 +621,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 img_id = str(docker_req["dockerImageId"])
             elif 'dockerPull' in docker_req:
                 img_id = str(docker_req["dockerPull"])
+                cmd = [user_space_docker_cmd, "pull", img_id]
+                _logger.info(Text(cmd))
+                subprocess.check_call(cmd, stdout=sys.stderr)
             else:
                 raise WorkflowException(SourceLine(docker_req).makeError(
                     "Docker image must be specified as 'dockerImageId' or "
