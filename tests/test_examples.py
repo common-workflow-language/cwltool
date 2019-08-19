@@ -1018,3 +1018,11 @@ def test_env_filtering(factor):
     else:
         target = 4
     assert json.loads(stdout)['env_count'] == target, (error_code, stdout, stderr)
+
+@windows_needs_docker
+def test_v1_0_arg_empty_prefix_separate_false():
+    test_file = "tests/arg-empty-prefix-separate-false.cwl"
+    error_code, stdout, stderr = get_main_output(
+        ['--debug', get_data(test_file), "--echo"])
+    assert "completed success" in stderr
+    assert error_code == 0

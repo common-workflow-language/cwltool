@@ -426,7 +426,7 @@ class Builder(HasReqsHints):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                args.append("" if prefix is None else prefix + self.tostr(j))
+                args.append(prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 
