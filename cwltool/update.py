@@ -2,8 +2,10 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Callable, Dict, MutableMapping, MutableSequence,
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Tuple, Union)
+
+from functools import partial
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate
@@ -32,20 +34,37 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
         "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
         "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement"
     }
-    def rewrite_requirements(t):
+    def rewrite_requirements(t):  # type: (MutableMapping[Text, Union[Text, Dict[Text, Any]]]) -> None
         if "requirements" in t:
             for r in t["requirements"]:
-                if r["class"] in rewrite:
-                    r["class"] = rewrite[r["class"]]
+                if isinstance(r, MutableMapping):
+                    if r["class"] in rewrite:
+                        r["class"] = rewrite[r["class"]]
+                else:
+                    raise validate.ValidationException(
+                            "requirements entries must be dictionaries: {} {}.".format(
+                                type(r), r))
         if "hints" in t:
             for r in t["hints"]:
-                if r["class"] in rewrite:
-                    r["class"] = rewrite[r["class"]]
+                if isinstance(r, MutableMapping):
+                    if r["class"] in rewrite:
+                        r["class"] = rewrite[r["class"]]
+                else:
+                    raise validate.ValidationException(
+                        "hints entries must be dictionaries: {} {}.".format(
+                            type(r), r))
         if "steps" in t:
             for s in t["steps"]:
-                rewrite_requirements(s)
+                if isinstance(s, MutableMapping):
+                    rewrite_requirements(s)
+                else:
+                    raise validate.ValidationException(
+                        "steps entries must be dictionaries: {} {}.".format(
+                            type(s), s))
 
-    def update_secondaryFiles(t):
+
+    def update_secondaryFiles(t, top=False):
+        # type: (Any, bool) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)
             for index, entry in enumerate(t):
@@ -55,22 +74,25 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
             return CommentedSeq([update_secondaryFiles(p) for p in t])
         elif isinstance(t, MutableMapping):
             return t
+        elif top:
+            return CommentedSeq([CommentedMap([("pattern", t)])])
         else:
             return CommentedMap([("pattern", t)])
 
-    def fix_inputBinding(t):
+    def fix_inputBinding(t):  # type: (Dict[Text, Any]) -> None
         for i in t["inputs"]:
             if "inputBinding" in i:
                 ib = i["inputBinding"]
                 for k in list(ib.keys()):
                     if k != "loadContents":
-                        _logger.warning(SourceLine(ib, k).makeError("Will ignore field '%s' which is not valid in %s inputBinding" %
-                                                                    (k, t["class"])))
+                        _logger.warning(SourceLine(ib, k).makeError(
+                            "Will ignore field '{}' which is not valid in {} "
+                            "inputBinding".format(k, t["class"])))
                         del ib[k]
 
     visit_class(doc, ("CommandLineTool","Workflow"), rewrite_requirements)
     visit_class(doc, ("ExpressionTool","Workflow"), fix_inputBinding)
-    visit_field(doc, "secondaryFiles", update_secondaryFiles)
+    visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
     upd = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
@@ -85,6 +107,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, "v1.1")
 
 def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (doc, "v1.1")
 
 UPDATES = {

@@ -75,10 +75,10 @@ class MutationManager(object):
 
         self.generations[loc] = MutationState(current.generation+1, current.readers, stepname)
 
-    def set_generation(self, obj):  # type: (Dict) -> None
+    def set_generation(self, obj):  # type: (Dict[Text, Text]) -> None
         loc = obj["location"]
         current = self.generations.get(loc, MutationState(0, [], ""))
         obj[_generation] = current.generation
 
-    def unset_generation(self, obj):  # type: (Dict) -> None
+    def unset_generation(self, obj):  # type: (Dict[Text, Text]) -> None
         obj.pop(_generation, None)
