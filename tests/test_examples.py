@@ -923,14 +923,6 @@ def test_v1_0_position_expression():
 
 
 @windows_needs_docker
-def test_v1_0_arg_empty_prefix_separate_false():
-    test_file = "tests/arg-empty-prefix-separate-false.cwl"
-    error_code, stdout, stderr = get_main_output(
-        ['--debug', get_data(test_file), "--echo"])
-    assert "completed success" in stderr
-    assert error_code == 0
-
-@windows_needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_optional_numeric_output_0(factor):
     test_file = "tests/wf/optional-numerical-output-0.cwl"
