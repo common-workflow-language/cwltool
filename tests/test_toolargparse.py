@@ -114,15 +114,20 @@ class NoopJobExecutor(cwltool.executors.JobExecutor):
         return {}, "success"
 
 def test_dont_require_inputs():
+    if sys.version_info[0] < 3:
+        stream = BytesIO()
+    else:
+        stream = StringIO()
+
     script = None
     try:
         script = NamedTemporaryFile(mode='w', delete=False)
         script.write(script_a)
         script.close()
 
-        assert main(argsl=["--debug", script.name, "--input", script.name], executor=NoopJobExecutor()) == 0
-        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor()) == 2
-        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor(), input_required=False) == 0
+        assert main(argsl=["--debug", script.name, "--input", script.name], executor=NoopJobExecutor(), stdout=stream) == 0
+        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor(), stdout=stream) == 2
+        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor(), input_required=False, stdout=stream) == 0
 
     except SystemExit as err:
         assert err.code == 0, name
