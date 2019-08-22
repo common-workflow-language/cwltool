@@ -3,9 +3,9 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 from cwltool.main import main
+import cwltool.executors
 
 from .util import get_data, needs_docker
-
 
 script_a = '''
 #!/usr/bin/env cwl-runner
@@ -88,6 +88,41 @@ def test_argparse(name, script_contents, params, tmpdir):
         my_params = ["--outdir", str(tmpdir)]
         my_params.extend(params(script.name))
         assert main(my_params) == 0, name
+
+    except SystemExit as err:
+        assert err.code == 0, name
+    finally:
+        if script and script.name and os.path.exists(script.name):
+            os.unlink(script.name)
+
+
+class NoopJobExecutor(cwltool.executors.JobExecutor):
+    def run_jobs(self,
+                 process,           # type: Process
+                 job_order_object,  # type: Dict[Text, Any]
+                 logger,            # type: logging.Logger
+                 runtime_context     # type: RuntimeContext
+                ):  # type: (...) -> None
+        pass
+
+    def execute(self,
+                process,           # type: Process
+                job_order_object,  # type: Dict[Text, Any]
+                runtime_context,   # type: RuntimeContext
+                logger=None,       # type: logging.Logger
+               ):  # type: (...) -> Tuple[Optional[Union[Dict[Text, Any], List[Dict[Text, Any]]]], Text]
+        return {}, "success"
+
+def test_dont_require_inputs():
+    script = None
+    try:
+        script = NamedTemporaryFile(mode='w', delete=False)
+        script.write(script_a)
+        script.close()
+
+        assert main(argsl=[script.name, "--input", script.name], executor=NoopJobExecutor()) == 0
+        assert main(argsl=[script.name], executor=NoopJobExecutor()) == 2
+        assert main(argsl=[script.name], executor=NoopJobExecutor(), input_required=False) == 0
 
     except SystemExit as err:
         assert err.code == 0, name
