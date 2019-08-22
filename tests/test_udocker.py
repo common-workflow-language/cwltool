@@ -16,23 +16,23 @@ class TestUdocker:
 
     @classmethod
     def setup_class(cls):
-        install_cmds = [
-            "curl https://raw.githubusercontent.com/indigo-dc/udocker/master/udocker.py -o ./udocker",
-            "chmod u+rx ./udocker",
-            "./udocker install"]
-
         test_cwd = os.getcwd()
         test_environ = os.environ.copy()
-
         cls.docker_install_dir = tempfile.mkdtemp()
         os.chdir(cls.docker_install_dir)
+
+        url="https://download.ncg.ingrid.pt/webdav/udocker/udocker-1.1.3.tar.gz"
+        install_cmds = [
+            ["curl", url, "-o", "./udocker-tarball.tgz"],
+            ["tar", "xzvf", "udocker-tarball.tgz", "udocker"],
+            ["bash", "-c", "UDOCKER_TARBALL={}/udocker-tarball.tgz ./udocker install".format(cls.docker_install_dir)]]
 
         os.environ['UDOCKER_DIR'] = os.path.join(cls.docker_install_dir, ".udocker")
         os.environ['HOME'] = cls.docker_install_dir
 
         results = []
         for _ in range(3):
-              results = [subprocess.call(cmd.split()) for cmd in install_cmds]
+              results = [subprocess.call(cmds) for cmds in install_cmds]
               if sum(results) == 0:
                   break
               subprocess.call(["rm", "./udocker"])
