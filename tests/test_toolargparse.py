@@ -1,6 +1,7 @@
 import os
 import sys
 from tempfile import NamedTemporaryFile
+from io import BytesIO, StringIO
 
 import pytest
 from cwltool.main import main
