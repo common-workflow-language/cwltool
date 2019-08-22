@@ -120,9 +120,9 @@ def test_dont_require_inputs():
         script.write(script_a)
         script.close()
 
-        assert main(argsl=[script.name, "--input", script.name], executor=NoopJobExecutor()) == 0
-        assert main(argsl=[script.name], executor=NoopJobExecutor()) == 2
-        assert main(argsl=[script.name], executor=NoopJobExecutor(), input_required=False) == 0
+        assert main(argsl=["--debug", script.name, "--input", script.name], executor=NoopJobExecutor()) == 0
+        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor()) == 2
+        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor(), input_required=False) == 0
 
     except SystemExit as err:
         assert err.code == 0, name
