@@ -285,14 +285,15 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
                    relative_deps=False,     # type: bool
                    make_fs_access=StdFsAccess,  # type: Callable[[Text], StdFsAccess]
                    input_basedir="",        # type: Text
-                   secret_store=None        # type: Optional[SecretStore]
+                   secret_store=None,       # type: Optional[SecretStore]
+                   input_required=True      # type: bool
                   ):  # type: (...) -> MutableMapping[Text, Any]
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
         namemap = {}  # type: Dict[Text, Text]
         records = []  # type: List[Text]
         toolparser = generate_parser(
-            argparse.ArgumentParser(prog=args.workflow), process, namemap, records)
+            argparse.ArgumentParser(prog=args.workflow), process, namemap, records, input_required)
         if args.tool_help:
             toolparser.print_help()
             exit(0)
@@ -490,7 +491,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
          custom_schema_callback=None,  # type: Optional[Callable[[], None]]
          executor=None,                # type: Optional[JobExecutor]
          loadingContext=None,          # type: Optional[LoadingContext]
-         runtimeContext=None           # type: Optional[RuntimeContext]
+         runtimeContext=None,          # type: Optional[RuntimeContext]
+         input_required=True           # type: bool
         ):  # type: (...) -> int
     if not stdout:  # force UTF-8 even if the console is configured differently
         if (hasattr(sys.stdout, "encoding")
@@ -795,7 +797,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 relative_deps=args.relative_deps,
                 make_fs_access=runtimeContext.make_fs_access,
                 input_basedir=input_basedir,
-                secret_store=runtimeContext.secret_store)
+                secret_store=runtimeContext.secret_store,
+                input_required=input_required)
         except SystemExit as err:
             return err.code
 

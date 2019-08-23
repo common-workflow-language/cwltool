@@ -394,14 +394,16 @@ class DirectoryAppendAction(FSAppendAction):
 
 
 def add_argument(toolparser, name, inptype, records, description="",
-                 default=None):
-    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any) -> None
+                 default=None, input_required=True):
+    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any, bool) -> None
     if len(name) == 1:
         flag = "-"
     else:
         flag = "--"
 
-    required = default is None
+    # if input_required is false, don't make the command line
+    # parameter required.
+    required = default is None and input_required
     if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
@@ -462,8 +464,8 @@ def add_argument(toolparser, name, inptype, records, description="",
         default=default, **typekw)
 
 
-def generate_parser(toolparser, tool, namemap, records):
-    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text]) -> argparse.ArgumentParser
+def generate_parser(toolparser, tool, namemap, records, input_required=True):
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text], bool) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -473,6 +475,6 @@ def generate_parser(toolparser, tool, namemap, records):
         inptype = inp["type"]
         description = inp.get("doc", "")
         default = inp.get("default", None)
-        add_argument(toolparser, name, inptype, records, description, default)
+        add_argument(toolparser, name, inptype, records, description, default, input_required)
 
     return toolparser
