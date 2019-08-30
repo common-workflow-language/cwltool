@@ -705,8 +705,11 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             time.sleep(1)
             if process.returncode is not None:
                 if cleanup_cidfile:
-                    os.remove(cidfile)
-                return
+                    try:
+                        os.remove(cidfile)
+                    except PermissionError as exc:
+                        _logger.warn("Ignored error cleaning up Docker cidfile: %s", exc)
+                    return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
