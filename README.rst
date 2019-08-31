@@ -44,15 +44,9 @@ Your operating system may offer cwltool directly. For [Debian](https://tracker.d
 
   apt-get install cwltool
 
-For MacOS X, other UNIXes or Windows packages prepared by the Bioconda project. Please follow instructions of Bioconda (https://bioconda.github.io/) for its installation, then perform: 
-
-.. code:: bash
-
-  conda install -c bioconda cwltool 
-
-Under the hood, conda setups virtual environments before installing `cwltool` to
-avoid conflicting versions of the same library. When installing cwltool directly,
-it is recommended to do the same manually:
+Otherwise, to
+avoid conflicting versions of the same library,
+it is recommended to do the following:
 
 .. code:: bash
 
