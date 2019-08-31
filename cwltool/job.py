@@ -705,8 +705,11 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             time.sleep(1)
             if process.returncode is not None:
                 if cleanup_cidfile:
-                    os.remove(cidfile)
-                return
+                    try:
+                        os.remove(cidfile)
+                    except OSError as exc:
+                        _logger.warn("Ignored error cleaning up Docker cidfile: %s", exc)
+                    return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
@@ -715,12 +718,16 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
-        with open(stats_file.name, mode="w") as stats_file_handle:
-            stats_proc = subprocess.Popen(
-                ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
-                 cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
-            process.wait()
-            stats_proc.kill()
+        try:
+            with open(stats_file.name, mode="w") as stats_file_handle:
+                stats_proc = subprocess.Popen(
+                    ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
+                     cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
+                process.wait()
+                stats_proc.kill()
+        except OSError as exc:
+            _logger.warn("Ignored error with docker stats: %s", exc)
+            return
         max_mem_percent = 0
         with open(stats_file.name, mode="r") as stats:
             for line in stats:

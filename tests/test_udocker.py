@@ -10,7 +10,8 @@ from psutil.tests import TRAVIS
 LINUX = sys.platform in ('linux', 'linux2')
 
 
-@pytest.mark.skipif(not LINUX, reason="LINUX only")
+#@pytest.mark.skipif(not LINUX, reason="LINUX only")
+@pytest.mark.skip("Udocker install is broken, see https://github.com/indigo-dc/udocker/issues/221")
 class TestUdocker:
     udocker_path = None
 
