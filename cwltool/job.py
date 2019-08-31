@@ -707,7 +707,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 if cleanup_cidfile:
                     try:
                         os.remove(cidfile)
-                    except PermissionError as exc:
+                    except OSError as exc:
                         _logger.warn("Ignored error cleaning up Docker cidfile: %s", exc)
                     return
             try:
@@ -725,7 +725,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                      cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
                 process.wait()
                 stats_proc.kill()
-        except PermissionError as exc:
+        except OSError as exc:
             _logger.warn("Ignored error with docker stats: %s", exc)
             return
         max_mem_percent = 0
