@@ -118,6 +118,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if not match:
                 dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
         elif "dockerImageId" in dockerRequirement:
+            if os.path.isfile(dockerRequirement['dockerImageId']):
+                found = True
             candidates.append(dockerRequirement['dockerImageId'])
             candidates.append(_normalize_image_id(dockerRequirement['dockerImageId']))
             if is_version_3_or_newer():
