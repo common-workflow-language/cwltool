@@ -114,6 +114,7 @@ EOM
 
 	if [ -d conformance ]
 	then
+		cp -r conformance/cwltool/cwl_${version}/cwltool_${tool_ver} conformance/cwltool/cwl_${version}/cwltool_latest
 		git -C conformance add --all
 		git -C conformance diff-index --quiet HEAD || git -C conformance commit -m "${CONFORMANCE_MSG}"
 		git -C conformance push http://${jenkins_cwl_conformance}:x-oauth-basic@github.com/common-workflow-language/conformance.git
