@@ -86,10 +86,8 @@ EOF
 		rm -Rf conformance
 		git clone http://${jenkins_cwl_conformance}@github.com/common-workflow-language/conformance.git
 
-		pushd conformance
-		git config user.email "cwl-bot@users.noreply.github.com"
-		git config user.name "CWL Jenkins build bot"
-		popd
+		git -C conformance config user.email "cwl-bot@users.noreply.github.com"
+		git -C conformance config user.name "CWL Jenkins build bot"
 
 		tool_ver=$(cwltool --version | awk '{ print $2 }')
 		badgedir=${PWD}/conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
@@ -109,11 +107,9 @@ EOF
 
 	if [ -d conformance ]
 	then
-		pushd conformance
-		git add --all
-		git diff-index --quiet HEAD || git commit -m "CWL Jenkins Build bot"
-		git push http://${jenkins_cwl_conformance}:x-oauth-basic@github.com/common-workflow-language/conformance.git
-		popd
+		git -C conformance add --all
+		git -C conformance diff-index --quiet HEAD || git -C conformance commit -m "CWL Jenkins Build bot"
+		git -C conformance push http://${jenkins_cwl_conformance}:x-oauth-basic@github.com/common-workflow-language/conformance.git
 	fi
 
 	deactivate
