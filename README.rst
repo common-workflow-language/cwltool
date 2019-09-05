@@ -24,49 +24,49 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 .. |Downloads| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
 
-.. |CommandLineTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/command_line_tool.json
+.. |CommandLineTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/command_line_tool.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |DockerRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/docker.json
+.. |DockerRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/docker.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |EnvVarRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/env_var.json
+.. |EnvVarRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/env_var.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ExpressionTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/expression_tool.json
+.. |ExpressionTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/expression_tool.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |InitialWorkDirRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/initial_work_dir.json
+.. |InitialWorkDirRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/initial_work_dir.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |InlineJavascriptRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/inline_javascript.json
+.. |InlineJavascriptRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/inline_javascript.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |MultipleInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/multiple_input.json
+.. |MultipleInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/multiple_input.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |Core Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/required.json
+.. |Core Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/required.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ResourceRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/resource.json
+.. |ResourceRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/resource.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ScatterRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/scatter.json
+.. |ScatterRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/scatter.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |SchemaDefRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/schema_def.json
+.. |SchemaDefRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/schema_def.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ShellCommandequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/shell_command.json
+.. |ShellCommandequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/shell_command.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |StepInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/step_input.json
+.. |StepInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/step_input.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |SubWorkflowRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/subworkflow.json
+.. |SubWorkflowRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/subworkflow.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |Workflow Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_1.0.20190905070411/workflow.json
+.. |Workflow Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/workflow.json
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
 
