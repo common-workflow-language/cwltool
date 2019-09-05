@@ -81,7 +81,7 @@ EOF
 	then
 		EXTRA="EXTRA=${EXTRA}"
 	fi
-	if [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
+	if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
 	then
 		rm -Rf conformance
 		git clone http://${jenkins_cwl_conformance}@github.com/common-workflow-language/conformance.git
