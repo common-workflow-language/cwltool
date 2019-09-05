@@ -83,6 +83,14 @@ EOF
 	fi
 	if [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
 	then
+		rm -Rf conformance
+		git clone http://${jenkins_cwl_conformance}@github.com/common-workflow-language/conformance.git
+
+		pushd conformance
+		git config user.email "cwl-bot@users.noreply.github.com"
+		git config user.name "CWL Jenkins build bot"
+		popd
+
 		tool_ver=$(cwltool --version | awk '{ print $2 }')
 		badgedir=${PWD}/conformance/cwltool/cwl_${version}/cwltool_${tool_ver}
 		mkdir -p ${PWD}/conformance/cwltool/cwl_${version}/
@@ -98,6 +106,16 @@ EOF
 	coverage combine "--rcfile=${COVERAGE_RC}" $(find . -name '.coverage.*')
 	coverage xml "--rcfile=${COVERAGE_RC}"
 	codecov --file coverage.xml
+
+	if [ -d conformance ]
+	then
+		pushd conformance
+		git add --all
+		git diff-index --quiet HEAD || git commit -m "CWL Jenkins Build bot"
+		git push http://${jenkins_cwl_conformance}:x-oauth-basic@github.com/common-workflow-language/conformance.git
+		popd
+	fi
+
 	deactivate
 	popd
 done
