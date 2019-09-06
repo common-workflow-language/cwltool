@@ -305,9 +305,11 @@ class ProvenanceProfile():
                  host_provenance,        # type: bool
                  user_provenance,        # type: bool
                  orcid,                  # type: str
+                 fsaccess,               # type: StdFsAccess
                  run_uuid=None           # type: Optional[uuid.UUID]
                 ):  # type: (...) -> None
         """Initialize the provenance profile."""
+        self.fsaccess = fsaccess
         self.orcid = orcid
         self.research_object = research_object
         self.folder = self.research_object.folder
@@ -504,8 +506,7 @@ class ProvenanceProfile():
         if not entity and 'location' in value:
             location = str(value['location'])
             # If we made it here, we'll have to add it to the RO
-            fsaccess = StdFsAccess("")
-            with fsaccess.open(location, "rb") as fhandle:
+            with self.fsaccess.open(location, "rb") as fhandle:
                 relative_path = self.research_object.add_data_file(fhandle)
                 # FIXME: This naively relies on add_data_file setting hash as filename
                 checksum = PurePath(relative_path).name
@@ -597,8 +598,7 @@ class ProvenanceProfile():
         is_empty = True
 
         if "listing" not in value:
-            fsaccess = StdFsAccess("")
-            get_listing(fsaccess, value)
+            get_listing(self.fsaccess, value)
         for entry in value.get("listing", []):
             is_empty = False
             # Declare child-artifacts
@@ -945,8 +945,8 @@ class ProvenanceProfile():
 class ResearchObject():
     """CWLProv Research Object."""
 
-    def __init__(self, temp_prefix_ro="tmp", orcid='', full_name=''):
-        # type: (str, Text, Text) -> None
+    def __init__(self, fsaccess, temp_prefix_ro="tmp", orcid='', full_name=''):
+        # type: (StdFsAccess, str, Text, Text) -> None
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)
@@ -962,7 +962,7 @@ class ResearchObject():
         self._external_aggregates = []  # type: List[Dict[Text, Text]]
         self.annotations = []  # type: List[Dict[Text, Any]]
         self._content_types = {}  # type: Dict[Text,str]
-
+        self.fsaccess = fsaccess
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
         self.ro_uuid = uuid.uuid4()
@@ -1561,8 +1561,7 @@ class ResearchObject():
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
-                    fsaccess = StdFsAccess("")
-                    with fsaccess.open(structure["location"], "rb") as fp:
+                    with self.fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = "%s$%s" % (SHA1, checksum)

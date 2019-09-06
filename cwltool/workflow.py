@@ -522,7 +522,8 @@ class Workflow(Process):
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
                 orcid=loadingContext.orcid,
-                run_uuid=run_uuid)  # inherit RO UUID for master wf run
+                run_uuid=run_uuid,
+                fsaccess=loadingContext.research_obj.fsaccess)  # inherit RO UUID for master wf run
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
 
@@ -582,6 +583,7 @@ class Workflow(Process):
         if runtimeContext.research_obj is not None:
             if runtimeContext.toplevel:
                 # Record primary-job.json
+                runtimeContext.research_obj.fsaccess = runtimeContext.make_fs_access('')
                 runtimeContext.research_obj.create_job(builder.job, self.job)
 
         job = WorkflowJob(self, runtimeContext)
