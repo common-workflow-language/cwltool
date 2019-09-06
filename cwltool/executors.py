@@ -179,6 +179,7 @@ class SingleJobExecutor(JobExecutor):
                             prov_obj = job.prov_obj
                         if prov_obj:
                             runtime_context.prov_obj = prov_obj
+                            runtime_context.research_obj.fsaccess = runtime_context.make_fs_access('')
                             prov_obj.evaluate(
                                 process, job, job_order_object,
                                 runtime_context.research_obj)
