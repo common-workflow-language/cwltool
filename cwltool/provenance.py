@@ -804,10 +804,13 @@ class ProvenanceProfile():
                 base += "/" + name
             for key, value in job_order.items():
                 prov_role = self.wf_ns["%s/%s" % (base, key)]
-                entity = self.declare_artefact(value)
-                self.document.used(
-                    process_run_id, entity, datetime.datetime.now(), None,
-                    {"prov:role": prov_role})
+                try:
+                    entity = self.declare_artefact(value)
+                    self.document.used(
+                        process_run_id, entity, datetime.datetime.now(), None,
+                        {"prov:role": prov_role})
+                except OSError:
+                    pass
 
     def generate_output_prov(self,
                              final_output,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -1580,7 +1583,10 @@ class ResearchObject():
                 del structure["location"]
 
             for val in structure.values():
-                self._relativise_files(val)
+                try:
+                    self._relativise_files(val)
+                except OSError:
+                    pass
             return
 
         if isinstance(structure, (str, Text)):
