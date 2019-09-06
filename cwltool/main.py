@@ -836,7 +836,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 if runtimeContext.research_obj is not None:
                     runtimeContext.research_obj.create_job(
                         out, None, True)
-                    def remove_at_id(doc):  # type: MutableMapping -> None
+                    def remove_at_id(doc):  # type: (MutableMapping[Text, Any]) -> None
                         for key in list(doc.keys()):
                             if key == '@id':
                                 del doc[key]
@@ -846,7 +846,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
                                     remove_at_id(value)
                                 elif isinstance(value, MutableSequence):
                                     for entry in value:
-                                        remove_at_id(entry)
+                                        if isinstance(entry, MutableMapping):
+                                            remove_at_id(entry)
                     remove_at_id(out)
 
                 def loc_to_path(obj):  # type: (Dict[Text, Any]) -> None
