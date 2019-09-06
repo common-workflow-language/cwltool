@@ -806,7 +806,7 @@ class ProvenanceProfile():
                     self.document.used(
                         process_run_id, entity, datetime.datetime.now(), None,
                         {"prov:role": prov_role})
-                except FileNotFoundError:
+                except OSError:
                     pass
 
     def generate_output_prov(self,
@@ -1582,7 +1582,7 @@ class ResearchObject():
             for val in structure.values():
                 try:
                     self._relativise_files(val)
-                except FileNotFoundError:
+                except OSError:
                     pass
             return
 
