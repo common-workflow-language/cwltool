@@ -806,8 +806,10 @@ class ProvenanceProfile():
                     self.document.used(
                         process_run_id, entity, datetime.datetime.now(), None,
                         {"prov:role": prov_role})
-                except OSError:
-                    pass
+                except OSError as exc:
+                    _logger.warning(
+                        u"[provenance] Unable to register artifact %s, %s: %s",
+                        key, value, Text(exc))
 
     def generate_output_prov(self,
                              final_output,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -826,19 +828,24 @@ class ProvenanceProfile():
             # entity (UUID) and document it as generated in
             # a role corresponding to the output
             for output, value in final_output.items():
-                entity = self.declare_artefact(value)
-                if name is not None:
-                    name = urllib.parse.quote(str(name), safe=":/,#")
-                    # FIXME: Probably not "main" in nested workflows
-                    role = self.wf_ns["main/%s/%s" % (name, output)]
-                else:
-                    role = self.wf_ns["main/%s" % output]
+                try:
+                    entity = self.declare_artefact(value)
+                    if name is not None:
+                        name = urllib.parse.quote(str(name), safe=":/,#")
+                        # FIXME: Probably not "main" in nested workflows
+                        role = self.wf_ns["main/%s/%s" % (name, output)]
+                    else:
+                        role = self.wf_ns["main/%s" % output]
 
-                if not process_run_id:
-                    process_run_id = self.workflow_run_uri
+                    if not process_run_id:
+                        process_run_id = self.workflow_run_uri
 
-                self.document.wasGeneratedBy(
-                    entity, process_run_id, timestamp, None, {"prov:role": role})
+                    self.document.wasGeneratedBy(
+                        entity, process_run_id, timestamp, None, {"prov:role": role})
+                except OSError as exc:
+                    _logger.warning(
+                        u"[provenance] Unable to register an output %s: %s, %s.",
+                        output, value, Text(exc))
 
     def prospective_prov(self, job):
         # type: (Any) -> None
@@ -1581,8 +1588,10 @@ class ResearchObject():
             for val in structure.values():
                 try:
                     self._relativise_files(val)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    _logger.warning(
+                        u"[provenance] Unable to relativise file %s: %s",
+                        val, Text(exc))
             return
 
         if isinstance(structure, (str, Text)):
@@ -1644,8 +1653,10 @@ def checksum_copy(src_file,            # type: IO[Any]
             os.link(src_file.name, dst_file.name)
             dst_file = None
             os.unlink(temp_location)
-        except OSError:
-            pass
+        except OSError as exc:
+            _logger.warning(
+                u"[provenance] Unable to copy file %s: %s.",
+                src_file, Text(exc))
         if os.path.exists(temp_location):
             os.rename(temp_location, dst_file.name)  # type: ignore
     while contents != b"":
