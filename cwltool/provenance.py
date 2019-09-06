@@ -545,7 +545,12 @@ class ProvenanceProfile():
         # Check for secondaries
         for sec in value.get("secondaryFiles", ()):
             # TODO: Record these in a specializationOf entity with UUID?
-            (sec_entity, _, _) = self.declare_file(sec)
+            if sec['class'] == "File":
+                (sec_entity, _, _) = self.declare_file(sec)
+            elif sec['class'] == "Directory":
+                sec_entity = self.declare_directory(sec)
+            else:
+                raise ValueError("Got unexpected secondaryFiles value: {}".format(sec))
             # We don't know how/when/where the secondary file was generated,
             # but CWL convention is a kind of summary/index derived
             # from the original file. As its generally in a different format
@@ -796,10 +801,13 @@ class ProvenanceProfile():
                 base += "/" + name
             for key, value in job_order.items():
                 prov_role = self.wf_ns["%s/%s" % (base, key)]
-                entity = self.declare_artefact(value)
-                self.document.used(
-                    process_run_id, entity, datetime.datetime.now(), None,
-                    {"prov:role": prov_role})
+                try:
+                    entity = self.declare_artefact(value)
+                    self.document.used(
+                        process_run_id, entity, datetime.datetime.now(), None,
+                        {"prov:role": prov_role})
+                except OSError:
+                    pass
 
     def generate_output_prov(self,
                              final_output,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -1572,7 +1580,10 @@ class ResearchObject():
                 del structure["location"]
 
             for val in structure.values():
-                self._relativise_files(val)
+                try:
+                    self._relativise_files(val)
+                except OSError:
+                    pass
             return
 
         if isinstance(structure, (str, Text)):
