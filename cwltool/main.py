@@ -849,6 +849,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
                                         if isinstance(entry, MutableMapping):
                                             remove_at_id(entry)
                     remove_at_id(out)
+                    visit_class(out, ("File",), functools.partial(
+                        add_sizes, runtimeContext.make_fs_access('')))
 
                 def loc_to_path(obj):  # type: (Dict[Text, Any]) -> None
                     for field in ("path", "nameext", "nameroot", "dirname"):
