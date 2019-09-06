@@ -846,7 +846,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
                                     remove_at_id(value)
                                 elif isinstance(value, MutableSequence):
                                     for entry in value:
-                                        remove_at_id(entry)
+                                        if isinstance(entry, MutableMapping):
+                                            remove_at_id(entry)
                     remove_at_id(out)
 
                 def loc_to_path(obj):  # type: (Dict[Text, Any]) -> None
