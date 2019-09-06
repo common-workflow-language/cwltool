@@ -679,6 +679,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
+                runtimeContext.research_obj.fsaccess = getdefault(runtimeContext.make_fs_access, StdFsAccess)
                 runtimeContext.research_obj.packed_workflow(
                     print_pack(loadingContext.loader, processobj, uri, metadata))
 

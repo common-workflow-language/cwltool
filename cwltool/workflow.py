@@ -583,6 +583,7 @@ class Workflow(Process):
         if runtimeContext.research_obj is not None:
             if runtimeContext.toplevel:
                 # Record primary-job.json
+                runtimeContext.research_obj.fsaccess = runtimeContext.make_fs_access('')
                 runtimeContext.research_obj.create_job(builder.job, self.job)
 
         job = WorkflowJob(self, runtimeContext)
