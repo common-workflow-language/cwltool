@@ -836,7 +836,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 if runtimeContext.research_obj is not None:
                     runtimeContext.research_obj.create_job(
                         out, None, True)
-                    def remove_at_id(doc):  # type: MutableMapping -> None
+                    def remove_at_id(doc):  # type: (MutableMapping[Text, Any]) -> None
                         for key in list(doc.keys()):
                             if key == '@id':
                                 del doc[key]
