@@ -159,7 +159,8 @@ class SingleJobExecutor(JobExecutor):
                 user_provenance=False,
                 orcid=runtime_context.orcid,
                 # single tool execution, so RO UUID = wf UUID = tool UUID
-                run_uuid=runtime_context.research_obj.ro_uuid)
+                run_uuid=runtime_context.research_obj.ro_uuid,
+                fsaccess=runtime_context.make_fs_access(''))
             process.parent_wf = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback,
                               runtime_context)
