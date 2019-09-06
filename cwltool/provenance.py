@@ -305,14 +305,11 @@ class ProvenanceProfile():
                  host_provenance,        # type: bool
                  user_provenance,        # type: bool
                  orcid,                  # type: str
-                 run_uuid=None,           # type: Optional[uuid.UUID],
-                 fsaccess=None           # type: Optional[StdFsAccess]
+                 fsaccess,               # type: StdFsAccess
+                 run_uuid=None           # type: Optional[uuid.UUID]
                 ):  # type: (...) -> None
         """Initialize the provenance profile."""
-        if not fsaccess:
-            fsaccess = StdFsAccess('')
         self.fsaccess = fsaccess
-
         self.orcid = orcid
         self.research_object = research_object
         self.folder = self.research_object.folder
@@ -948,9 +945,8 @@ class ProvenanceProfile():
 class ResearchObject():
     """CWLProv Research Object."""
 
-    def __init__(self, temp_prefix_ro="tmp", orcid='', full_name='', fsaccess=None):
-        # type: (str, Text, Text) -> None
-        # type: Optional[StdFsAccess]
+    def __init__(self, fsaccess, temp_prefix_ro="tmp", orcid='', full_name=''):
+        # type: (StdFsAccess, str, Text, Text) -> None
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
         self.orcid = '' if not orcid else _valid_orcid(orcid)

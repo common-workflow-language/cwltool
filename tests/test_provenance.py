@@ -24,6 +24,7 @@ from cwltool import load_tool, provenance
 from cwltool.main import main
 from cwltool.resolver import Path
 from cwltool.context import RuntimeContext
+from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, temp_dir, working_directory
 
@@ -513,7 +514,7 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
 
 @pytest.fixture
 def research_object():
-    re_ob = provenance.ResearchObject()
+    re_ob = provenance.ResearchObject(StdFsAccess(''))
     yield re_ob
     re_ob.close()
 
