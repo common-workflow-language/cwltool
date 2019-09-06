@@ -545,7 +545,12 @@ class ProvenanceProfile():
         # Check for secondaries
         for sec in value.get("secondaryFiles", ()):
             # TODO: Record these in a specializationOf entity with UUID?
-            (sec_entity, _, _) = self.declare_file(sec)
+            if sec['class'] == "File":
+                (sec_entity, _, _) = self.declare_file(sec)
+            elif sec['class'] == "Directory":
+                sec_entity = self.declare_directory(sec)
+            else:
+                raise ValueError("Got unexpected secondaryFiles value: {}".format(sec))
             # We don't know how/when/where the secondary file was generated,
             # but CWL convention is a kind of summary/index derived
             # from the original file. As its generally in a different format
