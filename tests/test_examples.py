@@ -1028,7 +1028,7 @@ def test_env_filtering(factor):
         target = 5
     elif sh_name == "dash":
         target = 4
-    else:
+    else:  # bash adds "SHLVL" and "_" environment variables
         target = 6
     result = json.loads(stdout)['env_count']
     details = ''
