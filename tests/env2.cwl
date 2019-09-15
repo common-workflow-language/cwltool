@@ -7,8 +7,8 @@ requirements:
 baseCommand: echo
 arguments:
   - valueFrom: >
-      {\\"env_count\\": \$(env | wc -l)}
+      {\\"env_listing\\": \\"\$(env)\\"}
     shellQuote: False
 stdout: cwl.output.json
 outputs:
-  env_count: int
+  env_listing: string
