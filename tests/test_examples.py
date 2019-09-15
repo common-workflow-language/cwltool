@@ -22,7 +22,7 @@ from cwltool.utils import onWindows
 from cwltool.resolver import Path
 from cwltool.process import CWL_IANA
 from cwltool.sandboxjs import JavascriptException
-from .util import (get_data, get_main_output, get_windows_safe_factory,
+from .util import (get_data, get_main_output, get_windows_safe_factory, subprocess,
                    needs_docker, working_directory, needs_singularity, temp_dir, windows_needs_docker)
 
 import six
@@ -1011,13 +1011,33 @@ def test_env_filtering(factor):
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
 
+    process = subprocess.Popen(["sh", "-c", r"""getTrueShellExeName() {
+  local trueExe nextTarget 2>/dev/null
+  trueExe=$(ps -o comm= $$) || return 1
+  [ "${trueExe#-}" = "$trueExe" ] || trueExe=${trueExe#-}
+  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] && which -p "$trueExe" || which "$trueExe")
+  while nextTarget=$(readlink "$trueExe"); do trueExe=$nextTarget; done
+  printf '%s\n' "$(basename "$trueExe")"
+} ; getTrueShellExeName"""], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
+    sh_name, sh_name_err = process.communicate()
+    sh_name = sh_name.decode('utf-8').strip()
+
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
     if onWindows():
         target = 5
-    else:
+    elif sh_name == "dash":
         target = 4
-    assert json.loads(stdout)['env_count'] == target, (error_code, stdout, stderr)
+    else:
+        target = 6
+    result = json.loads(stdout)['env_count']
+    details = ''
+    if result != target:
+        _, details, _ = get_main_output(["--quiet", get_data("tests/env2.cwl")])
+        print(sh_name)
+        print(sh_name_err)
+        print(details)
+    assert result == target, (error_code, sh_name, sh_name_err, details, stdout, stderr)
 
 @windows_needs_docker
 def test_v1_0_arg_empty_prefix_separate_false():
