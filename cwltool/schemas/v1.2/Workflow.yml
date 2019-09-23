@@ -49,7 +49,7 @@ $graph:
 
       ## Changelog
 
-        * Adds new `WorkflowStep` field: `runIf: Expression` for conditional executions
+        * Adds new `WorkflowStep` field: `when: Expression` for conditional executions
         * Adds new `Sink` and `WorkflowOutputParameter` field:  `branchSelect: first_that_ran | all_that_ran
          | the_one_that_ran
 
@@ -174,8 +174,8 @@ $graph:
   doc: |
     - `branchSelect` is evaluated before `linkMerge` and before `scatter`
     - The `branchSelect` is evaluated after all ancestor workflow steps have completed.
-    - Also see the documentation for `runIf`. `branchSelect` only has an effect
-      when a predecessor node has a `runIf` field.
+    - Also see the documentation for `when`. `branchSelect` only has an effect
+      when a predecessor node has a `when` field.
     - If a conditional step does not run, and if `branchSelect` is not specified the
       outputs of the skipped step are all converted into `null`s
     - Static type checkers should check for type consistency after infering what the type
@@ -212,7 +212,7 @@ $graph:
 
       *Targeted use case*: Switch type patterns where developer considers
       more than one active code path as a workflow error
-      (possibly indicating an error in writing `runIf` condition expressions).
+      (possibly indicating an error in writing `when` condition expressions).
 
   symbols:
     - first_that_ran
@@ -538,13 +538,13 @@ $graph:
         subscope: run
       doc: |
         Specifies the process to run.
-    - name: runIf
+    - name: when
       type:
         - "null"
         - Expression
-      jsonldPredicate: "cwl:runIf"
+      jsonldPredicate: "cwl:when"
       doc: |
-        - The step will only be run if the expression evaluates to `True`.
+        - The step will only be run when the expression evaluates to `True`.
         - If the step does not run and if `branchSelect` is used the workflow
           behaves as if that step was never there in the DAG. If branchSelect is not
           used, the workflow behaves as if that step produced null for each of its outputs.
