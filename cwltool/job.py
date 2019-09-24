@@ -405,11 +405,21 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         memory_usage = [None]  # Value must be list rather than integer to utilise pass-by-reference in python
 
         def get_tree_mem_usage(memory_usage):  # type: (List[int]) -> None
-            children = monitor.children()
-            rss = monitor.memory_info().rss
-            while len(children):
-                rss += sum([process.memory_info().rss for process in children])
-                children = list(itertools.chain(*[process.children() for process in children]))
+            rss = 0
+            try:
+                rss = monitor.memory_info().rss
+            except psutil.Error as primary_error:
+                _logger.debug(u"[job %s] Could not collect memory usage for primary process: %s", self.name, Text(primary_error))
+            try:
+                children = monitor.children(True)
+                # if that has a psutil.Error then we skip the children
+                for process in children:
+                    try:
+                        rss += process.memory_info().rss
+                    except psutil.Error as child_error:
+                        _logger.debug(u"[job %s] Could not collect memory usage of child process %s: %s", self.name, Text(process), Text(child_error))
+            except psutil.Error as psutil_exc:
+                _logger.debug(u"[job %s] Could not collect memory usage: %s", self.name, Text(psutil_exc))
             if memory_usage[0] is None or rss > memory_usage[0]:
                 memory_usage[0] = rss
 
@@ -422,7 +432,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
-            _logger.debug(u"Could not collect memory usage, job ended before monitoring began.")
+            _logger.debug(u"[job %s] Could not collect memory usage, job ended before monitoring began.", self.name)
 
 
 class CommandLineJob(JobBase):
