@@ -495,9 +495,9 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
 
         self.schemaDefs = {}  # type: Dict[Text,Dict[Text, Any]]
 
-        sd, _ = self.get_requirement("SchemaDefRequirement")
+        schema_defs = self.get_requirements("SchemaDefRequirement")
 
-        if sd is not None:
+        for sd, _ in schema_defs:
             sdtypes = avroize_type(sd["types"])
             av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
             for i in av:

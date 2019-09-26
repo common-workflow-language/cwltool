@@ -121,13 +121,20 @@ class HasReqsHints(object):
     def get_requirement(self,
                         feature  # type: Text
                        ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+        for requirement in self.get_requirements(feature):
+            return requirement
+
+        return (None, None)
+
+    def get_requirements(self,
+                        feature  # type: Text
+                       ):  # type: (...) -> List[Tuple[Optional[Any], Optional[bool]]]
         for item in reversed(self.requirements):
             if item["class"] == feature:
-                return (item, True)
+                yield (item, True)
         for item in reversed(self.hints):
             if item["class"] == feature:
-                return (item, False)
-        return (None, None)
+                yield (item, False)
 
 class Builder(HasReqsHints):
     def __init__(self,
