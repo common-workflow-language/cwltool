@@ -74,7 +74,7 @@ setup(name='cwltool',
           'bagit >= 1.6.4',
           'typing-extensions',
           'coloredlogs',
-          'future',
+          'future >= 0.16',
           'pathlib2 != 2.3.1'
       ],
       extras_require={
