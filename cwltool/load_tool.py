@@ -62,9 +62,10 @@ FetcherConstructorType = Callable[
     [Dict[Text, Union[Text, bool]], requests.sessions.Session], Fetcher]
 ResolverType = Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
 
-def default_loader(fetcher_constructor=None):
-    # type: (Optional[FetcherConstructorType]) -> Loader
-    return Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
+def default_loader(fetcher_constructor=None, enable_dev=False):
+    # type: (Optional[FetcherConstructorType], bool) -> Loader
+    return Loader(jobloaderctx, fetcher_constructor=fetcher_constructor,
+                  allow_attachments=lambda r: enable_dev)
 
 def resolve_tool_uri(argsworkflow,              # type: Text
                      resolver=None,             # type: Optional[ResolverType]
