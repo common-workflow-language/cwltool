@@ -589,7 +589,8 @@ def choose_target(args,           # type: argparse.Namespace
                   loadingContext  # type: LoadingContext
 ):  # type: (...) -> Optional[Process]
 
-    assert loadingContext.loader is not None
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
@@ -722,7 +723,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
         setup_schema(args, custom_schema_callback)
 
         if args.provenance:
-            assert argsl is not None
+            if argsl is None:
+                raise Exception("argsl cannot be None")
             if setup_provenance(args, argsl, runtimeContext) is not None:
                 return 1
 
