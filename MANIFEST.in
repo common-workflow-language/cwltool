@@ -10,6 +10,7 @@ include tests/override/*
 include tests/checker_wf/*
 include tests/subgraph/*
 include tests/trs/*
+include tests/generator/*
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
