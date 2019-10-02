@@ -51,6 +51,7 @@ from .process import (Process, add_sizes,  # pylint: disable=unused-import
                       scandeps, shortname, use_custom_schema,
                       use_standard_schema, CWL_IANA)
 from .workflow import Workflow
+from .wfgenerator import WorkflowGenerator
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -875,6 +876,32 @@ def main(argsl=None,                   # type: Optional[List[str]]
 
         try:
             runtimeContext.basedir = input_basedir
+
+            if isinstance(tool, WorkflowGenerator):
+                tfjob_order = {}  # type: MutableMapping[Text, Any]
+                if loadingContext.jobdefaults:
+                    tfjob_order.update(loadingContext.jobdefaults)
+                if job_order_object:
+                    tfjob_order.update(job_order_object)
+                tfout, tfstatus = real_executor(tool.embedded_tool, tfjob_order, runtimeContext)
+                if tfstatus != "success":
+                    raise WorkflowException("WorkflowGenerator failed to generate workflow")
+                tool, job_order_object = tool.result(tfjob_order, tfout, runtimeContext)
+                if not job_order_object:
+                    job_order_object = None
+
+            try:
+                initialized_job_order_object = init_job_order(
+                    job_order_object, args, tool, jobloader, stdout,
+                    print_input_deps=args.print_input_deps,
+                    relative_deps=args.relative_deps,
+                    make_fs_access=runtimeContext.make_fs_access,
+                    input_basedir=input_basedir,
+                    secret_store=runtimeContext.secret_store,
+                    input_required=input_required)
+            except SystemExit as err:
+                return err.code
+
             del args.workflow
             del args.job_order
 

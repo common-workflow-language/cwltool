@@ -9,10 +9,10 @@ from typing import (Any, Callable, Dict, Generator, Iterable, List,
 from .loghandler import _logger
 from typing_extensions import Text  # pylint: disable=unused-import
 
-class ToolFactoryJob(object):
-    def __init__(self, toolfactory):
-        # type: (ToolFactory) -> None
-        self.toolfactory = toolfactory
+class WorkflowGeneratorJob(object):
+    def __init__(self, wfgenerator):
+        # type: (WorkflowGenerator) -> None
+        self.wfgenerator = wfgenerator
         self.jobout = None         # type: Optional[Dict[Text, Any]]
         self.processStatus = None  # type: Optional[Text]
 
@@ -29,7 +29,7 @@ class ToolFactoryJob(object):
         # FIXME: Declare base type for what Generator yields
 
         try:
-            for tool in self.toolfactory.embedded_tool.job(
+            for tool in self.wfgenerator.embedded_tool.job(
                     job_order,
                     self.receive_output,
                     runtimeContext):
@@ -45,22 +45,9 @@ class ToolFactoryJob(object):
             if self.jobout is None:
                 raise WorkflowException("jobout should not be None")
 
-            try:
-                self.toolfactory.loadingContext.metadata = {}
-                self.embedded_tool = load_tool(
-                    self.jobout["runProcess"]["location"], self.toolfactory.loadingContext)
-            except validate.ValidationException as vexc:
-                if runtimeContext.debug:
-                    _logger.exception("Validation exception")
-                raise WorkflowException(
-                    u"Tool definition %s failed validation:\n%s" %
-                    (self.jobout["runProcess"], validate.indent(str(vexc))))
+            created_tool, runinputs = self.wfgenerator.result(job_order, self.jobout, runtimeContext)
 
-            runinputs = job_order
-            if "runInputs" in self.jobout:
-                runinputs = self.jobout
-
-            for tool in self.embedded_tool.job(
+            for tool in created_tool.job(
                     runinputs,
                     output_callbacks,
                     runtimeContext):
@@ -73,12 +60,12 @@ class ToolFactoryJob(object):
             raise WorkflowException(Text(exc))
 
 
-class ToolFactory(Process):
+class WorkflowGenerator(Process):
     def __init__(self,
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
     ):  # type: (...) -> None
-        super(ToolFactory, self).__init__(
+        super(WorkflowGenerator, self).__init__(
             toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:
@@ -102,4 +89,33 @@ class ToolFactory(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         # FIXME: Declare base type for what Generator yields
-        return ToolFactoryJob(self).job(job_order, output_callbacks, runtimeContext)
+        return WorkflowGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)
+
+    def result(self,
+            job_order,      # type: Mapping[Text, Any]
+            jobout,         # type: Mapping[Text, Any]
+            runtimeContext  # type: RuntimeContext
+    ):  # type: (...) -> Tuple[Process, MutableMapping[Text, Any]]
+        try:
+            loadingContext = self.loadingContext.copy()
+            loadingContext.metadata = {}
+            embedded_tool = load_tool(
+                jobout["runProcess"]["location"], loadingContext)
+        except validate.ValidationException as vexc:
+            if runtimeContext.debug:
+                _logger.exception("Validation exception")
+            raise WorkflowException(
+                u"Tool definition %s failed validation:\n%s" %
+                (jobout["runProcess"], validate.indent(str(vexc))))
+
+        if "runInputs" in jobout:
+            runinputs = cast(MutableMapping[Text, Any], jobout["runInputs"])
+        else:
+            runinputs = cast(MutableMapping[Text, Any], copy.deepcopy(job_order))
+            for i in self.embedded_tool.tool["inputs"]:
+                if shortname(i["id"]) in runinputs:
+                    del runinputs[shortname(i["id"])]
+            if "id" in runinputs:
+                del runinputs["id"]
+
+        return embedded_tool, runinputs
