@@ -4,7 +4,7 @@ Common Workflow Language tool description reference implementation
 
 CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status| |Downloads|
 
-|CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support| 
+|CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support|
 |InitialWorkDirRequirement Support| |InlineJavascriptRequirement Support| |MultipleInputRequirement Support| |Core Support|
 |ResourceRequirement Support| |ScatterRequirement Support| |SchemaDefRequirement Support| |ShellCommandequirement Support|
 |StepInputRequirement Support| |SubWorkflowRequirement Support| |Workflow Support|
@@ -144,6 +144,11 @@ Or if you have multiple CWL implementations installed and you want to override
 the default cwl-runner use::
 
   cwltool [tool-or-workflow-description] [input-job-settings]
+
+You can set cwltool options in the environment with CWLTOOL_OPTIONS,
+these will be inserted at the beginning of the command line::
+
+  export CWLTOOL_OPTIONS="--debug"
 
 Use with boot2docker
 --------------------
