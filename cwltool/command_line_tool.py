@@ -169,9 +169,9 @@ def revmap_file(builder, outdir, f):
 
         if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-        elif uripath == outdir or uripath.startswith(outdir+os.sep):
+        elif uripath == outdir or uripath.startswith(outdir+os.sep) or uripath.startswith(outdir+'/'):
             f["location"] = file_uri(path)
-        elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
+        elif path == builder.outdir or path.startswith(builder.outdir+os.sep) or path.startswith(builder.outdir+'/'):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = builder.fs_access.join(outdir, path)
@@ -413,7 +413,7 @@ class CommandLineTool(Process):
 
                 def update_status_output_callback(
                         output_callbacks,  # type: Callable[[List[Dict[Text, Any]], Text], None]
-                        jobcachelock,      # type: IO[Any] 
+                        jobcachelock,      # type: IO[Any]
                         outputs,           # type: List[Dict[Text, Any]]
                         processStatus      # type: Text
                         ):  # type: (...) -> None
