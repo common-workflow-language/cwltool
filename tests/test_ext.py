@@ -28,6 +28,14 @@ def test_listing_deep():
     assert main(params) == 0
 
 @needs_docker
+def test_cwltool_options():
+    os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
+    params = [get_data('tests/wf/listing_deep.cwl'),
+              get_data('tests/listing-job.yml')]
+    assert main(params) == 0
+    del os.environ["CWLTOOL_OPTIONS"]
+
+@needs_docker
 def test_listing_shallow():
     # This fails on purpose, because it tries to access listing in a subdirectory
     # the same way that listing_deep does, but it shouldn't be expanded.
