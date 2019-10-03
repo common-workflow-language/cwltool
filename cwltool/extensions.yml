@@ -136,7 +136,7 @@ $graph:
     - name: networkAccess
       type: [boolean, string]
 
-- name: WorkflowGenerator
+- name: ProcessGenerator
   type: record
   inVocab: true
   extends: cwl:Process

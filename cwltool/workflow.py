@@ -22,7 +22,7 @@ from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from . import command_line_tool, context, expression, wfgenerator
+from . import command_line_tool, context, expression, procgenerator
 from .command_line_tool import CallbackJob, ExpressionTool
 from .job import JobBase
 from .builder import content_limit_respected_read
@@ -56,8 +56,8 @@ def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
             return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
         if toolpath_object["class"] == "Workflow":
             return Workflow(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "WorkflowGenerator":
-            return wfgenerator.WorkflowGenerator(toolpath_object, loadingContext)
+        if toolpath_object["class"] == "ProcessGenerator":
+            return procgenerator.ProcessGenerator(toolpath_object, loadingContext)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in "

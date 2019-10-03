@@ -9,10 +9,10 @@ from typing import (Any, Callable, Dict, Generator, Iterable, List,
 from .loghandler import _logger
 from typing_extensions import Text  # pylint: disable=unused-import
 
-class WorkflowGeneratorJob(object):
-    def __init__(self, wfgenerator):
-        # type: (WorkflowGenerator) -> None
-        self.wfgenerator = wfgenerator
+class ProcessGeneratorJob(object):
+    def __init__(self, procgenerator):
+        # type: (ProcessGenerator) -> None
+        self.procgenerator = procgenerator
         self.jobout = None         # type: Optional[Dict[Text, Any]]
         self.processStatus = None  # type: Optional[Text]
 
@@ -29,7 +29,7 @@ class WorkflowGeneratorJob(object):
         # FIXME: Declare base type for what Generator yields
 
         try:
-            for tool in self.wfgenerator.embedded_tool.job(
+            for tool in self.procgenerator.embedded_tool.job(
                     job_order,
                     self.receive_output,
                     runtimeContext):
@@ -45,7 +45,7 @@ class WorkflowGeneratorJob(object):
             if self.jobout is None:
                 raise WorkflowException("jobout should not be None")
 
-            created_tool, runinputs = self.wfgenerator.result(job_order, self.jobout, runtimeContext)
+            created_tool, runinputs = self.procgenerator.result(job_order, self.jobout, runtimeContext)
 
             for tool in created_tool.job(
                     runinputs,
@@ -60,12 +60,12 @@ class WorkflowGeneratorJob(object):
             raise WorkflowException(Text(exc))
 
 
-class WorkflowGenerator(Process):
+class ProcessGenerator(Process):
     def __init__(self,
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
     ):  # type: (...) -> None
-        super(WorkflowGenerator, self).__init__(
+        super(ProcessGenerator, self).__init__(
             toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:
@@ -89,7 +89,7 @@ class WorkflowGenerator(Process):
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Any, None, None]
         # FIXME: Declare base type for what Generator yields
-        return WorkflowGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)
+        return ProcessGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)
 
     def result(self,
             job_order,      # type: Mapping[Text, Any]

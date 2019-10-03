@@ -51,7 +51,7 @@ from .process import (Process, add_sizes,  # pylint: disable=unused-import
                       scandeps, shortname, use_custom_schema,
                       use_standard_schema, CWL_IANA)
 from .workflow import Workflow
-from .wfgenerator import WorkflowGenerator
+from .procgenerator import ProcessGenerator
 from .provenance import ResearchObject
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
@@ -877,7 +877,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
         try:
             runtimeContext.basedir = input_basedir
 
-            if isinstance(tool, WorkflowGenerator):
+            if isinstance(tool, ProcessGenerator):
                 tfjob_order = {}  # type: MutableMapping[Text, Any]
                 if loadingContext.jobdefaults:
                     tfjob_order.update(loadingContext.jobdefaults)
@@ -885,7 +885,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                     tfjob_order.update(job_order_object)
                 tfout, tfstatus = real_executor(tool.embedded_tool, tfjob_order, runtimeContext)
                 if tfstatus != "success":
-                    raise WorkflowException("WorkflowGenerator failed to generate workflow")
+                    raise WorkflowException("ProcessGenerator failed to generate workflow")
                 tool, job_order_object = tool.result(tfjob_order, tfout, runtimeContext)
                 if not job_order_object:
                     job_order_object = None
