@@ -517,7 +517,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
         if args is None:
             if argsl is None:
                 argsl = sys.argv[1:]
-            addl = []
+            addl = []  # type: List[str]
             if "CWLTOOL_OPTIONS" in os.environ:
                 addl = os.environ["CWLTOOL_OPTIONS"].split(" ")
             args = arg_parser().parse_args(addl+argsl)
