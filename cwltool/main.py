@@ -275,7 +275,6 @@ def load_job_order(args,                 # type: argparse.Namespace
         sys.exit(1)
     return (job_order_object, input_basedir, loader)
 
-
 def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text, Any]]
                    args,                    # type: argparse.Namespace
                    process,                 # type: Process
@@ -389,7 +388,6 @@ def init_job_order(job_order_object,        # type: Optional[MutableMapping[Text
     return job_order_object
 
 
-
 def make_relative(base, obj):  # type: (Text, Dict[Text, Any]) -> None
     """Relativize the location URI of a File or Directory object."""
     uri = obj.get("location", obj.get("path"))
@@ -480,6 +478,157 @@ def supported_cwl_versions(enable_dev):  # type: (bool) -> List[Text]
     versions.sort()
     return versions
 
+def configure_logging(args,            # type: argparse.Namespace
+                      stderr_handler,  # type: logging.Handler
+                      runtimeContext   # type: RuntimeContext
+):    # type: (...) -> None
+    # Configure logging
+    rdflib_logger = logging.getLogger("rdflib.term")
+    rdflib_logger.addHandler(stderr_handler)
+    rdflib_logger.setLevel(logging.ERROR)
+    if args.quiet:
+        # Silence STDERR, not an eventual provenance log file
+        stderr_handler.setLevel(logging.WARN)
+    if runtimeContext.debug:
+        # Increase to debug for both stderr and provenance log file
+        _logger.setLevel(logging.DEBUG)
+        stderr_handler.setLevel(logging.DEBUG)
+        rdflib_logger.setLevel(logging.DEBUG)
+    fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
+    formatter = fmtclass("%(levelname)s %(message)s")
+    if args.timestamps:
+        formatter = fmtclass(
+            "[%(asctime)s] %(levelname)s %(message)s",
+            "%Y-%m-%d %H:%M:%S")
+    stderr_handler.setFormatter(formatter)
+
+def setup_schema(args,                    # type: argparse.Namespace
+                 custom_schema_callback   # type: Optional[Callable[[], None]]
+):  # type: (...) -> None
+    if custom_schema_callback is not None:
+        custom_schema_callback()
+    elif args.enable_ext:
+        res = pkg_resources.resource_stream(__name__, 'extensions.yml')
+        use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
+        res.close()
+    else:
+        use_standard_schema("v1.0")
+
+def setup_provenance(args,            # type: argparse.Namespace
+                     argsl,           # type: List[str]
+                     runtimeContext   # type: RuntimeContext
+):  # type: (...) -> Optional[int]
+    if not args.compute_checksum:
+        _logger.error("--provenance incompatible with --no-compute-checksum")
+        return 1
+    ro = ResearchObject(
+        getdefault(runtimeContext.make_fs_access, StdFsAccess),
+        temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
+        full_name=args.cwl_full_name)
+    runtimeContext.research_obj = ro
+    log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
+    prov_log_handler = logging.StreamHandler(cast(IO[str], log_file_io))
+
+    class ProvLogFormatter(logging.Formatter):
+        """Enforce ISO8601 with both T and Z."""
+
+        def __init__(self):  # type: () -> None
+            super(ProvLogFormatter, self).__init__(
+                "[%(asctime)sZ] %(message)s")
+
+        def formatTime(self, record, datefmt=None):
+            # type: (logging.LogRecord, Optional[str]) -> str
+            record_time = time.gmtime(record.created)
+            formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
+            with_msecs = "%s,%03d" % (formatted_time, record.msecs)
+            return with_msecs
+    prov_log_handler.setFormatter(ProvLogFormatter())
+    _logger.addHandler(prov_log_handler)
+    _logger.debug(u"[provenance] Logging to %s", log_file_io)
+    if argsl is not None:
+        # Log cwltool command line options to provenance file
+        _logger.info("[cwltool] %s %s", sys.argv[0], u" ".join(argsl))
+    _logger.debug(u"[cwltool] Arguments: %s", args)
+    return None
+
+def setup_loadingContext(loadingContext,  # type: Optional[LoadingContext]
+                         runtimeContext,  # type: RuntimeContext
+                         args             # type: argparse.Namespace
+):  # type: (...) -> LoadingContext
+    if loadingContext is None:
+        loadingContext = LoadingContext(vars(args))
+    else:
+        loadingContext = loadingContext.copy()
+    loadingContext.loader = default_loader(loadingContext.fetcher_constructor,
+                                           enable_dev=args.enable_dev)
+    loadingContext.research_obj = runtimeContext.research_obj
+    loadingContext.disable_js_validation = \
+        args.disable_js_validation or (not args.do_validate)
+    loadingContext.construct_tool_object = getdefault(
+        loadingContext.construct_tool_object, workflow.default_make_tool)
+    loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
+    if loadingContext.do_update is None:
+        loadingContext.do_update = not (args.pack or args.print_subgraph)
+
+    return loadingContext
+
+def make_template(tool    # type: Process
+):  # type: (...) -> None
+    def my_represent_none(self, data):  # pylint: disable=unused-argument
+        # type: (Any, Any) -> Any
+        """Force clean representation of 'null'."""
+        return self.represent_scalar(u'tag:yaml.org,2002:null', u'null')
+    yaml.RoundTripRepresenter.add_representer(type(None), my_represent_none)
+    yaml.round_trip_dump(
+        generate_input_template(tool), sys.stdout,
+        default_flow_style=False, indent=4, block_seq_indent=2)
+
+
+def choose_target(args,           # type: argparse.Namespace
+                  tool,           # type: Process
+                  loadingContext  # type: LoadingContext
+):  # type: (...) -> Optional[Process]
+
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be None")
+
+    if isinstance(tool, Workflow):
+        url = urllib.parse.urlparse(tool.tool["id"])
+        if url.fragment:
+            extracted = get_subgraph([tool.tool["id"] + "/" + r for r in args.target], tool)
+        else:
+            extracted = get_subgraph([loadingContext.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
+                                     for r in args.target],
+                                     tool)
+    else:
+        _logger.error("Can only use --target on Workflows")
+        return None
+    if isinstance(loadingContext.loader.idx, CommentedMap):
+        loadingContext.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"],
+                         loadingContext)
+    else:
+        raise Exception("Missing loadingContext.loader.idx!")
+
+    return tool
+
+def check_working_directories(runtimeContext   # type: RuntimeContext
+):  # type: (...) -> Optional[int]
+    for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
+        if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
+            sl = "/" if getattr(runtimeContext, dirprefix).endswith("/") or dirprefix == "cachedir" \
+                else ""
+            setattr(runtimeContext, dirprefix,
+                    os.path.abspath(getattr(runtimeContext, dirprefix)) + sl)
+            if not os.path.exists(os.path.dirname(getattr(runtimeContext, dirprefix))):
+                try:
+                    os.makedirs(os.path.dirname(getattr(runtimeContext, dirprefix)))
+                except Exception as e:
+                    _logger.error("Failed to create directory: %s", Text(e))
+                    return 1
+    return None
+
+
 def main(argsl=None,                   # type: Optional[List[str]]
          args=None,                    # type: Optional[argparse.Namespace]
          job_order_object=None,        # type: Optional[MutableMapping[Text, Any]]
@@ -545,26 +694,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
             if not hasattr(args, key):
                 setattr(args, key, val)
 
-        # Configure logging
-        rdflib_logger = logging.getLogger("rdflib.term")
-        rdflib_logger.addHandler(stderr_handler)
-        rdflib_logger.setLevel(logging.ERROR)
-        if args.quiet:
-            # Silence STDERR, not an eventual provenance log file
-            stderr_handler.setLevel(logging.WARN)
-        if runtimeContext.debug:
-            # Increase to debug for both stderr and provenance log file
-            _logger.setLevel(logging.DEBUG)
-            stderr_handler.setLevel(logging.DEBUG)
-            rdflib_logger.setLevel(logging.DEBUG)
-        fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
-        formatter = fmtclass("%(levelname)s %(message)s")
-        if args.timestamps:
-            formatter = fmtclass(
-                "[%(asctime)s] %(levelname)s %(message)s",
-                "%Y-%m-%d %H:%M:%S")
-        stderr_handler.setFormatter(formatter)
-        ##
+        configure_logging(args, stderr_handler, runtimeContext)
 
         if args.version:
             print(versionfunc())
@@ -590,60 +720,15 @@ def main(argsl=None,                   # type: Optional[List[str]]
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
 
-        if custom_schema_callback is not None:
-            custom_schema_callback()
-        elif args.enable_ext:
-            res = pkg_resources.resource_stream(__name__, 'extensions.yml')
-            use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
-            res.close()
-        else:
-            use_standard_schema("v1.0")
+        setup_schema(args, custom_schema_callback)
+
         if args.provenance:
-            if not args.compute_checksum:
-                _logger.error("--provenance incompatible with --no-compute-checksum")
+            if argsl is None:
+                raise Exception("argsl cannot be None")
+            if setup_provenance(args, argsl, runtimeContext) is not None:
                 return 1
-            ro = ResearchObject(
-                getdefault(runtimeContext.make_fs_access, StdFsAccess),
-                temp_prefix_ro=args.tmpdir_prefix, orcid=args.orcid,
-                full_name=args.cwl_full_name)
-            runtimeContext.research_obj = ro
-            log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
-            prov_log_handler = logging.StreamHandler(cast(IO[str], log_file_io))
 
-            class ProvLogFormatter(logging.Formatter):
-                """Enforce ISO8601 with both T and Z."""
-
-                def __init__(self):  # type: () -> None
-                    super(ProvLogFormatter, self).__init__(
-                        "[%(asctime)sZ] %(message)s")
-
-                def formatTime(self, record, datefmt=None):
-                    # type: (logging.LogRecord, Optional[str]) -> str
-                    record_time = time.gmtime(record.created)
-                    formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
-                    with_msecs = "%s,%03d" % (formatted_time, record.msecs)
-                    return with_msecs
-            prov_log_handler.setFormatter(ProvLogFormatter())
-            _logger.addHandler(prov_log_handler)
-            _logger.debug(u"[provenance] Logging to %s", log_file_io)
-            if argsl is not None:
-                # Log cwltool command line options to provenance file
-                _logger.info("[cwltool] %s %s", sys.argv[0], u" ".join(argsl))
-            _logger.debug(u"[cwltool] Arguments: %s", args)
-
-        if loadingContext is None:
-            loadingContext = LoadingContext(vars(args))
-        else:
-            loadingContext = loadingContext.copy()
-        loadingContext.loader = default_loader(loadingContext.fetcher_constructor)
-        loadingContext.research_obj = runtimeContext.research_obj
-        loadingContext.disable_js_validation = \
-            args.disable_js_validation or (not args.do_validate)
-        loadingContext.construct_tool_object = getdefault(
-            loadingContext.construct_tool_object, workflow.default_make_tool)
-        loadingContext.resolver = getdefault(loadingContext.resolver, tool_resolver)
-        if loadingContext.do_update is None:
-            loadingContext.do_update = not (args.pack or args.print_subgraph)
+        loadingContext = setup_loadingContext(loadingContext, runtimeContext, args)
 
         uri, tool_file_uri = resolve_tool_uri(
             args.workflow, resolver=loadingContext.resolver,
@@ -692,14 +777,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
 
             tool = make_tool(uri, loadingContext)
             if args.make_template:
-                def my_represent_none(self, data):  # pylint: disable=unused-argument
-                    # type: (Any, Any) -> Any
-                    """Force clean representation of 'null'."""
-                    return self.represent_scalar(u'tag:yaml.org,2002:null', u'null')
-                yaml.RoundTripRepresenter.add_representer(type(None), my_represent_none)
-                yaml.round_trip_dump(
-                    generate_input_template(tool), sys.stdout,
-                    default_flow_style=False, indent=4, block_seq_indent=2)
+                make_template(tool)
                 return 0
 
             if args.validate:
@@ -722,23 +800,11 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 return 0
 
             if args.target:
-                if isinstance(tool, Workflow):
-                    url = urllib.parse.urlparse(tool.tool["id"])
-                    if url.fragment:
-                        extracted = get_subgraph([tool.tool["id"] + "/" + r for r in args.target], tool)
-                    else:
-                        extracted = get_subgraph([loadingContext.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
-                                                 for r in args.target],
-                                                 tool)
-                else:
-                    _logger.error("Can only use --target on Workflows")
+                ctool = choose_target(args, tool, loadingContext)
+                if ctool is None:
                     return 1
-                if isinstance(loadingContext.loader.idx, CommentedMap):
-                    loadingContext.loader.idx[extracted["id"]] = extracted
-                    tool = make_tool(extracted["id"],
-                                     loadingContext)
                 else:
-                    raise Exception("Missing loadingContext.loader.idx!")
+                    tool = ctool
 
             if args.print_subgraph:
                 if "name" in tool.tool:
@@ -764,6 +830,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
 
         if isinstance(tool, int):
             return tool
+
         # If on MacOS platform, TMPDIR must be set to be under one of the
         # shared volumes in Docker for Mac
         # More info: https://dockstore.org/docs/faq
@@ -774,18 +841,8 @@ def main(argsl=None,                   # type: Optional[List[str]]
             if runtimeContext.tmpdir_prefix == DEFAULT_TMP_PREFIX:
                 runtimeContext.tmpdir_prefix = default_mac_path
 
-        for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
-            if getattr(runtimeContext, dirprefix) and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX:
-                sl = "/" if getattr(runtimeContext, dirprefix).endswith("/") or dirprefix == "cachedir" \
-                    else ""
-                setattr(runtimeContext, dirprefix,
-                        os.path.abspath(getattr(runtimeContext, dirprefix)) + sl)
-                if not os.path.exists(os.path.dirname(getattr(runtimeContext, dirprefix))):
-                    try:
-                        os.makedirs(os.path.dirname(getattr(runtimeContext, dirprefix)))
-                    except Exception as e:
-                        _logger.error("Failed to create directory: %s", Text(e))
-                        return 1
+        if check_working_directories(runtimeContext) is not None:
+            return 1
 
         if args.cachedir:
             if args.move_outputs == "move":
