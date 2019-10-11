@@ -852,17 +852,6 @@ def main(argsl=None,                   # type: Optional[List[str]]
 
         runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
         runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
-        try:
-            initialized_job_order_object = init_job_order(
-                job_order_object, args, tool, jobloader, stdout,
-                print_input_deps=args.print_input_deps,
-                relative_deps=args.relative_deps,
-                make_fs_access=runtimeContext.make_fs_access,
-                input_basedir=input_basedir,
-                secret_store=runtimeContext.secret_store,
-                input_required=input_required)
-        except SystemExit as err:
-            return err.code
 
         if not executor:
             if args.parallel:

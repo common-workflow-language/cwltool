@@ -1,4 +1,5 @@
-from .process import Process
+import copy
+from .process import Process, shortname
 from .load_tool import load_tool
 from schema_salad import validate
 from .errors import WorkflowException
