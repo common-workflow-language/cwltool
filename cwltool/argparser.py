@@ -254,7 +254,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
     exgroup.add_argument("--enable-color", action="store_true",
                          help="Enable logging color (default enabled)", default=True)
     exgroup.add_argument("--disable-color", action="store_false", dest="enable_color",
-                         help="Disable logging color")
+                        help="Disable colored logging (default false)")
 
     parser.add_argument("--default-container",
                         help="Specify a default docker container that will be used if the workflow fails to specify one.")
@@ -340,10 +340,14 @@ class FSAction(argparse.Action):
             raise ValueError("nargs not allowed")
         super(FSAction, self).__init__(option_strings, dest, **kwargs)
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
+    def __call__(self,
+                 parser,             # type: argparse.ArgumentParser
+                 namespace,          # type: argparse.Namespace
+                 values,             # type: Union[AnyStr, Sequence[Any], None]
+                 option_string=None  # type: Optional[Text]
+                ):  # type: (...) -> None
         setattr(namespace,
-                self.dest,  # type: ignore
+                self.dest,
                 {"class": self.objclass,
                  "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
 
@@ -358,16 +362,16 @@ class FSAppendAction(argparse.Action):
             raise ValueError("nargs not allowed")
         super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        # type: (argparse.ArgumentParser, argparse.Namespace, Union[AnyStr, Sequence[Any], None], AnyStr) -> None
-        g = getattr(namespace,
-                    self.dest  # type: ignore
-                    )
+    def __call__(self,
+                 parser,             # type: argparse.ArgumentParser
+                 namespace,          # type: argparse.Namespace
+                 values,             # type: Union[AnyStr, Sequence[Any], None]
+                 option_string=None  # type: Optional[Text]
+                ):  # type: (...) -> None
+        g = getattr(namespace, self.dest)
         if not g:
             g = []
-            setattr(namespace,
-                    self.dest,  # type: ignore
-                    g)
+            setattr(namespace, self.dest, g)
         g.append(
             {"class": self.objclass,
              "location": file_uri(str(os.path.abspath(cast(AnyStr, values))))})
@@ -390,14 +394,16 @@ class DirectoryAppendAction(FSAppendAction):
 
 
 def add_argument(toolparser, name, inptype, records, description="",
-                 default=None):
-    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any) -> None
+                 default=None, input_required=True):
+    # type: (argparse.ArgumentParser, Text, Any, List[Text], Text, Any, bool) -> None
     if len(name) == 1:
         flag = "-"
     else:
         flag = "--"
 
-    required = default is None
+    # if input_required is false, don't make the command line
+    # parameter required.
+    required = default is None and input_required
     if isinstance(inptype, MutableSequence):
         if inptype[0] == "null":
             required = False
@@ -458,8 +464,8 @@ def add_argument(toolparser, name, inptype, records, description="",
         default=default, **typekw)
 
 
-def generate_parser(toolparser, tool, namemap, records):
-    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text]) -> argparse.ArgumentParser
+def generate_parser(toolparser, tool, namemap, records, input_required=True):
+    # type: (argparse.ArgumentParser, Process, Dict[Text, Text], List[Text], bool) -> argparse.ArgumentParser
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -469,6 +475,6 @@ def generate_parser(toolparser, tool, namemap, records):
         inptype = inp["type"]
         description = inp.get("doc", "")
         default = inp.get("default", None)
-        add_argument(toolparser, name, inptype, records, description, default)
+        add_argument(toolparser, name, inptype, records, description, default, input_required)
 
     return toolparser

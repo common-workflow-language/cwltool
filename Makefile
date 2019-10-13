@@ -34,12 +34,6 @@ VERSION=1.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-	nproc=$(shell nproc)
-endif
-ifeq ($(UNAME_S),Darwin)
-	nproc=$(shell sysctl -n hw.physicalcpu)
-endif
 
 ## all         : default task
 all:
@@ -120,11 +114,11 @@ format: autopep8
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-                $^ -j$(nproc)|| true
+                $^ -j0|| true
 
 pylint_report.txt: ${PYSOURCES}
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ -j$(nproc)> $@ || true
+		$^ -j0> $@ || true
 
 diff_pylint_report: pylint_report.txt
 	diff-quality --violations=pylint pylint_report.txt
@@ -154,11 +148,11 @@ diff-cover.html:  coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
-	python setup.py test --addopts "-n$(nproc) --dist=loadfile"
+	python setup.py test --addopts "-n auto --dist=loadfile"
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool -n$(nproc) --dist=loadfile"
+	python setup.py test --addopts "--cov cwltool -n auto --dist=loadfile"
 
 sloccount.sc: ${PYSOURCES} Makefile
 	sloccount --duplicates --wide --details $^ > $@
@@ -175,9 +169,6 @@ mypy2: ${PYSOURCES}
 	rm -Rf typeshed/2and3/ruamel/yaml
 	ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
 		typeshed/2and3/ruamel/yaml
-	rm -Rf typeshed/2and3/schema_salad
-	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
-		typeshed/2and3/schema_salad
 	MYPYPATH=$$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
@@ -186,9 +177,6 @@ mypy3: ${PYSOURCES}
 	rm -Rf typeshed/2and3/ruamel/yaml
 	ln -s $(shell python3 -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
 		typeshed/2and3/ruamel/yaml
-	rm -Rf typeshed/2and3/schema_salad
-	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
-		typeshed/2and3/schema_salad
 	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool

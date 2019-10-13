@@ -8,6 +8,7 @@ from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
 from schema_salad.ref_resolver import SubLoader
+from schema_salad.sourceline import cmap
 from six import iteritems, string_types
 from six.moves import urllib
 from typing_extensions import Text  # pylint: disable=unused-import
@@ -28,7 +29,7 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
-LoadRefType = Callable[[Optional[Text], Text], Union[Dict, List, Text, None]]
+LoadRefType = Callable[[Optional[Text], Text], Union[Dict[Text, Any], List[Dict[Text, Any]], Text, None]]
 
 
 def find_run(d,        # type: Any
@@ -111,7 +112,7 @@ def pack(document_loader,  # type: Loader
          processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
          uri,              # type: Text
          metadata,         # type: Dict[Text, Text]
-         rewrite_out=None  # type: Dict[Text, Text]
+         rewrite_out=None  # type: Optional[Dict[Text, Text]]
         ):  # type: (...) -> Dict[Text, Any]
 
     document_loader = SubLoader(document_loader)
@@ -128,7 +129,7 @@ def pack(document_loader,  # type: Loader
         document_loader.idx[metadata["id"]] = CommentedMap(iteritems(metadata))
 
     def loadref(base, uri):
-        # type: (Optional[Text], Text) -> Union[Dict, List, Text, None]
+        # type: (Optional[Text], Text) -> Union[Dict[Text, Any], List[Dict[Text, Any]], Text, None]
         return document_loader.resolve_ref(uri, base_url=base)[0]
 
     ids = set()  # type: Set[Text]
@@ -170,8 +171,8 @@ def pack(document_loader,  # type: Loader
     for r in sortedids:
         rewrite_id(r, uri)
 
-    packed = {"$graph": [], "cwlVersion": metadata["cwlVersion"]
-              }  # type: Dict[Text, Any]
+    packed = CommentedMap((("$graph", CommentedSeq()),
+                           ("cwlVersion", metadata["cwlVersion"])))
     namespaces = metadata.get('$namespaces', None)
 
     schemas = set()  # type: Set[Text]
@@ -217,6 +218,6 @@ def pack(document_loader,  # type: Loader
             packed["$graph"][0]["$schemas"] = list(schemas)
     # always include $namespaces in the #main
     if namespaces:
-        packed["$graph"][0]["$namespaces"] = dict(cast(Dict, namespaces))
+        packed["$graph"][0]["$namespaces"] = namespaces
 
     return packed

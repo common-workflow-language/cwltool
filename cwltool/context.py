@@ -45,8 +45,8 @@ class LoadingContext(ContextBase):
         """Initialize the LoadingContext from the kwargs."""
         self.debug = False                 # type: bool
         self.metadata = {}                 # type: Dict[Text, Any]
-        self.requirements = None
-        self.hints = None
+        self.requirements = None           # type: Optional[List[Dict[Text, Any]]]
+        self.hints = None                  # type: Optional[List[Dict[Text, Any]]]
         self.overrides_list = []           # type: List[Dict[Text, Any]]
         self.loader = None                 # type: Optional[Loader]
         self.avsc_names = None             # type: Optional[schema.Names]

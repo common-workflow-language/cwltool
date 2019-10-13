@@ -2,8 +2,10 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Callable, Dict, MutableMapping, MutableSequence,
+from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
                     Optional, Tuple, Union)
+
+from functools import partial
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate
@@ -32,54 +34,80 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
         "http://commonwl.org/cwltool#InplaceUpdateRequirement": "InplaceUpdateRequirement",
         "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement"
     }
-    def rewrite_requirements(t):
+    def rewrite_requirements(t):  # type: (MutableMapping[Text, Union[Text, Dict[Text, Any]]]) -> None
         if "requirements" in t:
             for r in t["requirements"]:
-                if r["class"] in rewrite:
-                    r["class"] = rewrite[r["class"]]
+                if isinstance(r, MutableMapping):
+                    if r["class"] in rewrite:
+                        r["class"] = rewrite[r["class"]]
+                else:
+                    raise validate.ValidationException(
+                            "requirements entries must be dictionaries: {} {}.".format(
+                                type(r), r))
         if "hints" in t:
             for r in t["hints"]:
-                if r["class"] in rewrite:
-                    r["class"] = rewrite[r["class"]]
+                if isinstance(r, MutableMapping):
+                    if r["class"] in rewrite:
+                        r["class"] = rewrite[r["class"]]
+                else:
+                    raise validate.ValidationException(
+                        "hints entries must be dictionaries: {} {}.".format(
+                            type(r), r))
         if "steps" in t:
             for s in t["steps"]:
-                rewrite_requirements(s)
+                if isinstance(s, MutableMapping):
+                    rewrite_requirements(s)
+                else:
+                    raise validate.ValidationException(
+                        "steps entries must be dictionaries: {} {}.".format(
+                            type(s), s))
 
-    def update_secondaryFiles(t):
-        if isinstance(t, MutableSequence):
-            return [update_secondaryFiles(p) for p in t]
+
+    def update_secondaryFiles(t, top=False):
+        # type: (Any, bool) -> Union[MutableSequence[MutableMapping[Text, Text]], MutableMapping[Text, Text]]
+        if isinstance(t, CommentedSeq):
+            new_seq = copy.deepcopy(t)
+            for index, entry in enumerate(t):
+                new_seq[index] = update_secondaryFiles(entry)
+            return new_seq
+        elif isinstance(t, MutableSequence):
+            return CommentedSeq([update_secondaryFiles(p) for p in t])
         elif isinstance(t, MutableMapping):
             return t
+        elif top:
+            return CommentedSeq([CommentedMap([("pattern", t)])])
         else:
-            return {"pattern": t}
+            return CommentedMap([("pattern", t)])
 
-    def fix_inputBinding(t):
+    def fix_inputBinding(t):  # type: (Dict[Text, Any]) -> None
         for i in t["inputs"]:
             if "inputBinding" in i:
                 ib = i["inputBinding"]
                 for k in list(ib.keys()):
                     if k != "loadContents":
-                        _logger.warning(SourceLine(ib, k).makeError("Will ignore field '%s' which is not valid in %s inputBinding" %
-                                                                    (k, t["class"])))
+                        _logger.warning(SourceLine(ib, k).makeError(
+                            "Will ignore field '{}' which is not valid in {} "
+                            "inputBinding".format(k, t["class"])))
                         del ib[k]
 
     visit_class(doc, ("CommandLineTool","Workflow"), rewrite_requirements)
     visit_class(doc, ("ExpressionTool","Workflow"), fix_inputBinding)
-    visit_field(doc, "secondaryFiles", update_secondaryFiles)
+    visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
     upd = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
         upd = upd["$graph"]
     for proc in aslist(upd):
-        proc.setdefault("hints", [])
-        proc["hints"].insert(0, {"class": "NetworkAccess", "networkAccess": True})
-        proc["hints"].insert(0, {"class": "LoadListingRequirement", "loadListing": "deep_listing"})
+        proc.setdefault("hints", CommentedSeq())
+        proc["hints"].insert(0, CommentedMap([("class", "NetworkAccess"),( "networkAccess", True)]))
+        proc["hints"].insert(0, CommentedMap([("class", "LoadListingRequirement"),("loadListing", "deep_listing")]))
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
     return (doc, "v1.1")
 
 def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, Text) -> Tuple[Any, Text]
     return (doc, "v1.1")
 
 UPDATES = {
@@ -108,7 +136,7 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
                  metadata,   # type: CommentedMap
                  enable_dev  # type: bool
 ):
-    # type: (...) -> Tuple[Union[CommentedSeq, CommentedMap], Text]
+    # type: (...) -> Tuple[CommentedMap, Text]
     """Check the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
@@ -151,16 +179,15 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
 
 
 def update(doc, loader, baseuri, enable_dev, metadata):
-    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> Union[CommentedSeq, CommentedMap]
+    # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> CommentedMap
 
-    if (metadata.get("http://commonwl.org/cwltool#original_cwlVersion") or
-        (isinstance(doc, CommentedMap) and doc.get("http://commonwl.org/cwltool#original_cwlVersion"))):
-        return doc
-
-    (cdoc, originalversion) = checkversion(doc, metadata, enable_dev)
-    version = originalversion
+    if isinstance(doc, CommentedMap):
+            if metadata.get("http://commonwl.org/cwltool#original_cwlVersion") \
+                    or doc.get("http://commonwl.org/cwltool#original_cwlVersion"):
+                return doc
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
+    originalversion = copy.copy(version)
 
     nextupdate = identity  # type: Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]
 

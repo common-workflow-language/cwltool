@@ -4,6 +4,7 @@ import datetime
 import os
 import tempfile
 import threading
+import logging
 from threading import Lock
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
@@ -26,6 +27,7 @@ from .process import cleanIntermediate, relocateOutputs
 from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
+from .command_line_tool import CallbackJob
 
 TMPDIR_LOCK = Lock()
 
@@ -36,14 +38,14 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
     def __init__(self):
         # type: (...) -> None
         """Initialize."""
-        self.final_output = []  # type: List
-        self.final_status = []  # type: List
-        self.output_dirs = set()  # type: Set
+        self.final_output = []  # type: List[Union[Dict[Text, Any], List[Dict[Text, Any]]]]
+        self.final_status = []  # type: List[Text]
+        self.output_dirs = set()  # type: Set[Text]
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):  # type: (*Any, **Any) -> Any
         return self.execute(*args, **kwargs)
 
-    def output_callback(self, out, process_status):
+    def output_callback(self, out, process_status):  # type: (Dict[Text, Any], Text) -> None
         """Collect the final status and outputs."""
         self.final_status.append(process_status)
         self.final_output.append(out)
@@ -52,7 +54,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
     def run_jobs(self,
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 logger,
+                 logger,            # type: logging.Logger
                  runtime_context     # type: RuntimeContext
                 ):  # type: (...) -> None
         """Execute the jobs for the given Process."""
@@ -60,9 +62,9 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
     def execute(self,
                 process,           # type: Process
                 job_order_object,  # type: Dict[Text, Any]
-                runtime_context,    # type: RuntimeContext
-                logger=_logger,
-               ):  # type: (...) -> Tuple[Optional[Dict[Text, Any]], Text]
+                runtime_context,   # type: RuntimeContext
+                logger=_logger,    # type: logging.Logger
+               ):  # type: (...) -> Tuple[Optional[Union[Dict[Text, Any], List[Dict[Text, Any]]]], Text]
         """Execute the process."""
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
@@ -72,9 +74,10 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         if isinstance(original_outdir, string_types):
             finaloutdir = os.path.abspath(original_outdir)
         runtime_context = runtime_context.copy()
-        runtime_context.outdir = tempfile.mkdtemp(
+        outdir = tempfile.mkdtemp(
             prefix=getdefault(runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX))
-        self.output_dirs.add(runtime_context.outdir)
+        self.output_dirs.add(outdir)
+        runtime_context.outdir = outdir
         runtime_context.mutation_manager = MutationManager()
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
@@ -140,8 +143,8 @@ class SingleJobExecutor(JobExecutor):
     def run_jobs(self,
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 logger,
-                 runtime_context     # type: RuntimeContext
+                 logger,            # type: logging.Logger
+                 runtime_context    # type: RuntimeContext
                 ):  # type: (...) -> None
 
         process_run_id = None  # type: Optional[str]
@@ -156,7 +159,8 @@ class SingleJobExecutor(JobExecutor):
                 user_provenance=False,
                 orcid=runtime_context.orcid,
                 # single tool execution, so RO UUID = wf UUID = tool UUID
-                run_uuid=runtime_context.research_obj.ro_uuid)
+                run_uuid=runtime_context.research_obj.ro_uuid,
+                fsaccess=runtime_context.make_fs_access(''))
             process.parent_wf = process.provenance_object
         jobiter = process.job(job_order_object, self.output_callback,
                               runtime_context)
@@ -175,6 +179,7 @@ class SingleJobExecutor(JobExecutor):
                             prov_obj = job.prov_obj
                         if prov_obj:
                             runtime_context.prov_obj = prov_obj
+                            prov_obj.fsaccess = runtime_context.make_fs_access('')
                             prov_obj.evaluate(
                                 process, job, job_order_object,
                                 runtime_context.research_obj)
@@ -210,7 +215,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs = []  # type: List[Union[JobBase, WorkflowJob]]
         self.pending_jobs_lock = threading.Lock()
 
-        self.max_ram = psutil.virtual_memory().available / 2**20
+        self.max_ram = int(psutil.virtual_memory().available / 2**20)
         self.max_cores = psutil.cpu_count()
         self.allocated_ram = 0
         self.allocated_cores = 0
@@ -236,8 +241,10 @@ class MultithreadedJobExecutor(JobExecutor):
         return result
 
     def _runner(self, job, runtime_context, TMPDIR_LOCK):
+        # type: (Union[JobBase, WorkflowJob, CallbackJob], RuntimeContext, threading.Lock) -> None
         """Job running thread."""
         try:
+            _logger.debug("job: {}, runtime_context: {}, TMPDIR_LOCK: {}".format(job, runtime_context, TMPDIR_LOCK))
             job.run(runtime_context, TMPDIR_LOCK)
         except WorkflowException as err:
             _logger.exception("Got workflow error")
@@ -246,12 +253,13 @@ class MultithreadedJobExecutor(JobExecutor):
             _logger.exception("Got workflow error")
             self.exceptions.append(WorkflowException(Text(err)))
         finally:
-            with runtime_context.workflow_eval_lock:
-                self.threads.remove(threading.current_thread())
-                if isinstance(job, JobBase):
-                    self.allocated_ram -= job.builder.resources["ram"]
-                    self.allocated_cores -= job.builder.resources["cores"]
-                runtime_context.workflow_eval_lock.notifyAll()
+            if runtime_context.workflow_eval_lock:
+                with runtime_context.workflow_eval_lock:
+                    self.threads.remove(threading.current_thread())
+                    if isinstance(job, JobBase):
+                        self.allocated_ram -= job.builder.resources["ram"]
+                        self.allocated_cores -= job.builder.resources["cores"]
+                    runtime_context.workflow_eval_lock.notifyAll()
 
     def run_job(self,
                 job,             # type: Union[JobBase, WorkflowJob, None]
@@ -318,8 +326,8 @@ class MultithreadedJobExecutor(JobExecutor):
     def run_jobs(self,
                  process,           # type: Process
                  job_order_object,  # type: Dict[Text, Any]
-                 logger,
-                 runtime_context     # type: RuntimeContext
+                 logger,            # type: logging.Logger
+                 runtime_context    # type: RuntimeContext
                 ):  # type: (...) -> None
 
         jobiter = process.job(job_order_object, self.output_callback,

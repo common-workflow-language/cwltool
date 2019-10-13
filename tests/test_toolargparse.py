@@ -1,11 +1,13 @@
 import os
+import sys
 from tempfile import NamedTemporaryFile
+from io import BytesIO, StringIO
 
 import pytest
 from cwltool.main import main
+import cwltool.executors
 
 from .util import get_data, needs_docker
-
 
 script_a = '''
 #!/usr/bin/env cwl-runner
@@ -79,6 +81,7 @@ scripts_argparse_params = [
 @needs_docker
 @pytest.mark.parametrize('name,script_contents,params', scripts_argparse_params)
 def test_argparse(name, script_contents, params, tmpdir):
+    script = None
     try:
         script = NamedTemporaryFile(mode='w', delete=False)
         script.write(script_contents)
@@ -91,5 +94,45 @@ def test_argparse(name, script_contents, params, tmpdir):
     except SystemExit as err:
         assert err.code == 0, name
     finally:
-        if os.path.exists(script.name):
+        if script and script.name and os.path.exists(script.name):
+            os.unlink(script.name)
+
+
+class NoopJobExecutor(cwltool.executors.JobExecutor):
+    def run_jobs(self,
+                 process,           # type: Process
+                 job_order_object,  # type: Dict[Text, Any]
+                 logger,            # type: logging.Logger
+                 runtime_context     # type: RuntimeContext
+                ):  # type: (...) -> None
+        pass
+
+    def execute(self,
+                process,           # type: Process
+                job_order_object,  # type: Dict[Text, Any]
+                runtime_context,   # type: RuntimeContext
+                logger=None,       # type: logging.Logger
+               ):  # type: (...) -> Tuple[Optional[Union[Dict[Text, Any], List[Dict[Text, Any]]]], Text]
+        return {}, "success"
+
+def test_dont_require_inputs():
+    if sys.version_info[0] < 3:
+        stream = BytesIO()
+    else:
+        stream = StringIO()
+
+    script = None
+    try:
+        script = NamedTemporaryFile(mode='w', delete=False)
+        script.write(script_a)
+        script.close()
+
+        assert main(argsl=["--debug", script.name, "--input", script.name], executor=NoopJobExecutor(), stdout=stream) == 0
+        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor(), stdout=stream) == 2
+        assert main(argsl=["--debug", script.name], executor=NoopJobExecutor(), input_required=False, stdout=stream) == 0
+
+    except SystemExit as err:
+        assert err.code == 0, name
+    finally:
+        if script and script.name and os.path.exists(script.name):
             os.unlink(script.name)

@@ -32,6 +32,7 @@ from .builder import Builder, HasReqsHints  # pylint: disable=unused-import
 from .context import RuntimeContext  # pylint: disable=unused-import
 from .context import getdefault
 from .errors import WorkflowException
+from .expression import JSON
 from .loghandler import _logger
 from .pathmapper import (MapperEnt, PathMapper,  # pylint: disable=unused-import
                          ensure_writable, ensure_non_writable)
@@ -166,7 +167,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
 class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
     def __init__(self,
                  builder,           # type: Builder
-                 joborder,          # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 joborder,          # type: JSON
                  make_path_mapper,  # type: Callable[..., PathMapper]
                  requirements,      # type: List[Dict[Text, Text]]
                  hints,             # type: List[Dict[Text, Text]]
@@ -205,14 +206,14 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
 
-    def __repr__(self):
+    def __repr__(self):  # type: () -> str
         """Represent this Job object."""
         return "CommandLineJob(%s)" % self.name
 
     @abstractmethod
     def run(self,
             runtimeContext,   # type: RuntimeContext
-            tmpdir_lock=None  # type: threading.Lock
+            tmpdir_lock=None  # type: Optional[threading.Lock]
             ):  # type: (...) -> None
         pass
 
@@ -243,7 +244,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
                  runtime,                # type: List[Text]
                  env,                    # type: MutableMapping[Text, Text]
                  runtimeContext,         # type: RuntimeContext
-                 monitor_function=None,  # type: Optional[Callable]
+                 monitor_function=None,  # type: Optional[Callable[[subprocess.Popen], None]]
                  ):                      # type: (...) -> None
 
         scr, _ = self.get_requirement("ShellCommandRequirement")
@@ -263,7 +264,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
             if runtimeContext.process_run_id is not None \
-                    and runtimeContext.prov_obj is not None:
+                    and runtimeContext.prov_obj is not None and isinstance(job_order, (list, dict)):
                 runtimeContext.prov_obj.used_artefacts(
                     job_order, runtimeContext.process_run_id, str(self.name))
             else:
@@ -399,11 +400,11 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.debug(u"[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
-    def process_monitor(self, sproc):
+    def process_monitor(self, sproc):  # type: (subprocess.Popen) -> None
         monitor = psutil.Process(sproc.pid)
         memory_usage = [None]  # Value must be list rather than integer to utilise pass-by-reference in python
 
-        def get_tree_mem_usage(memory_usage):
+        def get_tree_mem_usage(memory_usage):  # type: (List[int]) -> None
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):
@@ -421,13 +422,13 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                          round(memory_usage[0] / (2 ** 20)))
         else:
-            _logger.info(u"Could not collect memory usage, job ended before monitoring began.")
+            _logger.debug(u"Could not collect memory usage, job ended before monitoring began.")
 
 
 class CommandLineJob(JobBase):
     def run(self,
             runtimeContext,         # type: RuntimeContext
-            tmpdir_lock=None        # type: threading.Lock
+            tmpdir_lock=None        # type: Optional[threading.Lock]
             ):  # type: (...) -> None
 
         if tmpdir_lock:
@@ -442,9 +443,9 @@ class CommandLineJob(JobBase):
 
         env = self.environment
         vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not None:
+        if runtimeContext.preserve_entire_environment is not False:
             vars_to_preserve = os.environ
-        if vars_to_preserve is not None:
+        if vars_to_preserve:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
                     # On Windows, subprocess env can't handle unicode.
@@ -542,7 +543,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             new_file = os.path.join(
                 tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
-                os.path.basename(volume.resolved))
+                os.path.basename(volume.target))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
             contents = secret_store.retrieve(volume.resolved)
@@ -598,7 +599,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
 
     def run(self,
             runtimeContext,   # type: RuntimeContext
-            tmpdir_lock=None  # type: threading.Lock
+            tmpdir_lock=None  # type: Optional[threading.Lock]
             ):  # type: (...) -> None
         if tmpdir_lock:
             with tmpdir_lock:
@@ -620,6 +621,16 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 img_id = str(docker_req["dockerImageId"])
             elif 'dockerPull' in docker_req:
                 img_id = str(docker_req["dockerPull"])
+                cmd = [user_space_docker_cmd, "pull", img_id]
+                _logger.info(Text(cmd))
+                try:
+                    subprocess.check_call(cmd, stdout=sys.stderr)
+                except OSError:
+                    raise WorkflowException(SourceLine(docker_req).makeError(
+                        "Either Docker container {} is not available with "
+                        "user space docker implementation {} or {} is missing "
+                        "or broken.".format(img_id, user_space_docker_cmd,
+                                            user_space_docker_cmd)))
             else:
                 raise WorkflowException(SourceLine(docker_req).makeError(
                     "Docker image must be specified as 'dockerImageId' or "
@@ -681,21 +692,6 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             monitor_function = functools.partial(self.process_monitor)
         self._execute(runtime, env, runtimeContext, monitor_function)
 
-    @staticmethod
-    def docker_get_memory(cid):  # type: (Text) -> int
-        memory = None
-        try:
-            memory = subprocess.check_output(
-                ['docker', 'inspect', '--type', 'container', '--format',
-                 '{{.HostConfig.Memory}}', cid], stderr=subprocess.DEVNULL)  # type: ignore
-        except subprocess.CalledProcessError:
-            pass
-        if memory:
-            value = int(memory)
-            if value != 0:
-                return value
-        return psutil.virtual_memory().total
-
     def docker_monitor(self, cidfile, tmpdir_prefix, cleanup_cidfile, process):
         # type: (Text, Text, bool, subprocess.Popen) -> None
         """Record memory usage of the running Docker container."""
@@ -709,22 +705,29 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             time.sleep(1)
             if process.returncode is not None:
                 if cleanup_cidfile:
-                    os.remove(cidfile)
-                return
+                    try:
+                        os.remove(cidfile)
+                    except OSError as exc:
+                        _logger.warn("Ignored error cleaning up Docker cidfile: %s", exc)
+                    return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
             except (OSError, IOError):
                 cid = None
-        max_mem = self.docker_get_memory(cid)
+        max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
-        with open(stats_file.name, mode="w") as stats_file_handle:
-            stats_proc = subprocess.Popen(
-                ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
-                 cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
-            process.wait()
-            stats_proc.kill()
+        try:
+            with open(stats_file.name, mode="w") as stats_file_handle:
+                stats_proc = subprocess.Popen(
+                    ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
+                     cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
+                process.wait()
+                stats_proc.kill()
+        except OSError as exc:
+            _logger.warn("Ignored error with docker stats: %s", exc)
+            return
         max_mem_percent = 0
         with open(stats_file.name, mode="r") as stats:
             for line in stats:
@@ -736,7 +739,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 except ValueError:
                     break
         _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     int((max_mem_percent * max_mem) / (2 ** 20)))
+                     int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             os.remove(cidfile)
 
@@ -748,10 +751,10 @@ def _job_popen(commands,                  # type: List[Text]
                env,                       # type: MutableMapping[AnyStr, AnyStr]
                cwd,                       # type: Text
                job_dir,                   # type: Text
-               job_script_contents=None,  # type: Text
-               timelimit=None,            # type: int
-               name=None,                 # type: Text
-               monitor_function=None      # type: Optional[Callable]
+               job_script_contents=None,  # type: Optional[Text]
+               timelimit=None,            # type: Optional[int]
+               name=None,                 # type: Optional[Text]
+               monitor_function=None      # type: Optional[Callable[[subprocess.Popen], None]]
                ):  # type: (...) -> int
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
@@ -783,7 +786,7 @@ def _job_popen(commands,                  # type: List[Text]
 
         tm = None
         if timelimit is not None and timelimit > 0:
-            def terminate():
+            def terminate():  # type: () -> None
                 try:
                     _logger.warning(
                         u"[job %s] exceeded time limit of %d seconds and will"

@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from typing import IO, Any, Dict
+from typing import cast, IO, Any, Dict, MutableMapping
 
 from rdflib import Graph
 from schema_salad.jsonld_context import makerdf
@@ -15,26 +15,26 @@ from .process import Process
 def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     g = Graph()
 
-    def visitor(t):
+    def visitor(t):  # type: (MutableMapping[Text, Any]) -> None
         makerdf(t["id"], t, ctx, graph=g)
 
     tool.visit(visitor)
     return g
 
 
-def printrdf(wflow, ctx, style):  # type: (Process, ContextType, Text) -> Text
+def printrdf(wflow, ctx, style):  # type: (Process, ContextType, str) -> Text
     """Serialize the CWL document into a string, ready for printing."""
     rdf = gather(wflow, ctx).serialize(format=style, encoding='utf-8')
     if not rdf:
         return u""
-    return rdf.decode('utf-8')
+    return cast(Text, rdf.decode('utf-8'))
 
 
 def lastpart(uri):  # type: (Any) -> Text
-    uri = Text(uri)
-    if "/" in uri:
-        return uri[uri.rindex("/") + 1:]
-    return uri
+    uri2 = Text(uri)
+    if "/" in uri2:
+        return uri2[uri2.rindex("/") + 1:]
+    return uri2
 
 
 def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None

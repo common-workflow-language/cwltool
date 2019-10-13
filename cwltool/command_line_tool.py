@@ -12,8 +12,8 @@ import shutil
 import tempfile
 import threading
 from functools import cmp_to_key, partial
-from typing import (Any, Callable, Dict, Generator, List, Mapping, MutableMapping,
-                    MutableSequence, Optional, Set, Union, cast)
+from typing import (Any, Callable, Dict, Generator, IO, List, Mapping,
+                    MutableMapping, MutableSequence, Optional, Set, Union, cast)
 
 from typing_extensions import Text, Type, TYPE_CHECKING  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
@@ -83,8 +83,8 @@ class ExpressionTool(Process):
                      builder,          # type: Builder
                      script,           # type: Dict[Text, Text]
                      output_callback,  # type: Callable[[Any, Any], Any]
-                     requirements,     # type: Dict[Text, Text]
-                     hints,            # type: Dict[Text, Text]
+                     requirements,     # type: List[Dict[Text, Text]]
+                     hints,            # type: List[Dict[Text, Text]]
                      outdir=None,      # type: Optional[Text]
                      tmpdir=None,      # type: Optional[Text]
                     ):  # type: (...) -> None
@@ -101,7 +101,7 @@ class ExpressionTool(Process):
 
         def run(self,
                 runtimeContext,   # type: RuntimeContext
-                tmpdir_lock=None  # type: threading.Lock
+                tmpdir_lock=None  # type: Optional[threading.Lock]
                ):  # type: (...) -> None
             try:
                 normalizeFilesDirs(self.builder.job)
@@ -169,9 +169,9 @@ def revmap_file(builder, outdir, f):
 
         if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
-        elif uripath == outdir or uripath.startswith(outdir+os.sep):
+        elif uripath == outdir or uripath.startswith(outdir+os.sep) or uripath.startswith(outdir+'/'):
             f["location"] = file_uri(path)
-        elif path == builder.outdir or path.startswith(builder.outdir+os.sep):
+        elif path == builder.outdir or path.startswith(builder.outdir+os.sep) or path.startswith(builder.outdir+'/'):
             f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = builder.fs_access.join(outdir, path)
@@ -194,8 +194,10 @@ class CallbackJob(object):
         self.outdir = jobcache
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
 
-    def run(self, runtimeContext):
-        # type: (RuntimeContext) -> None
+    def run(self,
+            runtimeContext,   # type: RuntimeContext
+            tmpdir_lock=None  # type: Optional[threading.Lock]
+            ):  # type: (...) -> None
         self.output_callback(self.job.collect_output_ports(
             self.job.tool["outputs"],
             self.cachebuilder,
@@ -232,7 +234,7 @@ def check_adjust(builder, file_o):
                 file_o["basename"]))
     return file_o
 
-def check_valid_locations(fs_access, ob):
+def check_valid_locations(fs_access, ob):  # type: (StdFsAccess, Dict[Text, Any]) -> None
     if ob["location"].startswith("_:"):
         pass
     if ob["class"] == "File" and not fs_access.isfile(ob["location"]):
@@ -285,7 +287,7 @@ class CommandLineTool(Process):
         return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
     def updatePathmap(self, outdir, pathmap, fn):
-        # type: (Text, PathMapper, Dict) -> None
+        # type: (Text, PathMapper, Dict[Text, Any]) -> None
         if "location" in fn and fn["location"] in pathmap:
             pathmap.update(fn["location"], pathmap.mapper(fn["location"]).resolved,
                            os.path.join(outdir, fn["basename"]),
@@ -298,7 +300,7 @@ class CommandLineTool(Process):
     def job(self,
             job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext     # RuntimeContext
+            runtimeContext     # type: RuntimeContext
            ):
         # type: (...) -> Generator[Union[JobBase, CallbackJob], None, None]
 
@@ -332,9 +334,9 @@ class CommandLineTool(Process):
             if dockerimg is not None:
                 cmdline = ["docker", "run", dockerimg] + cmdline
                 # not really run using docker, just for hashing purposes
-            keydict = {u"cmdline": cmdline}
+            keydict = {u"cmdline": cmdline}  # type: Dict[Text, Union[Dict[Text, Any], List[Any]]]
 
-            for shortcut in ["stdout", "stderr"]:  # later, add "stdin"
+            for shortcut in ["stdin", "stdout", "stderr"]:
                 if shortcut in self.tool:
                     keydict[shortcut] = self.tool[shortcut]
 
@@ -409,8 +411,12 @@ class CommandLineTool(Process):
                 runtimeContext = runtimeContext.copy()
                 runtimeContext.outdir = jobcache
 
-                def update_status_output_callback(output_callbacks, jobcachelock,
-                                               outputs, processStatus):
+                def update_status_output_callback(
+                        output_callbacks,  # type: Callable[[List[Dict[Text, Any]], Text], None]
+                        jobcachelock,      # type: IO[Any]
+                        outputs,           # type: List[Dict[Text, Any]]
+                        processStatus      # type: Text
+                        ):  # type: (...) -> None
                     # save status to the lockfile then release the lock
                     jobcachelock.seek(0)
                     jobcachelock.truncate()
@@ -556,13 +562,15 @@ class CommandLineTool(Process):
         muts = set()  # type: Set[Text]
 
         if builder.mutation_manager is not None:
-            def register_mut(f):
+            def register_mut(f):  # type: (Dict[Text, Any]) -> None
+                mm = cast(MutationManager, builder.mutation_manager)
                 muts.add(f["location"])
-                builder.mutation_manager.register_mutation(j.name, f)
+                mm.register_mutation(j.name, f)
 
-            def register_reader(f):
+            def register_reader(f):  # type: (Dict[Text, Any]) -> None
+                mm = cast(MutationManager, builder.mutation_manager)
                 if f["location"] not in muts:
-                    builder.mutation_manager.register_reader(j.name, f)
+                    mm.register_reader(j.name, f)
                     readers[f["location"]] = copy.deepcopy(f)
 
             for li in j.generatefiles["listing"]:
@@ -628,7 +636,7 @@ class CommandLineTool(Process):
                              rcode,                  # type: int
                              compute_checksum=True,  # type: bool
                              jobname="",             # type: Text
-                             readers=None            # type: Dict[Text, Any]
+                             readers=None            # type: Optional[Dict[Text, Any]]
                             ):  # type: (...) -> OutputPorts
         ret = {}  # type: OutputPorts
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -647,11 +655,12 @@ class CommandLineTool(Process):
                                   json_dumps(ret, indent=4))
             else:
                 for i, port in enumerate(ports):
-                    def makeWorkflowException(msg):
-                        return WorkflowException(
-                            u"Error collecting output for parameter '%s':\n%s"
-                            % (shortname(port["id"]), msg))
-                    with SourceLine(ports, i, makeWorkflowException, debug):
+                    class ParameterOutputWorkflowException(WorkflowException):
+                        def __init__(self, msg, **kwargs):  # type: (Text, **Any) -> None
+                            super(ParameterOutputWorkflowException, self).__init__(
+                                u"Error collecting output for parameter '%s':\n%s"
+                                % (shortname(port["id"]), msg), kwargs)
+                    with SourceLine(ports, i, ParameterOutputWorkflowException, debug):
                         fragment = shortname(port["id"])
                         ret[fragment] = self.collect_output(port, builder, outdir, fs_access,
                                                             compute_checksum=compute_checksum)
