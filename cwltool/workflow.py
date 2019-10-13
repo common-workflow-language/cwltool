@@ -22,7 +22,7 @@ from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from . import command_line_tool, context, expression
+from . import command_line_tool, context, expression, procgenerator
 from .command_line_tool import CallbackJob, ExpressionTool
 from .job import JobBase
 from .builder import content_limit_respected_read
@@ -56,6 +56,8 @@ def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
             return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
         if toolpath_object["class"] == "Workflow":
             return Workflow(toolpath_object, loadingContext)
+        if toolpath_object["class"] == "ProcessGenerator":
+            return procgenerator.ProcessGenerator(toolpath_object, loadingContext)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in "
@@ -574,7 +576,7 @@ class Workflow(Process):
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(self,
-            job_order,         # type: Mapping[Text, Text]
+            job_order,         # type: Mapping[Text, Any]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
            ):  # type: (...) -> Generator[Union[WorkflowJob, ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
@@ -596,7 +598,7 @@ class Workflow(Process):
         for wjob in job.job(builder.job, output_callbacks, runtimeContext):
             yield wjob
 
-    def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], Any]) -> None 
+    def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], Any]) -> None
         op(self.tool)
         for step in self.steps:
             step.visit(op)

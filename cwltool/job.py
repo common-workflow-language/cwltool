@@ -543,7 +543,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             new_file = os.path.join(
                 tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
-                os.path.basename(volume.resolved))
+                os.path.basename(volume.target))
         writable = True if volume.type == "CreateWritableFile" else False
         if secret_store:
             contents = secret_store.retrieve(volume.resolved)
