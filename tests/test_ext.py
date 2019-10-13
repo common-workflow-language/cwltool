@@ -29,11 +29,17 @@ def test_listing_deep():
 
 @needs_docker
 def test_cwltool_options():
-    os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
-    params = [get_data('tests/wf/listing_deep.cwl'),
-              get_data('tests/listing-job.yml')]
-    assert main(params) == 0
-    del os.environ["CWLTOOL_OPTIONS"]
+    try:
+        opt = os.environ.get("CWLTOOL_OPTIONS")
+        os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
+        params = [get_data('tests/wf/listing_deep.cwl'),
+                  get_data('tests/listing-job.yml')]
+        assert main(params) == 0
+    finally:
+        if opt is not None:
+            os.environ["CWLTOOL_OPTIONS"] = opt
+        else:
+            del os.environ["CWLTOOL_OPTIONS"]
 
 @needs_docker
 def test_listing_shallow():
