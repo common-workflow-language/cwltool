@@ -28,7 +28,7 @@ from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
-from schema_salad.ref_resolver import Loader, file_uri
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 
 from . import expression
@@ -351,7 +351,11 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
             else:
                 shutil.copy2(src, dst)
 
+    def _realpath(ob):
+        ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
+
     outfiles = list(_collectDirEntries(outputObj))
+    visit_class(outfiles, ("File", "Directory"), _realpath)
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
     stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
