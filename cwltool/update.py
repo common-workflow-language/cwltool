@@ -32,7 +32,7 @@ def v1_1to1_2(doc, loader, baseuri):  # pylint: disable=unused-argument
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
-    return doc, "v1.2"
+    return doc, "v1.2.0-dev1"
 
 
 def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
@@ -100,17 +100,17 @@ def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 UPDATES = {
     u"v1.0": v1_0to1_1,
     u"v1.1": v1_1to1_2,
-    u"v1.2": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 DEVUPDATES = {
-    u"v1.1.0-dev1": v1_1_0dev1to1_1
+    u"v1.1.0-dev1": v1_1_0dev1to1_1,
+    u"v1.2.0-dev1": None
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2"
+INTERNAL_VERSION = u"v1.2.0-dev1"
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, Text) -> Tuple[Any, Union[Text, Text]]

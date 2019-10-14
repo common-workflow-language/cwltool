@@ -174,12 +174,15 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
             msg5 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError("mark missing secondaryFiles in definition of '%s' as optional." % shortname(sink["id"]))
             msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg3, msg4, msg5], "  ")))
         elif sink.get("not_connected"):
-            msg = SourceLine(sink, "type").makeError(
-                "'%s' is not an input parameter of %s, expected %s"
-                % (shortname(sink["id"]), param_to_step[sink["id"]]["run"],
-                   ", ".join(shortname(s["id"])
-                             for s in param_to_step[sink["id"]]["inputs"]
-                             if not s.get("not_connected"))))
+            if not sink.get("used_by_step"):
+                msg = SourceLine(sink, "type").makeError(
+                    "'%s' is not an input parameter of %s, expected %s"
+                    % (shortname(sink["id"]), param_to_step[sink["id"]]["run"],
+                       ", ".join(shortname(s["id"])
+                                 for s in param_to_step[sink["id"]]["inputs"]
+                                 if not s.get("not_connected"))))
+            else:
+                msg = None
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"
@@ -193,7 +196,8 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         if warning.message is not None:
             msg += "\n" + SourceLine(sink).makeError("  " + warning.message)
 
-        warning_msgs.append(msg)
+        if msg:
+            warning_msgs.append(msg)
 
     for exception in exceptions:
         src = exception.src
@@ -224,7 +228,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
     all_warning_msg = strip_dup_lineno("\n".join(warning_msgs))
     all_exception_msg = strip_dup_lineno("\n" + "\n".join(exception_msgs))
 
-    if warnings:
+    if all_warning_msg:
         _logger.warning("Workflow checker warning:\n%s", all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)

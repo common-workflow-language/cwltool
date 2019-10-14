@@ -598,6 +598,15 @@ class Workflow(Process):
             step.visit(op)
 
 
+def used_by_step(step, shortinputid):
+    for st in step["in"]:
+        if st.get("valueFrom"):
+            if ("inputs.%s" % shortinputid) in st.get("valueFrom"):
+                return True
+    if step.get("when"):
+        if ("inputs.%s" % shortinputid) in step.get("when"):
+            return True
+    return False
 
 class WorkflowStep(Process):
     def __init__(self,
@@ -670,6 +679,7 @@ class WorkflowStep(Process):
                 if not found:
                     if stepfield == "in":
                         param["type"] = "Any"
+                        param["used_by_step"] = used_by_step(self.tool, shortinputid)
                         param["not_connected"] = True
                     else:
                         validation_errors.append(
