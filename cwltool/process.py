@@ -352,7 +352,10 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
                 shutil.copy2(src, dst)
 
     def _realpath(ob):
-        ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
+        if ob["location"].startswith("file:"):
+            ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
+        if ob["location"].startswith("/"):
+            ob["location"] = os.path.realpath(ob["location"])
 
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
