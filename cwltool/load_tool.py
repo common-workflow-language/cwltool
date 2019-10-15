@@ -112,6 +112,8 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
                                         resolver=loadingContext.resolver,
                                         document_loader=loadingContext.loader)
         workflowobj = loadingContext.loader.fetch(fileuri)
+        if 'name' in workflowobj:
+            workflowobj['id'] = workflowobj['name']
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, dict):
         uri = argsworkflow["id"] if argsworkflow.get("id") else "_:" + Text(uuid.uuid4())
