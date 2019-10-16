@@ -351,7 +351,7 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
             else:
                 shutil.copy2(src, dst)
 
-    def _realpath(ob):
+    def _realpath(ob):  # type: (Dict[Text, Any]) -> None
         if ob["location"].startswith("file:"):
             ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
         if ob["location"].startswith("/"):
