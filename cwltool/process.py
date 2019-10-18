@@ -28,7 +28,7 @@ from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
-from schema_salad.ref_resolver import Loader, file_uri
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 
 from . import expression
@@ -39,7 +39,8 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
-                         get_listing, normalizeFilesDirs, visit_class)
+                         get_listing, normalizeFilesDirs, visit_class,
+                         MapperEnt)
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
@@ -222,9 +223,30 @@ def stage_files(pathmapper,             # type: PathMapper
                 stage_func=None,        # type: Optional[Callable[..., Any]]
                 ignore_writable=False,  # type: bool
                 symlink=True,           # type: bool
-                secret_store=None       # type: Optional[SecretStore]
+                secret_store=None,      # type: Optional[SecretStore]
+                fix_conflicts=False     # type: bool
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
+
+    targets = {}  # type: Dict[Text, MapperEnt]
+    for key, entry in pathmapper.items():
+        if not 'File' in entry.type:
+            continue
+        if entry.target not in targets:
+            targets[entry.target] = entry
+        elif targets[entry.target].resolved != entry.resolved:
+            if fix_conflicts:
+                tgt = entry.target
+                i = 2
+                tgt = "%s_%s" % (tgt, i)
+                while tgt in targets:
+                    i += 1
+                    tgt = "%s_%s" % (tgt, i)
+                targets[tgt] = pathmapper.update(key, entry.resolved, tgt, entry.type, entry.staged)
+            else:
+                raise WorkflowException("File staging conflict, trying to stage both %s and %s to the same target %s" % (
+                    targets[entry.target].resolved, entry.resolved, entry.target))
+
     for key, entry in pathmapper.items():
         if not entry.staged:
             continue
@@ -329,9 +351,16 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
             else:
                 shutil.copy2(src, dst)
 
+    def _realpath(ob):  # type: (Dict[Text, Any]) -> None
+        if ob["location"].startswith("file:"):
+            ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
+        if ob["location"].startswith("/"):
+            ob["location"] = os.path.realpath(ob["location"])
+
     outfiles = list(_collectDirEntries(outputObj))
+    visit_class(outfiles, ("File", "Directory"), _realpath)
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
-    stage_files(pm, stage_func=_relocate, symlink=False)
+    stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
     def _check_adjust(a_file):  # type: (Dict[Text, Text]) -> Dict[Text, Text]
         a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
