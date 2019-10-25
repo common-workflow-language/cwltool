@@ -252,7 +252,7 @@ def arg_parser():  # type: () -> argparse.ArgumentParser
 
     exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--enable-color", action="store_true",
-                        help="Enable colored logging (default true)", default=True)
+                         help="Enable logging color (default enabled)", default=True)
     exgroup.add_argument("--disable-color", action="store_false", dest="enable_color",
                         help="Disable colored logging (default false)")
 
