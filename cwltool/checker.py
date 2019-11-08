@@ -127,6 +127,7 @@ def _compare_records(src, sink, strict=False):
             return False
     return True
 
+
 def missing_subset(fullset, subset):
     # type: (List, List) -> List
     missing = []
@@ -134,6 +135,7 @@ def missing_subset(fullset, subset):
         if i not in fullset:
             missing.append(i)
     return missing
+
 
 def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step):
     # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], Dict[Text, Dict[Text, Any]]) -> None
@@ -248,37 +250,37 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
         if sourceField in sink:
 
             valueFrom = sink.get("valueFrom")
-            branchSelect = sink.get("branchSelect")
+            pickValue = sink.get("pickValue")
 
             extra_message = None
-            if branchSelect is not None:
-                extra_message = "branchSelect is: %s" % branchSelect
+            if pickValue is not None:
+                extra_message = "pickValue is: %s" % pickValue
 
             if isinstance(sink[sourceField], MutableSequence):
 
                 linkMerge = sink.get("linkMerge", ("merge_nested"
                                                    if len(sink[sourceField]) > 1 else None))
 
-                if branchSelect in ["first_that_ran", "the_one_that_ran"]:
+                if pickValue in ["first_non_null", "only_non_null"]:
                     linkMerge = None
 
                 srcs_of_sink = []
                 for parm_id in sink[sourceField]:
                     srcs_of_sink += [src_dict[parm_id]]
-                    if is_conditional_step(param_to_step, parm_id) and branchSelect is None:
+                    if is_conditional_step(param_to_step, parm_id) and pickValue is None:
                         validation["warning"].append(
                             SrcSink(src_dict[parm_id], sink, linkMerge,
-                                    message="Source is from conditional step, but branchSelect is not used"))
+                                    message="Source is from conditional step, but pickValue is not used"))
 
             else:
                 parm_id = sink[sourceField]
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
-
-                if branchSelect is not None:
+                
+                if pickValue is not None:
                     validation["warning"].append(
                         SrcSink(src_dict[parm_id], sink, linkMerge,
-                                message="branchSelect is used but only a single input source is declared"))
+                                message="pickValue is used but only a single input source is declared"))
 
                 if is_conditional_step(param_to_step, parm_id):
                     src_typ = srcs_of_sink[0]["type"]
@@ -292,7 +294,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
                     if "null" not in snk_typ:  # Given our type names this works even if not a list
                         validation["warning"].append(
                             SrcSink(src_dict[parm_id], sink, linkMerge,
-                                    message="Source is from conditional step and behaves as optional type"))
+                                    message="Source is from conditional step and may produce `null`"))
 
                     srcs_of_sink[0]["type"] = src_typ
 
@@ -311,6 +313,6 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
 def is_conditional_step(param_to_step, parm_id):
     source_step = param_to_step.get(parm_id)
     if source_step is not None:
-        if source_step.get("runIf") is not None:
+        if source_step.get("when") is not None:
             return True
     return False

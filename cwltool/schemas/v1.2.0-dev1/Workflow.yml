@@ -50,9 +50,8 @@ $graph:
       ## Changelog
 
         * Adds new `WorkflowStep` field: `when: Expression` for conditional executions
-        * Adds new `Sink` and `WorkflowOutputParameter` field:  `branchSelect: first_that_ran | all_that_ran
-         | the_one_that_ran
-
+        * Adds new `Sink` and `WorkflowOutputParameter` field:  `pickValue: first_non_null | only_non_null |
+        all_non_null`
 
       See also the [CWL Command Line Tool Description, v1.2 changelog](CommandLineTool.html#Changelog).
 
@@ -168,56 +167,54 @@ $graph:
     - merge_flattened
 
 
-- name: ConditionalBranchSelectMethod
+- name: PickValueMethod
   type: enum
   docParent: "#WorkflowStepInput"
   doc: |
-    - `branchSelect` is evaluated before `linkMerge` and before `scatter`
-    - The `branchSelect` is evaluated after all ancestor workflow steps have completed.
-    - Also see the documentation for `when`. `branchSelect` only has an effect
-      when a predecessor node has a `when` field.
-    - If a conditional step does not run, and if `branchSelect` is not specified the
-      outputs of the skipped step are all converted into `null`s
+    - If present, the `pickValue` describes how `null` values are to be handled
+    - `pickValue` is evaluated
+      - after all ancestor workflow steps have completed and
+      - before `linkMerge` and before `scatter`
     - Static type checkers should check for type consistency after infering what the type
-      will be after `branchSelect` is applied, just as they do currently for `linkMerge`
+      will be after `pickValue` is applied, just as they do currently for `linkMerge`
+    - Also see the documentation for `when`.
 
-    ## `branchSelect: first_that_ran`
-    In a list pick the first value that was produced by a task that ran
-    - `[skipped, null, x, skipped, null] -> null`
-    - `[skipped, x, null, y] -> x`
-    - `[skipped, [x], null] -> [x]`
-    - `[skipped, skipped, skipped] -> null`
+    ## `pickValue: first_non_null => [a] -> a`
+    For the first level of a list input, pick the first non-null element and pass as a scalar.
+    It is a step level error if there is no non-null element.
+    - `[null, x, null, y] -> x`
+    - `[null, [null], null, y] -> [null]`
+    - `[null, null, null] -> Runtime Error`
 
       *Targeted use case*: If-Else pattern where one input is always present and another
        comes from a conditional step. The conditional step(s) should be placed first in
        the list.
 
-
-    ## `branchSelect: all_that_ran`
-    For the first level of a list input, discard the `skipped` values
-    - `[skipped, null, x, skipped, null] -> [null, x, null]`
-    - `[skipped, x, null, y] -> [x, null, y]`
-    - `[skipped, [x], null] -> [[x], null]`
-    - `[skipped, skipped, skipped] -> []`
-
-      *Targeted use case*: Parallel nodes, zero or more of which may run
-
-
-    ## `branchSelect: the_one_that_ran`
-    For the first level of a list input, pick the single non-null element and pass as a scalar. It is a step level error if there is more than one non-skipped element.
-    - `[skipped, x, skipped] -> x`
-    - `[skipped, x, skipped, y] -> workflow step error!!`
-    - `[skipped, [x], skipped] -> [x]`
-    - `[skipped, skipped, skipped] -> null`
+    ## `pickValue: only_non_null => [a] -> a`
+    For the first level of a list input, pick the single non-null element and pass as a scalar.
+    It is a step level error if there is more than one non-null element.
+    - `[null, x, null] -> x`
+    - `[null, x, null, y] -> Runtime Error`
+    - `[null, [null], null] -> [null]`
+    - `[null, null, null] -> Runtime Error`
 
       *Targeted use case*: Switch type patterns where developer considers
       more than one active code path as a workflow error
       (possibly indicating an error in writing `when` condition expressions).
 
+    ## `pickValue: all_non_null => [a] -> [a]`
+    For the first level of a list input, pick all non-null values
+    - `[null, x, null] -> [x]`
+    - `[x, null, y] -> [x, y]`
+    - `[null, [x], [null]] -> [[x], [null]]`
+    - `[null, null, null] -> []`
+
+      *Targeted use case*: Parallel nodes, zero or more of which may run
+
   symbols:
-    - first_that_ran
-    - all_that_ran
-    - the_one_that_ran
+    - first_non_null
+    - only_non_null
+    - all_non_null
 
 
 - name: WorkflowOutputParameter
@@ -249,11 +246,11 @@ $graph:
         The method to use to merge multiple sources into a single array.
         If not specified, the default method is "merge_nested".
 
-    - name: branchSelect
-      type: ["null", ConditionalBranchSelectMethod]
-      jsonldPredicate: "cwl:branchSelect"
+    - name: pickValue
+      type: ["null", PickValueMethod]
+      jsonldPredicate: "cwl:pickValue"
       doc: |
-        The method to use to merge multiple sources when they come from conditional steps.
+        The method to use to filter null elements in the sources
 
     - name: type
       type:
@@ -300,11 +297,11 @@ $graph:
       doc: |
         The method to use to merge multiple inbound links into a single array.
         If not specified, the default method is "merge_nested".
-    - name: branchSelect
-      type: ["null", ConditionalBranchSelectMethod]
-      jsonldPredicate: "cwl:branchSelect"
+    - name: pickValue
+      type: ["null", PickValueMethod]
+      jsonldPredicate: "cwl:pickValue"
       doc: |
-        The method to use to merge multiple sources when they come from conditional steps.
+        The method to use to filter null elements in the sources
 
 
 - type: record
@@ -545,9 +542,7 @@ $graph:
       jsonldPredicate: "cwl:when"
       doc: |
         - The step will only be run when the expression evaluates to `True`.
-        - If the step does not run and if `branchSelect` is used the workflow
-          behaves as if that step was never there in the DAG. If branchSelect is not
-          used, the workflow behaves as if that step produced null for each of its outputs.
+        - A skipped step produces a `null` on each output
     - name: scatter
       type:
         - string?
