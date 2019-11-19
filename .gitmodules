@@ -1,0 +1,4 @@
+[submodule "cwltool/schemas/v1.2-dev2"]
+	path = cwltool/schemas/v1.2-dev2
+	url = https://github.com/common-workflow-language/cwl-v1.2.git
+	branch = abstract-operation
