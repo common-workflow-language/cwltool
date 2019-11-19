@@ -147,7 +147,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
                     "declared.")
             for src in connections:
                 if src in state and state[src] is not None \
-                        and (state[src].success == "success" or incomplete):
+                        and (state[src].success in ("success", "skipped") or incomplete):
                     if not match_types(
                             inp["type"], state[src], iid, inputobj,
                             inp.get("linkMerge", ("merge_nested"
@@ -165,6 +165,30 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
                 elif not incomplete:
                     return None
 
+        if "pickValue" in inp and isinstance(inputobj.get(iid), MutableSequence):
+            if inp["pickValue"] == "first_non_null":
+                found = False
+                for v in inputobj.get(iid):
+                    if v is not None:
+                        found = True
+                        inputobj[iid] = v
+                        break
+                if not found:
+                    raise WorkflowException(u"All sources for '%s' are null" % (shortname(inp["id"])))
+            elif inp["pickValue"] == "only_non_null":
+                found = False
+                for v in inputobj.get(iid):
+                    if v is not None:
+                        if found:
+                            raise WorkflowException(u"Expected only one source for '%s' to be non-null, got %s" %
+                                                    (shortname(inp["id"]), inputobj.get(iid)))
+                        found = True
+                        inputobj[iid] = v
+                if not found:
+                    raise WorkflowException(u"All sources for '%s' are null" % (shortname(inp["id"])))
+            elif inp["pickValue"] == "all_non_null":
+                inputobj[iid] = [v for v in inputobj[iid] if v is not None]
+
         if inputobj.get(iid) is None and "default" in inp:
             inputobj[iid] = inp["default"]
 
@@ -173,6 +197,7 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
 
         if iid not in inputobj:
             raise WorkflowException(u"Value for %s not specified" % (inp["id"]))
+
     return inputobj
 
 
@@ -262,7 +287,7 @@ class WorkflowJob(object):
 
         _logger.info(u"[%s] completed %s", self.name, self.processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[%s] %s", self.name, json_dumps(wo, indent=4))
+            _logger.debug(u"[%s] outputs %s", self.name, json_dumps(wo, indent=4))
 
         self.did_callback = True
 
@@ -282,7 +307,7 @@ class WorkflowJob(object):
             _logger.debug(u"[%s] produced output %s", step.name,
                           json_dumps(jobout, indent=4))
 
-        if processStatus != "success":
+        if processStatus not in ("success", "skipped"):
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
@@ -307,6 +332,9 @@ class WorkflowJob(object):
                     ):  # type: (...) -> Generator
         # FIXME: Generator[of what?]
 
+        if step.submitted:
+            return
+
         inputparms = step.tool["inputs"]
         outputparms = step.tool["outputs"]
 
@@ -320,12 +348,9 @@ class WorkflowJob(object):
                 _logger.debug(u"[%s] job step %s not ready", self.name, step.id)
                 return
 
-            if step.submitted:
-                return
             _logger.info(u"[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(self.receive_output, step, outputparms, final_output_callback)
-
 
             valueFrom = {
                 i["id"]: i["valueFrom"] for i in step.tool["inputs"]
@@ -362,7 +387,20 @@ class WorkflowJob(object):
                             timeout=runtimeContext.eval_timeout)
                     return v
 
-                return {k: valueFromFunc(k, v) for k, v in io.items()}
+                psio = {k: valueFromFunc(k, v) for k, v in io.items()}
+                if "when" in step.tool:
+                    evalinputs = {shortname(k): v for k,v in psio.items()}
+                    whenval = expression.do_eval(
+                            step.tool["when"], evalinputs, self.workflow.requirements,
+                            None, None, {}, context=v,
+                            debug=runtimeContext.debug,
+                            js_console=runtimeContext.js_console,
+                            timeout=runtimeContext.eval_timeout)
+                    if whenval is not True:
+                        _logger.debug("[%s] conditional %s evaluated to %s", step.name, step.tool["when"], whenval)
+                        _logger.debug("[%s] inputs was %s", step.name, json_dumps(evalinputs, indent=2))
+                        return None
+                return psio
 
             if "scatter" in step.tool:
                 scatter = aslist(step.tool["scatter"])
@@ -375,7 +413,7 @@ class WorkflowJob(object):
                 emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
                 if emptyscatter:
                     _logger.warning(
-                        "[job %s] Notice: scattering over empty input in "
+                        "[%s] Notice: scattering over empty input in "
                         "'%s'.  All outputs will be empty.", step.name,
                         "', '".join(emptyscatter))
 
@@ -390,15 +428,20 @@ class WorkflowJob(object):
                         step, inputobj, scatter, callback, runtimeContext)
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
-                    _logger.debug(u"[job %s] job input %s", step.name,
+                    _logger.debug(u"[%s] job input %s", step.name,
                                   json_dumps(inputobj, indent=4))
 
                 inputobj = postScatterEval(inputobj)
-
-                if _logger.isEnabledFor(logging.DEBUG):
-                    _logger.debug(u"[job %s] evaluated job input to %s",
-                                  step.name, json_dumps(inputobj, indent=4))
-                jobs = step.job(inputobj, callback, runtimeContext)
+                if inputobj is not None:
+                    if _logger.isEnabledFor(logging.DEBUG):
+                        _logger.debug(u"[%s] evaluated job input to %s",
+                                      step.name, json_dumps(inputobj, indent=4))
+                    jobs = step.job(inputobj, callback, runtimeContext)
+                else:
+                    _logger.info(u"[%s] will be skipped", step.name)
+                    callback({k["id"]: None for k in outputparms}, "skipped")
+                    step.completed = True
+                    jobs = []
 
             step.submitted = True
 
@@ -427,7 +470,7 @@ class WorkflowJob(object):
         self.processStatus = "success"
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[%s] %s", self.name, json_dumps(joborder, indent=4))
+            _logger.debug(u"[%s] inputs %s", self.name, json_dumps(joborder, indent=4))
 
         runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = None
@@ -849,24 +892,28 @@ class ReceiveScatterOutput(object):
             self.output_callback(self.dest, self.processStatus)
 
     def setTotal(self, total, steps):  # type: (int, List[Generator]) -> None
-        self.total = total
+        self.total = total # - sum(1 for s in steps if s is None)
         self.steps = cast(List[Optional[Generator]], steps)
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
+def skipped_step(callback):
+    yield None
+    callback({}, "skipped")
 
 def parallel_steps(steps, rc, runtimeContext):
     # type: (List[Generator], ReceiveScatterOutput, RuntimeContext) -> Generator
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
-            if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
+            _logger.debug("hihi %s %s", index, step)
+            if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus not in ("success", "skipped"):
                 break
             if step is None:
                 continue
             try:
                 for j in step:
-                    if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus != "success":
+                    if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus not in ("success", "skipped"):
                         break
                     if j is not None:
                         made_progress = True
@@ -914,10 +961,12 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
         if runtimeContext.postScatterEval is not None:
             sjobo = runtimeContext.postScatterEval(sjobo)
-
-        steps.append(process.job(
-            sjobo, functools.partial(rc.receive_scatter_output, index),
-            runtimeContext))
+        curriedcallback = functools.partial(rc.receive_scatter_output, index)
+        if sjobo is not None:
+            steps.append(process.job(sjobo, curriedcallback, runtimeContext))
+        else:
+            curriedcallback({}, "skipped")
+            steps.append(None)
 
     rc.setTotal(jobl, steps)
     return parallel_steps(steps, rc, runtimeContext)
@@ -945,9 +994,12 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            steps.append(process.job(
-                sjob, functools.partial(rc.receive_scatter_output, index),
-                runtimeContext))
+            curriedcallback = functools.partial(rc.receive_scatter_output, index)
+            if sjob is not None:
+                steps.append(process.job(sjob, curriedcallback, runtimeContext))
+            else:
+                curriedcallback({}, "skipped")
+                steps.append(None)
         else:
             steps.append(nested_crossproduct_scatter(
                 process, sjob, scatter_keys[1:],
@@ -1003,9 +1055,12 @@ def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            steps.append(process.job(
-                sjob, functools.partial(callback.receive_scatter_output, put),
-                runtimeContext))
+            curriedcallback = functools.partial(callback.receive_scatter_output, put)
+            if sjob is not None:
+                steps.append(process.job(sjob, curriedcallback, runtimeContext))
+            else:
+                curriedcallback({}, "skipped")
+                steps.append(None)
             put += 1
         else:
             (add, _) = _flat_crossproduct_scatter(

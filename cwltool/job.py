@@ -364,7 +364,7 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
             _logger.info(u"[job %s] completed %s", self.name, processStatus)
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(u"[job %s] %s", self.name,
+            _logger.debug(u"[job %s] outputs %s", self.name,
                           json_dumps(outputs, indent=4))
 
         if self.generatemapper is not None and runtimeContext.secret_store is not None:

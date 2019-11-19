@@ -184,7 +184,7 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
                                  for s in param_to_step[sink["id"]]["inputs"]
                                  if not s.get("not_connected"))))
             else:
-                msg = None
+                msg = ""
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"
@@ -276,7 +276,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
                 parm_id = sink[sourceField]
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
-                
+
                 if pickValue is not None:
                     validation["warning"].append(
                         SrcSink(src_dict[parm_id], sink, linkMerge,

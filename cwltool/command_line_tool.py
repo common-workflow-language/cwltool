@@ -413,7 +413,7 @@ class CommandLineTool(Process):
                           self.tool.get("id", ""),
                           u" as part of %s" % runtimeContext.part_of
                           if runtimeContext.part_of else "")
-            _logger.debug(u"[job %s] %s", j.name, json_dumps(builder.job,
+            _logger.debug(u"[job %s] inputs %s", j.name, json_dumps(builder.job,
                                                              indent=4))
 
         builder.pathmapper = self.make_path_mapper(
