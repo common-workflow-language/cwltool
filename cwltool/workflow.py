@@ -54,6 +54,8 @@ def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
             return command_line_tool.CommandLineTool(toolpath_object, loadingContext)
         if toolpath_object["class"] == "ExpressionTool":
             return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
+        if toolpath_object["class"] == "Operation":
+            return command_line_tool.Operation(toolpath_object, loadingContext)
         if toolpath_object["class"] == "Workflow":
             return Workflow(toolpath_object, loadingContext)
         if toolpath_object["class"] == "ProcessGenerator":

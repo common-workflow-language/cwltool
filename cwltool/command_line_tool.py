@@ -88,7 +88,7 @@ class ExpressionTool(Process):
                      outdir=None,      # type: Optional[Text]
                      tmpdir=None,      # type: Optional[Text]
                     ):  # type: (...) -> None
-            """Initializet this ExpressionJob."""
+            """Initialize this ExpressionJob."""
             self.builder = builder
             self.requirements = requirements
             self.hints = hints
@@ -851,3 +851,49 @@ class CommandLineTool(Process):
                     compute_checksum=compute_checksum)
             return out
         return r
+
+class Operation(Process):
+    class OperationJob(object):
+        """Job for abstract Operation that always fail."""
+
+        def __init__(self,
+                     builder,          # type: Builder
+                     operation,        # type: Operation
+                     output_callback,  # type: Callable[[Any, Any], Any]
+                     requirements,     # type: List[Dict[Text, Text]]
+                     hints,            # type: List[Dict[Text, Text]]
+                     outdir=None,      # type: Optional[Text]
+                     tmpdir=None,      # type: Optional[Text]
+                    ):  # type: (...) -> None
+            """Initialize this OperationJob."""
+            self.builder = builder
+            self.operation = operation
+            self.requirements = requirements
+            self.hints = hints
+            self.collect_outputs = None  # type: Optional[Callable[[Any], Any]]
+            self.output_callback = output_callback
+            self.outdir = outdir
+            self.tmpdir = tmpdir
+            self.prov_obj = None  # type: Optional[ProvenanceProfile]
+
+        def run(self,
+                runtimeContext,   # type: RuntimeContext
+                tmpdir_lock=None  # type: Optional[threading.Lock]
+               ):  # type: (...) -> None
+            _logger.warning(u"Can't execute abstract Operation %s",
+                            Text(self.operation.tool["id"]), exc_info=runtimeContext.debug)
+            self.output_callback({}, "permanentFail")
+
+    def job(self,
+            job_order,         # type: Mapping[Text, Text]
+            output_callbacks,  # type: Callable[[Any, Any], Any]
+            runtimeContext     # type: RuntimeContext
+           ):
+        # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
+        builder = self._init_job(job_order, runtimeContext)
+
+        job = Operation.OperationJob(
+            builder, self, output_callbacks,
+            self.requirements, self.hints)
+        job.prov_obj = runtimeContext.prov_obj
+        yield job
