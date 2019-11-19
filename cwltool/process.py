@@ -104,6 +104,7 @@ cwl_files = (
     "CommandLineTool.yml",
     "CommonWorkflowLanguage.yml",
     "Process.yml",
+    "Operation.yml",
     "concepts.md",
     "contrib.md",
     "intro.md",
