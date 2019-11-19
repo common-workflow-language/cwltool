@@ -882,7 +882,10 @@ class Operation(Process):
                ):  # type: (...) -> None
             _logger.warning(u"Can't execute abstract Operation %s",
                             Text(self.operation.tool["id"]), exc_info=runtimeContext.debug)
-            self.output_callback({}, "permanentFail")
+            # TODO: Support "default"?
+            out = dict((shortname(port["id"]), None)
+                        for port in self.operation.tool["outputs"])
+            self.output_callback(out, "permanentFail")
 
     def job(self,
             job_order,         # type: Mapping[Text, Text]
