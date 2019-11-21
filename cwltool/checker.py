@@ -11,8 +11,7 @@ from typing_extensions import Text  # pylint: disable=unused-import
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
-from .utils import json_dumps
-
+from ruamel import yaml
 
 def _get_type(tp):
     # type: (Any) -> Any
@@ -20,6 +19,11 @@ def _get_type(tp):
         if tp.get("type") not in ("array", "record", "enum"):
             return tp["type"]
     return tp
+
+
+def dumps(cwl):  # type: (Any) -> Text
+    return yaml.round_trip_dump(cwl)
+
 
 def check_types(srctype, sinktype, linkMerge, valueFrom):
     # type: (Any, Any, Optional[Text], Optional[Text]) -> Text
@@ -172,17 +176,17 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         elif sink.get("not_connected"):
             msg = SourceLine(sink, "type").makeError(
                 "'%s' is not an input parameter of %s, expected %s"
-                % (shortname(sink["id"]), param_to_step[sink["id"]]["run"],
+                % (shortname(sink["id"]), dumps(param_to_step[sink["id"]]["run"]),
                    ", ".join(shortname(s["id"])
                              for s in param_to_step[sink["id"]]["inputs"]
                              if not s.get("not_connected"))))
         else:
             msg = SourceLine(src, "type").makeError(
                 "Source '%s' of type %s may be incompatible"
-                % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
+                % (shortname(src["id"]), dumps(src["type"]))) + "\n" + \
                 SourceLine(sink, "type").makeError(
                     "  with sink '%s' of type %s"
-                    % (shortname(sink["id"]), json_dumps(sink["type"])))
+                    % (shortname(sink["id"]), dumps(sink["type"])))
             if linkMerge is not None:
                 msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
 
@@ -193,10 +197,10 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         linkMerge = exception.linkMerge
         msg = SourceLine(src, "type").makeError(
             "Source '%s' of type %s is incompatible"
-            % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
+            % (shortname(src["id"]), dumps(src["type"]))) + "\n" + \
             SourceLine(sink, "type").makeError(
                 "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json_dumps(sink["type"])))
+                % (shortname(sink["id"]), dumps(sink["type"])))
         if linkMerge is not None:
             msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
