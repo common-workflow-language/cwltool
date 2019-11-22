@@ -300,7 +300,7 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
                     action,                 # type: Text
                     fs_access,              # type: StdFsAccess
                     compute_checksum=True,  # type: bool
-                    path_mapper=PathMapper  # type: Type[PathMapper]
+                    path_mapper=PathMapper, # type: Type[PathMapper]
                     destinations=None       # type: Dict[Text, Union[Text, List[Text]]]
                     ):
     # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
@@ -362,9 +362,11 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
     pm = path_mapper([], "", "", separateDirs=False)
     if destinations is None:
         destinations = {}
+    else:
+        _logger.debug("Destinations is %s", destinations)
     for param in outputObj.keys():
+        dirs = []
         if param in destinations:
-            dirs = []
             if isinstance(outputObj[param], MutableSequence):
                 if isinstance(destinations[param], MutableSequence):
                     if len(outputObj[param]) != len(destinations[param]):
@@ -397,7 +399,10 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
         for i, d in enumerate(dirs):
             outfiles = list(_collectDirEntries(outvar[i]))
             visit_class(outfiles, ("File", "Directory"), _realpath)
-            pm.setup(outfiles, os.path.join(destination_path, d))
+            _logger.debug("Sending '%s' to '%s'", param, os.path.join(destination_path, d))
+            pm.setup(outfiles, "", stagedir=os.path.join(destination_path, d))
+
+    _logger.debug("Pathmap is '%s'", pm.items())
 
     stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 

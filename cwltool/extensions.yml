@@ -168,7 +168,7 @@ $graph:
       type:
         - string
         - type: array
-          items: [string, Expression]
+          items: [string]
 
 - name: OutputDestination
   type: record

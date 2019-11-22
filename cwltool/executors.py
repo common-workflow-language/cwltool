@@ -22,7 +22,7 @@ from .errors import WorkflowException
 from .job import JobBase  # pylint: disable=unused-import
 from .loghandler import _logger
 from .mutation import MutationManager
-from .process import Process  # pylint: disable=unused-import
+from .process import Process, shortname
 from .process import cleanIntermediate, relocateOutputs
 from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
@@ -109,16 +109,17 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         if self.final_output and self.final_output[0] is not None and finaloutdir is not None:
             outputdest, _ = process.get_requirement("http://commonwl.org/cwltool#OutputDestination")
             if outputdest:
+                ddict = {}
                 for d in outputdest["destinations"]:
                     if isinstance(d["destination"], MutableSequence):
-                        ddict[d["outputParam"]] = [do_eval(exp,
+                        ddict[shortname(d["outputParam"])] = [do_eval(exp,
                                                            job_order_object,
                                                            process.requirements,
                                                            finaloutdir,
                                                            None,
                                                            {}) for exp in d["destination"]]
                     else:
-                        ddict[d["outputParam"]] = do_eval(d["destination"],
+                        ddict[shortname(d["outputParam"])] = do_eval(d["destination"],
                                                           job_order_object,
                                                           process.requirements,
                                                           finaloutdir,
