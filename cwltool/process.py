@@ -97,7 +97,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "http://commonwl.org/cwltool#WorkReuse",
                                 "http://commonwl.org/cwltool#NetworkAccess",
                                 "http://commonwl.org/cwltool#LoadListingRequirement",
-                                "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
+                                "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+                                "http://commonwl.org/cwltool#OutputDestination"]
 
 cwl_files = (
     "Workflow.yml",
@@ -300,6 +301,7 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
                     fs_access,              # type: StdFsAccess
                     compute_checksum=True,  # type: bool
                     path_mapper=PathMapper  # type: Type[PathMapper]
+                    destinations=None       # type: Dict[Text, Union[Text, List[Text]]]
                     ):
     # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
@@ -357,9 +359,46 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
         if ob["location"].startswith("/"):
             ob["location"] = os.path.realpath(ob["location"])
 
-    outfiles = list(_collectDirEntries(outputObj))
-    visit_class(outfiles, ("File", "Directory"), _realpath)
-    pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
+    pm = path_mapper([], "", "", separateDirs=False)
+    if destinations is None:
+        destinations = {}
+    for param in outputObj.keys():
+        if param in destinations:
+            dirs = []
+            if isinstance(outputObj[param], MutableSequence):
+                if isinstance(destinations[param], MutableSequence):
+                    if len(outputObj[param]) != len(destinations[param]):
+                        raise WorkflowException("Output '%s' has %i items but only '%i' destinations were provided" %
+                                                (param, len(outputObj[param]), len(destinations[param])))
+                    for i, d in enumerate(destinations[param]):
+                        dirname = os.path.dirname(d)
+                        basename = os.path.basename(d)
+                        if basename:
+                            outputObj[param]["basename"] = basename
+                        dirs.append(dirname)
+                else:
+                    dirname = os.path.dirname(destinations[param])
+                    basename = os.path.basename(destinations[param])
+                    if basename:
+                        raise WorkflowException("Output '%s' directory destination must end with '/'" % (param))
+                    dirs = [dirname] * len(outputObj[param])
+            else:
+                if isinstance(destinations[param], MutableSequence):
+                    raise WorkflowException("Output '%s' cannot have multiple destinations" % (param))
+                dirname = os.path.dirname(destinations[param])
+                basename = os.path.basename(destinations[param])
+                if basename:
+                    outputObj[param]["basename"] = basename
+                dirs.append(dirname)
+        else:
+            dirs.append("")
+
+        outvar = aslist(outputObj[param])
+        for i, d in enumerate(dirs):
+            outfiles = list(_collectDirEntries(outvar[i]))
+            visit_class(outfiles, ("File", "Directory"), _realpath)
+            pm.setup(outfiles, os.path.join(destination_path, d))
+
     stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
     def _check_adjust(a_file):  # type: (Dict[Text, Text]) -> Dict[Text, Text]
