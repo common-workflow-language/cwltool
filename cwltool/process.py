@@ -376,7 +376,7 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
                         dirname = os.path.dirname(d)
                         basename = os.path.basename(d)
                         if basename:
-                            outputObj[param]["basename"] = basename
+                            outputObj[param][i]["basename"] = basename
                         dirs.append(dirname)
                 else:
                     dirname = os.path.dirname(destinations[param])
