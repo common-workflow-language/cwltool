@@ -11,7 +11,7 @@ pipeline {
   stages {
     stage('build') {
       steps {
-        withPythonEnv(pythonInstallation: 'Windows-CPython-36') {
+        withPythonEnv(pythonInstallation: 'Windows-CPython-37') {
           pybat(script: 'pip install .', returnStdout: true)
           pybat 'jenkins.bat'
         }
