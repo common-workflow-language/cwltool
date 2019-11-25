@@ -856,7 +856,7 @@ def test_secondary_files_v1_1(factor):
             get_data(os.path.join("tests", test_job_file))])
         error_code, _, stderr = get_main_output(commands)
     finally:
-        assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+        assert not stat.S_IMODE(os.stat('lsout').st_mode) & stat.S_IWOTH
         os.umask(old_umask)  # revert back to original umask
     assert "completed success" in stderr
     assert error_code == 0
@@ -875,7 +875,7 @@ def test_secondary_files_v1_0(factor):
             ])
         error_code, _, stderr = get_main_output(commands)
     finally:
-        assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+        assert not stat.S_IMODE(os.stat('lsout').st_mode) & stat.S_IWOTH
         os.umask(old_umask)  # revert back to original umask
     assert "completed success" in stderr
     assert error_code == 0
