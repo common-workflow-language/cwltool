@@ -147,15 +147,18 @@ def revmap_file(builder, outdir, f):
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
 
+    uripath = ""
     if "location" in f and "path" not in f:
         if f["location"].startswith("file://"):
             f["path"] = convert_pathsep_to_unix(uri_file_path(f["location"]))
+            uripath = f["location"]
         else:
             return f
 
     if "path" in f:
         path = f["path"]
-        uripath = file_uri(path)
+        if not uripath:
+            uripath = file_uri(path)
         del f["path"]
 
         if "basename" not in f:
@@ -169,7 +172,7 @@ def revmap_file(builder, outdir, f):
             f["location"] = revmap_f[1]
         elif uripath == outdir or uripath.startswith(outdir+os.sep) or uripath.startswith(outdir+'/'):
             f["location"] = file_uri(path)
-        elif path == builder.outdir or path.startswith(builder.outdir+os.sep) or path.startswith(builder.outdir+'/'):
+        elif path == builder.outdir or path.startswith("{}/".format(builder.outdir)) or path.startswith(builder.outdir+'/'):
             f["location"] = "{}/{}".format(outdir, path[len(builder.outdir) + 1:])
         elif not os.path.isabs(path):
             f["location"] = "{}/{}".format(outdir, path)
@@ -730,7 +733,7 @@ class CommandLineTool(Process):
                         try:
                             prefix = fs_access.glob(outdir)
                             r.extend([{"location": g,
-                                       "path": fs_access.join(builder.outdir,
+                                       "path": "{}/{}".format(builder.outdir,
                                            g[len(prefix[0])+1:]),
                                        "basename": os.path.basename(g),
                                        "nameroot": os.path.splitext(
