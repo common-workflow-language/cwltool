@@ -1005,9 +1005,11 @@ def find_default_container(builder,                 # type: HasReqsHints
                            use_biocontainers=None,  # type: Optional[bool]
                           ):  # type: (...) -> Optional[Text]
     """Find a container."""
-    if not default_container and use_biocontainers:
-        default_container = get_container_from_software_requirements(
+    if use_biocontainers:
+        bio_container = get_container_from_software_requirements(
             use_biocontainers, builder)
+        if bio_container:
+            return bio_container
     return default_container
 
 
