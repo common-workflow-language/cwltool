@@ -308,7 +308,7 @@ class PathMapper(object):
                               copy=copy, staged=staged)
 
     def setup(self, referenced_files, basedir, stagedir=None):
-        # type: (List[Any], Text) -> None
+        # type: (List[Any], Text, Optional[Text]) -> None
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.

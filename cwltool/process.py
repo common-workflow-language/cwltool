@@ -293,17 +293,18 @@ def stage_files(pathmapper,             # type: PathMapper
             pathmapper.update(
                 key, entry.target, entry.target, entry.type, entry.staged)
 
+            ### type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
 
-def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj,              # type: Dict[Text, Any]
                     destination_path,       # type: Text
                     source_directories,     # type: Set[Text]
                     action,                 # type: Text
                     fs_access,              # type: StdFsAccess
                     compute_checksum=True,  # type: bool
                     path_mapper=PathMapper, # type: Type[PathMapper]
-                    destinations=None       # type: Dict[Text, Union[Text, List[Text]]]
+                    destinations=None       # type: Optional[Dict[Text, Union[Text, List[Text]]]]
                     ):
-    # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+    # type: (...) -> Dict[Text, Any]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -364,40 +365,42 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
         destinations = {}
     else:
         _logger.debug("Destinations is %s", destinations)
-    for param in outputObj.keys():
+    for param, outvar in outputObj.items():
         dirs = []
         if param in destinations:
-            if isinstance(outputObj[param], MutableSequence):
-                if isinstance(destinations[param], MutableSequence):
-                    if len(outputObj[param]) != len(destinations[param]):
+            dest_for_param = destinations[param]
+            if isinstance(outvar, MutableSequence):
+                if isinstance(dest_for_param, MutableSequence):
+                    if len(outvar) != len(dest_for_param):
                         raise WorkflowException("Output '%s' has %i items but only '%i' destinations were provided" %
-                                                (param, len(outputObj[param]), len(destinations[param])))
-                    for i, d in enumerate(destinations[param]):
+                                                (param, len(outvar), len(dest_for_param)))
+                    for i, d in enumerate(dest_for_param):
                         dirname = os.path.dirname(d)
                         basename = os.path.basename(d)
                         if basename:
-                            outputObj[param][i]["basename"] = basename
+                            outvar[i]["basename"] = basename
                         dirs.append(dirname)
-                else:
-                    dirname = os.path.dirname(destinations[param])
-                    basename = os.path.basename(destinations[param])
+                elif isinstance(dest_for_param, Text):
+                    dirname = os.path.dirname(dest_for_param)
+                    basename = os.path.basename(dest_for_param)
                     if basename:
                         raise WorkflowException("Output '%s' directory destination must end with '/'" % (param))
-                    dirs = [dirname] * len(outputObj[param])
+                    dirs = [dirname] * len(outvar)
+                else:
+                    raise Exception("Unexpected value for dest_for_param: %s" % dest_for_param)
             else:
-                if isinstance(destinations[param], MutableSequence):
+                if not isinstance(dest_for_param, Text):
                     raise WorkflowException("Output '%s' cannot have multiple destinations" % (param))
-                dirname = os.path.dirname(destinations[param])
-                basename = os.path.basename(destinations[param])
+                dirname = os.path.dirname(dest_for_param)
+                basename = os.path.basename(dest_for_param)
                 if basename:
-                    outputObj[param]["basename"] = basename
+                    outvar["basename"] = basename
                 dirs.append(dirname)
         else:
-            dirs.append("")
+            dirs = [""] * len(aslist(outvar))
 
-        outvar = aslist(outputObj[param])
         for i, d in enumerate(dirs):
-            outfiles = list(_collectDirEntries(outvar[i]))
+            outfiles = list(_collectDirEntries(aslist(outvar)[i]))
             visit_class(outfiles, ("File", "Directory"), _realpath)
             _logger.debug("Sending '%s' to '%s'", param, os.path.join(destination_path, d))
             pm.setup(outfiles, "", stagedir=os.path.join(destination_path, d))

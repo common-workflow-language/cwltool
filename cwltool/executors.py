@@ -39,7 +39,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
     def __init__(self):
         # type: (...) -> None
         """Initialize."""
-        self.final_output = []  # type: List[Union[Dict[Text, Any], List[Dict[Text, Any]]]]
+        self.final_output = []  # type: List[Dict[Text, Any]]
         self.final_status = []  # type: List[Text]
         self.output_dirs = set()  # type: Set[Text]
 
@@ -108,6 +108,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
 
         if self.final_output and self.final_output[0] is not None and finaloutdir is not None:
             outputdest, _ = process.get_requirement("http://commonwl.org/cwltool#OutputDestination")
+            ddict = None  # type: Optional[Dict[Text, Union[Text, List[Text]]]]
             if outputdest:
                 ddict = {}
                 for d in outputdest["destinations"]:
@@ -125,8 +126,6 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
                                                           finaloutdir,
                                                           None,
                                                           {})
-            else:
-                ddict = None
 
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
