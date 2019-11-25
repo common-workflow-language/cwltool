@@ -26,25 +26,29 @@ def test_iwdr_permutations():
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
         with temp_dir() as fifth:
-    	    with temp_dir() as sixth:
-    	        with temp_dir() as seventh:
-    	            with temp_dir() as eighth:
-    	                with tempfile.NamedTemporaryFile() as first:
-    	                    with tempfile.NamedTemporaryFile() as second:
-    	                        with tempfile.NamedTemporaryFile() as third:
-    	                            with tempfile.NamedTemporaryFile() as fourth:
-    	                                with temp_dir() as outdir:
-    	                                    assert(main(
-    	                                        ['--outdir', outdir,
-    	                                         get_data("tests/wf/iwdr_permutations.cwl"),
-    	                                         '--first', first.name,
-    	                                         '--second', second.name,
-    	                                         '--third', third.name,
-    	                                         '--fourth', fourth.name,
-    	                                         '--fifth', fifth,
-    	                                         '--sixth', sixth,
-    	                                         '--seventh', seventh,
-    	                                         '--eighth', eighth]) == 0)
+            with temp_dir() as sixth:
+                with temp_dir() as seventh:
+                    with temp_dir() as eighth:
+                        with temp_dir() as first:
+                            with temp_dir() as second:
+                                with temp_dir() as third:
+                                    with temp_dir() as fourth:
+                                        with temp_dir() as outdir:
+                                            first_name = os.path.join(first, "first")
+                                            second_name = os.path.join(second, "second")
+                                            third_name = os.path.join(third, "third")
+                                            fourth_name = os.path.join(fourth, "fourth")
+                                            assert(main(
+                                                ['--outdir', outdir,
+                                                 get_data("tests/wf/iwdr_permutations.cwl"),
+                                                 '--first', first_name,
+                                                 '--second', second_name,
+                                                 '--third', third_name,
+                                                 '--fourth', fourth_name,
+                                                 '--fifth', fifth,
+                                                 '--sixth', sixth,
+                                                 '--seventh', seventh,
+                                                 '--eighth', eighth]) == 0)
     tempfile.tempdir = saved_tempdir
 
 @needs_docker
@@ -56,21 +60,25 @@ def test_iwdr_permutations_inplace():
             with temp_dir() as sixth:
                 with temp_dir() as seventh:
                     with temp_dir() as eighth:
-                        with tempfile.NamedTemporaryFile() as first:
-                            with tempfile.NamedTemporaryFile() as second:
-                                with tempfile.NamedTemporaryFile() as third:
-                                    with tempfile.NamedTemporaryFile() as fourth:
+                        with temp_dir() as first:
+                            with temp_dir() as second:
+                                with temp_dir() as third:
+                                    with temp_dir() as fourth:
                                         with temp_dir() as outdir:
+                                            first_name = os.path.join(first, "first")
+                                            second_name = os.path.join(second, "second")
+                                            third_name = os.path.join(third, "third")
+                                            fourth_name = os.path.join(fourth, "fourth")
                                             assert(main(
                                                 ['--outdir', outdir,
                                                  '--enable-ext',
                                                  '--overrides',
                                                  get_data("tests/wf/iwdr_permutations_inplace.yml"),
                                                  get_data("tests/wf/iwdr_permutations.cwl"),
-                                                 '--first', first.name,
-                                                 '--second', second.name,
-                                                 '--third', third.name,
-                                                 '--fourth', fourth.name,
+                                                 '--first', first_name,
+                                                 '--second', second_name,
+                                                 '--third', third_name,
+                                                 '--fourth', fourth_name,
                                                  '--fifth', fifth,
                                                  '--sixth', sixth,
                                                  '--seventh', seventh,
