@@ -717,29 +717,30 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 cid = None
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
-        stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
-        try:
-            with open(stats_file.name, mode="w") as stats_file_handle:
-                stats_proc = subprocess.Popen(
-                    ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
-                     cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
-                process.wait()
-                stats_proc.kill()
-        except OSError as exc:
-            _logger.warn("Ignored error with docker stats: %s", exc)
-            return
-        max_mem_percent = 0
-        with open(stats_file.name, mode="r") as stats:
-            for line in stats:
-                try:
-                    mem_percent = float(re.sub(
-                        CONTROL_CODE_RE, '', line).replace('%', ''))
-                    if mem_percent > max_mem_percent:
-                        max_mem_percent = mem_percent
-                except ValueError:
-                    break
-        _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
-                     int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
+        with tempfile.TemporaryDirectory(prefix=tmp_prefix, dir=tmp_dir) as temp_dir:
+            stats_file = os.path.join(temp_dir, "stats")
+            try:
+                with open(stats_file, mode="w") as stats_file_handle:
+                    stats_proc = subprocess.Popen(
+                        ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
+                         cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
+                    process.wait()
+                    stats_proc.kill()
+            except OSError as exc:
+                _logger.warn("Ignored error with docker stats: %s", exc)
+                return
+            max_mem_percent = 0
+            with open(stats_file, mode="r") as stats:
+                for line in stats:
+                    try:
+                        mem_percent = float(re.sub(
+                            CONTROL_CODE_RE, '', line).replace('%', ''))
+                        if mem_percent > max_mem_percent:
+                            max_mem_percent = mem_percent
+                    except ValueError:
+                        break
+            _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
+                         int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
         if cleanup_cidfile:
             try:
                 os.remove(cidfile)
