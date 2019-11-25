@@ -208,7 +208,10 @@ class JobBase(with_metaclass(ABCMeta, HasReqsHints)):
 
     def __repr__(self):  # type: () -> str
         """Represent this Job object."""
-        return "CommandLineJob(%s)" % self.name
+        self_type = repr(self.__class__).split('.')[-1].split("'")[0]
+        if hasattr(self, "name"):
+            return "{}({})".format(self_type, self.name)
+        return self_type
 
     @abstractmethod
     def run(self,
