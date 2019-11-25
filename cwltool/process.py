@@ -322,7 +322,7 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
                     yield dir_entry
 
     def _relocate(src, dst):  # type: (Text, Text) -> None
-        if src == dst:
+        if os.path.realpath(src) == os.path.realpath(dst):
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
