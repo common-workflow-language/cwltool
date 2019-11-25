@@ -293,7 +293,6 @@ def stage_files(pathmapper,             # type: PathMapper
             pathmapper.update(
                 key, entry.target, entry.target, entry.type, entry.staged)
 
-            ### type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
 
 def relocateOutputs(outputObj,              # type: Dict[Text, Any]
                     destination_path,       # type: Text
