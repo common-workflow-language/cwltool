@@ -1011,7 +1011,10 @@ def test_env_filtering(factor):
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
 
-    process = subprocess.Popen(["sh", "-c", r"""getTrueShellExeName() {
+    if onWindows():
+        sh_name = None
+    else:
+        process = subprocess.Popen(["sh", "-c", r"""getTrueShellExeName() {
   local trueExe nextTarget 2>/dev/null
   trueExe=$(ps -o comm= $$) || return 1
   [ "${trueExe#-}" = "$trueExe" ] || trueExe=${trueExe#-}
@@ -1019,13 +1022,13 @@ def test_env_filtering(factor):
   while nextTarget=$(readlink "$trueExe"); do trueExe=$nextTarget; done
   printf '%s\n' "$(basename "$trueExe")"
 } ; getTrueShellExeName"""], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
-    sh_name, sh_name_err = process.communicate()
-    sh_name = sh_name.decode('utf-8').strip()
+        sh_name, sh_name_err = process.communicate()
+        sh_name = sh_name.decode('utf-8').strip()
 
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
     if onWindows():
-        target = 5
+        target = 6
     elif sh_name == "dash":
         target = 4
     else:  # bash adds "SHLVL" and "_" environment variables
