@@ -2,6 +2,7 @@ import tempfile
 import os
 from cwltool.main import main
 from cwltool import load_tool
+from pathlib2 import Path
 from .util import (get_data, get_windows_safe_factory, windows_needs_docker,
                    needs_docker, temp_dir, needs_singularity, get_main_output)
 
@@ -34,17 +35,21 @@ def test_iwdr_permutations():
                                 with temp_dir() as third:
                                     with temp_dir() as fourth:
                                         with temp_dir() as outdir:
-                                            first_name = os.path.join(first, "first")
-                                            second_name = os.path.join(second, "second")
-                                            third_name = os.path.join(third, "third")
-                                            fourth_name = os.path.join(fourth, "fourth")
+                                            first_file = Path(first)/"first"
+                                            second_file = Path(second)/"second"
+                                            third_file = Path(third)/"third"
+                                            fourth_file = Path(fourth)/"fourth"
+                                            first_file.touch()
+                                            second_file.touch()
+                                            third_file.touch()
+                                            fourth_file.touch()
                                             assert(main(
                                                 ['--outdir', outdir,
                                                  get_data("tests/wf/iwdr_permutations.cwl"),
-                                                 '--first', first_name,
-                                                 '--second', second_name,
-                                                 '--third', third_name,
-                                                 '--fourth', fourth_name,
+                                                 '--first', str(first_file),
+                                                 '--second', str(second_file),
+                                                 '--third', str(third_file),
+                                                 '--fourth', str(fourth_file),
                                                  '--fifth', fifth,
                                                  '--sixth', sixth,
                                                  '--seventh', seventh,
@@ -65,20 +70,24 @@ def test_iwdr_permutations_inplace():
                                 with temp_dir() as third:
                                     with temp_dir() as fourth:
                                         with temp_dir() as outdir:
-                                            first_name = os.path.join(first, "first")
-                                            second_name = os.path.join(second, "second")
-                                            third_name = os.path.join(third, "third")
-                                            fourth_name = os.path.join(fourth, "fourth")
+                                            first_file = Path(first)/"first"
+                                            second_file = Path(second)/"second"
+                                            third_file = Path(third)/"third"
+                                            fourth_file = Path(fourth)/"fourth"
+                                            first_file.touch()
+                                            second_file.touch()
+                                            third_file.touch()
+                                            fourth_file.touch()
                                             assert(main(
                                                 ['--outdir', outdir,
                                                  '--enable-ext',
                                                  '--overrides',
                                                  get_data("tests/wf/iwdr_permutations_inplace.yml"),
                                                  get_data("tests/wf/iwdr_permutations.cwl"),
-                                                 '--first', first_name,
-                                                 '--second', second_name,
-                                                 '--third', third_name,
-                                                 '--fourth', fourth_name,
+                                                 '--first', str(first_file),
+                                                 '--second', str(second_file),
+                                                 '--third', str(third_file),
+                                                 '--fourth', str(fourth_file),
                                                  '--fifth', fifth,
                                                  '--sixth', sixth,
                                                  '--seventh', seventh,

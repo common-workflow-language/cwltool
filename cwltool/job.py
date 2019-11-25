@@ -723,16 +723,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         try:
             with tempfile.TemporaryDirectory(prefix=tmp_prefix, dir=tmp_dir) as temp_dir:
                 stats_file = os.path.join(temp_dir, "stats")
-                try:
-                    with open(stats_file, mode="w") as stats_file_handle:
-                        stats_proc = subprocess.Popen(
-                            ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
-                             cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
-                        process.wait()
-                        stats_proc.kill()
-                except OSError as exc:
-                    _logger.warn("Ignored error with docker stats: %s", exc)
-                    return
+                with open(stats_file, mode="w") as stats_file_handle:
+                    stats_proc = subprocess.Popen(
+                        ['docker', 'stats', '--no-trunc', '--format', '{{.MemPerc}}',
+                         cid], stdout=stats_file_handle, stderr=subprocess.DEVNULL)
+                    process.wait()
+                    stats_proc.kill()
                 max_mem_percent = 0
                 with open(stats_file, mode="r") as stats:
                     for line in stats:
