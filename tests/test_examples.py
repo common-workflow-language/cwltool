@@ -844,6 +844,7 @@ def test_cid_file_w_prefix(tmpdir, factor):
 
 
 @needs_docker
+@pytest.mark.skipif(onWindows(), reason="os.umask() seems to be a no-op on MS Windows")
 @pytest.mark.parametrize("factor", test_factors)
 def test_secondary_files_v1_1(factor):
     test_file = "secondary-files.cwl"
@@ -862,6 +863,7 @@ def test_secondary_files_v1_1(factor):
     assert error_code == 0
 
 @needs_docker
+@pytest.mark.skipif(onWindows(), reason="os.umask() seems to be a no-op on MS Windows")
 @pytest.mark.parametrize("factor", test_factors)
 def test_secondary_files_v1_0(factor):
     test_file = "secondary-files-string-v1.cwl"
