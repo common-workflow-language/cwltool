@@ -141,8 +141,7 @@ def revmap_file(builder, outdir, f):
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-    split = urllib.parse.urlsplit(outdir)
-    if not split.scheme:
+    if os.path.isdir(outdir):
         outdir = file_uri(str(outdir))
 
     # builder.outdir is the inner (container/compute node) output directory
@@ -171,9 +170,9 @@ def revmap_file(builder, outdir, f):
         elif uripath == outdir or uripath.startswith(outdir+os.sep) or uripath.startswith(outdir+'/'):
             f["location"] = file_uri(path)
         elif path == builder.outdir or path.startswith(builder.outdir+os.sep) or path.startswith(builder.outdir+'/'):
-            f["location"] = builder.fs_access.join(outdir, path[len(builder.outdir) + 1:])
+            f["location"] = "{}/{}".format(outdir, path[len(builder.outdir) + 1:])
         elif not os.path.isabs(path):
-            f["location"] = builder.fs_access.join(outdir, path)
+            f["location"] = "{}/{}".format(outdir, path)
         else:
             raise WorkflowException(u"Output file path %s must be within designated output directory (%s) or an input "
                                     u"file pass through." % (path, builder.outdir))
