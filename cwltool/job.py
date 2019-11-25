@@ -38,7 +38,7 @@ from .pathmapper import (MapperEnt, PathMapper,  # pylint: disable=unused-import
                          ensure_writable, ensure_non_writable)
 from .process import UnsupportedRequirement, stage_files
 from .secrets import SecretStore  # pylint: disable=unused-import
-from .utils import (DEFAULT_TMP_PREFIX, Directory, bytes2str_in_dicts,
+from .utils import (DEFAULT_TMP_PREFIX, Directory, bytes2str_in_dicts, can_symlink,
                     copytree_with_merge, json_dump, json_dumps, onWindows,
                     processes_to_kill, subprocess)
 
@@ -152,7 +152,7 @@ def relink_initialworkdir(pathmapper,           # type: PathMapper
             elif os.path.isdir(host_outdir_tgt) \
                     and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
-            if onWindows():
+            if not can_symlink():
                 # If this becomes a big issue for someone then we could
                 # refactor the code to process output from a running container
                 # and avoid all the extra IO below

@@ -42,6 +42,21 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen]
 
+
+CAN_SYMLINK = None  # type: Optional[bool]
+
+def can_symlink():  # type: () -> bool
+    global CAN_SYMLINK
+    if CAN_SYMLINK is not None:
+        return CAN_SYMLINK
+    with tempfile.TemporaryDirectory() as tempDir:
+        try:
+            os.symlink(os.__file__, os.path.join(tempDir, "symlink_test"))
+            CAN_SYMLINK = True
+        except OSError:
+            CAN_SYMLINK = False
+    return CAN_SYMLINK
+
 def versionstring():
     # type: () -> Text
     """Version of CWLtool used to execute the workflow."""

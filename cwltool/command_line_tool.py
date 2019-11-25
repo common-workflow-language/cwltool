@@ -36,21 +36,20 @@ from .builder import (Builder, content_limit_respected_read_bytes, # pylint: dis
 from .context import LoadingContext  # pylint: disable=unused-import
 from .context import RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
-from .errors import WorkflowException
+from .errors import WorkflowException, UnsupportedRequirement
 from .flatten import flatten
 from .job import CommandLineJob, JobBase  # pylint: disable=unused-import
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, adjustFileObjs,
                          get_listing, trim_listing, visit_class)
-from .process import (Process, UnsupportedRequirement,
-                      _logger_validation_warnings, compute_checksums,
+from .process import (Process, _logger_validation_warnings, compute_checksums,
                       normalizeFilesDirs, shortname, uniquename)
 from .singularity import SingularityCommandLineJob
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess  # pylint: disable=unused-import
-from .utils import (aslist, convert_pathsep_to_unix,
+from .utils import (aslist, can_symlink, convert_pathsep_to_unix,
                     docker_windows_path_adjust, json_dumps, onWindows,
                     random_outdir, windows_default_container_id,
                     shared_file_lock, upgrade_lock)
@@ -553,9 +552,16 @@ class CommandLineTool(Process):
             j.tmpdir = builder.tmpdir
             j.stagedir = builder.stagedir
 
-        inplaceUpdateReq, _ = self.get_requirement("InplaceUpdateRequirement")
+        inplaceUpdateReq, iu_req = self.get_requirement("InplaceUpdateRequirement")
         if inplaceUpdateReq is not None:
-            j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
+            if iu_req and not can_symlink():
+                raise UnsupportedRequirement(
+                    "Currently InplaceUpdateRequirement requires symlink "
+                    "support on MS Windows, which we currently lack "
+                    "permission for. See also "
+                    "https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/")
+            else:
+                j.inplace_update = inplaceUpdateReq["inplaceUpdate"]
         normalizeFilesDirs(j.generatefiles)
 
         readers = {}  # type: Dict[Text, Any]

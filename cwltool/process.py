@@ -45,7 +45,7 @@ from .secrets import SecretStore  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
-from .utils import (DEFAULT_TMP_PREFIX, aslist, cmp_like_py2,
+from .utils import (DEFAULT_TMP_PREFIX, aslist, can_symlink, cmp_like_py2,
                     copytree_with_merge, onWindows, random_outdir)
 from .validate_js import validate_js_expressions
 from .update import INTERNAL_VERSION
@@ -253,8 +253,8 @@ def stage_files(pathmapper,             # type: PathMapper
         if not os.path.exists(os.path.dirname(entry.target)):
             os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
-            if symlink:  # Use symlink func if allowed
-                if onWindows():
+            if symlink:
+                if not can_symlink():
                     if entry.type == "File":
                         shutil.copy(entry.resolved, entry.target)
                     elif entry.type == "Directory":
