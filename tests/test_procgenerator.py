@@ -24,5 +24,5 @@ def test_missing_enable_ext():
     finally:
         if opt is not None:
             os.environ["CWLTOOL_OPTIONS"] = opt
-        else:
+        elif "CWLTOOL_OPTIONS" in os.environ:
             del os.environ["CWLTOOL_OPTIONS"]
