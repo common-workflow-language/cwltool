@@ -297,7 +297,7 @@ class PathMapper(object):
                         # Dereference symbolic links
                         st = os.lstat(deref)
                         while stat.S_ISLNK(st.st_mode):
-                            rl = os.readlink(deref)
+                            rl = os.path.realpath(deref)
                             deref = rl if os.path.isabs(rl) else os.path.join(
                                 os.path.dirname(deref), rl)
                             st = os.lstat(deref)
