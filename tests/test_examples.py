@@ -966,7 +966,7 @@ def test_bad_basecommand(factor):
     commands = factor.split()
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
-    assert "'neenooGo' not found" in stderr, stderr
+    assert "'neenooGo' not found" in stderr or 'executable file not found' in stderr, stderr
     assert error_code == 1
 
 
