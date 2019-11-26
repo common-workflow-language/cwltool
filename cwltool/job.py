@@ -721,7 +721,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         try:
-            with tempfile.TemporaryDirectory(prefix=tmp_prefix, dir=tmp_dir) as temp_dir:
+            temp_dir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+            # replace with tempfile.TemporaryDirectory after dropping Py2.7
+            try:
                 stats_file = os.path.join(temp_dir, "stats")
                 with open(stats_file, mode="w") as stats_file_handle:
                     stats_proc = subprocess.Popen(
@@ -741,6 +743,12 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                             break
                 _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                              int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
+            except Exception as exc:
+                try:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                except:
+                    pass
+                raise exc
             if cleanup_cidfile:
                 os.remove(cidfile)
         except OSError as exc:
