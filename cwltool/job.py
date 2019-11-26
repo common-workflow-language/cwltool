@@ -746,7 +746,7 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
             except Exception as exc:
                 try:
                     shutil.rmtree(temp_dir, ignore_errors=True)
-                except:
+                except Exception:
                     pass
                 raise exc
             if cleanup_cidfile:
