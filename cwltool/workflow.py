@@ -396,10 +396,14 @@ class WorkflowJob(object):
                             debug=runtimeContext.debug,
                             js_console=runtimeContext.js_console,
                             timeout=runtimeContext.eval_timeout)
-                    if whenval is not True:
+                    if whenval is True:
+                        pass
+                    elif whenval is False:
                         _logger.debug("[%s] conditional %s evaluated to %s", step.name, step.tool["when"], whenval)
                         _logger.debug("[%s] inputs was %s", step.name, json_dumps(evalinputs, indent=2))
                         return None
+                    else:
+                        raise WorkflowException("Conditional 'when' must evaluate to 'true' or 'false'")
                 return psio
 
             if "scatter" in step.tool:
