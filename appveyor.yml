@@ -30,7 +30,7 @@ environment:
       APPVEYOR_BUILD_WORKER_CLOUD: "DAN-PC"
 
 install:
-  - ps: 'Install-Product node 0.12 x64'
+  - ps: IF ($ENV:APPVEYOR_BUILD_WORKER_CLOUD -ne "DAN-PC") { 'Install-Product node 0.12 x64' }
   - "set PATH=%PYTHON%\\Scripts;%PATH%"
   - '"%PYTHON%\\python.exe" -m pip install -U pip setuptools^>=20.3 wheel'
   - '"%PYTHON%\\python.exe" -m pip install -U codecov -rtest-requirements.txt pytest-xdist==1.27'
