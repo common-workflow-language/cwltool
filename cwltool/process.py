@@ -46,7 +46,7 @@ from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
 from .stdfsaccess import StdFsAccess
 from .utils import (DEFAULT_TMP_PREFIX, aslist, can_symlink, cmp_like_py2,
-                    copytree_with_merge, onWindows, random_outdir)
+                    copytree_with_merge, random_outdir)
 from .validate_js import validate_js_expressions
 from .update import INTERNAL_VERSION
 
