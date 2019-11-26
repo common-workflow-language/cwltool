@@ -52,8 +52,11 @@ def can_symlink():  # type: () -> bool
     tempDir = tempfile.mkdtemp()
     # replace with tempfile.TemporaryDirectory after dropping Python2.7
     try:
-        os.symlink(os.__file__, os.path.join(tempDir, "symlink_test"))
-        CAN_SYMLINK = True
+        if hasattr(os, "symlink"):  # remove this check when Python2.7 is dropped
+            os.symlink(os.__file__, os.path.join(tempDir, "symlink_test"))
+            CAN_SYMLINK = True
+        else:
+            CAN_SYMLINK = False
     except OSError:
         CAN_SYMLINK = False
     shutil.rmtree(tempDir, ignore_errors=True)
