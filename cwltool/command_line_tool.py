@@ -106,6 +106,8 @@ class ExpressionTool(Process):
             try:
                 normalizeFilesDirs(self.builder.job)
                 ev = self.builder.do_eval(self.script)
+                if not isinstance(ev, MutableMapping):
+                    raise WorkflowException("Expression must evaluate to object object, got %s" % (type(ev)))
                 normalizeFilesDirs(ev)
                 self.output_callback(ev, "success")
             except Exception as err:

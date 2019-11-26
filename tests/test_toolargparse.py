@@ -47,12 +47,12 @@ baseCommand:
 stdout: foo
 '''
 
-script_c = '''
-#!/usr/bin/env cwl-runner
+script_c = '''#!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
 class: ExpressionTool
-
+requirements:
+  InlineJavascriptRequirement: {}
 inputs:
   foo:
     type:
@@ -61,7 +61,7 @@ inputs:
         one: File
         two: string
 
-expression: $(inputs.foo.two)
+expression: "$({foo: inputs.foo.two})"
 
 outputs: []
 '''
