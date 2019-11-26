@@ -744,11 +744,9 @@ class ContainerCommandLineJob(with_metaclass(ABCMeta, JobBase)):
                 _logger.info(u"[job %s] Max memory used: %iMiB", self.name,
                              int((max_mem_percent / 100 * max_mem) / (2 ** 20)))
             except Exception as exc:
-                try:
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                except Exception:
-                    pass
+                shutil.rmtree(temp_dir, ignore_errors=True)
                 raise exc
+            shutil.rmtree(temp_dir, ignore_errors=True)
             if cleanup_cidfile:
                 os.remove(cidfile)
         except OSError as exc:
