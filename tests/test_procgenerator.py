@@ -1,5 +1,7 @@
 import pytest
 import os
+import sys
+from io import BytesIO, StringIO
 from .util import get_data, windows_needs_docker
 from cwltool.main import main
 
