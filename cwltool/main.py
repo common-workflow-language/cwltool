@@ -944,7 +944,7 @@ def main(argsl=None,                   # type: Optional[List[str]]
                 if isinstance(out, string_types):
                     stdout.write(out)
                 else:
-                    stdout.write(json_dumps(out, indent=4, ensure_ascii=False))
+                    stdout.write(str(json_dumps(out, indent=4, ensure_ascii=False)))
                 stdout.write("\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()
