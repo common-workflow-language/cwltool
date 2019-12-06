@@ -2,6 +2,7 @@ import copy
 from .process import Process, shortname
 from .load_tool import load_tool
 from schema_salad import validate
+from schema_salad.sourceline import indent
 from .errors import WorkflowException
 from .context import RuntimeContext, LoadingContext
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
@@ -82,7 +83,7 @@ class ProcessGenerator(Process):
                 _logger.exception("Validation exception")
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], validate.indent(str(vexc))))
+                (toolpath_object["run"], indent(str(vexc))))
 
     def job(self,
             job_order,         # type: Mapping[Text, Text]
@@ -107,7 +108,7 @@ class ProcessGenerator(Process):
                 _logger.exception("Validation exception")
             raise WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (jobout["runProcess"], validate.indent(str(vexc))))
+                (jobout["runProcess"], indent(str(vexc))))
 
         if "runInputs" in jobout:
             runinputs = cast(MutableMapping[Text, Any], jobout["runInputs"])
