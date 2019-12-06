@@ -15,7 +15,7 @@ from uuid import UUID  # pylint: disable=unused-import
 import threading
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import validate
-from schema_salad.sourceline import SourceLine
+from schema_salad.sourceline import SourceLine, indent
 from six import string_types, iteritems
 from six.moves import range
 from future.utils import raise_from
@@ -644,7 +644,7 @@ class WorkflowStep(Process):
                 _logger.exception("Validation exception")
             raise_from(WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], validate.indent(str(vexc)))), vexc)
+                (toolpath_object["run"], indent(str(vexc)))), vexc)
 
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
