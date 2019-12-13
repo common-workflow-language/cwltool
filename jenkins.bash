@@ -129,7 +129,7 @@ done
 # build new docker container
 if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
 then
-  ./build-cwl-docker.sh
+  ./build-cwl-docker.sh || true
 fi
 #docker rm -v $(docker ps -a -f status=exited | sed 's/  */ /g' | cut -d' ' -f1)
 exit ${CODE}
