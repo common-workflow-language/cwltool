@@ -5,7 +5,11 @@ import subprocess
 from .util import get_data, get_main_output
 import tempfile
 import shutil
-from psutil.tests import TRAVIS
+
+try:
+    from psutil.tests import TRAVIS
+except ImportError:
+    TRAVIS = True
 
 LINUX = sys.platform in ('linux', 'linux2')
 
