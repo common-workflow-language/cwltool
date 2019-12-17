@@ -776,22 +776,6 @@ class CommandLineTool(Process):
             elif schema["type"] == "File" or schema["type"] == "Directory":
                 single = True
 
-            if "outputEval" in binding:
-                with SourceLine(binding, "outputEval", WorkflowException, debug):
-                    r = builder.do_eval(binding["outputEval"], context=r)
-
-            if single:
-                if not r and not optional:
-                    with SourceLine(binding, "glob", WorkflowException, debug):
-                        raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
-                elif not r and optional:
-                    pass
-                elif isinstance(r, MutableSequence):
-                    if len(r) > 1:
-                        raise WorkflowException("Multiple matches for output item that is a single file.")
-                    else:
-                        r = r[0]
-
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException, debug):
                     for primary in aslist(r):
@@ -826,6 +810,22 @@ class CommandLineTool(Process):
                                     elif fs_access.isdir(sfitem["location"]):
                                         sfitem["class"] = "Directory"
                                         primary["secondaryFiles"].append(sfitem)
+
+            if "outputEval" in binding:
+                with SourceLine(binding, "outputEval", WorkflowException, debug):
+                    r = builder.do_eval(binding["outputEval"], context=r)
+
+            if single:
+                if not r and not optional:
+                    with SourceLine(binding, "glob", WorkflowException, debug):
+                        raise WorkflowException("Did not find output file with glob pattern: '{}'".format(globpatterns))
+                elif not r and optional:
+                    pass
+                elif isinstance(r, MutableSequence):
+                    if len(r) > 1:
+                        raise WorkflowException("Multiple matches for output item that is a single file.")
+                    else:
+                        r = r[0]
 
             if "format" in schema:
                 for primary in aslist(r):
