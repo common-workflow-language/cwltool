@@ -479,11 +479,11 @@ mapping, execute the following command from the cwltool root directory::
 
 The previous examples demonstrated leveraging existing infrastructure to
 provide requirements for CWL tools. If instead a real package manager is used
-cwltool has the oppertunity to install requirements as needed. While initial
+cwltool has the opportunity to install requirements as needed. While initial
 support for Homebrew/Linuxbrew plugins is available, the most developed such
 plugin is for the `Conda <https://conda.io/docs/#>`__ package manager. Conda has the nice properties
 of allowing multiple versions of a package to be installed simultaneously,
-not requiring evalated permissions to install Conda itself or packages using
+not requiring evaluated permissions to install Conda itself or packages using
 Conda, and being cross platform. For these reasons, cwltool may run as a normal
 user, install its own Conda environment and manage multiple versions of Conda packages
 on both Linux and Mac OS X.
@@ -523,8 +523,8 @@ The example can be executed using the command::
   cwltool --beta-conda-dependencies tests/seqtk_seq_wrong_name.cwl tests/seqtk_seq_job.json
 
 The plugin framework for managing resolution of these software requirements
-as maintained as part of `galaxy-lib <https://github.com/galaxyproject/galaxy-lib>`__ - a small, portable subset of the Galaxy
-project. More information on configuration and implementation can be found
+as maintained as part of `galaxy-tool-util <https://github.com/galaxyproject/galaxy/tree/dev/packages/tool_util>`__ - a small,
+portable subset of the Galaxy project. More information on configuration and implementation can be found
 at the following links:
 
 - `Dependency Resolvers in Galaxy <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__

@@ -35,25 +35,6 @@ class ContainerRegistry:
     def __init__(self, app_info) -> None: ...
     def find_best_container_description(self, enabled_container_types, tool_info) -> ContainerDescription: ...
 
-class AppInfo:
-    galaxy_root_dir = ...  # type: Any
-    default_file_path = ...  # type: Any
-    outputs_to_working_directory = ...  # type: Any
-    container_image_cache_path = ...  # type: Any
-    library_import_dir = ...  # type: Any
-    enable_beta_mulled_containers = ...  # type: Any
-    containers_resolvers_config_file = ...  # type: Any
-    involucro_path = ...  # type: Any
-    involucro_auto_init = ...  # type: Any
-    def __init__(self, galaxy_root_dir: Optional[Any] = ..., default_file_path: Optional[Any] = ..., outputs_to_working_directory: bool = ..., container_image_cache_path: Optional[Any] = ..., library_import_dir: Optional[Any] = ..., enable_beta_mulled_containers: bool = ..., containers_resolvers_config_file: Optional[Any] = ..., involucro_path: Optional[Any] = ..., involucro_auto_init: bool = ...) -> None: ...
-
-class ToolInfo:
-    container_descriptions = ...  # type: Any
-    requirements = ...  # type: Any
-    requires_galaxy_python_environment = ...  # type: Any
-    env_pass_through = ...  # type: Any
-    def __init__(self, container_descriptions: Any = ..., requirements: Any = ..., requires_galaxy_python_environment: bool = ...) -> None: ...
-
 class JobInfo:
     working_directory = ...  # type: Any
     job_directory = ...  # type: Any
