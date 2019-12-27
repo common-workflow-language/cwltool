@@ -154,3 +154,38 @@ $graph:
         _type: "@id"
       doc: |
         Specifies the process to run.
+
+- name: Destination
+  type: record
+  inVocab: false
+  fields:
+    outputParam:
+      type: string
+      jsonldPredicate:
+        "_type": "@id"
+        refScope: 2
+    destination:
+      type:
+        - string
+        - type: array
+          items: [string]
+
+- name: OutputDestination
+  type: record
+  inVocab: false
+  extends: cwl:ProcessRequirement
+  fields:
+    class:
+      type: string
+      doc: "Always 'OutputDestination"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    destinations:
+      type: Destination[]
+      doc: |
+        List one or more input parameters that are sensitive (such as passwords)
+        which will be deliberately obscured from logging.
+      jsonldPredicate:
+        mapSubject: outputParam
+        mapPredicate: destination

@@ -307,12 +307,13 @@ class PathMapper(object):
             self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir,
                               copy=copy, staged=staged)
 
-    def setup(self, referenced_files, basedir):
-        # type: (List[Any], Text) -> None
+    def setup(self, referenced_files, basedir, stagedir=None):
+        # type: (List[Any], Text, Optional[Text]) -> None
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
-        stagedir = self.stagedir
+        if stagedir is None:
+            stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())

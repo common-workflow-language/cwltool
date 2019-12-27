@@ -9,8 +9,9 @@ steps:
   - id: js_log
     in: []
     out: []
-    run: 
+    run:
       class: ExpressionTool
       inputs: []
       outputs: []
-      expression: ${console.log("Log message");console.error("Error message");return ["python", "-c", "True"];}
+      expression: |
+        ${console.log("Log message");console.error("Error message");return {v: ["python", "-c", "True"]};}

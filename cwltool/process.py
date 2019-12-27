@@ -97,7 +97,8 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "http://commonwl.org/cwltool#WorkReuse",
                                 "http://commonwl.org/cwltool#NetworkAccess",
                                 "http://commonwl.org/cwltool#LoadListingRequirement",
-                                "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
+                                "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+                                "http://commonwl.org/cwltool#OutputDestination"]
 
 cwl_files = (
     "Workflow.yml",
@@ -293,15 +294,16 @@ def stage_files(pathmapper,             # type: PathMapper
                 key, entry.target, entry.target, entry.type, entry.staged)
 
 
-def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+def relocateOutputs(outputObj,              # type: Dict[Text, Any]
                     destination_path,       # type: Text
                     source_directories,     # type: Set[Text]
                     action,                 # type: Text
                     fs_access,              # type: StdFsAccess
                     compute_checksum=True,  # type: bool
-                    path_mapper=PathMapper  # type: Type[PathMapper]
+                    path_mapper=PathMapper, # type: Type[PathMapper]
+                    destinations=None       # type: Optional[Dict[Text, Union[Text, List[Text]]]]
                     ):
-    # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
+    # type: (...) -> Dict[Text, Any]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
@@ -357,9 +359,53 @@ def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[
         if ob["location"].startswith("/"):
             ob["location"] = os.path.realpath(ob["location"])
 
-    outfiles = list(_collectDirEntries(outputObj))
-    visit_class(outfiles, ("File", "Directory"), _realpath)
-    pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
+    pm = path_mapper([], "", "", separateDirs=False)
+    if destinations is None:
+        destinations = {}
+    else:
+        _logger.debug("Destinations is %s", destinations)
+    for param, outvar in outputObj.items():
+        dirs = []
+        if param in destinations:
+            dest_for_param = destinations[param]
+            if isinstance(outvar, MutableSequence):
+                if isinstance(dest_for_param, MutableSequence):
+                    if len(outvar) != len(dest_for_param):
+                        raise WorkflowException("Output '%s' has %i items but only '%i' destinations were provided" %
+                                                (param, len(outvar), len(dest_for_param)))
+                    for i, d in enumerate(dest_for_param):
+                        dirname = os.path.dirname(d)
+                        basename = os.path.basename(d)
+                        if basename:
+                            outvar[i]["basename"] = basename
+                        dirs.append(dirname)
+                elif isinstance(dest_for_param, Text):
+                    dirname = os.path.dirname(dest_for_param)
+                    basename = os.path.basename(dest_for_param)
+                    if basename:
+                        raise WorkflowException("Output '%s' directory destination must end with '/'" % (param))
+                    dirs = [dirname] * len(outvar)
+                else:
+                    raise Exception("Unexpected value for dest_for_param: %s" % dest_for_param)
+            else:
+                if not isinstance(dest_for_param, Text):
+                    raise WorkflowException("Output '%s' cannot have multiple destinations" % (param))
+                dirname = os.path.dirname(dest_for_param)
+                basename = os.path.basename(dest_for_param)
+                if basename:
+                    outvar["basename"] = basename
+                dirs.append(dirname)
+        else:
+            dirs = [""] * len(aslist(outvar))
+
+        for i, d in enumerate(dirs):
+            outfiles = list(_collectDirEntries(aslist(outvar)[i]))
+            visit_class(outfiles, ("File", "Directory"), _realpath)
+            _logger.debug("Sending '%s' to '%s'", param, os.path.join(destination_path, d))
+            pm.setup(outfiles, "", stagedir=os.path.join(destination_path, d))
+
+    _logger.debug("Pathmap is '%s'", pm.items())
+
     stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
     def _check_adjust(a_file):  # type: (Dict[Text, Text]) -> Dict[Text, Text]

@@ -7,7 +7,7 @@ import threading
 import logging
 from threading import Lock
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, MutableSequence
 
 import psutil
 from six import string_types, with_metaclass
@@ -22,12 +22,13 @@ from .errors import WorkflowException
 from .job import JobBase  # pylint: disable=unused-import
 from .loghandler import _logger
 from .mutation import MutationManager
-from .process import Process  # pylint: disable=unused-import
+from .process import Process, shortname
 from .process import cleanIntermediate, relocateOutputs
 from .provenance import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 from .command_line_tool import CallbackJob
+from .expression import do_eval
 
 TMPDIR_LOCK = Lock()
 
@@ -38,7 +39,7 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
     def __init__(self):
         # type: (...) -> None
         """Initialize."""
-        self.final_output = []  # type: List[Union[Dict[Text, Any], List[Dict[Text, Any]]]]
+        self.final_output = []  # type: List[Dict[Text, Any]]
         self.final_status = []  # type: List[Text]
         self.output_dirs = set()  # type: Set[Text]
 
@@ -106,11 +107,32 @@ class JobExecutor(with_metaclass(ABCMeta, object)):
         self.run_jobs(process, job_order_object, logger, runtime_context)
 
         if self.final_output and self.final_output[0] is not None and finaloutdir is not None:
+            outputdest, _ = process.get_requirement("http://commonwl.org/cwltool#OutputDestination")
+            ddict = None  # type: Optional[Dict[Text, Union[Text, List[Text]]]]
+            if outputdest:
+                ddict = {}
+                for d in outputdest["destinations"]:
+                    if isinstance(d["destination"], MutableSequence):
+                        ddict[shortname(d["outputParam"])] = [do_eval(exp,
+                                                           job_order_object,
+                                                           process.requirements,
+                                                           finaloutdir,
+                                                           None,
+                                                           {}) for exp in d["destination"]]
+                    else:
+                        ddict[shortname(d["outputParam"])] = do_eval(d["destination"],
+                                                          job_order_object,
+                                                          process.requirements,
+                                                          finaloutdir,
+                                                          None,
+                                                          {})
+
             self.final_output[0] = relocateOutputs(
                 self.final_output[0], finaloutdir, self.output_dirs,
                 runtime_context.move_outputs, runtime_context.make_fs_access(""),
                 getdefault(runtime_context.compute_checksum, True),
-                path_mapper=runtime_context.path_mapper)
+                path_mapper=runtime_context.path_mapper,
+                destinations=ddict)
 
         if runtime_context.rm_tmpdir:
             if runtime_context.cachedir is None:
