@@ -3,7 +3,6 @@
 # Selects N random lines from a file and outputs to another file, maintaining original line order
 # allows specifying a seed
 # does two passes to determine line offsets/count, and then to output contents
-from __future__ import print_function
 
 import optparse
 import random

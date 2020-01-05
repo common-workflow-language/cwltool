@@ -1,13 +1,10 @@
-from __future__ import absolute_import
-
-from typing import cast, IO, Any, Dict, MutableMapping
+import urllib
+from typing import IO, Any, Dict, MutableMapping, cast
 
 from rdflib import Graph
+
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
-from six.moves import urllib
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .process import Process
 
@@ -15,25 +12,25 @@ from .process import Process
 def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     g = Graph()
 
-    def visitor(t):  # type: (MutableMapping[Text, Any]) -> None
+    def visitor(t):  # type: (MutableMapping[str, Any]) -> None
         makerdf(t["id"], t, ctx, graph=g)
 
     tool.visit(visitor)
     return g
 
 
-def printrdf(wflow, ctx, style):  # type: (Process, ContextType, str) -> Text
+def printrdf(wflow, ctx, style):  # type: (Process, ContextType, str) -> str
     """Serialize the CWL document into a string, ready for printing."""
-    rdf = gather(wflow, ctx).serialize(format=style, encoding='utf-8')
+    rdf = gather(wflow, ctx).serialize(format=style, encoding="utf-8")
     if not rdf:
-        return u""
-    return cast(Text, rdf.decode('utf-8'))
+        return ""
+    return cast(str, rdf.decode("utf-8"))
 
 
-def lastpart(uri):  # type: (Any) -> Text
-    uri2 = Text(uri)
+def lastpart(uri):  # type: (Any) -> str
+    uri2 = str(uri)
     if "/" in uri2:
-        return uri2[uri2.rindex("/") + 1:]
+        return uri2[uri2.rindex("/") + 1 :]
     return uri2
 
 
@@ -43,10 +40,14 @@ def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
            WHERE {
               ?step cwl:run ?run .
               ?run rdf:type ?runtype .
-           }""")
+           }"""
+    )
 
     for step, run, _ in qres:
-        stdout.write(u'"%s" [label="%s"]\n' % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run))))
+        stdout.write(
+            u'"%s" [label="%s"]\n'
+            % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run)))
+        )
 
     qres = g.query(
         """SELECT ?step ?inp ?source
@@ -54,48 +55,60 @@ def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
               ?wf Workflow:steps ?step .
               ?step cwl:inputs ?inp .
               ?inp cwl:source ?source .
-           }""")
+           }"""
+    )
 
     for step, inp, source in qres:
         stdout.write(u'"%s" [shape=box]\n' % (lastpart(inp)))
-        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(inp), ""))
-        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(inp), lastpart(step), ""))
+        stdout.write(
+            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(inp), "")
+        )
+        stdout.write(
+            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(inp), lastpart(step), "")
+        )
 
     qres = g.query(
         """SELECT ?step ?out
            WHERE {
               ?wf Workflow:steps ?step .
               ?step cwl:outputs ?out .
-           }""")
+           }"""
+    )
 
     for step, out in qres:
         stdout.write(u'"%s" [shape=box]\n' % (lastpart(out)))
-        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(step), lastpart(out), ""))
+        stdout.write(
+            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(step), lastpart(out), "")
+        )
 
     qres = g.query(
         """SELECT ?out ?source
            WHERE {
               ?wf cwl:outputs ?out .
               ?out cwl:source ?source .
-           }""")
+           }"""
+    )
 
     for out, source in qres:
         stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(out)))
-        stdout.write(u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(out), ""))
+        stdout.write(
+            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(out), "")
+        )
 
     qres = g.query(
         """SELECT ?inp
            WHERE {
               ?wf rdf:type cwl:Workflow .
               ?wf cwl:inputs ?inp .
-           }""")
+           }"""
+    )
 
     for (inp,) in qres:
         stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(inp)))
 
 
 def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
-    dotname = {}  # type: Dict[Text,Text]
+    dotname = {}  # type: Dict[str,str]
     clusternode = {}
 
     stdout.write("compound=true\n")
@@ -108,7 +121,8 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
               ?wf Workflow:steps ?step .
               ?step cwl:run ?run .
               ?run rdf:type cwl:Workflow .
-           } ORDER BY ?wf""")
+           } ORDER BY ?wf"""
+    )
     for (run,) in qres:
         subworkflows.add(run)
 
@@ -119,7 +133,8 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
               ?wf Workflow:steps ?step .
               ?step cwl:run ?run .
               ?run rdf:type ?runtype .
-           } ORDER BY ?wf""")
+           } ORDER BY ?wf"""
+    )
 
     currentwf = None
     for wf, step, run, runtype in qres:
@@ -132,14 +147,19 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                stdout.write(u'subgraph "%s" { label="%s"\n' % (dotname[wf], lastpart(wf)))
+                stdout.write(
+                    u'subgraph "%s" { label="%s"\n' % (dotname[wf], lastpart(wf))
+                )
                 currentwf = wf
                 clusternode[wf] = step
             else:
                 currentwf = None
 
-        if Text(runtype) != "https://w3id.org/cwl/cwl#Workflow":
-            stdout.write(u'"%s" [label="%s"]\n' % (dotname[step], urllib.parse.urldefrag(Text(step))[1]))
+        if str(runtype) != "https://w3id.org/cwl/cwl#Workflow":
+            stdout.write(
+                u'"%s" [label="%s"]\n'
+                % (dotname[step], urllib.parse.urldefrag(str(step))[1])
+            )
 
     if currentwf is not None:
         stdout.write("}\n")
@@ -154,10 +174,11 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
               ?sink cwl:in ?inp .
               ?src cwl:run ?srcrun .
               ?sink cwl:run ?sinkrun .
-           }""")
+           }"""
+    )
 
     for src, sink, srcrun, sinkrun in qres:
-        attr = u""
+        attr = ""
         if srcrun in clusternode:
             attr += u'ltail="%s"' % dotname[srcrun]
             src = clusternode[srcrun]

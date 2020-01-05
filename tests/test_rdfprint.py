@@ -8,7 +8,8 @@ from .util import get_data
 
 
 def test_rdf_print():
-    assert main(['--print-rdf', get_data('tests/wf/hello_single_tool.cwl')]) == 0
+    assert main(["--print-rdf", get_data("tests/wf/hello_single_tool.cwl")]) == 0
+
 
 def test_rdf_print_unicode():
     """Force ASCII encoding but load UTF file with --print-rdf."""
@@ -16,9 +17,13 @@ def test_rdf_print_unicode():
         lc_all = os.environ.get("LC_ALL", None)
         os.environ["LC_ALL"] = "C"
 
-        params = [sys.executable,
-                  "-m", "cwltool", '--print-rdf',
-                  get_data('tests/utf_doc_example.cwl')]
+        params = [
+            sys.executable,
+            "-m",
+            "cwltool",
+            "--print-rdf",
+            get_data("tests/utf_doc_example.cwl"),
+        ]
 
         assert subprocess.check_call(params) == 0
     finally:

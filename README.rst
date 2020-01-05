@@ -75,7 +75,7 @@ intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for
-`Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 5, 6, 7, 8}``
+`Python <https://www.python.org/>`_ ``3.x {x = 5, 6, 7, 8}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -100,7 +100,7 @@ it is recommended to do the following:
 
 .. code:: bash
 
-  virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
+  virtualenv -p python3 venv   # Create a virtual environment
   source venv/bin/activate     # Activate environment before installing `cwltool`
 
 Installing the official package from PyPi (will install "cwltool" package as
