@@ -21,8 +21,7 @@ docker pull node:slim
 wget https://github.com/common-workflow-language/cwl-v1.1/archive/master.tar.gz
 tar xzf master.tar.gz && rm master.tar.gz
 
-# Test for Python 2.7 and Python 3
-for PYTHON_VERSION in 2 3
+for PYTHON_VERSION in 3
 do
 for CONTAINER in docker
 # for CONTAINER in docker singularity

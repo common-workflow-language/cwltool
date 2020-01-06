@@ -1,25 +1,28 @@
 import copy
-from .utils import aslist, json_dumps
+import urllib
 from collections import namedtuple
-from typing import (Dict, MutableMapping, MutableSequence, Set, Any, Text, Optional, Tuple)
-from .process import shortname
-from six import itervalues
-from six.moves import urllib
-from .workflow import Workflow
+from typing import Any, Dict, MutableMapping, MutableSequence, Optional, Set, Tuple
+
 from ruamel.yaml.comments import CommentedMap
 
-Node = namedtuple('Node', ('up', 'down', 'type'))
+from .process import shortname
+from .utils import aslist
+from .workflow import Workflow
+
+Node = namedtuple("Node", ("up", "down", "type"))
 UP = "up"
 DOWN = "down"
 INPUT = "input"
 OUTPUT = "output"
 STEP = "step"
 
-def subgraph_visit(current,   # type: Text
-                   nodes,     # type: MutableMapping[Text, Node]
-                   visited,   # type: Set[Text]
-                   direction  # type: Text
-): # type: (...) -> None
+
+def subgraph_visit(
+    current,  # type: str
+    nodes,  # type: MutableMapping[str, Node]
+    visited,  # type: Set[str]
+    direction,  # type: str
+):  # type: (...) -> None
 
     if current in visited:
         return
@@ -32,8 +35,9 @@ def subgraph_visit(current,   # type: Text
     for c in d:
         subgraph_visit(c, nodes, visited, direction)
 
+
 def declare_node(nodes, nodeid, tp):
-    # type: (Dict[Text, Node], Text, Optional[Text]) -> Node
+    # type: (Dict[str, Node], str, Optional[str]) -> Node
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:
@@ -42,13 +46,12 @@ def declare_node(nodes, nodeid, tp):
         nodes[nodeid] = Node([], [], tp)
     return nodes[nodeid]
 
-def get_subgraph(roots,  # type: MutableSequence[Text]
-                 tool    # type: Workflow
-                 ):  # type: (...) -> Optional[CommentedMap]
+
+def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
-    nodes = {}  # type: Dict[Text, Node]
+    nodes = {}  # type: Dict[str, Node]
 
     for inp in tool.tool["inputs"]:
         declare_node(nodes, inp["id"], INPUT)
@@ -80,24 +83,23 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
             declare_node(nodes, out, None)
             nodes[out].up.append(st["id"])
 
-
     # Find all the downstream nodes from the starting points
-    visited_down = set()  # type: Set[Text]
+    visited_down = set()  # type: Set[str]
     for r in roots:
         if nodes[r].type == OUTPUT:
             subgraph_visit(r, nodes, visited_down, UP)
         else:
             subgraph_visit(r, nodes, visited_down, DOWN)
 
-    def find_step(stepid):  # type: (Text) -> Optional[MutableMapping[Text, Any]]
+    def find_step(stepid):  # type: (str) -> Optional[MutableMapping[str, Any]]
         for st in tool.steps:
             if st.tool["id"] == stepid:
                 return st.tool
         return None
 
     # Now make sure all the nodes are connected to upstream inputs
-    visited = set()  # type: Set[Text]
-    rewire = {}  # type: Dict[Text, Tuple[Text, Text]]
+    visited = set()  # type: Set[str]
+    rewire = {}  # type: Dict[str, Tuple[str, str]]
     for v in visited_down:
         visited.add(v)
         if nodes[v].type in (STEP, OUTPUT):
@@ -120,7 +122,6 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
                         else:
                             raise Exception("Could not find step %s" % v)
 
-
     extracted = CommentedMap()
     for f in tool.tool:
         if f in ("steps", "inputs", "outputs"):
@@ -132,17 +133,18 @@ def get_subgraph(roots,  # type: MutableSequence[Text]
                             if "source" not in inport:
                                 continue
                             if isinstance(inport["source"], MutableSequence):
-                                inport["source"] = [rewire[s][0] for s in inport["source"] if s in rewire]
+                                inport["source"] = [
+                                    rewire[s][0]
+                                    for s in inport["source"]
+                                    if s in rewire
+                                ]
                             elif inport["source"] in rewire:
                                 inport["source"] = rewire[inport["source"]][0]
                     extracted[f].append(i)
         else:
             extracted[f] = tool.tool[f]
 
-    for rv in itervalues(rewire):
-        extracted["inputs"].append({
-            "id": rv[0],
-            "type": rv[1]
-        })
+    for rv in rewire.values():
+        extracted["inputs"].append({"id": rv[0], "type": rv[1]})
 
     return extracted

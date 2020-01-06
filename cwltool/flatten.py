@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-from typing import Any, Callable, List, Text, cast
+from typing import Any, Callable, List, cast
 
 # http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
 
@@ -22,6 +20,6 @@ def flatten(l, ltypes=(list, tuple)):
                 i -= 1
                 break
             else:
-                l[i:i + 1] = l[i]
+                l[i : i + 1] = l[i]
         i += 1
     return cast(Callable[[Any], List[Any]], ltype)(l)

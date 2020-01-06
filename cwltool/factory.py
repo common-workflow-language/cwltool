@@ -1,11 +1,7 @@
-from __future__ import absolute_import
-
 import os
-from typing import Callable as tCallable  # pylint: disable=unused-import
-from typing import Any, Dict, Optional, Tuple, Union
-
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from typing import Any
+from typing import Callable as tCallable
+from typing import Dict, Optional, Tuple, Union
 
 from . import load_tool
 from .context import LoadingContext, RuntimeContext
@@ -15,7 +11,7 @@ from .process import Process
 
 class WorkflowStatus(Exception):
     def __init__(self, out, status):
-        # type: (Dict[Text,Any], Text) -> None
+        # type: (Dict[str,Any], str) -> None
         """Signaling exception for the status of a Workflow."""
         super(WorkflowStatus, self).__init__("Completed %s" % status)
         self.out = out
@@ -29,7 +25,7 @@ class Callable(object):
         self.factory = factory
 
     def __call__(self, **kwargs):
-        # type: (**Any) -> Union[Text, Dict[Text, Text]]
+        # type: (**Any) -> Union[str, Dict[str, str]]
         runtime_context = self.factory.runtime_context.copy()
         runtime_context.basedir = os.getcwd()
         out, status = self.factory.executor(self.t, kwargs, runtime_context)
@@ -38,12 +34,14 @@ class Callable(object):
         else:
             return out
 
+
 class Factory(object):
-    def __init__(self,
-                 executor=None,         # type: Optional[tCallable[...,Tuple[Dict[Text,Any], Text]]]
-                 loading_context=None,  # type: Optional[LoadingContext]
-                 runtime_context=None   # type: Optional[RuntimeContext]
-                ):  # type: (...) -> None
+    def __init__(
+        self,
+        executor: Optional[tCallable[..., Tuple[Dict[str, Any], str]]] = None,
+        loading_context: Optional[LoadingContext] = None,
+        runtime_context: Optional[RuntimeContext] = None,
+    ) -> None:
         """Easy way to load a CWL document for execution."""
         if executor is None:
             executor = SingleJobExecutor()
@@ -56,7 +54,7 @@ class Factory(object):
         else:
             self.runtime_context = runtime_context
 
-    def make(self, cwl):  # type: (Union[Text, Dict[Text, Any]]) -> Callable
+    def make(self, cwl):  # type: (Union[str, Dict[str, Any]]) -> Callable
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):

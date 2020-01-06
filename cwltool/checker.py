@@ -2,16 +2,13 @@
 from collections import namedtuple
 from typing import Any, Dict, List, MutableMapping, MutableSequence, Optional
 
-import six
 from schema_salad import validate
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from schema_salad.utils import json_dumps
 
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
-from .utils import json_dumps
 
 
 def _get_type(tp):
@@ -21,8 +18,9 @@ def _get_type(tp):
             return tp["type"]
     return tp
 
+
 def check_types(srctype, sinktype, linkMerge, valueFrom):
-    # type: (Any, Any, Optional[Text], Optional[Text]) -> Text
+    # type: (Any, Any, Optional[str], Optional[str]) -> str
     """
     Check if the source and sink types are correct.
 
@@ -37,11 +35,17 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
             return "warning"
         return "exception"
     if linkMerge == "merge_nested":
-        return check_types({"items": _get_type(srctype), "type": "array"},
-                           _get_type(sinktype), None, None)
+        return check_types(
+            {"items": _get_type(srctype), "type": "array"},
+            _get_type(sinktype),
+            None,
+            None,
+        )
     if linkMerge == "merge_flattened":
-        return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
-    raise WorkflowException(u"Unrecognized linkMerge enum '{}'".format(linkMerge))
+        return check_types(
+            merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
+        )
+    raise WorkflowException("Unrecognized linkMerge enum '{}'".format(linkMerge))
 
 
 def merge_flatten_type(src):
@@ -54,7 +58,7 @@ def merge_flatten_type(src):
     return {"items": src, "type": "array"}
 
 
-def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -> bool
+def can_assign_src_to_sink(src: Any, sink: Any, strict: bool = False) -> bool:
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
@@ -75,7 +79,9 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
             return _compare_records(src, sink, strict)
         if src["type"] == "File" and sink["type"] == "File":
             for sinksf in sink.get("secondaryFiles", []):
-                if not [1 for srcsf in src.get("secondaryFiles", []) if sinksf == srcsf]:
+                if not [
+                    1 for srcsf in src.get("secondaryFiles", []) if sinksf == srcsf
+                ]:
                     if strict:
                         return False
             return True
@@ -99,14 +105,17 @@ def can_assign_src_to_sink(src, sink, strict=False):  # type: (Any, Any, bool) -
 
 
 def _compare_records(src, sink, strict=False):
-    # type: (MutableMapping[Text, Any], MutableMapping[Text, Any], bool) -> bool
+    # type: (MutableMapping[str, Any], MutableMapping[str, Any], bool) -> bool
     """
     Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
     """
-    def _rec_fields(rec):  # type: (MutableMapping[Text, Any]) -> MutableMapping[Text, Any]
+
+    def _rec_fields(
+        rec,
+    ):  # type: (MutableMapping[str, Any]) -> MutableMapping[str, Any]
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
@@ -115,26 +124,38 @@ def _compare_records(src, sink, strict=False):
 
     srcfields = _rec_fields(src)
     sinkfields = _rec_fields(sink)
-    for key in six.iterkeys(sinkfields):
-        if (not can_assign_src_to_sink(
-                srcfields.get(key, "null"), sinkfields.get(key, "null"), strict)
-                and sinkfields.get(key) is not None):
-            _logger.info("Record comparison failure for %s and %s\n"
-                         "Did not match fields for %s: %s and %s",
-                         src["name"], sink["name"], key, srcfields.get(key),
-                         sinkfields.get(key))
+    for key in sinkfields.keys():
+        if (
+            not can_assign_src_to_sink(
+                srcfields.get(key, "null"), sinkfields.get(key, "null"), strict
+            )
+            and sinkfields.get(key) is not None
+        ):
+            _logger.info(
+                "Record comparison failure for %s and %s\n"
+                "Did not match fields for %s: %s and %s",
+                src["name"],
+                sink["name"],
+                key,
+                srcfields.get(key),
+                sinkfields.get(key),
+            )
             return False
     return True
 
-def missing_subset(fullset, subset): # type: (List[Any], List[Any]) -> List[Any]
+
+def missing_subset(fullset: List[Any], subset: List[Any]) -> List[Any]:
     missing = []
     for i in subset:
         if i not in fullset:
             missing.append(i)
     return missing
 
-def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step):
-    # type: (List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], List[Dict[Text, Any]], Dict[Text, Dict[Text, Any]]) -> None
+
+def static_checker(
+    workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step
+):
+    # type: (List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Dict[str, Any]]) -> None
     """Check if all source and sink types of a workflow are compatible before run time."""
     # source parameters: workflow_inputs and step_outputs
     # sink parameters: step_inputs and workflow_outputs
@@ -157,56 +178,103 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
         src = warning.src
         sink = warning.sink
         linkMerge = warning.linkMerge
-        sinksf = sorted([p["pattern"] for p in sink.get("secondaryFiles", []) if p.get("required", True)])
+        sinksf = sorted(
+            [
+                p["pattern"]
+                for p in sink.get("secondaryFiles", [])
+                if p.get("required", True)
+            ]
+        )
         srcsf = sorted([p["pattern"] for p in src.get("secondaryFiles", [])])
         # Every secondaryFile required by the sink, should be declared
         # by the source
         missing = missing_subset(srcsf, sinksf)
         if missing:
-            msg1 = "Parameter '%s' requires secondaryFiles %s but" % (shortname(sink["id"]), missing)
+            msg1 = "Parameter '%s' requires secondaryFiles %s but" % (
+                shortname(sink["id"]),
+                missing,
+            )
             msg3 = SourceLine(src, "id").makeError(
-                "source '%s' does not provide those secondaryFiles." % (shortname(src["id"])))
-            msg4 = SourceLine(src.get("_tool_entry", src), "secondaryFiles").makeError("To resolve, add missing secondaryFiles patterns to definition of '%s' or" % (shortname(src["id"])))
-            msg5 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError("mark missing secondaryFiles in definition of '%s' as optional." % shortname(sink["id"]))
-            msg = SourceLine(sink).makeError("%s\n%s" % (msg1, bullets([msg3, msg4, msg5], "  ")))
+                "source '%s' does not provide those secondaryFiles."
+                % (shortname(src["id"]))
+            )
+            msg4 = SourceLine(src.get("_tool_entry", src), "secondaryFiles").makeError(
+                "To resolve, add missing secondaryFiles patterns to definition of '%s' or"
+                % (shortname(src["id"]))
+            )
+            msg5 = SourceLine(
+                sink.get("_tool_entry", sink), "secondaryFiles"
+            ).makeError(
+                "mark missing secondaryFiles in definition of '%s' as optional."
+                % shortname(sink["id"])
+            )
+            msg = SourceLine(sink).makeError(
+                "%s\n%s" % (msg1, bullets([msg3, msg4, msg5], "  "))
+            )
         elif sink.get("not_connected"):
             msg = SourceLine(sink, "type").makeError(
                 "'%s' is not an input parameter of %s, expected %s"
-                % (shortname(sink["id"]), param_to_step[sink["id"]]["run"],
-                   ", ".join(shortname(s["id"])
-                             for s in param_to_step[sink["id"]]["inputs"]
-                             if not s.get("not_connected"))))
+                % (
+                    shortname(sink["id"]),
+                    param_to_step[sink["id"]]["run"],
+                    ", ".join(
+                        shortname(s["id"])
+                        for s in param_to_step[sink["id"]]["inputs"]
+                        if not s.get("not_connected")
+                    ),
+                )
+            )
         else:
-            msg = SourceLine(src, "type").makeError(
-                "Source '%s' of type %s may be incompatible"
-                % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
-                SourceLine(sink, "type").makeError(
+            msg = (
+                SourceLine(src, "type").makeError(
+                    "Source '%s' of type %s may be incompatible"
+                    % (shortname(src["id"]), json_dumps(src["type"]))
+                )
+                + "\n"
+                + SourceLine(sink, "type").makeError(
                     "  with sink '%s' of type %s"
-                    % (shortname(sink["id"]), json_dumps(sink["type"])))
+                    % (shortname(sink["id"]), json_dumps(sink["type"]))
+                )
+            )
             if linkMerge is not None:
-                msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
+                msg += "\n" + SourceLine(sink).makeError(
+                    "  source has linkMerge method %s" % linkMerge
+                )
 
         warning_msgs.append(msg)
     for exception in exceptions:
         src = exception.src
         sink = exception.sink
         linkMerge = exception.linkMerge
-        msg = SourceLine(src, "type").makeError(
-            "Source '%s' of type %s is incompatible"
-            % (shortname(src["id"]), json_dumps(src["type"]))) + "\n" + \
-            SourceLine(sink, "type").makeError(
+        msg = (
+            SourceLine(src, "type").makeError(
+                "Source '%s' of type %s is incompatible"
+                % (shortname(src["id"]), json_dumps(src["type"]))
+            )
+            + "\n"
+            + SourceLine(sink, "type").makeError(
                 "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json_dumps(sink["type"])))
+                % (shortname(sink["id"]), json_dumps(sink["type"]))
+            )
+        )
         if linkMerge is not None:
-            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
+            msg += "\n" + SourceLine(sink).makeError(
+                "  source has linkMerge method %s" % linkMerge
+            )
         exception_msgs.append(msg)
 
     for sink in step_inputs:
-        if ('null' != sink["type"] and 'null' not in sink["type"]
-                and "source" not in sink and "default" not in sink and "valueFrom" not in sink):
+        if (
+            "null" != sink["type"]
+            and "null" not in sink["type"]
+            and "source" not in sink
+            and "default" not in sink
+            and "valueFrom" not in sink
+        ):
             msg = SourceLine(sink).makeError(
                 "Required parameter '%s' does not have source, default, or valueFrom expression"
-                % shortname(sink["id"]))
+                % shortname(sink["id"])
+            )
             exception_msgs.append(msg)
 
     all_warning_msg = strip_dup_lineno("\n".join(warning_msgs))
@@ -220,21 +288,24 @@ def static_checker(workflow_inputs, workflow_outputs, step_inputs, step_outputs,
 
 SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
 
+
 def check_all_types(src_dict, sinks, sourceField):
-    # type: (Dict[Text, Any], List[Dict[Text, Any]], Text) -> Dict[Text, List[SrcSink]]
+    # type: (Dict[str, Any], List[Dict[str, Any]], str) -> Dict[str, List[SrcSink]]
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
     sourceField is either "soure" or "outputSource"
     """
-    validation = {"warning": [], "exception": []}  # type: Dict[Text, List[SrcSink]]
+    validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
     for sink in sinks:
         if sourceField in sink:
             valueFrom = sink.get("valueFrom")
             if isinstance(sink[sourceField], MutableSequence):
                 srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
-                linkMerge = sink.get("linkMerge", ("merge_nested"
-                                                   if len(sink[sourceField]) > 1 else None))
+                linkMerge = sink.get(
+                    "linkMerge",
+                    ("merge_nested" if len(sink[sourceField]) > 1 else None),
+                )
             else:
                 parm_id = sink[sourceField]
                 srcs_of_sink = [src_dict[parm_id]]

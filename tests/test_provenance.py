@@ -5,28 +5,29 @@ import posixpath
 import shutil
 import sys
 import tempfile
+import urllib
 from io import open
+
+import arcp
+import bagit
+import pytest
+from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.namespace import DC, DCTERMS, RDF
+
+# Module to be tested
+from cwltool import load_tool, provenance
+from cwltool.context import RuntimeContext
+from cwltool.main import main
+from cwltool.resolver import Path
+from cwltool.stdfsaccess import StdFsAccess
+
+from .util import get_data, needs_docker, temp_dir, working_directory
+
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
 
-from six.moves import urllib
-
-import arcp
-import pytest
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import DC, DCTERMS, RDF
-
-import bagit
-# Module to be tested
-from cwltool import load_tool, provenance
-from cwltool.main import main
-from cwltool.resolver import Path
-from cwltool.context import RuntimeContext
-from cwltool.stdfsaccess import StdFsAccess
-
-from .util import get_data, needs_docker, temp_dir, working_directory
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
@@ -51,7 +52,7 @@ def folder(tmpdir):
 
 
 def cwltool(folder, *args):
-    new_args = ['--provenance', folder]
+    new_args = ["--provenance", folder]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     with temp_dir("cwltool-run") as tmp_dir:
@@ -59,26 +60,40 @@ def cwltool(folder, *args):
             status = main(new_args)
             assert status == 0, "Failed: cwltool.main(%r)" % (args)
 
+
 @needs_docker
 def test_hello_workflow(folder):
-    cwltool(folder, get_data('tests/wf/hello-workflow.cwl'), "--usermessage", "Hello workflow")
+    cwltool(
+        folder,
+        get_data("tests/wf/hello-workflow.cwl"),
+        "--usermessage",
+        "Hello workflow",
+    )
     check_provenance(folder)
+
 
 @needs_docker
 def test_hello_single_tool(folder):
-    cwltool(folder, get_data('tests/wf/hello_single_tool.cwl'), "--message", "Hello tool")
+    cwltool(
+        folder, get_data("tests/wf/hello_single_tool.cwl"), "--message", "Hello tool"
+    )
     check_provenance(folder, single_tool=True)
+
 
 @needs_docker
 def test_revsort_workflow(folder):
-    cwltool(folder, get_data('tests/wf/revsort.cwl'), get_data('tests/wf/revsort-job.json'))
+    cwltool(
+        folder, get_data("tests/wf/revsort.cwl"), get_data("tests/wf/revsort-job.json")
+    )
     check_output_object(folder)
     check_provenance(folder)
 
+
 @needs_docker
 def test_nested_workflow(folder):
-    cwltool(folder, get_data('tests/wf/nested.cwl'))
+    cwltool(folder, get_data("tests/wf/nested.cwl"))
     check_provenance(folder, nested=True)
+
 
 @needs_docker
 def test_secondary_files_implicit(folder, tmpdir):
@@ -86,14 +101,15 @@ def test_secondary_files_implicit(folder, tmpdir):
     file1idx = tmpdir.join("foo1.txt.idx")
 
     with open(str(file1), "w", encoding="ascii") as f:
-        f.write(u"foo")
+        f.write("foo")
     with open(str(file1idx), "w", encoding="ascii") as f:
-        f.write(u"bar")
+        f.write("bar")
 
     # secondary will be picked up by .idx
-    cwltool(folder, get_data('tests/wf/sec-wf.cwl'), "--file1", str(file1))
+    cwltool(folder, get_data("tests/wf/sec-wf.cwl"), "--file1", str(file1))
     check_provenance(folder, secondary_files=True)
     check_secondary_files(folder)
+
 
 @needs_docker
 def test_secondary_files_explicit(folder, tmpdir):
@@ -104,41 +120,40 @@ def test_secondary_files_explicit(folder, tmpdir):
     file1idx = tempfile.mktemp("bar")
 
     with open(file1, "w", encoding="ascii") as f:
-        f.write(u"foo")
+        f.write("foo")
     with open(file1idx, "w", encoding="ascii") as f:
-        f.write(u"bar")
+        f.write("bar")
 
     # explicit secondaryFiles
-    job = {"file1":
-           {"class": "File",
+    job = {
+        "file1": {
+            "class": "File",
             "path": file1,
             "basename": "foo1.txt",
             "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": file1idx,
-                    "basename": "foo1.txt.idx",
-                }
-            ]
-            }
-           }
+                {"class": "File", "path": file1idx, "basename": "foo1.txt.idx",}
+            ],
+        }
+    }
     jobJson = tempfile.mktemp("job.json")
     with open(jobJson, "wb") as fp:
         j = json.dumps(job, ensure_ascii=True)
         fp.write(j.encode("ascii"))
 
-    cwltool(folder, get_data('tests/wf/sec-wf.cwl'), jobJson)
+    cwltool(folder, get_data("tests/wf/sec-wf.cwl"), jobJson)
     check_provenance(folder, secondary_files=True)
     check_secondary_files(folder)
     tempfile.tempdir = orig_tempdir
 
+
 @needs_docker
 def test_secondary_files_output(folder):
     # secondary will be picked up by .idx
-    cwltool(folder, get_data('tests/wf/sec-wf-out.cwl'))
+    cwltool(folder, get_data("tests/wf/sec-wf-out.cwl"))
     check_provenance(folder, secondary_files=True)
     # Skipped, not the same secondary files as above
-    #self.check_secondary_files()
+    # self.check_secondary_files()
+
 
 @needs_docker
 def test_directory_workflow(folder, tmpdir):
@@ -152,22 +167,24 @@ def test_directory_workflow(folder, tmpdir):
         "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
         "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
     }
-    for x in u"abc":
+    for x in "abc":
         # Make test files with predictable hashes
         with open(str(dir2.join(x)), "w", encoding="ascii") as f:
             f.write(x)
 
-    cwltool(folder, get_data('tests/wf/directory.cwl'), "--dir", str(dir2))
+    cwltool(folder, get_data("tests/wf/directory.cwl"), "--dir", str(dir2))
     check_provenance(folder, directory=True)
 
     # Output should include ls stdout of filenames a b c on each line
     file_list = os.path.join(
-        folder, "data",
+        folder,
+        "data",
         # checksum as returned from:
         # echo -e "a\nb\nc" | sha1sum
         # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
         "3c",
-        "3ca69e8d6c234a469d16ac28a4a658c92267c423")
+        "3ca69e8d6c234a469d16ac28a4a658c92267c423",
+    )
     assert os.path.isfile(file_list)
 
     # Input files should be captured by hash value,
@@ -176,6 +193,7 @@ def test_directory_workflow(folder, tmpdir):
         prefix = l_hash[:2]  # first 2 letters
         p = os.path.join(folder, "data", prefix, l_hash)
         assert os.path.isfile(p), "Could not find %s as %s" % (l, p)
+
 
 def check_output_object(base_path):
     output_obj = os.path.join(base_path, "workflow", "primary-output.json")
@@ -190,14 +208,17 @@ def check_output_object(base_path):
 
 def check_secondary_files(base_path):
     foo_data = os.path.join(
-        base_path, "data",
+        base_path,
+        "data",
         # checksum as returned from:
         # $ echo -n foo | sha1sum
         # 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33  -
         "0b",
-        "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33")
+        "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33",
+    )
     bar_data = os.path.join(
-        base_path, "data", "62", "62cdb7020ff920e5aa642c3d4066950dd1f01f4d")
+        base_path, "data", "62", "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
+    )
     assert os.path.isfile(foo_data), "Did not capture file.txt 'foo'"
     assert os.path.isfile(bar_data), "Did not capture secondary file.txt.idx 'bar"
 
@@ -215,26 +236,44 @@ def check_secondary_files(base_path):
     assert f1idx["location"] == "../data/62/62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
     assert f1idx["basename"], "foo1.txt.idx"
 
-def check_provenance(base_path, nested=False, single_tool=False, directory=False,
-                     secondary_files=False):
+
+def check_provenance(
+    base_path, nested=False, single_tool=False, directory=False, secondary_files=False
+):
     check_folders(base_path)
     check_bagit(base_path)
     check_ro(base_path, nested=nested)
-    check_prov(base_path, nested=nested, single_tool=single_tool, directory=directory,
-               secondary_files=secondary_files)
+    check_prov(
+        base_path,
+        nested=nested,
+        single_tool=single_tool,
+        directory=directory,
+        secondary_files=secondary_files,
+    )
+
 
 def check_folders(base_path):
     required_folders = [
-        "data", "snapshot", "workflow", "metadata", os.path.join("metadata", "provenance")]
+        "data",
+        "snapshot",
+        "workflow",
+        "metadata",
+        os.path.join("metadata", "provenance"),
+    ]
 
     for folder in required_folders:
         assert os.path.isdir(os.path.join(base_path, folder))
 
+
 def check_bagit(base_path):
     # check bagit structure
     required_files = [
-        "bagit.txt", "bag-info.txt", "manifest-sha1.txt",
-        "tagmanifest-sha1.txt", "tagmanifest-sha256.txt"]
+        "bagit.txt",
+        "bag-info.txt",
+        "manifest-sha1.txt",
+        "tagmanifest-sha1.txt",
+        "tagmanifest-sha256.txt",
+    ]
 
     for basename in required_files:
         file_path = os.path.join(base_path, basename)
@@ -251,6 +290,7 @@ def check_bagit(base_path):
     # TODO: Check other bag-info attributes
     assert arcp.is_arcp_uri(bag.info.get("External-Identifier"))
 
+
 def find_arcp(base_path):
     # First try to find External-Identifier
     bag = bagit.Bag(base_path)
@@ -259,16 +299,19 @@ def find_arcp(base_path):
         return ext_id
     raise Exception("Can't find External-Identifier")
 
+
 def _arcp2file(base_path, uri):
     parsed = arcp.parse_arcp(uri)
     # arcp URIs, ensure they are local to our RO
-    assert parsed.uuid == arcp.parse_arcp(find_arcp(base_path)).uuid,\
-    'arcp URI must be local to the research object'
+    assert (
+        parsed.uuid == arcp.parse_arcp(find_arcp(base_path)).uuid
+    ), "arcp URI must be local to the research object"
 
     path = parsed.path[1:]  # Strip first /
     # Convert to local path, in case it uses \ on Windows
     lpath = str(Path(path))
     return os.path.join(base_path, lpath)
+
 
 def check_ro(base_path, nested=False):
     manifest_file = os.path.join(base_path, "metadata", "manifest.json")
@@ -299,8 +342,9 @@ def check_ro(base_path, nested=False):
         profile = dc
         break
     assert profile is not None, "Can't find profile with dct:conformsTo"
-    assert profile == URIRef(provenance.CWLPROV_VERSION),\
+    assert profile == URIRef(provenance.CWLPROV_VERSION), (
         "Unexpected cwlprov version " + profile
+    )
 
     paths = []
     externals = []
@@ -321,7 +365,11 @@ def check_ro(base_path, nested=False):
         f = "metadata/provenance/primary.cwlprov.%s" % ext
         assert f in paths, "provenance file missing " + f
 
-    for f in ["workflow/primary-job.json", "workflow/packed.cwl", "workflow/primary-output.json"]:
+    for f in [
+        "workflow/primary-job.json",
+        "workflow/packed.cwl",
+        "workflow/primary-output.json",
+    ]:
         assert f in paths, "workflow file missing " + f
     # Can't test snapshot/ files directly as their name varies
 
@@ -330,7 +378,9 @@ def check_ro(base_path, nested=False):
 
     packed = urllib.parse.urljoin(arcp_root, "/workflow/packed.cwl")
     primary_job = urllib.parse.urljoin(arcp_root, "/workflow/primary-job.json")
-    primary_prov_nt = urllib.parse.urljoin(arcp_root, "/metadata/provenance/primary.cwlprov.nt")
+    primary_prov_nt = urllib.parse.urljoin(
+        arcp_root, "/metadata/provenance/primary.cwlprov.nt"
+    )
     uuid = arcp.parse_arcp(arcp_root).uuid
 
     highlights = set(g.subjects(OA.motivatedBy, OA.highlighting))
@@ -360,14 +410,17 @@ def check_ro(base_path, nested=False):
             # NOTE: DC.format is a Namespace method and does not resolve like other terms
             formats.update(set(g.objects(prov, DC["format"])))
         assert formats, "Could not find media types"
-        expected = set(Literal(f) for f in (
-            "application/json",
-            "application/ld+json",
-            "application/n-triples",
-            'text/provenance-notation; charset="UTF-8"',
-            'text/turtle; charset="UTF-8"',
-            "application/xml"
-        ))
+        expected = set(
+            Literal(f)
+            for f in (
+                "application/json",
+                "application/ld+json",
+                "application/n-triples",
+                'text/provenance-notation; charset="UTF-8"',
+                'text/turtle; charset="UTF-8"',
+                "application/xml",
+            )
+        )
         assert formats == expected, "Did not match expected PROV media types"
 
     if nested:
@@ -380,8 +433,10 @@ def check_ro(base_path, nested=False):
             otherRuns.update(set(g.objects(p, OA.hasTarget)))
         assert otherRuns, "Could not find nested workflow run prov annotations"
 
-def check_prov(base_path, nested=False, single_tool=False, directory=False,
-               secondary_files=False):
+
+def check_prov(
+    base_path, nested=False, single_tool=False, directory=False, secondary_files=False
+):
     prov_file = os.path.join(base_path, "metadata", "provenance", "primary.cwlprov.nt")
     assert os.path.isfile(prov_file), "Can't find " + prov_file
     arcp_root = find_arcp(base_path)
@@ -409,8 +464,16 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
     assert len(engines) == 1, "Found too many WorkflowEngines: %s" % engines
     engine = engines.pop()
 
-    assert (master_run, PROV.wasAssociatedWith, engine) in g, "Wf run not associated with wf engine"
-    assert (engine, RDF.type, PROV.SoftwareAgent) in g, "Engine not declared as SoftwareAgent"
+    assert (
+        master_run,
+        PROV.wasAssociatedWith,
+        engine,
+    ) in g, "Wf run not associated with wf engine"
+    assert (
+        engine,
+        RDF.type,
+        PROV.SoftwareAgent,
+    ) in g, "Engine not declared as SoftwareAgent"
 
     if single_tool:
         activities = set(g.subjects(RDF.type, PROV.Activity))
@@ -433,8 +496,11 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
             assert starts, "Could not find qualifiedStart of step %s" % step
             assert len(starts) == 1, "Too many qualifiedStart for step %s" % step
             start = starts.pop()
-            assert (start, PROV.hadActivity, master_run) in g,\
-                "Step activity not started by master activity"
+            assert (
+                start,
+                PROV.hadActivity,
+                master_run,
+            ) in g, "Step activity not started by master activity"
             # Tip: Any nested workflow step executions should not be in this prov file,
             # but in separate file
     if nested:
@@ -461,7 +527,7 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
         for d in directories:
             assert (d, RDF.type, PROV.Dictionary) in g
             assert (d, RDF.type, PROV.Collection) in g
-            assert(d, RDF.type, PROV.Entity) in g
+            assert (d, RDF.type, PROV.Entity) in g
 
             files = set()
             for entry in g.objects(d, PROV.hadDictionaryMember):
@@ -514,22 +580,25 @@ def check_prov(base_path, nested=False, single_tool=False, directory=False,
 
 @pytest.fixture
 def research_object():
-    re_ob = provenance.ResearchObject(StdFsAccess(''))
+    re_ob = provenance.ResearchObject(StdFsAccess(""))
     yield re_ob
     re_ob.close()
+
 
 def test_absolute_path_fails(research_object):
     with pytest.raises(ValueError):
         research_object.write_bag_file("/absolute/path/fails")
 
+
 def test_climboutfails(research_object):
     with pytest.raises(ValueError):
         research_object.write_bag_file("../../outside-ro")
 
+
 def test_writable_string(research_object):
     with research_object.write_bag_file("file.txt") as file:
         assert file.writable()
-        file.write(u"Hello\n")
+        file.write("Hello\n")
         # TODO: Check Windows does not modify \n to \r\n here
 
     sha1 = os.path.join(research_object.folder, "tagmanifest-sha1.txt")
@@ -538,8 +607,8 @@ def test_writable_string(research_object):
     with open(sha1, "r", encoding="UTF-8") as sha_file:
         stripped_sha = sha_file.readline().strip()
     assert stripped_sha.endswith("file.txt")
-    #stain@biggie:~/src/cwltool$ echo Hello | sha1sum
-    #1d229271928d3f9e2bb0375bd6ce5db6c6d348d9  -
+    # stain@biggie:~/src/cwltool$ echo Hello | sha1sum
+    # 1d229271928d3f9e2bb0375bd6ce5db6c6d348d9  -
     assert stripped_sha.startswith("1d229271928d3f9e2bb0375bd6ce5db6c6d348d9")
 
     sha256 = os.path.join(research_object.folder, "tagmanifest-sha256.txt")
@@ -549,27 +618,32 @@ def test_writable_string(research_object):
         stripped_sha = sha_file.readline().strip()
 
     assert stripped_sha.endswith("file.txt")
-    #stain@biggie:~/src/cwltool$ echo Hello | sha256sum
-    #66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18  -
-    assert stripped_sha.startswith("66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18")
+    # stain@biggie:~/src/cwltool$ echo Hello | sha256sum
+    # 66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18  -
+    assert stripped_sha.startswith(
+        "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+    )
 
     sha512 = os.path.join(research_object.folder, "tagmanifest-sha512.txt")
     assert os.path.isfile(sha512)
 
+
 def test_writable_unicode_string(research_object):
     with research_object.write_bag_file("file.txt") as file:
         assert file.writable()
-        file.write(u"Here is a snowman: \u2603 \n")
+        file.write("Here is a snowman: \u2603 \n")
+
 
 def test_writable_bytes(research_object):
-    string = u"Here is a snowman: \u2603 \n".encode("UTF-8")
+    string = "Here is a snowman: \u2603 \n".encode("UTF-8")
     with research_object.write_bag_file("file.txt", encoding=None) as file:
         file.write(string)
+
 
 def test_data(research_object):
     with research_object.write_bag_file("data/file.txt") as file:
         assert file.writable()
-        file.write(u"Hello\n")
+        file.write("Hello\n")
     # TODO: Check Windows does not modify \n to \r\n here
 
     # Because this is under data/ it should add to manifest
@@ -580,11 +654,13 @@ def test_data(research_object):
         stripped_sha = file.readline().strip()
         assert stripped_sha.endswith("data/file.txt")
 
+
 def test_not_seekable(research_object):
     with research_object.write_bag_file("file.txt") as file:
         assert not file.seekable()
         with pytest.raises(IOError):
             file.seek(0)
+
 
 def test_not_readable(research_object):
     with research_object.write_bag_file("file.txt") as file:
@@ -592,9 +668,10 @@ def test_not_readable(research_object):
         with pytest.raises(IOError):
             file.read()
 
+
 def test_truncate_fails(research_object):
     with research_object.write_bag_file("file.txt") as file:
-        file.write(u"Hello there")
+        file.write("Hello there")
         file.truncate()  # OK as we're always at end
         # Will fail because the checksum can't rewind
         with pytest.raises(IOError):
@@ -616,10 +693,11 @@ mod_validness = [
     # Swap check-digits around to force error
     ("0000-0002-1825-009X", False),
     ("0000-0001-5109-3707", False),
-    ("0000-0002-1694-2330", False)
+    ("0000-0002-1694-2330", False),
 ]
 
-@pytest.mark.parametrize('mod11,valid', mod_validness)
+
+@pytest.mark.parametrize("mod11,valid", mod_validness)
 def test_check_mod_11_2(mod11, valid):
     assert provenance._check_mod_11_2(mod11) == valid
 
@@ -635,11 +713,10 @@ orcid_uris = [
     ("https://orcid.org/0000-0002-1694-233x", "https://orcid.org/0000-0002-1694-233X"),
     # upper-case ORCID.ORG is OK.. (and fixed)
     ("https://ORCID.ORG/0000-0002-1694-233X", "https://orcid.org/0000-0002-1694-233X"),
-    # Unicode string (Python 2)
-    (u"https://orcid.org/0000-0002-1694-233X", "https://orcid.org/0000-0002-1694-233X")
 ]
 
-@pytest.mark.parametrize('orcid,expected', orcid_uris)
+
+@pytest.mark.parametrize("orcid,expected", orcid_uris)
 def test_valid_orcid(orcid, expected):
     assert provenance._valid_orcid(orcid) == expected
 
@@ -661,23 +738,29 @@ invalid_orcids = [
     "https://orcid.org:443/0000-0002-1694-233X",
     "http://orcid.org:80/0000-0002-1694-233X",
     # Empty string is not really valid
-    ""
+    "",
 ]
 
-@pytest.mark.parametrize('orcid', invalid_orcids)
+
+@pytest.mark.parametrize("orcid", invalid_orcids)
 def test_invalid_orcid(orcid):
     with pytest.raises(ValueError):
         provenance._valid_orcid(orcid)
+
 
 def test_whoami():
     username, fullname = provenance._whoami()
     assert username and isinstance(username, str)
     assert fullname and isinstance(fullname, str)
 
+
 def test_research_object():
     # TODO: Test ResearchObject methods
     pass
 
+
 # Reasearch object may need to be pickled (for Toil)
+
+
 def test_research_object_picklability(research_object):
     assert pickle.dumps(research_object) is not None

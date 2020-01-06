@@ -1,9 +1,19 @@
-import tempfile
 import os
-from cwltool.main import main
+import tempfile
+
 from cwltool import load_tool
-from .util import (get_data, get_windows_safe_factory, windows_needs_docker,
-                   needs_docker, temp_dir, needs_singularity, get_main_output)
+from cwltool.main import main
+
+from .util import (
+    get_data,
+    get_main_output,
+    get_windows_safe_factory,
+    needs_docker,
+    needs_singularity,
+    temp_dir,
+    windows_needs_docker,
+)
+
 
 @windows_needs_docker
 def test_newline_in_entry():
@@ -26,26 +36,44 @@ def test_iwdr_permutations():
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
         with temp_dir() as fifth:
-    	    with temp_dir() as sixth:
-    	        with temp_dir() as seventh:
-    	            with temp_dir() as eighth:
-    	                with tempfile.NamedTemporaryFile() as first:
-    	                    with tempfile.NamedTemporaryFile() as second:
-    	                        with tempfile.NamedTemporaryFile() as third:
-    	                            with tempfile.NamedTemporaryFile() as fourth:
-    	                                with temp_dir() as outdir:
-    	                                    assert(main(
-    	                                        ['--outdir', outdir,
-    	                                         get_data("tests/wf/iwdr_permutations.cwl"),
-    	                                         '--first', first.name,
-    	                                         '--second', second.name,
-    	                                         '--third', third.name,
-    	                                         '--fourth', fourth.name,
-    	                                         '--fifth', fifth,
-    	                                         '--sixth', sixth,
-    	                                         '--seventh', seventh,
-    	                                         '--eighth', eighth]) == 0)
+            with temp_dir() as sixth:
+                with temp_dir() as seventh:
+                    with temp_dir() as eighth:
+                        with tempfile.NamedTemporaryFile() as first:
+                            with tempfile.NamedTemporaryFile() as second:
+                                with tempfile.NamedTemporaryFile() as third:
+                                    with tempfile.NamedTemporaryFile() as fourth:
+                                        with temp_dir() as outdir:
+                                            assert (
+                                                main(
+                                                    [
+                                                        "--outdir",
+                                                        outdir,
+                                                        get_data(
+                                                            "tests/wf/iwdr_permutations.cwl"
+                                                        ),
+                                                        "--first",
+                                                        first.name,
+                                                        "--second",
+                                                        second.name,
+                                                        "--third",
+                                                        third.name,
+                                                        "--fourth",
+                                                        fourth.name,
+                                                        "--fifth",
+                                                        fifth,
+                                                        "--sixth",
+                                                        sixth,
+                                                        "--seventh",
+                                                        seventh,
+                                                        "--eighth",
+                                                        eighth,
+                                                    ]
+                                                )
+                                                == 0
+                                            )
     tempfile.tempdir = saved_tempdir
+
 
 @needs_docker
 def test_iwdr_permutations_inplace():
@@ -61,21 +89,41 @@ def test_iwdr_permutations_inplace():
                                 with tempfile.NamedTemporaryFile() as third:
                                     with tempfile.NamedTemporaryFile() as fourth:
                                         with temp_dir() as outdir:
-                                            assert(main(
-                                                ['--outdir', outdir,
-                                                 '--enable-ext',
-                                                 '--overrides',
-                                                 get_data("tests/wf/iwdr_permutations_inplace.yml"),
-                                                 get_data("tests/wf/iwdr_permutations.cwl"),
-                                                 '--first', first.name,
-                                                 '--second', second.name,
-                                                 '--third', third.name,
-                                                 '--fourth', fourth.name,
-                                                 '--fifth', fifth,
-                                                 '--sixth', sixth,
-                                                 '--seventh', seventh,
-                                                 '--eighth', eighth]) == 0)
+                                            assert (
+                                                main(
+                                                    [
+                                                        "--outdir",
+                                                        outdir,
+                                                        "--enable-ext",
+                                                        "--overrides",
+                                                        get_data(
+                                                            "tests/wf/iwdr_permutations_inplace.yml"
+                                                        ),
+                                                        get_data(
+                                                            "tests/wf/iwdr_permutations.cwl"
+                                                        ),
+                                                        "--first",
+                                                        first.name,
+                                                        "--second",
+                                                        second.name,
+                                                        "--third",
+                                                        third.name,
+                                                        "--fourth",
+                                                        fourth.name,
+                                                        "--fifth",
+                                                        fifth,
+                                                        "--sixth",
+                                                        sixth,
+                                                        "--seventh",
+                                                        seventh,
+                                                        "--eighth",
+                                                        eighth,
+                                                    ]
+                                                )
+                                                == 0
+                                            )
     tempfile.tempdir = saved_tempdir
+
 
 @needs_singularity
 def test_iwdr_permutations_singularity():
@@ -88,18 +136,36 @@ def test_iwdr_permutations_singularity():
                             with tempfile.NamedTemporaryFile() as third:
                                 with tempfile.NamedTemporaryFile() as fourth:
                                     with temp_dir() as outdir:
-                                        assert(main(
-                                            ['--outdir', outdir,
-                                             '--singularity',
-                                             get_data("tests/wf/iwdr_permutations.cwl"),
-                                             '--first', first.name,
-                                             '--second', second.name,
-                                             '--third', third.name,
-                                             '--fourth', fourth.name,
-                                             '--fifth', fifth,
-                                             '--sixth', sixth,
-                                             '--seventh', seventh,
-                                             '--eighth', eighth]) == 0)
+                                        assert (
+                                            main(
+                                                [
+                                                    "--outdir",
+                                                    outdir,
+                                                    "--singularity",
+                                                    get_data(
+                                                        "tests/wf/iwdr_permutations.cwl"
+                                                    ),
+                                                    "--first",
+                                                    first.name,
+                                                    "--second",
+                                                    second.name,
+                                                    "--third",
+                                                    third.name,
+                                                    "--fourth",
+                                                    fourth.name,
+                                                    "--fifth",
+                                                    fifth,
+                                                    "--sixth",
+                                                    sixth,
+                                                    "--seventh",
+                                                    seventh,
+                                                    "--eighth",
+                                                    eighth,
+                                                ]
+                                            )
+                                            == 0
+                                        )
+
 
 @needs_singularity
 def test_iwdr_permutations_singularity_inplace():
@@ -112,18 +178,37 @@ def test_iwdr_permutations_singularity_inplace():
                             with tempfile.NamedTemporaryFile() as third:
                                 with tempfile.NamedTemporaryFile() as fourth:
                                     with temp_dir() as outdir:
-                                        assert(main(
-                                            ['--outdir', outdir,
-                                             '--singularity',
-                                             '--enable-ext',
-                                             '--overrides',
-                                             get_data("tests/wf/iwdr_permutations_inplace.yml"),
-                                             get_data("tests/wf/iwdr_permutations.cwl"),
-                                             '--first', first.name,
-                                             '--second', second.name,
-                                             '--third', third.name,
-                                             '--fourth', fourth.name,
-                                             '--fifth', fifth,
-                                             '--sixth', sixth,
-                                             '--seventh', seventh,
-                                             '--eighth', eighth]) == 0)
+                                        assert (
+                                            main(
+                                                [
+                                                    "--outdir",
+                                                    outdir,
+                                                    "--singularity",
+                                                    "--enable-ext",
+                                                    "--overrides",
+                                                    get_data(
+                                                        "tests/wf/iwdr_permutations_inplace.yml"
+                                                    ),
+                                                    get_data(
+                                                        "tests/wf/iwdr_permutations.cwl"
+                                                    ),
+                                                    "--first",
+                                                    first.name,
+                                                    "--second",
+                                                    second.name,
+                                                    "--third",
+                                                    third.name,
+                                                    "--fourth",
+                                                    fourth.name,
+                                                    "--fifth",
+                                                    fifth,
+                                                    "--sixth",
+                                                    sixth,
+                                                    "--seventh",
+                                                    seventh,
+                                                    "--eighth",
+                                                    eighth,
+                                                ]
+                                            )
+                                            == 0
+                                        )
