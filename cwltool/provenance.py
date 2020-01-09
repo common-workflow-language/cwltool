@@ -12,17 +12,20 @@ import tempfile
 import uuid
 from collections import OrderedDict
 from getpass import getuser
-from io import BytesIO, FileIO, TextIOWrapper, open
+from io import BytesIO, FileIO, TextIOWrapper
 from socket import getfqdn
 from typing import (IO, Any, Callable, Dict, List, Generator,
                     MutableMapping, Optional, Set, Tuple, Union, cast)
+from owlready2 import *
 from types import ModuleType
 
 import prov.model as provM
 import six
+import requests
 from prov.identifier import Identifier, Namespace
 from prov.model import (PROV, ProvActivity,  # pylint: disable=unused-import
-                        ProvDocument, ProvEntity)
+                        ProvDocument, ProvEntity, PROV_ROLE,
+                        PROV_ATTR_ACTIVITY, PROV_ATTR_ENTITY, ProvUsage)
 from pathlib2 import Path, PurePosixPath, PurePath
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
@@ -89,6 +92,7 @@ SCHEMA = Namespace("schema", 'http://schema.org/')
 CWLPROV = Namespace('cwlprov', 'https://w3id.org/cwl/prov#')
 ORCID = Namespace("orcid", "https://orcid.org/")
 UUID = Namespace("id", "urn:uuid:")
+EDAM = Namespace("edam", "http://edamontology.org/EDAM.owl#")
 
 # BagIt and YAML always use UTF-8
 ENCODING = "UTF-8"
@@ -328,6 +332,7 @@ class ProvenanceProfile():
             run_uuid = uuid.uuid4()
         self.workflow_run_uuid = run_uuid
         self.workflow_run_uri = run_uuid.urn
+        self.annotations = {}
         self.generate_prov_doc()
 
     def __str__(self):  # type: () -> str
@@ -444,6 +449,8 @@ class ProvenanceProfile():
                  research_obj       # type: ResearchObject
                 ):  # type: (...) -> None
         """Evaluate the nature of job."""
+        self._add_tool_namespaces(process)
+        self._find_annotations(process)
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
@@ -455,6 +462,67 @@ class ProvenanceProfile():
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
+
+    def _add_tool_namespaces(self, process):
+        tool_namespaces = process.tool.get("$namespaces", {})
+        for ns in tool_namespaces:
+            self.document.add_namespace(ns, tool_namespaces[ns])
+
+    def _find_annotations(self, process):
+        # type: (Process) -> None
+        annotation_values = {}
+
+        for item_key, item_value in process.tool.items():
+            if item_key in ["inputs", "outputs", "steps"]:
+                for o in item_value:
+                    annotations = o.get("https://w3id.org/cwl/prov#annotations", [])
+                    if not annotations:
+                        continue
+
+                    uri = self._to_wf_ns(shortname(o.get("id")))
+                    props = {}
+                    for ann_key in annotations:
+                        objects = []
+                        for ann_value in annotations[ann_key]:
+                            if ann_value not in annotation_values:
+                                annotation_values[ann_value] =\
+                                    self._declare_annotation(ann_value, self._get_namespace_by_url(ann_key))
+                            objects.append(annotation_values[ann_value])
+                        props[Identifier(ann_key)] = objects
+                    self.annotations[uri] = props
+                    _logger.error("[provenance] Added annotations for %s: %s", uri, props)
+
+    def _get_namespace_by_url(self, url):
+        for ns in self.document.namespaces:
+            if url.startswith(ns.uri):
+                return ns
+
+    def _declare_annotation(self, value, ns):
+        if ns.uri.endswith('.owl#'):
+            return self._declare_owl_annotation(value, ns)
+        else:
+            return self.document.entity(uuid.uuid4().urn, {provM.PROV_TYPE: CWLPROV['annotation']})
+
+    def _declare_owl_annotation(self, value, ns):
+        onto = get_ontology(ns.uri).load()
+        attr = getattr(onto, value)
+        prop_dict = {}
+        for prop in attr.get_class_properties():
+            prop_dict[ns.prefix + ':' + prop.get_name()] = str(getattr(attr, prop.get_python_name()))
+
+        return self.document.entity(
+            uuid.uuid4().urn, prop_dict)
+
+    def _to_wf_ns(self, name, stepname=None, base="main"):
+        # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
+        if stepname is not None:
+            base += "/" + urllib.parse.quote(str(stepname), safe=":/,#")
+        return self.wf_ns["%s/%s" % (base, name)]
+
+    def _register_output_ann(self, annotations, entity):
+        for ann_key in annotations:
+            for ann_value in annotations[ann_key]:
+                entity.add_attributes([(ann_key, ann_value)])
 
     def record_process_start(self, process, job, process_run_id=None):
         # type: (Process, Any, Optional[str]) -> Optional[str]
@@ -795,17 +863,15 @@ class ProvenanceProfile():
             for entry in job_order:
                 self.used_artefacts(entry, process_run_id, name)
         else:
-            # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
-            base = "main"
-            if name is not None:
-                base += "/" + name
             for key, value in job_order.items():
-                prov_role = self.wf_ns["%s/%s" % (base, key)]
+                prov_role = self._to_wf_ns(key)
                 try:
                     entity = self.declare_artefact(value)
                     self.document.used(
                         process_run_id, entity, datetime.datetime.now(), None,
                         {"prov:role": prov_role})
+                    anns = self.annotations.get(prov_role, [])
+                    self._register_output_ann(anns, entity)
                 except OSError:
                     pass
 
@@ -821,21 +887,27 @@ class ProvenanceProfile():
         else:
             # Timestamp should be created at the earliest
             timestamp = datetime.datetime.now()
-
+            _logger.error("[provenance] Checking annotations %s", self.annotations)
             # For each output, find/register the corresponding
             # entity (UUID) and document it as generated in
             # a role corresponding to the output
+
+            # FIXME: Why is name sometimes "primary" here???
+            if name == "primary":
+                name = None
+
             for output, value in final_output.items():
                 entity = self.declare_artefact(value)
-                if name is not None:
-                    name = urllib.parse.quote(str(name), safe=":/,#")
-                    # FIXME: Probably not "main" in nested workflows
-                    role = self.wf_ns["main/%s/%s" % (name, output)]
-                else:
-                    role = self.wf_ns["main/%s" % output]
+                _logger.error("[provenance] output %s name %s", output, name)
+                role = self._to_wf_ns(output, name)
+                # FIXME: Probably not "main" in nested workflows
+                _logger.error("[provenance] role %r", role)
 
                 if not process_run_id:
                     process_run_id = self.workflow_run_uri
+
+                anns = self.annotations.get(role, [])
+                self._register_output_ann(anns, entity)
 
                 self.document.wasGeneratedBy(
                     entity, process_run_id, timestamp, None, {"prov:role": role})
