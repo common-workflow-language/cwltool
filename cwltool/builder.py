@@ -390,6 +390,13 @@ class Builder(HasReqsHints):
                             if not sfname:
                                 continue
                             found = False
+
+                            if isinstance(sfname, str):
+                                sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
+                            else:
+                                sf_location = sfname["location"]
+                                sfname = sfname["basename"]
+
                             for d in datum["secondaryFiles"]:
                                 if not d.get("basename"):
                                     d["basename"] = d["location"][
@@ -398,12 +405,6 @@ class Builder(HasReqsHints):
                                 if d["basename"] == sfname:
                                     found = True
                             if not found:
-                                sf_location = (
-                                    datum["location"][
-                                        0 : datum["location"].rindex("/") + 1
-                                    ]
-                                    + sfname
-                                )
                                 if isinstance(sfname, MutableMapping):
                                     datum["secondaryFiles"].append(sfname)
                                 elif discover_secondaryFiles and self.fs_access.exists(
