@@ -766,11 +766,11 @@ def add_argument(
     else:
         typekw = {}
 
-    toolparser.add_argument(  # type: ignore
+    toolparser.add_argument(
         flag + name,
         required=required,
         help=ahelp,
-        action=action,
+        action=action,  # type: ignore
         default=default,
         **typekw
     )
