@@ -24,6 +24,16 @@ jobs:
     - python: "3.6"
     - python: "3.7"
     - python: "3.8"
+    - python: "3.8"
+      name: "CWL v1.0 conformance tests"
+      script: ${TRAVIS_BUILD_DIR}/travis.bash
+      env:
+       - version=v1.0
+    - python: "3.8"
+      name: "CWL v1.1 conformance tests"
+      env:
+       - version=v1.1
+      script: ${TRAVIS_BUILD_DIR}/travis.bash
     - python: "3.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
 script: tox
