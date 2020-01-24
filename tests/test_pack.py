@@ -46,6 +46,33 @@ def test_pack():
     assert packed == expect_packed
 
 
+def test_pack_input_named_name():
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/trick_revsort.cwl"))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    processobj = loadingContext.loader.resolve_ref(uri)[0]
+
+    with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
+        expect_packed = yaml.round_trip_load(packed_file)
+
+    packed = cwltool.pack.pack(
+        loadingContext.loader, processobj, uri, loadingContext.metadata
+    )
+    adjustFileObjs(
+        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
+    )
+    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
+
+    assert "$schemas" in packed
+    assert len(packed["$schemas"]) == len(expect_packed["$schemas"])
+    del packed["$schemas"]
+    del expect_packed["$schemas"]
+
+    assert packed == expect_packed
+
+
 def test_pack_single_tool():
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/formattest.cwl")

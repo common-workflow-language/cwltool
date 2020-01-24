@@ -105,14 +105,15 @@ def import_embed(d, seen):
     elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
-                if d[n] in seen:
-                    this = d[n]
-                    d.clear()
-                    d["$import"] = this
-                else:
-                    this = d[n]
-                    seen.add(this)
-                    break
+                if isinstance(d[n], str):
+                    if d[n] in seen:
+                        this = d[n]
+                        d.clear()
+                        d["$import"] = this
+                    else:
+                        this = d[n]
+                        seen.add(this)
+                        break
 
         for k in sorted(d.keys()):
             import_embed(d[k], seen)
