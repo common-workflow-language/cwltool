@@ -70,7 +70,7 @@ def default_loader(fetcher_constructor=None, enable_dev=False, doc_cache=True):
         jobloaderctx,
         fetcher_constructor=fetcher_constructor,
         allow_attachments=lambda r: enable_dev,
-        doc_cache=doc_cache
+        doc_cache=doc_cache,
     )
 
 
@@ -114,9 +114,11 @@ def fetch_document(
     else:
         loadingContext = loadingContext.copy()
         if loadingContext.loader is None:
-            loadingContext.loader = default_loader(loadingContext.fetcher_constructor,
-                                                   enable_dev=loadingContext.enable_dev,
-                                                   doc_cache=loadingContext.doc_cache)
+            loadingContext.loader = default_loader(
+                loadingContext.fetcher_constructor,
+                enable_dev=loadingContext.enable_dev,
+                doc_cache=loadingContext.doc_cache,
+            )
 
     if isinstance(argsworkflow, str):
         uri, fileuri = resolve_tool_uri(
@@ -324,7 +326,7 @@ def resolve_and_validate_document(
         cache=sch_document_loader.cache,
         fetcher_constructor=loadingContext.fetcher_constructor,
         skip_schemas=skip_schemas,
-        doc_cache=loadingContext.doc_cache
+        doc_cache=loadingContext.doc_cache,
     )
 
     if cwlVersion == "v1.0":
