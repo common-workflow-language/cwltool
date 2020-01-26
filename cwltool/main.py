@@ -667,7 +667,9 @@ def setup_loadingContext(
     else:
         loadingContext = loadingContext.copy()
     loadingContext.loader = default_loader(
-        loadingContext.fetcher_constructor, enable_dev=args.enable_dev
+        loadingContext.fetcher_constructor,
+        enable_dev=args.enable_dev,
+        doc_cache=args.doc_cache,
     )
     loadingContext.research_obj = runtimeContext.research_obj
     loadingContext.disable_js_validation = args.disable_js_validation or (

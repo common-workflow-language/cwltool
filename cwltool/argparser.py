@@ -341,6 +341,22 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     exgroup = parser.add_mutually_exclusive_group()
+    exgroup.add_argument(
+        "--no-doc-cache",
+        action="store_false",
+        help="Disable disk cache for documents loaded over HTTP",
+        default=True,
+        dest="doc_cache",
+    )
+    exgroup.add_argument(
+        "--doc-cache",
+        action="store_true",
+        help="Enable disk cache for documents loaded over HTTP",
+        default=True,
+        dest="doc_cache",
+    )
+
+    exgroup = parser.add_mutually_exclusive_group()
     exgroup.add_argument("--verbose", action="store_true", help="Default logging")
     exgroup.add_argument(
         "--quiet", action="store_true", help="Only print warnings and errors."

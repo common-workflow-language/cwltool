@@ -47,7 +47,9 @@ def test_pack():
 
 
 def test_pack_input_named_name():
-    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/trick_revsort.cwl"))
+    loadingContext, workflowobj, uri = fetch_document(
+        get_data("tests/wf/trick_revsort.cwl")
+    )
     loadingContext.do_update = False
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
