@@ -71,6 +71,7 @@ class LoadingContext(ContextBase):
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.do_update = None  # type: Optional[bool]
         self.jobdefaults = None  # type: Optional[CommentedMap]
+        self.doc_cache = True    # type: bool
 
         super(LoadingContext, self).__init__(kwargs)
 
