@@ -799,6 +799,7 @@ def generate_parser(
     records: List[str],
     input_required: bool = True,
 ) -> argparse.ArgumentParser:
+    toolparser.description = tool.tool.get("doc", None)
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
