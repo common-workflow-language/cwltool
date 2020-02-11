@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 from io import BytesIO, StringIO
@@ -5,7 +6,10 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 
+from cwltool.argparser import generate_parser
+from cwltool.context import LoadingContext
 import cwltool.executors
+from cwltool.load_tool import load_tool
 from cwltool.main import main
 
 from .util import get_data, needs_docker
@@ -162,3 +166,21 @@ def test_dont_require_inputs():
     finally:
         if script and script.name and os.path.exists(script.name):
             os.unlink(script.name)
+
+
+def test_argparser_with_doc():
+    """The `desription` field is set if `doc` field is provided."""
+    loadingContext = LoadingContext()
+    tool = load_tool(get_data("tests/with_doc.cwl"), loadingContext)
+    p = argparse.ArgumentParser()
+    parser = generate_parser(p, tool, {}, [], False)
+    assert(parser.description is not None)
+
+
+def test_argparser_without_doc():
+    """The `desription` field is None if `doc` field is not provided."""
+    loadingContext = LoadingContext()
+    tool = load_tool(get_data("tests/without_doc.cwl"), loadingContext)
+    p = argparse.ArgumentParser()
+    parser = generate_parser(p, tool, {}, [], False)
+    assert(parser.description is None)
