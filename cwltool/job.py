@@ -684,6 +684,11 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     "the designated output directory, also know as "
                     "$(runtime.outdir): {}".format(vol)
                 )
+            if vol.type == "WritableDirectory" and not os.path.isdir(host_outdir_tgt):
+                # Singularity binds with overlay will create directories as needed,
+                # as will Docker with "--volume", but Docker "--mount"
+                # doesn't mkdir automatically.
+                os.mkdir(source)
             if vol.type in ("File", "Directory"):
                 self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
             elif vol.type == "WritableFile":
