@@ -6,7 +6,8 @@ from cwltool.main import main
 from .util import needs_docker
 
 
-def test_docker_append_volume_read_only():
+def test_docker_append_volume_read_only(mocker):
+    mocker.patch('os.mkdir')
     runtime = ['runtime']
     characters = ':,"\''
     DockerCommandLineJob.append_volume(
@@ -22,7 +23,8 @@ def test_docker_append_volume_read_only():
         'readonly'
     ]
 
-def test_docker_append_volume_read_write():
+def test_docker_append_volume_read_write(mocker):
+    mocker.patch('os.mkdir')
     runtime = ['runtime']
     characters = ':,"\''
     DockerCommandLineJob.append_volume(
