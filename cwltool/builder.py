@@ -18,6 +18,7 @@ from schema_salad.avro.schema import make_avsc_object, Schema
 from schema_salad.sourceline import SourceLine
 from schema_salad.ref_resolver import uri_file_path
 from six import iteritems, string_types
+from future.utils import raise_from
 from typing import IO
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text, Type)
@@ -38,14 +39,14 @@ if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
 
-def content_limit_respected_read_bytes(f):  # type: (IO) -> bytes
+def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException("loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes" % CONTENT_LIMIT)
     return contents
 
 
-def content_limit_respected_read(f):  # type: (IO) -> Text
+def content_limit_respected_read(f):  # type: (IO[bytes]) -> Text
     return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
@@ -61,7 +62,6 @@ def substitute(value, replace):  # type: (Text, Text) -> Text
 def formatSubclassOf(fmt, cls, ontology, visited):
     # type: (Text, Text, Optional[Graph], Set[Text]) -> bool
     """Determine if `fmt` is a subclass of `cls`."""
-
     if URIRef(fmt) == URIRef(cls):
         return True
 
@@ -92,11 +92,11 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 
     return False
 
-def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
+def check_format(actual_file,    # type: Union[Dict[Text, Any], List[Dict[Text, Any]], Text]
                  input_formats,  # type: Union[List[Text], Text]
                  ontology        # type: Optional[Graph]
                 ):  # type: (...) -> None
-    """ Confirms that the format present is valid for the allowed formats."""
+    """Confirm that the format present is valid for the allowed formats."""
     for afile in aslist(actual_file):
         if not afile:
             continue
@@ -113,9 +113,10 @@ def check_format(actual_file,    # type: Union[Dict[Text, Any], List, Text]
                 json_dumps(afile, indent=4)))
 
 class HasReqsHints(object):
-    def __init__(self):
-        self.requirements = []  # List[Dict[Text, Any]]
-        self.hints = []         # List[Dict[Text, Any]]
+    def __init__(self):  # type: () -> None
+        """Initialize this reqs decorator."""
+        self.requirements = []  # type: List[Dict[Text, Any]]
+        self.hints = []         # type: List[Dict[Text, Any]]
 
     def get_requirement(self,
                         feature  # type: Text
@@ -130,7 +131,7 @@ class HasReqsHints(object):
 
 class Builder(HasReqsHints):
     def __init__(self,
-                 job,                  # type: Dict[Text, Union[Dict[Text, Any], List, Text, None]]
+                 job,                  # type: Dict[Text, expression.JSON]
                  files,                # type: List[Dict[Text, Text]]
                  bindings,             # type: List[Dict[Text, Any]]
                  schemaDefs,           # type: Dict[Text, Dict[Text, Any]]
@@ -152,7 +153,7 @@ class Builder(HasReqsHints):
                  tmpdir,               # type: Text
                  stagedir             # type: Text
                 ):  # type: (...) -> None
-
+        """Initialize this Builder."""
         self.job = job
         self.files = files
         self.bindings = bindings
@@ -207,7 +208,7 @@ class Builder(HasReqsHints):
             lead_pos = []
 
         bindings = []  # type: List[MutableMapping[Text, Text]]
-        binding = None  # type: Optional[MutableMapping[Text,Any]]
+        binding = {}  # type: Union[MutableMapping[Text, Text], CommentedMap]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
@@ -253,8 +254,7 @@ class Builder(HasReqsHints):
                 raise validate.ValidationException(u"'%s' is not a valid union %s" % (datum, schema["type"]))
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
-            if binding is not None\
-                    and "inputBinding" not in st\
+            if binding and "inputBinding" not in st\
                     and "type" in st\
                     and st["type"] == "array"\
                     and "itemSeparator" not in binding:
@@ -280,7 +280,7 @@ class Builder(HasReqsHints):
             if schema["type"] == "array":
                 for n, item in enumerate(datum):
                     b2 = None
-                    if binding is not None:
+                    if binding:
                         b2 = copy.deepcopy(binding)
                         b2["datum"] = item
                     itemschema = {
@@ -292,9 +292,9 @@ class Builder(HasReqsHints):
                             itemschema[k] = schema[k]
                     bindings.extend(
                         self.bind_input(itemschema, item, lead_pos=n, tail_pos=tail_pos, discover_secondaryFiles=discover_secondaryFiles))
-                binding = None
+                binding = {}
 
-            def _capture_files(f):
+            def _capture_files(f):  # type: (Dict[Text, Text]) -> Dict[Text, Text]
                 self.files.append(f)
                 return f
 
@@ -348,9 +348,9 @@ class Builder(HasReqsHints):
                         check_format(datum, self.do_eval(schema["format"]),
                                      self.formatgraph)
                     except validate.ValidationException as ve:
-                        raise WorkflowException(
+                        raise_from(WorkflowException(
                             "Expected value of '%s' to have format %s but\n "
-                            " %s" % (schema["name"], schema["format"], ve))
+                            " %s" % (schema["name"], schema["format"], ve)), ve)
 
                 visit_class(datum.get("secondaryFiles", []), ("File", "Directory"), _capture_files)
 
@@ -364,14 +364,14 @@ class Builder(HasReqsHints):
                 visit_class(datum, ("File", "Directory"), _capture_files)
 
         # Position to front of the sort key
-        if binding is not None:
+        if binding:
             for bi in bindings:
                 bi["position"] = binding["position"] + bi["position"]
             bindings.append(binding)
 
         return bindings
 
-    def tostr(self, value):  # type: (Any) -> Text
+    def tostr(self, value):  # type: (Union[MutableMapping[Text, Text], Any]) -> Text
         if isinstance(value, MutableMapping) and value.get("class") in ("File", "Directory"):
             if "path" not in value:
                 raise WorkflowException(u"%s object missing \"path\": %s" % (value["class"], value))
@@ -426,7 +426,7 @@ class Builder(HasReqsHints):
             if sep:
                 args.extend([prefix, self.tostr(j)])
             else:
-                args.append("" if not prefix else prefix + self.tostr(j))
+                args.append(self.tostr(j) if prefix is None else prefix + self.tostr(j))
 
         return [a for a in args if a is not None]
 

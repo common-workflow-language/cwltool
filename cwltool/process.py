@@ -17,17 +17,18 @@ import uuid
 from io import open
 from typing import (Any, Callable, Dict, Generator, Iterator, List,
                     Mapping, MutableMapping, MutableSequence, Optional, Set, Tuple,
-                    Union, cast)
+                    Type, Union, cast)
 
 from pkg_resources import resource_stream
 from rdflib import Graph  # pylint: disable=unused-import
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from six import PY3, iteritems, itervalues, string_types, with_metaclass
 from six.moves import urllib
+from future.utils import raise_from
 from typing_extensions import (TYPE_CHECKING,  # pylint: disable=unused-import
                                Text)
 from schema_salad import schema, validate
-from schema_salad.ref_resolver import Loader, file_uri
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 
 from . import expression
@@ -38,7 +39,8 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager  # pylint: disable=unused-import
 from .pathmapper import (PathMapper, adjustDirObjs, ensure_writable,
-                         get_listing, normalizeFilesDirs, visit_class)
+                         get_listing, normalizeFilesDirs, visit_class,
+                         MapperEnt)
 from .secrets import SecretStore  # pylint: disable=unused-import
 from .software_requirements import (  # pylint: disable=unused-import
     DependenciesConfiguration)
@@ -62,11 +64,12 @@ else:
 
 class LogAsDebugFilter(logging.Filter):
     def __init__(self, name, parent):  # type: (Text, logging.Logger) -> None
+        """Initialize."""
         name = str(name)
         super(LogAsDebugFilter, self).__init__(name)
         self.parent = parent
 
-    def filter(self, record):
+    def filter(self, record):  # type: (logging.LogRecord) -> bool
         return self.parent.isEnabledFor(logging.DEBUG)
 
 
@@ -158,7 +161,7 @@ def get_schema(version):
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[Text, Union[bytes, Text]]
+    cache = {}  # type: Dict[Text, Any]
     version = version.split("#")[-1]
     if '.dev' in version:
         version = ".".join(version.split(".")[:-1])
@@ -217,12 +220,33 @@ def checkRequirements(rec, supported_process_requirements):
 
 
 def stage_files(pathmapper,             # type: PathMapper
-                stage_func=None,        # type: Callable[..., Any]
+                stage_func=None,        # type: Optional[Callable[..., Any]]
                 ignore_writable=False,  # type: bool
                 symlink=True,           # type: bool
-                secret_store=None       # type: SecretStore
+                secret_store=None,      # type: Optional[SecretStore]
+                fix_conflicts=False     # type: bool
                ):  # type: (...) -> None
     """Link or copy files to their targets. Create them as needed."""
+
+    targets = {}  # type: Dict[Text, MapperEnt]
+    for key, entry in pathmapper.items():
+        if not 'File' in entry.type:
+            continue
+        if entry.target not in targets:
+            targets[entry.target] = entry
+        elif targets[entry.target].resolved != entry.resolved:
+            if fix_conflicts:
+                tgt = entry.target
+                i = 2
+                tgt = "%s_%s" % (tgt, i)
+                while tgt in targets:
+                    i += 1
+                    tgt = "%s_%s" % (tgt, i)
+                targets[tgt] = pathmapper.update(key, entry.resolved, tgt, entry.type, entry.staged)
+            else:
+                raise WorkflowException("File staging conflict, trying to stage both %s and %s to the same target %s" % (
+                    targets[entry.target].resolved, entry.resolved, entry.target))
+
     for key, entry in pathmapper.items():
         if not entry.staged:
             continue
@@ -269,13 +293,13 @@ def stage_files(pathmapper,             # type: PathMapper
                 key, entry.target, entry.target, entry.type, entry.staged)
 
 
-def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Dict[Text, Any]]]
-                    destination_path,      # type: Text
-                    source_directories,    # type: Set[Text]
-                    action,                # type: Text
-                    fs_access,             # type: StdFsAccess
+def relocateOutputs(outputObj,              # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
+                    destination_path,       # type: Text
+                    source_directories,     # type: Set[Text]
+                    action,                 # type: Text
+                    fs_access,              # type: StdFsAccess
                     compute_checksum=True,  # type: bool
-                    path_mapper=PathMapper
+                    path_mapper=PathMapper  # type: Type[PathMapper]
                     ):
     # type: (...) -> Union[Dict[Text, Any], List[Dict[Text, Any]]]
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
@@ -297,7 +321,7 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
                 for dir_entry in _collectDirEntries(sub_obj):
                     yield dir_entry
 
-    def _relocate(src, dst):
+    def _relocate(src, dst):  # type: (Text, Text) -> None
         if src == dst:
             return
 
@@ -327,11 +351,18 @@ def relocateOutputs(outputObj,             # type: Union[Dict[Text, Any],List[Di
             else:
                 shutil.copy2(src, dst)
 
-    outfiles = list(_collectDirEntries(outputObj))
-    pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
-    stage_files(pm, stage_func=_relocate, symlink=False)
+    def _realpath(ob):  # type: (Dict[Text, Any]) -> None
+        if ob["location"].startswith("file:"):
+            ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
+        if ob["location"].startswith("/"):
+            ob["location"] = os.path.realpath(ob["location"])
 
-    def _check_adjust(a_file):
+    outfiles = list(_collectDirEntries(outputObj))
+    visit_class(outfiles, ("File", "Directory"), _realpath)
+    pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
+    stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
+
+    def _check_adjust(a_file):  # type: (Dict[Text, Text]) -> Dict[Text, Text]
         a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
         if "contents" in a_file:
             del a_file["contents"]
@@ -364,7 +395,7 @@ def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
         return  # best effort
 
 def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
-                     job,      # type: Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]]
+                     job,      # type: Dict[Text, expression.JSON]
                      fsaccess  # type: StdFsAccess
                     ):  # type: (...) -> None
     for e, inp in enumerate(inputs):
@@ -382,9 +413,7 @@ def fill_in_defaults(inputs,   # type: List[Dict[Text, Text]]
 
 def avroize_type(field_type, name_prefix=""):
     # type: (Union[List[Dict[Text, Any]], Dict[Text, Any]], Text) -> Any
-    """
-    adds missing information to a type so that CWL types are valid in schema_salad.
-    """
+    """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
         for field in field_type:
             avroize_type(field, name_prefix)
@@ -420,11 +449,11 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
     """)
 
 
-def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Text]
+def var_spool_cwl_detector(obj,           # type: Union[MutableMapping[Text, Text], List[Dict[Text, Any]], Text]
                            item=None,     # type: Optional[Any]
                            obj_key=None,  # type: Optional[Any]
                           ):              # type: (...)->bool
-    """ Detects any textual reference to /var/spool/cwl. """
+    """Detect any textual reference to /var/spool/cwl."""
     r = False
     if isinstance(obj, string_types):
         if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
@@ -433,11 +462,11 @@ def var_spool_cwl_detector(obj,           # type: Union[MutableMapping, List, Te
                     _VAR_SPOOL_ERROR.format(obj)))
             r = True
     elif isinstance(obj, MutableMapping):
-        for key, value in iteritems(obj):
-            r = var_spool_cwl_detector(value, obj, key) or r
+        for mkey, mvalue in iteritems(obj):
+            r = var_spool_cwl_detector(mvalue, obj, mkey) or r
     elif isinstance(obj, MutableSequence):
-        for key, value in enumerate(obj):
-            r = var_spool_cwl_detector(value, obj, key) or r
+        for lkey, lvalue in enumerate(obj):
+            r = var_spool_cwl_detector(lvalue, obj, lkey) or r
     return r
 
 def eval_resource(builder, resource_req):  # type: (Builder, Text) -> Any
@@ -454,6 +483,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
+        """Build a Process object from the provided dictionary."""
         self.metadata = getdefault(loadingContext.metadata, {})  # type: Dict[Text,Any]
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None          # type: Optional[ProvenanceProfile]
@@ -556,7 +586,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
                     _logger.error(
                         "Failed to read options file %s",
                         loadingContext.js_hint_options_file)
-                    raise err
+                    raise
             else:
                 validate_js_options = None
             if self.doc_schema is not None:
@@ -592,8 +622,7 @@ class Process(with_metaclass(abc.ABCMeta, HasReqsHints)):
             raise WorkflowException("Process object loaded with version '%s', must update to '%s' in order to execute." % (
                 self.metadata.get("cwlVersion"), INTERNAL_VERSION))
 
-        job = cast(Dict[Text, Union[Dict[Text, Any], List[Any], Text, None]],
-                   copy.deepcopy(joborder))
+        job = cast(Dict[Text, expression.JSON], copy.deepcopy(joborder))
 
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)
@@ -654,7 +683,7 @@ hints:
 """ % (filecount[0], k))))
 
         except (validate.ValidationException, WorkflowException) as err:
-            raise WorkflowException("Invalid job input record:\n" + Text(err))
+            raise_from(WorkflowException("Invalid job input record:\n" + Text(err)), err)
 
         files = []  # type: List[Dict[Text, Text]]
         bindings = CommentedSeq()
@@ -858,7 +887,7 @@ hints:
 _names = set()  # type: Set[Text]
 
 
-def uniquename(stem, names=None):  # type: (Text, Set[Text]) -> Text
+def uniquename(stem, names=None):  # type: (Text, Optional[Set[Text]]) -> Text
     global _names
     if names is None:
         names = _names
@@ -981,8 +1010,12 @@ def scandeps(base,                          # type: Text
                             base, u, reffields, urlfields, loadref,
                             urljoin=urljoin, nestdirs=nestdirs))
                     else:
-                        sub = loadref(base, u)
                         subid = urljoin(base, u)
+                        basedf, _ = urllib.parse.urldefrag(base)
+                        subiddf, _ = urllib.parse.urldefrag(subid)
+                        if basedf == subiddf:
+                            continue
+                        sub = loadref(base, u)
                         deps = {
                             "class": "File",
                             "location": subid,
@@ -1022,7 +1055,7 @@ def scandeps(base,                          # type: Text
     return r
 
 
-def compute_checksums(fs_access, fileobj):
+def compute_checksums(fs_access, fileobj):  # type: (StdFsAccess, Dict[Text, Any]) -> None
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()  # nosec
         with fs_access.open(fileobj["location"], "rb") as f:

@@ -31,3 +31,15 @@ def test_docker_incorrect_image_pull():
         ['--default-container', 'non-existant-weird-image',
          get_data("tests/wf/hello-workflow.cwl"), "--usermessage", "hello"])
     assert result_code != 0
+
+@needs_docker
+def test_docker_file_mount():
+    # test for bug in
+    # ContainerCommandLineJob.create_file_and_add_volume()
+    #
+    # the bug was that it would use the file literal contents as the
+    # temporary file name, which can easily result in a file name that
+    # is too long or otherwise invalid.  This test case uses ".."
+    result_code = main(
+        [get_data("tests/wf/literalfile.cwl"), get_data("tests/wf/literalfile-job.yml")])
+    assert result_code == 0

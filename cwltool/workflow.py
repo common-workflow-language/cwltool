@@ -9,18 +9,22 @@ import tempfile
 from collections import namedtuple
 from typing import (Any, Callable, Dict, Generator, Iterable, List,
                     Mapping, MutableMapping, MutableSequence,
-                    Optional, Tuple, Union, cast)
+                    Optional, Sequence, Tuple, Union, cast)
 from uuid import UUID  # pylint: disable=unused-import
 
+import threading
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import validate
-from schema_salad.sourceline import SourceLine
+from schema_salad.sourceline import SourceLine, indent
 from six import string_types, iteritems
 from six.moves import range
+from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
-from . import command_line_tool, context, expression
+from . import command_line_tool, context, expression, procgenerator
+from .command_line_tool import CallbackJob, ExpressionTool
+from .job import JobBase
 from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink, static_checker
 from .context import LoadingContext  # pylint: disable=unused-import
@@ -37,7 +41,6 @@ from .software_requirements import (  # pylint: disable=unused-import
 from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, aslist, json_dumps
 
-
 WorkflowStateItem = namedtuple('WorkflowStateItem', ['parameter', 'value', 'success'])
 
 
@@ -53,6 +56,8 @@ def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
             return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
         if toolpath_object["class"] == "Workflow":
             return Workflow(toolpath_object, loadingContext)
+        if toolpath_object["class"] == "ProcessGenerator":
+            return procgenerator.ProcessGenerator(toolpath_object, loadingContext)
 
     raise WorkflowException(
         u"Missing or invalid 'class' field in "
@@ -62,7 +67,7 @@ def default_make_tool(toolpath_object,      # type: MutableMapping[Text, Any]
 
 context.default_make_tool = default_make_tool
 
-def findfiles(wo, fn=None):  # type: (Any, List) -> List[Dict[Text, Any]]
+def findfiles(wo, fn=None):  # type: (Any, Optional[List[MutableMapping[Text, Any]]]) -> List[MutableMapping[Text, Any]]
     if fn is None:
         fn = []
     if isinstance(wo, MutableMapping):
@@ -125,7 +130,7 @@ def match_types(sinktype,   # type: Union[List[Text], Text]
     return False
 
 
-def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
+def object_from_state(state,                  # type: Dict[Text, Optional[WorkflowStateItem]]
                       parms,                  # type: List[Dict[Text, Any]]
                       frag_only,              # type: bool
                       supportsMultipleInput,  # type: bool
@@ -146,17 +151,18 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
                     "parameter but MultipleInputFeatureRequirement is not "
                     "declared.")
             for src in connections:
-                if src in state and state[src] is not None \
-                        and (state[src].success in ("success", "skipped") or incomplete):
+                a_state = state.get(src, None)
+                if a_state is not None and \
+                        (a_state.success in ("success", "skipped") or incomplete):
                     if not match_types(
-                            inp["type"], state[src], iid, inputobj,
+                            inp["type"], a_state, iid, inputobj,
                             inp.get("linkMerge", ("merge_nested"
                                                   if len(connections) > 1 else None)),
                             valueFrom=inp.get("valueFrom")):
                         raise WorkflowException(
                             u"Type mismatch between source '%s' (%s) and "
                             "sink '%s' (%s)" % (src,
-                                                state[src].parameter["type"], inp["id"],
+                                                a_state.parameter["type"], inp["id"],
                                                 inp["type"]))
                 elif src not in state:
                     raise WorkflowException(
@@ -204,12 +210,13 @@ def object_from_state(state,                  # Dict[Text, WorkflowStateItem]
 class WorkflowJobStep(object):
     def __init__(self, step):
         # type: (WorkflowStep) -> None
+        """Initialize this WorkflowJobStep."""
         self.step = step
         self.tool = step.tool
         self.id = step.id
         self.submitted = False
         self.completed = False
-        self.iterable = None  # type: Optional[Iterable]
+        self.iterable = None  # type: Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]
         self.name = uniquename(u"step %s" % shortname(self.id))
         self.prov_obj = step.prov_obj
         self.parent_wf = step.parent_wf
@@ -219,8 +226,7 @@ class WorkflowJobStep(object):
             output_callback,  # type: functools.partial[None]
             runtimeContext    # type: RuntimeContext
            ):
-        # type: (...) -> Generator
-        # FIXME: Generator[of what?]
+        # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob], None, None]
         runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = self.name
         runtimeContext.name = shortname(self.id)
@@ -233,6 +239,7 @@ class WorkflowJobStep(object):
 class WorkflowJob(object):
     def __init__(self, workflow, runtimeContext):
         # type: (Workflow, RuntimeContext) -> None
+        """Initialize this WorkflowJob."""
         self.workflow = workflow
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
@@ -272,7 +279,7 @@ class WorkflowJob(object):
                 "outputSource", incomplete=True)
         except WorkflowException as err:
             _logger.error(
-                u"[%s] Cannot collect workflow output: %s", self.name, err)
+                u"[%s] Cannot collect workflow output: %s", self.name, Text(err))
             self.processStatus = "permanentFail"
         if self.prov_obj and self.parent_wf \
                 and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri:
@@ -329,8 +336,7 @@ class WorkflowJob(object):
                      step,                   # type: WorkflowJobStep
                      final_output_callback,  # type: Callable[[Any, Any], Any]
                      runtimeContext          # type: RuntimeContext
-                    ):  # type: (...) -> Generator
-        # FIXME: Generator[of what?]
+                    ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
 
         if step.submitted:
             return
@@ -459,17 +465,18 @@ class WorkflowJob(object):
             step.completed = True
 
 
-    def run(self, runtimeContext):
-        '''
-        logs the start of each workflow
-        '''
+    def run(self,
+            runtimeContext,   # type: RuntimeContext
+            tmpdir_lock=None  # type: Optional[threading.Lock]
+            ):  # type: (...) -> None
+        """Log the start of each workflow."""
         _logger.info(u"[%s] start", self.name)
 
     def job(self,
             joborder,         # type: Mapping[Text, Any]
             output_callback,  # type: Callable[[Any, Any], Any]
             runtimeContext    # type: RuntimeContext
-           ):  # type: (...) -> Generator
+           ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
         self.state = {}
         self.processStatus = "success"
 
@@ -511,7 +518,7 @@ class WorkflowJob(object):
                         step.iterable = self.try_make_job(
                             step, output_callback, runtimeContext)
                     except WorkflowException as exc:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, Text(exc))
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -527,7 +534,7 @@ class WorkflowJob(object):
                             else:
                                 break
                     except WorkflowException as exc:
-                        _logger.error(u"[%s] Cannot make job: %s", step.name, exc)
+                        _logger.error(u"[%s] Cannot make job: %s", step.name, Text(exc))
                         _logger.debug("", exc_info=True)
                         self.processStatus = "permanentFail"
 
@@ -549,6 +556,7 @@ class Workflow(Process):
                  toolpath_object,      # type: MutableMapping[Text, Any]
                  loadingContext        # type: LoadingContext
                 ):  # type: (...) -> None
+        """Initializet this Workflow."""
         super(Workflow, self).__init__(
             toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
@@ -564,7 +572,8 @@ class Workflow(Process):
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
                 orcid=loadingContext.orcid,
-                run_uuid=run_uuid)  # inherit RO UUID for master wf run
+                run_uuid=run_uuid,
+                fsaccess=loadingContext.research_obj.fsaccess)  # inherit RO UUID for master wf run
             # TODO: Is Workflow(..) only called when we are the master workflow?
             self.parent_wf = self.provenance_object
 
@@ -613,20 +622,20 @@ class Workflow(Process):
                            pos,                  # type: int
                            loadingContext,       # type: LoadingContext
                            parentworkflowProv=None  # type: Optional[ProvenanceProfile]
-    ):
-        # (...) -> WorkflowStep
+                          ): # type: (...) -> WorkflowStep
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(self,
-            job_order,         # type: Mapping[Text, Text]
+            job_order,         # type: Mapping[Text, Any]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext     # type: RuntimeContext
-           ):  # type: (...) -> Generator[Any, None, None]
+           ):  # type: (...) -> Generator[Union[WorkflowJob, ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
         builder = self._init_job(job_order, runtimeContext)
 
         if runtimeContext.research_obj is not None:
             if runtimeContext.toplevel:
                 # Record primary-job.json
+                runtimeContext.research_obj.fsaccess = runtimeContext.make_fs_access('')
                 runtimeContext.research_obj.create_job(builder.job, self.job)
 
         job = WorkflowJob(self, runtimeContext)
@@ -639,7 +648,7 @@ class Workflow(Process):
         for wjob in job.job(builder.job, output_callbacks, runtimeContext):
             yield wjob
 
-    def visit(self, op):
+    def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], Any]) -> None
         op(self.tool)
         for step in self.steps:
             step.visit(op)
@@ -662,6 +671,7 @@ class WorkflowStep(Process):
                  loadingContext,       # type: LoadingContext
                  parentworkflowProv=None  # type: Optional[ProvenanceProfile]
                 ):  # type: (...) -> None
+        """Initialize this WorkflowStep."""
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -675,8 +685,10 @@ class WorkflowStep(Process):
         loadingContext.requirements.extend(get_overrides(getdefault(loadingContext.overrides_list, []),
                                                 self.id).get("requirements", []))
 
-        loadingContext.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
-        loadingContext.hints.extend(toolpath_object.get("hints", []))
+        hints = copy.deepcopy(getdefault(loadingContext.hints, []))
+        hints.extend(toolpath_object.get("hints", []))
+        loadingContext.hints = hints
+
 
         try:
             if isinstance(toolpath_object["run"], MutableMapping):
@@ -689,9 +701,9 @@ class WorkflowStep(Process):
         except validate.ValidationException as vexc:
             if loadingContext.debug:
                 _logger.exception("Validation exception")
-            raise WorkflowException(
+            raise_from(WorkflowException(
                 u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], validate.indent(str(vexc))))
+                (toolpath_object["run"], indent(str(vexc)))), vexc)
 
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
@@ -729,15 +741,19 @@ class WorkflowStep(Process):
                         param["used_by_step"] = used_by_step(self.tool, shortinputid)
                         param["not_connected"] = True
                     else:
+                        if isinstance(step_entry, Mapping):
+                            step_entry_name = step_entry['id']
+                        else:
+                            step_entry_name = step_entry
                         validation_errors.append(
                             SourceLine(self.tool["out"], index).makeError(
                                 "Workflow step output '%s' does not correspond to"
-                                % shortname(step_entry))
+                                % shortname(step_entry_name))
                             + "\n" + SourceLine(self.embedded_tool.tool, "outputs").makeError(
                                 "  tool output (expected '%s')" % (
                                     "', '".join(
                                         [shortname(tool_entry["id"]) for tool_entry in
-                                         self.embedded_tool.tool[toolfield]]))))
+                                         self.embedded_tool.tool['outputs']]))))
                 param["id"] = inputid
                 param.lc.line = toolpath_object[stepfield].lc.data[index][0]
                 param.lc.col = toolpath_object[stepfield].lc.data[index][1]
@@ -828,7 +844,7 @@ class WorkflowStep(Process):
             job_order,         # type: Mapping[Text, Text]
             output_callbacks,  # type: Callable[[Any, Any], Any]
             runtimeContext,    # type: RuntimeContext
-           ):  # type: (...) -> Generator[Any, None, None]
+           ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob], None, None]
         #initialize sub-workflow as a step in the parent profile
 
         if self.embedded_tool.tool["class"] == "Workflow" \
@@ -857,9 +873,9 @@ class WorkflowStep(Process):
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(Text(exc))
+            raise_from(WorkflowException(Text(exc)), exc)
 
-    def visit(self, op):
+    def visit(self, op):  # type: (Callable[[MutableMapping[Text, Any]], Any]) -> None
         self.embedded_tool.visit(op)
 
 
@@ -869,12 +885,13 @@ class ReceiveScatterOutput(object):
                  dest,             # type: Dict[Text, List[Optional[Text]]]
                  total             # type: int
                 ):  # type: (...) -> None
+        """Initialize."""
         self.dest = dest
         self.completed = 0
         self.processStatus = u"success"
         self.total = total
         self.output_callback = output_callback
-        self.steps = []  # type: List[Optional[Generator]]
+        self.steps = []  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
 
     def receive_scatter_output(self, index, jobout, processStatus):
         # type: (int, Dict[Text, Text], Text) -> None
@@ -895,9 +912,9 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total, steps):  # type: (int, List[Generator]) -> None
-        self.total = total # - sum(1 for s in steps if s is None)
-        self.steps = cast(List[Optional[Generator]], steps)
+    def setTotal(self, total, steps):  # type: (int, List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]) -> None
+        self.total = total
+        self.steps = steps
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
@@ -906,7 +923,7 @@ def skipped_step(callback):
     callback({}, "skipped")
 
 def parallel_steps(steps, rc, runtimeContext):
-    # type: (List[Generator], ReceiveScatterOutput, RuntimeContext) -> Generator
+    # type: (List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]], ReceiveScatterOutput, RuntimeContext) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
@@ -927,7 +944,7 @@ def parallel_steps(steps, rc, runtimeContext):
                 if made_progress:
                     break
             except WorkflowException as exc:
-                _logger.error(u"Cannot make scatter job: %s", exc)
+                _logger.error(u"Cannot make scatter job: %s", Text(exc))
                 _logger.debug("", exc_info=True)
                 rc.receive_scatter_output(index, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
@@ -939,7 +956,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
                        scatter_keys,      # type: MutableSequence[Text]
                        output_callback,   # type: Callable[..., Any]
                        runtimeContext     # type: RuntimeContext
-                      ):  # type: (...) -> Generator
+                      ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
     jobl = None  # type: Optional[int]
     for key in scatter_keys:
         if jobl is None:
@@ -957,7 +974,7 @@ def dotproduct_scatter(process,           # type: WorkflowJobStep
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps = []
+    steps = []  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     for index in range(0, jobl):
         sjobo = copy.copy(joborder)
         for key in scatter_keys:
@@ -981,7 +998,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
                                 scatter_keys,     # type: MutableSequence[Text]
                                 output_callback,  # type: Callable[..., Any]
                                 runtimeContext    # type: RuntimeContext
-                               ):  # type: (...) -> Generator
+                               ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
     output = {}  # type: Dict[Text, List[Optional[Text]]]
@@ -990,7 +1007,7 @@ def nested_crossproduct_scatter(process,          # type: WorkflowJobStep
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps = []
+    steps = []  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     for index in range(0, jobl):
         sjob = copy.copy(joborder)
         sjob[scatter_key] = joborder[scatter_key][index]
@@ -1030,7 +1047,7 @@ def flat_crossproduct_scatter(process,          # type: WorkflowJobStep
                               scatter_keys,     # type: MutableSequence[Text]
                               output_callback,  # type: Callable[..., Any]
                               runtimeContext    # type: RuntimeContext
-                             ):  # type: (...) -> Generator
+                             ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
     output = {}  # type: Dict[Text, List[Optional[Text]]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
@@ -1046,11 +1063,11 @@ def _flat_crossproduct_scatter(process,        # type: WorkflowJobStep
                                callback,       # type: ReceiveScatterOutput
                                startindex,     # type: int
                                runtimeContext  # type: RuntimeContext
-                              ):  # type: (...) -> Tuple[List[Generator], int]
-    """ Inner loop. """
+                              ):  # type: (...) -> Tuple[List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]], int]
+    """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
-    steps = []
+    steps = []  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     put = startindex
     for index in range(0, jobl):
         sjob = copy.copy(joborder)

@@ -28,6 +28,20 @@ def test_listing_deep():
     assert main(params) == 0
 
 @needs_docker
+def test_cwltool_options():
+    try:
+        opt = os.environ.get("CWLTOOL_OPTIONS")
+        os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
+        params = [get_data('tests/wf/listing_deep.cwl'),
+                  get_data('tests/listing-job.yml')]
+        assert main(params) == 0
+    finally:
+        if opt is not None:
+            os.environ["CWLTOOL_OPTIONS"] = opt
+        else:
+            del os.environ["CWLTOOL_OPTIONS"]
+
+@needs_docker
 def test_listing_shallow():
     # This fails on purpose, because it tries to access listing in a subdirectory
     # the same way that listing_deep does, but it shouldn't be expanded.
@@ -191,6 +205,6 @@ def test_warn_large_inputs():
         main([get_data('tests/wf/listing_v1_0.cwl'), get_data('tests/listing2-job.yml')],
              stderr=stream)
 
-        assert "Recursive directory listing has resulted in a large number of File objects" in re.sub("\n  *", " ", stream.getvalue())
+        assert "Recursive directory listing has resulted in a large number of File" in re.sub("\n  *", " ", stream.getvalue())
     finally:
         cwltool.process.FILE_COUNT_WARNING = was

@@ -13,12 +13,11 @@ from .test_fetch import norm
 
 @windows_needs_docker
 def test_check_version():
-    """Test that it is permitted to load without updating, but not
-    execute.  Attempting to execute without updating to the internal
-    version should raise an error.
-
     """
+    It is permitted to load without updating, but not execute.
 
+    Attempting to execute without updating to the internal version should raise an error.
+    """
     joborder = {"inp": "abc"}
     loadingContext = LoadingContext({"do_update": True})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
@@ -32,11 +31,7 @@ def test_check_version():
             pass
 
 def test_use_metadata():
-    """Test that it will use the version from loadingContext.metadata if
-    cwlVersion isn't present in the document.
-
-    """
-
+    """Use the version from loadingContext.metadata if cwlVersion isn't present in the document."""
     loadingContext = LoadingContext({"do_update": False})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
 
@@ -47,11 +42,7 @@ def test_use_metadata():
     tool2 = load_tool(tooldata, loadingContext)
 
 def test_checklink_outputSource():
-    """Test that outputSource is resolved correctly independent of value
-    of do_validate.
-
-    """
-
+    """Is outputSource resolved correctly independent of value of do_validate."""
     outsrc = norm(Path(get_data("tests/wf/1st-workflow.cwl")).as_uri())+"#argument/classfile"
 
     loadingContext = LoadingContext({"do_validate": True})
@@ -63,11 +54,7 @@ def test_checklink_outputSource():
     assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
 
 def test_load_graph_fragment():
-    """Test that outputSource is resolved correctly independent of value
-    of do_validate.
-
-    """
-
+    """Reloading from a dictionary without a cwlVersion."""
     loadingContext = LoadingContext()
     uri = Path(get_data("tests/wf/scatter-wf4.cwl")).as_uri()+"#main"
     tool = load_tool(uri, loadingContext)

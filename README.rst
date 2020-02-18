@@ -4,6 +4,10 @@ Common Workflow Language tool description reference implementation
 
 CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status| |Downloads|
 
+|CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support|
+|InitialWorkDirRequirement Support| |InlineJavascriptRequirement Support| |MultipleInputRequirement Support| |Core Support|
+|ResourceRequirement Support| |ScatterRequirement Support| |SchemaDefRequirement Support| |ShellCommandequirement Support|
+|StepInputRequirement Support| |SubWorkflowRequirement Support| |Workflow Support|
 
 .. |Conformance Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
    :target: https://ci.commonwl.org/job/cwltool-conformance/
@@ -20,12 +24,58 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 .. |Downloads| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
 
+.. |CommandLineTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/command_line_tool.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |DockerRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/docker.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |EnvVarRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/env_var.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |ExpressionTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/expression_tool.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |InitialWorkDirRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/initial_work_dir.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |InlineJavascriptRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/inline_javascript.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |MultipleInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/multiple_input.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |Core Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/required.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |ResourceRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/resource.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |ScatterRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/scatter.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |SchemaDefRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/schema_def.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |ShellCommandequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/shell_command.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |StepInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/step_input.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |SubWorkflowRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/subworkflow.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+.. |Workflow Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/workflow.json
+   :target: https://ci.commonwl.org/job/cwltool-conformance/
+
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for
-`Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 5, 6, 7}``
+`Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 5, 6, 7, 8}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -44,15 +94,9 @@ Your operating system may offer cwltool directly. For [Debian](https://tracker.d
 
   apt-get install cwltool
 
-For MacOS X, other UNIXes or Windows packages prepared by the Bioconda project. Please follow instructions of Bioconda (https://bioconda.github.io/) for its installation, then perform: 
-
-.. code:: bash
-
-  conda install -c bioconda cwltool 
-
-Under the hood, conda setups virtual environments before installing `cwltool` to
-avoid conflicting versions of the same library. When installing cwltool directly,
-it is recommended to do the same manually:
+Otherwise, to
+avoid conflicting versions of the same library,
+it is recommended to do the following:
 
 .. code:: bash
 
@@ -101,6 +145,11 @@ the default cwl-runner use::
 
   cwltool [tool-or-workflow-description] [input-job-settings]
 
+You can set cwltool options in the environment with CWLTOOL_OPTIONS,
+these will be inserted at the beginning of the command line::
+
+  export CWLTOOL_OPTIONS="--debug"
+
 Use with boot2docker
 --------------------
 boot2docker runs Docker inside a virtual machine and it only mounts ``Users``
@@ -138,10 +187,14 @@ or
 
   cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
 
-``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ as a Docker container runtime, an experimental feature.
-Singularity will run software containers specified in ``DockerRequirement`` and therefore works with Docker images only,
-native Singularity images are not supported.
-To use Singularity as the Docker container runtime, provide ``--singularity`` command line option to ``cwltool``.
+``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ version 2.6.1
+or later as a Docker container runtime.
+``cwltool`` with Singularity will run software containers specified in
+``DockerRequirement`` and therefore works with Docker images only, native
+Singularity images are not supported. To use Singularity as the Docker container
+runtime, provide ``--singularity`` command line option to ``cwltool``.
+With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
+those involving Docker container ENTRYPOINTs.
 
 
 .. code:: bash
@@ -426,11 +479,11 @@ mapping, execute the following command from the cwltool root directory::
 
 The previous examples demonstrated leveraging existing infrastructure to
 provide requirements for CWL tools. If instead a real package manager is used
-cwltool has the oppertunity to install requirements as needed. While initial
+cwltool has the opportunity to install requirements as needed. While initial
 support for Homebrew/Linuxbrew plugins is available, the most developed such
 plugin is for the `Conda <https://conda.io/docs/#>`__ package manager. Conda has the nice properties
 of allowing multiple versions of a package to be installed simultaneously,
-not requiring evalated permissions to install Conda itself or packages using
+not requiring evaluated permissions to install Conda itself or packages using
 Conda, and being cross platform. For these reasons, cwltool may run as a normal
 user, install its own Conda environment and manage multiple versions of Conda packages
 on both Linux and Mac OS X.
@@ -470,8 +523,8 @@ The example can be executed using the command::
   cwltool --beta-conda-dependencies tests/seqtk_seq_wrong_name.cwl tests/seqtk_seq_job.json
 
 The plugin framework for managing resolution of these software requirements
-as maintained as part of `galaxy-lib <https://github.com/galaxyproject/galaxy-lib>`__ - a small, portable subset of the Galaxy
-project. More information on configuration and implementation can be found
+as maintained as part of `galaxy-tool-util <https://github.com/galaxyproject/galaxy/tree/dev/packages/tool_util>`__ - a small,
+portable subset of the Galaxy project. More information on configuration and implementation can be found
 at the following links:
 
 - `Dependency Resolvers in Galaxy <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__

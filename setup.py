@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Setup for the reference implementation of the CWL standards."""
+from __future__ import print_function
 import os
 import sys
 
@@ -18,6 +19,13 @@ except ImportError:
 
 NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
+
+if sys.version_info < (3, 0):
+    print("""
+DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020.
+Please upgrade your Python as the Python 2.7 version of cwltool won't be
+maintained after that date.
+""", file=sys.stderr)
 
 setup(name='cwltool',
       version='1.0',
@@ -58,11 +66,10 @@ setup(name='cwltool',
           'setuptools',
           'requests >= 2.6.1',  # >= 2.6.1 to workaround
           # https://github.com/ionrock/cachecontrol/issues/137
-          #'ruamel.yaml >= 0.12.4, <= 0.15.77',
-          'ruamel.yaml >= 0.15.77',
+          'ruamel.yaml >= 0.12.4, <= 0.16',
           'rdflib >= 4.2.2, < 4.3.0',
           'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 4.2, < 5',
+          'schema-salad >= 4.5, < 5',
           'mypy-extensions',
           'six >= 1.9.0',  # >= 1.9.0 required by prov
           'psutil',
@@ -70,12 +77,15 @@ setup(name='cwltool',
           'prov == 1.5.1',
           'bagit >= 1.6.4',
           'typing-extensions',
+          'coloredlogs',
+          'future >= 0.16',
+          'pathlib2 != 2.3.1'
       ],
       extras_require={
           ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
-          ':python_version<"3"': ['pathlib2 == 2.3.2'],
           ':python_version<"3.6"': ['typing >= 3.5.3'],
-          'deps': ["galaxy-lib >= 17.09.9, <= 18.9.2 "]
+          'deps': ["galaxy-tool-util"],
+          'docs': ["sphinx >= 2.2", "sphinx-rtd-theme"],
       },
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       setup_requires=PYTEST_RUNNER,
@@ -110,6 +120,7 @@ setup(name='cwltool',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
           'Topic :: Scientific/Engineering',
           'Topic :: Scientific/Engineering :: Bio-Informatics',
           'Topic :: Scientific/Engineering :: Astronomy',

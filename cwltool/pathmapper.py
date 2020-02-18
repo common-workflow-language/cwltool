@@ -33,7 +33,6 @@ MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "
 
 def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply a mapping function to each File path in the object `rec`."""
-
     if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
             rec["path"] = op(rec["path"])
@@ -55,7 +54,7 @@ def adjustDirObjs(rec, op):
 
 def normalizeFilesDirs(job):
     # type: (Optional[Union[List[Dict[Text, Any]], MutableMapping[Text, Any], Directory]]) -> None
-    def addLocation(d):
+    def addLocation(d):  # type: (Dict[Text, Any]) -> None
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
                 raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
@@ -100,7 +99,7 @@ def normalizeFilesDirs(job):
 def dedup(listing):  # type: (List[Any]) -> List[Any]
     marksub = set()
 
-    def mark(d):
+    def mark(d):  # type: (Dict[Text, Text]) -> None
         marksub.add(d["location"])
 
     for l in listing:
@@ -121,7 +120,7 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 def get_listing(fs_access, rec, recursive=True):
     # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
     if rec.get("class") != "Directory":
-        finddirs = []  # type: List[MutableMapping]
+        finddirs = []  # type: List[MutableMapping[Text, Text]]
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
             get_listing(fs_access, f, recursive=recursive)
@@ -144,15 +143,14 @@ def get_listing(fs_access, rec, recursive=True):
             listing.append({"class": "File", "location": ld, "basename": bn})
     rec["listing"] = listing
 
-def trim_listing(obj):
-    """Remove 'listing' field from Directory objects that are file references.
+def trim_listing(obj):  # type: (Dict[Text, Any]) -> None
+    """
+    Remove 'listing' field from Directory objects that are file references.
 
     It redundant and potentially expensive to pass fully enumerated Directory
     objects around if not explicitly needed, so delete the 'listing' field when
     it is safe to do so.
-
     """
-
     if obj.get("location", "").startswith("file://") and "listing" in obj:
         del obj["listing"]
 
@@ -178,7 +176,7 @@ def downloadHttpFile(httpurl):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
     r.close()
-    return f.name
+    return str(f.name)
 
 def ensure_writable(path):  # type: (Text) -> None
     if os.path.isdir(path):
@@ -219,7 +217,9 @@ def ensure_non_writable(path):  # type: (Text) -> None
         os.chmod(path, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
 
 class PathMapper(object):
-    """Mapping of files from relative path provided in the file to a tuple of
+    """
+    Mapping of files from relative path provided in the file to a tuple.
+
     (absolute local path, absolute container path)
 
     The tao of PathMapper:
@@ -255,6 +255,7 @@ class PathMapper(object):
 
     def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
         # type: (List[Any], Text, Text, bool) -> None
+        """Initialize the PathMapper."""
         self._pathmap = {}  # type: Dict[Text, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
@@ -339,8 +340,11 @@ class PathMapper(object):
         return None
 
     def update(self, key, resolved, target, ctype, stage):
-        # type: (Text, Text, Text, Text, bool) -> None
-        self._pathmap[key] = MapperEnt(resolved, target, ctype, stage)
+        # type: (Text, Text, Text, Text, bool) -> MapperEnt
+        m = MapperEnt(resolved, target, ctype, stage)
+        self._pathmap[key] = m
+        return m
 
-    def __contains__(self, key):
+    def __contains__(self, key):  # type: (Text) -> bool
+        """Test for the presence of the given relative path in this mapper."""
         return key in self._pathmap

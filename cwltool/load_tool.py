@@ -40,7 +40,6 @@ jobloaderctx = {
     u"cwltool": "http://commonwl.org/cwltool#",
     u"path": {u"@type": u"@id"},
     u"location": {u"@type": u"@id"},
-    u"format": {u"@type": u"@id"},
     u"id": u"@id"
 }  # type: ContextType
 
@@ -63,14 +62,15 @@ FetcherConstructorType = Callable[
     [Dict[Text, Union[Text, bool]], requests.sessions.Session], Fetcher]
 ResolverType = Callable[[Loader, Union[Text, Dict[Text, Any]]], Text]
 
-def default_loader(fetcher_constructor=None):
-    # type: (Optional[FetcherConstructorType]) -> Loader
-    return Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
+def default_loader(fetcher_constructor=None, enable_dev=False):
+    # type: (Optional[FetcherConstructorType], bool) -> Loader
+    return Loader(jobloaderctx, fetcher_constructor=fetcher_constructor,
+                  allow_attachments=lambda r: enable_dev)
 
-def resolve_tool_uri(argsworkflow,  # type: Text
-                     resolver=None,  # type: ResolverType
-                     fetcher_constructor=None,  # type: FetcherConstructorType
-                     document_loader=None  # type: Loader
+def resolve_tool_uri(argsworkflow,              # type: Text
+                     resolver=None,             # type: Optional[ResolverType]
+                     fetcher_constructor=None,  # type: Optional[FetcherConstructorType]
+                     document_loader=None       # type: Optional[Loader]
                     ):  # type: (...) -> Tuple[Text, Text]
 
     uri = None  # type: Optional[Text]
@@ -82,7 +82,7 @@ def resolve_tool_uri(argsworkflow,  # type: Text
         uri = file_uri(str(os.path.abspath(argsworkflow)))
     elif resolver is not None:
         if document_loader is None:
-            document_loader = default_loader(fetcher_constructor)  # type: ignore
+            document_loader = default_loader(fetcher_constructor)
         uri = resolver(document_loader, argsworkflow)
 
     if uri is None:
@@ -99,7 +99,6 @@ def fetch_document(argsworkflow,        # type: Union[Text, Dict[Text, Any]]
                    loadingContext=None  # type: Optional[LoadingContext]
                   ):  # type: (...) -> Tuple[LoadingContext, CommentedMap, Text]
     """Retrieve a CWL document."""
-
     if loadingContext is None:
         loadingContext = LoadingContext()
         loadingContext.loader = default_loader()
@@ -191,15 +190,19 @@ def _add_blank_ids(workflowobj):
         for entry in workflowobj:
             _add_blank_ids(entry)
 
-def resolve_and_validate_document(loadingContext,
-                      workflowobj,
-                      uri,
-                      preprocess_only=False,     # type: bool
-                      skip_schemas=None,         # type: bool
-                     ):
+def resolve_and_validate_document(
+        loadingContext,            # type: LoadingContext
+        workflowobj,               # type: Union[CommentedMap, CommentedSeq]
+        uri,                       # type: Text
+        preprocess_only=False,     # type: bool
+        skip_schemas=None,         # type: Optional[bool]
+                                 ):
     # type: (...) -> Tuple[LoadingContext, Text]
     """Validate a CWL document."""
-
+    if not loadingContext.loader:
+        raise ValueError("loadingContext must have a loader.")
+    else:
+        loader = loadingContext.loader
     loadingContext = loadingContext.copy()
 
     if not isinstance(workflowobj, MutableMapping):
@@ -208,9 +211,9 @@ def resolve_and_validate_document(loadingContext,
 
     jobobj = None
     if "cwl:tool" in workflowobj:
-        jobobj, _ = loadingContext.loader.resolve_all(workflowobj, uri)
+        jobobj, _ = loader.resolve_all(workflowobj, uri)
         uri = urllib.parse.urljoin(uri, workflowobj["https://w3id.org/cwl/cwl#tool"])
-        del cast(dict, jobobj)["https://w3id.org/cwl/cwl#tool"]
+        del cast(Dict[Text, Any], jobobj)["https://w3id.org/cwl/cwl#tool"]
 
         workflowobj = fetch_document(uri, loadingContext)[1]
 
@@ -222,7 +225,7 @@ def resolve_and_validate_document(loadingContext,
     if not cwlVersion and fileuri != uri:
         # The tool we're loading is a fragment of a bigger file.  Get
         # the document root element and look for cwlVersion there.
-        metadata = fetch_document(fileuri, loadingContext)[1]
+        metadata = fetch_document(fileuri, loadingContext)[1]  # type: Dict[Text, Any]
         cwlVersion = metadata.get("cwlVersion")
     if not cwlVersion:
         raise ValidationException(
@@ -277,7 +280,7 @@ def resolve_and_validate_document(loadingContext,
     processobj = None  # type: Union[CommentedMap, CommentedSeq, Text, None]
     document_loader = Loader(sch_document_loader.ctx,
                              schemagraph=sch_document_loader.graph,
-                             idx=loadingContext.loader.idx,
+                             idx=loader.idx,
                              cache=sch_document_loader.cache,
                              fetcher_constructor=loadingContext.fetcher_constructor,
                              skip_schemas=skip_schemas)
@@ -293,6 +296,9 @@ def resolve_and_validate_document(loadingContext,
     if not isinstance(metadata, CommentedMap):
         raise ValidationException("metadata must be a CommentedMap, was %s" % type(metadata))
 
+    if isinstance(processobj, CommentedMap):
+        uri = processobj["id"]
+
     _convert_stdstreams_to_files(workflowobj)
 
     if preprocess_only:
@@ -305,16 +311,9 @@ def resolve_and_validate_document(loadingContext,
     if loadingContext.do_update in (True, None):
         if "cwlVersion" not in metadata:
             metadata["cwlVersion"] = cwlVersion
-        processobj = cast(CommentedMap, cmap(update.update(
-            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)))
-        if isinstance(processobj, MutableMapping):
-            document_loader.idx[processobj["id"]] = processobj
-        elif isinstance(processobj, MutableSequence):
-            document_loader.idx[metadata["id"]] = metadata
-            for po in processobj:
-                document_loader.idx[po["id"]] = po
-        else:
-            raise Exception("'processobj' was not MutableMapping or MutableSequence %s" % type(processobj))
+        processobj = update.update(
+            processobj, document_loader, fileuri, loadingContext.enable_dev, metadata)
+        document_loader.idx[processobj["id"]] = processobj
 
     if jobobj is not None:
         loadingContext.jobdefaults = jobobj
@@ -375,8 +374,8 @@ def load_tool(argsworkflow,         # type: Union[Text, Dict[Text, Any]]
     return make_tool(uri,
                      loadingContext)
 
-def resolve_overrides(ov,      # Type: CommentedMap
-                      ov_uri,  # Type: Text
+def resolve_overrides(ov,      # type: CommentedMap
+                      ov_uri,  # type: Text
                       baseurl  # type: Text
                      ):  # type: (...) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)
@@ -385,7 +384,8 @@ def resolve_overrides(ov,      # Type: CommentedMap
         raise Exception("Expected CommentedMap, got %s" % type(ret))
     cwl_docloader = get_schema("v1.0")[0]
     cwl_docloader.resolve_all(ret, ov_uri)
-    return ret["http://commonwl.org/cwltool#overrides"]
+    return cast(List[Dict[Text, Any]],
+                ret["http://commonwl.org/cwltool#overrides"])
 
 def load_overrides(ov, base_url):  # type: (Text, Text) -> List[Dict[Text, Any]]
     ovloader = Loader(overrides_ctx)

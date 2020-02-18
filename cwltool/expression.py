@@ -3,11 +3,12 @@ from __future__ import absolute_import
 
 import copy
 import re
-from typing import (Any, Dict, List, MutableMapping, MutableSequence, Optional,
+from typing import (Any, Dict, List, Mapping, MutableMapping, MutableSequence, Optional,
                     Union)
 
 import six
 from six import string_types, u
+from future.utils import raise_from
 from typing_extensions import Text  # pylint: disable=unused-import
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -119,7 +120,7 @@ def scanner(scan):  # type: (Text) -> List[int]
         return []
 
 
-def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, Any) -> Any
+def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, JSON) -> JSON
     if remaining_string:
         m = segment_re.match(remaining_string)
         if not m:
@@ -143,15 +144,23 @@ def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Te
             try:
                 key = int(next_segment_str[1:-1])
             except ValueError as v:
-                raise WorkflowException(u(str(v)))
+                raise_from(WorkflowException(u(str(v))), v)
             if not isinstance(current_value, MutableSequence):
                 raise WorkflowException("%s is a %s, cannot index on int '%s'" % (parsed_string, type(current_value).__name__, key))
             if key >= len(current_value):
                 raise WorkflowException("%s list index %i out of range" % (parsed_string, key))
 
-        try:
-            return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
-        except KeyError:
+        if isinstance(current_value, Mapping):
+            try:
+                return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
+            except KeyError:
+                raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
+        elif isinstance(current_value, list) and isinstance(key, int):
+            try:
+                return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
+            except KeyError:
+                raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
+        else:
             raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
     else:
         return current_value
@@ -246,8 +255,8 @@ def needs_parsing(snippet):  # type: (Any) -> bool
     return isinstance(snippet, string_types) \
         and ("$(" in snippet or "${" in snippet)
 
-def do_eval(ex,                       # type: Union[Text, Dict]
-            jobinput,                 # type: Dict[Text, Union[Dict, List, Text, None]]
+def do_eval(ex,                       # type: Union[Text, Dict[Text, Text]]
+            jobinput,                 # type: Dict[Text, JSON]
             requirements,             # type: List[Dict[Text, Any]]
             outdir,                   # type: Optional[Text]
             tmpdir,                   # type: Optional[Text]
@@ -295,6 +304,6 @@ def do_eval(ex,                       # type: Union[Text, Dict]
                                strip_whitespace=strip_whitespace)
 
         except Exception as e:
-            raise WorkflowException("Expression evaluation error:\n%s" % e)
+            raise_from(WorkflowException("Expression evaluation error:\n%s" % Text(e)), e)
     else:
         return ex

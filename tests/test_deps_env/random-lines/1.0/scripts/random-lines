@@ -65,7 +65,7 @@ def __main__():
     writer = output.write
     for line_offset in line_offsets:
         seeker( line_offset )
-        writer( readliner() )
+        writer( readliner().decode("utf-8") )
     input.close()
     output.close()
     #print("Kept %i of %i total lines." % ( num_lines, total_lines ))

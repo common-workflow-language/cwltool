@@ -21,8 +21,8 @@ from cwltool.main import main
 from cwltool.utils import onWindows
 from cwltool.resolver import Path
 from cwltool.process import CWL_IANA
-
-from .util import (get_data, get_main_output, get_windows_safe_factory,
+from cwltool.sandboxjs import JavascriptException
+from .util import (get_data, get_main_output, get_windows_safe_factory, subprocess,
                    needs_docker, working_directory, needs_singularity, temp_dir, windows_needs_docker)
 
 import six
@@ -144,6 +144,50 @@ interpolate_parameters = [
 @pytest.mark.parametrize('pattern,expected', interpolate_parameters)
 def test_expression_interpolate(pattern, expected):
     assert expr.interpolate(pattern, interpolate_input) == expected
+
+interpolate_bad_parameters = [
+    ("$(fooz)"),
+    ("$(foo.barz)"),
+    ("$(foo['barz'])"),
+    ("$(foo[\"barz\"])"),
+
+    ("$(foo.bar.bazz)"),
+    ("$(foo['bar'].bazz)"),
+    ("$(foo['bar'][\"bazz\"])"),
+    ("$(foo.bar['bazz'])"),
+
+    ("$(foo['b\\'ar'].bazz)"),
+    ("$(foo[\"b'ar\"].bazz)"),
+    ("$(foo['b\\\"ar'].bazz)"),
+
+    ("$(lst[O])"),  # not "0" the number, but the letter O
+    ("$(lst[2])"),
+    ("$(lst.lengthz)"),
+    ("$(lst['lengthz'])"),
+
+    ("-$(foo.barz)"),
+    ("-$(foo['barz'])"),
+    ("-$(foo[\"barz\"])"),
+
+    ("-$(foo.bar.bazz)"),
+    ("-$(foo['bar'].bazz)"),
+    ("-$(foo['bar'][\"bazz\"])"),
+    ("-$(foo.bar['bazz'])"),
+
+    ("-$(foo['b ar'].bazz)"),
+    ("-$(foo['b\\'ar'].bazz)"),
+    ("-$(foo[\"b\\'ar\"].bazz)"),
+    ("-$(foo['b\\\"ar'].bazz)"),
+]
+
+@pytest.mark.parametrize('pattern', interpolate_bad_parameters)
+def test_expression_interpolate_failures(pattern):
+    result = None
+    try:
+        result = expr.interpolate(pattern, interpolate_input)
+    except JavascriptException:
+        return
+    assert false, 'Should have produced a JavascriptException, got "{}".'.format(result)
 
 
 @windows_needs_docker
@@ -324,7 +368,6 @@ def test_scandeps():
     }]
 
     assert scanned_deps == expected_deps
-
 
 def test_trick_scandeps():
     if sys.version_info[0] < 3:
@@ -659,10 +702,12 @@ def test_static_checker():
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
+    with pytest.raises(schema_salad.validate.ValidationException):
+        factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
+
 
 def test_var_spool_cwl_checker1():
-    """ Confirm that references to /var/spool/cwl are caught."""
-
+    """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
     _logger = logging.getLogger("cwltool")
@@ -677,8 +722,7 @@ def test_var_spool_cwl_checker1():
 
 
 def test_var_spool_cwl_checker2():
-    """ Confirm that references to /var/spool/cwl are caught."""
-
+    """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
     _logger = logging.getLogger("cwltool")
@@ -693,8 +737,7 @@ def test_var_spool_cwl_checker2():
 
 
 def test_var_spool_cwl_checker3():
-    """ Confirm that references to /var/spool/cwl are caught."""
-
+    """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
     _logger = logging.getLogger("cwltool")
@@ -711,33 +754,39 @@ def test_var_spool_cwl_checker3():
 def test_print_dot():
     assert main(["--print-dot", get_data('tests/wf/revsort.cwl')]) == 0
 
+test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
-def test_js_console_cmd_line_tool():
+@pytest.mark.parametrize("factor", test_factors)
+def test_js_console_cmd_line_tool(factor):
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-        error_code, _, stderr = get_main_output(
-            ["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
+        commands = factor.split()
+        commands.extend(["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
+        error_code, _, stderr = get_main_output(commands)
 
         assert "[log] Log message" in stderr
         assert "[err] Error message" in stderr
 
         assert error_code == 0, stderr
 
-
-def test_no_js_console():
+@pytest.mark.parametrize("factor", test_factors)
+def test_no_js_console(factor):
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
-        _, _, stderr = get_main_output(
-            ["--no-container", get_data("tests/wf/" + test_file)])
+        commands = factor.split()
+        commands.extend(["--no-container", get_data("tests/wf/" + test_file)])
+        _, _, stderr = get_main_output(commands)
 
         assert "[log] Log message" not in stderr
         assert "[err] Error message" not in stderr
 
 
 @needs_docker
-def test_cid_file_dir(tmpdir):
+@pytest.mark.parametrize("factor", test_factors)
+def test_cid_file_dir(tmpdir, factor):
     test_file = "cache_test_workflow.cwl"
     cwd = tmpdir.chdir()
-    error_code, stdout, stderr = get_main_output(
-        ["--cidfile-dir", str(tmpdir), get_data("tests/wf/" + test_file)])
+    commands = factor.split()
+    commands.extend(["--cidfile-dir", str(tmpdir), get_data("tests/wf/" + test_file)])
+    error_code, stdout, stderr = get_main_output(commands)
     assert "completed success" in stderr
     assert error_code == 0
     cidfiles_count = sum(1 for _ in tmpdir.visit(fil="*"))
@@ -747,37 +796,43 @@ def test_cid_file_dir(tmpdir):
 
 
 @needs_docker
-def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir):
+@pytest.mark.parametrize("factor", test_factors)
+def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir, factor):
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = Text(tmpdir.ensure("cidfile-dir-actually-a-file"))
-    error_code, _, stderr = get_main_output(
-        ["--cidfile-dir", bad_cidfile_dir,
+    commands = factor.split()
+    commands.extend(["--cidfile-dir", bad_cidfile_dir,
          get_data("tests/wf/" + test_file)])
+    error_code, _, stderr = get_main_output(commands)
     assert "is not a directory, please check it first" in stderr, stderr
-    assert error_code == 2
+    assert error_code == 2 or error_code == 1, stderr
     tmpdir.remove(ignore_errors=True)
 
 
 @needs_docker
-def test_cid_file_non_existing_dir(tmpdir):
+@pytest.mark.parametrize("factor", test_factors)
+def test_cid_file_non_existing_dir(tmpdir, factor):
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = Text(tmpdir.join("cidfile-dir-badpath"))
-    error_code, _, stderr = get_main_output(
-        ['--record-container-id',"--cidfile-dir", bad_cidfile_dir,
+    commands = factor.split()
+    commands.extend(['--record-container-id',"--cidfile-dir", bad_cidfile_dir,
          get_data("tests/wf/" + test_file)])
+    error_code, _, stderr = get_main_output(commands)
     assert "directory doesn't exist, please create it first" in stderr, stderr
-    assert error_code == 2
+    assert error_code == 2 or error_code == 1, stderr
     tmpdir.remove(ignore_errors=True)
 
 
 @needs_docker
-def test_cid_file_w_prefix(tmpdir):
+@pytest.mark.parametrize("factor", test_factors)
+def test_cid_file_w_prefix(tmpdir, factor):
     test_file = "cache_test_workflow.cwl"
     cwd = tmpdir.chdir()
     try:
-        error_code, stdout, stderr = get_main_output(
-            ['--record-container-id', '--cidfile-prefix=pytestcid',
+        commands = factor.split()
+        commands.extend(['--record-container-id', '--cidfile-prefix=pytestcid',
              get_data("tests/wf/" + test_file)])
+        error_code, stdout, stderr = get_main_output(commands)
     finally:
         listing = tmpdir.listdir()
         cwd.chdir()
@@ -789,76 +844,77 @@ def test_cid_file_w_prefix(tmpdir):
 
 
 @needs_docker
-class TestSecondaryFiles():
-    def test_secondary_files_v1_1(self):
-        test_file = "secondary-files.cwl"
-        test_job_file = "secondary-files-job.yml"
-        try:
-            old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
-            error_code, _, stderr = get_main_output(
-                ["--enable-dev",
+@pytest.mark.parametrize("factor", test_factors)
+def test_secondary_files_v1_1(factor):
+    test_file = "secondary-files.cwl"
+    test_job_file = "secondary-files-job.yml"
+    try:
+        old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
+        commands = factor.split()
+        commands.extend(["--enable-dev",
+            get_data(os.path.join("tests", test_file)),
+            get_data(os.path.join("tests", test_job_file))])
+        error_code, _, stderr = get_main_output(commands)
+    finally:
+        assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+        os.umask(old_umask)  # revert back to original umask
+    assert "completed success" in stderr
+    assert error_code == 0
+
+@needs_docker
+@pytest.mark.parametrize("factor", test_factors)
+def test_secondary_files_v1_0(factor):
+    test_file = "secondary-files-string-v1.cwl"
+    test_job_file = "secondary-files-job.yml"
+    try:
+        old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
+        commands = factor.split()
+        commands.extend([
                 get_data(os.path.join("tests", test_file)),
-                get_data(os.path.join("tests", test_job_file))])
-        finally:
-            assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
-            os.umask(old_umask)  # revert back to original umask
-        assert "completed success" in stderr
-        assert error_code == 0
-
-    def test_secondary_files_v1_0(self):
-        test_file = "secondary-files-string-v1.cwl"
-        test_job_file = "secondary-files-job.yml"
-        try:
-            old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
-            error_code, _, stderr = get_main_output(
-                [
-                    get_data(os.path.join("tests", test_file)),
-                    get_data(os.path.join("tests", test_job_file))
-                ]
-            )
-        finally:
-            assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
-            os.umask(old_umask)  # revert back to original umask
-        assert "completed success" in stderr
-        assert error_code == 0
+                get_data(os.path.join("tests", test_job_file))
+            ])
+        error_code, _, stderr = get_main_output(commands)
+    finally:
+        assert stat.S_IMODE(os.stat('lsout').st_mode) == 436  # 664 in octal, '-rw-rw-r--'
+        os.umask(old_umask)  # revert back to original umask
+    assert "completed success" in stderr
+    assert error_code == 0
 
 
 @needs_docker
-class TestCache():
-    def setUp(self):
-        self.cache_dir = tempfile.mkdtemp("cwltool_cache")
-
-
-@needs_docker
-def test_wf_without_container(tmpdir):
+@pytest.mark.parametrize("factor", test_factors)
+def test_wf_without_container(tmpdir, factor):
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
-        error_code, _, stderr = get_main_output(
-            ["--cachedir", cache_dir, "--outdir", str(tmpdir),
+        commands = factor.split()
+        commands.extend(["--cachedir", cache_dir, "--outdir", str(tmpdir),
              get_data("tests/wf/" + test_file),
              "--usermessage",
-             "hello"]
-        )
+             "hello"])
+        error_code, _, stderr = get_main_output(commands)
 
     assert "completed success" in stderr
     assert error_code == 0
 
 
 @needs_docker
-def test_issue_740_fixed():
+@pytest.mark.parametrize("factor", test_factors)
+def test_issue_740_fixed(factor):
     test_file = "cache_test_workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
-        error_code, _, stderr = get_main_output(
-            ["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+        commands = factor.split()
+        commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+        error_code, _, stderr = get_main_output(commands)
 
         assert "completed success" in stderr
         assert error_code == 0
 
-        error_code, _, stderr = get_main_output(
-            ["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+        commands = factor.split()
+        commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+        error_code, _, stderr = get_main_output(commands)
 
         assert "Output of job will be cached in" not in stderr
-        assert error_code == 0
+        assert error_code == 0, stderr
 
 
 @needs_docker
@@ -876,58 +932,117 @@ def test_compute_checksum():
 
 
 @needs_docker
-def test_no_compute_chcksum(tmpdir):
+@pytest.mark.parametrize("factor", test_factors)
+def test_no_compute_chcksum(tmpdir, factor):
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
-    error_code, stdout, stderr = get_main_output(
-        ["--no-compute-checksum", "--outdir", str(tmpdir),
+    commands = factor.split()
+    commands.extend(["--no-compute-checksum", "--outdir", str(tmpdir),
          get_data(test_file), get_data(job_file)])
+    error_code, stdout, stderr = get_main_output(commands)
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout
 
 
-def test_bad_userspace_runtime():
+@pytest.mark.parametrize("factor", test_factors)
+def test_bad_userspace_runtime(factor):
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
-    error_code, stdout, stderr = get_main_output(
-        ["--user-space-docker-cmd=quaquioN", "--default-container=debian",
-         get_data(test_file), get_data(job_file)])
-    assert "'quaquioN' not found:" in stderr, stderr
+    commands = factor.split()
+    commands.extend([
+        "--user-space-docker-cmd=quaquioN", "--default-container=debian",
+        get_data(test_file), get_data(job_file)])
+    error_code, stdout, stderr = get_main_output(commands)
+    assert "or quaquioN is missing or broken" in stderr, stderr
     assert error_code == 1
 
 @windows_needs_docker
-def test_bad_basecommand():
+@pytest.mark.parametrize("factor", test_factors)
+def test_bad_basecommand(factor):
     test_file = "tests/wf/missing-tool.cwl"
-    error_code, stdout, stderr = get_main_output(
-        [get_data(test_file)])
+    commands = factor.split()
+    commands.extend([get_data(test_file)])
+    error_code, stdout, stderr = get_main_output(commands)
     assert "'neenooGo' not found" in stderr, stderr
     assert error_code == 1
 
 
 @needs_docker
-def test_bad_basecommand_docker():
+@pytest.mark.parametrize("factor", test_factors)
+def test_bad_basecommand_docker(factor):
     test_file = "tests/wf/missing-tool.cwl"
-    error_code, stdout, stderr = get_main_output(
+    commands = factor.split()
+    commands.extend(
         ["--debug", "--default-container", "debian", get_data(test_file)])
+    error_code, stdout, stderr = get_main_output(commands)
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
 
-def test_v1_0_position_expression():
+@pytest.mark.parametrize("factor", test_factors)
+def test_v1_0_position_expression(factor):
     test_file = "tests/echo-position-expr.cwl"
     test_job = "tests/echo-position-expr-job.yml"
-    error_code, stdout, stderr = get_main_output(
+    commands = factor.split()
+    commands.extend(
         ['--debug', get_data(test_file), get_data(test_job)])
+    error_code, stdout, stderr = get_main_output(commands)
     assert "is not int" in stderr, stderr
     assert error_code == 1
 
 
 @windows_needs_docker
-def test_optional_numeric_output_0():
+@pytest.mark.parametrize("factor", test_factors)
+def test_optional_numeric_output_0(factor):
     test_file = "tests/wf/optional-numerical-output-0.cwl"
-    error_code, stdout, stderr = get_main_output(
-        [get_data(test_file)])
+    commands = factor.split()
+    commands.extend([get_data(test_file)])
+    error_code, stdout, stderr = get_main_output(commands)
 
     assert "completed success" in stderr
     assert error_code == 0
     assert json.loads(stdout)['out'] == 0
+
+@pytest.mark.parametrize("factor", test_factors)
+@windows_needs_docker
+def test_env_filtering(factor):
+    test_file = "tests/env.cwl"
+    commands = factor.split()
+    commands.extend([get_data(test_file)])
+    error_code, stdout, stderr = get_main_output(commands)
+
+    process = subprocess.Popen(["sh", "-c", r"""getTrueShellExeName() {
+  local trueExe nextTarget 2>/dev/null
+  trueExe=$(ps -o comm= $$) || return 1
+  [ "${trueExe#-}" = "$trueExe" ] || trueExe=${trueExe#-}
+  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] && which -p "$trueExe" || which "$trueExe")
+  while nextTarget=$(readlink "$trueExe"); do trueExe=$nextTarget; done
+  printf '%s\n' "$(basename "$trueExe")"
+} ; getTrueShellExeName"""], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
+    sh_name, sh_name_err = process.communicate()
+    sh_name = sh_name.decode('utf-8').strip()
+
+    assert "completed success" in stderr, (error_code, stdout, stderr)
+    assert error_code == 0, (error_code, stdout, stderr)
+    if onWindows():
+        target = 5
+    elif sh_name == "dash":
+        target = 4
+    else:  # bash adds "SHLVL" and "_" environment variables
+        target = 6
+    result = json.loads(stdout)['env_count']
+    details = ''
+    if result != target:
+        _, details, _ = get_main_output(["--quiet", get_data("tests/env2.cwl")])
+        print(sh_name)
+        print(sh_name_err)
+        print(details)
+    assert result == target, (error_code, sh_name, sh_name_err, details, stdout, stderr)
+
+@windows_needs_docker
+def test_v1_0_arg_empty_prefix_separate_false():
+    test_file = "tests/arg-empty-prefix-separate-false.cwl"
+    error_code, stdout, stderr = get_main_output(
+        ['--debug', get_data(test_file), "--echo"])
+    assert "completed success" in stderr
+    assert error_code == 0

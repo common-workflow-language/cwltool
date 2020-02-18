@@ -18,8 +18,8 @@ from typing_extensions import Text  # pylint: disable=unused-import
 
 from .builder import Builder, HasReqsHints
 try:
-    from galaxy.tools.deps.requirements import ToolRequirement, ToolRequirements
-    from galaxy.tools import deps
+    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
+    from galaxy.tool_util import deps
 except ImportError:
     ToolRequirement = None  # type: ignore
     ToolRequirements = None  # type: ignore
@@ -38,6 +38,7 @@ class DependenciesConfiguration(object):
 
     def __init__(self, args):
         # type: (argparse.Namespace) -> None
+        """Initialize."""
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
         tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
         conda_dependencies = getattr(args, "beta_conda_dependencies", None)
@@ -48,7 +49,7 @@ class DependenciesConfiguration(object):
             self.tool_dependency_dir = tool_dependency_dir
             self.dependency_resolvers_config_file = os.path.abspath(conf_file)
         elif conda_dependencies is not None:
-            if not tool_dependency_dir is not None:
+            if tool_dependency_dir is None:
                 tool_dependency_dir = os.path.abspath("./cwltool_deps")
             self.tool_dependency_dir = tool_dependency_dir
             self.use_tool_dependencies = True
@@ -56,17 +57,22 @@ class DependenciesConfiguration(object):
         else:
             self.use_tool_dependencies = False
 
-    @property
-    def config_dict(self):
-        return {
-            'conda_auto_install': True,
-            'conda_auto_init': True,
-        }
-
     def build_job_script(self, builder, command):
         # type: (Builder, List[str]) -> Text
         ensure_galaxy_lib_available()
-        tool_dependency_manager = deps.build_dependency_manager(self)  # type: deps.DependencyManager
+        resolution_config_dict = {
+            'use': self.use_tool_dependencies,
+            'default_base_path': self.tool_dependency_dir,
+        }
+        app_config = {
+            'conda_auto_install': True,
+            'conda_auto_init': True,
+        }
+        tool_dependency_manager = deps.build_dependency_manager(
+            app_config_dict=app_config,
+            resolution_config_dict=resolution_config_dict,
+            conf_file=self.dependency_resolvers_config_file,
+        )  # type: deps.DependencyManager
         dependencies = get_dependencies(builder)
         handle_dependencies = ""  # str
         if dependencies:
@@ -106,16 +112,17 @@ def get_container_from_software_requirements(use_biocontainers, builder):
     # type: (bool, HasReqsHints) -> Optional[Text]
     if use_biocontainers:
         ensure_galaxy_lib_available()
-        from galaxy.tools.deps.containers import ContainerRegistry, AppInfo, ToolInfo, DOCKER_CONTAINER_TYPE
+        from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
+        from galaxy.tool_util.deps.containers import ContainerRegistry, DOCKER_CONTAINER_TYPE
         app_info = AppInfo(
             involucro_auto_init=True,
-            enable_beta_mulled_containers=True,
+            enable_mulled_containers=True,
             container_image_cache_path=".",
         )  # type: AppInfo
         container_registry = ContainerRegistry(app_info)  # type: ContainerRegistry
         requirements = get_dependencies(builder)
         tool_info = ToolInfo(requirements=requirements)  # type: ToolInfo
-        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)  # type: ignore
+        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)
         if container_description:
             return container_description.identifier
 

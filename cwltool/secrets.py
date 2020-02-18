@@ -9,7 +9,9 @@ from typing_extensions import Text  # pylint: disable=unused-import
 
 class SecretStore(object):
     """Minimal implementation of a secret storage."""
+
     def __init__(self):  # type: () -> None
+        """Initialize the secret store."""
         self.secrets = {}  # type: Dict[Text, Text]
 
     def add(self, value):  # type: (Text) -> Text
