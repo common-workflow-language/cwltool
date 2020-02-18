@@ -1,23 +1,28 @@
 """Reformat a CWL document and all its references to be a single stream."""
-from __future__ import absolute_import
 
 import copy
-from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
-                    Optional, Set, Union, cast)
+import urllib
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Set,
+    Union,
+    cast,
+)
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Loader  # pylint: disable=unused-import
-from schema_salad.ref_resolver import SubLoader
+from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.sourceline import cmap
-from six import iteritems, string_types
-from six.moves import urllib
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .process import shortname, uniquename
 
 
-def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
+def flatten_deps(d, files):  # type: (Any, Set[str]) -> None
     if isinstance(d, MutableSequence):
         for s in d:
             flatten_deps(s, files)
@@ -29,18 +34,22 @@ def flatten_deps(d, files):  # type: (Any, Set[Text]) -> None
         if "listing" in d:
             flatten_deps(d["listing"], files)
 
-LoadRefType = Callable[[Optional[Text], Text], Union[Dict[Text, Any], List[Dict[Text, Any]], Text, None]]
+
+LoadRefType = Callable[
+    [Optional[str], str], Union[Dict[str, Any], List[Dict[str, Any]], str, None]
+]
 
 
-def find_run(d,        # type: Any
-             loadref,  # type: LoadRefType
-             runs      # type: Set[Text]
-            ):  # type: (...) -> None
+def find_run(
+    d,  # type: Any
+    loadref,  # type: LoadRefType
+    runs,  # type: Set[str]
+):  # type: (...) -> None
     if isinstance(d, MutableSequence):
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, MutableMapping):
-        if "run" in d and isinstance(d["run"], string_types):
+        if "run" in d and isinstance(d["run"], str):
             if d["run"] not in runs:
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
@@ -48,37 +57,37 @@ def find_run(d,        # type: Any
             find_run(s, loadref, runs)
 
 
-def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
+def find_ids(d, ids):  # type: (Any, Set[str]) -> None
     if isinstance(d, MutableSequence):
         for s in d:
             find_ids(s, ids)
     elif isinstance(d, MutableMapping):
         for i in ("id", "name"):
-            if i in d and isinstance(d[i], string_types):
+            if i in d and isinstance(d[i], str):
                 ids.add(d[i])
         for s in d.values():
             find_ids(s, ids)
 
 
 def replace_refs(d, rewrite, stem, newstem):
-    # type: (Any, Dict[Text, Text], Text, Text) -> None
+    # type: (Any, Dict[str, str], str, str) -> None
     if isinstance(d, MutableSequence):
         for s, v in enumerate(d):
-            if isinstance(v, string_types):
+            if isinstance(v, str):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
-                    d[s] = newstem + v[len(stem):]
+                    d[s] = newstem + v[len(stem) :]
                     rewrite[v] = d[s]
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, MutableMapping):
         for s, v in d.items():
-            if isinstance(v, string_types):
+            if isinstance(v, str):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
-                    id_ = v[len(stem):]
+                    id_ = v[len(stem) :]
                     # prevent appending newstems if tool is already packed
                     if id_.startswith(newstem.strip("#")):
                         d[s] = "#" + id_
@@ -87,52 +96,55 @@ def replace_refs(d, rewrite, stem, newstem):
                     rewrite[v] = d[s]
             replace_refs(v, rewrite, stem, newstem)
 
+
 def import_embed(d, seen):
-    # type: (Any, Set[Text]) -> None
+    # type: (Any, Set[str]) -> None
     if isinstance(d, MutableSequence):
         for v in d:
             import_embed(v, seen)
     elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
-                if d[n] in seen:
-                    this = d[n]
-                    d.clear()
-                    d["$import"] = this
-                else:
-                    this = d[n]
-                    seen.add(this)
-                    break
+                if isinstance(d[n], str):
+                    if d[n] in seen:
+                        this = d[n]
+                        d.clear()
+                        d["$import"] = this
+                    else:
+                        this = d[n]
+                        seen.add(this)
+                        break
 
         for k in sorted(d.keys()):
             import_embed(d[k], seen)
 
 
-def pack(document_loader,  # type: Loader
-         processobj,       # type: Union[Dict[Text, Any], List[Dict[Text, Any]]]
-         uri,              # type: Text
-         metadata,         # type: Dict[Text, Text]
-         rewrite_out=None  # type: Optional[Dict[Text, Text]]
-        ):  # type: (...) -> Dict[Text, Any]
+def pack(
+    document_loader: Loader,
+    processobj,  # type: Union[Dict[str, Any], List[Dict[str, Any]]]
+    uri,  # type: str
+    metadata,  # type: Dict[str, str]
+    rewrite_out=None,  # type: Optional[Dict[str, str]]
+):  # type: (...) -> Dict[str, Any]
 
     document_loader = SubLoader(document_loader)
     document_loader.idx = {}
     if isinstance(processobj, MutableMapping):
-        document_loader.idx[processobj["id"]] = CommentedMap(iteritems(processobj))
+        document_loader.idx[processobj["id"]] = CommentedMap(processobj.items())
     elif isinstance(processobj, MutableSequence):
         _, frag = urllib.parse.urldefrag(uri)
         for po in processobj:
             if not frag:
                 if po["id"].endswith("#main"):
                     uri = po["id"]
-            document_loader.idx[po["id"]] = CommentedMap(iteritems(po))
-        document_loader.idx[metadata["id"]] = CommentedMap(iteritems(metadata))
+            document_loader.idx[po["id"]] = CommentedMap(po.items())
+        document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
     def loadref(base, uri):
-        # type: (Optional[Text], Text) -> Union[Dict[Text, Any], List[Dict[Text, Any]], Text, None]
+        # type: (Optional[str], str) -> Union[Dict[str, Any], List[Dict[str, Any]], str, None]
         return document_loader.resolve_ref(uri, base_url=base)[0]
 
-    ids = set()  # type: Set[Text]
+    ids = set()  # type: Set[str]
     find_ids(processobj, ids)
 
     runs = {uri}
@@ -141,23 +153,23 @@ def pack(document_loader,  # type: Loader
     for f in runs:
         find_ids(document_loader.resolve_ref(f)[0], ids)
 
-    names = set()  # type: Set[Text]
+    names = set()  # type: Set[str]
     if rewrite_out is None:
-        rewrite = {}  # type: Dict[Text, Text]
+        rewrite = {}  # type: Dict[str, str]
     else:
         rewrite = rewrite_out
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
     def rewrite_id(r, mainuri):
-        # type: (Text, Text) -> None
+        # type: (str, str) -> None
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
-            if r[len(mainuri):].startswith("#main/"):
-                rewrite[r] = "#" + uniquename(r[len(mainuri)+1:], names)
+            if r[len(mainuri) :].startswith("#main/"):
+                rewrite[r] = "#" + uniquename(r[len(mainuri) + 1 :], names)
             else:
-                rewrite[r] = "#" + uniquename("main/"+r[len(mainuri)+1:], names)
+                rewrite[r] = "#" + uniquename("main/" + r[len(mainuri) + 1 :], names)
         else:
             path, frag = urllib.parse.urldefrag(r)
             if path == mainpath:
@@ -171,12 +183,13 @@ def pack(document_loader,  # type: Loader
     for r in sortedids:
         rewrite_id(r, uri)
 
-    packed = CommentedMap((("$graph", CommentedSeq()),
-                           ("cwlVersion", metadata["cwlVersion"])))
-    namespaces = metadata.get('$namespaces', None)
+    packed = CommentedMap(
+        (("$graph", CommentedSeq()), ("cwlVersion", metadata["cwlVersion"]))
+    )
+    namespaces = metadata.get("$namespaces", None)
 
-    schemas = set()  # type: Set[Text]
-    if '$schemas' in metadata:
+    schemas = set()  # type: Set[str]
+    if "$schemas" in metadata:
         for each_schema in metadata["$schemas"]:
             schemas.add(each_schema)
     for r in sorted(runs):
@@ -186,13 +199,13 @@ def pack(document_loader,  # type: Loader
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
-        metadata = cast(Dict[Text, Any], metadata)
+        metadata = cast(Dict[str, Any], metadata)
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
         if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
             continue
-        dc = cast(Dict[Text, Any], copy.deepcopy(dcr))
+        dc = cast(Dict[str, Any], copy.deepcopy(dcr))
         v = rewrite[r]
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):

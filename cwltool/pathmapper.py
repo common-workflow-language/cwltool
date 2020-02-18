@@ -1,37 +1,47 @@
-from __future__ import absolute_import
-
 import collections
 import logging
 import os
 import stat
+import urllib
 import uuid
-from functools import partial  # pylint: disable=unused-import
+from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import (Any, Callable, Dict, List, MutableMapping, MutableSequence,
-                    Optional, Set, Tuple, Union)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Set,
+    Text,
+    Tuple,
+    Union,
+)
 
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
+
 from schema_salad import validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
-from six.moves import urllib
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 
 from .loghandler import _logger
-from .stdfsaccess import StdFsAccess, abspath  # pylint: disable=unused-import
-from .utils import Directory  # pylint: disable=unused-import
-from .utils import convert_pathsep_to_unix, visit_class
-
+from .stdfsaccess import StdFsAccess, abspath
+from .utils import Directory, convert_pathsep_to_unix, visit_class
 
 CONTENT_LIMIT = 64 * 1024
 
-MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
+MapperEnt = collections.namedtuple(
+    "MapperEnt", ["resolved", "target", "type", "staged"]
+)
 
 
-def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
+def adjustFiles(
+    rec: Any, op  # type: Union[Callable[..., Any], partial[Any]]
+) -> None:
     """Apply a mapping function to each File path in the object `rec`."""
     if isinstance(rec, MutableMapping):
         if rec.get("class") == "File":
@@ -43,25 +53,35 @@ def adjustFiles(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]
             adjustFiles(d, op)
 
 
-def adjustFileObjs(rec, op):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
+def adjustFileObjs(
+    rec, op
+):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each File object in the object `rec`."""
     visit_class(rec, ("File",), op)
+
 
 def adjustDirObjs(rec, op):
     # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
     """Apply an update function to each Directory object in the object `rec`."""
     visit_class(rec, ("Directory",), op)
 
-def normalizeFilesDirs(job):
-    # type: (Optional[Union[List[Dict[Text, Any]], MutableMapping[Text, Any], Directory]]) -> None
-    def addLocation(d):  # type: (Dict[Text, Any]) -> None
+
+def normalizeFilesDirs(
+    job: Optional[Union[List[Dict[str, Any]], MutableMapping[str, Any], Directory]]
+) -> None:
+    def addLocation(d):  # type: (Dict[str, Any]) -> None
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
-                raise validate.ValidationException("Anonymous file object must have 'contents' and 'basename' fields.")
-            if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
                 raise validate.ValidationException(
-                    "Anonymous directory object must have 'listing' and 'basename' fields.")
-            d["location"] = "_:" + Text(uuid.uuid4())
+                    "Anonymous file object must have 'contents' and 'basename' fields."
+                )
+            if d["class"] == "Directory" and (
+                "listing" not in d or "basename" not in d
+            ):
+                raise validate.ValidationException(
+                    "Anonymous directory object must have 'listing' and 'basename' fields."
+                )
+            d["location"] = "_:" + str(uuid.uuid4())
             if "basename" not in d:
                 d["basename"] = d["location"][2:]
 
@@ -71,35 +91,48 @@ def normalizeFilesDirs(job):
         if path.endswith("/"):
             if d["class"] != "Directory":
                 raise validate.ValidationException(
-                    "location '%s' ends with '/' but is not a Directory" % d["location"])
+                    "location '%s' ends with '/' but is not a Directory" % d["location"]
+                )
             path = path.rstrip("/")
-            d["location"] = urllib.parse.urlunparse((parse.scheme, parse.netloc, path, parse.params, parse.query, parse.fragment))
+            d["location"] = urllib.parse.urlunparse(
+                (
+                    parse.scheme,
+                    parse.netloc,
+                    path,
+                    parse.params,
+                    parse.query,
+                    parse.fragment,
+                )
+            )
 
         if not d.get("basename"):
             if path.startswith("_:"):
-                d["basename"] = Text(path[2:])
+                d["basename"] = str(path[2:])
             else:
-                d["basename"] = Text(os.path.basename(urllib.request.url2pathname(path)))
+                d["basename"] = str(os.path.basename(urllib.request.url2pathname(path)))
 
         if d["class"] == "File":
             nr, ne = os.path.splitext(d["basename"])
             if d.get("nameroot") != nr:
-                d["nameroot"] = Text(nr)
+                d["nameroot"] = str(nr)
             if d.get("nameext") != ne:
-                d["nameext"] = Text(ne)
+                d["nameext"] = str(ne)
 
             contents = d.get("contents")
             if contents and len(contents) > CONTENT_LIMIT:
                 if len(contents) > CONTENT_LIMIT:
-                    raise validate.ValidationException("File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)" % CONTENT_LIMIT)
+                    raise validate.ValidationException(
+                        "File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)"
+                        % CONTENT_LIMIT
+                    )
 
     visit_class(job, ("File", "Directory"), addLocation)
 
 
-def dedup(listing):  # type: (List[Any]) -> List[Any]
+def dedup(listing: List[Any]) -> List[Any]:
     marksub = set()
 
-    def mark(d):  # type: (Dict[Text, Text]) -> None
+    def mark(d: Dict[str, str]) -> None:
         marksub.add(d["location"])
 
     for l in listing:
@@ -109,7 +142,7 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
                 adjustDirObjs(e, mark)
 
     dd = []
-    markdup = set()  # type: Set[Text]
+    markdup = set()  # type: Set[str]
     for r in listing:
         if r["location"] not in marksub and r["location"] not in markdup:
             dd.append(r)
@@ -117,10 +150,11 @@ def dedup(listing):  # type: (List[Any]) -> List[Any]
 
     return dd
 
+
 def get_listing(fs_access, rec, recursive=True):
-    # type: (StdFsAccess, MutableMapping[Text, Any], bool) -> None
+    # type: (StdFsAccess, MutableMapping[str, Any], bool) -> None
     if rec.get("class") != "Directory":
-        finddirs = []  # type: List[MutableMapping[Text, Text]]
+        finddirs = []  # type: List[MutableMapping[str, str]]
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
             get_listing(fs_access, f, recursive=recursive)
@@ -133,9 +167,7 @@ def get_listing(fs_access, rec, recursive=True):
         parse = urllib.parse.urlparse(ld)
         bn = os.path.basename(urllib.request.url2pathname(parse.path))
         if fs_access.isdir(ld):
-            ent = {u"class": u"Directory",
-                   u"location": ld,
-                   u"basename": bn}
+            ent = {"class": "Directory", "location": ld, "basename": bn}
             if recursive:
                 get_listing(fs_access, ent, recursive)
             listing.append(ent)
@@ -143,7 +175,8 @@ def get_listing(fs_access, rec, recursive=True):
             listing.append({"class": "File", "location": ld, "basename": bn})
     rec["listing"] = listing
 
-def trim_listing(obj):  # type: (Dict[Text, Any]) -> None
+
+def trim_listing(obj):  # type: (Dict[str, Any]) -> None
     """
     Remove 'listing' field from Directory objects that are file references.
 
@@ -154,31 +187,35 @@ def trim_listing(obj):  # type: (Dict[Text, Any]) -> None
     if obj.get("location", "").startswith("file://") and "listing" in obj:
         del obj["listing"]
 
+
 # Download http Files
+
+
 def downloadHttpFile(httpurl):
-    # type: (Text) -> Text
+    # type: (str) -> str
     cache_session = None
     if "XDG_CACHE_HOME" in os.environ:
         directory = os.environ["XDG_CACHE_HOME"]
     elif "HOME" in os.environ:
         directory = os.environ["HOME"]
     else:
-        directory = os.path.expanduser('~')
+        directory = os.path.expanduser("~")
 
     cache_session = CacheControl(
         requests.Session(),
-        cache=FileCache(
-            os.path.join(directory, ".cache", "cwltool")))
+        cache=FileCache(os.path.join(directory, ".cache", "cwltool")),
+    )
 
     r = cache_session.get(httpurl, stream=True)
-    with NamedTemporaryFile(mode='wb', delete=False) as f:
+    with NamedTemporaryFile(mode="wb", delete=False) as f:
         for chunk in r.iter_content(chunk_size=16384):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
     r.close()
     return str(f.name)
 
-def ensure_writable(path):  # type: (Text) -> None
+
+def ensure_writable(path):  # type: (str) -> None
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path):
             for name in files:
@@ -196,25 +233,25 @@ def ensure_writable(path):  # type: (Text) -> None
         mode = stat.S_IMODE(st.st_mode)
         os.chmod(path, mode | stat.S_IWUSR)
 
-def ensure_non_writable(path):  # type: (Text) -> None
+
+def ensure_non_writable(path):  # type: (str) -> None
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path):
             for name in files:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j,
-                         mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+                os.chmod(j, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
             for name in dirs:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j,
-                         mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+                os.chmod(j, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
     else:
         st = os.stat(path)
         mode = stat.S_IMODE(st.st_mode)
         os.chmod(path, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+
 
 class PathMapper(object):
     """
@@ -254,22 +291,23 @@ class PathMapper(object):
     """
 
     def __init__(self, referenced_files, basedir, stagedir, separateDirs=True):
-        # type: (List[Any], Text, Text, bool) -> None
+        # type: (List[Any], str, str, bool) -> None
         """Initialize the PathMapper."""
-        self._pathmap = {}  # type: Dict[Text, MapperEnt]
+        self._pathmap = {}  # type: Dict[str, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(self, listing, stagedir, basedir, copy=False, staged=False):
-        # type: (List[Dict[Text, Any]], Text, Text, bool, bool) -> None
+        # type: (List[Dict[str, Any]], str, str, bool, bool) -> None
         for ld in listing:
-            self.visit(ld, stagedir, basedir, copy=ld.get("writable", copy), staged=staged)
+            self.visit(
+                ld, stagedir, basedir, copy=ld.get("writable", copy), staged=staged
+            )
 
     def visit(self, obj, stagedir, basedir, copy=False, staged=False):
-        # type: (Dict[Text, Any], Text, Text, bool, bool) -> None
-        tgt = convert_pathsep_to_unix(
-            os.path.join(stagedir, obj["basename"]))
+        # type: (Dict[str, Any], str, str, bool, bool) -> None
+        tgt = convert_pathsep_to_unix(os.path.join(stagedir, obj["basename"]))
         if obj["location"] in self._pathmap:
             return
         if obj["class"] == "Directory":
@@ -277,38 +315,59 @@ class PathMapper(object):
                 resolved = uri_file_path(obj["location"])
             else:
                 resolved = obj["location"]
-            self._pathmap[obj["location"]] = MapperEnt(resolved, tgt, "WritableDirectory" if copy else "Directory", staged)
+            self._pathmap[obj["location"]] = MapperEnt(
+                resolved, tgt, "WritableDirectory" if copy else "Directory", staged
+            )
             if obj["location"].startswith("file://"):
                 staged = False
-            self.visitlisting(obj.get("listing", []), tgt, basedir, copy=copy, staged=staged)
+            self.visitlisting(
+                obj.get("listing", []), tgt, basedir, copy=copy, staged=staged
+            )
         elif obj["class"] == "File":
             path = obj["location"]
             ab = abspath(path, basedir)
             if "contents" in obj and obj["location"].startswith("_:"):
                 self._pathmap[obj["location"]] = MapperEnt(
-                    obj["contents"], tgt,
-                    "CreateWritableFile" if copy else "CreateFile", staged)
+                    obj["contents"],
+                    tgt,
+                    "CreateWritableFile" if copy else "CreateFile",
+                    staged,
+                )
             else:
-                with SourceLine(obj, "location", validate.ValidationException, _logger.isEnabledFor(logging.DEBUG)):
+                with SourceLine(
+                    obj,
+                    "location",
+                    validate.ValidationException,
+                    _logger.isEnabledFor(logging.DEBUG),
+                ):
                     deref = ab
-                    if urllib.parse.urlsplit(deref).scheme in ['http', 'https']:
+                    if urllib.parse.urlsplit(deref).scheme in ["http", "https"]:
                         deref = downloadHttpFile(path)
                     else:
                         # Dereference symbolic links
                         st = os.lstat(deref)
                         while stat.S_ISLNK(st.st_mode):
                             rl = os.readlink(deref)
-                            deref = rl if os.path.isabs(rl) else os.path.join(
-                                os.path.dirname(deref), rl)
+                            deref = (
+                                rl
+                                if os.path.isabs(rl)
+                                else os.path.join(os.path.dirname(deref), rl)
+                            )
                             st = os.lstat(deref)
 
                     self._pathmap[path] = MapperEnt(
-                        deref, tgt, "WritableFile" if copy else "File", staged)
-            self.visitlisting(obj.get("secondaryFiles", []), stagedir, basedir,
-                              copy=copy, staged=staged)
+                        deref, tgt, "WritableFile" if copy else "File", staged
+                    )
+            self.visitlisting(
+                obj.get("secondaryFiles", []),
+                stagedir,
+                basedir,
+                copy=copy,
+                staged=staged,
+            )
 
     def setup(self, referenced_files, basedir):
-        # type: (List[Any], Text) -> None
+        # type: (List[Any], str) -> None
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
@@ -318,33 +377,33 @@ class PathMapper(object):
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
             self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
 
-    def mapper(self, src):  # type: (Text) -> MapperEnt
-        if u"#" in src:
-            i = src.index(u"#")
+    def mapper(self, src):  # type: (str) -> MapperEnt
+        if "#" in src:
+            i = src.index("#")
             p = self._pathmap[src[:i]]
             return MapperEnt(p.resolved, p.target + src[i:], p.type, p.staged)
         return self._pathmap[src]
 
-    def files(self):  # type: () -> List[Text]
+    def files(self):  # type: () -> List[str]
         return list(self._pathmap.keys())
 
-    def items(self):  # type: () -> List[Tuple[Text, MapperEnt]]
+    def items(self):  # type: () -> List[Tuple[str, MapperEnt]]
         return list(self._pathmap.items())
 
-    def reversemap(self,
-                   target  # type: Text
-                  ):  # type: (...) -> Optional[Tuple[Text, Text]]
+    def reversemap(
+        self, target  # type: str
+    ):  # type: (...) -> Optional[Tuple[str, str]]
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
         return None
 
     def update(self, key, resolved, target, ctype, stage):
-        # type: (Text, Text, Text, Text, bool) -> MapperEnt
+        # type: (str, str, str, str, bool) -> MapperEnt
         m = MapperEnt(resolved, target, ctype, stage)
         self._pathmap[key] = m
         return m
 
-    def __contains__(self, key):  # type: (Text) -> bool
+    def __contains__(self, key):  # type: (str) -> bool
         """Test for the presence of the given relative path in this mapper."""
         return key in self._pathmap

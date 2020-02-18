@@ -6,17 +6,14 @@ library that can be used to map SoftwareRequirements in all sorts of ways -
 Homebrew, Conda, custom scripts, environment modules. We'd be happy to find
 ways to adapt new packages managers and such as well.
 """
-from __future__ import absolute_import
 
 import argparse  # pylint: disable=unused-import
 import os
 import string
 from typing import Dict, List, MutableSequence, Optional
 
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
 from .builder import Builder, HasReqsHints
+
 try:
     from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
     from galaxy.tool_util import deps
@@ -28,14 +25,15 @@ except ImportError:
 
 SOFTWARE_REQUIREMENTS_ENABLED = deps is not None
 
-COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template("""#!/bin/bash
+COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template(
+    """#!/bin/bash
 $handle_dependencies
-python "run_job.py" "job.json"
-""")
+python3 "run_job.py" "job.json"
+"""
+)
 
 
 class DependenciesConfiguration(object):
-
     def __init__(self, args):
         # type: (argparse.Namespace) -> None
         """Initialize."""
@@ -58,15 +56,15 @@ class DependenciesConfiguration(object):
             self.use_tool_dependencies = False
 
     def build_job_script(self, builder, command):
-        # type: (Builder, List[str]) -> Text
+        # type: (Builder, List[str]) -> str
         ensure_galaxy_lib_available()
         resolution_config_dict = {
-            'use': self.use_tool_dependencies,
-            'default_base_path': self.tool_dependency_dir,
+            "use": self.use_tool_dependencies,
+            "default_base_path": self.tool_dependency_dir,
         }
         app_config = {
-            'conda_auto_install': True,
-            'conda_auto_init': True,
+            "conda_auto_install": True,
+            "conda_auto_init": True,
         }
         tool_dependency_manager = deps.build_dependency_manager(
             app_config_dict=app_config,
@@ -78,9 +76,13 @@ class DependenciesConfiguration(object):
         if dependencies:
             handle_dependencies = "\n".join(
                 tool_dependency_manager.dependency_shell_commands(
-                    dependencies, job_directory=builder.tmpdir))
+                    dependencies, job_directory=builder.tmpdir
+                )
+            )
 
-        template_kwds = dict(handle_dependencies=handle_dependencies)  # type: Dict[str, str]
+        template_kwds = dict(
+            handle_dependencies=handle_dependencies
+        )  # type: Dict[str, str]
         job_script = COMMAND_WITH_DEPENDENCIES_TEMPLATE.substitute(template_kwds)
         return job_script
 
@@ -98,22 +100,30 @@ def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
                 else:
                     version = None
             specs = [{"uri": s} for s in package.get("specs", [])]
-            dependencies.append(ToolRequirement.from_dict(dict(
-                name=package["package"].split("#")[-1],
-                version=version,
-                type="package",
-                specs=specs,
-            )))
+            dependencies.append(
+                ToolRequirement.from_dict(
+                    dict(
+                        name=package["package"].split("#")[-1],
+                        version=version,
+                        type="package",
+                        specs=specs,
+                    )
+                )
+            )
 
     return ToolRequirements.from_list(dependencies)
 
 
 def get_container_from_software_requirements(use_biocontainers, builder):
-    # type: (bool, HasReqsHints) -> Optional[Text]
+    # type: (bool, HasReqsHints) -> Optional[str]
     if use_biocontainers:
         ensure_galaxy_lib_available()
         from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
-        from galaxy.tool_util.deps.containers import ContainerRegistry, DOCKER_CONTAINER_TYPE
+        from galaxy.tool_util.deps.containers import (
+            ContainerRegistry,
+            DOCKER_CONTAINER_TYPE,
+        )
+
         app_info = AppInfo(
             involucro_auto_init=True,
             enable_mulled_containers=True,
@@ -122,7 +132,9 @@ def get_container_from_software_requirements(use_biocontainers, builder):
         container_registry = ContainerRegistry(app_info)  # type: ContainerRegistry
         requirements = get_dependencies(builder)
         tool_info = ToolInfo(requirements=requirements)  # type: ToolInfo
-        container_description = container_registry.find_best_container_description([DOCKER_CONTAINER_TYPE], tool_info)
+        container_description = container_registry.find_best_container_description(
+            [DOCKER_CONTAINER_TYPE], tool_info
+        )
         if container_description:
             return container_description.identifier
 
@@ -132,4 +144,6 @@ def get_container_from_software_requirements(use_biocontainers, builder):
 def ensure_galaxy_lib_available():
     # type: () -> None
     if not SOFTWARE_REQUIREMENTS_ENABLED:
-        raise Exception("Optional Python library galaxy-lib not available, it is required for this configuration.")
+        raise Exception(
+            "Optional Python library galaxy-lib not available, it is required for this configuration."
+        )

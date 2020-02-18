@@ -1,10 +1,4 @@
 #!/bin/bash
-if [[ -z "${JENKINS_URL}" ]]
-then
-	echo "Looks like we're not being run by Jenkins, this is dangerous"
-	echo "due to use of git clean -fdx command."
-	exit 1
-fi
 venv() {
         if ! test -d "$1" ; then
                 virtualenv -p python"${PYTHON_VERSION}" "$1"
@@ -13,23 +7,19 @@ venv() {
         source "$1"/bin/activate
 }
 
-# clean both the repos before the loop
-git clean --force -d -x || /bin/true
 wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
 tar xzf master.tar.gz && rm master.tar.gz
 docker pull node:slim
 wget https://github.com/common-workflow-language/cwl-v1.1/archive/master.tar.gz
 tar xzf master.tar.gz && rm master.tar.gz
 
-# Test for Python 2.7 and Python 3
-for PYTHON_VERSION in 2 3
+for PYTHON_VERSION in 3
 do
 for CONTAINER in docker
 # for CONTAINER in docker singularity
 # singularity having issues on ci.commonwl.org; tests pass with https://gist.github.com/mr-c/0ec90d717617d074017c0cb38b72d1a4
 do
 	venv cwltool-venv${PYTHON_VERSION}
-	export PIP_DOWNLOAD_CACHE=/var/lib/jenkins/pypi-cache/
 	# use pip2.7 and pip3 in separate loop runs
 	pip${PYTHON_VERSION} install -U setuptools wheel pip
 	pip${PYTHON_VERSION} uninstall -y cwltool

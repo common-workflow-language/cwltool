@@ -1,7 +1,11 @@
-import pytest
 import os
-from .util import get_data, windows_needs_docker
+
+import pytest
+
 from cwltool.main import main
+
+from .util import get_data, windows_needs_docker
+
 
 @windows_needs_docker
 def test_missing_enable_ext():
@@ -11,16 +15,23 @@ def test_missing_enable_ext():
 
         if "CWLTOOL_OPTIONS" in os.environ:
             del os.environ["CWLTOOL_OPTIONS"]
-        assert main([get_data('tests/wf/generator/zing.cwl'),
-                     "--zing", "zipper"]) == 1
+        assert main([get_data("tests/wf/generator/zing.cwl"), "--zing", "zipper"]) == 1
 
-        assert main(["--enable-ext", "--enable-dev",
-                     get_data('tests/wf/generator/zing.cwl'),
-                     "--zing", "zipper"]) == 0
+        assert (
+            main(
+                [
+                    "--enable-ext",
+                    "--enable-dev",
+                    get_data("tests/wf/generator/zing.cwl"),
+                    "--zing",
+                    "zipper",
+                ]
+            )
+            == 0
+        )
 
         os.environ["CWLTOOL_OPTIONS"] = "--enable-ext --enable-dev"
-        assert main([get_data('tests/wf/generator/zing.cwl'),
-                     "--zing", "zipper"]) == 0
+        assert main([get_data("tests/wf/generator/zing.cwl"), "--zing", "zipper"]) == 0
     finally:
         if opt is not None:
             os.environ["CWLTOOL_OPTIONS"] = opt

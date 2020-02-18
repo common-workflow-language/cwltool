@@ -15,8 +15,7 @@
 #
 # Contact: common-workflow-language@googlegroups.com
 
-# make pycodestyle to check for basic Python code compliance
-# make autopep8 to fix most pep8 errors
+# make format to fix most python formatting errors
 # make pylint to check Python code for enhanced compliance including naming
 #  and documentation
 # make coverage-report to check coverage of the python scripts by the tests
@@ -26,11 +25,11 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 \
+DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
 	pytest-xdist==1.27.0 isort wheel -rtest-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=1.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
+VERSION=2.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
@@ -44,8 +43,11 @@ help: Makefile
 	@sed -n 's/^##//p' $<
 
 ## install-dep : install most of the development dependencies via pip
-install-dep:
+install-dep: install-dependencies
+
+install-dependencies:
 	pip install --upgrade $(DEVPKGS)
+	pip install -r requirements.txt
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -78,19 +80,6 @@ clean: FORCE
 sort_imports:
 	isort ${MODULE}/*.py tests/*.py setup.py
 
-pep8: pycodestyle
-## pycodestyle        : check Python code style
-pycodestyle: $(PYSOURCES)
-	pycodestyle --exclude=_version.py  --show-source --show-pep8 $^ || true
-
-pep8_report.txt: pycodestyle_report.txt
-pycodestyle_report.txt: $(PYSOURCES)
-	pycodestyle --exclude=_version.py $^ > $@ || true
-
-diff_pep8_report: diff_pycodestyle_report
-diff_pycodestyle_report: pycodestyle_report.txt
-	diff-quality --violations=pycodestyle $^
-
 pep257: pydocstyle
 ## pydocstyle      : check Python code style
 pydocstyle: $(PYSOURCES)
@@ -102,14 +91,9 @@ pydocstyle_report.txt: $(PYSOURCES)
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --violations=pycodestyle --fail-under=100 $^
 
-## autopep8    : fix most Python code indentation and formatting
-autopep8: $(PYSOURCES)
-	autopep8 --recursive --in-place --ignore E309 $^
-
-# A command to automatically run astyle and autopep8 on appropriate files
-## format      : check/fix all code indentation and formatting (runs autopep8)
-format: autopep8
-	# Do nothing
+## format      : check/fix all code indentation and formatting (runs black)
+format:
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
 
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
@@ -143,8 +127,8 @@ coverage-report: .coverage
 diff-cover: coverage.xml
 	diff-cover $^
 
-diff-cover.html:  coverage.xml
-	diff-cover $^ --html-report diff-cover.html
+diff-cover.html: coverage.xml
+	diff-cover $^ --html-report $@
 
 ## test        : run the ${MODULE} test suite
 test: $(pysources)
@@ -165,18 +149,14 @@ list-author-emails:
 	@echo 'name, E-Mail Address'
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
-mypy2: ${PYSOURCES}
-	rm -Rf typeshed/2and3/ruamel/yaml
-	ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-		typeshed/2and3/ruamel/yaml
-	MYPYPATH=$$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
-		 --warn-redundant-casts \
-		 cwltool
-
-mypy3: ${PYSOURCES}
-	rm -Rf typeshed/2and3/ruamel/yaml
-	ln -s $(shell python3 -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-		typeshed/2and3/ruamel/yaml
+mypy3: mypy
+mypy: ${PYSOURCES}
+	if ! test -f $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+	then \
+		rm -Rf typeshed/2and3/ruamel/yaml ; \
+		ln -s $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+			typeshed/2and3/ruamel/ ; \
+	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool

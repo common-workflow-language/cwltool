@@ -2,35 +2,31 @@
 import uuid
 from typing import Any, Dict, List, MutableMapping, MutableSequence
 
-from six import string_types
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
 
 class SecretStore(object):
     """Minimal implementation of a secret storage."""
 
     def __init__(self):  # type: () -> None
         """Initialize the secret store."""
-        self.secrets = {}  # type: Dict[Text, Text]
+        self.secrets = {}  # type: Dict[str, str]
 
-    def add(self, value):  # type: (Text) -> Text
+    def add(self, value):  # type: (str) -> str
         """
         Add the given value to the store.
 
         Returns a placeholder value to use until the real value is needed.
         """
-        if not isinstance(value, string_types):
+        if not isinstance(value, str):
             raise Exception("Secret store only accepts strings")
 
         if value not in self.secrets:
-            placeholder = "(secret-%s)" % Text(uuid.uuid4())
+            placeholder = "(secret-%s)" % str(uuid.uuid4())
             self.secrets[placeholder] = value
             return placeholder
         return value
 
     def store(self, secrets, job):
-        # type: (List[Text], MutableMapping[Text, Any]) -> None
+        # type: (List[str], MutableMapping[str, Any]) -> None
         """Sanitize the job object of any of the given secrets."""
         for j in job:
             if j in secrets:
@@ -38,7 +34,7 @@ class SecretStore(object):
 
     def has_secret(self, value):  # type: (Any) -> bool
         """Test if the provided document has any of our secrets."""
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             for k in self.secrets:
                 if k in value:
                     return True
@@ -54,7 +50,7 @@ class SecretStore(object):
 
     def retrieve(self, value):  # type: (Any) -> Any
         """Replace placeholders with their corresponding secrets."""
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             for key, this_value in self.secrets.items():
                 value = value.replace(key, this_value)
         elif isinstance(value, MutableMapping):
