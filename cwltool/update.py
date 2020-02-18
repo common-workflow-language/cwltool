@@ -174,32 +174,30 @@ def checkversion(doc,        # type: Union[CommentedSeq, CommentedMap]
     version = metadata[u"cwlVersion"]
     cdoc["cwlVersion"] = version
 
-    if version not in UPDATES:
-        if version in DEVUPDATES:
-            if enable_dev:
-                pass
+    updated_from = metadata.get("http://commonwl.org/cwltool#original_cwlVersion") or cdoc.get("http://commonwl.org/cwltool#original_cwlVersion")
+
+    if not updated_from:
+        if version not in UPDATES:
+            if version in DEVUPDATES:
+                if enable_dev:
+                    pass
+                else:
+                    keys = list(UPDATES.keys())
+                    keys.sort()
+                    raise validate.ValidationException(
+                        u"Version '%s' is a development or deprecated version.\n "
+                        "Update your document to a stable version (%s) or use "
+                        "--enable-dev to enable support for development and "
+                        "deprecated versions." % (version, ", ".join(keys)))
             else:
-                keys = list(UPDATES.keys())
-                keys.sort()
                 raise validate.ValidationException(
-                    u"Version '%s' is a development or deprecated version.\n "
-                    "Update your document to a stable version (%s) or use "
-                    "--enable-dev to enable support for development and "
-                    "deprecated versions." % (version, ", ".join(keys)))
-        else:
-            raise validate.ValidationException(
-                u"Unrecognized version %s" % version)
+                    u"Unrecognized version %s" % version)
 
     return (cdoc, version)
 
 
 def update(doc, loader, baseuri, enable_dev, metadata):
     # type: (Union[CommentedSeq, CommentedMap], Loader, Text, bool, Any) -> CommentedMap
-
-    if isinstance(doc, CommentedMap):
-            if metadata.get("http://commonwl.org/cwltool#original_cwlVersion") \
-                    or doc.get("http://commonwl.org/cwltool#original_cwlVersion"):
-                return doc
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
