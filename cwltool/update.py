@@ -23,7 +23,7 @@ from .utils import aslist, visit_class, visit_field
 
 
 def v1_1to1_2(doc, loader, baseuri):  # pylint: disable=unused-argument
-    # type: (Any, Loader, Text) -> Tuple[Any, Text]
+    # type: (Any, Loader, str) -> Tuple[Any, str]
     """Public updater for v1.1 to v1.2"""
 
     doc = copy.deepcopy(doc)
@@ -147,12 +147,12 @@ def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 UPDATES = {
     u"v1.0": v1_0to1_1,
     u"v1.1": v1_1to1_2,
-}  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
+}  # type: Dict[str, Optional[Callable[[Any, Loader, str], Tuple[Any, str]]]]
 
 DEVUPDATES = {
     u"v1.1.0-dev1": v1_1_0dev1to1_1,
     u"v1.2.0-dev1": None,
-}  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
+}  # type: Dict[str, Optional[Callable[[Any, Loader, str], Tuple[Any, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()

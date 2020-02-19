@@ -304,7 +304,7 @@ SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 
 
 def check_all_types(src_dict, sinks, sourceField, param_to_step):
-    # type: (Dict[str, Any], List[Dict[str, Any]], str, str) -> Dict[str, List[SrcSink]]
+    # type: (Dict[str, Any], List[Dict[str, Any]], str, Dict[str, Dict[str, Any]]) -> Dict[str, List[SrcSink]]
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
@@ -330,7 +330,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
                 if pickValue in ["first_non_null", "only_non_null"]:
                     linkMerge = None
 
-                srcs_of_sink = []
+                srcs_of_sink = []  # type: List[Any]
                 for parm_id in sink[sourceField]:
                     srcs_of_sink += [src_dict[parm_id]]
                     if (
@@ -397,7 +397,8 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
     return validation
 
 
-def is_conditional_step(param_to_step, parm_id):
+def is_conditional_step(param_to_step: Dict[str, Dict[str, Any]],
+                        parm_id: str) -> bool:
     source_step = param_to_step.get(parm_id)
     if source_step is not None:
         if source_step.get("when") is not None:

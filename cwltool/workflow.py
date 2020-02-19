@@ -146,7 +146,7 @@ def object_from_state(
     supportsMultipleInput,  # type: bool
     sourceField,  # type: str
     incomplete=False,  # type: bool
-):  # type: (...) -> Optional[Dict[str, Any]]
+):  # type: (...) -> Optional[MutableMapping[str, Any]]
     inputobj = {}  # type: Dict[str, Any]
     for inp in parms:
         iid = inp["id"]
@@ -190,9 +190,10 @@ def object_from_state(
                     return None
 
         if "pickValue" in inp and isinstance(inputobj.get(iid), MutableSequence):
+            seq = cast(MutableSequence[Any], inputobj.get(iid))
             if inp["pickValue"] == "first_non_null":
                 found = False
-                for v in inputobj.get(iid):
+                for v in seq:
                     if v is not None:
                         found = True
                         inputobj[iid] = v
@@ -203,12 +204,12 @@ def object_from_state(
                     )
             elif inp["pickValue"] == "only_non_null":
                 found = False
-                for v in inputobj.get(iid):
+                for v in seq:
                     if v is not None:
                         if found:
                             raise WorkflowException(
                                 u"Expected only one source for '%s' to be non-null, got %s"
-                                % (shortname(inp["id"]), inputobj.get(iid))
+                                % (shortname(inp["id"]), seq)
                             )
                         found = True
                         inputobj[iid] = v
@@ -217,7 +218,7 @@ def object_from_state(
                         u"All sources for '%s' are null" % (shortname(inp["id"]))
                     )
             elif inp["pickValue"] == "all_non_null":
-                inputobj[iid] = [v for v in inputobj[iid] if v is not None]
+                inputobj[iid] = [v for v in seq if v is not None]
 
         if inputobj.get(iid) is None and "default" in inp:
             inputobj[iid] = inp["default"]
@@ -309,7 +310,7 @@ class WorkflowJob(object):
             self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
         )
 
-        wo = None  # type: Optional[Dict[str, str]]
+        wo = None  # type: Optional[MutableMapping[str, str]]
         try:
             wo = object_from_state(
                 self.state,
@@ -441,7 +442,7 @@ class WorkflowJob(object):
             vfinputs = {shortname(k): v for k, v in inputobj.items()}
 
             def postScatterEval(io):
-                # type: (MutableMapping[str, Any]) -> Dict[str, Any]
+                # type: (MutableMapping[str, Any]) -> Optional[MutableMapping[str, Any]]
                 shortio = {shortname(k): v for k, v in io.items()}
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
@@ -555,7 +556,7 @@ class WorkflowJob(object):
                     _logger.info(u"[%s] will be skipped", step.name)
                     callback({k["id"]: None for k in outputparms}, "skipped")
                     step.completed = True
-                    jobs = []
+                    jobs = (_ for _ in ())
 
             step.submitted = True
 
@@ -788,13 +789,13 @@ class Workflow(Process):
             step.visit(op)
 
 
-def used_by_step(step, shortinputid):
+def used_by_step(step: MutableMapping[str, Any], shortinputid: str) -> bool:
     for st in step["in"]:
         if st.get("valueFrom"):
             if ("inputs.%s" % shortinputid) in st.get("valueFrom"):
                 return True
     if step.get("when"):
-        if ("inputs.%s" % shortinputid) in step.get("when"):
+        if ("inputs.%s" % shortinputid) in cast(str, step.get("when")):
             return True
     return False
 
@@ -1106,11 +1107,6 @@ class ReceiveScatterOutput(object):
             self.output_callback(self.dest, self.processStatus)
 
 
-def skipped_step(callback):
-    yield None
-    callback({}, "skipped")
-
-
 def parallel_steps(steps, rc, runtimeContext):
     # type: (List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]], ReceiveScatterOutput, RuntimeContext) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
     while rc.completed < rc.total:
@@ -1172,7 +1168,8 @@ def dotproduct_scatter(
         []
     )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     for index in range(0, jobl):
-        sjobo = copy.copy(joborder)
+        sjobo = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
+        assert sjobo is not None
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
@@ -1210,7 +1207,8 @@ def nested_crossproduct_scatter(
         []
     )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)
+        sjob = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
+        assert sjob is not None
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
@@ -1285,7 +1283,8 @@ def _flat_crossproduct_scatter(
     )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     put = startindex
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)
+        sjob = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
+        assert sjob is not None
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
