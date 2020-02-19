@@ -22,6 +22,7 @@ def test_docker_workflow(tmpdir):
         ]
     )
     assert "completed success" in stderr
+    assert (tmpdir / 'response.txt').read_text('utf-8') == 'hello'
     assert result_code == 0
 
 
