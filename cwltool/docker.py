@@ -237,7 +237,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             "--mount={}".format(mount_arg)
         )
         # Unlike "--volume", "--mount" will fail if the volume doesn't already exist.
-        if not os.path.isdir(source):
+        if not os.path.exists(source):
             os.mkdir(source)
 
     def add_file_or_directory_volume(
