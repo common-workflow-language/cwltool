@@ -1169,7 +1169,7 @@ def dotproduct_scatter(
     )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     for index in range(0, jobl):
         sjobo = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
-        assert sjobo is not None
+        assert sjobo is not None  # nosec
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
 
@@ -1208,7 +1208,7 @@ def nested_crossproduct_scatter(
     )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
     for index in range(0, jobl):
         sjob = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
-        assert sjob is not None
+        assert sjob is not None  # nosec
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
@@ -1284,7 +1284,7 @@ def _flat_crossproduct_scatter(
     put = startindex
     for index in range(0, jobl):
         sjob = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
-        assert sjob is not None
+        assert sjob is not None  # nosec
         sjob[scatter_key] = joborder[scatter_key][index]
 
         if len(scatter_keys) == 1:
