@@ -11,7 +11,8 @@ if [[ "$version" = "v1.0" ]] ; then
    wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
    tar xzf master.tar.gz && rm master.tar.gz
 else
-    wget https://github.com/common-workflow-language/cwl-${version}/archive/master.tar.gz
+    repo=$(echo $version | sed 's/\(v[0-9]*\.\)\([0-9]*\).*/\1\2/')
+    wget https://github.com/common-workflow-language/cwl-${repo}/archive/master.tar.gz
     tar xzf master.tar.gz && rm master.tar.gz
 fi
 
@@ -34,7 +35,7 @@ do
 		DRAFT="DRAFT=v1.0"
 		pushd common-workflow-language-master || exit 1
 	else
-		pushd cwl-${version}-master || exit 1
+		pushd cwl-${repo}-master || exit 1
 	fi
 	rm -f .coverage* coverage.xml
 	source=$(realpath ../cwltool)
