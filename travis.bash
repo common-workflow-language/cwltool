@@ -7,7 +7,7 @@ venv() {
         source "$1"/bin/activate
 }
 
-if [[ "$version" = "v1.0" ]]
+if [[ "$version" = "v1.0" ]] ; then
    wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
    tar xzf master.tar.gz && rm master.tar.gz
 else
