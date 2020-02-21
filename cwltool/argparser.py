@@ -608,6 +608,38 @@ def arg_parser() -> argparse.ArgumentParser:
         "listed targets (can provide more than once).",
     )
 
+    mpigroup = parser.add_argument_group("Options for controlling parallel execution")
+    mpigroup.add_argument(
+        "--mpi",
+        action="store_true",
+        dest="mpi_on",
+        help="Run with MPI"
+    )
+    mpigroup.add_argument(
+        "--mpi-run",
+        type=str,
+        default=None,
+        help="Command to launch MPI jobs"
+    )
+    mpigroup.add_argument(
+        "--mpi-tasks-flag",
+        type=str,
+        default=None,
+        help="Flag to specify number of MPI tasks"
+    )
+    mpigroup.add_argument(
+        "--mpi-tasks",
+        type=int,
+        default=1,
+        help="Number of MPI tasks to use"
+    )
+    mpigroup.add_argument(
+        "--mpi-extra",
+        action="append",
+        default=[],
+        help="Extra argument to the MPI command"
+    )
+
     parser.add_argument(
         "workflow",
         type=str,

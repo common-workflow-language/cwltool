@@ -40,6 +40,7 @@ from schema_salad.utils import json_dumps
 from .builder import Builder, content_limit_respected_read_bytes, substitute
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
+from .mpi import MpiCommandLineJob
 from .errors import WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
@@ -354,6 +355,8 @@ class CommandLineTool(Process):
                     "--no-container, but this CommandLineTool has "
                     "DockerRequirement under 'requirements'."
                 )
+        if runtimeContext.mpi_on:
+            return MpiCommandLineJob
         return CommandLineJob
 
     def make_path_mapper(self, reffiles, stagedir, runtimeContext, separateDirs):

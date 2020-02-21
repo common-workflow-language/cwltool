@@ -145,6 +145,13 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = ""  # type: str
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
+
+        self.mpi_on = False # type: bool
+        self.mpi_run = None # type: Optional[str]
+        self.mpi_tasks_flag = None # type: Optional[str]
+        self.mpi_tasks = None # type: Optional[int]
+        self.mpi_extra = [] # type: List[str]
+
         super(RuntimeContext, self).__init__(kwargs)
 
     def copy(self):
