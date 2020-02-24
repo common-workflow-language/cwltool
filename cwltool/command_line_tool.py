@@ -162,6 +162,16 @@ class ExpressionTool(Process):
         yield job
 
 
+class AbstractOperation(Process):
+    def job(
+        self,
+        job_order,  # type: Mapping[str, str]
+        output_callbacks,  # type: Callable[[Any, Any], Any]
+        runtimeContext,  # type: RuntimeContext
+    ):
+        raise WorkflowException("Abstract operation cannot be executed.")
+
+
 def remove_path(f):  # type: (Dict[str, Any]) -> None
     if "path" in f:
         del f["path"]

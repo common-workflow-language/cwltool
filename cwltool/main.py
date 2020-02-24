@@ -782,7 +782,7 @@ def main(
     input_required: bool = True,
 ) -> int:
     if not stdout:  # force UTF-8 even if the console is configured differently
-        if hasattr(sys.stdout, "encoding") and sys.stdout.encoding != "UTF-8":
+        if hasattr(sys.stdout, "encoding") and sys.stdout.encoding.upper() not in ("UTF-8", "UTF8"):
             if hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
             else:

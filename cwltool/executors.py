@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 import psutil
 
 from schema_salad.validate import ValidationException
+from schema_salad.sourceline import SourceLine
 
 from .command_line_tool import CallbackJob
 from .context import RuntimeContext, getdefault
@@ -67,6 +68,13 @@ class JobExecutor(object, metaclass=ABCMeta):
         """Execute the process."""
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
+
+        def check_for_abstract_op(tool):
+            if tool["class"] == "Operation":
+                raise SourceLine(tool, "class", WorkflowException).makeError(
+                    "Workflow has unrunnable abstract Operation")
+
+        process.visit(check_for_abstract_op)
 
         finaloutdir = None  # Type: Optional[str]
         original_outdir = runtime_context.outdir
