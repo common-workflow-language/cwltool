@@ -1,3 +1,7 @@
+# Generated during tests
+pytestdebug.log
+tmp/
+
 # Python temps
 __pycache__/
 *.py[cod]

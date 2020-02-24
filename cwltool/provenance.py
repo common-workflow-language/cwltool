@@ -864,7 +864,7 @@ class ProvenanceProfile:
 
     def generate_output_prov(
         self,
-        final_output: Union[Dict[str, Any], List[Dict[str, Any]]],
+        final_output: Union[MutableMapping[str, Any], List[Dict[str, Any]]],
         process_run_id: Optional[str],
         name: Optional[str],
     ) -> None:

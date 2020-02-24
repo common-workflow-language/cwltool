@@ -1,6 +1,7 @@
 """Enables Docker software containers via the {dx-,u,}docker runtimes."""
 
 import datetime
+import csv
 import os
 import re
 import shutil
@@ -8,7 +9,7 @@ import sys
 import tempfile
 import threading
 from distutils import spawn
-from io import open  # pylint: disable=redefined-builtin
+from io import open, StringIO  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional, Set, Tuple
 
 import requests
@@ -222,11 +223,20 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def append_volume(runtime, source, target, writable=False):
         # type: (List[str], str, str, bool) -> None
         """Add binding arguments to the runtime list."""
-        runtime.append(
-            "--volume={}:{}:{}".format(
-                docker_windows_path_adjust(source), target, "rw" if writable else "ro"
-            )
-        )
+        options = [
+            "type=bind",
+            "source=" + source,
+            "target=" + target,
+        ]
+        if not writable:
+            options.append("readonly")
+        output = StringIO()
+        csv.writer(output).writerow(options)
+        mount_arg = output.getvalue().strip()
+        runtime.append("--mount={}".format(mount_arg))
+        # Unlike "--volume", "--mount" will fail if the volume doesn't already exist.
+        if not os.path.exists(source):
+            os.mkdir(source)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]

@@ -1,0 +1,34 @@
+- |
+  ## Domain Specific Language for secondary files
+
+  Fields may be tagged `secondaryFilesDSL: true` in `jsonldPredicate`.  If so, the field is expanded using the
+  following micro-DSL for secondary files:
+
+  * If the value is a string, it is transformed to an object with two fields `pattern` and `required`
+  * By default, the value of `required` is `null` (this indicates default behavior, which may be based on the context)
+  * If the value ends with a question mark `?` the question mark is
+    stripped off and the value of the field `required` is set to `False`
+  * The remaining value is assigned to the field `pattern`
+
+  ### Type DSL example
+
+  Given the following schema:
+
+  ```
+- $include: sfdsl_res_schema.yml
+- |
+  ```
+
+  Process the following example:
+
+  ```
+- $include: sfdsl_res_src.yml
+- |
+  ```
+
+  This becomes:
+
+  ```
+- $include: sfdsl_res_proc.yml
+- |
+  ```

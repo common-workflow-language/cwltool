@@ -132,7 +132,7 @@ class RuntimeContext(ContextBase):
         self.eval_timeout = 20  # type: float
         self.postScatterEval = (
             None
-        )  # type: Optional[Callable[[MutableMapping[str, Any]], Dict[str, Any]]]
+        )  # type: Optional[Callable[[MutableMapping[str, Any]], Optional[MutableMapping[str, Any]]]]
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
 

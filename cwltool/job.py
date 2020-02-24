@@ -433,7 +433,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.info("[job %s] completed %s", self.name, processStatus)
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug("[job %s] %s", self.name, json_dumps(outputs, indent=4))
+            _logger.debug(
+                "[job %s] outputs %s", self.name, json_dumps(outputs, indent=4)
+            )
 
         if self.generatemapper is not None and runtimeContext.secret_store is not None:
             # Delete any runtime-generated files containing secrets.

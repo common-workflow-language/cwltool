@@ -22,6 +22,22 @@ from .loghandler import _logger
 from .utils import aslist, visit_class, visit_field
 
 
+def v1_1to1_2(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    """Public updater for v1.1 to v1.2"""
+
+    doc = copy.deepcopy(doc)
+
+    upd = doc
+    if isinstance(upd, MutableMapping) and "$graph" in upd:
+        upd = upd["$graph"]
+    for proc in aslist(upd):
+        if "cwlVersion" in proc:
+            del proc["cwlVersion"]
+
+    return doc, "v1.2.0-dev1"
+
+
 def v1_0to1_1(
     doc: Any, loader: Loader, baseuri: str
 ) -> Tuple[Any, str]:  # pylint: disable=unused-argument
@@ -129,20 +145,22 @@ def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 
 
 UPDATES = {
-    "v1.0": v1_0to1_1,
-    "v1.1": None,
+    u"v1.0": v1_0to1_1,
+    u"v1.1": v1_1to1_2,
 }  # type: Dict[str, Optional[Callable[[Any, Loader, str], Tuple[Any, str]]]]
 
 DEVUPDATES = {
-    "v1.0": v1_0to1_1,
-    "v1.1.0-dev1": v1_1_0dev1to1_1,
-    "v1.1": None,
+    u"v1.1.0-dev1": v1_1_0dev1to1_1,
+    u"v1.2.0-dev1": None,
 }  # type: Dict[str, Optional[Callable[[Any, Loader, str], Tuple[Any, str]]]]
+
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = "v1.1"
+INTERNAL_VERSION = u"v1.2.0-dev1"
+
+ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
 
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
@@ -179,7 +197,15 @@ def checkversion(
     version = metadata["cwlVersion"]
     cdoc["cwlVersion"] = version
 
-    if version not in UPDATES:
+    updated_from = metadata.get(ORIGINAL_CWLVERSION) or cdoc.get(ORIGINAL_CWLVERSION)
+
+    if updated_from:
+        if version != INTERNAL_VERSION:
+            raise validate.ValidationException(
+                "original_cwlVersion is set (%s) but cwlVersion is '%s', expected '%s' "
+                % (updated_from, version, INTERNAL_VERSION)
+            )
+    elif version not in UPDATES:
         if version in DEVUPDATES:
             if enable_dev:
                 pass
@@ -187,7 +213,7 @@ def checkversion(
                 keys = list(UPDATES.keys())
                 keys.sort()
                 raise validate.ValidationException(
-                    "Version '%s' is a development or deprecated version.\n "
+                    u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(keys))
@@ -200,12 +226,6 @@ def checkversion(
 
 def update(doc, loader, baseuri, enable_dev, metadata):
     # type: (Union[CommentedSeq, CommentedMap], Loader, str, bool, Any) -> CommentedMap
-
-    if isinstance(doc, CommentedMap):
-        if metadata.get("http://commonwl.org/cwltool#original_cwlVersion") or doc.get(
-            "http://commonwl.org/cwltool#original_cwlVersion"
-        ):
-            return doc
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
