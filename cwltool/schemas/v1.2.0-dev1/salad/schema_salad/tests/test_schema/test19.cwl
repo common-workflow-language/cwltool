@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 : aaa
 cwlVersion: v1.0
 class: CommandLineTool

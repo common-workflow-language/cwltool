@@ -9,6 +9,15 @@
       "name": "id",
       "type": "string",
       "jsonldPredicate": "@id"
+    }]}, {
+    "name": "SubscopeType",
+    "type": "record",
+    "fields": [{
+      "name": "subscopeField",
+      "type": "ExampleType",
+      "jsonldPredicate": {
+         "subscope": "thisIsASubscope"
+      }
     }]
   }]
 }

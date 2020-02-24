@@ -8,7 +8,7 @@ $namespaces:
 
 $graph:
 
-- name: "Common Workflow Language, v1.2"
+- name: "Common Workflow Language, v1.2.0-dev1"
   type: documentation
   doc: {$include: concepts.md}
 
@@ -38,7 +38,8 @@ $graph:
     - cwl:draft-4.dev3
     - cwl:v1.0.dev4
     - cwl:v1.0
-    - cwl:v1.1.0-dev1 # a dash is required by the semver 2.0 rules
+    - cwl:v1.1.0-dev1   # a dash is required by the semver 2.0 rules
+    - cwl:v1.1
     - cwl:v1.2.0-dev1
 
 - name: CWLType
@@ -933,7 +934,7 @@ $graph:
             extensions, the path is unchanged.
           3. Append the remainder of the string to the end of the file path.
     - name: required
-      type: ["null", boolean, string, Expression]
+      type: ["null", boolean, Expression]
       doc: |
         An implementation must not fail workflow execution if `required` is
         set to `false` and the expected secondary file does not exist.
