@@ -7,7 +7,17 @@ import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    MutableMapping,
+)
 
 import psutil
 
@@ -69,10 +79,11 @@ class JobExecutor(object, metaclass=ABCMeta):
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
 
-        def check_for_abstract_op(tool):
+        def check_for_abstract_op(tool: MutableMapping[str, Any]) -> None:
             if tool["class"] == "Operation":
                 raise SourceLine(tool, "class", WorkflowException).makeError(
-                    "Workflow has unrunnable abstract Operation")
+                    "Workflow has unrunnable abstract Operation"
+                )
 
         process.visit(check_for_abstract_op)
 

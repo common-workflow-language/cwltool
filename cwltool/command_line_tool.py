@@ -169,6 +169,7 @@ class AbstractOperation(Process):
         output_callbacks,  # type: Callable[[Any, Any], Any]
         runtimeContext,  # type: RuntimeContext
     ):
+        # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
         raise WorkflowException("Abstract operation cannot be executed.")
 
 

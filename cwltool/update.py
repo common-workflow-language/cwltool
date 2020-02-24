@@ -162,6 +162,7 @@ INTERNAL_VERSION = u"v1.2.0-dev1"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
+
 def identity(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, Union[str, str]]
     """Default, do-nothing, CWL document upgrade function."""
@@ -200,7 +201,10 @@ def checkversion(
 
     if updated_from:
         if version != INTERNAL_VERSION:
-            raise validate.ValidationException("original_cwlVersion is set (%s) but cwlVersion is '%s', expected '%s' " % (updated_from, version, INTERNAL_VERSION))
+            raise validate.ValidationException(
+                "original_cwlVersion is set (%s) but cwlVersion is '%s', expected '%s' "
+                % (updated_from, version, INTERNAL_VERSION)
+            )
     elif version not in UPDATES:
         if version in DEVUPDATES:
             if enable_dev:
@@ -216,7 +220,6 @@ def checkversion(
                 )
         else:
             raise validate.ValidationException("Unrecognized version %s" % version)
-
 
     return (cdoc, version)
 

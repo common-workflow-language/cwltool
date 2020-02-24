@@ -224,18 +224,16 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         # type: (List[str], str, str, bool) -> None
         """Add binding arguments to the runtime list."""
         options = [
-            'type=bind',
-            'source=' + source,
-            'target=' + target,
+            "type=bind",
+            "source=" + source,
+            "target=" + target,
         ]
         if not writable:
-            options.append('readonly')
+            options.append("readonly")
         output = StringIO()
         csv.writer(output).writerow(options)
         mount_arg = output.getvalue().strip()
-        runtime.append(
-            "--mount={}".format(mount_arg)
-        )
+        runtime.append("--mount={}".format(mount_arg))
         # Unlike "--volume", "--mount" will fail if the volume doesn't already exist.
         if not os.path.exists(source):
             os.mkdir(source)
