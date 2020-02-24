@@ -397,8 +397,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
     return validation
 
 
-def is_conditional_step(param_to_step: Dict[str, Dict[str, Any]],
-                        parm_id: str) -> bool:
+def is_conditional_step(param_to_step: Dict[str, Dict[str, Any]], parm_id: str) -> bool:
     source_step = param_to_step.get(parm_id)
     if source_step is not None:
         if source_step.get("when") is not None:

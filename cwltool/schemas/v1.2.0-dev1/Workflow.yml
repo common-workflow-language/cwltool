@@ -24,12 +24,12 @@ $graph:
     - |
       # Abstract
 
-      One way to define a workflow is: an analysis task represented by a
-      directed graph describing a sequence of operations that transform an
-      input data set to output. This specification defines the Common Workflow
-      Language (CWL) Workflow description, a vendor-neutral standard for
-      representing workflows intended to be portable across a variety of
-      computing platforms.
+      This specification defines the Common Workflow Language (CWL)
+      Workflow description, a vendor-neutral standard for representing
+      analysis tasks where a sequence of operations are described
+      using a directed graph of operations to transform input to
+      output.  CWL is portable across a variety of computing
+      platforms.
 
     - {$include: intro.md}
 
@@ -734,3 +734,5 @@ $graph:
       jsonldPredicate:
         "_id": "@type"
         "_type": "@vocab"
+
+- {$import: Operation.yml}

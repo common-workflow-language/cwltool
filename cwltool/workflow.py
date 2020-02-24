@@ -61,6 +61,8 @@ def default_make_tool(
             return Workflow(toolpath_object, loadingContext)
         if toolpath_object["class"] == "ProcessGenerator":
             return procgenerator.ProcessGenerator(toolpath_object, loadingContext)
+        if toolpath_object["class"] == "Operation":
+            return command_line_tool.AbstractOperation(toolpath_object, loadingContext)
 
     raise WorkflowException(
         "Missing or invalid 'class' field in "
