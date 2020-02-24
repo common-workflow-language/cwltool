@@ -7,11 +7,16 @@ venv() {
         source "$1"/bin/activate
 }
 
-wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
-tar xzf master.tar.gz && rm master.tar.gz
+if [[ "$version" = "v1.0" ]] ; then
+   wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
+   tar xzf master.tar.gz && rm master.tar.gz
+else
+    repo=$(echo $version | sed 's/\(v[0-9]*\.\)\([0-9]*\).*/\1\2/')
+    wget https://github.com/common-workflow-language/cwl-${repo}/archive/master.tar.gz
+    tar xzf master.tar.gz && rm master.tar.gz
+fi
+
 docker pull node:slim
-wget https://github.com/common-workflow-language/cwl-v1.1/archive/master.tar.gz
-tar xzf master.tar.gz && rm master.tar.gz
 
 for PYTHON_VERSION in 3
 do
@@ -30,7 +35,7 @@ do
 		DRAFT="DRAFT=v1.0"
 		pushd common-workflow-language-master || exit 1
 	else
-		pushd cwl-v1.1-master || exit 1
+		pushd cwl-${repo}-master || exit 1
 	fi
 	rm -f .coverage* coverage.xml
 	source=$(realpath ../cwltool)

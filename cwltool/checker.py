@@ -166,8 +166,10 @@ def static_checker(
     for parm in src_parms:
         src_dict[parm["id"]] = parm
 
-    step_inputs_val = check_all_types(src_dict, step_inputs, "source")
-    workflow_outputs_val = check_all_types(src_dict, workflow_outputs, "outputSource")
+    step_inputs_val = check_all_types(src_dict, step_inputs, "source", param_to_step)
+    workflow_outputs_val = check_all_types(
+        src_dict, workflow_outputs, "outputSource", param_to_step
+    )
 
     warnings = step_inputs_val["warning"] + workflow_outputs_val["warning"]
     exceptions = step_inputs_val["exception"] + workflow_outputs_val["exception"]
@@ -212,18 +214,21 @@ def static_checker(
                 "%s\n%s" % (msg1, bullets([msg3, msg4, msg5], "  "))
             )
         elif sink.get("not_connected"):
-            msg = SourceLine(sink, "type").makeError(
-                "'%s' is not an input parameter of %s, expected %s"
-                % (
-                    shortname(sink["id"]),
-                    param_to_step[sink["id"]]["run"],
-                    ", ".join(
-                        shortname(s["id"])
-                        for s in param_to_step[sink["id"]]["inputs"]
-                        if not s.get("not_connected")
-                    ),
+            if not sink.get("used_by_step"):
+                msg = SourceLine(sink, "type").makeError(
+                    "'%s' is not an input parameter of %s, expected %s"
+                    % (
+                        shortname(sink["id"]),
+                        param_to_step[sink["id"]]["run"],
+                        ", ".join(
+                            shortname(s["id"])
+                            for s in param_to_step[sink["id"]]["inputs"]
+                            if not s.get("not_connected")
+                        ),
+                    )
                 )
-            )
+            else:
+                msg = ""
         else:
             msg = (
                 SourceLine(src, "type").makeError(
@@ -241,11 +246,17 @@ def static_checker(
                     "  source has linkMerge method %s" % linkMerge
                 )
 
-        warning_msgs.append(msg)
+        if warning.message is not None:
+            msg += "\n" + SourceLine(sink).makeError("  " + warning.message)
+
+        if msg:
+            warning_msgs.append(msg)
+
     for exception in exceptions:
         src = exception.src
         sink = exception.sink
         linkMerge = exception.linkMerge
+        extra_message = exception.message
         msg = (
             SourceLine(src, "type").makeError(
                 "Source '%s' of type %s is incompatible"
@@ -257,6 +268,9 @@ def static_checker(
                 % (shortname(sink["id"]), json_dumps(sink["type"]))
             )
         )
+        if extra_message is not None:
+            msg += "\n" + SourceLine(sink).makeError("  " + extra_message)
+
         if linkMerge is not None:
             msg += "\n" + SourceLine(sink).makeError(
                 "  source has linkMerge method %s" % linkMerge
@@ -278,19 +292,19 @@ def static_checker(
             exception_msgs.append(msg)
 
     all_warning_msg = strip_dup_lineno("\n".join(warning_msgs))
-    all_exception_msg = strip_dup_lineno("\n".join(exception_msgs))
+    all_exception_msg = strip_dup_lineno("\n" + "\n".join(exception_msgs))
 
-    if warnings:
+    if all_warning_msg:
         _logger.warning("Workflow checker warning:\n%s", all_warning_msg)
     if exceptions:
         raise validate.ValidationException(all_exception_msg)
 
 
-SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge"])
+SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 
 
-def check_all_types(src_dict, sinks, sourceField):
-    # type: (Dict[str, Any], List[Dict[str, Any]], str) -> Dict[str, List[SrcSink]]
+def check_all_types(src_dict, sinks, sourceField, param_to_step):
+    # type: (Dict[str, Any], List[Dict[str, Any]], str, Dict[str, Dict[str, Any]]) -> Dict[str, List[SrcSink]]
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
@@ -299,21 +313,94 @@ def check_all_types(src_dict, sinks, sourceField):
     validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
     for sink in sinks:
         if sourceField in sink:
+
             valueFrom = sink.get("valueFrom")
+            pickValue = sink.get("pickValue")
+
+            extra_message = None
+            if pickValue is not None:
+                extra_message = "pickValue is: %s" % pickValue
+
             if isinstance(sink[sourceField], MutableSequence):
-                srcs_of_sink = [src_dict[parm_id] for parm_id in sink[sourceField]]
                 linkMerge = sink.get(
                     "linkMerge",
                     ("merge_nested" if len(sink[sourceField]) > 1 else None),
                 )
+
+                if pickValue in ["first_non_null", "only_non_null"]:
+                    linkMerge = None
+
+                srcs_of_sink = []  # type: List[Any]
+                for parm_id in sink[sourceField]:
+                    srcs_of_sink += [src_dict[parm_id]]
+                    if (
+                        is_conditional_step(param_to_step, parm_id)
+                        and pickValue is None
+                    ):
+                        validation["warning"].append(
+                            SrcSink(
+                                src_dict[parm_id],
+                                sink,
+                                linkMerge,
+                                message="Source is from conditional step, but pickValue is not used",
+                            )
+                        )
             else:
                 parm_id = sink[sourceField]
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
+
+                if pickValue is not None:
+                    validation["warning"].append(
+                        SrcSink(
+                            src_dict[parm_id],
+                            sink,
+                            linkMerge,
+                            message="pickValue is used but only a single input source is declared",
+                        )
+                    )
+
+                if is_conditional_step(param_to_step, parm_id):
+                    src_typ = srcs_of_sink[0]["type"]
+                    snk_typ = sink["type"]
+
+                    if not isinstance(src_typ, list):
+                        src_typ = [src_typ]
+                    if "null" not in src_typ:
+                        src_typ = ["null"] + src_typ
+
+                    if (
+                        "null" not in snk_typ
+                    ):  # Given our type names this works even if not a list
+                        validation["warning"].append(
+                            SrcSink(
+                                src_dict[parm_id],
+                                sink,
+                                linkMerge,
+                                message="Source is from conditional step and may produce `null`",
+                            )
+                        )
+
+                    srcs_of_sink[0]["type"] = src_typ
+
             for src in srcs_of_sink:
                 check_result = check_types(src, sink, linkMerge, valueFrom)
                 if check_result == "warning":
-                    validation["warning"].append(SrcSink(src, sink, linkMerge))
+                    validation["warning"].append(
+                        SrcSink(src, sink, linkMerge, message=extra_message)
+                    )
                 elif check_result == "exception":
-                    validation["exception"].append(SrcSink(src, sink, linkMerge))
+                    validation["exception"].append(
+                        SrcSink(src, sink, linkMerge, message=extra_message)
+                    )
+
     return validation
+
+
+def is_conditional_step(param_to_step: Dict[str, Dict[str, Any]],
+                        parm_id: str) -> bool:
+    source_step = param_to_step.get(parm_id)
+    if source_step is not None:
+        if source_step.get("when") is not None:
+            return True
+    return False

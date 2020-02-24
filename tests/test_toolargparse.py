@@ -174,7 +174,7 @@ def test_argparser_with_doc():
     tool = load_tool(get_data("tests/with_doc.cwl"), loadingContext)
     p = argparse.ArgumentParser()
     parser = generate_parser(p, tool, {}, [], False)
-    assert(parser.description is not None)
+    assert parser.description is not None
 
 
 def test_argparser_without_doc():
@@ -183,4 +183,4 @@ def test_argparser_without_doc():
     tool = load_tool(get_data("tests/without_doc.cwl"), loadingContext)
     p = argparse.ArgumentParser()
     parser = generate_parser(p, tool, {}, [], False)
-    assert(parser.description is None)
+    assert parser.description is None
