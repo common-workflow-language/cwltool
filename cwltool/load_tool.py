@@ -34,7 +34,7 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
-from .utils import json_dumps, visit_class
+from .utils import visit_class
 
 jobloaderctx = {
     "cwl": "https://w3id.org/cwl/cwl#",
@@ -364,9 +364,13 @@ def resolve_and_validate_document(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata
         )
         document_loader.idx[processobj["id"]] = processobj
-        def update_index(pr):
+
+        def update_index(pr: CommentedMap) -> None:
             document_loader.idx[pr["id"]] = pr
-        visit_class(processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index)
+
+        visit_class(
+            processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
+        )
 
     if isinstance(jobobj, CommentedMap):
         loadingContext.jobdefaults = jobobj
