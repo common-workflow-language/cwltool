@@ -366,7 +366,8 @@ def resolve_and_validate_document(
         document_loader.idx[processobj["id"]] = processobj
 
         def update_index(pr: CommentedMap) -> None:
-            document_loader.idx[pr["id"]] = pr
+            if "id" in pr:
+                document_loader.idx[pr["id"]] = pr
 
         visit_class(
             processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
