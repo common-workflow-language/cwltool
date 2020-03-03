@@ -1,10 +1,15 @@
 import pytest
+import pkg_resources
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.load_tool import load_tool
 from cwltool.resolver import Path, resolve_local
 from cwltool.update import INTERNAL_VERSION
+from cwltool.process import (
+    use_custom_schema,
+    use_standard_schema,
+)
 
 from .test_fetch import norm
 from .util import (
@@ -78,5 +83,29 @@ def test_load_graph_fragment():
     # of original document and doesn't have cwlVersion set, so test
     # that it correctly looks up the root document to get the
     # cwlVersion.
-    tool = load_tool(tool.tool, loadingContext)
+    tool = load_tool(rs, loadingContext)
     assert tool.metadata["cwlVersion"] == INTERNAL_VERSION
+
+
+def test_load_graph_fragment_from_packed():
+    """Loading a fragment from packed with update."""
+    loadingContext = LoadingContext()
+    uri = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#main"
+    try:
+        with open(get_data("cwltool/extensions.yml"), "r") as res:
+            use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
+
+        # The updater transforms LoadListingRequirement from an
+        # extension (in v1.0) to a core feature (in v1.1) but there
+        # was a bug when loading a packed workflow and loading a
+        # specific fragment it would get the un-updated document.
+        # This recreates that case and asserts that we are using the
+        # updated document like we should.
+
+        tool = load_tool(uri, loadingContext)
+
+        assert tool.tool["requirements"] == [
+            {"class": "LoadListingRequirement", "loadListing": "no_listing"}
+        ]
+    finally:
+        use_standard_schema("v1.0")
