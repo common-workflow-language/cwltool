@@ -5,6 +5,7 @@ import functools
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import stat
@@ -947,8 +948,8 @@ hints:
                 mx = mn
 
             if mn is not None:
-                request[a + "Min"] = cast(int, mn)
-                request[a + "Max"] = cast(int, mx)
+                request[a + "Min"] = cast(int, math.ceil(mn))
+                request[a + "Max"] = cast(int, math.ceil(mx))
 
         if runtimeContext.select_resources is not None:
             return runtimeContext.select_resources(request, runtimeContext)
