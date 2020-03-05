@@ -947,8 +947,8 @@ hints:
                 mx = mn
 
             if mn is not None:
-                request[a + "Min"] = cast(int, mn)
-                request[a + "Max"] = cast(int, mx)
+                request[a + "Min"] = int(cast(int, mn)) + 1
+                request[a + "Max"] = int(cast(int, mx)) + 1
 
         if runtimeContext.select_resources is not None:
             return runtimeContext.select_resources(request, runtimeContext)
