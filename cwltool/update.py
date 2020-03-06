@@ -97,7 +97,7 @@ def v1_0to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
 def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, "v1.1")
 
-def v1_2_0dev2to1_2(doc, loader, baseuri):  # pylint: disable=unused-argument
+def v1_2_0dev1to1_2(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, "v1.2")
 
 
@@ -109,7 +109,7 @@ UPDATES = {
 
 DEVUPDATES = {
     u"v1.1.0-dev1": v1_1_0dev1to1_1,
-    u"v1.2.0-dev2": v1_2_0dev2to1_2
+    u"v1.2.0-dev1": v1_2_0dev1to1_2
 }  # type: Dict[Text, Optional[Callable[[Any, Loader, Text], Tuple[Any, Text]]]]
 
 ALLUPDATES = UPDATES.copy()
