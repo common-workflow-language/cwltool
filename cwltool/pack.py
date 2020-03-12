@@ -20,6 +20,8 @@ from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.sourceline import cmap
 
 from .process import shortname, uniquename
+from .context import LoadingContext
+from .load_tool import fetch_document, resolve_and_validate_document
 
 
 def flatten_deps(d, files):  # type: (Any, Set[str]) -> None
@@ -121,14 +123,37 @@ def import_embed(d, seen):
 
 def pack(
     document_loader: Loader,
-    processobj,  # type: Union[Dict[str, Any], List[Dict[str, Any]]]
+    startingobj,  # type: Union[Dict[str, Any], List[Dict[str, Any]]]
     uri,  # type: str
     metadata,  # type: Dict[str, str]
     rewrite_out=None,  # type: Optional[Dict[str, str]]
 ):  # type: (...) -> Dict[str, Any]
 
+    # The workflow document we have in memory right now may have been
+    # updated to the internal CWL version.  We need to reload the
+    # document to go back to its original version.
+    #
+    # What's going on here is that the updater replaces the
+    # documents/fragments in the index with updated ones, the
+    # index is also used as a cache, so we need to go through the
+    # loading process with an empty index and updating turned off
+    # so we have the original un-updated documents.
+    #
     document_loader = SubLoader(document_loader)
-    document_loader.idx = {}
+    loadingContext = LoadingContext()
+    loadingContext.do_update = False
+    loadingContext.loader = document_loader
+    loadingContext.loader.idx = {}
+    loadingContext.metadata = {}
+    loadingContext, docobj, uri = fetch_document(uri, loadingContext)
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, docobj, uri, preprocess_only=True
+    )
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be none")
+    processobj, metadata = loadingContext.loader.resolve_ref(uri)
+    document_loader = loadingContext.loader
+
     if isinstance(processobj, MutableMapping):
         document_loader.idx[processobj["id"]] = CommentedMap(processobj.items())
     elif isinstance(processobj, MutableSequence):
