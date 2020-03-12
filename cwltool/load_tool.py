@@ -348,6 +348,13 @@ def resolve_and_validate_document(
 
     _convert_stdstreams_to_files(workflowobj)
 
+    if isinstance(jobobj, CommentedMap):
+        loadingContext.jobdefaults = jobobj
+
+    loadingContext.loader = document_loader
+    loadingContext.avsc_names = avsc_names
+    loadingContext.metadata = metadata
+
     if preprocess_only:
         return loadingContext, uri
 
@@ -372,13 +379,6 @@ def resolve_and_validate_document(
         visit_class(
             processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
         )
-
-    if isinstance(jobobj, CommentedMap):
-        loadingContext.jobdefaults = jobobj
-
-    loadingContext.loader = document_loader
-    loadingContext.avsc_names = avsc_names
-    loadingContext.metadata = metadata
 
     return loadingContext, uri
 
