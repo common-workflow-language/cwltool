@@ -163,9 +163,11 @@ def _pack_idempotently(document):
     packed_text = print_pack(loadingContext.loader, uri, loadingContext.metadata)
     packed = json.loads(packed_text)
 
-    with NamedTemporaryFile() as tmp:
-        tmp.write(packed_text.encode("utf-8"))
+    tmp = NamedTemporaryFile(mode="w", delete=False)
+    try:
+        tmp.write(packed_text)
         tmp.flush()
+        tmp.close()
 
         loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
         loadingContext.do_update = False
@@ -177,6 +179,8 @@ def _pack_idempotently(document):
         # generate pack output dict
         packed_text = print_pack(loadingContext.loader, uri2, loadingContext.metadata)
         double_packed = json.loads(packed_text)
+    finally:
+        os.remove(tmp.name)
 
     assert uri != uri2
     assert packed == double_packed
