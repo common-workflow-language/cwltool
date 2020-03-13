@@ -159,7 +159,7 @@ def generate_example_input(
                 else:
                     comment = "optional"
         else:
-            example = yaml.comments.CommentedSeq()
+            example = CommentedSeq()
             for index, entry in enumerate(inptype):
                 value, e_comment = generate_example_input(entry, default)
                 example.append(value)
@@ -916,9 +916,7 @@ def main(
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
             processobj = cast(CommentedMap, processobj)
             if args.pack:
-                stdout.write(
-                    print_pack(loadingContext.loader, uri, metadata)
-                )
+                stdout.write(print_pack(loadingContext.loader, uri, metadata))
                 return 0
 
             if args.provenance and runtimeContext.research_obj:

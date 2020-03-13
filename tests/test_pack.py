@@ -26,9 +26,7 @@ def test_pack():
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
         expect_packed = yaml.safe_load(packed_file)
 
-    packed = cwltool.pack.pack(
-        loadingContext.loader, uri, loadingContext.metadata
-    )
+    packed = cwltool.pack.pack(loadingContext.loader, uri, loadingContext.metadata)
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
@@ -55,9 +53,7 @@ def test_pack_input_named_name():
     with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
         expect_packed = yaml.round_trip_load(packed_file)
 
-    packed = cwltool.pack.pack(
-        loadingContext.loader, uri, loadingContext.metadata
-    )
+    packed = cwltool.pack.pack(loadingContext.loader, uri, loadingContext.metadata)
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
@@ -81,9 +77,7 @@ def test_pack_single_tool():
     )
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
-    packed = cwltool.pack.pack(
-        loadingContext.loader, uri, loadingContext.metadata
-    )
+    packed = cwltool.pack.pack(loadingContext.loader, uri, loadingContext.metadata)
     assert "$schemas" in packed
 
 
@@ -93,14 +87,16 @@ def test_pack_fragment():
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
     packed = cwltool.pack.pack(
-        loadingContext.loader, uri+"#scatterstep/mysub", loadingContext.metadata
+        loadingContext.loader, uri + "#scatterstep/mysub", loadingContext.metadata
     )
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
-    assert json.dumps(packed, sort_keys=True, indent=2) == json.dumps(expect_packed, sort_keys=True, indent=2)
+    assert json.dumps(packed, sort_keys=True, indent=2) == json.dumps(
+        expect_packed, sort_keys=True, indent=2
+    )
 
 
 def test_pack_rewrites():
@@ -116,10 +112,7 @@ def test_pack_rewrites():
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     cwltool.pack.pack(
-        loadingContext.loader,
-        uri,
-        loadingContext.metadata,
-        rewrite_out=rewrites,
+        loadingContext.loader, uri, loadingContext.metadata, rewrite_out=rewrites,
     )
 
     assert len(rewrites) == 6
@@ -143,9 +136,7 @@ def test_pack_missing_cwlVersion(cwl_path):
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     # generate pack output dict
-    packed = json.loads(
-        print_pack(loadingContext.loader, uri, loadingContext.metadata)
-    )
+    packed = json.loads(print_pack(loadingContext.loader, uri, loadingContext.metadata))
 
     assert packed["cwlVersion"] == "v1.0"
 
@@ -173,7 +164,7 @@ def _pack_idempotently(document):
     packed = json.loads(packed_text)
 
     with NamedTemporaryFile() as tmp:
-        tmp.write(packed_text.encode('utf-8'))
+        tmp.write(packed_text.encode("utf-8"))
         tmp.flush()
 
         loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
@@ -208,9 +199,7 @@ def test_packed_workflow_execution(wf_path, job_path, namespaced, tmpdir):
         loadingContext, workflowobj, uri
     )
     processobj = loadingContext.loader.resolve_ref(uri)[0]
-    packed = json.loads(
-        print_pack(loadingContext.loader, uri, loadingContext.metadata)
-    )
+    packed = json.loads(print_pack(loadingContext.loader, uri, loadingContext.metadata))
 
     assert not namespaced or "$namespaces" in packed
 
