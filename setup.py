@@ -21,7 +21,7 @@ PYTEST_RUNNER = ["pytest-runner", "pytest-cov"] if NEEDS_PYTEST else []
 
 setup(
     name="cwltool",
-    version="2.0",
+    version="3.0",
     description="Common workflow language reference implementation",
     long_description=open(README).read(),
     long_description_content_type="text/x-rst",

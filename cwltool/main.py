@@ -159,7 +159,7 @@ def generate_example_input(
                 else:
                     comment = "optional"
         else:
-            example = yaml.comments.CommentedSeq()
+            example = CommentedSeq()
             for index, entry in enumerate(inptype):
                 value, e_comment = generate_example_input(entry, default)
                 example.append(value)
@@ -555,12 +555,11 @@ def find_deps(
 
 def print_pack(
     document_loader,  # type: Loader
-    processobj,  # type: CommentedMap
     uri,  # type: str
     metadata,  # type: Dict[str, Any]
 ):  # type: (...) -> str
     """Return a CWL serialization of the CWL document in JSON."""
-    packed = pack(document_loader, processobj, uri, metadata)
+    packed = pack(document_loader, uri, metadata)
     if len(packed["$graph"]) > 1:
         return json_dumps(packed, indent=4)
     return json_dumps(packed["$graph"][0], indent=4)
@@ -917,15 +916,13 @@ def main(
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
             processobj = cast(CommentedMap, processobj)
             if args.pack:
-                stdout.write(
-                    print_pack(loadingContext.loader, processobj, uri, metadata)
-                )
+                stdout.write(print_pack(loadingContext.loader, uri, metadata))
                 return 0
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
                 runtimeContext.research_obj.packed_workflow(
-                    print_pack(loadingContext.loader, processobj, uri, metadata)
+                    print_pack(loadingContext.loader, uri, metadata)
                 )
 
             if args.print_pre:

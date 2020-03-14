@@ -123,7 +123,6 @@ def import_embed(d, seen):
 
 def pack(
     document_loader: Loader,
-    startingobj,  # type: Union[Dict[str, Any], List[Dict[str, Any]]]
     uri,  # type: str
     metadata,  # type: Dict[str, str]
     rewrite_out=None,  # type: Optional[Dict[str, str]]
@@ -146,7 +145,7 @@ def pack(
     loadingContext.loader.idx = {}
     loadingContext.metadata = {}
     loadingContext, docobj, uri = fetch_document(uri, loadingContext)
-    loadingContext, uri = resolve_and_validate_document(
+    loadingContext, fileuri = resolve_and_validate_document(
         loadingContext, docobj, uri, preprocess_only=True
     )
     if loadingContext.loader is None:
