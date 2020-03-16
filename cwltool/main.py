@@ -609,7 +609,10 @@ def setup_schema(
         custom_schema_callback()
     elif args.enable_ext:
         res = pkg_resources.resource_stream(__name__, "extensions.yml")
-        use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
+        ext = res.read()
+        use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext)
+        use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext)
+        use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext)
         res.close()
     else:
         use_standard_schema("v1.0")
