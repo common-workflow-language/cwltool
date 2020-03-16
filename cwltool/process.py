@@ -12,6 +12,7 @@ import tempfile
 import textwrap
 import urllib
 import uuid
+import math
 from collections.abc import Iterable
 from io import open
 from os import scandir
@@ -953,7 +954,7 @@ hints:
         if runtimeContext.select_resources is not None:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
-            "cores": request["coresMin"],
+            "cores": int(math.ceil(request["coresMin"])),
             "ram": request["ramMin"],
             "tmpdirSize": request["tmpdirMin"],
             "outdirSize": request["outdirMin"],
