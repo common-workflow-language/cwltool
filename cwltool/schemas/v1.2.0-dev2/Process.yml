@@ -8,7 +8,7 @@ $namespaces:
 
 $graph:
 
-- name: "Common Workflow Language, v1.2.0-dev1"
+- name: "Common Workflow Language, v1.2.0-dev2"
   type: documentation
   doc: {$include: concepts.md}
 
@@ -41,6 +41,7 @@ $graph:
     - cwl:v1.1.0-dev1   # a dash is required by the semver 2.0 rules
     - cwl:v1.1
     - cwl:v1.2.0-dev1
+    - cwl:v1.2.0-dev2
 
 - name: CWLType
   type: enum
@@ -843,6 +844,25 @@ $graph:
       jsonldPredicate:
         "_id": "cwl:cwlVersion"
         "_type": "@vocab"
+    - name: intent
+      type: string[]?
+      jsonldPredicate:
+        _type: "@id"
+        identity: true
+      doc: |
+        An identifier for the type of computational operation, of this Process.
+        Especially useful for "class: Operation", but can also be used for
+        CommandLineTool, Workflow, or ExpressionTool.
+
+        If provided, then this must be an IRI of a concept node that
+        represents the type of operation, preferrably defined within an ontology.
+
+        For example, in the domain of bioinformatics, one can use an IRI from
+        the EDAM Ontology's [Operation concept nodes](http://edamontology.org/operation_0004),
+        like [Alignment](http://edamontology.org/operation_2928),
+        or [Clustering](http://edamontology.org/operation_3432); or a more
+        specific Operation concept like
+        [Split read mapping](http://edamontology.org/operation_3199).
 
 - name: InlineJavascriptRequirement
   type: record
@@ -940,6 +960,20 @@ $graph:
         set to `false` and the expected secondary file does not exist.
         Default value for `required` field is `true` for secondary files on
         input and `false` for secondary files on output.
+  doc: |
+    Secondary files are specified using the following micro-DSL for secondary files:
+
+    * If the value is a string, it is transformed to an object with two fields
+      `pattern` and `required`
+    * By default, the value of `required` is `null`
+      (this indicates default behavior, which may be based on the context)
+    * If the value ends with a question mark `?` the question mark is
+      stripped off and the value of the field `required` is set to `False`
+    * The remaining value is assigned to the field `pattern`
+
+    For implementation details and examples, please see
+    [this section](SchemaSalad.html#Domain_Specific_Language_for_secondary_files)
+    in the Schema Salad specification.
 
 - name: LoadListingRequirement
   type: record

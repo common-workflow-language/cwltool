@@ -2,7 +2,7 @@
 
 Author:
 
-* Peter Amstutz <pamstutz@veritasgenetics.com>, Veritas Genetics
+* Peter Amstutz <peter.amstutz@curii.com>, Arvados Project, Curii Corporation
 
 Contributors:
 

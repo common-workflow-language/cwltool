@@ -11,10 +11,10 @@ $graph:
   type: documentation
   doc:
     - |
-      # Common Workflow Language (CWL) Workflow Description, v1.2.0-dev1
+      # Common Workflow Language (CWL) Workflow Description, v1.2.0-dev2
 
       This version:
-        * https://w3id.org/cwl/v1.2.0-dev1/
+        * https://w3id.org/cwl/v1.2.0-dev2/
 
       Current version:
         * https://w3id.org/cwl/
@@ -35,17 +35,17 @@ $graph:
 
     - |
 
-      ## Introduction to CWL Workflow standard v1.2.0-dev1
+      ## Introduction to CWL Workflow standard v1.2.0-dev2
 
       This specification represents the latest stable release from the
-      CWL group.  Since the v1.1 release, v1.2.0-dev1 introduces the
+      CWL group.  Since the v1.1 release, v1.2.0-dev2 introduces the
       following updates to the CWL Workflow standard.
-      Documents should to use `cwlVersion: v1.2.0-dev1` to make use of new
-      syntax and features introduced in v1.2.0-dev1.  Existing v1.1 documents
+      Documents should to use `cwlVersion: v1.2.0-dev2` to make use of new
+      syntax and features introduced in v1.2.0-dev2.  Existing v1.1 documents
       should be trivially updatable by changing `cwlVersion`, however
       CWL documents that relied on previously undefined or
       underspecified behavior may have slightly different behavior in
-      v1.2.0-dev1.
+      v1.2.0-dev2.
 
       ## Changelog
 
@@ -54,8 +54,13 @@ $graph:
         * Adds `pickValue` field to [WorkflowStepInput](#WorkflowStepInput) and
           [WorkflowOutputParameter](#WorkflowOutputParameter) for selecting among null and
           non-null source values
+        * Add abstract [Operation](#Operation) that can be used as a
+          no-op stand-in to describe abstract workflows.
+        * (Workflow)[#Workflow], (ExpressionTool)[#ExpressionTool] and
+          (Operation)[#Operation] can now express `intent` with an
+          identifier for the type of computational operation.
 
-      See also the [CWL Command Line Tool Description, v1.2.0-dev1 changelog](CommandLineTool.html#Changelog).
+      See also the [CWL Command Line Tool Description, v1.2.0-dev2 changelog](CommandLineTool.html#Changelog).
 
       ## Purpose
 
