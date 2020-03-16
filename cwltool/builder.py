@@ -545,8 +545,10 @@ class Builder(HasReqsHints):
             if isinstance(ex, MutableSequence):
                 return [self.do_eval(v, context, recursive) for v in ex]
 
-        resources = copy.copy(self.resources)
-        resources["cores"] = int(math.ceil(resources["cores"]))
+        resources = self.resources
+        if self.resources and "cores" in self.resources:
+            resources = copy.copy(resources)
+            resources["cores"] = int(math.ceil(resources["cores"]))
 
         return expression.do_eval(
             ex,
