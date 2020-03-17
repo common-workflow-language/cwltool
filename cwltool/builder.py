@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import math
 from typing import (
     IO,
     Any,
@@ -544,13 +545,18 @@ class Builder(HasReqsHints):
             if isinstance(ex, MutableSequence):
                 return [self.do_eval(v, context, recursive) for v in ex]
 
+        resources = self.resources
+        if self.resources and "cores" in self.resources:
+            resources = copy.copy(resources)
+            resources["cores"] = int(math.ceil(resources["cores"]))
+
         return expression.do_eval(
             ex,
             self.job,
             self.requirements,
             self.outdir,
             self.tmpdir,
-            self.resources,
+            resources,
             context=context,
             timeout=self.timeout,
             debug=self.debug,

@@ -10,7 +10,7 @@
     stripped off and the value of the field `required` is set to `False`
   * The remaining value is assigned to the field `pattern`
 
-  ### Type DSL example
+  ### Secondary files DSL example
 
   Given the following schema:
 

@@ -1,6 +1,6 @@
 Authors:
 
-* Peter Amstutz <pamstutz@veritasgenetics.com>, Arvados Project, Veritas Genetics
+* Peter Amstutz <peter.amstutz@curii.com>, Arvados Project, Curii Corporation
 * Michael R. Crusoe <mrc@commonwl.org>, Common Workflow Language
   project
 

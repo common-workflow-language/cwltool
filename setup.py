@@ -33,26 +33,6 @@ setup(
     # license='',  # empty as is conveyed by the classifier below
     packages=["cwltool", "cwltool.tests"],
     package_dir={"cwltool.tests": "tests"},
-    package_data={
-        "cwltool": [
-            "schemas/v1.0/*.yml",
-            "schemas/v1.0/*.md",
-            "schemas/v1.0/salad/schema_salad/metaschema/*.yml",
-            "schemas/v1.0/salad/schema_salad/metaschema/*.md",
-            "schemas/v1.1.0-dev1/*.yml",
-            "schemas/v1.1.0-dev1/*.md",
-            "schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml",
-            "schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md",
-            "schemas/v1.1/*.yml",
-            "schemas/v1.1/*.md",
-            "schemas/v1.1/salad/schema_salad/metaschema/*.yml",
-            "schemas/v1.1/salad/schema_salad/metaschema/*.md",
-            "cwlNodeEngine.js",
-            "cwlNodeEngineJSConsole.js",
-            "extensions.yml",
-            "hello.simg",
-        ]
-    },
     include_package_data=True,
     install_requires=[
         "setuptools",

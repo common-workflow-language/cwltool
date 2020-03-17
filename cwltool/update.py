@@ -143,6 +143,10 @@ def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, str]
     return (doc, "v1.1")
 
+def v1_2_0dev1todev2(doc, loader, baseuri):  # pylint: disable=unused-argument
+    # type: (Any, Loader, str) -> Tuple[Any, str]
+    return (doc, "v1.2.0-dev2")
+
 
 UPDATES = {
     u"v1.0": v1_0to1_1,
@@ -151,14 +155,15 @@ UPDATES = {
 
 DEVUPDATES = {
     u"v1.1.0-dev1": v1_1_0dev1to1_1,
-    u"v1.2.0-dev1": None,
+    u"v1.2.0-dev1": v1_2_0dev1todev2,
+    u"v1.2.0-dev2": None,
 }  # type: Dict[str, Optional[Callable[[Any, Loader, str], Tuple[Any, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2.0-dev1"
+INTERNAL_VERSION = u"v1.2.0-dev2"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
