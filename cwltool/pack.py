@@ -122,10 +122,10 @@ def import_embed(d, seen):
 
 
 def pack(
-    document_loader: Loader,
+    loadingContext: LoadingContext,
     uri,  # type: str
-    metadata,  # type: Dict[str, str]
     rewrite_out=None,  # type: Optional[Dict[str, str]]
+    loader=None,  # type: Optional[Loader]
 ):  # type: (...) -> Dict[str, Any]
 
     # The workflow document we have in memory right now may have been
@@ -138,8 +138,8 @@ def pack(
     # loading process with an empty index and updating turned off
     # so we have the original un-updated documents.
     #
-    document_loader = SubLoader(document_loader)
-    loadingContext = LoadingContext()
+    loadingContext = loadingContext.copy()
+    document_loader = SubLoader(loader or loadingContext.loader or Loader({}))
     loadingContext.do_update = False
     loadingContext.loader = document_loader
     loadingContext.loader.idx = {}
@@ -223,7 +223,6 @@ def pack(
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
-        metadata = cast(Dict[str, Any], metadata)
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
