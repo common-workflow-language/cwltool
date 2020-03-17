@@ -554,12 +554,11 @@ def find_deps(
 
 
 def print_pack(
-    document_loader,  # type: Loader
+    loadingContext,  # type: LoadingContext
     uri,  # type: str
-    metadata,  # type: Dict[str, Any]
 ):  # type: (...) -> str
     """Return a CWL serialization of the CWL document in JSON."""
-    packed = pack(document_loader, uri, metadata)
+    packed = pack(loadingContext, uri)
     if len(packed["$graph"]) > 1:
         return json_dumps(packed, indent=4)
     return json_dumps(packed["$graph"][0], indent=4)
@@ -923,13 +922,13 @@ def main(
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
             processobj = cast(CommentedMap, processobj)
             if args.pack:
-                stdout.write(print_pack(loadingContext.loader, uri, metadata))
+                stdout.write(print_pack(loadingContext, uri))
                 return 0
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
                 runtimeContext.research_obj.packed_workflow(
-                    print_pack(loadingContext.loader, uri, metadata)
+                    print_pack(loadingContext, uri)
                 )
 
             if args.print_pre:

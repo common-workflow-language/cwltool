@@ -143,6 +143,7 @@ def v1_1_0dev1to1_1(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, str]
     return (doc, "v1.1")
 
+
 def v1_2_0dev1todev2(doc, loader, baseuri):  # pylint: disable=unused-argument
     # type: (Any, Loader, str) -> Tuple[Any, str]
     return (doc, "v1.2.0-dev2")

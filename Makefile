@@ -29,7 +29,7 @@ DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
 	pytest-xdist==1.27.0 isort wheel -rtest-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=2.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
+VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)

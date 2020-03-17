@@ -26,7 +26,7 @@ def test_pack():
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
         expect_packed = yaml.safe_load(packed_file)
 
-    packed = cwltool.pack.pack(loadingContext.loader, uri, loadingContext.metadata)
+    packed = cwltool.pack.pack(loadingContext, uri)
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
@@ -53,7 +53,7 @@ def test_pack_input_named_name():
     with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
         expect_packed = yaml.round_trip_load(packed_file)
 
-    packed = cwltool.pack.pack(loadingContext.loader, uri, loadingContext.metadata)
+    packed = cwltool.pack.pack(loadingContext, uri)
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
@@ -77,7 +77,7 @@ def test_pack_single_tool():
     )
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
-    packed = cwltool.pack.pack(loadingContext.loader, uri, loadingContext.metadata)
+    packed = cwltool.pack.pack(loadingContext, uri)
     assert "$schemas" in packed
 
 
@@ -86,9 +86,7 @@ def test_pack_fragment():
         expect_packed = yaml.safe_load(packed_file)
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
-    packed = cwltool.pack.pack(
-        loadingContext.loader, uri + "#scatterstep/mysub", loadingContext.metadata
-    )
+    packed = cwltool.pack.pack(loadingContext, uri + "#scatterstep/mysub")
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
@@ -112,7 +110,7 @@ def test_pack_rewrites():
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     cwltool.pack.pack(
-        loadingContext.loader, uri, loadingContext.metadata, rewrite_out=rewrites,
+        loadingContext, uri, rewrite_out=rewrites,
     )
 
     assert len(rewrites) == 6
@@ -136,7 +134,7 @@ def test_pack_missing_cwlVersion(cwl_path):
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     # generate pack output dict
-    packed = json.loads(print_pack(loadingContext.loader, uri, loadingContext.metadata))
+    packed = json.loads(print_pack(loadingContext, uri))
 
     assert packed["cwlVersion"] == "v1.0"
 
@@ -160,7 +158,7 @@ def _pack_idempotently(document):
     processobj = loadingContext.loader.resolve_ref(uri)[0]
 
     # generate pack output dict
-    packed_text = print_pack(loadingContext.loader, uri, loadingContext.metadata)
+    packed_text = print_pack(loadingContext, uri)
     packed = json.loads(packed_text)
 
     tmp = NamedTemporaryFile(mode="w", delete=False)
@@ -177,7 +175,7 @@ def _pack_idempotently(document):
         processobj = loadingContext.loader.resolve_ref(uri2)[0]
 
         # generate pack output dict
-        packed_text = print_pack(loadingContext.loader, uri2, loadingContext.metadata)
+        packed_text = print_pack(loadingContext, uri2)
         double_packed = json.loads(packed_text)
     finally:
         os.remove(tmp.name)
@@ -203,7 +201,7 @@ def test_packed_workflow_execution(wf_path, job_path, namespaced, tmpdir):
         loadingContext, workflowobj, uri
     )
     processobj = loadingContext.loader.resolve_ref(uri)[0]
-    packed = json.loads(print_pack(loadingContext.loader, uri, loadingContext.metadata))
+    packed = json.loads(print_pack(loadingContext, uri))
 
     assert not namespaced or "$namespaces" in packed
 
