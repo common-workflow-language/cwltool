@@ -326,8 +326,8 @@ class PathMapper(object):
         elif obj["class"] == "File":
             path = obj["location"]
             ab = abspath(path, basedir)
-            if "contents" in obj and obj["location"].startswith("_:"):
-                self._pathmap[obj["location"]] = MapperEnt(
+            if "contents" in obj and path.startswith("_:"):
+                self._pathmap[path] = MapperEnt(
                     obj["contents"],
                     tgt,
                     "CreateWritableFile" if copy else "CreateFile",
