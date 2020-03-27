@@ -3,12 +3,11 @@ import copy
 import threading
 from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
 
-from typing_extensions import TYPE_CHECKING
-
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import schema
 from schema_salad.ref_resolver import Loader
+from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
@@ -145,6 +144,9 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = ""  # type: str
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.default_stdin = None
+        self.default_stdout = None
+        self.default_stderr = None
         super(RuntimeContext, self).__init__(kwargs)
 
     def copy(self):
