@@ -969,13 +969,13 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase):
+        if isinstance(stdin, IOBase) and hasattr(stdin, 'close'):
             stdin.close()
 
-        if stdout is not sys.stderr:
+        if stdout is not sys.stderr and hasattr(stdout, 'close'):
             stdout.close()
 
-        if stderr is not sys.stderr:
+        if stderr is not sys.stderr and hasattr(stderr, 'close'):
             stderr.close()
 
         return rcode
