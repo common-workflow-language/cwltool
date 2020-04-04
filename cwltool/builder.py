@@ -392,10 +392,20 @@ class Builder(HasReqsHints):
                             found = False
 
                             if isinstance(sfname, str):
-                                sf_location = datum["location"][0:datum["location"].rindex("/")+1]+sfname
-                            else:
+                                sf_location = (
+                                    datum["location"][
+                                        0 : datum["location"].rindex("/") + 1
+                                    ]
+                                    + sfname
+                                )
+                            elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
                                 sfname = sfname["basename"]
+                            else:
+                                raise WorkflowException(
+                                    "Expected secondaryFile expression to return type 'str' or 'MutableMapping', received '%s'"
+                                    % (type(sfname))
+                                )
 
                             for d in datum["secondaryFiles"]:
                                 if not d.get("basename"):
