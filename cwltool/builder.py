@@ -417,7 +417,11 @@ class Builder(HasReqsHints):
                                     found = True
 
                             if not found:
-                                def addsf(files, newsf):
+
+                                def addsf(
+                                    files: MutableSequence[MutableMapping[str, Any]],
+                                    newsf: MutableMapping[str, Any],
+                                ) -> None:
                                     for f in files:
                                         if f["location"] == newsf["location"]:
                                             f["basename"] = newsf["basename"]
@@ -429,11 +433,13 @@ class Builder(HasReqsHints):
                                 elif discover_secondaryFiles and self.fs_access.exists(
                                     sf_location
                                 ):
-                                    addsf(datum["secondaryFiles"], {
+                                    addsf(
+                                        datum["secondaryFiles"],
+                                        {
                                             "location": sf_location,
                                             "basename": sfname,
                                             "class": "File",
-                                        }
+                                        },
                                     )
                                 elif sf_required:
                                     raise WorkflowException(
