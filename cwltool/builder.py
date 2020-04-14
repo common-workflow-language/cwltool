@@ -398,9 +398,10 @@ class Builder(HasReqsHints):
                                     ]
                                     + sfname
                                 )
+                                sfbasename = sfname
                             elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
-                                sfname = sfname["basename"]
+                                sfbasename = sfname["basename"]
                             else:
                                 raise WorkflowException(
                                     "Expected secondaryFile expression to return type 'str' or 'MutableMapping', received '%s'"
@@ -412,16 +413,23 @@ class Builder(HasReqsHints):
                                     d["basename"] = d["location"][
                                         d["location"].rindex("/") + 1 :
                                     ]
-                                if d["basename"] == sfname:
+                                if d["basename"] == sfbasename:
                                     found = True
+
                             if not found:
+                                def addsf(files, newsf):
+                                    for f in files:
+                                        if f["location"] == newsf["location"]:
+                                            f["basename"] = newsf["basename"]
+                                            return
+                                    files.append(newsf)
+
                                 if isinstance(sfname, MutableMapping):
-                                    datum["secondaryFiles"].append(sfname)
+                                    addsf(datum["secondaryFiles"], sfname)
                                 elif discover_secondaryFiles and self.fs_access.exists(
                                     sf_location
                                 ):
-                                    datum["secondaryFiles"].append(
-                                        {
+                                    addsf(datum["secondaryFiles"], {
                                             "location": sf_location,
                                             "basename": sfname,
                                             "class": "File",
