@@ -371,7 +371,6 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 timelimit=self.timelimit,
                 name=self.name,
                 monitor_function=monitor_function,
-                default_stdin=runtimeContext.default_stdin,
                 default_stdout=runtimeContext.default_stdout,
                 default_stderr=runtimeContext.default_stderr,
             )
@@ -906,25 +905,21 @@ def _job_popen(
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
     monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
-    default_stdin: Optional[Union[IO[Any], int]] = None,
     default_stdout: Optional[IO[Any]] = None,
     default_stderr: Optional[IO[Any]] = None,
 ) -> int:
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
-        stdin = default_stdin if default_stdin is not None else subprocess.PIPE # type: Union[IO[Any], int]
-        # stdin = subprocess.PIPE  # type: Union[IO[Any], int]
+        stdin = subprocess.PIPE  # type: Union[IO[Any], int]
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
         stdout = default_stdout if default_stdout is not None else sys.stderr  # type: IO[Any]
-        # stdout = sys.stderr  # type: IO[Any]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
         stderr = default_stderr if default_stderr is not None else sys.stderr # type: IO[Any]
-        # stderr = sys.stderr  # type: IO[Any]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
