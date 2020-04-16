@@ -204,7 +204,7 @@ def object_from_state(
                     raise WorkflowException(
                         u"All sources for '%s' are null" % (shortname(inp["id"]))
                     )
-            elif inp["pickValue"] == "only_non_null":
+            elif inp["pickValue"] == "the_only_non_null":
                 found = False
                 for v in seq:
                     if v is not None:
