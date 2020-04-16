@@ -390,31 +390,56 @@ class Builder(HasReqsHints):
                             if not sfname:
                                 continue
                             found = False
-                            for d in datum["secondaryFiles"]:
-                                if not d.get("basename"):
-                                    d["basename"] = d["location"][
-                                        d["location"].rindex("/") + 1 :
-                                    ]
-                                if d["basename"] == sfname:
-                                    found = True
-                            if not found:
+
+                            if isinstance(sfname, str):
                                 sf_location = (
                                     datum["location"][
                                         0 : datum["location"].rindex("/") + 1
                                     ]
                                     + sfname
                                 )
+                                sfbasename = sfname
+                            elif isinstance(sfname, MutableMapping):
+                                sf_location = sfname["location"]
+                                sfbasename = sfname["basename"]
+                            else:
+                                raise WorkflowException(
+                                    "Expected secondaryFile expression to return type 'str' or 'MutableMapping', received '%s'"
+                                    % (type(sfname))
+                                )
+
+                            for d in datum["secondaryFiles"]:
+                                if not d.get("basename"):
+                                    d["basename"] = d["location"][
+                                        d["location"].rindex("/") + 1 :
+                                    ]
+                                if d["basename"] == sfbasename:
+                                    found = True
+
+                            if not found:
+
+                                def addsf(
+                                    files: MutableSequence[MutableMapping[str, Any]],
+                                    newsf: MutableMapping[str, Any],
+                                ) -> None:
+                                    for f in files:
+                                        if f["location"] == newsf["location"]:
+                                            f["basename"] = newsf["basename"]
+                                            return
+                                    files.append(newsf)
+
                                 if isinstance(sfname, MutableMapping):
-                                    datum["secondaryFiles"].append(sfname)
+                                    addsf(datum["secondaryFiles"], sfname)
                                 elif discover_secondaryFiles and self.fs_access.exists(
                                     sf_location
                                 ):
-                                    datum["secondaryFiles"].append(
+                                    addsf(
+                                        datum["secondaryFiles"],
                                         {
                                             "location": sf_location,
                                             "basename": sfname,
                                             "class": "File",
-                                        }
+                                        },
                                     )
                                 elif sf_required:
                                     raise WorkflowException(
