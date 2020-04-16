@@ -159,6 +159,10 @@ def v1_2_0dev2todev3(doc: Any, loader: Loader, baseuri: str) -> Tuple[Any, str]:
                 if "pickValue" in inp:
                     if inp["pickValue"] == "only_non_null":
                         inp["pickValue"] = "the_only_non_null"
+        for output in t["outputs"]:
+            if "pickValue" in output:
+                if output["pickValue"] == "only_non_null":
+                    output["pickValue"] = "the_only_non_null"
 
     visit_class(doc, "Workflow", update_pickvalue)
     upd = doc
