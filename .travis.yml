@@ -34,13 +34,16 @@ jobs:
       env:
        - version=v1.1
       script: ${TRAVIS_BUILD_DIR}/travis.bash
+    - python: "3.7"
+      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
     - python: "3.8"
       name: "CWL v1.2 conformance tests"
       env:
-       - version=v1.2.0-dev1
+       - version=v1.2.0-dev3
       script: ${TRAVIS_BUILD_DIR}/travis.bash
-    - python: "3.7"
-      script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+  allow_failures:
+    - python: "3.8"
+      name: "CWL v1.2 conformance tests"
 script: tox
 branches:
   only:
