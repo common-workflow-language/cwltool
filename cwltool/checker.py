@@ -327,7 +327,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
                     ("merge_nested" if len(sink[sourceField]) > 1 else None),
                 )
 
-                if pickValue in ["first_non_null", "only_non_null"]:
+                if pickValue in ["first_non_null", "the_only_non_null"]:
                     linkMerge = None
 
                 srcs_of_sink = []  # type: List[Any]

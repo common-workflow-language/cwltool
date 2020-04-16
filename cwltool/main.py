@@ -613,12 +613,16 @@ def setup_schema(
         ext11 = res.read()
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
         res.close()
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
+        use_standard_schema("v1.2.0-dev1")
         use_standard_schema("v1.2.0-dev2")
+        use_standard_schema("v1.2.0-dev3")
 
 
 def setup_provenance(
