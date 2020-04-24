@@ -607,16 +607,15 @@ def setup_schema(
     if custom_schema_callback is not None:
         custom_schema_callback()
     elif args.enable_ext:
-        res = pkg_resources.resource_stream(__name__, "extensions.yml")
-        ext10 = res.read()
-        res = pkg_resources.resource_stream(__name__, "extensions-v1.1.yml")
-        ext11 = res.read()
+        with pkg_resources.resource_stream(__name__, "extensions.yml") as res:
+            ext10 = res.read()
+        with pkg_resources.resource_stream(__name__, "extensions-v1.1.yml") as res:
+            ext11 = res.read()
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
-        res.close()
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
