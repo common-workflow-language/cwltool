@@ -44,3 +44,22 @@ $graph:
         subscope: run
       doc: |
         Specifies the process to run.
+
+- name: MPIRequirement
+  type: record
+  inVocab: true
+  extends: cwl:ProcessRequirement
+  doc: |
+    Indicates that a process requires an MPI runtime.
+  fields:
+    - name: class
+      type: string
+      doc: "Always 'MPIRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: processes
+      type: [int, cwl:Expression]
+      doc: |
+        The number of MPI processes to start. If you give an
+        expression, this must evaluate to an integer.

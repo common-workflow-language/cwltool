@@ -107,6 +107,7 @@ supportedProcessRequirements = [
     "NetworkAccess",
     "InplaceUpdateRequirement",
     "LoadListingRequirement",
+    "MPIRequirement",
     "http://commonwl.org/cwltool#TimeLimit",
     "http://commonwl.org/cwltool#WorkReuse",
     "http://commonwl.org/cwltool#NetworkAccess",
