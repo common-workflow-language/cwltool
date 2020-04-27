@@ -17,6 +17,7 @@ from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX
+from .mpi import MpiConfig
 
 if TYPE_CHECKING:
     from .process import Process
@@ -24,7 +25,6 @@ if TYPE_CHECKING:
         ResearchObject,  # pylint: disable=unused-import
         ProvenanceProfile,
     )
-    from .mpi import MpiConfig
 
 
 class ContextBase(object):
@@ -146,7 +146,7 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = ""  # type: str
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.mpi_config = None # type: Optional[MpiConfig]
+        self.mpi_config = MpiConfig() # type: MpiConfig
 
         super(RuntimeContext, self).__init__(kwargs)
 

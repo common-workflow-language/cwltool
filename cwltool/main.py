@@ -868,8 +868,8 @@ def main(
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
 
-        if args.mpi_config is not None:
-            runtimeContext.mpi_config = MpiConfig.load(args.mpi_config)
+        if args.mpi_config_file is not None:
+            runtimeContext.mpi_config = MpiConfig.load(args.mpi_config_file)
 
         setup_schema(args, custom_schema_callback)
 
