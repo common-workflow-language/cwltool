@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         ResearchObject,  # pylint: disable=unused-import
         ProvenanceProfile,
     )
+    from .mpi import MpiConfig
 
 
 class ContextBase(object):
@@ -145,6 +146,8 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = ""  # type: str
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.mpi_config = None # type: Optional[MpiConfig]
+
         super(RuntimeContext, self).__init__(kwargs)
 
     def copy(self):

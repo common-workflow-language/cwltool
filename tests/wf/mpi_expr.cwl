@@ -7,12 +7,18 @@ doc: |
   processes. Requires Python (but you have cwltool running, right?)
   and an MPI implementation.
 
+  This version takes the number of processes to use as an input and
+  then passes this to the MPIRequirement using an expression.
+
 baseCommand: python
 requirements:
   MPIRequirement:
-    processes: 2
+    processes: $(inputs.processes)
 arguments: [-c, 'import os; print(os.getpid())']
-inputs: []
+inputs:
+  processes:
+    type: int
+
 outputs:
   pids:
     type: stdout

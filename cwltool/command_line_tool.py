@@ -784,6 +784,14 @@ class CommandLineTool(Process):
         )
         j.output_callback = output_callbacks
 
+        mpi, _ = self.get_requirement("MPIRequirement")
+        if mpi is not None:
+            j.mpi_procs = builder.do_eval(
+                mpi.get(
+                    'processes',
+                    runtimeContext.mpi_config.default_nproc)
+                ) # type: int
+
         yield j
 
     def collect_output_ports(

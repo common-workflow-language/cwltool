@@ -225,6 +225,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
+        self.mpi_procs = None # type: Optional[int]
 
     def __repr__(self):  # type: () -> str
         """Represent this Job object."""
@@ -287,6 +288,14 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
             def shouldquote(x: Any) -> bool:
                 return False
+
+        # If mpi_procs (is not None and > 0) then prepend the
+        # appropriate MPI job launch command and flags before the
+        # execution.
+        if self.mpi_procs:
+            menv = runtimeContext.mpi_config
+            mpi_runtime = [menv.runner, menv.nproc_flag, self.mpi_procs] + menv.extra_flags
+            runtime = mpi_runtime + runtime
 
         _logger.info(
             "[job %s] %s$ %s%s%s%s",

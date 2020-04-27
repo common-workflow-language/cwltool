@@ -90,7 +90,7 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
-
+from .mpi import MpiConfig
 
 def _terminate_processes():
     # type: () -> None
@@ -867,6 +867,9 @@ def main(
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
+
+        if args.mpi_config is not None:
+            runtimeContext.mpi_config = MpiConfig.load(args.mpi_config)
 
         setup_schema(args, custom_schema_callback)
 
