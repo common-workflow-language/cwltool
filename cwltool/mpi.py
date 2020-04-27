@@ -1,10 +1,10 @@
-from typing import List, Mapping, Any, Type, TypeVar
+from typing import List, Dict, Any, Type, TypeVar
 from ruamel import yaml
 
 
 MpiConfigT = TypeVar('MpiConfigT', bound='MpiConfig')
 class MpiConfig:
-    def __init__(self, args : Mapping[str, Any] = {}) -> None:
+    def __init__(self, args : Dict[str, Any] = {}) -> None:
         """Initialize from the argument mapping with the following defaults:
         
         runner: "mpirun"

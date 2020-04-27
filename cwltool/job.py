@@ -294,7 +294,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # execution.
         if self.mpi_procs:
             menv = runtimeContext.mpi_config
-            mpi_runtime = [menv.runner, menv.nproc_flag, self.mpi_procs] + menv.extra_flags
+            mpi_runtime = [menv.runner, menv.nproc_flag, str(self.mpi_procs)] + menv.extra_flags
             runtime = mpi_runtime + runtime
 
         _logger.info(

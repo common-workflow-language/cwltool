@@ -790,7 +790,7 @@ class CommandLineTool(Process):
                 mpi.get(
                     'processes',
                     runtimeContext.mpi_config.default_nproc)
-                ) # type: int
+                )
 
         yield j
 
