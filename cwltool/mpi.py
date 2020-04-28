@@ -18,7 +18,7 @@ class MpiConfig:
         self.nproc_flag = args.pop("nproc_flag", "-n") # type: str
         self.default_nproc = int(args.pop("default_nproc", 1)) # type: int
         self.extra_flags = args.pop("extra_flags", []) # type: List[str]
-        if len(args) < 0:
+        if len(args) > 0:
             raise ValueError("Unknown key(s) in MPI configuration: {}".format(args.keys()))
 
     @classmethod
