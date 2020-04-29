@@ -42,14 +42,12 @@ class Runner:
     def __init__(self):
         if sys.stdin.isatty():
             self.indata = None
-            self.encoding = None
         else:
-            self.indata = sys.stdin.read()
-            self.encoding = sys.stdin.encoding
+            self.indata = sys.stdin.read().encode(sys.stdin.encoding)
 
     def run_once(self, args: List[str]):
         subprocess.run(
-            args, input=self.indata, encoding=self.encoding, stdout=sys.stdout, stderr=sys.stderr
+            args, input=self.indata, stdout=sys.stdout, stderr=sys.stderr
         ).check_returncode()
 
     def run_many(self, n: int, args: List[str]):
