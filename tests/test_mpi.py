@@ -1,11 +1,13 @@
 import sys
 import os.path
+from io import StringIO
 import pytest
 from ruamel import yaml
 import json
-from .util import get_data, get_main_output
+from .util import get_data, working_directory, windows_needs_docker
 
 from cwltool.mpi import MpiConfig
+from cwltool.main import main
 
 def test_mpi_conf_defaults():
     mpi = MpiConfig()
@@ -18,8 +20,14 @@ def test_mpi_conf_unknownkeys():
     with pytest.raises(ValueError):
         MpiConfig({"runner": "mpiexec", "foo": "bar"})
 
-@pytest.fixture
-def fake_mpi_conf(tmpdir):
+@pytest.fixture(scope="class")
+def fake_mpi_conf(tmp_path_factory):
+    """Make a super simple mpirun-alike for applications that don't actually use MPI.
+    It just runs the command multiple times (in serial).
+
+    Then create a plaform MPI config YAML file that should make it work
+    for the testing examples.
+    """
     mpirun_text = """#!{interpreter}
 import argparse
 import sys
@@ -60,8 +68,9 @@ if __name__ == "__main__":
     r = Runner()
     r.run_many(args.num, args.progargs)
 """.format(interpreter=sys.executable)
-    mpirun_file = tmpdir.join("fake_mpirun")
-    mpirun_file.write(mpirun_text)
+    mpitmp = tmp_path_factory.mktemp("fake_mpi")
+    mpirun_file = mpitmp / "fake_mpirun"
+    mpirun_file.write_text(mpirun_text)
     mpirun_file.chmod(0o755)
 
     plat_conf = {
@@ -69,64 +78,84 @@ if __name__ == "__main__":
         "nproc_flag": "--num",
         "extra_flags": ["--no-fail"]
         }
-    plat_conf_file = tmpdir.join("plat_mpi.yml")
-    plat_conf_file.write(yaml.round_trip_dump(plat_conf))
+    plat_conf_file = mpitmp / "plat_mpi.yml"
+    plat_conf_file.write_text(yaml.round_trip_dump(plat_conf))
+
     yield str(plat_conf_file)
-    
-def test_fake_mpi_config(fake_mpi_conf):
-    conf_obj = MpiConfig.load(fake_mpi_conf)
-    runner = conf_obj.runner
-    assert os.path.dirname(runner) == os.path.dirname(fake_mpi_conf)
-    assert os.path.basename(runner) == "fake_mpirun"
-    assert conf_obj.nproc_flag == "--num"
-    assert conf_obj.default_nproc == 1
-    assert conf_obj.extra_flags == ["--no-fail"]
-    
-def cwltool_args(fake_mpi_conf):
-    return ["--enable-ext", "--enable-dev", "--mpi-config-file", fake_mpi_conf]
 
-def test_simple_mpi_tool(fake_mpi_conf):
-    args = cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple.cwl")]
-    rc, stdout, stderr = get_main_output(args)
-    assert rc == 0
+    plat_conf_file.unlink()
+    mpirun_file.unlink()
+    mpitmp.rmdir()
 
-    output = json.loads(stdout)
-    pid_path = output['pids']['path']
-    with open(pid_path) as pidfile:
-        pids = [int(line) for line in pidfile]
-    assert len(pids) == 2
-
-def make_processes_input(np, tmpdir):
-    input_file = os.path.join(tmpdir, "input.yml")
-    with open(input_file, "w") as f:
+def make_processes_input(np, tmp_path):
+    input_file = tmp_path / "input.yml"
+    with input_file.open("w") as f:
         f.write("processes: %d\n" % np)
     return input_file
 
-def test_simple_mpi_nproc_expr(fake_mpi_conf):
-    np = 4
-    input_file = make_processes_input(np, os.path.dirname(fake_mpi_conf))
+def cwltool_args(fake_mpi_conf):
+    return ["--enable-ext", "--enable-dev", "--mpi-config-file", fake_mpi_conf]
 
-    args = cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_expr.cwl"), input_file]
-    rc, stdout, stderr = get_main_output(args)
-    assert rc == 0
+class TestMpiRun:
+    def test_fake_mpi_config(self, fake_mpi_conf):
+        conf_obj = MpiConfig.load(fake_mpi_conf)
+        runner = conf_obj.runner
+        assert os.path.dirname(runner) == os.path.dirname(fake_mpi_conf)
+        assert os.path.basename(runner) == "fake_mpirun"
+        assert conf_obj.nproc_flag == "--num"
+        assert conf_obj.default_nproc == 1
+        assert conf_obj.extra_flags == ["--no-fail"]
 
-    output = json.loads(stdout)
-    pid_path = output['pids']['path']
-    with open(pid_path) as pidfile:
-        pids = [int(line) for line in pidfile]
-    assert len(pids) == np
+    @windows_needs_docker
+    def test_simple_mpi_tool(self, fake_mpi_conf, tmp_path):
+        args = cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple.cwl")]
+        stdout = StringIO()
+        stderr = StringIO()
+        with working_directory(tmp_path):
+            rc = main(
+                argsl=cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple.cwl")],
+                stdout=stdout, stderr=stderr)
+            assert rc == 0
 
-def test_mpi_workflow(fake_mpi_conf):
-    np = 3
-    input_file = make_processes_input(np, os.path.dirname(fake_mpi_conf))
+            output = json.loads(stdout.getvalue())
+            pid_path = output['pids']['path']
+            with open(pid_path) as pidfile:
+                pids = [int(line) for line in pidfile]
+            assert len(pids) == 2
 
-    args = cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple_wf.cwl"), input_file]
-    rc, stdout, stderr = get_main_output(args)
-    assert rc == 0
+    @windows_needs_docker
+    def test_simple_mpi_nproc_expr(self, fake_mpi_conf, tmp_path):
+        np = 4
+        input_file = make_processes_input(np, tmp_path)
+        stdout = StringIO()
+        stderr = StringIO()
+        with working_directory(tmp_path):
+            rc = main(
+                argsl=cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_expr.cwl"), str(input_file)],
+                stdout=stdout, stderr=stderr)
+            assert rc == 0
 
-    output = json.loads(stdout)
-    lc_path = output['line_count']['path']
-    with open(lc_path) as lc_file:
-        lc = int(lc_file.read())
-    assert lc == np
+            output = json.loads(stdout.getvalue())
+            pid_path = output['pids']['path']
+            with open(pid_path) as pidfile:
+                pids = [int(line) for line in pidfile]
+            assert len(pids) == np
+
+    @windows_needs_docker
+    def test_mpi_workflow(self, fake_mpi_conf, tmp_path):
+        np = 3
+        input_file = make_processes_input(np, tmp_path)
+        stdout = StringIO()
+        stderr = StringIO()
+        with working_directory(tmp_path):
+            rc = main(
+                argsl=cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple_wf.cwl"), str(input_file)],
+                stdout=stdout, stderr=stderr)
+            assert rc == 0
+
+            output = json.loads(stdout.getvalue())
+            lc_path = output['line_count']['path']
+            with open(lc_path) as lc_file:
+                lc = int(lc_file.read())
+                assert lc == np
 
