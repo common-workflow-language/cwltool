@@ -21,8 +21,17 @@ from typing import (
 
 import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad import schema
-from schema_salad.ref_resolver import ContextType, Fetcher, Loader, SubLoader, file_uri
+
+from schema_salad.ref_resolver import (
+    ContextType,
+    Fetcher,
+    FetcherCallableType,
+    IdxResultType,
+    Loader,
+    ResolveType,
+    file_uri,
+)
+from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.utils import json_dumps
 from schema_salad.validate import ValidationException
@@ -58,14 +67,11 @@ overrides_ctx = {
 }  # type: ContextType
 
 
-FetcherConstructorType = Callable[
-    [Dict[str, Union[str, bool]], requests.sessions.Session], Fetcher
-]
 ResolverType = Callable[[Loader, Union[str, Dict[str, Any]]], str]
 
 
 def default_loader(fetcher_constructor=None, enable_dev=False, doc_cache=True):
-    # type: (Optional[FetcherConstructorType], bool, bool) -> Loader
+    # type: (Optional[FetcherCallableType], bool, bool) -> Loader
     return Loader(
         jobloaderctx,
         fetcher_constructor=fetcher_constructor,
@@ -77,7 +83,7 @@ def default_loader(fetcher_constructor=None, enable_dev=False, doc_cache=True):
 def resolve_tool_uri(
     argsworkflow: str,
     resolver: Optional[ResolverType] = None,
-    fetcher_constructor: Optional[FetcherConstructorType] = None,
+    fetcher_constructor: Optional[FetcherCallableType] = None,
     document_loader: Optional[Loader] = None,
 ) -> Tuple[str, str]:
 
@@ -126,7 +132,7 @@ def fetch_document(
             resolver=loadingContext.resolver,
             document_loader=loadingContext.loader,
         )
-        workflowobj = loadingContext.loader.fetch(fileuri)
+        workflowobj = cast(CommentedMap, loadingContext.loader.fetch(fileuri))
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, dict):
         uri = argsworkflow["id"] if argsworkflow.get("id") else "_:" + str(uuid.uuid4())
@@ -318,7 +324,7 @@ def resolve_and_validate_document(
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Union[CommentedMap, CommentedSeq, str, None]
+    processobj = None  # type: Optional[ResolveType]
     document_loader = Loader(
         sch_document_loader.ctx,
         schemagraph=sch_document_loader.graph,
@@ -359,9 +365,7 @@ def resolve_and_validate_document(
         return loadingContext, uri
 
     if loadingContext.do_validate:
-        schema.validate_doc(
-            avsc_names, processobj, document_loader, loadingContext.strict
-        )
+        validate_doc(avsc_names, processobj, document_loader, loadingContext.strict)
 
     # None means default behavior (do update)
     if loadingContext.do_update in (True, None):
@@ -436,7 +440,7 @@ def load_tool(
 
 
 def resolve_overrides(
-    ov,  # type: CommentedMap
+    ov,  # type: IdxResultType
     ov_uri,  # type: str
     baseurl,  # type: str
 ):  # type: (...) -> List[Dict[str, Any]]

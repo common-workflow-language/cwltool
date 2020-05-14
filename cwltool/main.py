@@ -12,7 +12,7 @@ import sys
 import time
 import urllib
 from codecs import StreamWriter, getwriter
-from collections.abc import Iterable, MutableSequence, Sequence
+from collections.abc import Iterable, MutableMapping, MutableSequence, Sequence
 from typing import (
     IO,
     Any,
@@ -34,10 +34,11 @@ import coloredlogs
 import pkg_resources  # part of setuptools
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad import validate
+
 from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
-from schema_salad.sourceline import cmap, strip_dup_lineno
+from schema_salad.sourceline import strip_dup_lineno
 from schema_salad.utils import json_dumps
+from schema_salad.validate import ValidationException
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -737,7 +738,7 @@ def choose_target(
     else:
         _logger.error("Can only use --target on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, CommentedMap):
+    if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
         tool = make_tool(extracted["id"], loadingContext)
     else:
@@ -989,7 +990,7 @@ def main(
                 )
                 return 0
 
-        except (validate.ValidationException) as exc:
+        except (ValidationException) as exc:
             _logger.error(
                 "Tool definition failed validation:\n%s", str(exc), exc_info=args.debug
             )
@@ -1158,7 +1159,7 @@ def main(
             _logger.info("Final process status is %s", status)
             return 0
 
-        except (validate.ValidationException) as exc:
+        except (ValidationException) as exc:
             _logger.error(
                 "Input object failed validation:\n%s", str(exc), exc_info=args.debug
             )

@@ -13,6 +13,7 @@ from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from pkg_resources import resource_stream
+
 from schema_salad.utils import json_dumps
 
 from .loghandler import _logger

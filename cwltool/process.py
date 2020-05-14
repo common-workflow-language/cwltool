@@ -36,10 +36,15 @@ from typing import (
 from pkg_resources import resource_stream
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad import schema, validate
-from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
-from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from typing_extensions import TYPE_CHECKING
+
+from schema_salad.avro.schema import Names, SchemaParseException, make_avsc_object
+from schema_salad.exceptions import ValidationException
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
+from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
+from schema_salad.sourceline import SourceLine, strip_dup_lineno
+from schema_salad.utils import convert_to_dict
+from schema_salad.validate import validate_ex
 
 from . import expression
 from .builder import Builder, HasReqsHints
@@ -151,7 +156,7 @@ salad_files = (
 
 SCHEMA_CACHE = (
     {}
-)  # type: Dict[str, Tuple[Loader, Union[schema.Names, schema.SchemaParseException], Dict[str, Any], Loader]]
+)  # type: Dict[str, Tuple[Loader, Union[Names, SchemaParseException], Dict[str, Any], Loader]]
 SCHEMA_FILE = None  # type: Optional[Dict[str, Any]]
 SCHEMA_DIR = None  # type: Optional[Dict[str, Any]]
 SCHEMA_ANY = None  # type: Optional[Dict[str, Any]]
@@ -179,7 +184,7 @@ def use_custom_schema(version, name, text):
 
 
 def get_schema(version):
-    # type: (str) -> Tuple[Loader, Union[schema.Names, schema.SchemaParseException], Dict[str,Any], Loader]
+    # type: (str) -> Tuple[Loader, Union[Names, SchemaParseException], Dict[str,Any], Loader]
 
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
@@ -191,7 +196,7 @@ def get_schema(version):
     for f in cwl_files:
         try:
             res = resource_stream(__name__, "schemas/%s/%s" % (version, f))
-            cache["https://w3id.org/cwl/" + f] = res.read()
+            cache["https://w3id.org/cwl/" + f] = res.read().decode("UTF-8")
             res.close()
         except IOError:
             pass
@@ -204,18 +209,16 @@ def get_schema(version):
             )
             cache[
                 "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f
-            ] = res.read()
+            ] = res.read().decode("UTF-8")
             res.close()
         except IOError:
             pass
 
     if version in custom_schemas:
         cache[custom_schemas[version][0]] = custom_schemas[version][1]
-        SCHEMA_CACHE[version] = schema.load_schema(
-            custom_schemas[version][0], cache=cache
-        )
+        SCHEMA_CACHE[version] = load_schema(custom_schemas[version][0], cache=cache)
     else:
-        SCHEMA_CACHE[version] = schema.load_schema(
+        SCHEMA_CACHE[version] = load_schema(
             "https://w3id.org/cwl/CommonWorkflowLanguage.yml", cache=cache
         )
 
@@ -478,7 +481,7 @@ def avroize_type(field_type, name_prefix=""):
 def get_overrides(overrides: List[Dict[str, Any]], toolid: str) -> Dict[str, Any]:
     req = {}  # type: Dict[str, Any]
     if not isinstance(overrides, MutableSequence):
-        raise validate.ValidationException(
+        raise ValidationException(
             "Expected overrides to be a list, but was %s" % type(overrides)
         )
     for ov in overrides:
@@ -533,7 +536,7 @@ FILE_COUNT_WARNING = 5000
 
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
     def __init__(
-        self, toolpath_object: MutableMapping[str, Any], loadingContext: LoadingContext
+        self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Build a Process object from the provided dictionary."""
         super(Process, self).__init__()
@@ -556,9 +559,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"],
             )
 
-        self.names = schema.make_avro_schema(
-            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({})
-        )
+        self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         self.requirements.extend(self.tool.get("requirements", []))
@@ -594,10 +595,10 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         if sd is not None:
             sdtypes = avroize_type(sd["types"])
-            av = schema.make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
+            av = make_valid_avro(sdtypes, {t["name"]: t for t in sdtypes}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
-            schema.make_avsc_object(schema.convert_to_dict(av), self.names)
+            make_avsc_object(convert_to_dict(av), self.names)
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -618,7 +619,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(
+                    raise ValidationException(
                         "Missing 'type' in parameter '{}'".format(c["name"])
                     )
 
@@ -634,22 +635,16 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 elif key == "outputs":
                     self.outputs_record_schema["fields"].append(c)
 
-        with SourceLine(toolpath_object, "inputs", validate.ValidationException):
+        with SourceLine(toolpath_object, "inputs", ValidationException):
             self.inputs_record_schema = cast(
-                Dict[str, Any],
-                schema.make_valid_avro(self.inputs_record_schema, {}, set()),
+                Dict[str, Any], make_valid_avro(self.inputs_record_schema, {}, set()),
             )
-            schema.make_avsc_object(
-                schema.convert_to_dict(self.inputs_record_schema), self.names
-            )
-        with SourceLine(toolpath_object, "outputs", validate.ValidationException):
+            make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
+        with SourceLine(toolpath_object, "outputs", ValidationException):
             self.outputs_record_schema = cast(
-                Dict[str, Any],
-                schema.make_valid_avro(self.outputs_record_schema, {}, set()),
+                Dict[str, Any], make_valid_avro(self.outputs_record_schema, {}, set()),
             )
-            schema.make_avsc_object(
-                schema.convert_to_dict(self.outputs_record_schema), self.names
-            )
+            make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
@@ -668,7 +663,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 validate_js_options = None
             if self.doc_schema is not None:
                 validate_js_expressions(
-                    cast(CommentedMap, toolpath_object),
+                    toolpath_object,
                     self.doc_schema.names[toolpath_object["class"]],
                     validate_js_options,
                 )
@@ -734,9 +729,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 raise WorkflowException(
                     "Missing input record schema: " "{}".format(self.names)
                 )
-            validate.validate_ex(
-                schema, job, strict=False, logger=_logger_validation_warnings
-            )
+            validate_ex(schema, job, strict=False, logger=_logger_validation_warnings)
 
             if load_listing and load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
@@ -780,7 +773,7 @@ hints:
                             )
                         )
 
-        except (validate.ValidationException, WorkflowException) as err:
+        except (ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + str(err)) from err
 
         files = []  # type: List[Dict[str, str]]
@@ -961,7 +954,7 @@ hints:
     def validate_hints(self, avsc_names, hints, strict):
         # type: (Any, List[Dict[str, Any]], bool) -> None
         for i, r in enumerate(hints):
-            sl = SourceLine(hints, i, validate.ValidationException)
+            sl = SourceLine(hints, i, ValidationException)
             with sl:
                 if (
                     avsc_names.get_name(r["class"], None) is not None
@@ -972,8 +965,8 @@ hints:
                         for key in r
                         if key not in self.doc_loader.identifiers
                     )  # strip identifiers
-                    validate.validate_ex(
-                        avsc_names.get_name(plain_hint["class"], None),
+                    validate_ex(
+                        avsc_names.get_name(plain_hint["class"], ""),
                         plain_hint,
                         strict=strict,
                     )
@@ -982,7 +975,7 @@ hints:
                 else:
                     _logger.info(str(sl.makeError("Unknown hint %s" % (r["class"]))))
 
-    def visit(self, op: Callable[[MutableMapping[str, Any]], None]) -> None:
+    def visit(self, op: Callable[[CommentedMap], None]) -> None:
         op(self.tool)
 
     @abc.abstractmethod

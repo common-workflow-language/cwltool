@@ -16,8 +16,8 @@ from typing import (
 )
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Loader, SubLoader
-from schema_salad.sourceline import cmap
+
+from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
@@ -37,9 +37,7 @@ def flatten_deps(d, files):  # type: (Any, Set[str]) -> None
             flatten_deps(d["listing"], files)
 
 
-LoadRefType = Callable[
-    [Optional[str], str], Union[Dict[str, Any], List[Dict[str, Any]], str, None]
-]
+LoadRefType = Callable[[Optional[str], str], ResolveType]
 
 
 def find_run(
@@ -165,7 +163,7 @@ def pack(
         document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
     def loadref(base, uri):
-        # type: (Optional[str], str) -> Union[Dict[str, Any], List[Dict[str, Any]], str, None]
+        # type: (Optional[str], str) -> ResolveType
         return document_loader.resolve_ref(uri, base_url=base)[0]
 
     ids = set()  # type: Set[str]

@@ -5,9 +5,10 @@ from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
-from schema_salad import schema
-from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING
+
+from schema_salad.ref_resolver import Loader
+from schema_salad.schema import Names
 
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
@@ -35,9 +36,8 @@ class ContextBase(object):
 
 
 def make_tool_notimpl(
-    toolpath_object,  # type: MutableMapping[str, Any]
-    loadingContext,  # type: LoadingContext
-):  # type: (...) -> Process
+    toolpath_object: CommentedMap, loadingContext: "LoadingContext"
+) -> "Process":
     raise NotImplementedError()
 
 
@@ -53,7 +53,7 @@ class LoadingContext(ContextBase):
         self.hints = None  # type: Optional[List[Dict[str, Any]]]
         self.overrides_list = []  # type: List[Dict[str, Any]]
         self.loader = None  # type: Optional[Loader]
-        self.avsc_names = None  # type: Optional[schema.Names]
+        self.avsc_names = None  # type: Optional[Names]
         self.disable_js_validation = False  # type: bool
         self.js_hint_options_file = None
         self.do_validate = True  # type: bool

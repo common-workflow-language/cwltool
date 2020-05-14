@@ -19,12 +19,13 @@ from typing import (
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
+from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
+
 from schema_salad import validate
 from schema_salad.avro.schema import Schema, make_avsc_object
 from schema_salad.schema import Names, convert_to_dict
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
 
 from . import expression
 from .errors import WorkflowException

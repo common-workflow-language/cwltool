@@ -25,7 +25,8 @@ from typing import (
 from uuid import UUID
 
 from ruamel.yaml.comments import CommentedMap
-from schema_salad import validate
+
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 from schema_salad.utils import json_dumps
 
@@ -48,7 +49,7 @@ WorkflowStateItem = namedtuple("WorkflowStateItem", ["parameter", "value", "succ
 
 
 def default_make_tool(
-    toolpath_object: MutableMapping[str, Any], loadingContext: LoadingContext
+    toolpath_object: CommentedMap, loadingContext: LoadingContext
 ) -> Process:
     if not isinstance(toolpath_object, MutableMapping):
         raise WorkflowException("Not a dict: '%s'" % toolpath_object)
@@ -676,10 +677,8 @@ class WorkflowJob(object):
 
 class Workflow(Process):
     def __init__(
-        self,
-        toolpath_object,  # type: MutableMapping[str, Any]
-        loadingContext,  # type: LoadingContext
-    ):  # type: (...) -> None
+        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+    ) -> None:
         """Initializet this Workflow."""
         super(Workflow, self).__init__(toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
@@ -716,15 +715,13 @@ class Workflow(Process):
                         step, index, loadingContext, loadingContext.prov_obj
                     )
                 )
-            except validate.ValidationException as vexc:
+            except ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.exception("Validation failed at")
                 validation_errors.append(vexc)
 
         if validation_errors:
-            raise validate.ValidationException(
-                "\n".join(str(v) for v in validation_errors)
-            )
+            raise ValidationException("\n".join(str(v) for v in validation_errors))
 
         random.shuffle(self.steps)
 
@@ -754,7 +751,7 @@ class Workflow(Process):
 
     def make_workflow_step(
         self,
-        toolpath_object: Dict[str, Any],
+        toolpath_object: CommentedMap,
         pos: int,
         loadingContext: LoadingContext,
         parentworkflowProv: Optional[ProvenanceProfile] = None,
@@ -785,7 +782,7 @@ class Workflow(Process):
         for wjob in job.job(builder.job, output_callbacks, runtimeContext):
             yield wjob
 
-    def visit(self, op: Callable[[MutableMapping[str, Any]], Any]) -> None:
+    def visit(self, op: Callable[[CommentedMap], Any]) -> None:
         op(self.tool)
         for step in self.steps:
             step.visit(op)
@@ -805,7 +802,7 @@ def used_by_step(step: MutableMapping[str, Any], shortinputid: str) -> bool:
 class WorkflowStep(Process):
     def __init__(
         self,
-        toolpath_object,  # type: Dict[str, Any]
+        toolpath_object,  # type: CommentedMap
         pos,  # type: int
         loadingContext,  # type: LoadingContext
         parentworkflowProv=None,  # type: Optional[ProvenanceProfile]
@@ -834,14 +831,14 @@ class WorkflowStep(Process):
         loadingContext.hints = hints
 
         try:
-            if isinstance(toolpath_object["run"], MutableMapping):
+            if isinstance(toolpath_object["run"], CommentedMap):
                 self.embedded_tool = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext
                 )  # type: Process
             else:
                 loadingContext.metadata = {}
                 self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)
-        except validate.ValidationException as vexc:
+        except ValidationException as vexc:
             if loadingContext.debug:
                 _logger.exception("Validation exception")
             raise WorkflowException(
@@ -933,7 +930,7 @@ class WorkflowStep(Process):
             )
 
         if validation_errors:
-            raise validate.ValidationException("\n".join(validation_errors))
+            raise ValidationException("\n".join(validation_errors))
 
         super(WorkflowStep, self).__init__(toolpath_object, loadingContext)
 
@@ -959,14 +956,14 @@ class WorkflowStep(Process):
 
             method = self.tool.get("scatterMethod")
             if method is None and len(scatter) != 1:
-                raise validate.ValidationException(
+                raise ValidationException(
                     "Must specify scatterMethod when scattering over multiple inputs"
                 )
 
             inp_map = {i["id"]: i for i in inputparms}
             for inp in scatter:
                 if inp not in inp_map:
-                    raise validate.ValidationException(
+                    raise ValidationException(
                         SourceLine(self.tool, "scatter").makeError(
                             "Scatter parameter '%s' does not correspond to "
                             "an input parameter of this step, expecting '%s'"
@@ -1050,7 +1047,7 @@ class WorkflowStep(Process):
             _logger.exception("Unexpected exception")
             raise WorkflowException(str(exc)) from exc
 
-    def visit(self, op: Callable[[MutableMapping[str, Any]], Any]) -> None:
+    def visit(self, op: Callable[[CommentedMap], Any]) -> None:
         self.embedded_tool.visit(op)
 
 
