@@ -20,6 +20,7 @@ from typing import (
 )
 
 import psutil
+
 from schema_salad.sourceline import SourceLine
 from schema_salad.validate import ValidationException
 

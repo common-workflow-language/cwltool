@@ -29,12 +29,14 @@ from typing import (
 )
 
 import shellescape
+from ruamel.yaml.comments import CommentedMap
+from typing_extensions import TYPE_CHECKING, Type
+
 from schema_salad import validate
 from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, Type
 
 from .builder import Builder, content_limit_respected_read_bytes, substitute
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -326,7 +328,7 @@ OutputPorts = Dict[
 
 class CommandLineTool(Process):
     def __init__(
-        self, toolpath_object: MutableMapping[str, Any], loadingContext: LoadingContext
+        self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Initialize this CommandLineTool."""
         super(CommandLineTool, self).__init__(toolpath_object, loadingContext)

@@ -35,9 +35,10 @@ from pathlib2 import Path, PurePath, PurePosixPath
 from prov.identifier import Identifier, Namespace
 from prov.model import PROV, ProvDocument, ProvEntity
 from ruamel import yaml
+from typing_extensions import TYPE_CHECKING
+
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING
 
 from .context import RuntimeContext
 from .errors import WorkflowException

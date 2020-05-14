@@ -15,7 +15,9 @@ from typing import (
     cast,
 )
 
-from schema_salad import validate
+from ruamel.yaml.comments import CommentedMap
+
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import indent
 
 from .context import LoadingContext, RuntimeContext
@@ -78,20 +80,20 @@ class ProcessGeneratorJob(object):
 class ProcessGenerator(Process):
     def __init__(
         self,
-        toolpath_object,  # type: MutableMapping[str, Any]
+        toolpath_object,  # type: CommentedMap
         loadingContext,  # type: LoadingContext
     ):  # type: (...) -> None
         super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:
-            if isinstance(toolpath_object["run"], MutableMapping):
+            if isinstance(toolpath_object["run"], CommentedMap):
                 self.embedded_tool = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext
                 )  # type: Process
             else:
                 loadingContext.metadata = {}
                 self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)
-        except validate.ValidationException as vexc:
+        except ValidationException as vexc:
             if loadingContext.debug:
                 _logger.exception("Validation exception")
             raise WorkflowException(
@@ -120,7 +122,7 @@ class ProcessGenerator(Process):
             loadingContext = self.loadingContext.copy()
             loadingContext.metadata = {}
             embedded_tool = load_tool(jobout["runProcess"]["location"], loadingContext)
-        except validate.ValidationException as vexc:
+        except ValidationException as vexc:
             if runtimeContext.debug:
                 _logger.exception("Validation exception")
             raise WorkflowException(

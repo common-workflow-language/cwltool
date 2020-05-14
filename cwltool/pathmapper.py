@@ -23,9 +23,10 @@ from typing import (
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from schema_salad import validate
+
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
+from schema_salad.validate import ValidationException
 
 from .loghandler import _logger
 from .stdfsaccess import StdFsAccess, abspath
@@ -71,13 +72,13 @@ def normalizeFilesDirs(
     def addLocation(d):  # type: (Dict[str, Any]) -> None
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
-                raise validate.ValidationException(
+                raise ValidationException(
                     "Anonymous file object must have 'contents' and 'basename' fields."
                 )
             if d["class"] == "Directory" and (
                 "listing" not in d or "basename" not in d
             ):
-                raise validate.ValidationException(
+                raise ValidationException(
                     "Anonymous directory object must have 'listing' and 'basename' fields."
                 )
             d["location"] = "_:" + str(uuid.uuid4())
@@ -89,7 +90,7 @@ def normalizeFilesDirs(
         # strip trailing slash
         if path.endswith("/"):
             if d["class"] != "Directory":
-                raise validate.ValidationException(
+                raise ValidationException(
                     "location '%s' ends with '/' but is not a Directory" % d["location"]
                 )
             path = path.rstrip("/")
@@ -120,7 +121,7 @@ def normalizeFilesDirs(
             contents = d.get("contents")
             if contents and len(contents) > CONTENT_LIMIT:
                 if len(contents) > CONTENT_LIMIT:
-                    raise validate.ValidationException(
+                    raise ValidationException(
                         "File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)"
                         % CONTENT_LIMIT
                     )
@@ -336,7 +337,7 @@ class PathMapper(object):
                 with SourceLine(
                     obj,
                     "location",
-                    validate.ValidationException,
+                    ValidationException,
                     _logger.isEnabledFor(logging.DEBUG),
                 ):
                     deref = ab
