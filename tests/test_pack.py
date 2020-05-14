@@ -6,6 +6,7 @@ from io import StringIO
 from tempfile import NamedTemporaryFile
 
 import pytest
+from ruamel import yaml
 
 import cwltool.pack
 import cwltool.workflow
@@ -15,7 +16,6 @@ from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
 from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
 from cwltool.resolver import tool_resolver
-from ruamel import yaml
 
 from .util import get_data, needs_docker
 

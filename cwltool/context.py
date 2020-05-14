@@ -3,12 +3,11 @@ import copy
 import threading
 from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
 
-from typing_extensions import TYPE_CHECKING
-
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import schema
 from schema_salad.ref_resolver import Loader
+from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager

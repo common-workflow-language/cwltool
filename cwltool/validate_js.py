@@ -16,7 +16,6 @@ from typing import (
 )
 
 from pkg_resources import resource_stream
-
 from ruamel.yaml.comments import CommentedMap
 from schema_salad import avro
 from schema_salad.sourceline import SourceLine

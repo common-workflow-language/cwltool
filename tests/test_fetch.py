@@ -2,10 +2,10 @@ import os
 import urllib
 
 import pytest
-
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
+
 from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.main import main

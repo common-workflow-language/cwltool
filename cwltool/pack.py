@@ -19,9 +19,9 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.sourceline import cmap
 
-from .process import shortname, uniquename
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
+from .process import shortname, uniquename
 
 
 def flatten_deps(d, files):  # type: (Any, Set[str]) -> None

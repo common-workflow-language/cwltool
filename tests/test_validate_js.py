@@ -1,6 +1,7 @@
+from ruamel import yaml
+
 from cwltool import process, validate_js
 from cwltool.sandboxjs import code_fragment_to_js
-from ruamel import yaml
 
 TEST_CWL = """
 cwlVersion: v1.0

@@ -149,7 +149,9 @@ def v1_2_0dev1todev2(doc, loader, baseuri):  # pylint: disable=unused-argument
     return (doc, "v1.2.0-dev2")
 
 
-def v1_2_0dev2todev3(doc: Any, loader: Loader, baseuri: str) -> Tuple[Any, str]:  # pylint: disable=unused-argument
+def v1_2_0dev2todev3(
+    doc: Any, loader: Loader, baseuri: str
+) -> Tuple[Any, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev2 to v1.2.0-dev3"""
     doc = copy.deepcopy(doc)
 
