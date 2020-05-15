@@ -2,7 +2,7 @@
 from collections import namedtuple
 from typing import Any, Dict, List, MutableMapping, MutableSequence, Optional
 
-from schema_salad import validate
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 from schema_salad.utils import json_dumps
 
@@ -297,7 +297,7 @@ def static_checker(
     if all_warning_msg:
         _logger.warning("Workflow checker warning:\n%s", all_warning_msg)
     if exceptions:
-        raise validate.ValidationException(all_exception_msg)
+        raise ValidationException(all_exception_msg)
 
 
 SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])

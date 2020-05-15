@@ -23,6 +23,7 @@ from typing import (
     Generator,
     List,
     MutableMapping,
+    MutableSequence,
     Optional,
     Set,
     Tuple,
@@ -46,7 +47,7 @@ from .loghandler import _logger
 from .pathmapper import get_listing
 from .process import Process, shortname
 from .stdfsaccess import StdFsAccess
-from .utils import onWindows, versionstring
+from .utils import onWindows, versionstring, CWLObjectType
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -463,10 +464,10 @@ class ProvenanceProfile:
     def evaluate(
         self,
         process: Process,
-        job,  # type: Any
-        job_order_object,  # type: Dict[str, str]
-        research_obj,  # type: ResearchObject
-    ):  # type: (...) -> None
+        job: Any,
+        job_order_object: CWLObjectType,
+        research_obj: "ResearchObject",
+    ) -> None:
         """Evaluate the nature of job."""
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
@@ -480,8 +481,9 @@ class ProvenanceProfile:
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
-    def record_process_start(self, process, job, process_run_id=None):
-        # type: (Process, Any, Optional[str]) -> Optional[str]
+    def record_process_start(
+        self, process: Process, job: Any, process_run_id: Optional[str] = None
+    ) -> Optional[str]:
         if not hasattr(process, "steps"):
             process_run_id = self.workflow_run_uri
         elif not hasattr(job, "workflow"):
@@ -835,7 +837,7 @@ class ProvenanceProfile:
 
     def used_artefacts(
         self,
-        job_order: Union[Dict[Any, Any], List[Dict[Any, Any]]],
+        job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
     ) -> None:
@@ -864,15 +866,15 @@ class ProvenanceProfile:
 
     def generate_output_prov(
         self,
-        final_output: Union[MutableMapping[str, Any], List[Dict[str, Any]]],
+        final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         process_run_id: Optional[str],
         name: Optional[str],
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
-        if isinstance(final_output, list):
+        if isinstance(final_output, MutableSequence):
             for entry in final_output:
                 self.generate_output_prov(entry, process_run_id, name)
-        else:
+        elif final_output is not None:
             # Timestamp should be created at the earliest
             timestamp = datetime.datetime.now()
 
@@ -895,8 +897,7 @@ class ProvenanceProfile:
                     entity, process_run_id, timestamp, None, {"prov:role": role}
                 )
 
-    def prospective_prov(self, job):
-        # type: (Any) -> None
+    def prospective_prov(self, job: Any) -> None:
         """Create prospective prov recording as wfdesc prov:Plan."""
         if not hasattr(job, "steps"):
             # direct command line tool execution
@@ -1294,7 +1295,7 @@ class ResearchObject:
             ):
                 # probably a bagit file
                 continue
-            if path == PurePosixPath(METADATA) / "manifest.json":
+            if path == str(PurePosixPath(METADATA) / "manifest.json"):
                 # Should not really be there yet! But anyway, we won't
                 # aggregate it.
                 continue
@@ -1659,8 +1660,9 @@ class ResearchObject:
         )
         return self.relativised_input_object
 
-    def _relativise_files(self, structure):
-        # type: (Dict[Any, Any]) -> None
+    def _relativise_files(
+        self, structure: Union[str, MutableMapping[str, Any], MutableSequence[Any]]
+    ) -> None:
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug("[provenance] Relativising: %s", structure)
@@ -1709,7 +1711,7 @@ class ResearchObject:
                     pass
             return
 
-        if isinstance(structure, (str, str)):
+        if isinstance(structure, str):
             # Just a string value, no need to iterate further
             return
         try:

@@ -16,6 +16,7 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSequence,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -33,7 +34,7 @@ from schema_salad.utils import json_dumps
 from . import command_line_tool, context, expression, procgenerator
 from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink, static_checker
-from .command_line_tool import CallbackJob, ExpressionTool
+from .command_line_tool import CallbackJob, ExpressionJob, ExpressionTool
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
 from .job import JobBase
@@ -43,9 +44,22 @@ from .pathmapper import adjustDirObjs, get_listing
 from .process import Process, get_overrides, shortname, uniquename
 from .provenance import ProvenanceProfile
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX, aslist
+from .utils import (
+    DEFAULT_TMP_PREFIX,
+    aslist,
+    CWLObjectType,
+    OutputCallbackType,
+    DestinationsType,
+    JobsGeneratorType,
+)
 
-WorkflowStateItem = namedtuple("WorkflowStateItem", ["parameter", "value", "success"])
+WorkflowStateItem = NamedTuple(
+    "WorkflowStateItem",
+    [("parameter", MutableMapping[str, Any]), ("value", Any), ("success", str)],
+)
+SinkType = Union[MutableSequence[str], str, MutableMapping[str, Any]]
+ParametersType = List[Dict[str, Any]]
+StepType = MutableMapping[str, Any]  # WorkflowStep
 
 
 def default_make_tool(
@@ -75,32 +89,14 @@ def default_make_tool(
 context.default_make_tool = default_make_tool
 
 
-def findfiles(
-    wo: Any, fn: Optional[List[MutableMapping[str, Any]]] = None
-) -> List[MutableMapping[str, Any]]:
-    if fn is None:
-        fn = []
-    if isinstance(wo, MutableMapping):
-        if wo.get("class") == "File":
-            fn.append(wo)
-            findfiles(wo.get("secondaryFiles", None), fn)
-        else:
-            for w in wo.values():
-                findfiles(w, fn)
-    elif isinstance(wo, MutableSequence):
-        for w in wo:
-            findfiles(w, fn)
-    return fn
-
-
 def match_types(
-    sinktype,  # type: Union[List[str], str]
-    src,  # type: WorkflowStateItem
-    iid,  # type: str
-    inputobj,  # type: Dict[str, Any]
-    linkMerge,  # type: str
-    valueFrom,  # type: Optional[str]
-):  # type: (...) -> bool
+    sinktype: Optional[SinkType],
+    src: WorkflowStateItem,
+    iid: str,
+    inputobj: CWLObjectType,
+    linkMerge: Optional[str],
+    valueFrom: Optional[str],
+) -> bool:
     if isinstance(sinktype, MutableSequence):
         # Sink is union type
         for st in sinktype:
@@ -143,14 +139,14 @@ def match_types(
 
 
 def object_from_state(
-    state,  # type: Dict[str, Optional[WorkflowStateItem]]
-    parms,  # type: List[Dict[str, Any]]
-    frag_only,  # type: bool
-    supportsMultipleInput,  # type: bool
-    sourceField,  # type: str
-    incomplete=False,  # type: bool
-):  # type: (...) -> Optional[MutableMapping[str, Any]]
-    inputobj = {}  # type: Dict[str, Any]
+    state: Dict[str, Optional[WorkflowStateItem]],
+    parms: ParametersType,
+    frag_only: bool,
+    supportsMultipleInput: bool,
+    sourceField: str,
+    incomplete: bool = False,
+) -> Optional[CWLObjectType]:
+    inputobj = {}  # type: CWLObjectType
     for inp in parms:
         iid = inp["id"]
         if frag_only:
@@ -242,21 +238,18 @@ class WorkflowJobStep(object):
         self.tool = step.tool
         self.id = step.id
         self.submitted = False
+        self.iterable = None  # type: Optional[JobsGeneratorType]
         self.completed = False
-        self.iterable = (
-            None
-        )  # type: Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]
         self.name = uniquename("step %s" % shortname(self.id))
         self.prov_obj = step.prov_obj
         self.parent_wf = step.parent_wf
 
     def job(
         self,
-        joborder,  # type: Mapping[str, str]
-        output_callback,  # type: functools.partial[None]
-        runtimeContext,  # type: RuntimeContext
-    ):
-        # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob], None, None]
+        joborder: CWLObjectType,
+        output_callback: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
         runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = self.name
         runtimeContext.name = shortname(self.id)
@@ -306,14 +299,13 @@ class WorkflowJob(object):
             self.tool.get("id", "workflow embedded in %s" % runtimeContext.part_of),
         )
 
-    def do_output_callback(self, final_output_callback):
-        # type: (Callable[[Any, Any], Any]) -> None
+    def do_output_callback(self, final_output_callback: OutputCallbackType) -> None:
 
         supportsMultipleInput = bool(
             self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
         )
 
-        wo = None  # type: Optional[MutableMapping[str, str]]
+        wo = None  # type: Optional[CWLObjectType]
         try:
             wo = object_from_state(
                 self.state,
@@ -333,7 +325,7 @@ class WorkflowJob(object):
             and self.parent_wf
             and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri
         ):
-            process_run_id = None
+            process_run_id = None  # type: Optional[str]
             self.prov_obj.generate_output_prov(wo or {}, process_run_id, self.name)
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri,
@@ -356,9 +348,13 @@ class WorkflowJob(object):
         final_output_callback(wo, self.processStatus)
 
     def receive_output(
-        self, step, outputparms, final_output_callback, jobout, processStatus
-    ):
-        # type: (WorkflowJobStep, List[Dict[str,str]], Callable[[Any, Any], Any], Dict[str,str], str) -> None
+        self,
+        step: WorkflowJobStep,
+        outputparms: List[Dict[str, str]],
+        final_output_callback: OutputCallbackType,
+        jobout: CWLObjectType,
+        processStatus: str,
+    ) -> None:
 
         for i in outputparms:
             if "id" in i:
@@ -396,10 +392,10 @@ class WorkflowJob(object):
 
     def try_make_job(
         self,
-        step,  # type: WorkflowJobStep
-        final_output_callback,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
+        step: WorkflowJobStep,
+        final_output_callback: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
 
         if step.submitted:
             return
@@ -444,8 +440,7 @@ class WorkflowJob(object):
 
             vfinputs = {shortname(k): v for k, v in inputobj.items()}
 
-            def postScatterEval(io):
-                # type: (MutableMapping[str, Any]) -> Optional[MutableMapping[str, Any]]
+            def postScatterEval(io: CWLObjectType) -> Optional[CWLObjectType]:
                 shortio = {shortname(k): v for k, v in io.items()}
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
@@ -454,7 +449,7 @@ class WorkflowJob(object):
                         with fs_access.open(v["location"], "rb") as f:
                             v["contents"] = content_limit_respected_read(f)
 
-                def valueFromFunc(k, v):  # type: (Any, Any) -> Any
+                def valueFromFunc(k: Any, v: Any) -> Any:
                     if k in valueFrom:
                         adjustDirObjs(
                             v, functools.partial(get_listing, fs_access, recursive=True)
@@ -574,18 +569,18 @@ class WorkflowJob(object):
 
     def run(
         self,
-        runtimeContext,  # type: RuntimeContext
-        tmpdir_lock=None,  # type: Optional[threading.Lock]
-    ):  # type: (...) -> None
+        runtimeContext: RuntimeContext,
+        tmpdir_lock: Optional[threading.Lock] = None,
+    ) -> None:
         """Log the start of each workflow."""
         _logger.info("[%s] start", self.name)
 
     def job(
         self,
-        joborder,  # type: Mapping[str, Any]
-        output_callback,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
+        joborder: CWLObjectType,
+        output_callback: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
         self.state = {}
         self.processStatus = "success"
 
@@ -679,7 +674,7 @@ class Workflow(Process):
     def __init__(
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
     ) -> None:
-        """Initializet this Workflow."""
+        """Initialize this Workflow."""
         super(Workflow, self).__init__(toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
@@ -755,15 +750,15 @@ class Workflow(Process):
         pos: int,
         loadingContext: LoadingContext,
         parentworkflowProv: Optional[ProvenanceProfile] = None,
-    ):  # type: (...) -> WorkflowStep
+    ) -> "WorkflowStep":
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
     def job(
         self,
-        job_order,  # type: Mapping[str, Any]
-        output_callbacks,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Union[WorkflowJob, ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
+        job_order: CWLObjectType,
+        output_callbacks: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
         builder = self._init_job(job_order, runtimeContext)
 
         if runtimeContext.research_obj is not None:
@@ -782,13 +777,13 @@ class Workflow(Process):
         for wjob in job.job(builder.job, output_callbacks, runtimeContext):
             yield wjob
 
-    def visit(self, op: Callable[[CommentedMap], Any]) -> None:
+    def visit(self, op: Callable[[CommentedMap], None]) -> None:
         op(self.tool)
         for step in self.steps:
             step.visit(op)
 
 
-def used_by_step(step: MutableMapping[str, Any], shortinputid: str) -> bool:
+def used_by_step(step: StepType, shortinputid: str) -> bool:
     for st in step["in"]:
         if st.get("valueFrom"):
             if ("inputs.%s" % shortinputid) in st.get("valueFrom"):
@@ -802,11 +797,11 @@ def used_by_step(step: MutableMapping[str, Any], shortinputid: str) -> bool:
 class WorkflowStep(Process):
     def __init__(
         self,
-        toolpath_object,  # type: CommentedMap
-        pos,  # type: int
-        loadingContext,  # type: LoadingContext
-        parentworkflowProv=None,  # type: Optional[ProvenanceProfile]
-    ):  # type: (...) -> None
+        toolpath_object: CommentedMap,
+        pos: int,
+        loadingContext: LoadingContext,
+        parentworkflowProv: Optional[ProvenanceProfile] = None,
+    ) -> None:
         """Initialize this WorkflowStep."""
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
@@ -818,7 +813,7 @@ class WorkflowStep(Process):
         loadingContext.requirements = copy.deepcopy(
             getdefault(loadingContext.requirements, [])
         )
-        assert loadingContext.requirements is not None  # nosec
+        assert loadingContext.requirements is not None
         loadingContext.requirements.extend(toolpath_object.get("requirements", []))
         loadingContext.requirements.extend(
             get_overrides(getdefault(loadingContext.overrides_list, []), self.id).get(
@@ -994,8 +989,12 @@ class WorkflowStep(Process):
             else:
                 self.parent_wf = self.prov_obj
 
-    def receive_output(self, output_callback, jobout, processStatus):
-        # type: (Callable[...,Any], Dict[str, str], str) -> None
+    def receive_output(
+        self,
+        output_callback: OutputCallbackType,
+        jobout: CWLObjectType,
+        processStatus: str,
+    ) -> None:
         output = {}
         for i in self.tool["outputs"]:
             field = shortname(i["id"])
@@ -1007,11 +1006,11 @@ class WorkflowStep(Process):
 
     def job(
         self,
-        job_order,  # type: Mapping[str, str]
-        output_callbacks,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob], None, None]
-        # initialize sub-workflow as a step in the parent profile
+        job_order: CWLObjectType,
+        output_callbacks: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
+        """Initialize sub-workflow as a step in the parent profile."""
 
         if (
             self.embedded_tool.tool["class"] == "Workflow"
@@ -1047,29 +1046,25 @@ class WorkflowStep(Process):
             _logger.exception("Unexpected exception")
             raise WorkflowException(str(exc)) from exc
 
-    def visit(self, op: Callable[[CommentedMap], Any]) -> None:
+    def visit(self, op: Callable[[CommentedMap], None]) -> None:
         self.embedded_tool.visit(op)
 
 
 class ReceiveScatterOutput(object):
     def __init__(
-        self,
-        output_callback,  # type: Callable[..., Any]
-        dest,  # type: Dict[str, List[Optional[str]]]
-        total,  # type: int
-    ):  # type: (...) -> None
+        self, output_callback: OutputCallbackType, dest: DestinationsType, total: int,
+    ) -> None:
         """Initialize."""
         self.dest = dest
         self.completed = 0
         self.processStatus = "success"
         self.total = total
         self.output_callback = output_callback
-        self.steps = (
-            []
-        )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
+        self.steps = []  # type: List[Optional[JobsGeneratorType]]
 
-    def receive_scatter_output(self, index, jobout, processStatus):
-        # type: (int, Dict[str, str], str) -> None
+    def receive_scatter_output(
+        self, index: int, jobout: CWLObjectType, processStatus: str
+    ) -> None:
         for key, val in jobout.items():
             self.dest[key][index] = val
 
@@ -1087,27 +1082,18 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(
-        self,
-        total: int,
-        steps: List[
-            Optional[
-                Generator[
-                    Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None],
-                    None,
-                    None,
-                ]
-            ]
-        ],
-    ) -> None:
+    def setTotal(self, total: int, steps: List[Optional[JobsGeneratorType]],) -> None:
         self.total = total
         self.steps = steps
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
 
-def parallel_steps(steps, rc, runtimeContext):
-    # type: (List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]], ReceiveScatterOutput, RuntimeContext) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
+def parallel_steps(
+    steps: List[Optional[JobsGeneratorType]],
+    rc: ReceiveScatterOutput,
+    runtimeContext: RuntimeContext,
+) -> JobsGeneratorType:
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
@@ -1139,12 +1125,12 @@ def parallel_steps(steps, rc, runtimeContext):
 
 
 def dotproduct_scatter(
-    process,  # type: WorkflowJobStep
-    joborder,  # type: MutableMapping[str, Any]
-    scatter_keys,  # type: MutableSequence[str]
-    output_callback,  # type: Callable[..., Any]
-    runtimeContext,  # type: RuntimeContext
-):  # type: (...) -> Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]
+    process: WorkflowJobStep,
+    joborder: CWLObjectType,
+    scatter_keys: MutableSequence[str],
+    output_callback: OutputCallbackType,
+    runtimeContext: RuntimeContext,
+) -> JobsGeneratorType:
     jobl = None  # type: Optional[int]
     for key in scatter_keys:
         if jobl is None:
@@ -1163,11 +1149,9 @@ def dotproduct_scatter(
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps = (
-        []
-    )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
+    steps = []  # type: List[Optional[JobsGeneratorType]]
     for index in range(0, jobl):
-        sjobo = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
+        sjobo = copy.copy(joborder)  # type: Optional[CWLObjectType]
         assert sjobo is not None  # nosec
         for key in scatter_keys:
             sjobo[key] = joborder[key][index]
@@ -1187,13 +1171,11 @@ def dotproduct_scatter(
 
 def nested_crossproduct_scatter(
     process: WorkflowJobStep,
-    joborder: MutableMapping[str, Any],
+    joborder: CWLObjectType,
     scatter_keys: MutableSequence[str],
-    output_callback: Callable[..., Any],
+    output_callback: OutputCallbackType,
     runtimeContext: RuntimeContext,
-) -> Generator[
-    Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None
-]:
+) -> JobsGeneratorType:
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
     output = {}  # type: Dict[str, List[Optional[str]]]
@@ -1202,11 +1184,9 @@ def nested_crossproduct_scatter(
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps = (
-        []
-    )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
+    steps = []  # type: List[Optional[JobsGeneratorType]]
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
+        sjob = copy.copy(joborder)  # type: Optional[CWLObjectType]
         assert sjob is not None  # nosec
         sjob[scatter_key] = joborder[scatter_key][index]
 
@@ -1234,8 +1214,9 @@ def nested_crossproduct_scatter(
     return parallel_steps(steps, rc, runtimeContext)
 
 
-def crossproduct_size(joborder, scatter_keys):
-    # type: (MutableMapping[str, Any], MutableSequence[str]) -> int
+def crossproduct_size(
+    joborder: CWLObjectType, scatter_keys: MutableSequence[str]
+) -> int:
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         ssum = len(joborder[scatter_key])
@@ -1248,13 +1229,11 @@ def crossproduct_size(joborder, scatter_keys):
 
 def flat_crossproduct_scatter(
     process: WorkflowJobStep,
-    joborder: MutableMapping[str, Any],
+    joborder: CWLObjectType,
     scatter_keys: MutableSequence[str],
-    output_callback: Callable[..., Any],
+    output_callback: OutputCallbackType,
     runtimeContext: RuntimeContext,
-) -> Generator[
-    Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None
-]:
+) -> JobsGeneratorType:
     output = {}  # type: Dict[str, List[Optional[str]]]
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
@@ -1267,22 +1246,22 @@ def flat_crossproduct_scatter(
 
 
 def _flat_crossproduct_scatter(
-    process,  # type: WorkflowJobStep
-    joborder,  # type: MutableMapping[str, Any]
-    scatter_keys,  # type: MutableSequence[str]
-    callback,  # type: ReceiveScatterOutput
-    startindex,  # type: int
-    runtimeContext,  # type: RuntimeContext
-):  # type: (...) -> Tuple[List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]], int]
+    process: WorkflowJobStep,
+    joborder: CWLObjectType,
+    scatter_keys: MutableSequence[str],
+    callback: ReceiveScatterOutput,
+    startindex: int,
+    runtimeContext: RuntimeContext,
+) -> Tuple[
+    List[Optional[JobsGeneratorType]], int,
+]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(joborder[scatter_key])
-    steps = (
-        []
-    )  # type: List[Optional[Generator[Union[ExpressionTool.ExpressionJob, JobBase, CallbackJob, None], None, None]]]
+    steps = []  # type: List[Optional[JobsGeneratorType]]
     put = startindex
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)  # type: Optional[MutableMapping[str, Any]]
+        sjob = copy.copy(joborder)  # type: Optional[CWLObjectType]
         assert sjob is not None  # nosec
         sjob[scatter_key] = joborder[scatter_key][index]
 

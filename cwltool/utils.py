@@ -19,6 +19,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Generator,
     List,
     MutableMapping,
     MutableSequence,
@@ -29,10 +30,15 @@ from typing import (
 import pkg_resources
 from mypy_extensions import TypedDict
 from pathlib2 import Path
-from typing_extensions import Deque
+from typing_extensions import Deque, TYPE_CHECKING
+from schema_salad.ref_resolver import Loader
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
+if TYPE_CHECKING:
+    from .job import CommandLineJob, JobBase
+    from .workflow import WorkflowJob
+    from .command_line_tool import ExpressionJob, CallbackJob
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
@@ -44,6 +50,12 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen[str]]
 
+CWLObjectType = MutableMapping[str, Any]
+JobsType = Union['CommandLineJob', 'JobBase', 'WorkflowJob', 'ExpressionJob', 'CallbackJob', None]
+JobsGeneratorType = Generator[JobsType, None, None]
+OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
+ResolverType = Callable[['Loader', str], None]
+DestinationsType = Dict[str, List[Optional[str]]]
 
 def versionstring():
     # type: () -> str

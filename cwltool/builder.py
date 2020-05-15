@@ -21,19 +21,19 @@ from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
 from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
 
-from schema_salad import validate
-from schema_salad.avro.schema import Schema, make_avsc_object
-from schema_salad.schema import Names, convert_to_dict
+from schema_salad.avro.schema import Names, Schema, make_avsc_object
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
-from schema_salad.utils import json_dumps
+from schema_salad.utils import convert_to_dict, json_dumps
+from schema_salad.validate import validate
 
 from . import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager
-from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs, visit_class
+from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, onWindows
+from .utils import aslist, docker_windows_path_adjust, onWindows, visit_class
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -112,7 +112,7 @@ def check_format(
         if not afile:
             continue
         if "format" not in afile:
-            raise validate.ValidationException(
+            raise ValidationException(
                 "File has no 'format' defined: {}".format(json_dumps(afile, indent=4))
             )
         for inpf in aslist(input_formats):
@@ -120,7 +120,7 @@ def check_format(
                 afile["format"], inpf, ontology, set()
             ):
                 return
-        raise validate.ValidationException(
+        raise ValidationException(
             "File has an incompatible format: {}".format(json_dumps(afile, indent=4))
         )
 
@@ -202,10 +202,10 @@ class Builder(HasReqsHints):
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.find_default_container = None  # type: Optional[Callable[[], str]]
 
-    def build_job_script(self, commands: List[str]) -> str:
+    def build_job_script(self, commands: List[str]) -> Optional[str]:
         build_job_script_method = getattr(
             self.job_script_provider, "build_job_script", None
-        )  # type: Callable[[Builder, Union[List[str],List[str]]], str]
+        )  # type: Optional[Callable[[Builder, Union[List[str],List[str]]], str]]
         if build_job_script_method is not None:
             return build_job_script_method(self, commands)
         return None
@@ -216,7 +216,7 @@ class Builder(HasReqsHints):
         datum: Any,
         discover_secondaryFiles: bool,
         lead_pos: Optional[Union[int, List[int]]] = None,
-        tail_pos: Optional[List[int]] = None,
+        tail_pos: Optional[Union[str, List[int]]] = None,
     ) -> List[MutableMapping[str, Any]]:
 
         if tail_pos is None:
@@ -265,7 +265,7 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(t["name"], None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                if validate.validate(avsc, datum):
+                if validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
                     if not value_from_expression:
@@ -286,7 +286,7 @@ class Builder(HasReqsHints):
                         )
                         bound_input = True
             if not bound_input:
-                raise validate.ValidationException(
+                raise ValidationException(
                     "'%s' is not a valid union %s" % (datum, schema["type"])
                 )
         elif isinstance(schema["type"], MutableMapping):
@@ -454,7 +454,7 @@ class Builder(HasReqsHints):
                         check_format(
                             datum, self.do_eval(schema["format"]), self.formatgraph
                         )
-                    except validate.ValidationException as ve:
+                    except ValidationException as ve:
                         raise WorkflowException(
                             "Expected value of '%s' to have format %s but\n "
                             " %s" % (schema["name"], schema["format"], ve)
@@ -562,8 +562,13 @@ class Builder(HasReqsHints):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, recursive=False, strip_whitespace=True):
-        # type: (Union[Dict[str, str], str], Any, bool, bool) -> Any
+    def do_eval(
+        self,
+        ex: Union[MutableMapping[str, Any], MutableSequence[str], str],
+        context: Optional[Any] = None,
+        recursive: bool = False,
+        strip_whitespace: bool = True,
+    ) -> Any:
         if recursive:
             if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive) for k, v in ex.items()}

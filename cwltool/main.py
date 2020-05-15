@@ -35,10 +35,16 @@ import pkg_resources  # part of setuptools
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-from schema_salad.ref_resolver import Fetcher, Loader, file_uri, uri_file_path
+from schema_salad.exceptions import ValidationException
+from schema_salad.ref_resolver import (
+    Fetcher,
+    FetcherCallableType,
+    Loader,
+    file_uri,
+    uri_file_path,
+)
 from schema_salad.sourceline import strip_dup_lineno
 from schema_salad.utils import json_dumps
-from schema_salad.validate import ValidationException
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -276,7 +282,7 @@ def generate_input_template(tool: Process) -> Dict[str, Any]:
 def load_job_order(
     args,  # type: argparse.Namespace
     stdin,  # type: IO[Any]
-    fetcher_constructor,  # type: Optional[Fetcher]
+    fetcher_constructor,  # type: Optional[FetcherCallableType]
     overrides_list,  # type: List[Dict[str, Any]]
     tool_file_uri,  # type: str
 ):  # type: (...) -> Tuple[Optional[MutableMapping[str, Any]], str, Loader]
@@ -285,12 +291,12 @@ def load_job_order(
     job_order_file = None
 
     _jobloaderctx = jobloaderctx.copy()
-    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)  # type: ignore
+    loader = Loader(_jobloaderctx, fetcher_constructor=fetcher_constructor)
 
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.round_trip_load(stdin)
+        job_order_object = yaml.main.round_trip_load(stdin)
         job_order_object, _ = loader.resolve_all(
             job_order_object, file_uri(os.getcwd()) + "/"
         )
@@ -342,7 +348,7 @@ def init_job_order(
     loader: Loader,
     stdout: Union[TextIO, StreamWriter],
     print_input_deps: bool = False,
-    relative_deps: bool = False,
+    relative_deps: str = "primary",
     make_fs_access: Callable[[str], StdFsAccess] = StdFsAccess,
     input_basedir: str = "",
     secret_store: Optional[SecretStore] = None,
@@ -379,7 +385,9 @@ def init_job_order(
                     loader.resolve_ref(cmd_line["job_order"])[0],
                 )
             except Exception as err:
-                _logger.error(str(err), exc_info=args.debug)
+                _logger.exception(
+                    "Failed to resolv job_order: %s", cmd_line["job_order"]
+                )
                 exit(1)
         else:
             job_order_object = {"id": args.workflow}
@@ -486,7 +494,7 @@ def printdeps(
     obj,  # type: Mapping[str, Any]
     document_loader,  # type: Loader
     stdout,  # type: Union[TextIO, StreamWriter]
-    relative_deps,  # type: bool
+    relative_deps,  # type: str
     uri,  # type: str
     basedir=None,  # type: Optional[str]
     nestdirs=True,  # type: bool
@@ -625,6 +633,20 @@ def setup_schema(
         use_standard_schema("v1.2.0-dev3")
 
 
+class ProvLogFormatter(logging.Formatter):
+    """Enforce ISO8601 with both T and Z."""
+
+    def __init__(self):  # type: () -> None
+        super(ProvLogFormatter, self).__init__("[%(asctime)sZ] %(message)s")
+
+    def formatTime(self, record, datefmt=None):
+        # type: (logging.LogRecord, Optional[str]) -> str
+        record_time = time.gmtime(record.created)
+        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
+        with_msecs = "%s,%03d" % (formatted_time, record.msecs)
+        return with_msecs
+
+
 def setup_provenance(
     args,  # type: argparse.Namespace
     argsl,  # type: List[str]
@@ -642,19 +664,6 @@ def setup_provenance(
     runtimeContext.research_obj = ro
     log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
     prov_log_handler = logging.StreamHandler(cast(IO[str], log_file_io))
-
-    class ProvLogFormatter(logging.Formatter):
-        """Enforce ISO8601 with both T and Z."""
-
-        def __init__(self):  # type: () -> None
-            super(ProvLogFormatter, self).__init__("[%(asctime)sZ] %(message)s")
-
-        def formatTime(self, record, datefmt=None):
-            # type: (logging.LogRecord, Optional[str]) -> str
-            record_time = time.gmtime(record.created)
-            formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
-            with_msecs = "%s,%03d" % (formatted_time, record.msecs)
-            return with_msecs
 
     prov_log_handler.setFormatter(ProvLogFormatter())
     _logger.addHandler(prov_log_handler)
@@ -702,8 +711,8 @@ def make_template(
         """Force clean representation of 'null'."""
         return self.represent_scalar("tag:yaml.org,2002:null", "null")
 
-    yaml.RoundTripRepresenter.add_representer(type(None), my_represent_none)
-    yaml.round_trip_dump(
+    yaml.representer.RoundTripRepresenter.add_representer(type(None), my_represent_none)
+    yaml.main.round_trip_dump(
         generate_input_template(tool),
         sys.stdout,
         default_flow_style=False,
@@ -770,7 +779,7 @@ def check_working_directories(
                 try:
                     os.makedirs(os.path.dirname(getattr(runtimeContext, dirprefix)))
                 except Exception as e:
-                    _logger.error("Failed to create directory: %s", str(e))
+                    _logger.exception("Failed to create directory.")
                     return 1
     return None
 

@@ -54,9 +54,7 @@ def v1_0to1_1(
         "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement",
     }
 
-    def rewrite_requirements(
-        t: MutableMapping[str, Union[str, Dict[str, Any]]]
-    ) -> None:
+    def rewrite_requirements(t: MutableMapping[str, Any]) -> None:
         if "requirements" in t:
             for r in t["requirements"]:
                 if isinstance(r, MutableMapping):

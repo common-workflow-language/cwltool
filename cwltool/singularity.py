@@ -16,16 +16,17 @@ from subprocess import (  # nosec
     check_call,
     check_output,
 )
-from typing import Dict, List, MutableMapping, Optional, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Tuple
 
 from schema_salad.sourceline import SourceLine
 
+from .builder import Builder
 from .context import RuntimeContext
-from .errors import WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException
+from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import MapperEnt, ensure_non_writable, ensure_writable
-from .process import UnsupportedRequirement
+from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
 from .utils import docker_windows_path_adjust
 
 _USERNS = None
@@ -82,6 +83,19 @@ def _normalize_sif_id(string):  # type: (str)->str
 
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: JSON,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[Dict[str, str]],
+        hints: List[Dict[str, str]],
+        name: str,
+    ) -> None:
+        super(SingularityCommandLineJob, self).__init__(
+            builder, joborder, make_path_mapper, requirements, hints, name
+        )
+
     @staticmethod
     def get_image(
         dockerRequirement,  # type: Dict[str, str]

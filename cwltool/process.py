@@ -58,7 +58,6 @@ from .pathmapper import (
     ensure_writable,
     get_listing,
     normalizeFilesDirs,
-    visit_class,
 )
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
@@ -70,6 +69,10 @@ from .utils import (
     copytree_with_merge,
     onWindows,
     random_outdir,
+    visit_class,
+    CWLObjectType,
+    OutputCallbackType,
+    JobsGeneratorType,
 )
 from .validate_js import validate_js_expressions
 
@@ -330,22 +333,22 @@ def stage_files(
 
 
 def relocateOutputs(
-    outputObj,  # type: Union[Dict[str, Any], List[Dict[str, Any]]]
-    destination_path,  # type: str
-    source_directories,  # type: Set[str]
-    action,  # type: str
-    fs_access,  # type: StdFsAccess
-    compute_checksum=True,  # type: bool
-    path_mapper=PathMapper,  # type: Type[PathMapper]
-):
-    # type: (...) -> Union[Dict[str, Any], List[Dict[str, Any]]]
+    outputObj: Union[CWLObjectType, MutableSequence[CWLObjectType]],
+    destination_path: str,
+    source_directories: Set[str],
+    action: str,
+    fs_access: StdFsAccess,
+    compute_checksum: bool = True,
+    path_mapper: Type[PathMapper] = PathMapper,
+) -> Union[CWLObjectType, MutableSequence[CWLObjectType]]:
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
     if action not in ("move", "copy"):
         return outputObj
 
-    def _collectDirEntries(obj):
-        # type: (Union[Dict[str, Any], List[Dict[str, Any]]]) -> Iterator[Dict[str, Any]]
+    def _collectDirEntries(
+        obj: Union[CWLObjectType, MutableSequence[CWLObjectType], None]
+    ) -> Iterator[CWLObjectType]:
         if isinstance(obj, dict):
             if obj.get("class") in ("File", "Directory"):
                 yield obj
@@ -358,7 +361,7 @@ def relocateOutputs(
                 for dir_entry in _collectDirEntries(sub_obj):
                     yield dir_entry
 
-    def _relocate(src, dst):  # type: (str, str) -> None
+    def _relocate(src: str, dst: str) -> None:
         if src == dst:
             return
 
@@ -390,7 +393,7 @@ def relocateOutputs(
             else:
                 shutil.copy2(src, dst)
 
-    def _realpath(ob):  # type: (Dict[str, Any]) -> None
+    def _realpath(ob: CWLObjectType) -> None:
         if ob["location"].startswith("file:"):
             ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
         if ob["location"].startswith("/"):
@@ -458,8 +461,7 @@ def fill_in_defaults(
                 )
 
 
-def avroize_type(field_type, name_prefix=""):
-    # type: (Union[List[Dict[str, Any]], Dict[str, Any]], str) -> Any
+def avroize_type(field_type: Any, name_prefix: str = "") -> Any:
     """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
         for field in field_type:
@@ -501,10 +503,8 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
 
 
 def var_spool_cwl_detector(
-    obj,  # type: Union[MutableMapping[str, str], List[Dict[str, Any]], str]
-    item=None,  # type: Optional[Any]
-    obj_key=None,  # type: Optional[Any]
-):  # type: (...)->bool
+    obj: Any, item: Optional[Any] = None, obj_key: Optional[Any] = None,
+) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
     if isinstance(obj, str):
@@ -524,9 +524,18 @@ def var_spool_cwl_detector(
     return r
 
 
-def eval_resource(builder, resource_req):  # type: (Builder, str) -> Any
-    if expression.needs_parsing(resource_req):
-        return builder.do_eval(resource_req)
+def eval_resource(
+    builder: Builder, resource_req: Union[str, int]
+) -> Optional[Union[str, int]]:
+    if isinstance(resource_req, str) and expression.needs_parsing(resource_req):
+        result = builder.do_eval(resource_req)
+        if isinstance(result, (str, int)) or result is None:
+            return result
+        raise WorkflowException(
+            "Got incorrect return type {} from resource expression evaluation of {}.".format(
+                type(result), resource_req
+            )
+        )
     return resource_req
 
 
@@ -649,6 +658,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
         ):
+            validate_js_options = (
+                None
+            )  # type: Optional[Dict[str, Union[List[str], str, int]]]
             if loadingContext.js_hint_options_file is not None:
                 try:
                     with open(loadingContext.js_hint_options_file) as options_file:
@@ -659,8 +671,6 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                         loadingContext.js_hint_options_file,
                     )
                     raise
-            else:
-                validate_js_options = None
             if self.doc_schema is not None:
                 validate_js_expressions(
                     toolpath_object,
@@ -927,8 +937,8 @@ hints:
             "outdirMax": 1024,
         }  # type: Dict[str, int]
         for a in ("cores", "ram", "tmpdir", "outdir"):
-            mn = None
-            mx = None
+            mn = None  # type: Optional[Union[str, int]]
+            mx = None  # type: Optional[Union[str, int]]
             if resourceReq.get(a + "Min"):
                 mn = eval_resource(builder, resourceReq[a + "Min"])
             if resourceReq.get(a + "Max"):
@@ -951,8 +961,9 @@ hints:
             "outdirSize": request["outdirMin"],
         }
 
-    def validate_hints(self, avsc_names, hints, strict):
-        # type: (Any, List[Dict[str, Any]], bool) -> None
+    def validate_hints(
+        self, avsc_names: Any, hints: List[Dict[str, Any]], strict: bool
+    ) -> None:
         for i, r in enumerate(hints):
             sl = SourceLine(hints, i, ValidationException)
             with sl:
@@ -981,18 +992,17 @@ hints:
     @abc.abstractmethod
     def job(
         self,
-        job_order,  # type: Mapping[str, str]
-        output_callbacks,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Any, None, None]
-        # FIXME: Declare base type for what Generator yields
+        job_order: CWLObjectType,
+        output_callbacks: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
         pass
 
 
 _names = set()  # type: Set[str]
 
 
-def uniquename(stem, names=None):  # type: (str, Optional[Set[str]]) -> str
+def uniquename(stem: str, names: Optional[Set[str]] = None) -> str:
     global _names
     if names is None:
         names = _names
@@ -1005,8 +1015,7 @@ def uniquename(stem, names=None):  # type: (str, Optional[Set[str]]) -> str
     return u
 
 
-def nestdir(base, deps):
-    # type: (str, Dict[str, Any]) -> Dict[str, Any]
+def nestdir(base: str, deps: Dict[str, Any]) -> Dict[str, Any]:
     dirname = os.path.dirname(base) + "/"
     subid = deps["location"]
     if subid.startswith(dirname):
@@ -1019,8 +1028,7 @@ def nestdir(base, deps):
     return deps
 
 
-def mergedirs(listing):
-    # type: (List[Dict[str, Any]]) -> List[Dict[str, Any]]
+def mergedirs(listing: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     r = []  # type: List[Dict[str, Any]]
     ents = {}  # type: Dict[str, Any]
     collided = set()  # type: Set[str]
@@ -1059,14 +1067,14 @@ CWL_IANA = "https://www.iana.org/assignments/media-types/application/cwl"
 
 
 def scandeps(
-    base,  # type: str
-    doc,  # type: Any
-    reffields,  # type: Set[str]
-    urlfields,  # type: Set[str]
-    loadref,  # type: Callable[[str, str], str]
-    urljoin=urllib.parse.urljoin,  # type: Callable[[str, str], str]
-    nestdirs=True,  # type: bool
-):  # type: (...) -> List[Dict[str, str]]
+    base: str,
+    doc: Any,
+    reffields: Set[str],
+    urlfields: Set[str],
+    loadref: Callable[[str, str], str],
+    urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
+    nestdirs: bool = True,
+) -> List[Dict[str, str]]:
     r = []  # type: List[Dict[str, str]]
     if isinstance(doc, MutableMapping):
         if "id" in doc:

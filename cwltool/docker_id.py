@@ -1,8 +1,7 @@
 """Helper functions for docker."""
 
+import subprocess
 from typing import List, Optional, Tuple, cast
-
-from .utils import subprocess
 
 
 def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]

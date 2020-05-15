@@ -25,27 +25,27 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, shortname
+from .utils import CWLObjectType, OutputCallbackType, JobsGeneratorType
 
 
 class ProcessGeneratorJob(object):
-    def __init__(self, procgenerator):
-        # type: (ProcessGenerator) -> None
+    def __init__(self, procgenerator: "ProcessGenerator") -> None:
         self.procgenerator = procgenerator
-        self.jobout = None  # type: Optional[Dict[str, Any]]
+        self.jobout = None  # type: Optional[CWLObjectType]
         self.processStatus = None  # type: Optional[str]
 
-    def receive_output(self, jobout, processStatus):
-        # type: (Dict[str, Any], str) -> None
+    def receive_output(
+        self, jobout: Optional[CWLObjectType], processStatus: str
+    ) -> None:
         self.jobout = jobout
         self.processStatus = processStatus
 
     def job(
         self,
-        job_order,  # type: Mapping[str, Any]
-        output_callbacks,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Any, None, None]
-        # FIXME: Declare base type for what Generator yields
+        job_order: CWLObjectType,
+        output_callbacks: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
 
         try:
             for tool in self.procgenerator.embedded_tool.job(
@@ -79,10 +79,8 @@ class ProcessGeneratorJob(object):
 
 class ProcessGenerator(Process):
     def __init__(
-        self,
-        toolpath_object,  # type: CommentedMap
-        loadingContext,  # type: LoadingContext
-    ):  # type: (...) -> None
+        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+    ) -> None:
         super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:
@@ -103,21 +101,20 @@ class ProcessGenerator(Process):
 
     def job(
         self,
-        job_order,  # type: Mapping[str, str]
-        output_callbacks,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Generator[Any, None, None]
-        # FIXME: Declare base type for what Generator yields
+        job_order: CWLObjectType,
+        output_callbacks: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
         return ProcessGeneratorJob(self).job(
             job_order, output_callbacks, runtimeContext
         )
 
     def result(
         self,
-        job_order,  # type: Mapping[str, Any]
-        jobout,  # type: Mapping[str, Any]
-        runtimeContext,  # type: RuntimeContext
-    ):  # type: (...) -> Tuple[Process, MutableMapping[str, Any]]
+        job_order: CWLObjectType,
+        jobout: CWLObjectType,
+        runtimeContext: RuntimeContext,
+    ) -> Tuple[Process, CWLObjectType]:
         try:
             loadingContext = self.loadingContext.copy()
             loadingContext.metadata = {}
@@ -133,7 +130,7 @@ class ProcessGenerator(Process):
         if "runInputs" in jobout:
             runinputs = cast(MutableMapping[str, Any], jobout["runInputs"])
         else:
-            runinputs = cast(MutableMapping[str, Any], copy.deepcopy(job_order))
+            runinputs = copy.deepcopy(job_order)
             for i in self.embedded_tool.tool["inputs"]:
                 if shortname(i["id"]) in runinputs:
                     del runinputs[shortname(i["id"])]

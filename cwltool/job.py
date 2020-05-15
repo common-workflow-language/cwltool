@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from abc import ABCMeta, abstractmethod
-from io import IOBase, open  # pylint: disable=redefined-builtin
+from io import IOBase
 from threading import Timer
 from typing import (
     IO,
@@ -23,6 +23,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Match,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -41,11 +42,11 @@ from schema_salad.utils import json_dump, json_dumps
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
-from .errors import WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException
 from .expression import JSON
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
-from .process import UnsupportedRequirement, stage_files
+from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
     DEFAULT_TMP_PREFIX,
@@ -126,7 +127,7 @@ with open(sys.argv[1], "r") as f:
 """
 
 
-def deref_links(outputs):  # type: (Any) -> None
+def deref_links(outputs: Any) -> None:
     if isinstance(outputs, MutableMapping):
         if outputs.get("class") == "File":
             st = os.lstat(outputs["path"])
@@ -142,11 +143,11 @@ def deref_links(outputs):  # type: (Any) -> None
 
 
 def relink_initialworkdir(
-    pathmapper,  # type: PathMapper
-    host_outdir,  # type: str
-    container_outdir,  # type: str
-    inplace_update=False,  # type: bool
-):  # type: (...) -> None
+    pathmapper: PathMapper,
+    host_outdir: str,
+    container_outdir: str,
+    inplace_update: bool = False,
+) -> None:
     for _, vol in pathmapper.items():
         if not vol.staged:
             continue
@@ -184,6 +185,10 @@ def relink_initialworkdir(
                     pass
 
 
+def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
+    return None
+
+
 class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
@@ -195,6 +200,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         name: str,
     ) -> None:
         """Initialize the job object."""
+        super(JobBase, self).__init__()
         self.builder = builder
         self.joborder = joborder
         self.stdin = None  # type: Optional[str]
@@ -244,7 +250,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     ) -> None:
         pass
 
-    def _setup(self, runtimeContext):  # type: (RuntimeContext) -> None
+    def _setup(self, runtimeContext: RuntimeContext) -> None:
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -286,13 +292,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
     ) -> None:
 
-        scr, _ = self.get_requirement("ShellCommandRequirement")
+        scr = self.get_requirement("ShellCommandRequirement")[0]
 
-        shouldquote = needs_shell_quoting_re.search  # type: Callable[[Any], Any]
+        shouldquote = needs_shell_quoting_re.search
         if scr is not None:
-
-            def shouldquote(x: Any) -> bool:
-                return False
+            shouldquote = neverquote
 
         _logger.info(
             "[job %s] %s$ %s%s%s%s",
@@ -517,8 +521,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 class CommandLineJob(JobBase):
     def run(
         self,
-        runtimeContext,  # type: RuntimeContext
-        tmpdir_lock=None,  # type: Optional[threading.Lock]
+        runtimeContext: RuntimeContext,
+        tmpdir_lock: Optional[threading.Lock] = None,
     ):  # type: (...) -> None
 
         if tmpdir_lock:
@@ -845,7 +849,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid = None
+        cid = None  # type: Optional[str]
         while cid is None:
             time.sleep(1)
             if process.returncode is not None:
@@ -865,8 +869,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
+        stats_file_name = stats_file.name
         try:
-            with open(stats_file.name, mode="w") as stats_file_handle:
+            with open(stats_file_name, mode="w") as stats_file_handle:
                 stats_proc = subprocess.Popen(  # nosec
                     ["docker", "stats", "--no-trunc", "--format", "{{.MemPerc}}", cid],
                     stdout=stats_file_handle,
@@ -877,9 +882,13 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         except OSError as exc:
             _logger.warn("Ignored error with docker stats: %s", exc)
             return
-        max_mem_percent = 0
-        with open(stats_file.name, mode="r") as stats:
-            for line in stats:
+        max_mem_percent = 0  # type: float
+        mem_percent = 0  # type: float
+        with open(stats_file_name, mode="r") as stats:
+            while True:
+                line = stats.readline()
+                if not line:
+                    break
                 try:
                     mem_percent = float(
                         re.sub(CONTROL_CODE_RE, "", line).replace("%", "")

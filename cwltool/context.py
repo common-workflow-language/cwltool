@@ -1,14 +1,14 @@
 """Shared context objects that replace use of kwargs."""
 import copy
 import threading
-from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional, Type
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
 from typing_extensions import TYPE_CHECKING
 
-from schema_salad.ref_resolver import Loader
-from schema_salad.schema import Names
+from schema_salad.avro.schema import Names
+from schema_salad.ref_resolver import FetcherCallableType, Loader
 
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
@@ -16,7 +16,7 @@ from .pathmapper import PathMapper
 from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX
+from .utils import DEFAULT_TMP_PREFIX, ResolverType
 
 if TYPE_CHECKING:
     from .process import Process
@@ -59,8 +59,8 @@ class LoadingContext(ContextBase):
         self.do_validate = True  # type: bool
         self.enable_dev = False  # type: bool
         self.strict = True  # type: bool
-        self.resolver = None
-        self.fetcher_constructor = None
+        self.resolver = None  # type: Optional[ResolverType]
+        self.fetcher_constructor = None  # type: Optional[FetcherCallableType]
         self.construct_tool_object = default_make_tool
         self.research_obj = None  # type: Optional[ResearchObject]
         self.orcid = ""  # type: str
@@ -85,10 +85,10 @@ class RuntimeContext(ContextBase):
         select_resources_callable = Callable[  # pylint: disable=unused-variable
             [Dict[str, int], RuntimeContext], Dict[str, int]
         ]
-        self.user_space_docker_cmd = ""  # type: str
+        self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
         self.no_read_only = False  # type: bool
-        self.custom_net = ""  # type: str
+        self.custom_net = ""  # type: Optional[str]
         self.no_match_user = False  # type: bool
         self.preserve_environment = ""  # type: Optional[Iterable[str]]
         self.preserve_entire_environment = False  # type: bool
@@ -108,7 +108,7 @@ class RuntimeContext(ContextBase):
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str
-        self.default_container = ""  # type: str
+        self.default_container = ""  # type: Optional[str]
         self.find_default_container = (
             None
         )  # type: Optional[Callable[[HasReqsHints], Optional[str]]]
@@ -119,7 +119,7 @@ class RuntimeContext(ContextBase):
         self.basedir = ""  # type: str
         self.toplevel = False  # type: bool
         self.mutation_manager = None  # type: Optional[MutationManager]
-        self.make_fs_access = StdFsAccess  # type: Callable[[str], StdFsAccess]
+        self.make_fs_access = StdFsAccess  # type: Type[StdFsAccess]
         self.path_mapper = PathMapper
         self.builder = None  # type: Optional[Builder]
         self.docker_outdir = ""  # type: str
@@ -135,8 +135,8 @@ class RuntimeContext(ContextBase):
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
 
-        self.cidfile_dir = None
-        self.cidfile_prefix = None
+        self.cidfile_dir = None  # type: Optional[str]
+        self.cidfile_prefix = None  # type: Optional[str]
 
         self.workflow_eval_lock = None  # type: Optional[threading.Condition]
         self.research_obj = None  # type: Optional[ResearchObject]
