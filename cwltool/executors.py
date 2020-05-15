@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     List,
     MutableMapping,
+    MutableSequence,
     Optional,
     Set,
     Tuple,
@@ -21,8 +22,8 @@ from typing import (
 
 import psutil
 
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
-from schema_salad.validate import ValidationException
 
 from .command_line_tool import CallbackJob
 from .context import RuntimeContext, getdefault
@@ -32,7 +33,7 @@ from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance import ProvenanceProfile
-from .utils import DEFAULT_TMP_PREFIX
+from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, JobsType
 from .workflow import Workflow, WorkflowJob, WorkflowJobStep
 
 TMPDIR_LOCK = Lock()
@@ -41,19 +42,20 @@ TMPDIR_LOCK = Lock()
 class JobExecutor(object, metaclass=ABCMeta):
     """Abstract base job executor."""
 
-    def __init__(self):
-        # type: (...) -> None
+    def __init__(self) -> None:
         """Initialize."""
         self.final_output = (
             []
-        )  # type: List[Union[Dict[str, Any], List[Dict[str, Any]]]]
+        )  # type: MutableSequence[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]]]
         self.final_status = []  # type: List[str]
         self.output_dirs = set()  # type: Set[str]
 
-    def __call__(self, *args, **kwargs):  # type: (*Any, **Any) -> Any
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.execute(*args, **kwargs)
 
-    def output_callback(self, out: Dict[str, Any], process_status: str) -> None:
+    def output_callback(
+        self, out: Optional[CWLObjectType], process_status: str
+    ) -> None:
         """Collect the final status and outputs."""
         self.final_status.append(process_status)
         self.final_output.append(out)
@@ -74,7 +76,7 @@ class JobExecutor(object, metaclass=ABCMeta):
         job_order_object,  # type: Dict[str, Any]
         runtime_context,  # type: RuntimeContext
         logger=_logger,  # type: logging.Logger
-    ):  # type: (...) -> Tuple[Optional[Union[Dict[str, Any], List[Dict[str, Any]]]], str]
+    ):  # type: (...) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]
         """Execute the process."""
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
@@ -170,7 +172,7 @@ class JobExecutor(object, metaclass=ABCMeta):
                 )
                 and process.parent_wf
             ):
-                process_run_id = None
+                process_run_id = None  # type: Optional[str]
                 name = "primary"
                 process.parent_wf.generate_output_prov(
                     self.final_output[0], process_run_id, name
@@ -191,11 +193,11 @@ class SingleJobExecutor(JobExecutor):
 
     def run_jobs(
         self,
-        process,  # type: Process
-        job_order_object,  # type: Dict[str, Any]
-        logger,  # type: logging.Logger
-        runtime_context,  # type: RuntimeContext
-    ):  # type: (...) -> None
+        process: Process,
+        job_order_object: CWLObjectType,
+        logger: logging.Logger,
+        runtime_context: RuntimeContext,
+    ) -> None:
 
         process_run_id = None  # type: Optional[str]
 
@@ -220,8 +222,8 @@ class SingleJobExecutor(JobExecutor):
         try:
             for job in jobiter:
                 if job is not None:
-                    if runtime_context.builder is not None:
-                        job.builder = runtime_context.builder
+                    if runtime_context.builder is not None and hasattr(job, "builder"):
+                        job.builder = runtime_context.builder  # type: ignore
                     if job.outdir is not None:
                         self.output_dirs.add(job.outdir)
                     if runtime_context.research_obj is not None:
@@ -264,12 +266,12 @@ class MultithreadedJobExecutor(JobExecutor):
     optimize usage.
     """
 
-    def __init__(self):  # type: () -> None
+    def __init__(self) -> None:
         """Initialize."""
         super(MultithreadedJobExecutor, self).__init__()
         self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
-        self.pending_jobs = []  # type: List[Union[JobBase, WorkflowJob]]
+        self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = int(psutil.virtual_memory().available / 2 ** 20)
@@ -308,10 +310,10 @@ class MultithreadedJobExecutor(JobExecutor):
             )
             job.run(runtime_context, TMPDIR_LOCK)
         except WorkflowException as err:
-            _logger.exception("Got workflow error")
+            _logger.exception("Got workflow error: {}".format(err))
             self.exceptions.append(err)
         except Exception as err:  # pylint: disable=broad-except
-            _logger.exception("Got workflow error")
+            _logger.exception("Got workflow error: {}".format(err))
             self.exceptions.append(WorkflowException(str(err)))
         finally:
             if runtime_context.workflow_eval_lock:
@@ -322,11 +324,7 @@ class MultithreadedJobExecutor(JobExecutor):
                         self.allocated_cores -= job.builder.resources["cores"]
                     runtime_context.workflow_eval_lock.notifyAll()
 
-    def run_job(
-        self,
-        job,  # type: Union[JobBase, WorkflowJob, None]
-        runtime_context,  # type: RuntimeContext
-    ):  # type: (...) -> None
+    def run_job(self, job: JobsType, runtime_context: RuntimeContext,) -> None:
         """Execute a single Job in a seperate thread."""
         if job is not None:
             with self.pending_jobs_lock:
@@ -394,11 +392,11 @@ class MultithreadedJobExecutor(JobExecutor):
 
     def run_jobs(
         self,
-        process,  # type: Process
-        job_order_object,  # type: Dict[str, Any]
-        logger,  # type: logging.Logger
-        runtime_context,  # type: RuntimeContext
-    ):  # type: (...) -> None
+        process: Process,
+        job_order_object: CWLObjectType,
+        logger: logging.Logger,
+        runtime_context: RuntimeContext,
+    ) -> None:
 
         jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 

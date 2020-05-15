@@ -29,19 +29,20 @@ from typing import (
 )
 
 import shellescape
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from typing_extensions import TYPE_CHECKING, Type
 
-from schema_salad import validate
 from schema_salad.avro.schema import Schema
+from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
+from schema_salad.validate import validate_ex
 
 from .builder import Builder, content_limit_respected_read_bytes, substitute
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
-from .errors import WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
 from .loghandler import _logger
@@ -51,15 +52,13 @@ from .pathmapper import (
     adjustDirObjs,
     adjustFileObjs,
     get_listing,
+    normalizeFilesDirs,
     trim_listing,
-    visit_class,
 )
 from .process import (
     Process,
-    UnsupportedRequirement,
     _logger_validation_warnings,
     compute_checksums,
-    normalizeFilesDirs,
     shortname,
     uniquename,
 )
@@ -73,6 +72,7 @@ from .utils import (
     random_outdir,
     shared_file_lock,
     upgrade_lock,
+    visit_class,
     windows_default_container_id,
 )
 
@@ -100,59 +100,59 @@ hints:
 """
 
 
+class ExpressionJob(object):
+    """Job for ExpressionTools."""
+
+    def __init__(
+        self,
+        builder: Builder,
+        script: str,
+        output_callback: Callable[[Any, Any], Any],
+        requirements: List[Dict[str, str]],
+        hints: List[Dict[str, str]],
+        outdir: Optional[str] = None,
+        tmpdir: Optional[str] = None,
+    ):  # type: (...) -> None
+        """Initializet this ExpressionJob."""
+        self.builder = builder
+        self.requirements = requirements
+        self.hints = hints
+        self.collect_outputs = None  # type: Optional[Callable[[Any], Any]]
+        self.output_callback = output_callback
+        self.outdir = outdir
+        self.tmpdir = tmpdir
+        self.script = script
+        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+
+    def run(
+        self,
+        runtimeContext,  # type: RuntimeContext
+        tmpdir_lock=None,  # type: Optional[threading.Lock]
+    ):  # type: (...) -> None
+        try:
+            normalizeFilesDirs(self.builder.job)
+            ev = self.builder.do_eval(self.script)
+            normalizeFilesDirs(ev)
+            self.output_callback(ev, "success")
+        except WorkflowException as err:
+            _logger.warning(
+                "Failed to evaluate expression:\n%s",
+                str(err),
+                exc_info=runtimeContext.debug,
+            )
+            self.output_callback({}, "permanentFail")
+
+
 class ExpressionTool(Process):
-    class ExpressionJob(object):
-        """Job for ExpressionTools."""
-
-        def __init__(
-            self,
-            builder: Builder,
-            script,  # type: Dict[str, str]
-            output_callback,  # type: Callable[[Any, Any], Any]
-            requirements,  # type: List[Dict[str, str]]
-            hints,  # type: List[Dict[str, str]]
-            outdir=None,  # type: Optional[str]
-            tmpdir=None,  # type: Optional[str]
-        ):  # type: (...) -> None
-            """Initializet this ExpressionJob."""
-            self.builder = builder
-            self.requirements = requirements
-            self.hints = hints
-            self.collect_outputs = None  # type: Optional[Callable[[Any], Any]]
-            self.output_callback = output_callback
-            self.outdir = outdir
-            self.tmpdir = tmpdir
-            self.script = script
-            self.prov_obj = None  # type: Optional[ProvenanceProfile]
-
-        def run(
-            self,
-            runtimeContext,  # type: RuntimeContext
-            tmpdir_lock=None,  # type: Optional[threading.Lock]
-        ):  # type: (...) -> None
-            try:
-                normalizeFilesDirs(self.builder.job)
-                ev = self.builder.do_eval(self.script)
-                normalizeFilesDirs(ev)
-                self.output_callback(ev, "success")
-            except Exception as err:
-                _logger.warning(
-                    "Failed to evaluate expression:\n%s",
-                    str(err),
-                    exc_info=runtimeContext.debug,
-                )
-                self.output_callback({}, "permanentFail")
-
     def job(
         self,
-        job_order,  # type: Mapping[str, str]
-        output_callbacks,  # type: Callable[[Any, Any], Any]
-        runtimeContext,  # type: RuntimeContext
-    ):
-        # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
+        job_order: Mapping[str, str],
+        output_callbacks: Callable[[Any, Any], Any],
+        runtimeContext: RuntimeContext,
+    ) -> Generator[ExpressionJob, None, None]:
         builder = self._init_job(job_order, runtimeContext)
 
-        job = ExpressionTool.ExpressionJob(
+        job = ExpressionJob(
             builder,
             self.tool["expression"],
             output_callbacks,
@@ -170,7 +170,7 @@ class AbstractOperation(Process):
         output_callbacks,  # type: Callable[[Any, Any], Any]
         runtimeContext,  # type: RuntimeContext
     ):
-        # type: (...) -> Generator[ExpressionTool.ExpressionJob, None, None]
+        # type: (...) -> Generator[ExpressionJob, None, None]
         raise WorkflowException("Abstract operation cannot be executed.")
 
 
@@ -248,8 +248,13 @@ def revmap_file(builder, outdir, f):
 
 
 class CallbackJob(object):
-    def __init__(self, job, output_callback, cachebuilder, jobcache):
-        # type: (CommandLineTool, Callable[[Any, Any], Any], Builder, str) -> None
+    def __init__(
+        self,
+        job: "CommandLineTool",
+        output_callback: Callable[[Any, Any], Any],
+        cachebuilder: Builder,
+        jobcache: str,
+    ) -> None:
         """Initialize this CallbackJob."""
         self.job = job
         self.output_callback = output_callback
@@ -259,9 +264,9 @@ class CallbackJob(object):
 
     def run(
         self,
-        runtimeContext,  # type: RuntimeContext
-        tmpdir_lock=None,  # type: Optional[threading.Lock]
-    ):  # type: (...) -> None
+        runtimeContext: RuntimeContext,
+        tmpdir_lock: Optional[threading.Lock] = None,
+    ) -> None:
         self.output_callback(
             self.job.collect_output_ports(
                 self.job.tool["outputs"],
@@ -312,11 +317,11 @@ def check_valid_locations(fs_access: StdFsAccess, ob: Dict[str, Any]) -> None:
     if ob["location"].startswith("_:"):
         pass
     if ob["class"] == "File" and not fs_access.isfile(ob["location"]):
-        raise validate.ValidationException(
+        raise ValidationException(
             "Does not exist or is not a File: '%s'" % ob["location"]
         )
     if ob["class"] == "Directory" and not fs_access.isdir(ob["location"]):
-        raise validate.ValidationException(
+        raise ValidationException(
             "Does not exist or is not a Directory: '%s'" % ob["location"]
         )
 
@@ -324,6 +329,17 @@ def check_valid_locations(fs_access: StdFsAccess, ob: Dict[str, Any]) -> None:
 OutputPorts = Dict[
     str, Union[None, str, List[Union[Dict[str, Any], str]], Dict[str, Any]]
 ]
+
+
+class ParameterOutputWorkflowException(WorkflowException):
+    def __init__(
+        self, msg, port, **kwargs
+    ):  # type: (str, Dict[str, Any], **Any) -> None
+        super(ParameterOutputWorkflowException, self).__init__(
+            "Error collecting output for parameter '%s':\n%s"
+            % (shortname(port["id"]), msg),
+            kwargs,
+        )
 
 
 class CommandLineTool(Process):
@@ -372,8 +388,9 @@ class CommandLineTool(Process):
         # type: (List[Any], str, RuntimeContext, bool) -> PathMapper
         return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
-    def updatePathmap(self, outdir, pathmap, fn):
-        # type: (str, PathMapper, Dict[str, Any]) -> None
+    def updatePathmap(
+        self, outdir: str, pathmap: PathMapper, fn: Dict[str, Any]
+    ) -> None:
         if "location" in fn and fn["location"] in pathmap:
             pathmap.update(
                 fn["location"],
@@ -448,19 +465,20 @@ class CommandLineTool(Process):
                 if shortcut in self.tool:
                     keydict[shortcut] = self.tool[shortcut]
 
+            def calc_checksum(location: str) -> Optional[str]:
+                for e in cachebuilder.files:
+                    if (
+                        "location" in e
+                        and e["location"] == location
+                        and "checksum" in e
+                        and e["checksum"] != "sha1$hash"
+                    ):
+                        return e["checksum"]
+                return None
+
             for location, fobj in cachebuilder.pathmapper.items():
                 if fobj.type == "File":
-                    checksum = next(
-                        (
-                            e["checksum"]
-                            for e in cachebuilder.files
-                            if "location" in e
-                            and e["location"] == location
-                            and "checksum" in e
-                            and e["checksum"] != "sha1$hash"
-                        ),
-                        None,
-                    )
+                    checksum = calc_checksum(location)
                     fobj_stat = os.stat(fobj.resolved)
                     if checksum is not None:
                         keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
@@ -654,26 +672,26 @@ class CommandLineTool(Process):
             )
 
         if self.tool.get("stdin"):
-            with SourceLine(self.tool, "stdin", validate.ValidationException, debug):
+            with SourceLine(self.tool, "stdin", ValidationException, debug):
                 j.stdin = builder.do_eval(self.tool["stdin"])
                 if j.stdin:
                     reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
-            with SourceLine(self.tool, "stderr", validate.ValidationException, debug):
+            with SourceLine(self.tool, "stderr", ValidationException, debug):
                 j.stderr = builder.do_eval(self.tool["stderr"])
                 if j.stderr:
                     if os.path.isabs(j.stderr) or ".." in j.stderr:
-                        raise validate.ValidationException(
+                        raise ValidationException(
                             "stderr must be a relative path, got '%s'" % j.stderr
                         )
 
         if self.tool.get("stdout"):
-            with SourceLine(self.tool, "stdout", validate.ValidationException, debug):
+            with SourceLine(self.tool, "stdout", ValidationException, debug):
                 j.stdout = builder.do_eval(self.tool["stdout"])
                 if j.stdout:
                     if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
-                        raise validate.ValidationException(
+                        raise ValidationException(
                             "stdout must be a relative path, got '%s'" % j.stdout
                         )
 
@@ -721,7 +739,6 @@ class CommandLineTool(Process):
                     readers[f["location"]] = copy.deepcopy(f)
 
             for li in j.generatefiles["listing"]:
-                li = cast(Dict[str, Any], li)
                 if li.get("writable") and j.inplace_update:
                     adjustFileObjs(li, register_mut)
                     adjustDirObjs(li, register_mut)
@@ -736,23 +753,19 @@ class CommandLineTool(Process):
 
         timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
-            with SourceLine(
-                timelimit, "timelimit", validate.ValidationException, debug
-            ):
+            with SourceLine(timelimit, "timelimit", ValidationException, debug):
                 j.timelimit = builder.do_eval(timelimit["timelimit"])
                 if not isinstance(j.timelimit, int) or j.timelimit < 0:
-                    raise Exception(
+                    raise WorkflowException(
                         "timelimit must be an integer >= 0, got: %s" % j.timelimit
                     )
 
         networkaccess, _ = self.get_requirement("NetworkAccess")
         if networkaccess is not None:
-            with SourceLine(
-                networkaccess, "networkAccess", validate.ValidationException, debug
-            ):
+            with SourceLine(networkaccess, "networkAccess", ValidationException, debug):
                 j.networkaccess = builder.do_eval(networkaccess["networkAccess"])
                 if not isinstance(j.networkaccess, bool):
-                    raise Exception(
+                    raise WorkflowException(
                         "networkAccess must be a boolean, got: %s" % j.networkaccess
                     )
 
@@ -789,7 +802,7 @@ class CommandLineTool(Process):
 
     def collect_output_ports(
         self,
-        ports: Set[Dict[str, Any]],
+        ports: Union[CommentedSeq, Set[Dict[str, Any]]],
         builder: Builder,
         outdir: str,
         rcode: int,
@@ -819,15 +832,12 @@ class CommandLineTool(Process):
             else:
                 for i, port in enumerate(ports):
 
-                    class ParameterOutputWorkflowException(WorkflowException):
-                        def __init__(self, msg, **kwargs):  # type: (str, **Any) -> None
-                            super(ParameterOutputWorkflowException, self).__init__(
-                                "Error collecting output for parameter '%s':\n%s"
-                                % (shortname(port["id"]), msg),
-                                kwargs,
-                            )
-
-                    with SourceLine(ports, i, ParameterOutputWorkflowException, debug):
+                    with SourceLine(
+                        ports,
+                        i,
+                        partial(ParameterOutputWorkflowException, port=port),
+                        debug,
+                    ):
                         fragment = shortname(port["id"])
                         ret[fragment] = self.collect_output(
                             port,
@@ -855,13 +865,13 @@ class CommandLineTool(Process):
             expected_schema = cast(
                 Schema, self.names.get_name("outputs_record_schema", "")
             )
-            validate.validate_ex(
+            validate_ex(
                 expected_schema, ret, strict=False, logger=_logger_validation_warnings
             )
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
             return ret if ret is not None else {}
-        except validate.ValidationException as e:
+        except ValidationException as e:
             raise WorkflowException(
                 "Error validating output record. "
                 + str(e)

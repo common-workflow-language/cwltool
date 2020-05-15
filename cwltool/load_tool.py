@@ -22,6 +22,7 @@ from typing import (
 import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
+from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import (
     ContextType,
     Fetcher,
@@ -34,7 +35,6 @@ from schema_salad.ref_resolver import (
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.utils import json_dumps
-from schema_salad.validate import ValidationException
 
 from . import process, update
 from .context import LoadingContext
@@ -42,7 +42,7 @@ from .errors import WorkflowException
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
-from .utils import visit_class
+from .utils import ResolverType, visit_class
 
 jobloaderctx = {
     "cwl": "https://w3id.org/cwl/cwl#",
@@ -67,11 +67,11 @@ overrides_ctx = {
 }  # type: ContextType
 
 
-ResolverType = Callable[[Loader, Union[str, Dict[str, Any]]], str]
-
-
-def default_loader(fetcher_constructor=None, enable_dev=False, doc_cache=True):
-    # type: (Optional[FetcherCallableType], bool, bool) -> Loader
+def default_loader(
+    fetcher_constructor: Optional[FetcherCallableType] = None,
+    enable_dev: bool = False,
+    doc_cache: bool = True,
+) -> Loader:
     return Loader(
         jobloaderctx,
         fetcher_constructor=fetcher_constructor,
@@ -95,9 +95,9 @@ def resolve_tool_uri(
     elif os.path.exists(os.path.abspath(argsworkflow)):
         uri = file_uri(str(os.path.abspath(argsworkflow)))
     elif resolver is not None:
-        if document_loader is None:
-            document_loader = default_loader(fetcher_constructor)
-        uri = resolver(document_loader, argsworkflow)
+        uri = resolver(
+            document_loader or default_loader(fetcher_constructor), argsworkflow
+        )
 
     if uri is None:
         raise ValidationException("Not found: '%s'" % argsworkflow)
@@ -142,9 +142,11 @@ def fetch_document(
     raise ValidationException("Must be URI or object: '%s'" % argsworkflow)
 
 
-def _convert_stdstreams_to_files(workflowobj):
-    # type: (Union[Dict[str, Any], List[Dict[str, Any]]]) -> None
-
+def _convert_stdstreams_to_files(
+    workflowobj: Union[
+        MutableMapping[str, Any], MutableSequence[Union[Dict[str, Any], str]], str
+    ]
+) -> None:
     if isinstance(workflowobj, MutableMapping):
         if workflowobj.get("class") == "CommandLineTool":
             with SourceLine(
@@ -206,9 +208,11 @@ def _convert_stdstreams_to_files(workflowobj):
             _convert_stdstreams_to_files(entry)
 
 
-def _add_blank_ids(workflowobj):
-    # type: (Union[Dict[str, Any], List[Dict[str, Any]]]) -> None
-
+def _add_blank_ids(
+    workflowobj: Union[
+        MutableMapping[str, Any], MutableSequence[Union[MutableMapping[str, Any], str]]
+    ]
+) -> None:
     if isinstance(workflowobj, MutableMapping):
         if (
             "run" in workflowobj
@@ -225,13 +229,12 @@ def _add_blank_ids(workflowobj):
 
 
 def resolve_and_validate_document(
-    loadingContext,  # type: LoadingContext
-    workflowobj,  # type: Union[CommentedMap, CommentedSeq]
-    uri,  # type: str
-    preprocess_only=False,  # type: bool
-    skip_schemas=None,  # type: Optional[bool]
-):
-    # type: (...) -> Tuple[LoadingContext, str]
+    loadingContext: LoadingContext,
+    workflowobj: Union[CommentedMap, CommentedSeq],
+    uri: str,
+    preprocess_only: bool = False,
+    skip_schemas: Optional[bool] = None,
+) -> Tuple[LoadingContext, str]:
     """Validate a CWL document."""
     if not loadingContext.loader:
         raise ValueError("loadingContext must have a loader.")
@@ -426,9 +429,9 @@ def make_tool(
 
 
 def load_tool(
-    argsworkflow,  # type: Union[str, Dict[str, Any]]
-    loadingContext=None,  # type: Optional[LoadingContext]
-):  # type: (...) -> Process
+    argsworkflow: Union[str, Dict[str, Any]],
+    loadingContext: Optional[LoadingContext] = None,
+) -> Process:
 
     loadingContext, workflowobj, uri = fetch_document(argsworkflow, loadingContext)
 

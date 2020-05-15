@@ -27,7 +27,7 @@ def abspath(src, basedir):  # type: (str, str) -> str
 class StdFsAccess(object):
     """Local filesystem implementation."""
 
-    def __init__(self, basedir):  # type: (str) -> None
+    def __init__(self, basedir: str) -> None:
         """Perform operations with respect to a base directory."""
         self.basedir = basedir
 

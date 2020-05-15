@@ -7,6 +7,7 @@ from . import load_tool
 from .context import LoadingContext, RuntimeContext
 from .executors import SingleJobExecutor
 from .process import Process
+from .errors import WorkflowException
 
 
 class WorkflowStatus(Exception):
@@ -58,5 +59,5 @@ class Factory(object):
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):
-            raise Exception("Error loading tool")
+            raise WorkflowException("Error loading tool")
         return Callable(load, self)

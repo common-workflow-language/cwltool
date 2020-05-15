@@ -18,6 +18,60 @@ except ImportError:
 
 NEEDS_PYTEST = {"pytest", "test", "ptr"}.intersection(sys.argv)
 PYTEST_RUNNER = ["pytest-runner", "pytest-cov"] if NEEDS_PYTEST else []
+USE_MYPYC = False
+# To compile with mypyc, a mypyc checkout must be present on the PYTHONPATH
+if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
+    sys.argv.pop(1)
+    USE_MYPYC = True
+if os.getenv("CWLTOOL_SALAD_USE_MYPYC", None) == "1":
+    USE_MYPYC = True
+
+if USE_MYPYC:
+    mypyc_targets = [
+        "cwltool/argparser.py",
+        "cwltool/builder.py",
+        "cwltool/checker.py",
+        "cwltool/command_line_tool.py",
+        # "cwltool/context.py",  # monkeypatching
+        "cwltool/cwlrdf.py",
+        "cwltool/docker_id.py",
+        "cwltool/docker.py",
+        "cwltool/errors.py",
+        "cwltool/executors.py",
+        "cwltool/expression.py",
+        "cwltool/factory.py",
+        "cwltool/flatten.py",
+        # "cwltool/__init__.py",
+        "cwltool/job.py",
+        "cwltool/load_tool.py",
+        "cwltool/loghandler.py",
+        # "cwltool/__main__.py",
+        "cwltool/main.py",
+        "cwltool/mutation.py",
+        "cwltool/pack.py",
+        "cwltool/pathmapper.py",
+        "cwltool/process.py",
+        "cwltool/procgenerator.py",
+        "cwltool/provenance.py",
+        "cwltool/resolver.py",
+        "cwltool/sandboxjs.py",
+        "cwltool/secrets.py",
+        "cwltool/singularity.py",
+        "cwltool/software_requirements.py",
+        "cwltool/stdfsaccess.py",
+        "cwltool/subgraph.py",
+        "cwltool/update.py",
+        # "cwltool/utils.py",
+        "cwltool/validate_js.py",
+        "cwltool/workflow.py",
+    ]
+
+    from mypyc.build import mypycify
+
+    opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
+    ext_modules = mypycify(mypyc_targets, opt_level=opt_level)
+else:
+    ext_modules = []
 
 setup(
     name="cwltool",
@@ -29,6 +83,7 @@ setup(
     author_email="common-workflow-language@googlegroups.com",
     url="https://github.com/common-workflow-language/cwltool",
     download_url="https://github.com/common-workflow-language/cwltool",
+    ext_modules=ext_modules,
     # platforms='',  # empty as is conveyed by the classifier below
     # license='',  # empty as is conveyed by the classifier below
     packages=["cwltool", "cwltool.tests"],

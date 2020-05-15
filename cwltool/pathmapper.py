@@ -10,6 +10,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     MutableMapping,
     MutableSequence,
@@ -24,9 +25,9 @@ import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
 
+from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
-from schema_salad.validate import ValidationException
 
 from .loghandler import _logger
 from .stdfsaccess import StdFsAccess, abspath
@@ -299,14 +300,20 @@ class PathMapper(object):
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(self, listing, stagedir, basedir, copy=False, staged=False):
-        # type: (List[Dict[str, Any]], str, str, bool, bool) -> None
+        # type: (List[Dict[str, Any]], str, str, Optional[bool], bool) -> None
         for ld in listing:
             self.visit(
                 ld, stagedir, basedir, copy=ld.get("writable", copy), staged=staged
             )
 
-    def visit(self, obj, stagedir, basedir, copy=False, staged=False):
-        # type: (Dict[str, Any], str, str, bool, bool) -> None
+    def visit(
+        self,
+        obj: Dict[str, Any],
+        stagedir: str,
+        basedir: str,
+        copy: Optional[bool] = False,
+        staged: bool = False,
+    ) -> None:
         tgt = convert_pathsep_to_unix(os.path.join(stagedir, obj["basename"]))
         if obj["location"] in self._pathmap:
             return
@@ -366,8 +373,7 @@ class PathMapper(object):
                 staged=staged,
             )
 
-    def setup(self, referenced_files, basedir):
-        # type: (List[Any], str) -> None
+    def setup(self, referenced_files: List[Any], basedir: str) -> None:
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
@@ -375,7 +381,9 @@ class PathMapper(object):
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
-            self.visit(fob, stagedir, basedir, copy=fob.get("writable"), staged=True)
+            self.visit(
+                fob, stagedir, basedir, copy=fob.get("writable", False), staged=True
+            )
 
     def mapper(self, src):  # type: (str) -> MapperEnt
         if "#" in src:
@@ -407,3 +415,6 @@ class PathMapper(object):
     def __contains__(self, key):  # type: (str) -> bool
         """Test for the presence of the given relative path in this mapper."""
         return key in self._pathmap
+
+    def __iter__(self) -> Iterator[MapperEnt]:
+        return self._pathmap.values().__iter__()

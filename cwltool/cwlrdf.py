@@ -1,5 +1,5 @@
 import urllib
-from typing import IO, Any, Dict, MutableMapping, cast
+from typing import IO, Any, Dict, MutableMapping, Optional, cast
 
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
@@ -137,7 +137,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
            } ORDER BY ?wf"""
     )
 
-    currentwf = None
+    currentwf = None  # type: Optional[str]
     for wf, step, run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)

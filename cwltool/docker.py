@@ -5,22 +5,25 @@ import datetime
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
 from distutils import spawn
 from io import StringIO, open  # pylint: disable=redefined-builtin
-from typing import Dict, List, MutableMapping, Optional, Set, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple
 
 import requests
 
+from .builder import Builder
 from .context import RuntimeContext
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
+from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import MapperEnt, ensure_non_writable, ensure_writable
-from .utils import DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows, subprocess
+from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
+from .utils import DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows
 
 _IMAGES = set()  # type: Set[str]
 _IMAGES_LOCK = threading.Lock()
@@ -81,6 +84,19 @@ def _check_docker_machine_path(path):  # type: (Optional[str]) -> None
 
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
+
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: JSON,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[Dict[str, str]],
+        hints: List[Dict[str, str]],
+        name: str,
+    ) -> None:
+        super(DockerCommandLineJob, self).__init__(
+            builder, joborder, make_path_mapper, requirements, hints, name
+        )
 
     @staticmethod
     def get_image(
@@ -384,6 +400,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         # runtime.append("--env=HOME=/tmp")
         runtime.append("--env=HOME=%s" % self.builder.outdir)
 
+        cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
         if runtimeContext.user_space_docker_cmd is None:
             if runtimeContext.cidfile_dir:
@@ -411,8 +428,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
             cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append("--cidfile=%s" % cidfile_path)
-        else:
-            cidfile_path = None
         for key, value in self.environment.items():
             runtime.append("--env=%s=%s" % (key, value))
 

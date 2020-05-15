@@ -69,8 +69,7 @@ def find_ids(d, ids):  # type: (Any, Set[str]) -> None
             find_ids(s, ids)
 
 
-def replace_refs(d, rewrite, stem, newstem):
-    # type: (Any, Dict[str, str], str, str) -> None
+def replace_refs(d: Any, rewrite: Dict[str, str], stem: str, newstem: str) -> None:
     if isinstance(d, MutableSequence):
         for s, v in enumerate(d):
             if isinstance(v, str):
@@ -82,19 +81,19 @@ def replace_refs(d, rewrite, stem, newstem):
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, MutableMapping):
-        for s, v in d.items():
-            if isinstance(v, str):
-                if v in rewrite:
-                    d[s] = rewrite[v]
-                elif v.startswith(stem):
-                    id_ = v[len(stem) :]
+        for key, val in d.items():
+            if isinstance(val, str):
+                if val in rewrite:
+                    d[key] = rewrite[val]
+                elif val.startswith(stem):
+                    id_ = val[len(stem) :]
                     # prevent appending newstems if tool is already packed
                     if id_.startswith(newstem.strip("#")):
-                        d[s] = "#" + id_
+                        d[key] = "#" + id_
                     else:
-                        d[s] = newstem + id_
-                    rewrite[v] = d[s]
-            replace_refs(v, rewrite, stem, newstem)
+                        d[key] = newstem + id_
+                    rewrite[val] = d[key]
+            replace_refs(val, rewrite, stem, newstem)
 
 
 def import_embed(d, seen):
