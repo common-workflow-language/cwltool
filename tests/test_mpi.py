@@ -17,6 +17,7 @@ def test_mpi_conf_defaults():
     assert mpi.default_nproc == 1
     assert mpi.extra_flags == []
     assert mpi.env_pass == []
+    assert mpi.env_pass_regex == []
     assert mpi.env_set == {}
 
 
@@ -180,9 +181,10 @@ class TestMpiRun:
                 assert lc == np
 
     @windows_needs_docker
-    def test_environment(self, fake_mpi_conf, tmp_path):
+    def test_environment(self, fake_mpi_conf, tmp_path, monkeypatch):
         stdout = StringIO()
         stderr = StringIO()
+        monkeypatch.setenv("USER", "tester")
         with working_directory(tmp_path):
             rc = main(
                 argsl=cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_env.cwl")],
@@ -198,5 +200,64 @@ class TestMpiRun:
                 for line in envfile:
                     k, v = line.strip().split("=", 1)
                     e[k] = v
-            assert e["USER"] == os.environ["USER"]
+            assert e["USER"] == "tester"
             assert e["TEST_MPI_FOO"] == "bar"
+
+def test_env_passing(monkeypatch):
+    config = MpiConfig(
+        {
+            "env_pass": ["A", "B", "LONG_NAME"],
+            "env_pass_regex": ["TOOLNAME", "MPI_.*_CONF"],
+        }
+    )
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {})
+        env = {}
+        config.pass_through_env_vars(env)
+        assert env == {}
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {"A": "a"})
+        env = {}
+        config.pass_through_env_vars(env)
+        assert env == {"A": "a"}
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {"A": "a", "C": "c"})
+        env = {}
+        config.pass_through_env_vars(env)
+        assert env == {"A": "a"}
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {"A": "a", "B": "b", "C": "c"})
+        env = {"PATH": "one:two:three", "HOME": "/tmp/dir", "TMPDIR": "/tmp/dir"}
+        config.pass_through_env_vars(env)
+        assert env == {
+            "PATH": "one:two:three",
+            "HOME": "/tmp/dir",
+            "TMPDIR": "/tmp/dir",
+            "A": "a",
+            "B": "b",
+        }
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {"TOOLNAME": "foobar"})
+        env = {}
+        config.pass_through_env_vars(env)
+        assert env == {"TOOLNAME": "foobar"}
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {"_TOOLNAME_": "foobar"})
+        env = {}
+        config.pass_through_env_vars(env)
+        # Cos we are matching not searching
+        assert env == {}
+
+    with monkeypatch.context() as m:
+        m.setattr(os, "environ", {"MPI_A_CONF": "A", "MPI_B_CONF": "B"})
+
+        env = {}
+        config.pass_through_env_vars(env)
+        # Cos we are matching not searching
+        assert env == {"MPI_A_CONF": "A", "MPI_B_CONF": "B"}
