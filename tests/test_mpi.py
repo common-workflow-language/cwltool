@@ -22,8 +22,8 @@ def test_mpi_conf_defaults():
 
 
 def test_mpi_conf_unknownkeys():
-    with pytest.raises(ValueError):
-        MpiConfig({"runner": "mpiexec", "foo": "bar"})
+    with pytest.raises(TypeError):
+        MpiConfig(runner="mpiexec", foo="bar")
 
 
 @pytest.fixture(scope="class")
@@ -203,12 +203,10 @@ class TestMpiRun:
             assert e["USER"] == "tester"
             assert e["TEST_MPI_FOO"] == "bar"
 
+
 def test_env_passing(monkeypatch):
     config = MpiConfig(
-        {
-            "env_pass": ["A", "B", "LONG_NAME"],
-            "env_pass_regex": ["TOOLNAME", "MPI_.*_CONF"],
-        }
+        env_pass=["A", "B", "LONG_NAME"], env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
 
     with monkeypatch.context() as m:
