@@ -31,6 +31,18 @@ def test_empty_file_creation():
 
 
 @needs_docker
+def test_directory_literal_with_real_inputs_inside():
+    """Cope with unmoveable files in the output directory created by Docker+IWDR."""
+    err_code, _, _ = get_main_output(
+        [
+            get_data("tests/iwdr_dir_literal_real_file.cwl"),
+            "--example={}".format(get_data("tests/__init__.py")),
+        ]
+    )
+    assert err_code == 0
+
+
+@needs_docker
 def test_iwdr_permutations():
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
