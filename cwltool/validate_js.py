@@ -17,7 +17,6 @@ from typing import (
 
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap
-
 from schema_salad.avro.schema import (
     ArraySchema,
     EnumSchema,

@@ -19,6 +19,7 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Sized,
     Tuple,
     Union,
     cast,
@@ -26,7 +27,6 @@ from typing import (
 from uuid import UUID
 
 from ruamel.yaml.comments import CommentedMap
-
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 from schema_salad.utils import json_dumps
@@ -46,11 +46,13 @@ from .provenance import ProvenanceProfile
 from .stdfsaccess import StdFsAccess
 from .utils import (
     DEFAULT_TMP_PREFIX,
-    aslist,
     CWLObjectType,
-    OutputCallbackType,
     DestinationsType,
     JobsGeneratorType,
+    OutputCallbackType,
+    ScatterDestinationsType,
+    ScatterOutputCallbackType,
+    aslist,
 )
 
 WorkflowStateItem = NamedTuple(
@@ -117,13 +119,14 @@ def match_types(
     elif linkMerge:
         if iid not in inputobj:
             inputobj[iid] = []
+        sourceTypes = cast(List[Any], inputobj[iid])
         if linkMerge == "merge_nested":
-            inputobj[iid].append(src.value)
+            sourceTypes.append(src.value)
         elif linkMerge == "merge_flattened":
             if isinstance(src.value, MutableSequence):
-                inputobj[iid].extend(src.value)
+                sourceTypes.extend(src.value)
             else:
-                inputobj[iid].append(src.value)
+                sourceTypes.append(src.value)
         else:
             raise WorkflowException("Unrecognized linkMerge enum '%s'" % linkMerge)
         return True
@@ -441,13 +444,14 @@ class WorkflowJob(object):
             vfinputs = {shortname(k): v for k, v in inputobj.items()}
 
             def postScatterEval(io: CWLObjectType) -> Optional[CWLObjectType]:
-                shortio = {shortname(k): v for k, v in io.items()}
+                shortio = cast(Dict[str, Any], {shortname(k): v for k, v in io.items()})
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
                 for k, v in io.items():
-                    if k in loadContents and v.get("contents") is None:
-                        with fs_access.open(v["location"], "rb") as f:
-                            v["contents"] = content_limit_respected_read(f)
+                    val = cast(Dict[str, Any], v)
+                    if k in loadContents and val.get("contents") is None:
+                        with fs_access.open(val["location"], "rb") as f:
+                            val["contents"] = content_limit_respected_read(f)
 
                 def valueFromFunc(k: Any, v: Any) -> Any:
                     if k in valueFrom:
@@ -505,7 +509,7 @@ class WorkflowJob(object):
                 return psio
 
             if "scatter" in step.tool:
-                scatter = aslist(step.tool["scatter"])
+                scatter = cast(List[str], aslist(step.tool["scatter"]))
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException(
@@ -514,7 +518,9 @@ class WorkflowJob(object):
                 runtimeContext = runtimeContext.copy()
                 runtimeContext.postScatterEval = postScatterEval
 
-                emptyscatter = [shortname(s) for s in scatter if len(inputobj[s]) == 0]
+                emptyscatter = [
+                    shortname(s) for s in scatter if len(cast(Sized, inputobj[s])) == 0
+                ]
                 if emptyscatter:
                     _logger.warning(
                         "[job %s] Notice: scattering over empty input in "
@@ -765,7 +771,7 @@ class Workflow(Process):
             if runtimeContext.toplevel:
                 # Record primary-job.json
                 runtimeContext.research_obj.fsaccess = runtimeContext.make_fs_access("")
-                runtimeContext.research_obj.create_job(builder.job, self.job)
+                runtimeContext.research_obj.create_job(builder.job)
 
         job = WorkflowJob(self, runtimeContext)
         yield job
@@ -1052,7 +1058,10 @@ class WorkflowStep(Process):
 
 class ReceiveScatterOutput(object):
     def __init__(
-        self, output_callback: OutputCallbackType, dest: DestinationsType, total: int,
+        self,
+        output_callback: ScatterOutputCallbackType,
+        dest: ScatterDestinationsType,
+        total: int,
     ) -> None:
         """Initialize."""
         self.dest = dest
@@ -1128,14 +1137,14 @@ def dotproduct_scatter(
     process: WorkflowJobStep,
     joborder: CWLObjectType,
     scatter_keys: MutableSequence[str],
-    output_callback: OutputCallbackType,
+    output_callback: ScatterOutputCallbackType,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
     jobl = None  # type: Optional[int]
     for key in scatter_keys:
         if jobl is None:
-            jobl = len(joborder[key])
-        elif jobl != len(joborder[key]):
+            jobl = len(cast(Sized, joborder[key]))
+        elif jobl != len(cast(Sized, joborder[key])):
             raise WorkflowException(
                 "Length of input arrays must be equal when performing "
                 "dotproduct scatter."
@@ -1143,7 +1152,7 @@ def dotproduct_scatter(
     if jobl is None:
         raise Exception("Impossible codepath")
 
-    output = {}  # type: Dict[str,List[Optional[str]]]
+    output = {}  # type: ScatterDestinationsType
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * jobl
 
@@ -1154,7 +1163,7 @@ def dotproduct_scatter(
         sjobo = copy.copy(joborder)  # type: Optional[CWLObjectType]
         assert sjobo is not None  # nosec
         for key in scatter_keys:
-            sjobo[key] = joborder[key][index]
+            sjobo[key] = cast(MutableMapping[int, CWLObjectType], joborder[key])[index]
 
         if runtimeContext.postScatterEval is not None:
             sjobo = runtimeContext.postScatterEval(sjobo)
@@ -1173,12 +1182,12 @@ def nested_crossproduct_scatter(
     process: WorkflowJobStep,
     joborder: CWLObjectType,
     scatter_keys: MutableSequence[str],
-    output_callback: OutputCallbackType,
+    output_callback: ScatterOutputCallbackType,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
     scatter_key = scatter_keys[0]
-    jobl = len(joborder[scatter_key])
-    output = {}  # type: Dict[str, List[Optional[str]]]
+    jobl = len(cast(Sized, joborder[scatter_key]))
+    output = {}  # type: ScatterDestinationsType
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * jobl
 
@@ -1188,7 +1197,9 @@ def nested_crossproduct_scatter(
     for index in range(0, jobl):
         sjob = copy.copy(joborder)  # type: Optional[CWLObjectType]
         assert sjob is not None  # nosec
-        sjob[scatter_key] = joborder[scatter_key][index]
+        sjob[scatter_key] = cast(
+            MutableMapping[int, CWLObjectType], joborder[scatter_key]
+        )[index]
 
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
@@ -1219,10 +1230,10 @@ def crossproduct_size(
 ) -> int:
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
-        ssum = len(joborder[scatter_key])
+        ssum = len(cast(Sized, joborder[scatter_key]))
     else:
         ssum = 0
-        for _ in range(0, len(joborder[scatter_key])):
+        for _ in range(0, len(cast(Sized, joborder[scatter_key]))):
             ssum += crossproduct_size(joborder, scatter_keys[1:])
     return ssum
 
@@ -1231,10 +1242,10 @@ def flat_crossproduct_scatter(
     process: WorkflowJobStep,
     joborder: CWLObjectType,
     scatter_keys: MutableSequence[str],
-    output_callback: OutputCallbackType,
+    output_callback: ScatterOutputCallbackType,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
-    output = {}  # type: Dict[str, List[Optional[str]]]
+    output = {}  # type: ScatterDestinationsType
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
     callback = ReceiveScatterOutput(output_callback, output, 0)
@@ -1257,13 +1268,15 @@ def _flat_crossproduct_scatter(
 ]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
-    jobl = len(joborder[scatter_key])
+    jobl = len(cast(Sized, joborder[scatter_key]))
     steps = []  # type: List[Optional[JobsGeneratorType]]
     put = startindex
     for index in range(0, jobl):
         sjob = copy.copy(joborder)  # type: Optional[CWLObjectType]
         assert sjob is not None  # nosec
-        sjob[scatter_key] = joborder[scatter_key][index]
+        sjob[scatter_key] = cast(
+            MutableMapping[int, CWLObjectType], joborder[scatter_key]
+        )[index]
 
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:

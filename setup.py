@@ -23,7 +23,7 @@ USE_MYPYC = False
 if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
     sys.argv.pop(1)
     USE_MYPYC = True
-if os.getenv("CWLTOOL_SALAD_USE_MYPYC", None) == "1":
+if os.getenv("CWLTOOL_USE_MYPYC", None) == "1":
     USE_MYPYC = True
 
 if USE_MYPYC:

@@ -5,10 +5,9 @@ from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
-from typing_extensions import TYPE_CHECKING
-
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import FetcherCallableType, Loader
+from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
 from .mutation import MutationManager
@@ -16,7 +15,7 @@ from .pathmapper import PathMapper
 from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX, ResolverType
+from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, ResolverType
 
 if TYPE_CHECKING:
     from .process import Process
@@ -49,8 +48,8 @@ class LoadingContext(ContextBase):
         """Initialize the LoadingContext from the kwargs."""
         self.debug = False  # type: bool
         self.metadata = {}  # type: Dict[str, Any]
-        self.requirements = None  # type: Optional[List[Dict[str, Any]]]
-        self.hints = None  # type: Optional[List[Dict[str, Any]]]
+        self.requirements = None  # type: Optional[List[CWLObjectType]]
+        self.hints = None  # type: Optional[List[CWLObjectType]]
         self.overrides_list = []  # type: List[Dict[str, Any]]
         self.loader = None  # type: Optional[Loader]
         self.avsc_names = None  # type: Optional[Names]

@@ -16,7 +16,6 @@ from typing import (
 )
 
 from ruamel.yaml.comments import CommentedMap
-
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import indent
 
@@ -25,7 +24,7 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, shortname
-from .utils import CWLObjectType, OutputCallbackType, JobsGeneratorType
+from .utils import CWLObjectType, JobsGeneratorType, OutputCallbackType
 
 
 class ProcessGeneratorJob(object):
@@ -118,7 +117,9 @@ class ProcessGenerator(Process):
         try:
             loadingContext = self.loadingContext.copy()
             loadingContext.metadata = {}
-            embedded_tool = load_tool(jobout["runProcess"]["location"], loadingContext)
+            embedded_tool = load_tool(
+                cast(Dict[str, str], jobout["runProcess"])["location"], loadingContext
+            )
         except ValidationException as vexc:
             if runtimeContext.debug:
                 _logger.exception("Validation exception")

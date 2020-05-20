@@ -21,7 +21,6 @@ from typing import (
 
 import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import (
     ContextType,
@@ -144,7 +143,7 @@ def fetch_document(
 
 def _convert_stdstreams_to_files(
     workflowobj: Union[
-        MutableMapping[str, Any], MutableSequence[Union[Dict[str, Any], str]], str
+        MutableMapping[str, Any], MutableSequence[Union[Dict[str, Any], str, int]], str
     ]
 ) -> None:
     if isinstance(workflowobj, MutableMapping):

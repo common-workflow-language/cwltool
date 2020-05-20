@@ -3,7 +3,6 @@ from typing import IO, Any, Dict, MutableMapping, Optional, cast
 
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
-
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 

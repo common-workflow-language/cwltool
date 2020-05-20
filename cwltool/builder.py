@@ -14,18 +14,18 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
-from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
-
 from schema_salad.avro.schema import Names, Schema, make_avsc_object
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
+from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
 
 from . import expression
 from .errors import WorkflowException
@@ -33,10 +33,14 @@ from .loghandler import _logger
 from .mutation import MutationManager
 from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, onWindows, visit_class
-
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
+from .utils import (
+    CWLObjectType,
+    CWLOutputType,
+    aslist,
+    docker_windows_path_adjust,
+    onWindows,
+    visit_class,
+)
 
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
@@ -126,14 +130,14 @@ def check_format(
 
 
 class HasReqsHints(object):
-    def __init__(self):  # type: () -> None
+    def __init__(self) -> None:
         """Initialize this reqs decorator."""
-        self.requirements = []  # type: List[Dict[str, Any]]
-        self.hints = []  # type: List[Dict[str, Any]]
+        self.requirements = []  # type: List[CWLObjectType]
+        self.hints = []  # type: List[CWLObjectType]
 
     def get_requirement(
-        self, feature  # type: str
-    ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+        self, feature: str
+    ) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
         for item in reversed(self.requirements):
             if item["class"] == feature:
                 return (item, True)
@@ -146,28 +150,28 @@ class HasReqsHints(object):
 class Builder(HasReqsHints):
     def __init__(
         self,
-        job,  # type: Dict[str, expression.JSON]
-        files,  # type: List[Dict[str, str]]
-        bindings,  # type: List[Dict[str, Any]]
-        schemaDefs,  # type: Dict[str, Dict[str, Any]]
-        names,  # type: Names
-        requirements,  # type: List[Dict[str, Any]]
-        hints,  # type: List[Dict[str, Any]]
-        resources,  # type: Dict[str, int]
+        job: CWLObjectType,
+        files: List[CWLObjectType],
+        bindings: List[CWLObjectType],
+        schemaDefs: Dict[str, CWLObjectType],
+        names: Names,
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        resources: Dict[str, int],
         mutation_manager: Optional[MutationManager],
-        formatgraph,  # type: Optional[Graph]
+        formatgraph: Optional[Graph],
         make_fs_access: Type[StdFsAccess],
-        fs_access,  # type: StdFsAccess
-        job_script_provider,  # type: Optional[Any]
-        timeout,  # type: float
-        debug,  # type: bool
-        js_console,  # type: bool
-        force_docker_pull,  # type: bool
-        loadListing,  # type: str
-        outdir,  # type: str
-        tmpdir,  # type: str
-        stagedir,  # type: str
-    ):  # type: (...) -> None
+        fs_access: StdFsAccess,
+        job_script_provider: Optional[Any],
+        timeout: float,
+        debug: bool,
+        js_console: bool,
+        force_docker_pull: bool,
+        loadListing: str,
+        outdir: str,
+        tmpdir: str,
+        stagedir: str,
+    ) -> None:
         """Initialize this Builder."""
         self.job = job
         self.files = files
@@ -360,7 +364,7 @@ class Builder(HasReqsHints):
                     )
                 binding = {}
 
-            def _capture_files(f):  # type: (Dict[str, str]) -> Dict[str, str]
+            def _capture_files(f):  # type: (CWLObjectType) -> CWLObjectType
                 self.files.append(f)
                 return f
 
@@ -504,7 +508,7 @@ class Builder(HasReqsHints):
         else:
             return str(value)
 
-    def generate_arg(self, binding):  # type: (Dict[str, Any]) -> List[str]
+    def generate_arg(self, binding: CWLObjectType) -> List[str]:
         value = binding.get("datum")
         if "valueFrom" in binding:
             with SourceLine(
@@ -513,9 +517,9 @@ class Builder(HasReqsHints):
                 WorkflowException,
                 _logger.isEnabledFor(logging.DEBUG),
             ):
-                value = self.do_eval(binding["valueFrom"], context=value)
+                value = self.do_eval(cast(str, binding["valueFrom"]), context=value)
 
-        prefix = binding.get("prefix")  # type: Optional[str]
+        prefix = cast(Optional[str], binding.get("prefix"))
         sep = binding.get("separate", True)
         if prefix is None and not sep:
             with SourceLine(
@@ -528,13 +532,16 @@ class Builder(HasReqsHints):
                     "'separate' option can not be specified without prefix"
                 )
 
-        argl = []  # type: MutableSequence[MutableMapping[str, str]]
+        argl = []  # type: MutableSequence[CWLOutputType]
         if isinstance(value, MutableSequence):
             if binding.get("itemSeparator") and value:
-                argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
+                itemSeparator = cast(str, binding["itemSeparator"])
+                argl = [itemSeparator.join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
-                return ([prefix] if prefix else []) + value
+                return cast(List[str], ([prefix] if prefix else [])) + cast(
+                    List[str], value
+                )
             elif prefix and value:
                 return [prefix]
             else:
@@ -543,7 +550,7 @@ class Builder(HasReqsHints):
             "File",
             "Directory",
         ):
-            argl = [value]
+            argl = cast(MutableSequence[CWLOutputType], [value])
         elif isinstance(value, MutableMapping):
             return [prefix] if prefix else []
         elif value is True and prefix:
@@ -564,7 +571,9 @@ class Builder(HasReqsHints):
 
     def do_eval(
         self,
-        ex: Union[MutableMapping[str, Any], MutableSequence[str], str],
+        ex: Union[
+            str, float, bool, None, MutableMapping[str, str], MutableSequence[str]
+        ],
         context: Optional[Any] = None,
         recursive: bool = False,
         strip_whitespace: bool = True,

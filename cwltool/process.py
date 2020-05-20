@@ -36,8 +36,6 @@ from typing import (
 from pkg_resources import resource_stream
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from typing_extensions import TYPE_CHECKING
-
 from schema_salad.avro.schema import Names, SchemaParseException, make_avsc_object
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
@@ -45,6 +43,7 @@ from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
 from schema_salad.validate import validate_ex
+from typing_extensions import TYPE_CHECKING
 
 from . import expression
 from .builder import Builder, HasReqsHints
@@ -64,15 +63,15 @@ from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION
 from .utils import (
     DEFAULT_TMP_PREFIX,
+    CWLObjectType,
+    JobsGeneratorType,
+    OutputCallbackType,
     aslist,
     cmp_like_py2,
     copytree_with_merge,
     onWindows,
     random_outdir,
     visit_class,
-    CWLObjectType,
-    OutputCallbackType,
-    JobsGeneratorType,
 )
 from .validate_js import validate_js_expressions
 
@@ -393,11 +392,15 @@ def relocateOutputs(
             else:
                 shutil.copy2(src, dst)
 
-    def _realpath(ob: CWLObjectType) -> None:
-        if ob["location"].startswith("file:"):
-            ob["location"] = file_uri(os.path.realpath(uri_file_path(ob["location"])))
-        if ob["location"].startswith("/"):
-            ob["location"] = os.path.realpath(ob["location"])
+    def _realpath(
+        ob: CWLObjectType,
+    ) -> None:  # should be type Union[CWLFile, CWLDirectory]
+        if cast(str, ob["location"]).startswith("file:"):
+            ob["location"] = file_uri(
+                os.path.realpath(uri_file_path(cast(str, ob["location"])))
+            )
+        if cast(str, ob["location"]).startswith("/"):
+            ob["location"] = os.path.realpath(cast(str, ob["location"]))
 
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
@@ -440,10 +443,8 @@ def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[str, Any]) -> None
 
 
 def fill_in_defaults(
-    inputs,  # type: List[Dict[str, str]]
-    job,  # type: Dict[str, expression.JSON]
-    fsaccess,  # type: StdFsAccess
-):  # type: (...) -> None
+    inputs: List[Dict[str, str]], job: CWLObjectType, fsaccess: StdFsAccess,
+) -> None:
     for e, inp in enumerate(inputs):
         with SourceLine(
             inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)
@@ -598,7 +599,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             strict=getdefault(loadingContext.strict, False),
         )
 
-        self.schemaDefs = {}  # type: Dict[str,Dict[str, Any]]
+        self.schemaDefs = {}  # type: Dict[str, CWLObjectType]
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -708,8 +709,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         else:
             var_spool_cwl_detector(self.tool)
 
-    def _init_job(self, joborder, runtime_context):
-        # type: (Mapping[str, str], RuntimeContext) -> Builder
+    def _init_job(
+        self, joborder: CWLObjectType, runtime_context: RuntimeContext
+    ) -> Builder:
 
         if self.metadata.get("cwlVersion") != INTERNAL_VERSION:
             raise WorkflowException(
@@ -717,17 +719,18 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 % (self.metadata.get("cwlVersion"), INTERNAL_VERSION)
             )
 
-        job = cast(Dict[str, expression.JSON], copy.deepcopy(joborder))
+        job = copy.deepcopy(joborder)
 
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)
 
         load_listing_req, _ = self.get_requirement("LoadListingRequirement")
 
-        if load_listing_req is not None:
-            load_listing = load_listing_req.get("loadListing")
-        else:
-            load_listing = "no_listing"
+        load_listing = (
+            cast(str, load_listing_req.get("loadListing"))
+            if load_listing_req is not None
+            else "no_listing"
+        )
 
         # Validate job order
         try:
@@ -786,7 +789,7 @@ hints:
         except (ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + str(err)) from err
 
-        files = []  # type: List[Dict[str, str]]
+        files = []  # type: List[CWLObjectType]
         bindings = CommentedSeq()
         tmpdir = ""
         stagedir = ""
@@ -800,15 +803,16 @@ hints:
         if (docker_req or default_docker) and runtime_context.use_container:
             if docker_req is not None:
                 # Check if docker output directory is absolute
-                if docker_req.get("dockerOutputDirectory") and docker_req.get(
-                    "dockerOutputDirectory"
+                if docker_req.get("dockerOutputDirectory") and cast(
+                    str, docker_req.get("dockerOutputDirectory")
                 ).startswith("/"):
-                    outdir = docker_req.get("dockerOutputDirectory")
+                    outdir = cast(str, docker_req.get("dockerOutputDirectory"))
                 else:
-                    outdir = (
+                    outdir = cast(
+                        str,
                         docker_req.get("dockerOutputDirectory")
                         or runtime_context.docker_outdir
-                        or random_outdir()
+                        or random_outdir(),
                     )
             elif default_docker is not None:
                 outdir = runtime_context.docker_outdir or random_outdir()
@@ -940,9 +944,9 @@ hints:
             mn = None  # type: Optional[Union[str, int]]
             mx = None  # type: Optional[Union[str, int]]
             if resourceReq.get(a + "Min"):
-                mn = eval_resource(builder, resourceReq[a + "Min"])
+                mn = eval_resource(builder, cast(int, resourceReq[a + "Min"]))
             if resourceReq.get(a + "Max"):
-                mx = eval_resource(builder, resourceReq[a + "Max"])
+                mx = eval_resource(builder, cast(int, resourceReq[a + "Max"]))
             if mn is None:
                 mn = mx
             elif mx is None:

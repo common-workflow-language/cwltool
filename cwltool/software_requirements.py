@@ -10,7 +10,7 @@ ways to adapt new packages managers and such as well.
 import argparse  # pylint: disable=unused-import
 import os
 import string
-from typing import Dict, List, MutableSequence, Optional
+from typing import Dict, List, MutableMapping, MutableSequence, Optional, Union, cast
 
 from .builder import Builder, HasReqsHints
 
@@ -87,11 +87,14 @@ class DependenciesConfiguration(object):
         return job_script
 
 
-def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
+def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):
-        packages = software_requirement.get("packages")
+        packages = cast(
+            MutableSequence[MutableMapping[str, Union[str, MutableSequence[str]]]],
+            software_requirement.get("packages"),
+        )
         for package in packages:
             version = package.get("version", None)
             if isinstance(version, MutableSequence):
@@ -103,7 +106,7 @@ def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
             dependencies.append(
                 ToolRequirement.from_dict(
                     dict(
-                        name=package["package"].split("#")[-1],
+                        name=cast(str, package["package"]).split("#")[-1],
                         version=version,
                         type="package",
                         specs=specs,

@@ -7,7 +7,6 @@ import shutil
 import sys
 import tempfile
 from distutils import spawn
-from io import open  # pylint: disable=redefined-builtin
 from subprocess import (  # nosec
     DEVNULL,
     PIPE,
@@ -16,7 +15,7 @@ from subprocess import (  # nosec
     check_call,
     check_output,
 )
-from typing import Callable, Dict, List, MutableMapping, Optional, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 
 from schema_salad.sourceline import SourceLine
 
@@ -27,13 +26,13 @@ from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
-from .utils import docker_windows_path_adjust
+from .utils import CWLObjectType, docker_windows_path_adjust
 
 _USERNS = None
 _SINGULARITY_VERSION = ""
 
 
-def _singularity_supports_userns():  # type: ()->bool
+def _singularity_supports_userns() -> bool:
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
@@ -50,7 +49,7 @@ def _singularity_supports_userns():  # type: ()->bool
     return _USERNS
 
 
-def get_version():  # type: ()->str
+def get_version() -> str:
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     if not _SINGULARITY_VERSION:
         _SINGULARITY_VERSION = check_output(  # nosec
@@ -61,24 +60,24 @@ def get_version():  # type: ()->str
     return _SINGULARITY_VERSION
 
 
-def is_version_2_6():  # type: ()->bool
+def is_version_2_6() -> bool:
     return get_version().startswith("2.6")
 
 
-def is_version_3_or_newer():  # type: ()->bool
+def is_version_3_or_newer() -> bool:
     return int(get_version()[0]) >= 3
 
 
-def is_version_3_1_or_newer():  # type: ()->bool
+def is_version_3_1_or_newer() -> bool:
     version = get_version().split(".")
     return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 1)
 
 
-def _normalize_image_id(string):  # type: (str)->str
+def _normalize_image_id(string: str) -> str:
     return string.replace("/", "_") + ".img"
 
 
-def _normalize_sif_id(string):  # type: (str)->str
+def _normalize_sif_id(string: str) -> str:
     return string.replace("/", "_") + ".sif"
 
 
@@ -86,10 +85,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def __init__(
         self,
         builder: Builder,
-        joborder: JSON,
+        joborder: CWLObjectType,
         make_path_mapper: Callable[..., PathMapper],
-        requirements: List[Dict[str, str]],
-        hints: List[Dict[str, str]],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
         name: str,
     ) -> None:
         super(SingularityCommandLineJob, self).__init__(
@@ -98,11 +97,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def get_image(
-        dockerRequirement,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-    ):
-        # type: (...) -> bool
+        dockerRequirement: Dict[str, str], pull_image: bool, force_pull: bool = False,
+    ) -> bool:
         """
         Acquire the software container image in the specified dockerRequirement.
 
@@ -252,12 +248,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def get_from_requirements(
         self,
-        r,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-        tmp_outdir_prefix=None,  # type: Optional[str]
-    ):
-        # type: (...) -> Optional[str]
+        r: CWLObjectType,
+        pull_image: bool,
+        force_pull: bool = False,
+        tmp_outdir_prefix: Optional[str] = None,
+    ) -> Optional[str]:
         """
         Return the filename of the Singularity image.
 
@@ -266,12 +261,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not bool(spawn.find_executable("singularity")):
             raise WorkflowException("singularity executable is not available")
 
-        if not self.get_image(r, pull_image, force_pull):
+        if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
             raise WorkflowException(
                 "Container image {} not " "found".format(r["dockerImageId"])
             )
 
-        return os.path.abspath(r["dockerImageId"])
+        return os.path.abspath(cast(str, r["dockerImageId"]))
 
     @staticmethod
     def append_volume(runtime, source, target, writable=False):

@@ -34,7 +34,6 @@ import coloredlogs
 import pkg_resources  # part of setuptools
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import (
     Fetcher,
@@ -398,7 +397,8 @@ def init_job_order(
 
         if secret_store and secrets_req:
             secret_store.store(
-                [shortname(sc) for sc in secrets_req["secrets"]], job_order_object
+                [shortname(sc) for sc in cast(List[str], secrets_req["secrets"])],
+                job_order_object,
             )
 
         if _logger.isEnabledFor(logging.DEBUG):
@@ -469,7 +469,8 @@ def init_job_order(
 
     if secret_store and secrets_req:
         secret_store.store(
-            [shortname(sc) for sc in secrets_req["secrets"]], job_order_object
+            [shortname(sc) for sc in cast(List[str], secrets_req["secrets"])],
+            job_order_object,
         )
 
     if "cwl:tool" in job_order_object:
@@ -656,7 +657,7 @@ def setup_provenance(
         _logger.error("--provenance incompatible with --no-compute-checksum")
         return 1
     ro = ResearchObject(
-        getdefault(runtimeContext.make_fs_access, StdFsAccess),
+        getdefault(runtimeContext.make_fs_access, StdFsAccess)(""),
         temp_prefix_ro=args.tmpdir_prefix,
         orcid=args.orcid,
         full_name=args.cwl_full_name,
@@ -1120,7 +1121,7 @@ def main(
 
             if out is not None:
                 if runtimeContext.research_obj is not None:
-                    runtimeContext.research_obj.create_job(out, None, True)
+                    runtimeContext.research_obj.create_job(out, True)
 
                     def remove_at_id(doc: MutableMapping[str, Any]) -> None:
                         for key in list(doc.keys()):

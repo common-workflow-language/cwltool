@@ -24,7 +24,6 @@ from typing import (
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine

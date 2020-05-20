@@ -3,13 +3,13 @@ import os
 import urllib
 
 import pytest
+from schema_salad.utils import convert_to_dict
 
 from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.resolver import Path, resolve_local
 from cwltool.subgraph import get_subgraph
 from cwltool.workflow import default_make_tool
-from schema_salad.utils import convert_to_dict
 
 from .test_fetch import norm
 from .util import get_data, working_directory

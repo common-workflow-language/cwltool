@@ -2,17 +2,17 @@ import os
 import urllib
 
 import pytest
-
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
+from schema_salad.tests.other_fetchers import CWLTestFetcher
+
 from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.resolver import Path, resolve_local
 from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
-from schema_salad.tests.other_fetchers import CWLTestFetcher
 
 from .util import get_data, working_directory
 
