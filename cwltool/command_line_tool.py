@@ -559,9 +559,9 @@ class CommandLineTool(Process):
                 runtimeContext.outdir = jobcache
 
                 def update_status_output_callback(
-                    output_callbacks: Callable[[List[Dict[str, Any]], str], None],
+                    output_callbacks: OutputCallbackType,
                     jobcachelock: IO[Any],
-                    outputs: List[Dict[str, Any]],
+                    outputs: Optional[CWLObjectType],
                     processStatus: str,
                 ) -> None:
                     # save status to the lockfile then release the lock
@@ -624,44 +624,44 @@ class CommandLineTool(Process):
                 ls = builder.do_eval(initialWorkdir["listing"])
             else:
                 for t in cast(
-                    MutableSequence[Union[str, Dict[str, str]]],
+                    MutableSequence[Union[str, CWLObjectType]],
                     initialWorkdir["listing"],
                 ):
                     if isinstance(t, Mapping) and "entry" in t:
-                        entry_exp = builder.do_eval(t["entry"], strip_whitespace=False)
+                        entry_exp = builder.do_eval(cast(str, t["entry"]), strip_whitespace=False)
                         for entry in aslist(entry_exp):
                             et = {"entry": entry}
                             if "entryname" in t:
-                                et["entryname"] = builder.do_eval(t["entryname"])
+                                et["entryname"] = builder.do_eval(cast(str, t["entryname"]))
                             else:
                                 et["entryname"] = None
                             et["writable"] = t.get("writable", False)
                             if et["entry"] is not None:
                                 ls.append(et)
                     else:
-                        initwd_item = builder.do_eval(t)
+                        initwd_item = builder.do_eval(cast(str, t))
                         if not initwd_item:
                             continue
                         if isinstance(initwd_item, MutableSequence):
                             ls.extend(initwd_item)
                         else:
                             ls.append(initwd_item)
-            for i, t in enumerate(ls):
-                if "entry" in t:
-                    if isinstance(t["entry"], str):
+            for i, t2 in enumerate(ls):
+                if "entry" in t2:
+                    if isinstance(t2["entry"], str):
                         ls[i] = {
                             "class": "File",
-                            "basename": t["entryname"],
-                            "contents": t["entry"],
-                            "writable": t.get("writable"),
+                            "basename": t2["entryname"],
+                            "contents": t2["entry"],
+                            "writable": t2.get("writable"),
                         }
                     else:
-                        if t.get("entryname") or t.get("writable"):
-                            t = copy.deepcopy(t)
-                            if t.get("entryname"):
-                                t["entry"]["basename"] = t["entryname"]
-                            t["entry"]["writable"] = t.get("writable")
-                        ls[i] = t["entry"]
+                        if t2.get("entryname") or t2.get("writable"):
+                            t2 = copy.deepcopy(t2)
+                            if t2.get("entryname"):
+                                t2["entry"]["basename"] = t2["entryname"]
+                            t2["entry"]["writable"] = t2.get("writable")
+                        ls[i] = t2["entry"]
             j.generatefiles["listing"] = ls
             for entry in ls:
                 self.updatePathmap(builder.outdir, builder.pathmapper, entry)
@@ -787,8 +787,8 @@ class CommandLineTool(Process):
         j.environment = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
         if evr is not None:
-            for t in cast(List[Dict[str, str]], evr["envDef"]):
-                j.environment[t["envName"]] = builder.do_eval(t["envValue"])
+            for t2 in cast(List[Dict[str, str]], evr["envDef"]):
+                j.environment[t2["envName"]] = builder.do_eval(t2["envValue"])
 
         shellcmd, _ = self.get_requirement("ShellCommandRequirement")
         if shellcmd is not None:
