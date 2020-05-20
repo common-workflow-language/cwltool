@@ -851,7 +851,7 @@ class CommandLineTool(Process):
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
             expected_schema = cast(
-                Schema, self.names.get_name("outputs_record_schema", "")
+                Schema, self.names.get_name("outputs_record_schema", None)
             )
             validate.validate_ex(
                 expected_schema, ret, strict=False, logger=_logger_validation_warnings

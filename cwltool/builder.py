@@ -254,14 +254,14 @@ class Builder(HasReqsHints):
             bound_input = False
             for t in schema["type"]:
                 avsc = None  # type: Optional[Schema]
-                if isinstance(t, str) and self.names.has_name(t, ""):
-                    avsc = self.names.get_name(t, "")
+                if isinstance(t, str) and self.names.has_name(t, None):
+                    avsc = self.names.get_name(t, None)
                 elif (
                     isinstance(t, MutableMapping)
                     and "name" in t
-                    and self.names.has_name(t["name"], "")
+                    and self.names.has_name(t["name"], None)
                 ):
-                    avsc = self.names.get_name(t["name"], "")
+                    avsc = self.names.get_name(t["name"], None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
                 if validate.validate(avsc, datum):
