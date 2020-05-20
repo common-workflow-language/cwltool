@@ -582,6 +582,15 @@ in an integer). For example::
     nproc:
       type: int
 
+Interaction with containers: the MPIRequirement currently prepends its
+commands to the front of the command line that is constructed. If you
+wish to run a containerised application in parallel, for simple use
+cases this does work with Singularity, depending upon the platform
+setup. However this combination should be considered "alpha" -- please
+do report any issues you have! This does not work with Docker at the
+moment. (More precisely, you get `n` copies of the same single process
+image run at the same time that cannot communicate with each other.)
+
 The host-specific parameters are configured in a simple YAML file
 (specified with the ``--mpi-config-file`` flag). The allowed keys are
 given in the following table; all are optional.
@@ -620,6 +629,7 @@ given in the following table; all are optional.
 |                |                  |          | and the values being the     |
 |                |                  |          | values.                      |
 +----------------+------------------+----------+------------------------------+
+
 
 
 ===========
