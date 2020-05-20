@@ -1,15 +1,12 @@
-import pytest
 import pkg_resources
+import pytest
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.load_tool import load_tool
+from cwltool.process import use_custom_schema, use_standard_schema
 from cwltool.resolver import Path, resolve_local
 from cwltool.update import INTERNAL_VERSION
-from cwltool.process import (
-    use_custom_schema,
-    use_standard_schema,
-)
 
 from .test_fetch import norm
 from .util import (

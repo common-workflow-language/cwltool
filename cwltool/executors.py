@@ -12,17 +12,16 @@ from typing import (
     Dict,
     Iterable,
     List,
+    MutableMapping,
     Optional,
     Set,
     Tuple,
     Union,
-    MutableMapping,
 )
 
 import psutil
-
-from schema_salad.validate import ValidationException
 from schema_salad.sourceline import SourceLine
+from schema_salad.validate import ValidationException
 
 from .command_line_tool import CallbackJob
 from .context import RuntimeContext, getdefault

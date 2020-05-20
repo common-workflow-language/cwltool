@@ -34,10 +34,9 @@ from typing import (
 import psutil
 import shellescape
 from prov.model import PROV
-from typing_extensions import TYPE_CHECKING
-
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
+from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
