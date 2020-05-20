@@ -47,7 +47,7 @@ $graph:
 
 - name: MPIRequirement
   type: record
-  inVocab: true
+  inVocab: false
   extends: cwl:ProcessRequirement
   doc: |
     Indicates that a process requires an MPI runtime.
@@ -59,7 +59,8 @@ $graph:
         "_id": "@type"
         "_type": "@vocab"
     - name: processes
-      type: [int, cwl:Expression]
+      type: [int, string]
       doc: |
-        The number of MPI processes to start. If you give an
-        expression, this must evaluate to an integer.
+        The number of MPI processes to start. If you give a string,
+        this will be evaluated as a CWL Expression and it must
+        evaluate to an integer.

@@ -7,6 +7,7 @@ from ruamel import yaml
 
 MpiConfigT = TypeVar("MpiConfigT", bound="MpiConfig")
 
+MPIRequirementName = "http://commonwl.org/cwltool#MPIRequirement"
 
 class MpiConfig:
     def __init__(

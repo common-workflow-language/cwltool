@@ -1,6 +1,6 @@
 #!/usr/bin/env cwl-runner
 
-cwlVersion: v1.2.0-dev2
+cwlVersion: v1.1
 class: Workflow
 doc: |
   Simple 2 step workflow to check that workflow steps are

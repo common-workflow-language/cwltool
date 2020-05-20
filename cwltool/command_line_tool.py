@@ -44,6 +44,7 @@ from .errors import WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
 from .loghandler import _logger
+from .mpi import MPIRequirementName
 from .mutation import MutationManager
 from .pathmapper import (
     PathMapper,
@@ -784,14 +785,15 @@ class CommandLineTool(Process):
         )
         j.output_callback = output_callbacks
 
-        mpi, _ = self.get_requirement("MPIRequirement")
-        if mpi is not None:
-            j.mpi_procs = builder.do_eval(
-                mpi.get(
-                    'processes',
-                    runtimeContext.mpi_config.default_nproc)
-                )
+        mpi, _ = self.get_requirement(MPIRequirementName)
 
+        if mpi is not None:
+            np =  mpi.get('processes', runtimeContext.mpi_config.default_nproc) # type: Union[int, str]
+            if isinstance(np, str):
+                np = builder.do_eval(np)
+                if not isinstance(np, int):
+                    raise TypeError("{} needs 'processes' to evaluate to an int, got {}".format(MPIRequirementName, type(np)))
+            j.mpi_procs = np
         yield j
 
     def collect_output_ports(

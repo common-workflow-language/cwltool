@@ -561,11 +561,26 @@ For this example, grab the test.json (and input file) from https://github.com/Ca
 Running MPI-based tools that need to be launched
 ------------------------------------------------
 
-Cwltool supports an extension to the CWL spec ``MPIRequirement``. When
-the tool definition has this in its ``requirements``/``hints``
-section, and cwltool has been run with ``--enable-ext``, then the
-tool's command line will be extended with the commands needed to
-launch it with ``mpirun`` or similar.
+Cwltool supports an extension to the CWL spec
+``http://commonwl.org/cwltool#MPIRequirement``. When the tool
+definition has this in its ``requirements``/``hints`` section, and
+cwltool has been run with ``--enable-ext``, then the tool's command
+line will be extended with the commands needed to launch it with
+``mpirun`` or similar. You can specify the number of processes to
+start as either a literal integer or an expression (that will result
+in an integer). For example::
+
+  #!/usr/bin/env cwl-runner
+  cwlVersion: v1.1
+  class: CommandLineTool
+  $namespaces:
+    cwltool: "http://commonwl.org/cwltool#"
+  requirements:
+    cwltool:MPIRequirement:
+      processes: $(inputs.nproc)
+  inputs:
+    nproc:
+      type: int
 
 The host-specific parameters are configured in a simple YAML file
 (specified with the ``--mpi-config-file`` flag). The allowed keys are

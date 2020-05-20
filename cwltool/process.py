@@ -47,6 +47,7 @@ from .builder import Builder, HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
+from .mpi import MPIRequirementName
 from .pathmapper import (
     MapperEnt,
     PathMapper,
@@ -107,7 +108,7 @@ supportedProcessRequirements = [
     "NetworkAccess",
     "InplaceUpdateRequirement",
     "LoadListingRequirement",
-    "MPIRequirement",
+    MPIRequirementName,
     "http://commonwl.org/cwltool#TimeLimit",
     "http://commonwl.org/cwltool#WorkReuse",
     "http://commonwl.org/cwltool#NetworkAccess",

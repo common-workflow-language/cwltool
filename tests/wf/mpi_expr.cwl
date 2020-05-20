@@ -1,7 +1,10 @@
 #!/usr/bin/env cwl-runner
 
-cwlVersion: v1.2.0-dev2
+cwlVersion: v1.1
 class: CommandLineTool
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
+
 doc: |
   Trivial MPI test that prints the process IDs of each of the parallel
   processes. Requires Python (but you have cwltool running, right?)
@@ -12,7 +15,7 @@ doc: |
 
 baseCommand: python
 requirements:
-  MPIRequirement:
+  cwltool:MPIRequirement:
     processes: $(inputs.processes)
 arguments: [-c, 'import os; print(os.getpid())']
 inputs:

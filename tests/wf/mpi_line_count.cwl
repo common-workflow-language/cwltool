@@ -1,13 +1,16 @@
 #!/usr/bin/env cwl-runner
 
-cwlVersion: v1.2.0-dev2
+cwlVersion: v1.1
 class: CommandLineTool
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
+
 doc: |
   Line count of input, but mpirun on a single process
 
 baseCommand: wc
 requirements:
-  MPIRequirement:
+  cwltool:MPIRequirement:
     processes: 1
 
 arguments: [-l]
