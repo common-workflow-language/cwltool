@@ -32,7 +32,6 @@ from typing import (
 
 import coloredlogs
 import pkg_resources  # part of setuptools
-
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import validate

@@ -3,8 +3,8 @@ import os
 import sys
 
 import pytest
-
 import schema_salad.validate
+
 from cwltool.main import main
 
 from .util import (

@@ -29,13 +29,12 @@ from typing import (
 )
 
 import shellescape
-from typing_extensions import TYPE_CHECKING, Type
-
 from schema_salad import validate
 from schema_salad.avro.schema import Schema
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
+from typing_extensions import TYPE_CHECKING, Type
 
 from .builder import Builder, content_limit_respected_read_bytes, substitute
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -634,8 +633,8 @@ class CommandLineTool(Process):
                             t["entry"]["writable"] = t.get("writable")
                         ls[i] = t["entry"]
             j.generatefiles["listing"] = ls
-            for l in ls:
-                self.updatePathmap(builder.outdir, builder.pathmapper, l)
+            for entry in ls:
+                self.updatePathmap(builder.outdir, builder.pathmapper, entry)
             visit_class(
                 [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
             )

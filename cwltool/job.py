@@ -34,10 +34,9 @@ from typing import (
 import psutil
 import shellescape
 from prov.model import PROV
-from typing_extensions import TYPE_CHECKING
-
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
+from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
@@ -163,7 +162,10 @@ def relink_initialworkdir(
                 host_outdir, vol.target[len(container_outdir) + 1 :]
             )
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
-                os.remove(host_outdir_tgt)
+                try:
+                    os.remove(host_outdir_tgt)
+                except PermissionError:
+                    pass
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
             if onWindows():
@@ -175,7 +177,10 @@ def relink_initialworkdir(
                 elif vol.type in ("Directory", "WritableDirectory"):
                     copytree_with_merge(vol.resolved, host_outdir_tgt)
             elif not vol.resolved.startswith("_:"):
-                os.symlink(vol.resolved, host_outdir_tgt)
+                try:
+                    os.symlink(vol.resolved, host_outdir_tgt)
+                except FileExistsError:
+                    pass
 
 
 class JobBase(HasReqsHints, metaclass=ABCMeta):

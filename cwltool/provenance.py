@@ -34,11 +34,10 @@ import prov.model as provM
 from pathlib2 import Path, PurePath, PurePosixPath
 from prov.identifier import Identifier, Namespace
 from prov.model import PROV, ProvDocument, ProvEntity
-from typing_extensions import TYPE_CHECKING
-
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
+from typing_extensions import TYPE_CHECKING
 
 from .context import RuntimeContext
 from .errors import WorkflowException
@@ -1679,7 +1678,7 @@ class ResearchObject:
                         prefix = checksum[0:2]
                         relative_path = PurePosixPath("data") / prefix / checksum
 
-                if not relative_path is not None and "location" in structure:
+                if not (relative_path is not None and "location" in structure):
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
