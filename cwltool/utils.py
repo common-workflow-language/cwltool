@@ -54,11 +54,11 @@ def versionstring():
     return "%s %s" % (sys.argv[0], "unknown version")
 
 
-def aslist(l):  # type: (Any) -> MutableSequence[Any]
+def aslist(thing):  # type: (Any) -> MutableSequence[Any]
     """Wrap any non-MutableSequence/list in a list."""
-    if isinstance(l, MutableSequence):
-        return l
-    return [l]
+    if isinstance(thing, MutableSequence):
+        return thing
+    return [thing]
 
 
 def copytree_with_merge(src, dst):  # type: (str, str) -> None

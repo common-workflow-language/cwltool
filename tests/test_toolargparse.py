@@ -6,9 +6,9 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 
+import cwltool.executors
 from cwltool.argparser import generate_parser
 from cwltool.context import LoadingContext
-import cwltool.executors
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 

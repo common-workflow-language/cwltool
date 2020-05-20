@@ -2,7 +2,6 @@ import urllib
 from typing import IO, Any, Dict, MutableMapping, cast
 
 from rdflib import Graph
-
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 

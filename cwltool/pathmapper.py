@@ -23,7 +23,6 @@ from typing import (
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-
 from schema_salad import validate
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
@@ -135,9 +134,9 @@ def dedup(listing: List[Any]) -> List[Any]:
     def mark(d: Dict[str, str]) -> None:
         marksub.add(d["location"])
 
-    for l in listing:
-        if l["class"] == "Directory":
-            for e in l.get("listing", []):
+    for entry in listing:
+        if entry["class"] == "Directory":
+            for e in entry.get("listing", []):
                 adjustFileObjs(e, mark)
                 adjustDirObjs(e, mark)
 
