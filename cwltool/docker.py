@@ -1,7 +1,7 @@
 """Enables Docker software containers via the {dx-,u,}docker runtimes."""
 
-import datetime
 import csv
+import datetime
 import os
 import re
 import shutil
@@ -9,7 +9,7 @@ import sys
 import tempfile
 import threading
 from distutils import spawn
-from io import open, StringIO  # pylint: disable=redefined-builtin
+from io import StringIO, open  # pylint: disable=redefined-builtin
 from typing import Dict, List, MutableMapping, Optional, Set, Tuple
 
 import requests

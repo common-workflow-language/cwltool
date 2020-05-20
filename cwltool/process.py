@@ -35,12 +35,11 @@ from typing import (
 
 from pkg_resources import resource_stream
 from rdflib import Graph
-from typing_extensions import TYPE_CHECKING
-
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import schema, validate
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
+from typing_extensions import TYPE_CHECKING
 
 from . import expression
 from .builder import Builder, HasReqsHints
@@ -260,7 +259,7 @@ def stage_files(
 
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in pathmapper.items():
-        if not "File" in entry.type:
+        if "File" not in entry.type:
             continue
         if entry.target not in targets:
             targets[entry.target] = entry

@@ -20,7 +20,6 @@ from typing import (
 )
 
 import requests.sessions
-
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad import schema
 from schema_salad.ref_resolver import ContextType, Fetcher, Loader, SubLoader, file_uri
