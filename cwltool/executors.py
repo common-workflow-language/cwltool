@@ -21,7 +21,6 @@ from typing import (
 )
 
 import psutil
-
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 

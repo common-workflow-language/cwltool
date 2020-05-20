@@ -11,7 +11,7 @@ import tempfile
 import threading
 from distutils import spawn
 from io import StringIO, open  # pylint: disable=redefined-builtin
-from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, cast
 
 import requests
 
@@ -23,7 +23,12 @@ from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
-from .utils import DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows
+from .utils import (
+    DEFAULT_TMP_PREFIX,
+    CWLObjectType,
+    docker_windows_path_adjust,
+    onWindows,
+)
 
 _IMAGES = set()  # type: Set[str]
 _IMAGES_LOCK = threading.Lock()
@@ -31,7 +36,7 @@ __docker_machine_mounts = None  # type: Optional[List[str]]
 __docker_machine_mounts_lock = threading.Lock()
 
 
-def _get_docker_machine_mounts():  # type: () -> List[str]
+def _get_docker_machine_mounts() -> List[str]:
     global __docker_machine_mounts
     if __docker_machine_mounts is None:
         with __docker_machine_mounts_lock:
@@ -55,7 +60,7 @@ def _get_docker_machine_mounts():  # type: () -> List[str]
     return __docker_machine_mounts
 
 
-def _check_docker_machine_path(path):  # type: (Optional[str]) -> None
+def _check_docker_machine_path(path: Optional[str]) -> None:
     if path is None:
         return
     if onWindows():
@@ -88,10 +93,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def __init__(
         self,
         builder: Builder,
-        joborder: JSON,
+        joborder: CWLObjectType,
         make_path_mapper: Callable[..., PathMapper],
-        requirements: List[Dict[str, str]],
-        hints: List[Dict[str, str]],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
         name: str,
     ) -> None:
         super(DockerCommandLineJob, self).__init__(
@@ -100,11 +105,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def get_image(
-        docker_requirement,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-        tmp_outdir_prefix=DEFAULT_TMP_PREFIX,  # type: str
-    ):  # type: (...) -> bool
+        docker_requirement: Dict[str, str],
+        pull_image: bool,
+        force_pull: bool = False,
+        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+    ) -> bool:
         """
         Retrieve the relevant Docker container image.
 
@@ -223,21 +228,24 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def get_from_requirements(
         self,
-        r,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-        tmp_outdir_prefix=DEFAULT_TMP_PREFIX,  # type: str
-    ):  # type: (...) -> Optional[str]
+        r: CWLObjectType,
+        pull_image: bool,
+        force_pull: bool = False,
+        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+    ) -> Optional[str]:
         if not spawn.find_executable("docker"):
             raise WorkflowException("docker executable is not available")
 
-        if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
-            return r["dockerImageId"]
+        if self.get_image(
+            cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix
+        ):
+            return cast(Optional[str], r["dockerImageId"])
         raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
 
     @staticmethod
-    def append_volume(runtime, source, target, writable=False):
-        # type: (List[str], str, str, bool) -> None
+    def append_volume(
+        runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
         """Add binding arguments to the runtime list."""
         options = [
             "type=bind",
@@ -264,11 +272,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_file_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable file mapping to the runtime option list."""
         if self.inplace_update:
             self.append_volume(runtime, volume.resolved, volume.target, writable=True)
@@ -289,11 +297,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_directory_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable directory mapping to the runtime option list."""
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first

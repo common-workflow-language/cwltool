@@ -27,6 +27,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     Union,
     cast,
 )
@@ -36,10 +37,9 @@ from pathlib2 import Path, PurePath, PurePosixPath
 from prov.identifier import Identifier, Namespace
 from prov.model import PROV, ProvDocument, ProvEntity
 from ruamel import yaml
-from typing_extensions import TYPE_CHECKING
-
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
+from typing_extensions import TYPE_CHECKING
 
 from .context import RuntimeContext
 from .errors import WorkflowException
@@ -47,10 +47,7 @@ from .loghandler import _logger
 from .pathmapper import get_listing
 from .process import Process, shortname
 from .stdfsaccess import StdFsAccess
-from .utils import onWindows, versionstring, CWLObjectType
-
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
+from .utils import CWLObjectType, JobsType, onWindows, versionstring
 
 # imports needed for retrieving user data
 if onWindows():
@@ -153,8 +150,7 @@ def _whoami():
 class WritableBagFile(FileIO):
     """Writes files in research object."""
 
-    def __init__(self, research_object, rel_path):
-        # type: (ResearchObject, str) -> None
+    def __init__(self, research_object: "ResearchObject", rel_path: str) -> None:
         """Initialize an ROBagIt."""
         self.research_object = research_object
         if Path(rel_path).is_absolute():
@@ -189,7 +185,7 @@ class WritableBagFile(FileIO):
             _.update(real_b)
         return total
 
-    def close(self):  # type: () -> None
+    def close(self) -> None:
         # FIXME: Convert below block to a ResearchObject method?
         if self.rel_path.startswith("data/"):
             self.research_object.bagged_size[self.rel_path] = self.tell()
@@ -314,14 +310,14 @@ class ProvenanceProfile:
 
     def __init__(
         self,
-        research_object,  # type: ResearchObject
-        full_name,  # type: str
-        host_provenance,  # type: bool
-        user_provenance,  # type: bool
-        orcid,  # type: str
+        research_object: "ResearchObject",
+        full_name: str,
+        host_provenance: bool,
+        user_provenance: bool,
+        orcid: str,
         fsaccess: StdFsAccess,
-        run_uuid=None,  # type: Optional[uuid.UUID]
-    ):  # type: (...) -> None
+        run_uuid: Optional[uuid.UUID] = None,
+    ) -> None:
         """Initialize the provenance profile."""
         self.fsaccess = fsaccess
         self.orcid = orcid
@@ -464,7 +460,7 @@ class ProvenanceProfile:
     def evaluate(
         self,
         process: Process,
-        job: Any,
+        job: JobsType,
         job_order_object: CWLObjectType,
         research_obj: "ResearchObject",
     ) -> None:
@@ -474,7 +470,7 @@ class ProvenanceProfile:
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            research_obj.create_job(customised_job, job)
+            research_obj.create_job(customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
             self.prospective_prov(job)
@@ -1017,8 +1013,13 @@ class ProvenanceProfile:
 class ResearchObject:
     """CWLProv Research Object."""
 
-    def __init__(self, fsaccess, temp_prefix_ro="tmp", orcid="", full_name=""):
-        # type: (StdFsAccess, str, str, str) -> None
+    def __init__(
+        self,
+        fsaccess: StdFsAccess,
+        temp_prefix_ro: str = "tmp",
+        orcid: str = "",
+        full_name: str = "",
+    ) -> None:
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
         self.orcid = "" if not orcid else _valid_orcid(orcid)
@@ -1042,7 +1043,7 @@ class ResearchObject:
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
-        self.relativised_input_object = {}  # type: Dict[Any, Any]
+        self.relativised_input_object = {}  # type: CWLObjectType
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -1617,16 +1618,8 @@ class ResearchObject:
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(
-        self,
-        builder_job,  # type: Dict[str, Any]
-        wf_job: Optional[
-            Callable[
-                [Dict[str, str], Callable[[Any, Any], Any], RuntimeContext],
-                Generator[Any, None, None],
-            ]
-        ] = None,
-        is_output=False,  # type: bool
-    ):  # type: (...) -> Dict[str, str]
+        self, builder_job: CWLObjectType, is_output: bool = False
+    ) -> CWLObjectType:
         # TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
@@ -1785,13 +1778,15 @@ def checksum_copy(
     return checksum.hexdigest().lower()
 
 
-def copy_job_order(job, job_order_object):
-    # type: (Any, Any) -> Any
+def copy_job_order(
+    job: Union[Process, Any], job_order_object: CWLObjectType
+) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not hasattr(job, "tool"):
         # direct command line tool execution
         return job_order_object
-    customised_job = {}  # new job object for RO
+    customised_job = {}  # type: CWLObjectType
+    # new job object for RO
     for each, i in enumerate(job.tool["inputs"]):
         with SourceLine(
             job.tool["inputs"],

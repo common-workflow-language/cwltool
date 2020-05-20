@@ -6,6 +6,7 @@ import sys
 from io import BytesIO, StringIO
 
 import pytest
+import schema_salad.validate
 
 import cwltool.checker
 import cwltool.expression as expr
@@ -13,7 +14,6 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
-import schema_salad.validate
 from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main

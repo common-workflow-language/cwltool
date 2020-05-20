@@ -18,8 +18,8 @@ from typing import (
     AnyStr,
     Callable,
     Dict,
-    Iterable,
     Generator,
+    Iterable,
     List,
     MutableMapping,
     MutableSequence,
@@ -30,8 +30,8 @@ from typing import (
 import pkg_resources
 from mypy_extensions import TypedDict
 from pathlib2 import Path
-from typing_extensions import Deque, TYPE_CHECKING
 from schema_salad.ref_resolver import Loader
+from typing_extensions import TYPE_CHECKING, Deque
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 
@@ -43,19 +43,50 @@ if TYPE_CHECKING:
 windows_default_container_id = "frolvlad/alpine-bash"
 
 Directory = TypedDict(
-    "Directory", {"class": str, "listing": List[Dict[str, str]], "basename": str}
+    "Directory", {"class": str, "listing": List[Dict[str, Any]], "basename": str}
 )
 
 DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen[str]]
 
-CWLObjectType = MutableMapping[str, Any]
-JobsType = Union['CommandLineJob', 'JobBase', 'WorkflowJob', 'ExpressionJob', 'CallbackJob', None]
+CWLOutputAtomType = Union[
+    None,
+    bool,
+    str,
+    int,
+    float,
+    MutableSequence[
+        Union[
+            None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]
+        ]
+    ],
+    MutableMapping[
+        str,
+        Union[
+            None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]
+        ],
+    ],
+]
+CWLOutputType = Union[
+    bool,
+    str,
+    int,
+    float,
+    MutableSequence[CWLOutputAtomType],
+    MutableMapping[str, CWLOutputAtomType],
+]
+CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
+JobsType = Union[
+    "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob", None
+]
 JobsGeneratorType = Generator[JobsType, None, None]
 OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
-ResolverType = Callable[['Loader', str], None]
-DestinationsType = Dict[str, List[Optional[str]]]
+ResolverType = Callable[["Loader", str], str]
+DestinationsType = MutableMapping[str, Optional[CWLOutputType]]
+ScatterDestinationsType = MutableMapping[str, List[Optional[CWLOutputType]]]
+ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]
+
 
 def versionstring():
     # type: () -> str

@@ -16,7 +16,6 @@ from typing import (
 )
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-
 from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
 
 from .context import LoadingContext

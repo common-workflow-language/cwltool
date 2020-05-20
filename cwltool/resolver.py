@@ -6,7 +6,6 @@ import urllib
 from typing import Any, Optional
 
 from pathlib2 import Path
-
 from schema_salad.ref_resolver import Loader
 
 from .loghandler import _logger

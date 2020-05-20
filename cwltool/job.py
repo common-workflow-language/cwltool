@@ -35,10 +35,9 @@ from typing import (
 import psutil
 import shellescape
 from prov.model import PROV
-from typing_extensions import TYPE_CHECKING
-
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
+from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
@@ -50,6 +49,7 @@ from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
     DEFAULT_TMP_PREFIX,
+    CWLObjectType,
     Directory,
     bytes2str_in_dicts,
     copytree_with_merge,
@@ -193,10 +193,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
         builder: Builder,
-        joborder: JSON,
+        joborder: CWLObjectType,
         make_path_mapper: Callable[..., PathMapper],
-        requirements: List[Dict[str, str]],
-        hints: List[Dict[str, str]],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
         name: str,
     ) -> None:
         """Initialize the job object."""
@@ -589,7 +589,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     @abstractmethod
     def get_from_requirements(
         self,
-        r: Dict[str, str],
+        r: CWLObjectType,
         pull_image: bool,
         force_pull: bool = False,
         tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,

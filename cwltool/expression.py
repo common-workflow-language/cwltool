@@ -11,14 +11,15 @@ from typing import (
     MutableSequence,
     Optional,
     Union,
+    cast,
 )
 
 from schema_salad.utils import json_dumps
 
 from .errors import WorkflowException
-from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import bytes2str_in_dicts, docker_windows_path_adjust
 from .loghandler import _logger
+from .sandboxjs import JavascriptException, default_timeout, execjs
+from .utils import CWLObjectType, bytes2str_in_dicts, docker_windows_path_adjust
 
 
 def jshead(engine_config, rootvars):
@@ -313,9 +314,9 @@ def needs_parsing(snippet):  # type: (Any) -> bool
 
 
 def do_eval(
-    ex: Union[str, MutableMapping[str, str], MutableSequence[str]],
-    jobinput: Dict[str, JSON],
-    requirements: List[Dict[str, Any]],
+    ex: Union[str, float, bool, None, MutableMapping[str, str], MutableSequence[str]],
+    jobinput: CWLObjectType,
+    requirements: List[CWLObjectType],
     outdir: Optional[str],
     tmpdir: Optional[str],
     resources: Dict[str, int],
@@ -343,7 +344,7 @@ def do_eval(
         for r in reversed(requirements):
             if r["class"] == "InlineJavascriptRequirement":
                 fullJS = True
-                jslib = jshead(r.get("expressionLib", []), rootvars)
+                jslib = jshead(cast(List[str], r.get("expressionLib", [])), rootvars)
                 break
 
         try:
