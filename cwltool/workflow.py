@@ -448,10 +448,11 @@ class WorkflowJob(object):
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
                 for k, v in io.items():
-                    val = cast(Dict[str, Any], v)
-                    if k in loadContents and val.get("contents") is None:
-                        with fs_access.open(val["location"], "rb") as f:
-                            val["contents"] = content_limit_respected_read(f)
+                    if k in loadContents:
+                        val = cast(Dict[str, Any], v)
+                        if val.get("contents") is None:
+                            with fs_access.open(val["location"], "rb") as f:
+                                val["contents"] = content_limit_respected_read(f)
 
                 def valueFromFunc(k: Any, v: Any) -> Any:
                     if k in valueFrom:
