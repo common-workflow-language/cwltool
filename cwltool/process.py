@@ -731,7 +731,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             fill_in_defaults(self.tool["inputs"], job, fs_access)
 
             normalizeFilesDirs(job)
-            schema = self.names.get_name("input_record_schema", "")
+            schema = self.names.get_name("input_record_schema", None)
             if schema is None:
                 raise WorkflowException(
                     "Missing input record schema: " "{}".format(self.names)
@@ -966,7 +966,7 @@ hints:
             sl = SourceLine(hints, i, validate.ValidationException)
             with sl:
                 if (
-                    avsc_names.get_name(r["class"], "") is not None
+                    avsc_names.get_name(r["class"], None) is not None
                     and self.doc_loader is not None
                 ):
                     plain_hint = dict(
@@ -975,7 +975,7 @@ hints:
                         if key not in self.doc_loader.identifiers
                     )  # strip identifiers
                     validate.validate_ex(
-                        avsc_names.get_name(plain_hint["class"], ""),
+                        avsc_names.get_name(plain_hint["class"], None),
                         plain_hint,
                         strict=strict,
                     )
