@@ -787,7 +787,7 @@ class CommandLineTool(Process):
         mpi, _ = self.get_requirement(MPIRequirementName)
 
         if mpi is not None:
-            np =  mpi.get('processes', runtimeContext.mpi_config.default_nproc) # type: Union[int, str]
+            np = mpi.get('processes', runtimeContext.mpi_config.default_nproc)  # type: Union[int, str]
             if isinstance(np, str):
                 np = builder.do_eval(np)
                 if not isinstance(np, int):

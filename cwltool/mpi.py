@@ -21,7 +21,7 @@ class MpiConfig:
         env_set: Mapping[str, str] = {},
     ) -> None:
         """Initialize from the argument mapping with the following defaults:
-        
+
         runner: "mpirun"
         nproc_flag: "-n"
         default_nproc: 1

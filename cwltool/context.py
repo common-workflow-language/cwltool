@@ -145,7 +145,7 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = ""  # type: str
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.mpi_config = MpiConfig() # type: MpiConfig
+        self.mpi_config = MpiConfig()  # type: MpiConfig
 
         super(RuntimeContext, self).__init__(kwargs)
 

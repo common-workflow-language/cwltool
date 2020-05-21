@@ -230,7 +230,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
         self.timelimit = None  # type: Optional[int]
         self.networkaccess = False  # type: bool
-        self.mpi_procs = None # type: Optional[int]
+        self.mpi_procs = None  # type: Optional[int]
 
     def __repr__(self):  # type: () -> str
         """Represent this Job object."""
