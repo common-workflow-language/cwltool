@@ -1,22 +1,18 @@
-from cwltool import command_line_tool
-from cwltool.context import RuntimeContext
-from cwltool.utils import windows_default_container_id
+import pytest
+
+from cwltool import command_line_tool, loghandler
+from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.utils import onWindows, windows_default_container_id
 
 
-# Test to check warning when default docker Container is used on Windows
 def test_default_docker_warning(mocker):
-    mocker.patch("cwltool.command_line_tool.onWindows", return_value=True)
+    """Check warning when default docker Container is used on Windows."""
     mocker.patch("cwltool.command_line_tool._logger")
+    mocker.patch("cwltool.command_line_tool.onWindows", return_value=True)
 
-    class TestCommandLineTool(command_line_tool.CommandLineTool):
-        def __init__(self, **kwargs):
-            self.requirements = []
-            self.hints = []
-
-        def find_default_container(self, args, builder):
-            return windows_default_container_id
-
-    tool = TestCommandLineTool()
+    tool = command_line_tool.CommandLineTool(
+        {"inputs": [], "outputs": []}, LoadingContext()
+    )
     tool.make_job_runner(
         RuntimeContext({"find_default_container": lambda x: "frolvlad/alpine-bash"})
     )
