@@ -538,7 +538,7 @@ def find_deps(
     document_loader: Loader,
     uri: str,
     basedir: Optional[str] = None,
-    nestdirs: bool =True,
+    nestdirs: bool = True,
 ) -> Dict[str, Any]:
     """Find the dependencies of the CWL document."""
     deps = {

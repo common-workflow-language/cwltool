@@ -18,13 +18,14 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
 import psutil
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 
-from .command_line_tool import CallbackJob
+from .command_line_tool import CallbackJob, ExpressionJob
 from .context import RuntimeContext, getdefault
 from .errors import WorkflowException
 from .job import JobBase
@@ -63,7 +64,7 @@ class JobExecutor(object, metaclass=ABCMeta):
     def run_jobs(
         self,
         process: Process,
-        job_order_object: Dict[str, Any],
+        job_order_object: CWLObjectType,
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
@@ -71,11 +72,11 @@ class JobExecutor(object, metaclass=ABCMeta):
 
     def execute(
         self,
-        process,  # type: Process
-        job_order_object,  # type: Dict[str, Any]
-        runtime_context,  # type: RuntimeContext
-        logger=_logger,  # type: logging.Logger
-    ):  # type: (...) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]
+        process: Process,
+        job_order_object: CWLObjectType,
+        runtime_context: RuntimeContext,
+        logger: logging.Logger = _logger,
+    ) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:
         """Execute the process."""
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
@@ -102,7 +103,7 @@ class JobExecutor(object, metaclass=ABCMeta):
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
 
-        job_reqs = None
+        job_reqs = None  # type: Optional[List[CWLObjectType]]
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
             if (
                 process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion")
@@ -113,7 +114,10 @@ class JobExecutor(object, metaclass=ABCMeta):
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
                     "can set the cwlVersion to v1.1"
                 )
-            job_reqs = job_order_object["https://w3id.org/cwl/cwl#requirements"]
+            job_reqs = cast(
+                List[CWLObjectType],
+                job_order_object["https://w3id.org/cwl/cwl#requirements"],
+            )
         elif (
             "cwl:defaults" in process.metadata
             and "https://w3id.org/cwl/cwl#requirements"
@@ -299,7 +303,7 @@ class MultithreadedJobExecutor(JobExecutor):
         return result
 
     def _runner(self, job, runtime_context, TMPDIR_LOCK):
-        # type: (Union[JobBase, WorkflowJob, CallbackJob], RuntimeContext, threading.Lock) -> None
+        # type: (Union[JobBase, WorkflowJob, CallbackJob, ExpressionJob], RuntimeContext, threading.Lock) -> None
         """Job running thread."""
         try:
             _logger.debug(
@@ -435,7 +439,7 @@ class NoopJobExecutor(JobExecutor):
     def run_jobs(
         self,
         process: Process,
-        job_order_object: Dict[str, Any],
+        job_order_object: CWLObjectType,
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
@@ -444,7 +448,7 @@ class NoopJobExecutor(JobExecutor):
     def execute(
         self,
         process: Process,
-        job_order_object: Dict[str, Any],
+        job_order_object: CWLObjectType,
         runtime_context: RuntimeContext,
         logger: Optional[logging.Logger] = None,
     ) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:

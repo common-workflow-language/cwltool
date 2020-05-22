@@ -1,6 +1,7 @@
 import json
 import os
 import urllib
+from typing import Any
 
 from schema_salad.utils import convert_to_dict
 
@@ -8,11 +9,11 @@ from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.resolver import Path, resolve_local
 from cwltool.subgraph import get_subgraph
-from cwltool.workflow import default_make_tool, Workflow
+from cwltool.workflow import Workflow, default_make_tool
 
 from .test_fetch import norm
 from .util import get_data, working_directory
-from typing import Any
+
 
 def test_get_subgraph() -> None:
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})

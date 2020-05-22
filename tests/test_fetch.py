@@ -1,5 +1,6 @@
 import os
 import urllib
+from typing import Any
 
 import pytest  # type: ignore
 import schema_salad.main
@@ -16,7 +17,6 @@ from cwltool.workflow import default_make_tool
 
 from .util import get_data, working_directory
 
-from typing import Any
 
 def test_fetcher() -> None:
     def test_resolver(d: Any, a: str) -> str:
@@ -59,6 +59,6 @@ def norm(uri: str) -> str:
 def test_resolve_local(path: str, expected_path: str) -> None:
     with working_directory(root):
         expected = norm(root.as_uri() + expected_path)
-        resolved = resolve_local(None, path) 
+        resolved = resolve_local(None, path)
         assert resolved
         assert norm(resolved) == expected

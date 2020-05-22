@@ -1,5 +1,6 @@
 import json
 from io import StringIO
+from typing import Dict, List
 
 import pytest  # type: ignore
 
@@ -7,8 +8,6 @@ from cwltool import load_tool
 from cwltool.main import main
 
 from .util import get_data, needs_docker
-
-from typing import Dict, List
 
 override_parameters = [
     (

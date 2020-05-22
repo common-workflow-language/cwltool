@@ -5,13 +5,14 @@ import sys
 import tempfile
 from io import StringIO
 
+import py.path
 import pytest  # type: ignore
 
 import cwltool.process
 from cwltool.main import main
 
 from .util import get_data, needs_docker, temp_dir, windows_needs_docker
-import py.path
+
 
 @needs_docker  # type: ignore
 def test_missing_enable_ext() -> None:
@@ -81,9 +82,9 @@ def test_listing_v1_0() -> None:
     )
 
 
-#@pytest.mark.skip(reason="This is not the default behaviour yet")  # type: ignore
-@needs_docker  # type: ignore
-def test_listing_v1_1() -> None:
+@pytest.mark.skip(reason="This is not the default behaviour yet")
+@needs_docker
+def test_listing_v1_1():
     # Default behavior in 1.1 will be no expansion
     assert (
         main([get_data("tests/wf/listing_v1_1.cwl"), get_data("tests/listing-job.yml")])

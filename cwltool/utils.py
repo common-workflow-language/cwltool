@@ -14,6 +14,7 @@ import urllib
 import uuid
 from functools import partial
 from itertools import zip_longest
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import ModuleType
 from typing import (
@@ -38,7 +39,6 @@ import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
 from mypy_extensions import TypedDict
-from pathlib import Path
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque

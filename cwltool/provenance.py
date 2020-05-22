@@ -13,6 +13,7 @@ import uuid
 from collections import OrderedDict
 from getpass import getuser
 from io import BytesIO, FileIO, TextIOWrapper, open
+from pathlib import Path, PurePath, PurePosixPath
 from socket import getfqdn
 from types import ModuleType
 from typing import (
@@ -32,14 +33,14 @@ from typing import (
     cast,
 )
 
-import prov.model as provM
-from pathlib import Path, PurePath, PurePosixPath
-from prov.identifier import Identifier, Namespace
-from prov.model import PROV, ProvDocument, ProvEntity
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING
+
+import prov.model as provM
+from prov.identifier import Identifier, Namespace
+from prov.model import PROV, ProvDocument, ProvEntity
 
 from .context import RuntimeContext
 from .errors import WorkflowException
@@ -169,12 +170,8 @@ class WritableBagFile(FileIO):
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
         super(WritableBagFile, self).__init__(path, mode="w")
 
-    def write(self, b):
-        # type: (Union[bytes, str]) -> int
-        if isinstance(b, bytes):
-            real_b = b
-        else:
-            real_b = b.encode("utf-8")
+    def write(self, b: Union[bytes, str]) -> int:
+        real_b = b if isinstance(b, bytes) else b.encode("utf-8")
         total = 0
         length = len(real_b)
         while total < length:
@@ -182,6 +179,7 @@ class WritableBagFile(FileIO):
             if ret:
                 total += ret
         for val in self.hashes.values():
+            # print("Updating hasher %s ", val)
             val.update(real_b)
         return total
 

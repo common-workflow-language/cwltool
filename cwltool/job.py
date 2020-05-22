@@ -34,10 +34,11 @@ from typing import (
 
 import psutil
 import shellescape
-from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
+
+from prov.model import PROV
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
@@ -48,10 +49,10 @@ from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
-    OutputCallbackType,
     DEFAULT_TMP_PREFIX,
     CWLObjectType,
     Directory,
+    OutputCallbackType,
     bytes2str_in_dicts,
     copytree_with_merge,
     ensure_non_writable,
@@ -292,7 +293,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: List[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function = None  # type: Optional[Callable[[subprocess.Popen[str]], None]]
+        monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
     ) -> None:
 
         scr = self.get_requirement("ShellCommandRequirement")[0]
@@ -487,9 +488,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             )
             shutil.rmtree(self.tmpdir, True)
 
-    def process_monitor(
-        self, sproc
-        ): # type: (subprocess.Popen[str]) -> None
+    def process_monitor(self, sproc):  # type: (subprocess.Popen[str]) -> None
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage = [None]  # type: MutableSequence[Optional[int]]
@@ -602,16 +601,16 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     @abstractmethod
     def create_runtime(
-        self,
-        env: MutableMapping[str, str], 
-        runtime_context: RuntimeContext,
+        self, env: MutableMapping[str, str], runtime_context: RuntimeContext,
     ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
         pass
 
     @staticmethod
     @abstractmethod
-    def append_volume(runtime: List[str], source: str, target: str, writable: bool=False) -> None:
+    def append_volume(
+        runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
         """Add binding arguments to the runtime list."""
         pass
 
@@ -719,7 +718,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
-     ) -> None:
+    ) -> None:
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):

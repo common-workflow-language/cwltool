@@ -1,11 +1,11 @@
+from typing import Any
+
 import pytest  # type: ignore
 
 from cwltool import sandboxjs
 from cwltool.utils import onWindows
 
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
-
-from typing import Any
 
 node_versions = [
     ("v0.8.26\n", False),

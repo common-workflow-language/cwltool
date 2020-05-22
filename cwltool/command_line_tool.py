@@ -277,7 +277,7 @@ class CallbackJob(object):
                     getdefault(runtimeContext.compute_checksum, True),
                 ),
                 "success",
-        )
+            )
 
 
 def check_adjust(builder: Builder, file_o: CWLObjectType) -> CWLObjectType:

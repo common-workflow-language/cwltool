@@ -1,9 +1,10 @@
+from typing import Any
+
 from cwltool.docker import DockerCommandLineJob
 from cwltool.main import main
 
 from .util import needs_docker
 
-from typing import Any
 
 def test_docker_append_volume_read_only(mocker: Any) -> None:
     mocker.patch("os.mkdir")

@@ -3,9 +3,9 @@
 import os
 import sys
 import urllib
+from pathlib import Path
 from typing import Any, Optional
 
-from pathlib import Path
 from schema_salad.ref_resolver import Loader
 
 from .loghandler import _logger

@@ -1,10 +1,12 @@
 from distutils import spawn
 
+import py.path
+
 from cwltool.docker import DockerCommandLineJob
 from cwltool.main import main
 
 from .util import get_data, get_main_output, needs_docker, needs_singularity
-import py.path
+
 
 @needs_docker  # type: ignore
 def test_docker_workflow(tmpdir: py.path.local) -> None:

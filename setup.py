@@ -53,7 +53,7 @@ if USE_MYPYC:
         # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
         "cwltool/process.py",
         "cwltool/procgenerator.py",
-        "cwltool/provenance.py",
+        # "cwltool/provenance.py",  # WritableBag is having issues
         "cwltool/resolver.py",
         # "cwltool/sandboxjs.py",  # probably not speed critical, tests need to mock components
         "cwltool/secrets.py",

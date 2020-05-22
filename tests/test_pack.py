@@ -4,7 +4,9 @@ import tempfile
 from functools import partial
 from io import StringIO
 from tempfile import NamedTemporaryFile
+from typing import Dict
 
+import py.path
 import pytest  # type: ignore
 from ruamel import yaml
 
@@ -18,8 +20,7 @@ from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
 from cwltool.resolver import tool_resolver
 
 from .util import get_data, needs_docker
-import py.path
-from typing import Dict
+
 
 def test_pack() -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))

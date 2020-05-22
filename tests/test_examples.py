@@ -4,9 +4,12 @@ import os
 import stat
 import sys
 from io import BytesIO, StringIO
+from typing import Any, Dict, List, Union, cast
 
+import py.path
 import pytest  # type: ignore
 import schema_salad.validate
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 import cwltool.checker
 import cwltool.expression as expr
@@ -20,7 +23,7 @@ from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.resolver import Path
 from cwltool.sandboxjs import JavascriptException
-from cwltool.utils import onWindows, CWLObjectType
+from cwltool.utils import CWLObjectType, onWindows
 
 from .util import (
     get_data,
@@ -33,10 +36,6 @@ from .util import (
     windows_needs_docker,
     working_directory,
 )
-
-from typing import cast, Any, Dict, List, Union
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-import py.path
 
 try:
     reload
@@ -498,7 +497,7 @@ def test_dedupe() -> None:
             "location": "file:///example/c",
             "listing": [{"class": "File", "location": "file:///example/d"}],
         },
-        ]  # type: List[CWLObjectType]
+    ]  # type: List[CWLObjectType]
 
     expected = [
         {"class": "File", "location": "file:///example/a"},
@@ -558,7 +557,9 @@ source_to_sink = [
 
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink)  # type: ignore
-def test_compare_types(name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool) -> None:
+def test_compare_types(
+    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+) -> None:
     assert cwltool.workflow.can_assign_src_to_sink(source, sink) == expected, name
 
 
@@ -582,7 +583,9 @@ source_to_sink_strict = [
 
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink_strict)  # type: ignore
-def test_compare_types_strict(name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool) -> None:
+def test_compare_types_strict(
+    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+) -> None:
     assert (
         cwltool.workflow.can_assign_src_to_sink(source, sink, strict=True) == expected
     ), name
@@ -712,8 +715,10 @@ typechecks = [
 
 @pytest.mark.parametrize(  # type: ignore
     "src_type,sink_type,link_merge,value_from,expected_type", typechecks
-    )
-def test_typechecking(src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str) -> None:
+)
+def test_typechecking(
+    src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str
+) -> None:
     assert (
         cwltool.checker.check_types(
             src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
@@ -820,7 +825,7 @@ def test_print_dot() -> None:
 test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
-@pytest.mark.parametrize("factor", test_factors)  # type: ignore 
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
 def test_js_console_cmd_line_tool(factor: str) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
@@ -864,7 +869,9 @@ def test_cid_file_dir(tmpdir: py.path.local, factor: str) -> None:
 
 @needs_docker  # type: ignore
 @pytest.mark.parametrize("factor", test_factors)  # type: ignore
-def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir: py.path.local, factor: str) -> None:
+def test_cid_file_dir_arg_is_file_instead_of_dir(
+    tmpdir: py.path.local, factor: str
+) -> None:
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = str(tmpdir.ensure("cidfile-dir-actually-a-file"))
     commands = factor.split()
@@ -1026,9 +1033,7 @@ def test_compute_checksum() -> None:
     assert isinstance(output, dict)
     result = output["output"]
     assert isinstance(result, dict)
-    assert (
-        result["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
-    )
+    assert result["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
 
 
 @needs_docker  # type: ignore
