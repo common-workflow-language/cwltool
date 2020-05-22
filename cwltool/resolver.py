@@ -5,14 +5,13 @@ import sys
 import urllib
 from typing import Any, Optional
 
-from pathlib2 import Path
+from pathlib import Path
 from schema_salad.ref_resolver import Loader
 
 from .loghandler import _logger
 
 
-def resolve_local(document_loader, uri):
-    # type: (Loader, str) -> Optional[str]
+def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
     pathpart, frag = urllib.parse.urldefrag(uri)
 
     try:

@@ -251,7 +251,7 @@ class WorkflowJobStep(object):
     def job(
         self,
         joborder: CWLObjectType,
-        output_callback: OutputCallbackType,
+        output_callback: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         runtimeContext = runtimeContext.copy()
@@ -397,7 +397,7 @@ class WorkflowJob(object):
     def try_make_job(
         self,
         step: WorkflowJobStep,
-        final_output_callback: OutputCallbackType,
+        final_output_callback: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
 
@@ -586,7 +586,7 @@ class WorkflowJob(object):
     def job(
         self,
         joborder: CWLObjectType,
-        output_callback: OutputCallbackType,
+        output_callback: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         self.state = {}
@@ -671,7 +671,7 @@ class WorkflowJob(object):
                 else:
                     yield None
 
-        if not self.did_callback:
+        if not self.did_callback and output_callback:
             # could have called earlier on line 336;
             self.do_output_callback(output_callback)
             # depends which one comes first. All steps are completed
@@ -764,7 +764,7 @@ class Workflow(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: OutputCallbackType,
+        output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         builder = self._init_job(job_order, runtimeContext)
@@ -1015,7 +1015,7 @@ class WorkflowStep(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: OutputCallbackType,
+        output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         """Initialize sub-workflow as a step in the parent profile."""

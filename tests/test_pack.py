@@ -18,7 +18,8 @@ from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
 from cwltool.resolver import tool_resolver
 
 from .util import get_data, needs_docker
-
+import py.path
+from typing import Dict
 
 def test_pack() -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
@@ -77,7 +78,9 @@ def test_pack_single_tool() -> None:
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    loader = loadingContext.loader
+    assert loader
+    processobj = loader.resolve_ref(uri)[0]
 
     packed = cwltool.pack.pack(loadingContext, uri)
     assert "$schemas" in packed
@@ -100,7 +103,7 @@ def test_pack_fragment() -> None:
 
 
 def test_pack_rewrites() -> None:
-    rewrites = {}
+    rewrites = {}  # type: Dict[str, str]
 
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/default-wf5.cwl")
@@ -109,7 +112,9 @@ def test_pack_rewrites() -> None:
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    loader = loadingContext.loader
+    assert loader
+    processobj = loader.resolve_ref(uri)[0]
 
     cwltool.pack.pack(
         loadingContext, uri, rewrite_out=rewrites,
@@ -133,7 +138,9 @@ def test_pack_missing_cwlVersion(cwl_path: str) -> None:
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    loader = loadingContext.loader
+    assert loader
+    processobj = loader.resolve_ref(uri)[0]
 
     # generate pack output dict
     packed = json.loads(print_pack(loadingContext, uri))
@@ -157,7 +164,9 @@ def _pack_idempotently(document: str) -> None:
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    loader = loadingContext.loader
+    assert loader
+    processobj = loader.resolve_ref(uri)[0]
 
     # generate pack output dict
     packed_text = print_pack(loadingContext, uri)
@@ -174,7 +183,9 @@ def _pack_idempotently(document: str) -> None:
         loadingContext, uri2 = resolve_and_validate_document(
             loadingContext, workflowobj, uri2
         )
-        processobj = loadingContext.loader.resolve_ref(uri2)[0]
+        loader2 = loadingContext.loader
+        assert loader2
+        processobj = loader2.resolve_ref(uri2)[0]
 
         # generate pack output dict
         packed_text = print_pack(loadingContext, uri2)
@@ -204,7 +215,9 @@ def test_packed_workflow_execution(
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    loader = loadingContext.loader
+    assert loader
+    processobj = loader.resolve_ref(uri)[0]
     packed = json.loads(print_pack(loadingContext, uri))
 
     assert not namespaced or "$namespaces" in packed

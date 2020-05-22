@@ -38,7 +38,7 @@ import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
 from mypy_extensions import TypedDict
-from pathlib2 import Path
+from pathlib import Path
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque
@@ -95,7 +95,7 @@ JobsType = Union[
 ]
 JobsGeneratorType = Generator[JobsType, None, None]
 OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
-ResolverType = Callable[["Loader", str], str]
+ResolverType = Callable[["Loader", str], Optional[str]]
 DestinationsType = MutableMapping[str, Optional[CWLOutputType]]
 ScatterDestinationsType = MutableMapping[str, List[Optional[CWLOutputType]]]
 ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]

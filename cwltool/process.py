@@ -995,7 +995,7 @@ hints:
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: OutputCallbackType,
+        output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         pass
@@ -1073,7 +1073,7 @@ def scandeps(
     doc: Any,
     reffields: Set[str],
     urlfields: Set[str],
-    loadref: Callable[[str, str], str],
+    loadref: Callable[[str, str], Union[CommentedMap, CommentedSeq, str, None]],
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> List[Dict[str, str]]:

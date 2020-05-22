@@ -12,10 +12,9 @@ from pkg_resources import Requirement, ResolutionError, resource_filename
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
-from cwltool.resolver import Path
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
 from cwltool.utils import onWindows, subprocess, windows_default_container_id
-
+from pathlib import Path
 
 def get_windows_safe_factory(
     runtime_context: Optional[RuntimeContext] = None,
@@ -105,7 +104,7 @@ def temp_dir(suffix: str = "") -> Generator[str, None, None]:
 
 
 @contextlib.contextmanager
-def working_directory(path: str) -> Generator[None, None, None]:
+def working_directory(path: Union[str, Path]) -> Generator[None, None, None]:
     """Change working directory and returns to previous on exit."""
     prev_cwd = Path.cwd()
     # before python 3.6 chdir doesn't support paths from pathlib

@@ -1,15 +1,13 @@
 from distutils import spawn
 
-import pytest
-
 from cwltool.docker import DockerCommandLineJob
 from cwltool.main import main
 
 from .util import get_data, get_main_output, needs_docker, needs_singularity
+import py.path
 
-
-@needs_docker
-def test_docker_workflow(tmpdir):
+@needs_docker  # type: ignore
+def test_docker_workflow(tmpdir: py.path.local) -> None:
     result_code, _, stderr = get_main_output(
         [
             "--default-container",
@@ -26,7 +24,7 @@ def test_docker_workflow(tmpdir):
     assert result_code == 0
 
 
-def test_docker_iwdr():
+def test_docker_iwdr() -> None:
     result_code = main(
         [
             "--default-container",
@@ -43,8 +41,8 @@ def test_docker_iwdr():
         assert result_code != 0
 
 
-@needs_docker
-def test_docker_incorrect_image_pull():
+@needs_docker  # type: ignore
+def test_docker_incorrect_image_pull() -> None:
     result_code = main(
         [
             "--default-container",
@@ -57,8 +55,8 @@ def test_docker_incorrect_image_pull():
     assert result_code != 0
 
 
-@needs_docker
-def test_docker_file_mount():
+@needs_docker  # type: ignore
+def test_docker_file_mount() -> None:
     # test for bug in
     # ContainerCommandLineJob.create_file_and_add_volume()
     #

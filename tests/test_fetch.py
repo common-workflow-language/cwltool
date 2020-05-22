@@ -1,7 +1,7 @@
 import os
 import urllib
 
-import pytest
+import pytest  # type: ignore
 import schema_salad.main
 import schema_salad.ref_resolver
 import schema_salad.schema
@@ -16,9 +16,10 @@ from cwltool.workflow import default_make_tool
 
 from .util import get_data, working_directory
 
+from typing import Any
 
-def test_fetcher():
-    def test_resolver(d, a):
+def test_fetcher() -> None:
+    def test_resolver(d: Any, a: str) -> str:
         if a.startswith("baz:bar/"):
             return a
         return "baz:bar/" + a
@@ -48,14 +49,16 @@ path_fragments = [
 ]
 
 
-def norm(uri):
+def norm(uri: str) -> str:
     if onWindows():
         return uri.lower()
     return uri
 
 
-@pytest.mark.parametrize("path,expected_path", path_fragments)
-def test_resolve_local(path, expected_path):
+@pytest.mark.parametrize("path,expected_path", path_fragments)  # type: ignore
+def test_resolve_local(path: str, expected_path: str) -> None:
     with working_directory(root):
         expected = norm(root.as_uri() + expected_path)
-        assert norm(resolve_local(None, path)) == expected
+        resolved = resolve_local(None, path) 
+        assert resolved
+        assert norm(resolved) == expected

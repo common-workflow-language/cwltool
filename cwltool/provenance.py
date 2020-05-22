@@ -33,7 +33,7 @@ from typing import (
 )
 
 import prov.model as provM
-from pathlib2 import Path, PurePath, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from prov.identifier import Identifier, Namespace
 from prov.model import PROV, ProvDocument, ProvEntity
 from ruamel import yaml

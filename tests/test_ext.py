@@ -5,16 +5,16 @@ import sys
 import tempfile
 from io import StringIO
 
-import pytest
+import pytest  # type: ignore
 
 import cwltool.process
 from cwltool.main import main
 
 from .util import get_data, needs_docker, temp_dir, windows_needs_docker
+import py.path
 
-
-@needs_docker
-def test_missing_enable_ext():
+@needs_docker  # type: ignore
+def test_missing_enable_ext() -> None:
     # Require that --enable-ext is provided.
     assert (
         main([get_data("tests/wf/listing_deep.cwl"), get_data("tests/listing-job.yml")])
@@ -22,8 +22,8 @@ def test_missing_enable_ext():
     )
 
 
-@needs_docker
-def test_listing_deep():
+@needs_docker  # type: ignore
+def test_listing_deep() -> None:
     params = [
         "--enable-ext",
         get_data("tests/wf/listing_deep.cwl"),
@@ -32,8 +32,8 @@ def test_listing_deep():
     assert main(params) == 0
 
 
-@needs_docker
-def test_cwltool_options():
+@needs_docker  # type: ignore
+def test_cwltool_options() -> None:
     try:
         opt = os.environ.get("CWLTOOL_OPTIONS")
         os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
@@ -49,8 +49,8 @@ def test_cwltool_options():
             del os.environ["CWLTOOL_OPTIONS"]
 
 
-@needs_docker
-def test_listing_shallow():
+@needs_docker  # type: ignore
+def test_listing_shallow() -> None:
     # This fails on purpose, because it tries to access listing in a subdirectory
     # the same way that listing_deep does, but it shouldn't be expanded.
     params = [
@@ -61,8 +61,8 @@ def test_listing_shallow():
     assert main(params) != 0
 
 
-@needs_docker
-def test_listing_none():
+@needs_docker  # type: ignore
+def test_listing_none() -> None:
     # This fails on purpose, because it tries to access listing but it shouldn't be there.
     params = [
         "--enable-ext",
@@ -72,8 +72,8 @@ def test_listing_none():
     assert main(params) != 0
 
 
-@needs_docker
-def test_listing_v1_0():
+@needs_docker  # type: ignore
+def test_listing_v1_0() -> None:
     # Default behavior in 1.0 is deep expansion.
     assert (
         main([get_data("tests/wf/listing_v1_0.cwl"), get_data("tests/listing-job.yml")])
@@ -81,9 +81,9 @@ def test_listing_v1_0():
     )
 
 
-@pytest.mark.skip(reason="This is not the default behaviour yet")
-@needs_docker
-def test_listing_v1_1():
+#@pytest.mark.skip(reason="This is not the default behaviour yet")  # type: ignore
+@needs_docker  # type: ignore
+def test_listing_v1_1() -> None:
     # Default behavior in 1.1 will be no expansion
     assert (
         main([get_data("tests/wf/listing_v1_1.cwl"), get_data("tests/listing-job.yml")])
@@ -91,8 +91,8 @@ def test_listing_v1_1():
     )
 
 
-@needs_docker
-def test_double_overwrite(tmpdir):
+@needs_docker  # type: ignore
+def test_double_overwrite(tmpdir: py.path.local) -> None:
     with temp_dir() as tmp:
         tmp_name = os.path.join(tmp, "value")
 
@@ -121,8 +121,8 @@ def test_double_overwrite(tmpdir):
         assert actual_value == expected_value
 
 
-@needs_docker
-def test_disable_file_overwrite_without_ext():
+@needs_docker  # type: ignore
+def test_disable_file_overwrite_without_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
             tmp_name = os.path.join(tmp, "value")
@@ -155,8 +155,8 @@ def test_disable_file_overwrite_without_ext():
             assert out_value == expected_value
 
 
-@needs_docker
-def test_disable_dir_overwrite_without_ext():
+@needs_docker  # type: ignore
+def test_disable_dir_overwrite_without_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
 
@@ -169,8 +169,8 @@ def test_disable_dir_overwrite_without_ext():
             assert os.listdir(out)
 
 
-@needs_docker
-def test_disable_file_creation_in_outdir_with_ext():
+@needs_docker  # type: ignore
+def test_disable_file_creation_in_outdir_with_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
 
@@ -200,8 +200,8 @@ def test_disable_file_creation_in_outdir_with_ext():
             assert not os.path.exists(out_name)
 
 
-@needs_docker
-def test_disable_dir_creation_in_outdir_with_ext():
+@needs_docker  # type: ignore
+def test_disable_dir_creation_in_outdir_with_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
             params = [
@@ -219,8 +219,8 @@ def test_disable_dir_creation_in_outdir_with_ext():
             assert not os.listdir(out)
 
 
-@needs_docker
-def test_write_write_conflict():
+@needs_docker  # type: ignore
+def test_write_write_conflict() -> None:
     with temp_dir("tmp") as tmp:
         tmp_name = os.path.join(tmp, "value")
 
@@ -237,8 +237,8 @@ def test_write_write_conflict():
         assert tmp_value == expected_value
 
 
-@pytest.mark.skip(reason="This test is non-deterministic")
-def test_read_write_conflict():
+@pytest.mark.skip(reason="This test is non-deterministic")  # type: ignore
+def test_read_write_conflict() -> None:
     with temp_dir("tmp") as tmp:
         tmp_name = os.path.join(tmp, "value")
 
@@ -250,15 +250,15 @@ def test_read_write_conflict():
         )
 
 
-@needs_docker
-def test_require_prefix_networkaccess():
+@needs_docker  # type: ignore
+def test_require_prefix_networkaccess() -> None:
     assert main(["--enable-ext", get_data("tests/wf/networkaccess.cwl")]) == 0
     assert main([get_data("tests/wf/networkaccess.cwl")]) != 0
     assert main(["--enable-ext", get_data("tests/wf/networkaccess-fail.cwl")]) != 0
 
 
-@needs_docker
-def test_require_prefix_workreuse(tmpdir):
+@needs_docker  # type: ignore
+def test_require_prefix_workreuse(tmpdir: py.path.local) -> None:
     assert (
         main(
             [
@@ -274,14 +274,14 @@ def test_require_prefix_workreuse(tmpdir):
     assert main(["--enable-ext", get_data("tests/wf/workreuse-fail.cwl")]) != 0
 
 
-@windows_needs_docker
-def test_require_prefix_timelimit():
+@windows_needs_docker  # type: ignore
+def test_require_prefix_timelimit() -> None:
     assert main(["--enable-ext", get_data("tests/wf/timelimit.cwl")]) == 0
     assert main([get_data("tests/wf/timelimit.cwl")]) != 0
     assert main(["--enable-ext", get_data("tests/wf/timelimit-fail.cwl")]) != 0
 
 
-def test_warn_large_inputs():
+def test_warn_large_inputs() -> None:
     was = cwltool.process.FILE_COUNT_WARNING
     try:
         stream = StringIO()

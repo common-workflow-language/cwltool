@@ -1,10 +1,9 @@
-import pytest
 
 from .util import get_data, get_main_output, needs_docker
 
 
-@needs_docker
-def test_docker_mem():
+@needs_docker  # type: ignore
+def test_docker_mem() -> None:
     error_code, stdout, stderr = get_main_output(
         [
             "--default-container=debian",

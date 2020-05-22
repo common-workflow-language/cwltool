@@ -1,5 +1,5 @@
 import pkg_resources
-import pytest
+import pytest  # type: ignore
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
@@ -7,6 +7,7 @@ from cwltool.load_tool import load_tool
 from cwltool.process import use_custom_schema, use_standard_schema
 from cwltool.resolver import Path, resolve_local
 from cwltool.update import INTERNAL_VERSION
+from cwltool.utils import CWLObjectType
 
 from .test_fetch import norm
 from .util import (
@@ -21,14 +22,14 @@ from .util import (
 )
 
 
-@windows_needs_docker
-def test_check_version():
+@windows_needs_docker  # type: ignore
+def test_check_version() -> None:
     """
     It is permitted to load without updating, but not execute.
 
     Attempting to execute without updating to the internal version should raise an error.
     """
-    joborder = {"inp": "abc"}
+    joborder = {"inp": "abc"}  # type: CWLObjectType
     loadingContext = LoadingContext({"do_update": True})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
     for j in tool.job(joborder, None, RuntimeContext()):
@@ -41,7 +42,7 @@ def test_check_version():
             pass
 
 
-def test_use_metadata():
+def test_use_metadata() -> None:
     """Use the version from loadingContext.metadata if cwlVersion isn't present in the document."""
     loadingContext = LoadingContext({"do_update": False})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
@@ -53,7 +54,7 @@ def test_use_metadata():
     tool2 = load_tool(tooldata, loadingContext)
 
 
-def test_checklink_outputSource():
+def test_checklink_outputSource() -> None:
     """Is outputSource resolved correctly independent of value of do_validate."""
     outsrc = (
         norm(Path(get_data("tests/wf/1st-workflow.cwl")).as_uri())
@@ -69,22 +70,25 @@ def test_checklink_outputSource():
     assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
 
 
-def test_load_graph_fragment():
+def test_load_graph_fragment() -> None:
     """Reloading from a dictionary without a cwlVersion."""
     loadingContext = LoadingContext()
     uri = Path(get_data("tests/wf/scatter-wf4.cwl")).as_uri() + "#main"
     tool = load_tool(uri, loadingContext)
 
-    rs, metadata = tool.doc_loader.resolve_ref(uri)
+    loader = tool.doc_loader
+    assert loader
+    rs, metadata = loader.resolve_ref(uri)
     # Reload from a dict (in 'rs'), not a URI.  The dict is a fragment
     # of original document and doesn't have cwlVersion set, so test
     # that it correctly looks up the root document to get the
     # cwlVersion.
+    assert isinstance(rs, str) or isinstance(rs, dict)
     tool = load_tool(rs, loadingContext)
     assert tool.metadata["cwlVersion"] == INTERNAL_VERSION
 
 
-def test_load_graph_fragment_from_packed():
+def test_load_graph_fragment_from_packed() -> None:
     """Loading a fragment from packed with update."""
     loadingContext = LoadingContext()
     uri = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#main"

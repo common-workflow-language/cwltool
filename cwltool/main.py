@@ -534,12 +534,12 @@ def prov_deps(
 
 
 def find_deps(
-    obj,  # type: Mapping[str, Any]
-    document_loader,  # type: Loader
-    uri,  # type: str
-    basedir=None,  # type: Optional[str]
-    nestdirs=True,  # type: bool
-):  # type: (...) -> Dict[str, Any]
+    obj: Mapping[str, Any],
+    document_loader: Loader,
+    uri: str,
+    basedir: Optional[str] = None,
+    nestdirs: bool =True,
+) -> Dict[str, Any]:
     """Find the dependencies of the CWL document."""
     deps = {
         "class": "File",
@@ -547,7 +547,7 @@ def find_deps(
         "format": CWL_IANA,
     }  # type: Dict[str, Any]
 
-    def loadref(base, uri):  # type: (str, str) -> Any
+    def loadref(base: str, uri: str) -> Union[CommentedMap, CommentedSeq, str, None]:
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
 
     sfs = scandeps(

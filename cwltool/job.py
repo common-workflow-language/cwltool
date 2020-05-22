@@ -48,6 +48,7 @@ from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
+    OutputCallbackType,
     DEFAULT_TMP_PREFIX,
     CWLObjectType,
     Directory,
@@ -223,7 +224,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.collect_outputs = cast(
             Callable[[str, int], MutableMapping[str, Any]], None
         )  # type: Union[Callable[[str, int], MutableMapping[str, Any]], functools.partial[MutableMapping[str, Any]]]
-        self.output_callback = cast(Callable[[Any, Any], Any], None)
+        self.output_callback = None  # type: Optional[OutputCallbackType]
         self.outdir = ""
         self.tmpdir = ""
 
@@ -291,7 +292,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: List[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
+        monitor_function = None  # type: Optional[Callable[[subprocess.Popen[str]], None]]
     ) -> None:
 
         scr = self.get_requirement("ShellCommandRequirement")[0]
@@ -468,8 +469,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 "runtimeContext.workflow_eval_lock must not be None"
             )
 
-        with runtimeContext.workflow_eval_lock:
-            self.output_callback(outputs, processStatus)
+        if self.output_callback:
+            with runtimeContext.workflow_eval_lock:
+                self.output_callback(outputs, processStatus)
 
         if self.stagedir is not None and os.path.exists(self.stagedir):
             _logger.debug(
@@ -486,8 +488,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             shutil.rmtree(self.tmpdir, True)
 
     def process_monitor(
-        self, sproc  # type: subprocess.Popen[str]
-    ) -> None:
+        self, sproc
+        ): # type: (subprocess.Popen[str]) -> None
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage = [None]  # type: MutableSequence[Optional[int]]
@@ -525,7 +527,7 @@ class CommandLineJob(JobBase):
         self,
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
-    ):  # type: (...) -> None
+    ) -> None:
 
         if tmpdir_lock:
             with tmpdir_lock:
@@ -601,16 +603,15 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     @abstractmethod
     def create_runtime(
         self,
-        env,  # type: MutableMapping[str, str]
-        runtime_context,  # type: RuntimeContext
-    ):  # type: (...) -> Tuple[List[str], Optional[str]]
+        env: MutableMapping[str, str], 
+        runtime_context: RuntimeContext,
+    ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
         pass
 
     @staticmethod
     @abstractmethod
-    def append_volume(runtime, source, target, writable=False):
-        # type: (List[str], str, str, bool) -> None
+    def append_volume(runtime: List[str], source: str, target: str, writable: bool=False) -> None:
         """Add binding arguments to the runtime list."""
         pass
 
@@ -624,22 +625,22 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     @abstractmethod
     def add_writable_file_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable file mapping to the runtime option list."""
         pass
 
     @abstractmethod
     def add_writable_directory_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable directory mapping to the runtime option list."""
         pass
 
@@ -678,12 +679,12 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     def add_volumes(
         self,
-        pathmapper,  # type: PathMapper
-        runtime,  # type: List[str]
-        tmpdir_prefix,  # type: str
-        secret_store=None,  # type: Optional[SecretStore]
-        any_path_okay=False,  # type: bool
-    ):  # type: (...) -> None
+        pathmapper: PathMapper,
+        runtime: List[str],
+        tmpdir_prefix: str,
+        secret_store: Optional[SecretStore] = None,
+        any_path_okay: bool = False,
+    ) -> None:
         """Append volume mappings to the runtime option list."""
         container_outdir = self.builder.outdir
         for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
@@ -716,9 +717,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     def run(
         self,
-        runtimeContext,  # type: RuntimeContext
-        tmpdir_lock=None,  # type: Optional[threading.Lock]
-    ):  # type: (...) -> None
+        runtimeContext: RuntimeContext,
+        tmpdir_lock: Optional[threading.Lock] = None,
+     ) -> None:
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):

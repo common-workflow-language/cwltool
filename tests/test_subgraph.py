@@ -2,20 +2,19 @@ import json
 import os
 import urllib
 
-import pytest
 from schema_salad.utils import convert_to_dict
 
 from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.resolver import Path, resolve_local
 from cwltool.subgraph import get_subgraph
-from cwltool.workflow import default_make_tool
+from cwltool.workflow import default_make_tool, Workflow
 
 from .test_fetch import norm
 from .util import get_data, working_directory
+from typing import Any
 
-
-def test_get_subgraph():
+def test_get_subgraph() -> None:
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
     wf = norm(Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri())
     loadingContext.do_update = False
@@ -23,7 +22,7 @@ def test_get_subgraph():
 
     sg = norm(Path(get_data("tests/subgraph")).as_uri())
 
-    def clean(val):
+    def clean(val: Any) -> Any:
         if isinstance(val, str):
             if val.startswith(sg):
                 return val[len(sg) + 1 :]
@@ -47,6 +46,7 @@ def test_get_subgraph():
         "step4",
         "step5",
     ):
+        assert isinstance(tool, Workflow)
         extracted = get_subgraph([wf + "#" + a], tool)
         with open(get_data("tests/subgraph/extract_" + a + ".json")) as f:
             assert json.load(f) == clean(convert_to_dict(extracted))

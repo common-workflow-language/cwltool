@@ -5,7 +5,7 @@ import stat
 import sys
 from io import BytesIO, StringIO
 
-import pytest
+import pytest  # type: ignore
 import schema_salad.validate
 
 import cwltool.checker
@@ -20,7 +20,7 @@ from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.resolver import Path
 from cwltool.sandboxjs import JavascriptException
-from cwltool.utils import onWindows
+from cwltool.utils import onWindows, CWLObjectType
 
 from .util import (
     get_data,
@@ -33,6 +33,10 @@ from .util import (
     windows_needs_docker,
     working_directory,
 )
+
+from typing import cast, Any, Dict, List, Union
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+import py.path
 
 try:
     reload
@@ -72,8 +76,8 @@ expression_match = [
 ]
 
 
-@pytest.mark.parametrize("expression,expected", expression_match)
-def test_expression_match(expression, expected):
+@pytest.mark.parametrize("expression,expected", expression_match)  # type: ignore
+def test_expression_match(expression: str, expected: bool) -> None:
     match = expr.param_re.match(expression)
     assert (match is not None) == expected
 
@@ -86,7 +90,7 @@ interpolate_input = {
         'b"ar': {"baz": None},
     },
     "lst": ["A", "B"],
-}
+}  # type: Dict[str, Any]
 
 interpolate_parameters = [
     ("$(foo)", interpolate_input["foo"]),
@@ -129,8 +133,8 @@ interpolate_parameters = [
 ]
 
 
-@pytest.mark.parametrize("pattern,expected", interpolate_parameters)
-def test_expression_interpolate(pattern, expected):
+@pytest.mark.parametrize("pattern,expected", interpolate_parameters)  # type: ignore
+def test_expression_interpolate(pattern: str, expected: Any) -> None:
     assert expr.interpolate(pattern, interpolate_input) == expected
 
 
@@ -164,39 +168,39 @@ interpolate_bad_parameters = [
 ]
 
 
-@pytest.mark.parametrize("pattern", interpolate_bad_parameters)
-def test_expression_interpolate_failures(pattern):
+@pytest.mark.parametrize("pattern", interpolate_bad_parameters)  # type: ignore
+def test_expression_interpolate_failures(pattern: str) -> None:
     result = None
     try:
         result = expr.interpolate(pattern, interpolate_input)
     except JavascriptException:
         return
-    assert false, 'Should have produced a JavascriptException, got "{}".'.format(result)
+    assert False, 'Should have produced a JavascriptException, got "{}".'.format(result)
 
 
-@windows_needs_docker
-def test_factory():
+@windows_needs_docker  # type: ignore
+def test_factory() -> None:
     factory = get_windows_safe_factory()
     echo = factory.make(get_data("tests/echo.cwl"))
 
     assert echo(inp="foo") == {"out": "foo\n"}
 
 
-def test_factory_bad_outputs():
+def test_factory_bad_outputs() -> None:
     factory = cwltool.factory.Factory()
 
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/echo_broken_outputs.cwl"))
 
 
-def test_factory_default_args():
+def test_factory_default_args() -> None:
     factory = cwltool.factory.Factory()
 
     assert factory.runtime_context.use_container is True
     assert factory.runtime_context.on_error == "stop"
 
 
-def test_factory_redefined_args():
+def test_factory_redefined_args() -> None:
     runtime_context = RuntimeContext()
     runtime_context.use_container = False
     runtime_context.on_error = "continue"
@@ -206,7 +210,7 @@ def test_factory_redefined_args():
     assert factory.runtime_context.on_error == "continue"
 
 
-def test_factory_partial_scatter():
+def test_factory_partial_scatter() -> None:
     runtime_context = RuntimeContext()
     runtime_context.on_error = "continue"
     factory = cwltool.factory.Factory(runtime_context=runtime_context)
@@ -224,7 +228,7 @@ def test_factory_partial_scatter():
     )
 
 
-def test_factory_partial_output():
+def test_factory_partial_output() -> None:
     runtime_context = RuntimeContext()
     runtime_context.on_error = "continue"
     factory = cwltool.factory.Factory(runtime_context=runtime_context)
@@ -239,7 +243,7 @@ def test_factory_partial_output():
     assert err.out["out2"] is None
 
 
-def test_scandeps():
+def test_scandeps() -> None:
     obj = {
         "id": "file:///example/foo.cwl",
         "steps": [
@@ -298,13 +302,13 @@ def test_scandeps():
         ],
     }
 
-    def loadref(base, p):
+    def loadref(base: str, p: str) -> Union[CommentedMap, CommentedSeq, str, None]:
         if isinstance(p, dict):
             return p
         raise Exception("test case can't load things")
 
     scanned_deps = cwltool.process.scandeps(
-        obj["id"],
+        cast(str, obj["id"]),
         obj,
         {"$import", "run"},
         {"$include", "$schemas", "location"},
@@ -364,7 +368,7 @@ def test_scandeps():
     assert scanned_deps == expected_deps
 
     scanned_deps = cwltool.process.scandeps(
-        obj["id"], obj, set(("run"),), set(), loadref
+        cast(str, obj["id"]), obj, set(("run"),), set(), loadref
     )
 
     scanned_deps.sort(key=lambda k: k["basename"])
@@ -383,11 +387,8 @@ def test_scandeps():
     assert scanned_deps == expected_deps
 
 
-def test_trick_scandeps():
-    if sys.version_info[0] < 3:
-        stream = BytesIO()
-    else:
-        stream = StringIO()
+def test_trick_scandeps() -> None:
+    stream = StringIO()
 
     main(
         ["--print-deps", "--debug", get_data("tests/wf/trick_defaults.cwl")],
@@ -396,11 +397,8 @@ def test_trick_scandeps():
     assert json.loads(stream.getvalue())["secondaryFiles"][0]["location"][:2] != "_:"
 
 
-def test_input_deps():
-    if sys.version_info[0] < 3:
-        stream = BytesIO()
-    else:
-        stream = StringIO()
+def test_input_deps() -> None:
+    stream = StringIO()
 
     main(
         [
@@ -428,11 +426,8 @@ def test_input_deps():
     assert json.loads(stream.getvalue()) == expected
 
 
-def test_input_deps_cmdline_opts():
-    if sys.version_info[0] < 3:
-        stream = BytesIO()
-    else:
-        stream = StringIO()
+def test_input_deps_cmdline_opts() -> None:
+    stream = StringIO()
 
     main(
         [
@@ -460,11 +455,8 @@ def test_input_deps_cmdline_opts():
     assert json.loads(stream.getvalue()) == expected
 
 
-def test_input_deps_cmdline_opts_relative_deps_cwd():
-    if sys.version_info[0] < 3:
-        stream = BytesIO()
-    else:
-        stream = StringIO()
+def test_input_deps_cmdline_opts_relative_deps_cwd() -> None:
+    stream = StringIO()
 
     data_path = get_data("tests/wf/whale.txt")
     main(
@@ -496,7 +488,7 @@ def test_input_deps_cmdline_opts_relative_deps_cwd():
     assert json.loads(stream.getvalue()) == goal
 
 
-def test_dedupe():
+def test_dedupe() -> None:
     not_deduped = [
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/a"},
@@ -506,7 +498,7 @@ def test_dedupe():
             "location": "file:///example/c",
             "listing": [{"class": "File", "location": "file:///example/d"}],
         },
-    ]
+        ]  # type: List[CWLObjectType]
 
     expected = [
         {"class": "File", "location": "file:///example/a"},
@@ -565,8 +557,8 @@ source_to_sink = [
 ]
 
 
-@pytest.mark.parametrize("name, source, sink, expected", source_to_sink)
-def test_compare_types(name, source, sink, expected):
+@pytest.mark.parametrize("name, source, sink, expected", source_to_sink)  # type: ignore
+def test_compare_types(name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool) -> None:
     assert cwltool.workflow.can_assign_src_to_sink(source, sink) == expected, name
 
 
@@ -589,8 +581,8 @@ source_to_sink_strict = [
 ]
 
 
-@pytest.mark.parametrize("name, source, sink, expected", source_to_sink_strict)
-def test_compare_types_strict(name, source, sink, expected):
+@pytest.mark.parametrize("name, source, sink, expected", source_to_sink_strict)  # type: ignore
+def test_compare_types_strict(name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool) -> None:
     assert (
         cwltool.workflow.can_assign_src_to_sink(source, sink, strict=True) == expected
     ), name
@@ -718,10 +710,10 @@ typechecks = [
 ]
 
 
-@pytest.mark.parametrize(
+@pytest.mark.parametrize(  # type: ignore
     "src_type,sink_type,link_merge,value_from,expected_type", typechecks
-)
-def test_typechecking(src_type, sink_type, link_merge, value_from, expected_type):
+    )
+def test_typechecking(src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str) -> None:
     assert (
         cwltool.checker.check_types(
             src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
@@ -730,7 +722,7 @@ def test_typechecking(src_type, sink_type, link_merge, value_from, expected_type
     )
 
 
-def test_lifting():
+def test_lifting() -> None:
     # check that lifting the types of the process outputs to the workflow step
     # fails if the step 'out' doesn't match.
     factory = cwltool.factory.Factory()
@@ -739,21 +731,21 @@ def test_lifting():
         assert echo(inp="foo") == {"out": "foo\n"}
 
 
-def test_malformed_outputs():
+def test_malformed_outputs() -> None:
     # check that tool validation fails if one of the outputs is not a valid CWL type
     factory = cwltool.factory.Factory()
     with pytest.raises(schema_salad.validate.ValidationException):
         factory.make(get_data("tests/wf/malformed_outputs.cwl"))()
 
 
-def test_separate_without_prefix():
+def test_separate_without_prefix() -> None:
     # check that setting 'separate = false' on an inputBinding without prefix fails the workflow
     factory = cwltool.factory.Factory()
     with pytest.raises(WorkflowException):
         factory.make(get_data("tests/wf/separate_without_prefix.cwl"))()
 
 
-def test_static_checker():
+def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
     factory = cwltool.factory.Factory()
@@ -768,7 +760,7 @@ def test_static_checker():
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
 
 
-def test_var_spool_cwl_checker1():
+def test_var_spool_cwl_checker1() -> None:
     """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
@@ -786,7 +778,7 @@ def test_var_spool_cwl_checker1():
         _logger.removeHandler(streamhandler)
 
 
-def test_var_spool_cwl_checker2():
+def test_var_spool_cwl_checker2() -> None:
     """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
@@ -804,7 +796,7 @@ def test_var_spool_cwl_checker2():
         _logger.removeHandler(streamhandler)
 
 
-def test_var_spool_cwl_checker3():
+def test_var_spool_cwl_checker3() -> None:
     """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
     streamhandler = logging.StreamHandler(stream)
@@ -821,15 +813,15 @@ def test_var_spool_cwl_checker3():
         _logger.removeHandler(streamhandler)
 
 
-def test_print_dot():
+def test_print_dot() -> None:
     assert main(["--print-dot", get_data("tests/wf/revsort.cwl")]) == 0
 
 
 test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
-@pytest.mark.parametrize("factor", test_factors)
-def test_js_console_cmd_line_tool(factor):
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore 
+def test_js_console_cmd_line_tool(factor: str) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
         commands.extend(
@@ -843,8 +835,8 @@ def test_js_console_cmd_line_tool(factor):
         assert error_code == 0, stderr
 
 
-@pytest.mark.parametrize("factor", test_factors)
-def test_no_js_console(factor):
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_no_js_console(factor: str) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
         commands.extend(["--no-container", get_data("tests/wf/" + test_file)])
@@ -854,9 +846,9 @@ def test_no_js_console(factor):
         assert "[err] Error message" not in stderr
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_dir(tmpdir, factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_cid_file_dir(tmpdir: py.path.local, factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     cwd = tmpdir.chdir()
     commands = factor.split()
@@ -870,9 +862,9 @@ def test_cid_file_dir(tmpdir, factor):
     tmpdir.remove(ignore_errors=True)
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir, factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir: py.path.local, factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = str(tmpdir.ensure("cidfile-dir-actually-a-file"))
     commands = factor.split()
@@ -885,9 +877,9 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmpdir, factor):
     tmpdir.remove(ignore_errors=True)
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_non_existing_dir(tmpdir, factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_cid_file_non_existing_dir(tmpdir: py.path.local, factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = str(tmpdir.join("cidfile-dir-badpath"))
     commands = factor.split()
@@ -905,9 +897,9 @@ def test_cid_file_non_existing_dir(tmpdir, factor):
     tmpdir.remove(ignore_errors=True)
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_w_prefix(tmpdir, factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_cid_file_w_prefix(tmpdir: py.path.local, factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     cwd = tmpdir.chdir()
     try:
@@ -930,9 +922,9 @@ def test_cid_file_w_prefix(tmpdir, factor):
     assert cidfiles_count == 2, "{}/n{}".format(listing, stderr)
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_1(factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_secondary_files_v1_1(factor: str) -> None:
     test_file = "secondary-files.cwl"
     test_job_file = "secondary-files-job.yml"
     try:
@@ -954,9 +946,9 @@ def test_secondary_files_v1_1(factor):
     assert error_code == 0
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_0(factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_secondary_files_v1_0(factor: str) -> None:
     test_file = "secondary-files-string-v1.cwl"
     test_job_file = "secondary-files-job.yml"
     try:
@@ -977,9 +969,9 @@ def test_secondary_files_v1_0(factor):
     assert error_code == 0
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_wf_without_container(tmpdir, factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_wf_without_container(tmpdir: py.path.local, factor: str) -> None:
     test_file = "hello-workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
         commands = factor.split()
@@ -1000,9 +992,9 @@ def test_wf_without_container(tmpdir, factor):
     assert error_code == 0
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_issue_740_fixed(factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_issue_740_fixed(factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     with temp_dir("cwltool_cache") as cache_dir:
         commands = factor.split()
@@ -1020,8 +1012,8 @@ def test_issue_740_fixed(factor):
         assert error_code == 0, stderr
 
 
-@needs_docker
-def test_compute_checksum():
+@needs_docker  # type: ignore
+def test_compute_checksum() -> None:
     runtime_context = RuntimeContext()
     runtime_context.compute_checksum = True
     runtime_context.use_container = onWindows()
@@ -1031,14 +1023,17 @@ def test_compute_checksum():
         file1={"class": "File", "location": get_data("tests/wf/whale.txt")},
         reverse=False,
     )
+    assert isinstance(output, dict)
+    result = output["output"]
+    assert isinstance(result, dict)
     assert (
-        output["output"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
+        result["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
     )
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_no_compute_chcksum(tmpdir, factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_no_compute_chcksum(tmpdir: py.path.local, factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
     commands = factor.split()
@@ -1057,9 +1052,9 @@ def test_no_compute_chcksum(tmpdir, factor):
     assert "checksum" not in stdout
 
 
-@pytest.mark.skipif(onWindows(), reason="udocker is Linux/macOS only")
-@pytest.mark.parametrize("factor", test_factors)
-def test_bad_userspace_runtime(factor):
+@pytest.mark.skipif(onWindows(), reason="udocker is Linux/macOS only")  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_bad_userspace_runtime(factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
     commands = factor.split()
@@ -1076,9 +1071,9 @@ def test_bad_userspace_runtime(factor):
     assert error_code == 1
 
 
-@windows_needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_bad_basecommand(factor):
+@windows_needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_bad_basecommand(factor: str) -> None:
     test_file = "tests/wf/missing-tool.cwl"
     commands = factor.split()
     commands.extend([get_data(test_file)])
@@ -1087,9 +1082,9 @@ def test_bad_basecommand(factor):
     assert error_code == 1
 
 
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_bad_basecommand_docker(factor):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_bad_basecommand_docker(factor: str) -> None:
     test_file = "tests/wf/missing-tool.cwl"
     commands = factor.split()
     commands.extend(["--debug", "--default-container", "debian", get_data(test_file)])
@@ -1098,8 +1093,8 @@ def test_bad_basecommand_docker(factor):
     assert error_code == 1
 
 
-@pytest.mark.parametrize("factor", test_factors)
-def test_v1_0_position_expression(factor):
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_v1_0_position_expression(factor: str) -> None:
     test_file = "tests/echo-position-expr.cwl"
     test_job = "tests/echo-position-expr-job.yml"
     commands = factor.split()
@@ -1109,9 +1104,9 @@ def test_v1_0_position_expression(factor):
     assert error_code == 1
 
 
-@windows_needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_optional_numeric_output_0(factor):
+@windows_needs_docker  # type: ignore
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+def test_optional_numeric_output_0(factor: str) -> None:
     test_file = "tests/wf/optional-numerical-output-0.cwl"
     commands = factor.split()
     commands.extend([get_data(test_file)])
@@ -1122,9 +1117,9 @@ def test_optional_numeric_output_0(factor):
     assert json.loads(stdout)["out"] == 0
 
 
-@pytest.mark.parametrize("factor", test_factors)
-@windows_needs_docker
-def test_env_filtering(factor):
+@pytest.mark.parametrize("factor", test_factors)  # type: ignore
+@windows_needs_docker  # type: ignore
+def test_env_filtering(factor: str) -> None:
     test_file = "tests/env.cwl"
     commands = factor.split()
     commands.extend([get_data(test_file)])
@@ -1147,8 +1142,8 @@ def test_env_filtering(factor):
         stderr=subprocess.PIPE,
         env=None,
     )
-    sh_name, sh_name_err = process.communicate()
-    sh_name = sh_name.decode("utf-8").strip()
+    sh_name_b, sh_name_err = process.communicate()
+    sh_name = sh_name_b.decode("utf-8").strip()
 
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
@@ -1168,8 +1163,8 @@ def test_env_filtering(factor):
     assert result == target, (error_code, sh_name, sh_name_err, details, stdout, stderr)
 
 
-@windows_needs_docker
-def test_v1_0_arg_empty_prefix_separate_false():
+@windows_needs_docker  # type: ignore
+def test_v1_0_arg_empty_prefix_separate_false() -> None:
     test_file = "tests/arg-empty-prefix-separate-false.cwl"
     error_code, stdout, stderr = get_main_output(
         ["--debug", get_data(test_file), "--echo"]

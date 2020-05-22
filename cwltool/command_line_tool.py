@@ -106,7 +106,7 @@ class ExpressionJob(object):
         self,
         builder: Builder,
         script: str,
-        output_callback: OutputCallbackType,
+        output_callback: Optional[OutputCallbackType],
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
         outdir: Optional[str] = None,
@@ -131,21 +131,23 @@ class ExpressionJob(object):
             normalizeFilesDirs(self.builder.job)
             ev = self.builder.do_eval(self.script)
             normalizeFilesDirs(ev)
-            self.output_callback(ev, "success")
+            if self.output_callback:
+                self.output_callback(ev, "success")
         except WorkflowException as err:
             _logger.warning(
                 "Failed to evaluate expression:\n%s",
                 str(err),
                 exc_info=runtimeContext.debug,
             )
-            self.output_callback({}, "permanentFail")
+            if self.output_callback:
+                self.output_callback({}, "permanentFail")
 
 
 class ExpressionTool(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: OutputCallbackType,
+        output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> Generator[ExpressionJob, None, None]:
         builder = self._init_job(job_order, runtimeContext)
@@ -165,7 +167,7 @@ class AbstractOperation(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: OutputCallbackType,
+        output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         raise WorkflowException("Abstract operation cannot be executed.")
@@ -250,7 +252,7 @@ class CallbackJob(object):
     def __init__(
         self,
         job: "CommandLineTool",
-        output_callback: OutputCallbackType,
+        output_callback: Optional[OutputCallbackType],
         cachebuilder: Builder,
         jobcache: str,
     ) -> None:
@@ -266,14 +268,15 @@ class CallbackJob(object):
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
-        self.output_callback(
-            self.job.collect_output_ports(
-                self.job.tool["outputs"],
-                self.cachebuilder,
-                self.outdir,
-                getdefault(runtimeContext.compute_checksum, True),
-            ),
-            "success",
+        if self.output_callback:
+            self.output_callback(
+                self.job.collect_output_ports(
+                    self.job.tool["outputs"],
+                    self.cachebuilder,
+                    self.outdir,
+                    getdefault(runtimeContext.compute_checksum, True),
+                ),
+                "success",
         )
 
 
@@ -413,7 +416,7 @@ class CommandLineTool(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: OutputCallbackType,
+        output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> Generator[Union[JobBase, CallbackJob], None, None]:
 

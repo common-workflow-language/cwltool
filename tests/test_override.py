@@ -1,12 +1,14 @@
 import json
 from io import StringIO
 
-import pytest
+import pytest  # type: ignore
 
 from cwltool import load_tool
 from cwltool.main import main
 
 from .util import get_data, needs_docker
+
+from typing import Dict, List
 
 override_parameters = [
     (
@@ -74,9 +76,9 @@ override_parameters = [
 ]
 
 
-@needs_docker
-@pytest.mark.parametrize("parameters,result", override_parameters)
-def test_overrides(parameters, result):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("parameters,result", override_parameters)  # type: ignore
+def test_overrides(parameters: List[str], result: Dict[str, str]) -> None:
     sio = StringIO()
 
     assert main(parameters, stdout=sio) == 0
@@ -121,9 +123,9 @@ failing_override_parameters = [
 ]
 
 
-@needs_docker
-@pytest.mark.parametrize("parameters,expected_error", failing_override_parameters)
-def test_overrides_fails(parameters, expected_error):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("parameters,expected_error", failing_override_parameters)  # type: ignore
+def test_overrides_fails(parameters: List[str], expected_error: str) -> None:
     sio = StringIO()
 
     assert main(parameters, stderr=sio) == 1
