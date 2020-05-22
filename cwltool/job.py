@@ -34,11 +34,10 @@ from typing import (
 
 import psutil
 import shellescape
+from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
-
-from prov.model import PROV
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
@@ -491,9 +490,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     ) -> None:
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
-        memory_usage = [None]
+        memory_usage = [None]  # type: MutableSequence[Optional[int]]
 
-        def get_tree_mem_usage(memory_usage):  # type: (List[int]) -> None
+        def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):

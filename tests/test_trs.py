@@ -9,21 +9,27 @@ from .util import get_data
 
 
 class MockResponse1:
-    def __init__(self, json_data: Any, status_code: int, raise_for_status: Optional[bool]=None) -> None:
+    def __init__(
+        self, json_data: Any, status_code: int, raise_for_status: Optional[bool] = None
+    ) -> None:
         self.json_data = json_data
         self.status_code = status_code
         self.raise_for_status = mock.Mock()
         self.raise_for_status.side_effect = raise_for_status
 
     def json(self) -> Any:
-            return self.json_data
+        return self.json_data
+
 
 def mocked_requests_head(*args):  # type: (*Any) -> MockResponse1
 
     return MockResponse1(None, 200)
 
+
 class MockResponse2:
-    def __init__(self, json_data: Any, status_code: int, raise_for_status: Optional[bool]=None) -> None:
+    def __init__(
+        self, json_data: Any, status_code: int, raise_for_status: Optional[bool] = None
+    ) -> None:
         self.json_data = json_data
         self.text = json_data
         self.status_code = status_code
@@ -32,6 +38,7 @@ class MockResponse2:
 
     def json(self) -> Any:
         return self.json_data
+
 
 def mocked_requests_get(*args):  # type: (*Any) -> MockResponse2
 

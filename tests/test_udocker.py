@@ -59,7 +59,9 @@ class TestUdocker:
     def teardown_class(cls) -> None:
         shutil.rmtree(cls.docker_install_dir)
 
-    def test_udocker_usage_should_not_write_cid_file(self, tmpdir: py.path.local) -> None:
+    def test_udocker_usage_should_not_write_cid_file(
+        self, tmpdir: py.path.local
+    ) -> None:
         cwd = tmpdir.chdir()
 
         test_file = "tests/wf/wc-tool.cwl"

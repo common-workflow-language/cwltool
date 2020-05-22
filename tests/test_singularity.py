@@ -1,12 +1,13 @@
 import distutils.spawn
 import os
 import sys
-
-import schema_salad.validate
 from pathlib import Path
 
-from cwltool.main import main
 import py.path
+import schema_salad.validate
+
+from cwltool.main import main
+
 from .util import (
     get_data,
     get_main_output,

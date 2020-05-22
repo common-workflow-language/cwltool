@@ -36,6 +36,7 @@ if USE_MYPYC:
         "cwltool/cwlrdf.py",
         "cwltool/docker_id.py",
         "cwltool/docker.py",
+        "cwltool/udocker.py",
         "cwltool/errors.py",
         "cwltool/executors.py",
         "cwltool/expression.py",

@@ -18,9 +18,9 @@ from cwltool.utils import onWindows, subprocess, windows_default_container_id
 
 
 def get_windows_safe_factory(
-        runtime_context: Optional[RuntimeContext] = None,
-        loading_context: Optional[LoadingContext] = None,
-    executor: Optional[Callable[..., Tuple[Optional[Dict[str, Any]], str]]] = None, 
+    runtime_context: Optional[RuntimeContext] = None,
+    loading_context: Optional[LoadingContext] = None,
+    executor: Optional[Callable[..., Tuple[Optional[Dict[str, Any]], str]]] = None,
 ) -> Factory:
     if onWindows():
         if not runtime_context:
@@ -78,7 +78,12 @@ windows_needs_docker = pytest.mark.skipif(
 )
 
 
-def get_main_output(args: List[str], env: Union[Mapping[bytes, Union[bytes, str]], Mapping[str, Union[bytes, str]], None]=None) -> Tuple[Optional[int], str, str]:
+def get_main_output(
+    args: List[str],
+    env: Union[
+        Mapping[bytes, Union[bytes, str]], Mapping[str, Union[bytes, str]], None
+    ] = None,
+) -> Tuple[Optional[int], str, str]:
     process = subprocess.Popen(
         [sys.executable, "-m", "cwltool"] + args,
         stdout=subprocess.PIPE,
@@ -91,7 +96,7 @@ def get_main_output(args: List[str], env: Union[Mapping[bytes, Union[bytes, str]
 
 
 @contextlib.contextmanager
-def temp_dir(suffix: str="") -> Generator[str, None, None]:
+def temp_dir(suffix: str = "") -> Generator[str, None, None]:
     c_dir = tempfile.mkdtemp(suffix, dir=os.curdir)
     try:
         yield c_dir

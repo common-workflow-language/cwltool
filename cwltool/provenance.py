@@ -32,15 +32,14 @@ from typing import (
     cast,
 )
 
+import prov.model as provM
 from pathlib2 import Path, PurePath, PurePosixPath
+from prov.identifier import Identifier, Namespace
+from prov.model import PROV, ProvDocument, ProvEntity
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING
-
-import prov.model as provM
-from prov.identifier import Identifier, Namespace
-from prov.model import PROV, ProvDocument, ProvEntity
 
 from .context import RuntimeContext
 from .errors import WorkflowException
@@ -167,6 +166,7 @@ class WritableBagFile(FileIO):
         )
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
+        _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
         super(WritableBagFile, self).__init__(path, mode="w")
 
     def write(self, b):
@@ -181,8 +181,8 @@ class WritableBagFile(FileIO):
             ret = super(WritableBagFile, self).write(real_b)
             if ret:
                 total += ret
-        for _ in self.hashes.values():
-            _.update(real_b)
+        for val in self.hashes.values():
+            val.update(real_b)
         return total
 
     def close(self) -> None:

@@ -431,6 +431,7 @@ class MultithreadedJobExecutor(JobExecutor):
 
 class NoopJobExecutor(JobExecutor):
     """ Do nothing executor, for testing purposes only. """
+
     def run_jobs(
         self,
         process: Process,
@@ -446,5 +447,5 @@ class NoopJobExecutor(JobExecutor):
         job_order_object: Dict[str, Any],
         runtime_context: RuntimeContext,
         logger: Optional[logging.Logger] = None,
-    )  -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:
+    ) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:
         return {}, "success"

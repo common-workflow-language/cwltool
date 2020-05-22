@@ -5,7 +5,7 @@ from functools import partial
 from io import StringIO
 from tempfile import NamedTemporaryFile
 
-import pytest
+import pytest  # type: ignore
 from ruamel import yaml
 
 import cwltool.pack
@@ -20,7 +20,7 @@ from cwltool.resolver import tool_resolver
 from .util import get_data, needs_docker
 
 
-def test_pack():
+def test_pack() -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
 
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
@@ -40,7 +40,7 @@ def test_pack():
     assert packed == expect_packed
 
 
-def test_pack_input_named_name():
+def test_pack_input_named_name() -> None:
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/trick_revsort.cwl")
     )
@@ -48,7 +48,9 @@ def test_pack_input_named_name():
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
-    processobj = loadingContext.loader.resolve_ref(uri)[0]
+    loader = loadingContext.loader
+    assert loader
+    processobj = loader.resolve_ref(uri)[0]
 
     with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
         expect_packed = yaml.round_trip_load(packed_file)
@@ -67,7 +69,7 @@ def test_pack_input_named_name():
     assert packed == expect_packed
 
 
-def test_pack_single_tool():
+def test_pack_single_tool() -> None:
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/formattest.cwl")
     )
@@ -81,7 +83,7 @@ def test_pack_single_tool():
     assert "$schemas" in packed
 
 
-def test_pack_fragment():
+def test_pack_fragment() -> None:
     with open(get_data("tests/wf/scatter2_subwf.cwl")) as packed_file:
         expect_packed = yaml.safe_load(packed_file)
 
@@ -97,7 +99,7 @@ def test_pack_fragment():
     )
 
 
-def test_pack_rewrites():
+def test_pack_rewrites() -> None:
     rewrites = {}
 
     loadingContext, workflowobj, uri = fetch_document(
@@ -122,8 +124,8 @@ cwl_missing_version_paths = [
 ]
 
 
-@pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)
-def test_pack_missing_cwlVersion(cwl_path):
+@pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)  # type: ignore
+def test_pack_missing_cwlVersion(cwl_path: str) -> None:
     """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
     # Testing single tool workflow
     loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
@@ -139,17 +141,17 @@ def test_pack_missing_cwlVersion(cwl_path):
     assert packed["cwlVersion"] == "v1.0"
 
 
-def test_pack_idempotence_tool():
+def test_pack_idempotence_tool() -> None:
     """Ensure that pack produces exactly the same document for an already packed CommandLineTool."""
     _pack_idempotently("tests/wf/hello_single_tool.cwl")
 
 
-def test_pack_idempotence_workflow():
+def test_pack_idempotence_workflow() -> None:
     """Ensure that pack produces exactly the same document for an already packed workflow."""
     _pack_idempotently("tests/wf/count-lines1-wf.cwl")
 
 
-def _pack_idempotently(document):
+def _pack_idempotently(document: str) -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data(document))
     loadingContext.do_update = False
     loadingContext, uri = resolve_and_validate_document(
@@ -190,9 +192,11 @@ cwl_to_run = [
 ]
 
 
-@needs_docker
-@pytest.mark.parametrize("wf_path,job_path,namespaced", cwl_to_run)
-def test_packed_workflow_execution(wf_path, job_path, namespaced, tmpdir):
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("wf_path,job_path,namespaced", cwl_to_run)  # type: ignore
+def test_packed_workflow_execution(
+    wf_path: str, job_path: str, namespaced: bool, tmpdir: py.path.local
+) -> None:
     loadingContext = LoadingContext()
     loadingContext.resolver = tool_resolver
     loadingContext, workflowobj, uri = fetch_document(get_data(wf_path), loadingContext)

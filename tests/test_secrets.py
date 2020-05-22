@@ -2,6 +2,7 @@ import shutil
 import sys
 import tempfile
 from io import StringIO
+from typing import Callable, Dict, List, Tuple, Union
 
 import pytest  # type: ignore
 
@@ -9,7 +10,7 @@ from cwltool.main import main
 from cwltool.secrets import SecretStore
 
 from .util import get_data, needs_docker, needs_singularity, windows_needs_docker
-from typing import Dict, Callable, Tuple, Union,List
+
 
 @pytest.fixture  # type: ignore
 def secrets() -> Tuple[SecretStore, Dict[str, str]]:
@@ -35,7 +36,11 @@ obscured_factories_expected = [
 
 
 @pytest.mark.parametrize("factory,expected", obscured_factories_expected)  # type: ignore
-def test_secrets(factory: Callable[[str], Union[str, List[str], Dict[str, str]]], expected: Union[str, List[str], Dict[str, str]], secrets: Tuple[SecretStore, Dict[str, str]]) -> None:
+def test_secrets(
+    factory: Callable[[str], Union[str, List[str], Dict[str, str]]],
+    expected: Union[str, List[str], Dict[str, str]],
+    secrets: Tuple[SecretStore, Dict[str, str]],
+) -> None:
     storage, obscured = secrets
     pattern = factory(obscured["foo"])
     assert pattern != expected

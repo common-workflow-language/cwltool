@@ -39,14 +39,12 @@ def test_validate_js_expressions(mocker: Any) -> None:
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
     clt_schema = schema.names["CommandLineTool"]
-    
+
     mocker.patch("cwltool.validate_js._logger")
     # mocker.patch("cwltool.validate_js.print_js_hint_messages")
     validate_js.validate_js_expressions(test_cwl_yaml, clt_schema)
 
-    #assert validate_js.print_js_hint_messages.call_args is not None  # type: ignore
-    #assert len(validate_js.print_js_hint_messages.call_args[0]) > 0  # type: ignore
-    validate_js._logger.warning.assert_called_with("")  # type: ignore
+    validate_js._logger.warning.assert_called_with(" JSHINT: (function(){return ((kjdbfkjd));})()\n JSHINT:                      ^\n JSHINT: W117: 'kjdbfkjd' is not defined.")  # type: ignore
 
 
 def test_js_hint_basic() -> None:

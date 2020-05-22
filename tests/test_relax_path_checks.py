@@ -1,6 +1,8 @@
 import os
 from tempfile import NamedTemporaryFile
 
+import py.path
+
 from cwltool.main import main
 
 from .util import needs_docker
@@ -24,8 +26,8 @@ baseCommand: [cat]
 """
 
 
-@needs_docker
-def test_spaces_in_input_files(tmpdir):
+@needs_docker  # type: ignore
+def test_spaces_in_input_files(tmpdir: py.path.local) -> None:
     try:
         script_file = NamedTemporaryFile(mode="w", delete=False)
         script_file.write(script)

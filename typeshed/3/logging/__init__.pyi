@@ -268,7 +268,7 @@ class LogRecord:
     levelno: int
     lineno: int
     module: str
-    msecs: int
+    msecs: float
     message: str
     msg: str
     name: str
