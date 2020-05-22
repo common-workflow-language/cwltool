@@ -1057,6 +1057,7 @@ def test_no_compute_chcksum(tmpdir, factor):
     assert "checksum" not in stdout
 
 
+@pytest.mark.skipif(onWindows(), reason="udocker is Linux/macOS only")
 @pytest.mark.parametrize("factor", test_factors)
 def test_bad_userspace_runtime(factor):
     test_file = "tests/wf/wc-tool.cwl"
