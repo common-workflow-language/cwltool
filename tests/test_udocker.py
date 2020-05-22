@@ -12,10 +12,7 @@ from .util import get_data, get_main_output
 LINUX = sys.platform in ("linux", "linux2")
 
 
-# @pytest.mark.skipif(not LINUX, reason="LINUX only")
-@pytest.mark.skip(
-    "Udocker install is broken, see https://github.com/indigo-dc/udocker/issues/221"
-)
+@pytest.mark.skipif(not LINUX, reason="LINUX only")
 class TestUdocker:
     udocker_path = None
 

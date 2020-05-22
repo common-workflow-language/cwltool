@@ -63,6 +63,7 @@ from .process import (
 )
 from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
+from .udocker import UDockerCommandLineJob
 from .utils import (
     aslist,
     convert_pathsep_to_unix,
@@ -357,6 +358,8 @@ class CommandLineTool(Process):
         if dockerReq is not None and runtimeContext.use_container:
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
+            elif runtimeContext.user_space_docker_cmd:
+                return UDockerCommandLineJob
             return DockerCommandLineJob
         for t in reversed(self.requirements):
             if t["class"] == "DockerRequirement":

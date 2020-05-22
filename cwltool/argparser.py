@@ -395,10 +395,17 @@ def arg_parser() -> argparse.ArgumentParser:
     dockergroup.add_argument(
         "--user-space-docker-cmd",
         metavar="CMD",
-        help="(Linux/OS X only) Specify a user space docker "
-        "command (like udocker or dx-docker) that will be "
-        "used to call 'pull' and 'run'",
+        help="(Linux/OS X only) Specify the path to udocker. Implies --udocker",
     )
+    dockergroup.add_argument(
+        "--udocker",
+        help="(Linux/OS X only) Use the udocker runtime for running containers "
+        "(equivalent to --user-space-docker-cmd=udocker).",
+        action="store_const",
+        const="udocker",
+        dest="user_space_docker_cmd",
+    )
+
     dockergroup.add_argument(
         "--singularity",
         action="store_true",
