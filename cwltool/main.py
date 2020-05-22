@@ -65,7 +65,6 @@ from .load_tool import (
 from .loghandler import _logger, defaultStreamHandler
 from .mutation import MutationManager
 from .pack import pack
-from .pathmapper import adjustDirObjs, normalizeFilesDirs, trim_listing
 from .process import (
     CWL_IANA,
     Process,
@@ -88,8 +87,11 @@ from .subgraph import get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
+    adjustDirObjs,
+    normalizeFilesDirs,
     onWindows,
     processes_to_kill,
+    trim_listing,
     versionstring,
     visit_class,
     windows_default_container_id,
@@ -640,11 +642,11 @@ class ProvLogFormatter(logging.Formatter):
     def __init__(self):  # type: () -> None
         super(ProvLogFormatter, self).__init__("[%(asctime)sZ] %(message)s")
 
-    def formatTime(self, record, datefmt=None):
-        # type: (logging.LogRecord, Optional[str]) -> str
-        record_time = time.gmtime(record.created)
-        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", record_time)
-        with_msecs = "%s,%03d" % (formatted_time, record.msecs)
+    def formatTime(
+        self, record: logging.LogRecord, datefmt: Optional[str] = None
+    ) -> str:
+        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(record.created))
+        with_msecs = "%s,%03f" % (formatted_time, record.msecs)
         return with_msecs
 
 

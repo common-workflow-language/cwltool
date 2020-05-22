@@ -46,14 +46,7 @@ from .flatten import flatten
 from .job import CommandLineJob, JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
-from .pathmapper import (
-    PathMapper,
-    adjustDirObjs,
-    adjustFileObjs,
-    get_listing,
-    normalizeFilesDirs,
-    trim_listing,
-)
+from .pathmapper import PathMapper
 from .process import (
     Process,
     _logger_validation_warnings,
@@ -69,12 +62,17 @@ from .utils import (
     CWLOutputType,
     JobsGeneratorType,
     OutputCallbackType,
+    adjustDirObjs,
+    adjustFileObjs,
     aslist,
     convert_pathsep_to_unix,
     docker_windows_path_adjust,
+    get_listing,
+    normalizeFilesDirs,
     onWindows,
     random_outdir,
     shared_file_lock,
+    trim_listing,
     upgrade_lock,
     visit_class,
     windows_default_container_id,
@@ -628,11 +626,15 @@ class CommandLineTool(Process):
                     initialWorkdir["listing"],
                 ):
                     if isinstance(t, Mapping) and "entry" in t:
-                        entry_exp = builder.do_eval(cast(str, t["entry"]), strip_whitespace=False)
+                        entry_exp = builder.do_eval(
+                            cast(str, t["entry"]), strip_whitespace=False
+                        )
                         for entry in aslist(entry_exp):
                             et = {"entry": entry}
                             if "entryname" in t:
-                                et["entryname"] = builder.do_eval(cast(str, t["entryname"]))
+                                et["entryname"] = builder.do_eval(
+                                    cast(str, t["entryname"])
+                                )
                             else:
                                 et["entryname"] = None
                             et["writable"] = t.get("writable", False)

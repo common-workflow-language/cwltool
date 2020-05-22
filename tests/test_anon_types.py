@@ -1,9 +1,13 @@
-import pytest
+from typing import cast
+
+import pytest  # type: ignore
+from ruamel.yaml.comments import CommentedMap
+from schema_salad.sourceline import cmap
 
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext
 
-snippet = [
+snippet = cast(CommentedMap, cmap([
     {
         "cwlVersion": "v1.0",
         "class": "CommandLineTool",
@@ -100,9 +104,9 @@ snippet = [
         "outputs": [],
         "id": "anon_enum_inside_array_inside_schemadef.cwl",
     },
-]
+]))
 
 
-@pytest.mark.parametrize("snippet", snippet)
-def test_anon_types(snippet):
+@pytest.mark.parametrize("snippet", snippet)  # type: ignore
+def test_anon_types(snippet: CommentedMap) -> None:
     CommandLineTool(snippet, LoadingContext())

@@ -22,11 +22,13 @@ from .errors import WorkflowException
 from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
+from .pathmapper import MapperEnt, PathMapper
 from .utils import (
     DEFAULT_TMP_PREFIX,
     CWLObjectType,
     docker_windows_path_adjust,
+    ensure_non_writable,
+    ensure_writable,
     onWindows,
 )
 

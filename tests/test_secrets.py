@@ -3,16 +3,16 @@ import sys
 import tempfile
 from io import StringIO
 
-import pytest
+import pytest  # type: ignore
 
 from cwltool.main import main
 from cwltool.secrets import SecretStore
 
 from .util import get_data, needs_docker, needs_singularity, windows_needs_docker
+from typing import Dict, Callable, Tuple, Union,List
 
-
-@pytest.fixture
-def secrets():
+@pytest.fixture  # type: ignore
+def secrets() -> Tuple[SecretStore, Dict[str, str]]:
     sec_store = SecretStore()
     job = {"foo": "bar", "baz": "quux"}
 
@@ -20,7 +20,7 @@ def secrets():
     return sec_store, job
 
 
-def test_obscuring(secrets):
+def test_obscuring(secrets: Tuple[SecretStore, Dict[str, str]]) -> None:
     storage, obscured = secrets
     assert obscured["foo"] != "bar"
     assert obscured["baz"] == "quux"
@@ -34,8 +34,8 @@ obscured_factories_expected = [
 ]
 
 
-@pytest.mark.parametrize("factory,expected", obscured_factories_expected)
-def test_secrets(factory, expected, secrets):
+@pytest.mark.parametrize("factory,expected", obscured_factories_expected)  # type: ignore
+def test_secrets(factory: Callable[[str], Union[str, List[str], Dict[str, str]]], expected: Union[str, List[str], Dict[str, str]], secrets: Tuple[SecretStore, Dict[str, str]]) -> None:
     storage, obscured = secrets
     pattern = factory(obscured["foo"])
     assert pattern != expected
@@ -47,8 +47,8 @@ def test_secrets(factory, expected, secrets):
     assert obscured["baz"] == "quux"
 
 
-@needs_docker
-def test_secret_workflow_log():
+@needs_docker  # type: ignore
+def test_secret_workflow_log() -> None:
     stream = StringIO()
     tmpdir = tempfile.mkdtemp()
     main(
@@ -68,8 +68,8 @@ def test_secret_workflow_log():
     assert "Hoopla!" not in stream.getvalue()
 
 
-@needs_singularity
-def test_secret_workflow_log_singularity():
+@needs_singularity  # type: ignore
+def test_secret_workflow_log_singularity() -> None:
     stream = StringIO()
     tmpdir = tempfile.mkdtemp()
     main(
@@ -89,8 +89,8 @@ def test_secret_workflow_log_singularity():
     assert "Hoopla!" not in stream.getvalue()
 
 
-@needs_docker
-def test_secret_workflow_log_override():
+@needs_docker  # type: ignore
+def test_secret_workflow_log_override() -> None:
     stream = StringIO()
     tmpdir = tempfile.mkdtemp()
     main(

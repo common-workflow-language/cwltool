@@ -31,13 +31,15 @@ from . import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager
-from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs
 from .stdfsaccess import StdFsAccess
 from .utils import (
+    CONTENT_LIMIT,
     CWLObjectType,
     CWLOutputType,
     aslist,
     docker_windows_path_adjust,
+    get_listing,
+    normalizeFilesDirs,
     onWindows,
     visit_class,
 )

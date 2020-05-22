@@ -1,3 +1,6 @@
+from typing import Any, Optional
+from unittest.mock import MagicMock
+
 import mock
 
 from cwltool.main import main
@@ -5,37 +8,38 @@ from cwltool.main import main
 from .util import get_data
 
 
-def mocked_requests_head(*args):
-    class MockResponse:
-        def __init__(self, json_data, status_code, raise_for_status=None):
-            self.json_data = json_data
-            self.status_code = status_code
-            self.raise_for_status = mock.Mock()
-            self.raise_for_status.side_effect = raise_for_status
+class MockResponse1:
+    def __init__(self, json_data: Any, status_code: int, raise_for_status: Optional[bool]=None) -> None:
+        self.json_data = json_data
+        self.status_code = status_code
+        self.raise_for_status = mock.Mock()
+        self.raise_for_status.side_effect = raise_for_status
 
-        def json(self):
+    def json(self) -> Any:
             return self.json_data
 
-    return MockResponse(None, 200)
+def mocked_requests_head(*args):  # type: (*Any) -> MockResponse1
 
+    return MockResponse1(None, 200)
 
-def mocked_requests_get(*args):
-    class MockResponse:
-        def __init__(self, json_data, status_code, raise_for_status=None):
-            self.json_data = json_data
-            self.text = json_data
-            self.status_code = status_code
-            self.raise_for_status = mock.Mock()
-            self.raise_for_status.side_effect = raise_for_status
+class MockResponse2:
+    def __init__(self, json_data: Any, status_code: int, raise_for_status: Optional[bool]=None) -> None:
+        self.json_data = json_data
+        self.text = json_data
+        self.status_code = status_code
+        self.raise_for_status = mock.Mock()
+        self.raise_for_status.side_effect = raise_for_status
 
-        def json(self):
-            return self.json_data
+    def json(self) -> Any:
+        return self.json_data
+
+def mocked_requests_get(*args):  # type: (*Any) -> MockResponse2
 
     if (
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/CWL/files"
     ):
-        return MockResponse(
+        return MockResponse2(
             [
                 {"file_type": "CONTAINERFILE", "path": "Dockerfile"},
                 {"file_type": "PRIMARY_DESCRIPTOR", "path": "Dockstore.cwl"},
@@ -48,24 +52,24 @@ def mocked_requests_get(*args):
         == "https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/plain-CWL/descriptor/Dockstore.cwl"
     ):
         string = open(get_data("tests/trs/Dockstore.cwl"), "r").read()
-        return MockResponse(string, 200)
+        return MockResponse2(string, 200)
     elif (
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-tool.cwl"
     ):
         string = open(get_data("tests/trs/md5sum-tool.cwl"), "r").read()
-        return MockResponse(string, 200)
+        return MockResponse2(string, 200)
     elif (
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-workflow.cwl"
     ):
         string = open(get_data("tests/trs/md5sum-workflow.cwl"), "r").read()
-        return MockResponse(string, 200)
+        return MockResponse2(string, 200)
     elif (
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/CWL/files"
     ):
-        return MockResponse(
+        return MockResponse2(
             [
                 {"file_type": "TEST_FILE", "path": "md5sum-input-cwl.json"},
                 {"file_type": "SECONDARY_DESCRIPTOR", "path": "md5sum-tool.cwl"},
@@ -75,12 +79,12 @@ def mocked_requests_get(*args):
         )
 
     print("A mocked call to TRS missed, target was %s", args[0])
-    return MockResponse(None, 404)
+    return MockResponse2(None, 404)
 
 
 @mock.patch("requests.Session.head", side_effect=mocked_requests_head)
 @mock.patch("requests.Session.get", side_effect=mocked_requests_get)
-def test_tool_trs_template(mock_head, mock_get):
+def test_tool_trs_template(mock_head: MagicMock, mock_get: MagicMock) -> None:
     params = ["--make-template", r"quay.io/briandoconnor/dockstore-tool-md5sum:1.0.4"]
     return_value = main(params)
     mock_head.assert_called()
@@ -90,7 +94,7 @@ def test_tool_trs_template(mock_head, mock_get):
 
 @mock.patch("requests.Session.head", side_effect=mocked_requests_head)
 @mock.patch("requests.Session.get", side_effect=mocked_requests_get)
-def test_workflow_trs_template(mock_head, mock_get):
+def test_workflow_trs_template(mock_head: MagicMock, mock_get: MagicMock) -> None:
     params = [
         "--make-template",
         r"#workflow/github.com/dockstore-testing/md5sum-checker:develop",

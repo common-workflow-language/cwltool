@@ -1,23 +1,27 @@
-import pytest
+from typing import Any, List, cast
+
+import pytest  # type: ignore
+from ruamel.yaml.comments import CommentedMap
+from schema_salad.sourceline import cmap
 
 from cwltool import command_line_tool, loghandler
 from cwltool.context import LoadingContext, RuntimeContext
-from cwltool.utils import onWindows, windows_default_container_id
+from cwltool.utils import CWLObjectType, onWindows, windows_default_container_id
 
 
-def test_default_docker_warning(mocker):
+@pytest.mark.skip(not onWindows(), reason="MS Windows only")  # type: ignore
+def test_default_docker_warning(mocker: Any) -> None:
     """Check warning when default docker Container is used on Windows."""
     mocker.patch("cwltool.command_line_tool._logger")
-    mocker.patch("cwltool.command_line_tool.onWindows", return_value=True)
 
     tool = command_line_tool.CommandLineTool(
-        {"inputs": [], "outputs": []}, LoadingContext()
+        cast(CommentedMap, cmap({"inputs": [], "outputs": []})), LoadingContext()
     )
     tool.make_job_runner(
         RuntimeContext({"find_default_container": lambda x: "frolvlad/alpine-bash"})
     )
 
-    command_line_tool._logger.warning.assert_called_with(
+    command_line_tool._logger.warning.assert_called_with(  # type: ignore
         command_line_tool.DEFAULT_CONTAINER_MSG,
         windows_default_container_id,
         windows_default_container_id,

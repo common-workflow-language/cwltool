@@ -50,14 +50,7 @@ from .builder import Builder, HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
-from .pathmapper import (
-    MapperEnt,
-    PathMapper,
-    adjustDirObjs,
-    ensure_writable,
-    get_listing,
-    normalizeFilesDirs,
-)
+from .pathmapper import MapperEnt, PathMapper
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION
@@ -66,9 +59,13 @@ from .utils import (
     CWLObjectType,
     JobsGeneratorType,
     OutputCallbackType,
+    adjustDirObjs,
     aslist,
     cmp_like_py2,
     copytree_with_merge,
+    ensure_writable,
+    get_listing,
+    normalizeFilesDirs,
     onWindows,
     random_outdir,
     visit_class,
@@ -443,13 +440,13 @@ def add_sizes(fsaccess, obj):  # type: (StdFsAccess, Dict[str, Any]) -> None
 
 
 def fill_in_defaults(
-    inputs: List[Dict[str, str]], job: CWLObjectType, fsaccess: StdFsAccess,
+    inputs: List[CWLObjectType], job: CWLObjectType, fsaccess: StdFsAccess,
 ) -> None:
     for e, inp in enumerate(inputs):
         with SourceLine(
             inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)
         ):
-            fieldname = shortname(inp["id"])
+            fieldname = shortname(cast(str, inp["id"]))
             if job.get(fieldname) is not None:
                 pass
             elif job.get(fieldname) is None and "default" in inp:
@@ -458,7 +455,8 @@ def fill_in_defaults(
                 job[fieldname] = None
             else:
                 raise WorkflowException(
-                    "Missing required input parameter '%s'" % shortname(inp["id"])
+                    "Missing required input parameter '%s'"
+                    % shortname(cast(str, inp["id"]))
                 )
 
 

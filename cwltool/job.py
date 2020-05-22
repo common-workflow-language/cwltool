@@ -34,17 +34,18 @@ from typing import (
 
 import psutil
 import shellescape
-from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
+
+from prov.model import PROV
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .expression import JSON
 from .loghandler import _logger
-from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
+from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
@@ -53,6 +54,8 @@ from .utils import (
     Directory,
     bytes2str_in_dicts,
     copytree_with_merge,
+    ensure_non_writable,
+    ensure_writable,
     onWindows,
     processes_to_kill,
 )

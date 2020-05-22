@@ -40,7 +40,6 @@ from .errors import WorkflowException
 from .job import JobBase
 from .load_tool import load_tool
 from .loghandler import _logger
-from .pathmapper import adjustDirObjs, get_listing
 from .process import Process, get_overrides, shortname, uniquename
 from .provenance import ProvenanceProfile
 from .stdfsaccess import StdFsAccess
@@ -52,7 +51,9 @@ from .utils import (
     OutputCallbackType,
     ScatterDestinationsType,
     ScatterOutputCallbackType,
+    adjustDirObjs,
     aslist,
+    get_listing,
 )
 
 WorkflowStateItem = NamedTuple(

@@ -25,8 +25,13 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
-from .utils import CWLObjectType, docker_windows_path_adjust
+from .pathmapper import MapperEnt, PathMapper
+from .utils import (
+    CWLObjectType,
+    docker_windows_path_adjust,
+    ensure_non_writable,
+    ensure_writable,
+)
 
 _USERNS = None
 _SINGULARITY_VERSION = ""

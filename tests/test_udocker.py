@@ -4,8 +4,9 @@ import subprocess
 import sys
 import tempfile
 
-import pytest
-from psutil.tests import TRAVIS
+import py.path
+import pytest  # type: ignore
+from psutil.tests import TRAVIS  # type: ignore
 
 from .util import get_data, get_main_output
 
@@ -14,10 +15,11 @@ LINUX = sys.platform in ("linux", "linux2")
 
 @pytest.mark.skipif(not LINUX, reason="LINUX only")
 class TestUdocker:
-    udocker_path = None
+    udocker_path = ""
+    docker_install_dir = ""
 
     @classmethod
-    def setup_class(cls):
+    def setup_class(cls) -> None:
         test_cwd = os.getcwd()
         test_environ = os.environ.copy()
         cls.docker_install_dir = tempfile.mkdtemp()
@@ -50,14 +52,14 @@ class TestUdocker:
 
         cls.udocker_path = os.path.join(cls.docker_install_dir, "udocker")
         os.chdir(test_cwd)
-        os.environ = test_environ
+        os.environ = test_environ  # type: ignore
         print("Udocker install dir: " + cls.docker_install_dir)
 
     @classmethod
-    def teardown_class(cls):
+    def teardown_class(cls) -> None:
         shutil.rmtree(cls.docker_install_dir)
 
-    def test_udocker_usage_should_not_write_cid_file(self, tmpdir):
+    def test_udocker_usage_should_not_write_cid_file(self, tmpdir: py.path.local) -> None:
         cwd = tmpdir.chdir()
 
         test_file = "tests/wf/wc-tool.cwl"
@@ -80,10 +82,10 @@ class TestUdocker:
         assert "completed success" in stderr, stderr
         assert cidfiles_count == 0
 
-    @pytest.mark.skipif(
+    @pytest.mark.skipif(  # type: ignore
         TRAVIS, reason="Not reliable on single threaded test on travis."
     )
-    def test_udocker_should_display_memory_usage(self, tmpdir):
+    def test_udocker_should_display_memory_usage(self, tmpdir: py.path.local) -> None:
         cwd = tmpdir.chdir()
         error_code, stdout, stderr = get_main_output(
             [

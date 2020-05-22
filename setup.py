@@ -44,24 +44,24 @@ if USE_MYPYC:
         # "cwltool/__init__.py",
         "cwltool/job.py",
         "cwltool/load_tool.py",
-        "cwltool/loghandler.py",
+        # "cwltool/loghandler.py",  # so we can monkeypatch the logger from tests
         # "cwltool/__main__.py",
         "cwltool/main.py",
         "cwltool/mutation.py",
         "cwltool/pack.py",
-        "cwltool/pathmapper.py",
+        # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
         "cwltool/process.py",
         "cwltool/procgenerator.py",
         "cwltool/provenance.py",
         "cwltool/resolver.py",
-        "cwltool/sandboxjs.py",
+        # "cwltool/sandboxjs.py",  # probably not speed critical, tests need to mock components
         "cwltool/secrets.py",
         "cwltool/singularity.py",
         "cwltool/software_requirements.py",
         "cwltool/stdfsaccess.py",
         "cwltool/subgraph.py",
         "cwltool/update.py",
-        # "cwltool/utils.py",
+        "cwltool/utils.py",
         "cwltool/validate_js.py",
         "cwltool/workflow.py",
     ]

@@ -32,22 +32,22 @@ from typing import (
     cast,
 )
 
-import prov.model as provM
 from pathlib2 import Path, PurePath, PurePosixPath
-from prov.identifier import Identifier, Namespace
-from prov.model import PROV, ProvDocument, ProvEntity
 from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING
 
+import prov.model as provM
+from prov.identifier import Identifier, Namespace
+from prov.model import PROV, ProvDocument, ProvEntity
+
 from .context import RuntimeContext
 from .errors import WorkflowException
 from .loghandler import _logger
-from .pathmapper import get_listing
 from .process import Process, shortname
 from .stdfsaccess import StdFsAccess
-from .utils import CWLObjectType, JobsType, onWindows, versionstring
+from .utils import CWLObjectType, JobsType, get_listing, onWindows, versionstring
 
 # imports needed for retrieving user data
 if onWindows():
@@ -167,7 +167,7 @@ class WritableBagFile(FileIO):
         )
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
-        super(WritableBagFile, self).__init__(str(path), mode="w")
+        super(WritableBagFile, self).__init__(path, mode="w")
 
     def write(self, b):
         # type: (Union[bytes, str]) -> int
@@ -1083,7 +1083,9 @@ class ResearchObject:
             bag_it_file.write("BagIt-Version: 0.97\n")
             bag_it_file.write("Tag-File-Character-Encoding: %s\n" % ENCODING)
 
-    def open_log_file_for_activity(self, uuid_uri: str) -> Union[TextIOWrapper, WritableBagFile]:
+    def open_log_file_for_activity(
+        self, uuid_uri: str
+    ) -> Union[TextIOWrapper, WritableBagFile]:
         self.self_check()
         # Ensure valid UUID for safe filenames
         activity_uuid = uuid.UUID(uuid_uri)
@@ -1140,7 +1142,9 @@ class ResearchObject:
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
 
-    def write_bag_file(self, path: str, encoding: Optional[str]=ENCODING)-> Union[TextIOWrapper, WritableBagFile]:
+    def write_bag_file(
+        self, path: str, encoding: Optional[str] = ENCODING
+    ) -> Union[TextIOWrapper, WritableBagFile]:
         """Write the bag file into our research object."""
         self.self_check()
         # For some reason below throws BlockingIOError
@@ -1150,8 +1154,8 @@ class ResearchObject:
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
             return TextIOWrapper(
-                    cast(IO[bytes], bag_file), encoding=encoding, newline="\n"
-                )
+                cast(IO[bytes], bag_file), encoding=encoding, newline="\n"
+            )
         return bag_file
 
     def add_tagfile(self, path, timestamp=None):
@@ -1508,7 +1512,12 @@ class ResearchObject:
         hash_path = os.path.join(folder, sha1hash)
         return os.path.isfile(hash_path)
 
-    def add_data_file(self, from_fp: IO[Any], timestamp: Optional[datetime.datetime]=None, content_type: Optional[str]=None) -> str:
+    def add_data_file(
+        self,
+        from_fp: IO[Any],
+        timestamp: Optional[datetime.datetime] = None,
+        content_type: Optional[str] = None,
+    ) -> str:
         """Copy inputs to data/ folder."""
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
@@ -1548,7 +1557,9 @@ class ResearchObject:
             self._content_types[rel_path] = content_type
         return rel_path
 
-    def _self_made(self, timestamp: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    def _self_made(
+        self, timestamp: Optional[datetime.datetime] = None
+    ) -> Dict[str, Any]:
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return {
@@ -1556,7 +1567,7 @@ class ResearchObject:
             "createdBy": {"uri": self.engine_uuid, "name": self.cwltool_version},
         }
 
-    def add_to_manifest(self, rel_path: str, checksums: Dict[str,str]) -> None:
+    def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
         """Add files to the research object manifest."""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
@@ -1705,7 +1716,7 @@ class ResearchObject:
         except TypeError:
             pass
 
-    def close(self, save_to: Optional[str]=None) -> None:
+    def close(self, save_to: Optional[str] = None) -> None:
         """Close the Research Object, optionally saving to specified folder.
 
         Closing will remove any temporary files used by this research object.
@@ -1740,8 +1751,8 @@ class ResearchObject:
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher = Hasher,  # type: Callable[[], hashlib._Hash]
-    buffersize: int=1024 * 1024,
+    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?

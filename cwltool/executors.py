@@ -427,3 +427,24 @@ class MultithreadedJobExecutor(JobExecutor):
             self.run_job(None, runtime_context)
 
         runtime_context.workflow_eval_lock.release()
+
+
+class NoopJobExecutor(JobExecutor):
+    """ Do nothing executor, for testing purposes only. """
+    def run_jobs(
+        self,
+        process: Process,
+        job_order_object: Dict[str, Any],
+        logger: logging.Logger,
+        runtime_context: RuntimeContext,
+    ) -> None:
+        pass
+
+    def execute(
+        self,
+        process: Process,
+        job_order_object: Dict[str, Any],
+        runtime_context: RuntimeContext,
+        logger: Optional[logging.Logger] = None,
+    )  -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:
+        return {}, "success"
