@@ -230,8 +230,8 @@ class Builder(HasReqsHints):
         if lead_pos is None:
             lead_pos = []
 
-        bindings = []  # type: List[MutableMapping[str, str]]
-        binding = {}  # type: Union[MutableMapping[str, str], CommentedMap]
+        bindings = []  # type: List[MutableMapping[str, Union[str, List[int]]]]
+        binding = {}  # type: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(
             schema["inputBinding"], MutableMapping
@@ -484,7 +484,7 @@ class Builder(HasReqsHints):
         # Position to front of the sort key
         if binding:
             for bi in bindings:
-                bi["position"] = binding["position"] + bi["position"]
+                bi["position"] = cast(List[int], binding["position"]) + cast(List[int], bi["position"])
             bindings.append(binding)
 
         return bindings

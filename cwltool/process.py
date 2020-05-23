@@ -916,8 +916,7 @@ hints:
             builder.resources = self.evalResources(builder, runtime_context)
         return builder
 
-    def evalResources(self, builder, runtimeContext):
-        # type: (Builder, RuntimeContext) -> Dict[str, int]
+    def evalResources(self, builder: Builder, runtimeContext: RuntimeContext) -> Dict[str, int]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -939,19 +938,18 @@ hints:
             "outdirMax": 1024,
         }  # type: Dict[str, int]
         for a in ("cores", "ram", "tmpdir", "outdir"):
-            mn = None  # type: Optional[Union[str, int]]
-            mx = None  # type: Optional[Union[str, int]]
+            mn = mx = None  # type: Optional[int]
             if resourceReq.get(a + "Min"):
-                mn = eval_resource(builder, cast(int, resourceReq[a + "Min"]))
+                mn = cast(int, eval_resource(builder, cast(Union[str, int], resourceReq[a + "Min"])))
             if resourceReq.get(a + "Max"):
-                mx = eval_resource(builder, cast(int, resourceReq[a + "Max"]))
+                mx = cast(int, eval_resource(builder, cast(Union[str, int], resourceReq[a + "Max"])))
             if mn is None:
                 mn = mx
             elif mx is None:
                 mx = mn
 
             if mn is not None:
-                request[a + "Min"] = cast(int, mn)
+                request[a + "Min"] = mn
                 request[a + "Max"] = cast(int, mx)
 
         if runtimeContext.select_resources is not None:
