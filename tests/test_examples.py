@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Union, cast
 
 import py.path
 import pytest  # type: ignore
-import schema_salad.validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 

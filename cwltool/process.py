@@ -988,7 +988,7 @@ hints:
                         if key not in self.doc_loader.identifiers
                     )  # strip identifiers
                     validate_ex(
-                        avsc_names.get_name(plain_hint["class"], ""),
+                        avsc_names.get_name(plain_hint["class"], None),
                         plain_hint,
                         strict=strict,
                     )
