@@ -43,7 +43,6 @@ from prov.model import PROV
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
-from .expression import JSON
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
@@ -426,7 +425,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         except WorkflowException as err:
             _logger.error("[job %s] Job error:\n%s", self.name, str(err))
             processStatus = "permanentFail"
-        except Exception as e:
+        except Exception:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         if (
@@ -604,7 +603,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self, env: MutableMapping[str, str], runtime_context: RuntimeContext,
     ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
-        pass
 
     @staticmethod
     @abstractmethod
@@ -612,14 +610,12 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
         """Add binding arguments to the runtime list."""
-        pass
 
     @abstractmethod
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
-        pass
 
     @abstractmethod
     def add_writable_file_volume(
@@ -630,7 +626,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable file mapping to the runtime option list."""
-        pass
 
     @abstractmethod
     def add_writable_directory_volume(
@@ -641,7 +636,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable directory mapping to the runtime option list."""
-        pass
 
     def create_file_and_add_volume(
         self,

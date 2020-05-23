@@ -1,10 +1,9 @@
 """Resolves references to CWL documents from local or remote places."""
 
 import os
-import sys
 import urllib
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from schema_salad.ref_resolver import Loader
 

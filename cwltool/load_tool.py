@@ -19,7 +19,6 @@ from typing import (
     cast,
 )
 
-import requests.sessions
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import (

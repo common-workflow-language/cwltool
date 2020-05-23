@@ -1,7 +1,6 @@
 import copy
 import logging
 import math
-import os
 from typing import (
     IO,
     Any,
@@ -231,7 +230,9 @@ class Builder(HasReqsHints):
             lead_pos = []
 
         bindings = []  # type: List[MutableMapping[str, Union[str, List[int]]]]
-        binding = {}  # type: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap]
+        binding = (
+            {}
+        )  # type: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(
             schema["inputBinding"], MutableMapping
@@ -484,7 +485,9 @@ class Builder(HasReqsHints):
         # Position to front of the sort key
         if binding:
             for bi in bindings:
-                bi["position"] = cast(List[int], binding["position"]) + cast(List[int], bi["position"])
+                bi["position"] = cast(List[int], binding["position"]) + cast(
+                    List[int], bi["position"]
+                )
             bindings.append(binding)
 
         return bindings

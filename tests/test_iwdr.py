@@ -1,7 +1,6 @@
 import os
 import tempfile
 
-from cwltool import load_tool
 from cwltool.main import main
 
 from .util import (

@@ -14,7 +14,6 @@ import urllib
 import uuid
 from functools import partial
 from itertools import zip_longest
-from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import ModuleType
 from typing import (

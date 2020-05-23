@@ -19,7 +19,6 @@ from .builder import Builder
 from .context import RuntimeContext
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
-from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper

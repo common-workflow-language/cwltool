@@ -2,7 +2,6 @@
 """Entry point for cwltool."""
 
 import argparse
-import copy
 import functools
 import io
 import logging
@@ -12,7 +11,7 @@ import sys
 import time
 import urllib
 from codecs import StreamWriter, getwriter
-from collections.abc import Iterable, MutableMapping, MutableSequence, Sequence
+from collections.abc import Iterable, MutableMapping, MutableSequence
 from typing import (
     IO,
     Any,
@@ -385,7 +384,7 @@ def init_job_order(
                     MutableMapping[str, Any],
                     loader.resolve_ref(cmd_line["job_order"])[0],
                 )
-            except Exception as err:
+            except Exception:
                 _logger.exception(
                     "Failed to resolv job_order: %s", cmd_line["job_order"]
                 )
@@ -781,7 +780,7 @@ def check_working_directories(
             if not os.path.exists(os.path.dirname(getattr(runtimeContext, dirprefix))):
                 try:
                     os.makedirs(os.path.dirname(getattr(runtimeContext, dirprefix)))
-                except Exception as e:
+                except Exception:
                     _logger.exception("Failed to create directory.")
                     return 1
     return None

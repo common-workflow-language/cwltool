@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 import py.path
-import schema_salad.validate
 
 from cwltool.main import main
 

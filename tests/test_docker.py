@@ -2,10 +2,9 @@ from distutils import spawn
 
 import py.path
 
-from cwltool.docker import DockerCommandLineJob
 from cwltool.main import main
 
-from .util import get_data, get_main_output, needs_docker, needs_singularity
+from .util import get_data, get_main_output, needs_docker
 
 
 @needs_docker  # type: ignore

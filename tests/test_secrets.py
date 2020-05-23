@@ -1,5 +1,4 @@
 import shutil
-import sys
 import tempfile
 from io import StringIO
 from typing import Callable, Dict, List, Tuple, Union
@@ -9,7 +8,7 @@ import pytest  # type: ignore
 from cwltool.main import main
 from cwltool.secrets import SecretStore
 
-from .util import get_data, needs_docker, needs_singularity, windows_needs_docker
+from .util import get_data, needs_docker, needs_singularity
 
 
 @pytest.fixture  # type: ignore

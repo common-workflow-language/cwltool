@@ -2,14 +2,17 @@ import json
 import logging
 import os
 import stat
+import subprocess
 import sys
-from io import BytesIO, StringIO
+from io import StringIO
+from pathlib import Path
 from typing import Any, Dict, List, Union, cast
 
 import py.path
 import pytest  # type: ignore
 import schema_salad.validate
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad.exceptions import ValidationException
 
 import cwltool.checker
 import cwltool.expression as expr
@@ -17,13 +20,13 @@ import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
 import cwltool.workflow
+from cwltool.checker import can_assign_src_to_sink
 from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
-from cwltool.resolver import Path
 from cwltool.sandboxjs import JavascriptException
-from cwltool.utils import CWLObjectType, onWindows
+from cwltool.utils import CWLObjectType, dedup, onWindows
 
 from .util import (
     get_data,
@@ -31,19 +34,10 @@ from .util import (
     get_windows_safe_factory,
     needs_docker,
     needs_singularity,
-    subprocess,
     temp_dir,
     windows_needs_docker,
     working_directory,
 )
-
-try:
-    reload
-except:  # pylint: disable=bare-except
-    try:
-        from imp import reload
-    except:
-        from importlib import reload
 
 sys.argv = [""]
 
@@ -188,7 +182,7 @@ def test_factory() -> None:
 def test_factory_bad_outputs() -> None:
     factory = cwltool.factory.Factory()
 
-    with pytest.raises(schema_salad.validate.ValidationException):
+    with pytest.raises(ValidationException):
         factory.make(get_data("tests/echo_broken_outputs.cwl"))
 
 
@@ -508,7 +502,7 @@ def test_dedupe() -> None:
         },
     ]
 
-    assert cwltool.pathmapper.dedup(not_deduped) == expected
+    assert dedup(not_deduped) == expected
 
 
 record = {
@@ -560,7 +554,7 @@ source_to_sink = [
 def test_compare_types(
     name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
 ) -> None:
-    assert cwltool.workflow.can_assign_src_to_sink(source, sink) == expected, name
+    assert can_assign_src_to_sink(source, sink) == expected, name
 
 
 source_to_sink_strict = [
@@ -586,9 +580,7 @@ source_to_sink_strict = [
 def test_compare_types_strict(
     name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
 ) -> None:
-    assert (
-        cwltool.workflow.can_assign_src_to_sink(source, sink, strict=True) == expected
-    ), name
+    assert can_assign_src_to_sink(source, sink, strict=True) == expected, name
 
 
 typechecks = [
@@ -731,7 +723,7 @@ def test_lifting() -> None:
     # check that lifting the types of the process outputs to the workflow step
     # fails if the step 'out' doesn't match.
     factory = cwltool.factory.Factory()
-    with pytest.raises(schema_salad.validate.ValidationException):
+    with pytest.raises(ValidationException):
         echo = factory.make(get_data("tests/test_bad_outputs_wf.cwl"))
         assert echo(inp="foo") == {"out": "foo\n"}
 
@@ -739,7 +731,7 @@ def test_lifting() -> None:
 def test_malformed_outputs() -> None:
     # check that tool validation fails if one of the outputs is not a valid CWL type
     factory = cwltool.factory.Factory()
-    with pytest.raises(schema_salad.validate.ValidationException):
+    with pytest.raises(ValidationException):
         factory.make(get_data("tests/wf/malformed_outputs.cwl"))()
 
 
@@ -755,13 +747,13 @@ def test_static_checker() -> None:
     # mismatches its sink type.
     factory = cwltool.factory.Factory()
 
-    with pytest.raises(schema_salad.validate.ValidationException):
+    with pytest.raises(ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf.cwl"))
 
-    with pytest.raises(schema_salad.validate.ValidationException):
+    with pytest.raises(ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf2.cwl"))
 
-    with pytest.raises(schema_salad.validate.ValidationException):
+    with pytest.raises(ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
 
 

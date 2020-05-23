@@ -1,12 +1,11 @@
 import json
-import ntpath
 import os
 import pickle
-import posixpath
 import shutil
 import sys
 import tempfile
 import urllib
+from pathlib import Path
 from typing import Any, Generator, cast
 
 import arcp
@@ -18,11 +17,9 @@ from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
 # Module to be tested
-from cwltool import load_tool, provenance
-from cwltool.context import RuntimeContext
+from cwltool import provenance
 from cwltool.main import main
 from cwltool.provenance import ResearchObject
-from cwltool.resolver import Path
 from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, temp_dir, working_directory

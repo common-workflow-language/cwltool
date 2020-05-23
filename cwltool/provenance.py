@@ -15,7 +15,6 @@ from getpass import getuser
 from io import BytesIO, FileIO, TextIOWrapper, open
 from pathlib import Path, PurePath, PurePosixPath
 from socket import getfqdn
-from types import ModuleType
 from typing import (
     IO,
     Any,
@@ -33,7 +32,6 @@ from typing import (
     cast,
 )
 
-from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING
@@ -42,7 +40,6 @@ import prov.model as provM
 from prov.identifier import Identifier, Namespace
 from prov.model import PROV, ProvDocument, ProvEntity
 
-from .context import RuntimeContext
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import Process, shortname

@@ -22,7 +22,6 @@ from schema_salad.sourceline import SourceLine
 from .builder import Builder
 from .context import RuntimeContext
 from .errors import UnsupportedRequirement, WorkflowException
-from .expression import JSON
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper

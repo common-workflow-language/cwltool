@@ -1,5 +1,3 @@
-from schema_salad.ref_resolver import Loader
-
 from cwltool.load_tool import fetch_document, resolve_and_validate_document
 
 from .util import get_data

@@ -1,4 +1,3 @@
-from cwltool import load_tool
 from cwltool.main import main
 
 from .util import get_data, windows_needs_docker

@@ -5,7 +5,6 @@ import logging
 import random
 import tempfile
 import threading
-from collections import namedtuple
 from typing import (
     Any,
     Callable,
@@ -34,10 +33,8 @@ from schema_salad.utils import json_dumps
 from . import command_line_tool, context, expression, procgenerator
 from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink, static_checker
-from .command_line_tool import CallbackJob, ExpressionJob, ExpressionTool
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
-from .job import JobBase
 from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, get_overrides, shortname, uniquename

@@ -2,7 +2,6 @@ import json
 
 import py.path
 
-from cwltool import load_tool
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
 

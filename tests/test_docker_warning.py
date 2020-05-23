@@ -1,12 +1,12 @@
-from typing import Any, List, cast
+from typing import Any, cast
 
 import pytest  # type: ignore
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
-from cwltool import command_line_tool, loghandler
+from cwltool import command_line_tool
 from cwltool.context import LoadingContext, RuntimeContext
-from cwltool.utils import CWLObjectType, onWindows, windows_default_container_id
+from cwltool.utils import onWindows, windows_default_container_id
 
 
 @pytest.mark.skip(not onWindows(), reason="MS Windows only")  # type: ignore

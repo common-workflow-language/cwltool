@@ -4,8 +4,6 @@ import os
 import stat
 import urllib
 import uuid
-from functools import partial
-from tempfile import NamedTemporaryFile
 from typing import (
     Any,
     Callable,
@@ -22,15 +20,12 @@ from typing import (
     cast,
 )
 
-import requests
-from cachecontrol import CacheControl
-from cachecontrol.caches import FileCache
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
-from .stdfsaccess import StdFsAccess, abspath
+from .stdfsaccess import abspath
 from .utils import (
     CWLObjectType,
     Directory,

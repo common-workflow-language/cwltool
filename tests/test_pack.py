@@ -12,12 +12,11 @@ from ruamel import yaml
 
 import cwltool.pack
 import cwltool.workflow
-from cwltool import load_tool
 from cwltool.context import LoadingContext
 from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
-from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
 from cwltool.resolver import tool_resolver
+from cwltool.utils import adjustDirObjs, adjustFileObjs
 
 from .util import get_data, needs_docker
 
@@ -26,7 +25,7 @@ def test_pack() -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
 
     with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
-        expect_packed = yaml.safe_load(packed_file)
+        expect_packed = yaml.main.safe_load(packed_file)
 
     packed = cwltool.pack.pack(loadingContext, uri)
     adjustFileObjs(
@@ -52,10 +51,10 @@ def test_pack_input_named_name() -> None:
     )
     loader = loadingContext.loader
     assert loader
-    processobj = loader.resolve_ref(uri)[0]
+    loader.resolve_ref(uri)[0]
 
     with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
-        expect_packed = yaml.round_trip_load(packed_file)
+        expect_packed = yaml.main.round_trip_load(packed_file)
 
     packed = cwltool.pack.pack(loadingContext, uri)
     adjustFileObjs(
@@ -81,7 +80,7 @@ def test_pack_single_tool() -> None:
     )
     loader = loadingContext.loader
     assert loader
-    processobj = loader.resolve_ref(uri)[0]
+    loader.resolve_ref(uri)[0]
 
     packed = cwltool.pack.pack(loadingContext, uri)
     assert "$schemas" in packed
@@ -89,7 +88,7 @@ def test_pack_single_tool() -> None:
 
 def test_pack_fragment() -> None:
     with open(get_data("tests/wf/scatter2_subwf.cwl")) as packed_file:
-        expect_packed = yaml.safe_load(packed_file)
+        expect_packed = yaml.main.safe_load(packed_file)
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
     packed = cwltool.pack.pack(loadingContext, uri + "#scatterstep/mysub")
@@ -115,7 +114,7 @@ def test_pack_rewrites() -> None:
     )
     loader = loadingContext.loader
     assert loader
-    processobj = loader.resolve_ref(uri)[0]
+    loader.resolve_ref(uri)[0]
 
     cwltool.pack.pack(
         loadingContext, uri, rewrite_out=rewrites,
@@ -141,7 +140,7 @@ def test_pack_missing_cwlVersion(cwl_path: str) -> None:
     )
     loader = loadingContext.loader
     assert loader
-    processobj = loader.resolve_ref(uri)[0]
+    loader.resolve_ref(uri)[0]
 
     # generate pack output dict
     packed = json.loads(print_pack(loadingContext, uri))
@@ -167,7 +166,7 @@ def _pack_idempotently(document: str) -> None:
     )
     loader = loadingContext.loader
     assert loader
-    processobj = loader.resolve_ref(uri)[0]
+    loader.resolve_ref(uri)[0]
 
     # generate pack output dict
     packed_text = print_pack(loadingContext, uri)
@@ -186,7 +185,7 @@ def _pack_idempotently(document: str) -> None:
         )
         loader2 = loadingContext.loader
         assert loader2
-        processobj = loader2.resolve_ref(uri2)[0]
+        loader2.resolve_ref(uri2)[0]
 
         # generate pack output dict
         packed_text = print_pack(loadingContext, uri2)
@@ -218,7 +217,7 @@ def test_packed_workflow_execution(
     )
     loader = loadingContext.loader
     assert loader
-    processobj = loader.resolve_ref(uri)[0]
+    loader.resolve_ref(uri)[0]
     packed = json.loads(print_pack(loadingContext, uri))
 
     assert not namespaced or "$namespaces" in packed

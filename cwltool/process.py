@@ -1,6 +1,5 @@
 import abc
 import copy
-import errno
 import functools
 import hashlib
 import json
@@ -664,7 +663,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 try:
                     with open(loadingContext.js_hint_options_file) as options_file:
                         validate_js_options = json.load(options_file)
-                except (OSError, ValueError) as err:
+                except (OSError, ValueError):
                     _logger.error(
                         "Failed to read options file %s",
                         loadingContext.js_hint_options_file,
@@ -916,7 +915,9 @@ hints:
             builder.resources = self.evalResources(builder, runtime_context)
         return builder
 
-    def evalResources(self, builder: Builder, runtimeContext: RuntimeContext) -> Dict[str, int]:
+    def evalResources(
+        self, builder: Builder, runtimeContext: RuntimeContext
+    ) -> Dict[str, int]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -940,9 +941,19 @@ hints:
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = mx = None  # type: Optional[int]
             if resourceReq.get(a + "Min"):
-                mn = cast(int, eval_resource(builder, cast(Union[str, int], resourceReq[a + "Min"])))
+                mn = cast(
+                    int,
+                    eval_resource(
+                        builder, cast(Union[str, int], resourceReq[a + "Min"])
+                    ),
+                )
             if resourceReq.get(a + "Max"):
-                mx = cast(int, eval_resource(builder, cast(Union[str, int], resourceReq[a + "Max"])))
+                mx = cast(
+                    int,
+                    eval_resource(
+                        builder, cast(Union[str, int], resourceReq[a + "Max"])
+                    ),
+                )
             if mn is None:
                 mn = mx
             elif mx is None:

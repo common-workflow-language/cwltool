@@ -3,6 +3,7 @@ import distutils.spawn  # pylint: disable=no-name-in-module,import-error
 import functools
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -14,7 +15,7 @@ from pkg_resources import Requirement, ResolutionError, resource_filename
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
-from cwltool.utils import onWindows, subprocess, windows_default_container_id
+from cwltool.utils import onWindows, windows_default_container_id
 
 
 def get_windows_safe_factory(

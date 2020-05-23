@@ -1,11 +1,11 @@
-import pkg_resources
+from pathlib import Path
+
 import pytest  # type: ignore
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.load_tool import load_tool
 from cwltool.process import use_custom_schema, use_standard_schema
-from cwltool.resolver import Path, resolve_local
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
 
@@ -51,7 +51,7 @@ def test_use_metadata() -> None:
     loadingContext.metadata = tool.metadata
     tooldata = tool.tool.copy()
     del tooldata["cwlVersion"]
-    tool2 = load_tool(tooldata, loadingContext)
+    load_tool(tooldata, loadingContext)
 
 
 def test_checklink_outputSource() -> None:

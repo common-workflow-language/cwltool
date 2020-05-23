@@ -1,5 +1,5 @@
 import urllib
-from typing import IO, Any, Dict, MutableMapping, Optional, cast
+from typing import IO, Any, Dict, Optional, cast
 
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap

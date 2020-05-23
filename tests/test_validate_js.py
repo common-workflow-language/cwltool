@@ -24,7 +24,7 @@ outputs: []
 
 
 def test_get_expressions() -> None:
-    test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
+    test_cwl_yaml = yaml.main.round_trip_load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
     clt_schema = schema.names["CommandLineTool"]
@@ -35,7 +35,7 @@ def test_get_expressions() -> None:
 
 
 def test_validate_js_expressions(mocker: Any) -> None:
-    test_cwl_yaml = yaml.round_trip_load(TEST_CWL)
+    test_cwl_yaml = yaml.main.round_trip_load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
     clt_schema = schema.names["CommandLineTool"]

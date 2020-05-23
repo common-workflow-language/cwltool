@@ -1,8 +1,8 @@
 import os
+import subprocess
 import sys
 
 from cwltool.main import main
-from cwltool.utils import subprocess
 
 from .util import get_data
 
