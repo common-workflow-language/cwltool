@@ -818,7 +818,7 @@ class WorkflowStep(Process):
         loadingContext.requirements = copy.deepcopy(
             getdefault(loadingContext.requirements, [])
         )
-        assert loadingContext.requirements is not None
+        assert loadingContext.requirements is not None  # nosec
         loadingContext.requirements.extend(toolpath_object.get("requirements", []))
         loadingContext.requirements.extend(
             get_overrides(getdefault(loadingContext.overrides_list, []), self.id).get(

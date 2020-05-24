@@ -1,6 +1,6 @@
 """Helper functions for docker."""
 
-import subprocess
+import subprocess  # nosec
 from typing import List, Optional, Tuple
 
 
@@ -30,7 +30,7 @@ def check_output_and_strip(cmd):  # type: (List[str]) -> Optional[str]
     :return: Stripped string output of the command, or None if error
     """
     try:
-        result = subprocess.check_output(
+        result = subprocess.check_output(  # nosec
             cmd, stderr=subprocess.STDOUT, universal_newlines=True
         )
         return result.strip()

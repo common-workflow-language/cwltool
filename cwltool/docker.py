@@ -5,7 +5,7 @@ import datetime
 import os
 import re
 import shutil
-import subprocess
+import subprocess  # nosec
 import sys
 import tempfile
 import threading
@@ -46,7 +46,7 @@ def _get_docker_machine_mounts() -> List[str]:
             else:
                 __docker_machine_mounts = [
                     "/" + line.split(None, 1)[0]
-                    for line in subprocess.check_output(
+                    for line in subprocess.check_output(  # nosec
                         [
                             "docker-machine",
                             "ssh",
@@ -129,7 +129,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 return True
 
         for line in (
-            subprocess.check_output(["docker", "images", "--no-trunc", "--all"])
+            subprocess.check_output(["docker", "images", "--no-trunc", "--all"])  # nosec
             .decode("utf-8")
             .splitlines()
         ):
@@ -164,7 +164,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if "dockerPull" in docker_requirement:
                 cmd = ["docker", "pull", str(docker_requirement["dockerPull"])]
                 _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)
+                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
@@ -177,7 +177,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     dockerfile_dir,
                 ]
                 _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)
+                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerLoad" in docker_requirement:
                 cmd = ["docker", "load"]
@@ -188,9 +188,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_requirement["dockerLoad"],
                     )
                     with open(docker_requirement["dockerLoad"], "rb") as dload:
-                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)
+                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)  # nosec
                 else:
-                    loadproc = subprocess.Popen(
+                    loadproc = subprocess.Popen(  # nosec
                         cmd, stdin=subprocess.PIPE, stdout=sys.stderr
                     )
                     assert loadproc.stdin is not None  # nosec
@@ -218,7 +218,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     str(docker_requirement["dockerImageId"]),
                 ]
                 _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)
+                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
 
         if found:
