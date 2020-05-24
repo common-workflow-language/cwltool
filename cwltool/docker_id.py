@@ -1,8 +1,7 @@
 """Helper functions for docker."""
 
-from typing import List, Optional, Tuple, cast
-
-from .utils import subprocess
+import subprocess  # nosec
+from typing import List, Optional, Tuple
 
 
 def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
@@ -31,7 +30,7 @@ def check_output_and_strip(cmd):  # type: (List[str]) -> Optional[str]
     :return: Stripped string output of the command, or None if error
     """
     try:
-        result = subprocess.check_output(
+        result = subprocess.check_output(  # nosec
             cmd, stderr=subprocess.STDOUT, universal_newlines=True
         )
         return result.strip()

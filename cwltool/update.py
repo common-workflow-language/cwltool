@@ -1,5 +1,4 @@
 import copy
-import re
 from functools import partial
 from typing import (
     Any,
@@ -14,7 +13,7 @@ from typing import (
 )
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad import validate
+from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
 
@@ -53,16 +52,14 @@ def v1_0to1_1(
         "http://commonwl.org/cwltool#LoadListingRequirement": "LoadListingRequirement",
     }
 
-    def rewrite_requirements(
-        t: MutableMapping[str, Union[str, Dict[str, Any]]]
-    ) -> None:
+    def rewrite_requirements(t: MutableMapping[str, Any]) -> None:
         if "requirements" in t:
             for r in t["requirements"]:
                 if isinstance(r, MutableMapping):
                     if r["class"] in rewrite:
                         r["class"] = rewrite[r["class"]]
                 else:
-                    raise validate.ValidationException(
+                    raise ValidationException(
                         "requirements entries must be dictionaries: {} {}.".format(
                             type(r), r
                         )
@@ -73,7 +70,7 @@ def v1_0to1_1(
                     if r["class"] in rewrite:
                         r["class"] = rewrite[r["class"]]
                 else:
-                    raise validate.ValidationException(
+                    raise ValidationException(
                         "hints entries must be dictionaries: {} {}.".format(type(r), r)
                     )
         if "steps" in t:
@@ -81,7 +78,7 @@ def v1_0to1_1(
                 if isinstance(s, MutableMapping):
                     rewrite_requirements(s)
                 else:
-                    raise validate.ValidationException(
+                    raise ValidationException(
                         "steps entries must be dictionaries: {} {}.".format(type(s), s)
                     )
 
@@ -231,7 +228,7 @@ def checkversion(
 
     if updated_from:
         if version != INTERNAL_VERSION:
-            raise validate.ValidationException(
+            raise ValidationException(
                 "original_cwlVersion is set (%s) but cwlVersion is '%s', expected '%s' "
                 % (updated_from, version, INTERNAL_VERSION)
             )
@@ -242,14 +239,14 @@ def checkversion(
             else:
                 keys = list(UPDATES.keys())
                 keys.sort()
-                raise validate.ValidationException(
+                raise ValidationException(
                     u"Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(keys))
                 )
         else:
-            raise validate.ValidationException("Unrecognized version %s" % version)
+            raise ValidationException("Unrecognized version %s" % version)
 
     return (cdoc, version)
 

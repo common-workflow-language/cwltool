@@ -5,22 +5,31 @@ import datetime
 import os
 import re
 import shutil
+import subprocess  # nosec
 import sys
 import tempfile
 import threading
 from distutils import spawn
 from io import StringIO, open  # pylint: disable=redefined-builtin
-from typing import Dict, List, MutableMapping, Optional, Set, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, cast
 
 import requests
 
+from .builder import Builder
 from .context import RuntimeContext
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import MapperEnt, ensure_non_writable, ensure_writable
-from .utils import DEFAULT_TMP_PREFIX, docker_windows_path_adjust, onWindows, subprocess
+from .pathmapper import MapperEnt, PathMapper
+from .utils import (
+    DEFAULT_TMP_PREFIX,
+    CWLObjectType,
+    docker_windows_path_adjust,
+    ensure_non_writable,
+    ensure_writable,
+    onWindows,
+)
 
 _IMAGES = set()  # type: Set[str]
 _IMAGES_LOCK = threading.Lock()
@@ -28,7 +37,7 @@ __docker_machine_mounts = None  # type: Optional[List[str]]
 __docker_machine_mounts_lock = threading.Lock()
 
 
-def _get_docker_machine_mounts():  # type: () -> List[str]
+def _get_docker_machine_mounts() -> List[str]:
     global __docker_machine_mounts
     if __docker_machine_mounts is None:
         with __docker_machine_mounts_lock:
@@ -37,7 +46,7 @@ def _get_docker_machine_mounts():  # type: () -> List[str]
             else:
                 __docker_machine_mounts = [
                     "/" + line.split(None, 1)[0]
-                    for line in subprocess.check_output(
+                    for line in subprocess.check_output(  # nosec
                         [
                             "docker-machine",
                             "ssh",
@@ -52,7 +61,7 @@ def _get_docker_machine_mounts():  # type: () -> List[str]
     return __docker_machine_mounts
 
 
-def _check_docker_machine_path(path):  # type: (Optional[str]) -> None
+def _check_docker_machine_path(path: Optional[str]) -> None:
     if path is None:
         return
     if onWindows():
@@ -82,13 +91,26 @@ def _check_docker_machine_path(path):  # type: (Optional[str]) -> None
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
 
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: CWLObjectType,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        name: str,
+    ) -> None:
+        super(DockerCommandLineJob, self).__init__(
+            builder, joborder, make_path_mapper, requirements, hints, name
+        )
+
     @staticmethod
     def get_image(
-        docker_requirement,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-        tmp_outdir_prefix=DEFAULT_TMP_PREFIX,  # type: str
-    ):  # type: (...) -> bool
+        docker_requirement: Dict[str, str],
+        pull_image: bool,
+        force_pull: bool = False,
+        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+    ) -> bool:
         """
         Retrieve the relevant Docker container image.
 
@@ -107,7 +129,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 return True
 
         for line in (
-            subprocess.check_output(["docker", "images", "--no-trunc", "--all"])
+            subprocess.check_output(["docker", "images", "--no-trunc", "--all"])  # nosec
             .decode("utf-8")
             .splitlines()
         ):
@@ -142,7 +164,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if "dockerPull" in docker_requirement:
                 cmd = ["docker", "pull", str(docker_requirement["dockerPull"])]
                 _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)
+                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
@@ -155,7 +177,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     dockerfile_dir,
                 ]
                 _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)
+                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerLoad" in docker_requirement:
                 cmd = ["docker", "load"]
@@ -166,9 +188,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_requirement["dockerLoad"],
                     )
                     with open(docker_requirement["dockerLoad"], "rb") as dload:
-                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)
+                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)  # nosec
                 else:
-                    loadproc = subprocess.Popen(
+                    loadproc = subprocess.Popen(  # nosec
                         cmd, stdin=subprocess.PIPE, stdout=sys.stderr
                     )
                     assert loadproc.stdin is not None  # nosec
@@ -196,7 +218,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     str(docker_requirement["dockerImageId"]),
                 ]
                 _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)
+                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
 
         if found:
@@ -207,21 +229,24 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def get_from_requirements(
         self,
-        r,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-        tmp_outdir_prefix=DEFAULT_TMP_PREFIX,  # type: str
-    ):  # type: (...) -> Optional[str]
+        r: CWLObjectType,
+        pull_image: bool,
+        force_pull: bool = False,
+        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+    ) -> Optional[str]:
         if not spawn.find_executable("docker"):
             raise WorkflowException("docker executable is not available")
 
-        if self.get_image(r, pull_image, force_pull, tmp_outdir_prefix):
-            return r["dockerImageId"]
+        if self.get_image(
+            cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix
+        ):
+            return cast(Optional[str], r["dockerImageId"])
         raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
 
     @staticmethod
-    def append_volume(runtime, source, target, writable=False):
-        # type: (List[str], str, str, bool) -> None
+    def append_volume(
+        runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
         """Add binding arguments to the runtime list."""
         options = [
             "type=bind",
@@ -248,11 +273,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_file_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable file mapping to the runtime option list."""
         if self.inplace_update:
             self.append_volume(runtime, volume.resolved, volume.target, writable=True)
@@ -273,11 +298,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_directory_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable directory mapping to the runtime option list."""
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
@@ -384,6 +409,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         # runtime.append("--env=HOME=/tmp")
         runtime.append("--env=HOME=%s" % self.builder.outdir)
 
+        cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
         if runtimeContext.user_space_docker_cmd is None:
             if runtimeContext.cidfile_dir:
@@ -411,8 +437,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
             cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append("--cidfile=%s" % cidfile_path)
-        else:
-            cidfile_path = None
         for key, value in self.environment.items():
             runtime.append("--env=%s=%s" % (key, value))
 

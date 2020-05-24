@@ -5,8 +5,8 @@ from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
-from schema_salad import schema
-from schema_salad.ref_resolver import Loader
+from schema_salad.avro.schema import Names
+from schema_salad.ref_resolver import FetcherCallableType, Loader
 from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
@@ -15,7 +15,7 @@ from .pathmapper import PathMapper
 from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX
+from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, ResolverType
 
 if TYPE_CHECKING:
     from .process import Process
@@ -35,9 +35,8 @@ class ContextBase(object):
 
 
 def make_tool_notimpl(
-    toolpath_object,  # type: MutableMapping[str, Any]
-    loadingContext,  # type: LoadingContext
-):  # type: (...) -> Process
+    toolpath_object: CommentedMap, loadingContext: "LoadingContext"
+) -> "Process":
     raise NotImplementedError()
 
 
@@ -49,18 +48,18 @@ class LoadingContext(ContextBase):
         """Initialize the LoadingContext from the kwargs."""
         self.debug = False  # type: bool
         self.metadata = {}  # type: Dict[str, Any]
-        self.requirements = None  # type: Optional[List[Dict[str, Any]]]
-        self.hints = None  # type: Optional[List[Dict[str, Any]]]
+        self.requirements = None  # type: Optional[List[CWLObjectType]]
+        self.hints = None  # type: Optional[List[CWLObjectType]]
         self.overrides_list = []  # type: List[Dict[str, Any]]
         self.loader = None  # type: Optional[Loader]
-        self.avsc_names = None  # type: Optional[schema.Names]
+        self.avsc_names = None  # type: Optional[Names]
         self.disable_js_validation = False  # type: bool
         self.js_hint_options_file = None
         self.do_validate = True  # type: bool
         self.enable_dev = False  # type: bool
         self.strict = True  # type: bool
-        self.resolver = None
-        self.fetcher_constructor = None
+        self.resolver = None  # type: Optional[ResolverType]
+        self.fetcher_constructor = None  # type: Optional[FetcherCallableType]
         self.construct_tool_object = default_make_tool
         self.research_obj = None  # type: Optional[ResearchObject]
         self.orcid = ""  # type: str
@@ -85,10 +84,10 @@ class RuntimeContext(ContextBase):
         select_resources_callable = Callable[  # pylint: disable=unused-variable
             [Dict[str, int], RuntimeContext], Dict[str, int]
         ]
-        self.user_space_docker_cmd = ""  # type: str
+        self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
         self.no_read_only = False  # type: bool
-        self.custom_net = ""  # type: str
+        self.custom_net = ""  # type: Optional[str]
         self.no_match_user = False  # type: bool
         self.preserve_environment = ""  # type: Optional[Iterable[str]]
         self.preserve_entire_environment = False  # type: bool
@@ -108,7 +107,7 @@ class RuntimeContext(ContextBase):
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str
-        self.default_container = ""  # type: str
+        self.default_container = ""  # type: Optional[str]
         self.find_default_container = (
             None
         )  # type: Optional[Callable[[HasReqsHints], Optional[str]]]
@@ -135,8 +134,8 @@ class RuntimeContext(ContextBase):
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
 
-        self.cidfile_dir = None
-        self.cidfile_prefix = None
+        self.cidfile_dir = None  # type: Optional[str]
+        self.cidfile_prefix = None  # type: Optional[str]
 
         self.workflow_eval_lock = None  # type: Optional[threading.Condition]
         self.research_obj = None  # type: Optional[ResearchObject]

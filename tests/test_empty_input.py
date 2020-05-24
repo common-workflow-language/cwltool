@@ -1,15 +1,12 @@
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from cwltool.main import main
 
 from .util import get_data, temp_dir, windows_needs_docker
 
 
-@windows_needs_docker
-def test_empty_input():
+@windows_needs_docker  # type: ignore
+def test_empty_input() -> None:
     empty_json = "{}"
     empty_input = StringIO(empty_json)
 

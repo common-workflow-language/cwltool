@@ -1,7 +1,8 @@
 import urllib
-from typing import IO, Any, Dict, MutableMapping, cast
+from typing import IO, Any, Dict, Optional, cast
 
 from rdflib import Graph
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 
@@ -11,7 +12,7 @@ from .process import Process
 def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
     g = Graph()
 
-    def visitor(t):  # type: (MutableMapping[str, Any]) -> None
+    def visitor(t):  # type: (CommentedMap) -> None
         makerdf(t["id"], t, ctx, graph=g)
 
     tool.visit(visitor)
@@ -135,7 +136,7 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
            } ORDER BY ?wf"""
     )
 
-    currentwf = None
+    currentwf = None  # type: Optional[str]
     for wf, step, run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)

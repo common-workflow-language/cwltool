@@ -1,11 +1,20 @@
-import pytest
+from typing import List, Tuple
 
-from cwltool.pathmapper import PathMapper, normalizeFilesDirs
+import pytest  # type: ignore
+
+from cwltool.pathmapper import PathMapper
+from cwltool.utils import CWLObjectType, normalizeFilesDirs
 
 
-def test_subclass():
+def test_subclass() -> None:
     class SubPathMapper(PathMapper):
-        def __init__(self, referenced_files, basedir, stagedir, new):
+        def __init__(
+            self,
+            referenced_files: List[CWLObjectType],
+            basedir: str,
+            stagedir: str,
+            new: str,
+        ):
             super(SubPathMapper, self).__init__(referenced_files, basedir, stagedir)
             self.new = new
 
@@ -55,8 +64,10 @@ normalization_parameters = [
 ]
 
 
-@pytest.mark.parametrize("name,file_dir,expected", normalization_parameters)
-def test_normalizeFilesDirs(name, file_dir, expected):
+@pytest.mark.parametrize("name,file_dir,expected", normalization_parameters)  # type: ignore
+def test_normalizeFilesDirs(
+    name: str, file_dir: CWLObjectType, expected: CWLObjectType
+) -> None:
     normalizeFilesDirs(file_dir)
     assert file_dir == expected, name
 
@@ -71,10 +82,10 @@ basename_generation_parameters = [
 ]
 
 
-@pytest.mark.parametrize("filename,expected", basename_generation_parameters)
-def test_basename_field_generation(filename, expected):
+@pytest.mark.parametrize("filename,expected", basename_generation_parameters)  # type: ignore
+def test_basename_field_generation(filename: str, expected: Tuple[str, str]) -> None:
     nameroot, nameext = expected
-    expected = {
+    expected2 = {
         "class": "File",
         "location": "/foo/" + filename,
         "basename": filename,
@@ -82,7 +93,7 @@ def test_basename_field_generation(filename, expected):
         "nameext": nameext,
     }
 
-    file = {"class": "File", "location": "/foo/" + filename}
+    my_file = {"class": "File", "location": "/foo/" + filename}
 
-    normalizeFilesDirs(file)
-    assert file == expected
+    normalizeFilesDirs(my_file)
+    assert my_file == expected2

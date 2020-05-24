@@ -17,10 +17,16 @@ from typing import (
 
 from pkg_resources import resource_stream
 from ruamel.yaml.comments import CommentedMap
-from schema_salad import avro
+from schema_salad.avro.schema import (
+    ArraySchema,
+    EnumSchema,
+    RecordSchema,
+    Schema,
+    UnionSchema,
+)
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from schema_salad.validate import Schema, validate_ex
+from schema_salad.validate import validate_ex
 
 from .errors import WorkflowException
 from .expression import SubstitutionError
@@ -32,7 +38,7 @@ from .sandboxjs import code_fragment_to_js, exec_js_process
 def is_expression(tool, schema):
     # type: (Any, Optional[Schema]) -> bool
     return (
-        isinstance(schema, avro.schema.EnumSchema)
+        isinstance(schema, EnumSchema)
         and schema.name == "Expression"
         and isinstance(tool, str)
     )
@@ -54,12 +60,12 @@ _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings")
 
 def get_expressions(
     tool: Union[CommentedMap, str],
-    schema: Optional[Union[avro.schema.Schema, avro.schema.ArraySchema]],
+    schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
 ) -> List[Tuple[str, Optional[SourceLine]]]:
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
-    elif isinstance(schema, avro.schema.UnionSchema):
+    elif isinstance(schema, UnionSchema):
         valid_schema = None
 
         for possible_schema in schema.schemas:
@@ -74,7 +80,7 @@ def get_expressions(
                 valid_schema = possible_schema
 
         return get_expressions(tool, valid_schema, source_line)
-    elif isinstance(schema, avro.schema.ArraySchema):
+    elif isinstance(schema, ArraySchema):
         if not isinstance(tool, MutableSequence):
             return []
 
@@ -89,7 +95,7 @@ def get_expressions(
             )
         )
 
-    elif isinstance(schema, avro.schema.RecordSchema):
+    elif isinstance(schema, RecordSchema):
         if not isinstance(tool, MutableMapping):
             return []
 
@@ -117,7 +123,7 @@ def jshint_js(
     js_text: str,
     globals: Optional[List[str]] = None,
     options: Optional[Dict[str, Union[List[str], str, int]]] = None,
-) -> Tuple[List[str], List[str]]:
+) -> JSHintJSReturn:
     if globals is None:
         globals = []
     if options is None:

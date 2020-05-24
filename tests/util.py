@@ -3,25 +3,26 @@ import distutils.spawn  # pylint: disable=no-name-in-module,import-error
 import functools
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+from pathlib import Path
+from typing import Any, Callable, Dict, Generator, List, Mapping, Optional, Tuple, Union
 
-import pytest
-from pkg_resources import ResolutionError  # type: ignore
-from pkg_resources import Requirement, resource_filename
+import pytest  # type: ignore
+from pkg_resources import Requirement, ResolutionError, resource_filename
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.factory import Factory
-from cwltool.resolver import Path
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
-from cwltool.utils import onWindows, subprocess, windows_default_container_id
+from cwltool.utils import onWindows, windows_default_container_id
 
 
 def get_windows_safe_factory(
-    runtime_context=None,  # type: RuntimeContext
-    loading_context=None,  # type: LoadingContext
-    executor=None,  # type: Any
-):  # type: (...) -> Factory
+    runtime_context: Optional[RuntimeContext] = None,
+    loading_context: Optional[LoadingContext] = None,
+    executor: Optional[Callable[..., Tuple[Optional[Dict[str, Any]], str]]] = None,
+) -> Factory:
     if onWindows():
         if not runtime_context:
             runtime_context = RuntimeContext()
@@ -33,11 +34,11 @@ def get_windows_safe_factory(
     return Factory(executor, loading_context, runtime_context)
 
 
-def force_default_container(default_container_id, _):
+def force_default_container(default_container_id: str, _: str) -> str:
     return default_container_id
 
 
-def get_data(filename):
+def get_data(filename: str) -> str:
     # normalizing path depending on OS or else it will cause problem when joining path
     filename = os.path.normpath(filename)
     filepath = None
@@ -78,7 +79,12 @@ windows_needs_docker = pytest.mark.skipif(
 )
 
 
-def get_main_output(args, env=None):
+def get_main_output(
+    args: List[str],
+    env: Union[
+        Mapping[bytes, Union[bytes, str]], Mapping[str, Union[bytes, str]], None
+    ] = None,
+) -> Tuple[Optional[int], str, str]:
     process = subprocess.Popen(
         [sys.executable, "-m", "cwltool"] + args,
         stdout=subprocess.PIPE,
@@ -91,7 +97,7 @@ def get_main_output(args, env=None):
 
 
 @contextlib.contextmanager
-def temp_dir(suffix=""):
+def temp_dir(suffix: str = "") -> Generator[str, None, None]:
     c_dir = tempfile.mkdtemp(suffix, dir=os.curdir)
     try:
         yield c_dir
@@ -100,7 +106,7 @@ def temp_dir(suffix=""):
 
 
 @contextlib.contextmanager
-def working_directory(path):
+def working_directory(path: Union[str, Path]) -> Generator[None, None, None]:
     """Change working directory and returns to previous on exit."""
     prev_cwd = Path.cwd()
     # before python 3.6 chdir doesn't support paths from pathlib

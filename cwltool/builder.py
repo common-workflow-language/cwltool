@@ -1,7 +1,6 @@
 import copy
 import logging
 import math
-import os
 from typing import (
     IO,
     Any,
@@ -14,28 +13,35 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDFS
 from ruamel.yaml.comments import CommentedMap
-from schema_salad import validate
-from schema_salad.avro.schema import Schema, make_avsc_object
-from schema_salad.schema import Names, convert_to_dict
+from schema_salad.avro.schema import Names, Schema, make_avsc_object
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
-from schema_salad.utils import json_dumps
+from schema_salad.utils import convert_to_dict, json_dumps
+from schema_salad.validate import validate
 from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
 
 from . import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager
-from .pathmapper import CONTENT_LIMIT, get_listing, normalizeFilesDirs, visit_class
 from .stdfsaccess import StdFsAccess
-from .utils import aslist, docker_windows_path_adjust, onWindows
-
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
+from .utils import (
+    CONTENT_LIMIT,
+    CWLObjectType,
+    CWLOutputType,
+    aslist,
+    docker_windows_path_adjust,
+    get_listing,
+    normalizeFilesDirs,
+    onWindows,
+    visit_class,
+)
 
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
@@ -111,7 +117,7 @@ def check_format(
         if not afile:
             continue
         if "format" not in afile:
-            raise validate.ValidationException(
+            raise ValidationException(
                 "File has no 'format' defined: {}".format(json_dumps(afile, indent=4))
             )
         for inpf in aslist(input_formats):
@@ -119,20 +125,20 @@ def check_format(
                 afile["format"], inpf, ontology, set()
             ):
                 return
-        raise validate.ValidationException(
+        raise ValidationException(
             "File has an incompatible format: {}".format(json_dumps(afile, indent=4))
         )
 
 
 class HasReqsHints(object):
-    def __init__(self):  # type: () -> None
+    def __init__(self) -> None:
         """Initialize this reqs decorator."""
-        self.requirements = []  # type: List[Dict[str, Any]]
-        self.hints = []  # type: List[Dict[str, Any]]
+        self.requirements = []  # type: List[CWLObjectType]
+        self.hints = []  # type: List[CWLObjectType]
 
     def get_requirement(
-        self, feature  # type: str
-    ):  # type: (...) -> Tuple[Optional[Any], Optional[bool]]
+        self, feature: str
+    ) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
         for item in reversed(self.requirements):
             if item["class"] == feature:
                 return (item, True)
@@ -145,28 +151,28 @@ class HasReqsHints(object):
 class Builder(HasReqsHints):
     def __init__(
         self,
-        job,  # type: Dict[str, expression.JSON]
-        files,  # type: List[Dict[str, str]]
-        bindings,  # type: List[Dict[str, Any]]
-        schemaDefs,  # type: Dict[str, Dict[str, Any]]
-        names,  # type: Names
-        requirements,  # type: List[Dict[str, Any]]
-        hints,  # type: List[Dict[str, Any]]
-        resources,  # type: Dict[str, int]
+        job: CWLObjectType,
+        files: List[CWLObjectType],
+        bindings: List[CWLObjectType],
+        schemaDefs: Dict[str, CWLObjectType],
+        names: Names,
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        resources: Dict[str, int],
         mutation_manager: Optional[MutationManager],
-        formatgraph,  # type: Optional[Graph]
+        formatgraph: Optional[Graph],
         make_fs_access: Type[StdFsAccess],
-        fs_access,  # type: StdFsAccess
-        job_script_provider,  # type: Optional[Any]
-        timeout,  # type: float
-        debug,  # type: bool
-        js_console,  # type: bool
-        force_docker_pull,  # type: bool
-        loadListing,  # type: str
-        outdir,  # type: str
-        tmpdir,  # type: str
-        stagedir,  # type: str
-    ):  # type: (...) -> None
+        fs_access: StdFsAccess,
+        job_script_provider: Optional[Any],
+        timeout: float,
+        debug: bool,
+        js_console: bool,
+        force_docker_pull: bool,
+        loadListing: str,
+        outdir: str,
+        tmpdir: str,
+        stagedir: str,
+    ) -> None:
         """Initialize this Builder."""
         self.job = job
         self.files = files
@@ -201,10 +207,10 @@ class Builder(HasReqsHints):
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.find_default_container = None  # type: Optional[Callable[[], str]]
 
-    def build_job_script(self, commands: List[str]) -> str:
+    def build_job_script(self, commands: List[str]) -> Optional[str]:
         build_job_script_method = getattr(
             self.job_script_provider, "build_job_script", None
-        )  # type: Callable[[Builder, Union[List[str],List[str]]], str]
+        )  # type: Optional[Callable[[Builder, Union[List[str],List[str]]], str]]
         if build_job_script_method is not None:
             return build_job_script_method(self, commands)
         return None
@@ -215,7 +221,7 @@ class Builder(HasReqsHints):
         datum: Any,
         discover_secondaryFiles: bool,
         lead_pos: Optional[Union[int, List[int]]] = None,
-        tail_pos: Optional[List[int]] = None,
+        tail_pos: Optional[Union[str, List[int]]] = None,
     ) -> List[MutableMapping[str, Any]]:
 
         if tail_pos is None:
@@ -223,8 +229,10 @@ class Builder(HasReqsHints):
         if lead_pos is None:
             lead_pos = []
 
-        bindings = []  # type: List[MutableMapping[str, str]]
-        binding = {}  # type: Union[MutableMapping[str, str], CommentedMap]
+        bindings = []  # type: List[MutableMapping[str, Union[str, List[int]]]]
+        binding = (
+            {}
+        )  # type: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap]
         value_from_expression = False
         if "inputBinding" in schema and isinstance(
             schema["inputBinding"], MutableMapping
@@ -264,7 +272,7 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(t["name"], None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                if validate.validate(avsc, datum):
+                if validate(avsc, datum):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
                     if not value_from_expression:
@@ -285,7 +293,7 @@ class Builder(HasReqsHints):
                         )
                         bound_input = True
             if not bound_input:
-                raise validate.ValidationException(
+                raise ValidationException(
                     "'%s' is not a valid union %s" % (datum, schema["type"])
                 )
         elif isinstance(schema["type"], MutableMapping):
@@ -359,7 +367,7 @@ class Builder(HasReqsHints):
                     )
                 binding = {}
 
-            def _capture_files(f):  # type: (Dict[str, str]) -> Dict[str, str]
+            def _capture_files(f):  # type: (CWLObjectType) -> CWLObjectType
                 self.files.append(f)
                 return f
 
@@ -453,7 +461,7 @@ class Builder(HasReqsHints):
                         check_format(
                             datum, self.do_eval(schema["format"]), self.formatgraph
                         )
-                    except validate.ValidationException as ve:
+                    except ValidationException as ve:
                         raise WorkflowException(
                             "Expected value of '%s' to have format %s but\n "
                             " %s" % (schema["name"], schema["format"], ve)
@@ -477,7 +485,9 @@ class Builder(HasReqsHints):
         # Position to front of the sort key
         if binding:
             for bi in bindings:
-                bi["position"] = binding["position"] + bi["position"]
+                bi["position"] = cast(List[int], binding["position"]) + cast(
+                    List[int], bi["position"]
+                )
             bindings.append(binding)
 
         return bindings
@@ -503,7 +513,7 @@ class Builder(HasReqsHints):
         else:
             return str(value)
 
-    def generate_arg(self, binding):  # type: (Dict[str, Any]) -> List[str]
+    def generate_arg(self, binding: CWLObjectType) -> List[str]:
         value = binding.get("datum")
         if "valueFrom" in binding:
             with SourceLine(
@@ -512,9 +522,9 @@ class Builder(HasReqsHints):
                 WorkflowException,
                 _logger.isEnabledFor(logging.DEBUG),
             ):
-                value = self.do_eval(binding["valueFrom"], context=value)
+                value = self.do_eval(cast(str, binding["valueFrom"]), context=value)
 
-        prefix = binding.get("prefix")  # type: Optional[str]
+        prefix = cast(Optional[str], binding.get("prefix"))
         sep = binding.get("separate", True)
         if prefix is None and not sep:
             with SourceLine(
@@ -527,13 +537,16 @@ class Builder(HasReqsHints):
                     "'separate' option can not be specified without prefix"
                 )
 
-        argl = []  # type: MutableSequence[MutableMapping[str, str]]
+        argl = []  # type: MutableSequence[CWLOutputType]
         if isinstance(value, MutableSequence):
             if binding.get("itemSeparator") and value:
-                argl = [binding["itemSeparator"].join([self.tostr(v) for v in value])]
+                itemSeparator = cast(str, binding["itemSeparator"])
+                argl = [itemSeparator.join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
-                return ([prefix] if prefix else []) + value
+                return cast(List[str], ([prefix] if prefix else [])) + cast(
+                    List[str], value
+                )
             elif prefix and value:
                 return [prefix]
             else:
@@ -542,7 +555,7 @@ class Builder(HasReqsHints):
             "File",
             "Directory",
         ):
-            argl = [value]
+            argl = cast(MutableSequence[CWLOutputType], [value])
         elif isinstance(value, MutableMapping):
             return [prefix] if prefix else []
         elif value is True and prefix:
@@ -561,8 +574,15 @@ class Builder(HasReqsHints):
 
         return [a for a in args if a is not None]
 
-    def do_eval(self, ex, context=None, recursive=False, strip_whitespace=True):
-        # type: (Union[Dict[str, str], str], Any, bool, bool) -> Any
+    def do_eval(
+        self,
+        ex: Union[
+            str, float, bool, None, MutableMapping[str, str], MutableSequence[str]
+        ],
+        context: Optional[Any] = None,
+        recursive: bool = False,
+        strip_whitespace: bool = True,
+    ) -> Any:
         if recursive:
             if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive) for k, v in ex.items()}

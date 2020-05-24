@@ -13,8 +13,8 @@ import uuid
 from collections import OrderedDict
 from getpass import getuser
 from io import BytesIO, FileIO, TextIOWrapper, open
+from pathlib import Path, PurePath, PurePosixPath
 from socket import getfqdn
-from types import ModuleType
 from typing import (
     IO,
     Any,
@@ -23,32 +23,28 @@ from typing import (
     Generator,
     List,
     MutableMapping,
+    MutableSequence,
     Optional,
     Set,
     Tuple,
+    Type,
     Union,
     cast,
 )
 
-import prov.model as provM
-from pathlib2 import Path, PurePath, PurePosixPath
-from prov.identifier import Identifier, Namespace
-from prov.model import PROV, ProvDocument, ProvEntity
-from ruamel import yaml
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING
 
-from .context import RuntimeContext
+import prov.model as provM
+from prov.identifier import Identifier, Namespace
+from prov.model import PROV, ProvDocument, ProvEntity
+
 from .errors import WorkflowException
 from .loghandler import _logger
-from .pathmapper import get_listing
 from .process import Process, shortname
 from .stdfsaccess import StdFsAccess
-from .utils import onWindows, versionstring
-
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
+from .utils import CWLObjectType, JobsType, get_listing, onWindows, versionstring
 
 # imports needed for retrieving user data
 if onWindows():
@@ -151,8 +147,7 @@ def _whoami():
 class WritableBagFile(FileIO):
     """Writes files in research object."""
 
-    def __init__(self, research_object, rel_path):
-        # type: (ResearchObject, str) -> None
+    def __init__(self, research_object: "ResearchObject", rel_path: str) -> None:
         """Initialize an ROBagIt."""
         self.research_object = research_object
         if Path(rel_path).is_absolute():
@@ -169,25 +164,23 @@ class WritableBagFile(FileIO):
         )
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
-        super(WritableBagFile, self).__init__(str(path), mode="w")
+        _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
+        super(WritableBagFile, self).__init__(path, mode="w")
 
-    def write(self, b):
-        # type: (Union[bytes, str]) -> int
-        if isinstance(b, bytes):
-            real_b = b
-        else:
-            real_b = b.encode("utf-8")
+    def write(self, b: Union[bytes, str]) -> int:
+        real_b = b if isinstance(b, bytes) else b.encode("utf-8")
         total = 0
         length = len(real_b)
         while total < length:
             ret = super(WritableBagFile, self).write(real_b)
             if ret:
                 total += ret
-        for _ in self.hashes.values():
-            _.update(real_b)
+        for val in self.hashes.values():
+            # print("Updating hasher %s ", val)
+            val.update(real_b)
         return total
 
-    def close(self):  # type: () -> None
+    def close(self) -> None:
         # FIXME: Convert below block to a ResearchObject method?
         if self.rel_path.startswith("data/"):
             self.research_object.bagged_size[self.rel_path] = self.tell()
@@ -312,14 +305,14 @@ class ProvenanceProfile:
 
     def __init__(
         self,
-        research_object,  # type: ResearchObject
-        full_name,  # type: str
-        host_provenance,  # type: bool
-        user_provenance,  # type: bool
-        orcid,  # type: str
+        research_object: "ResearchObject",
+        full_name: str,
+        host_provenance: bool,
+        user_provenance: bool,
+        orcid: str,
         fsaccess: StdFsAccess,
-        run_uuid=None,  # type: Optional[uuid.UUID]
-    ):  # type: (...) -> None
+        run_uuid: Optional[uuid.UUID] = None,
+    ) -> None:
         """Initialize the provenance profile."""
         self.fsaccess = fsaccess
         self.orcid = orcid
@@ -462,25 +455,26 @@ class ProvenanceProfile:
     def evaluate(
         self,
         process: Process,
-        job,  # type: Any
-        job_order_object,  # type: Dict[str, str]
-        research_obj,  # type: ResearchObject
-    ):  # type: (...) -> None
+        job: JobsType,
+        job_order_object: CWLObjectType,
+        research_obj: "ResearchObject",
+    ) -> None:
         """Evaluate the nature of job."""
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            research_obj.create_job(customised_job, job)
+            research_obj.create_job(customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
-    def record_process_start(self, process, job, process_run_id=None):
-        # type: (Process, Any, Optional[str]) -> Optional[str]
+    def record_process_start(
+        self, process: Process, job: Any, process_run_id: Optional[str] = None
+    ) -> Optional[str]:
         if not hasattr(process, "steps"):
             process_run_id = self.workflow_run_uri
         elif not hasattr(job, "workflow"):
@@ -834,7 +828,7 @@ class ProvenanceProfile:
 
     def used_artefacts(
         self,
-        job_order: Union[Dict[Any, Any], List[Dict[Any, Any]]],
+        job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
     ) -> None:
@@ -863,15 +857,15 @@ class ProvenanceProfile:
 
     def generate_output_prov(
         self,
-        final_output: Union[MutableMapping[str, Any], List[Dict[str, Any]]],
+        final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         process_run_id: Optional[str],
         name: Optional[str],
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
-        if isinstance(final_output, list):
+        if isinstance(final_output, MutableSequence):
             for entry in final_output:
                 self.generate_output_prov(entry, process_run_id, name)
-        else:
+        elif final_output is not None:
             # Timestamp should be created at the earliest
             timestamp = datetime.datetime.now()
 
@@ -894,8 +888,7 @@ class ProvenanceProfile:
                     entity, process_run_id, timestamp, None, {"prov:role": role}
                 )
 
-    def prospective_prov(self, job):
-        # type: (Any) -> None
+    def prospective_prov(self, job: Any) -> None:
         """Create prospective prov recording as wfdesc prov:Plan."""
         if not hasattr(job, "steps"):
             # direct command line tool execution
@@ -1015,8 +1008,13 @@ class ProvenanceProfile:
 class ResearchObject:
     """CWLProv Research Object."""
 
-    def __init__(self, fsaccess, temp_prefix_ro="tmp", orcid="", full_name=""):
-        # type: (StdFsAccess, str, str, str) -> None
+    def __init__(
+        self,
+        fsaccess: StdFsAccess,
+        temp_prefix_ro: str = "tmp",
+        orcid: str = "",
+        full_name: str = "",
+    ) -> None:
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
         self.orcid = "" if not orcid else _valid_orcid(orcid)
@@ -1040,7 +1038,7 @@ class ResearchObject:
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
-        self.relativised_input_object = {}  # type: Dict[Any, Any]
+        self.relativised_input_object = {}  # type: CWLObjectType
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -1080,7 +1078,9 @@ class ResearchObject:
             bag_it_file.write("BagIt-Version: 0.97\n")
             bag_it_file.write("Tag-File-Character-Encoding: %s\n" % ENCODING)
 
-    def open_log_file_for_activity(self, uuid_uri: str) -> WritableBagFile:
+    def open_log_file_for_activity(
+        self, uuid_uri: str
+    ) -> Union[TextIOWrapper, WritableBagFile]:
         self.self_check()
         # Ensure valid UUID for safe filenames
         activity_uuid = uuid.UUID(uuid_uri)
@@ -1137,8 +1137,9 @@ class ResearchObject:
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
 
-    def write_bag_file(self, path, encoding=ENCODING):
-        # type: (str, Optional[str]) -> WritableBagFile
+    def write_bag_file(
+        self, path: str, encoding: Optional[str] = ENCODING
+    ) -> Union[TextIOWrapper, WritableBagFile]:
         """Write the bag file into our research object."""
         self.self_check()
         # For some reason below throws BlockingIOError
@@ -1147,11 +1148,8 @@ class ResearchObject:
         if encoding is not None:
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
-            return cast(
-                WritableBagFile,
-                TextIOWrapper(
-                    cast(IO[bytes], bag_file), encoding=encoding, newline="\n"
-                ),
+            return TextIOWrapper(
+                cast(IO[bytes], bag_file), encoding=encoding, newline="\n"
             )
         return bag_file
 
@@ -1293,7 +1291,7 @@ class ResearchObject:
             ):
                 # probably a bagit file
                 continue
-            if path == PurePosixPath(METADATA) / "manifest.json":
+            if path == str(PurePosixPath(METADATA) / "manifest.json"):
                 # Should not really be there yet! But anyway, we won't
                 # aggregate it.
                 continue
@@ -1500,8 +1498,7 @@ class ResearchObject:
         rel_path = str(PurePosixPath(WORKFLOW) / "packed.cwl")
         # Write as binary
         with self.write_bag_file(rel_path, encoding=None) as write_pack:
-            # YAML is always UTF8, but json.dumps gives us str in py2
-            write_pack.write(packed.encode(ENCODING))
+            write_pack.write(packed)
         _logger.debug("[provenance] Added packed workflow: %s", rel_path)
 
     def has_data_file(self, sha1hash):  # type: (str) -> bool
@@ -1510,8 +1507,12 @@ class ResearchObject:
         hash_path = os.path.join(folder, sha1hash)
         return os.path.isfile(hash_path)
 
-    def add_data_file(self, from_fp, timestamp=None, content_type=None):
-        # type: (IO[Any], Optional[datetime.datetime], Optional[str]) -> str
+    def add_data_file(
+        self,
+        from_fp: IO[Any],
+        timestamp: Optional[datetime.datetime] = None,
+        content_type: Optional[str] = None,
+    ) -> str:
         """Copy inputs to data/ folder."""
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
@@ -1551,8 +1552,9 @@ class ResearchObject:
             self._content_types[rel_path] = content_type
         return rel_path
 
-    def _self_made(self, timestamp=None):
-        # type: (Optional[datetime.datetime]) -> Dict[str, Any]
+    def _self_made(
+        self, timestamp: Optional[datetime.datetime] = None
+    ) -> Dict[str, Any]:
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return {
@@ -1560,8 +1562,7 @@ class ResearchObject:
             "createdBy": {"uri": self.engine_uuid, "name": self.cwltool_version},
         }
 
-    def add_to_manifest(self, rel_path, checksums):
-        # type: (str, Dict[str,str]) -> None
+    def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
         """Add files to the research object manifest."""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
@@ -1590,8 +1591,7 @@ class ResearchObject:
                 _logger.debug("[provenance] Added to %s: %s", manifestpath, line)
                 checksum_file.write(line)
 
-    def _add_to_bagit(self, rel_path, **checksums):
-        # type: (str, Any) -> None
+    def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError("rel_path must be relative: %s" % rel_path)
         local_path = os.path.join(self.folder, _local_path(rel_path))
@@ -1615,16 +1615,8 @@ class ResearchObject:
         self.add_to_manifest(rel_path, checksums)
 
     def create_job(
-        self,
-        builder_job,  # type: Dict[str, Any]
-        wf_job: Optional[
-            Callable[
-                [Dict[str, str], Callable[[Any, Any], Any], RuntimeContext],
-                Generator[Any, None, None],
-            ]
-        ] = None,
-        is_output=False,  # type: bool
-    ):  # type: (...) -> Dict[str, str]
+        self, builder_job: CWLObjectType, is_output: bool = False
+    ) -> CWLObjectType:
         # TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
@@ -1658,8 +1650,9 @@ class ResearchObject:
         )
         return self.relativised_input_object
 
-    def _relativise_files(self, structure):
-        # type: (Dict[Any, Any]) -> None
+    def _relativise_files(
+        self, structure: Union[str, MutableMapping[str, Any], MutableSequence[Any]]
+    ) -> None:
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug("[provenance] Relativising: %s", structure)
@@ -1708,7 +1701,7 @@ class ResearchObject:
                     pass
             return
 
-        if isinstance(structure, (str, str)):
+        if isinstance(structure, str):
             # Just a string value, no need to iterate further
             return
         try:
@@ -1718,8 +1711,7 @@ class ResearchObject:
         except TypeError:
             pass
 
-    def close(self, save_to=None):
-        # type: (Optional[str]) -> None
+    def close(self, save_to: Optional[str] = None) -> None:
         """Close the Research Object, optionally saving to specified folder.
 
         Closing will remove any temporary files used by this research object.
@@ -1752,11 +1744,11 @@ class ResearchObject:
 
 
 def checksum_copy(
-    src_file,  # type: IO[Any]
-    dst_file=None,  # type: Optional[IO[Any]]
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]] = None,
     hasher=Hasher,  # type: Callable[[], hashlib._Hash]
-    buffersize=1024 * 1024,  # type: int
-):  # type: (...) -> str
+    buffersize: int = 1024 * 1024,
+) -> str:
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()
@@ -1782,13 +1774,15 @@ def checksum_copy(
     return checksum.hexdigest().lower()
 
 
-def copy_job_order(job, job_order_object):
-    # type: (Any, Any) -> Any
+def copy_job_order(
+    job: Union[Process, Any], job_order_object: CWLObjectType
+) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not hasattr(job, "tool"):
         # direct command line tool execution
         return job_order_object
-    customised_job = {}  # new job object for RO
+    customised_job = {}  # type: CWLObjectType
+    # new job object for RO
     for each, i in enumerate(job.tool["inputs"]):
         with SourceLine(
             job.tool["inputs"],

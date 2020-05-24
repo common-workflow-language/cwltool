@@ -11,13 +11,15 @@ from typing import (
     MutableSequence,
     Optional,
     Union,
+    cast,
 )
 
 from schema_salad.utils import json_dumps
 
 from .errors import WorkflowException
+from .loghandler import _logger
 from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import bytes2str_in_dicts, docker_windows_path_adjust
+from .utils import CWLObjectType, bytes2str_in_dicts, docker_windows_path_adjust
 
 
 def jshead(engine_config, rootvars):
@@ -312,19 +314,19 @@ def needs_parsing(snippet):  # type: (Any) -> bool
 
 
 def do_eval(
-    ex,  # type: Union[str, Dict[str, str]]
-    jobinput,  # type: Dict[str, JSON]
-    requirements,  # type: List[Dict[str, Any]]
-    outdir,  # type: Optional[str]
-    tmpdir,  # type: Optional[str]
-    resources,  # type: Dict[str, int]
-    context=None,  # type: Any
-    timeout=default_timeout,  # type: float
-    force_docker_pull=False,  # type: bool
-    debug=False,  # type: bool
-    js_console=False,  # type: bool
-    strip_whitespace=True,  # type: bool
-):  # type: (...) -> Any
+    ex: Union[str, float, bool, None, MutableMapping[str, str], MutableSequence[str]],
+    jobinput: CWLObjectType,
+    requirements: List[CWLObjectType],
+    outdir: Optional[str],
+    tmpdir: Optional[str],
+    resources: Dict[str, int],
+    context: Any = None,
+    timeout: float = default_timeout,
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+    strip_whitespace: bool = True,
+) -> Any:
 
     runtime = copy.deepcopy(resources)  # type: Dict[str, Any]
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
@@ -342,7 +344,7 @@ def do_eval(
         for r in reversed(requirements):
             if r["class"] == "InlineJavascriptRequirement":
                 fullJS = True
-                jslib = jshead(r.get("expressionLib", []), rootvars)
+                jslib = jshead(cast(List[str], r.get("expressionLib", [])), rootvars)
                 break
 
         try:
@@ -359,6 +361,7 @@ def do_eval(
             )
 
         except Exception as e:
+            _logger.exception(e)
             raise WorkflowException("Expression evaluation error:\n%s" % str(e)) from e
     else:
         return ex

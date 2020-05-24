@@ -18,6 +18,61 @@ except ImportError:
 
 NEEDS_PYTEST = {"pytest", "test", "ptr"}.intersection(sys.argv)
 PYTEST_RUNNER = ["pytest-runner", "pytest-cov"] if NEEDS_PYTEST else []
+USE_MYPYC = False
+# To compile with mypyc, a mypyc checkout must be present on the PYTHONPATH
+if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
+    sys.argv.pop(1)
+    USE_MYPYC = True
+if os.getenv("CWLTOOL_USE_MYPYC", None) == "1":
+    USE_MYPYC = True
+
+if USE_MYPYC:
+    mypyc_targets = [
+        "cwltool/argparser.py",
+        "cwltool/builder.py",
+        "cwltool/checker.py",
+        "cwltool/command_line_tool.py",
+        # "cwltool/context.py",  # monkeypatching
+        "cwltool/cwlrdf.py",
+        "cwltool/docker_id.py",
+        "cwltool/docker.py",
+        "cwltool/udocker.py",
+        "cwltool/errors.py",
+        "cwltool/executors.py",
+        "cwltool/expression.py",
+        "cwltool/factory.py",
+        "cwltool/flatten.py",
+        # "cwltool/__init__.py",
+        "cwltool/job.py",
+        "cwltool/load_tool.py",
+        # "cwltool/loghandler.py",  # so we can monkeypatch the logger from tests
+        # "cwltool/__main__.py",
+        "cwltool/main.py",
+        "cwltool/mutation.py",
+        "cwltool/pack.py",
+        # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
+        "cwltool/process.py",
+        "cwltool/procgenerator.py",
+        # "cwltool/provenance.py",  # WritableBag is having issues
+        "cwltool/resolver.py",
+        # "cwltool/sandboxjs.py",  # probably not speed critical, tests need to mock components
+        "cwltool/secrets.py",
+        "cwltool/singularity.py",
+        "cwltool/software_requirements.py",
+        "cwltool/stdfsaccess.py",
+        "cwltool/subgraph.py",
+        "cwltool/update.py",
+        "cwltool/utils.py",
+        "cwltool/validate_js.py",
+        "cwltool/workflow.py",
+    ]
+
+    from mypyc.build import mypycify
+
+    opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
+    ext_modules = mypycify(mypyc_targets, opt_level=opt_level)
+else:
+    ext_modules = []
 
 setup(
     name="cwltool",
@@ -29,6 +84,7 @@ setup(
     author_email="common-workflow-language@googlegroups.com",
     url="https://github.com/common-workflow-language/cwltool",
     download_url="https://github.com/common-workflow-language/cwltool",
+    ext_modules=ext_modules,
     # platforms='',  # empty as is conveyed by the classifier below
     # license='',  # empty as is conveyed by the classifier below
     packages=["cwltool", "cwltool.tests"],
@@ -41,14 +97,13 @@ setup(
         "ruamel.yaml >= 0.12.4, <= 0.16.5",
         "rdflib >= 4.2.2, < 4.3.0",
         "shellescape >= 3.4.1, < 3.5",
-        "schema-salad >= 5.0.20200126033820, < 6",
+        "schema-salad >= 6, < 7",
         "mypy-extensions",
         "psutil",
         "prov == 1.5.1",
         "bagit >= 1.6.4",
         "typing-extensions",
         "coloredlogs",
-        "pathlib2 != 2.3.1",
     ],
     extras_require={
         ':python_version<"3.6"': ["typing >= 3.5.3"],

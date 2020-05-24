@@ -1,11 +1,9 @@
-import copy
 import urllib
 from collections import namedtuple
 from typing import Any, Dict, MutableMapping, MutableSequence, Optional, Set, Tuple
 
 from ruamel.yaml.comments import CommentedMap
 
-from .process import shortname
 from .utils import aslist
 from .workflow import Workflow
 
