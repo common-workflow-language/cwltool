@@ -160,6 +160,10 @@ mypy: ${PYSOURCES}
 	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
 		 cwltool
+
+mypyc: ${PYSOURCES}
+	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 python setup.py test
+
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
