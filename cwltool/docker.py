@@ -129,7 +129,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 return True
 
         for line in (
-            subprocess.check_output(["docker", "images", "--no-trunc", "--all"])  # nosec
+            subprocess.check_output(  # nosec
+                ["docker", "images", "--no-trunc", "--all"]
+            )
             .decode("utf-8")
             .splitlines()
         ):
@@ -188,7 +190,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_requirement["dockerLoad"],
                     )
                     with open(docker_requirement["dockerLoad"], "rb") as dload:
-                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)  # nosec
+                        loadproc = subprocess.Popen(  # nosec
+                            cmd, stdin=dload, stdout=sys.stderr
+                        )
                 else:
                     loadproc = subprocess.Popen(  # nosec
                         cmd, stdin=subprocess.PIPE, stdout=sys.stderr
