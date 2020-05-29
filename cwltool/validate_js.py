@@ -137,16 +137,16 @@ def jshint_js(
             "esversion": 5,
         }
 
-    with resource_stream(__name__, "jshint/jshint.js") as file:
+    with resource_stream(__name__, "jshint/jshint.js") as res:
         # NOTE: we need a global variable for lodash (which jshint depends on)
-        jshint_functions_text = "var global = this;" + file.read().decode("utf-8")
+        jshint_functions_text = "var global = this;" + res.read().decode("utf-8")
 
-    with resource_stream(__name__, "jshint/jshint_wrapper.js") as file:
+    with resource_stream(__name__, "jshint/jshint_wrapper.js") as res2:
         # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
         # is interpreted as a block with a label `validateJS`
         jshint_functions_text += (
             "\n"
-            + file.read().decode("utf-8")
+            + res2.read().decode("utf-8")
             + "\nvar ob = {validateJS: validateJS}; ob"
         )
 
@@ -191,8 +191,9 @@ def jshint_js(
     return JSHintJSReturn(jshint_errors, jshint_json.get("globals", []))
 
 
-def print_js_hint_messages(js_hint_messages, source_line):
-    # type: (List[str], Optional[SourceLine]) -> None
+def print_js_hint_messages(
+    js_hint_messages: List[str], source_line: Optional[SourceLine]
+) -> None:
     if source_line is not None:
         for js_hint_message in js_hint_messages:
             _logger.warning(source_line.makeError(js_hint_message))
