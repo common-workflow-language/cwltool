@@ -1,10 +1,10 @@
 import urllib
 from collections import namedtuple
-from typing import Any, Dict, MutableMapping, MutableSequence, Optional, Set, Tuple
+from typing import Dict, MutableMapping, MutableSequence, Optional, Set, Tuple, cast
 
 from ruamel.yaml.comments import CommentedMap
 
-from .utils import aslist
+from .utils import CWLObjectType, aslist
 from .workflow import Workflow
 
 Node = namedtuple("Node", ("up", "down", "type"))
@@ -16,11 +16,8 @@ STEP = "step"
 
 
 def subgraph_visit(
-    current,  # type: str
-    nodes,  # type: MutableMapping[str, Node]
-    visited,  # type: Set[str]
-    direction,  # type: str
-):  # type: (...) -> None
+    current: str, nodes: MutableMapping[str, Node], visited: Set[str], direction: str,
+) -> None:
 
     if current in visited:
         return
@@ -34,8 +31,7 @@ def subgraph_visit(
         subgraph_visit(c, nodes, visited, direction)
 
 
-def declare_node(nodes, nodeid, tp):
-    # type: (Dict[str, Node], str, Optional[str]) -> Node
+def declare_node(nodes: Dict[str, Node], nodeid: str, tp: Optional[str]) -> Node:
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:
@@ -89,7 +85,7 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
         else:
             subgraph_visit(r, nodes, visited_down, DOWN)
 
-    def find_step(stepid):  # type: (str) -> Optional[MutableMapping[str, Any]]
+    def find_step(stepid: str) -> Optional[CWLObjectType]:
         for st in tool.steps:
             if st.tool["id"] == stepid:
                 return st.tool
@@ -113,7 +109,9 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                     if nodes[v].type == STEP:
                         wfstep = find_step(v)
                         if wfstep is not None:
-                            for inp in wfstep["inputs"]:
+                            for inp in cast(
+                                MutableSequence[CWLObjectType], wfstep["inputs"]
+                            ):
                                 if u in inp["source"]:
                                     rewire[u] = (rn, inp["type"])
                                     break
