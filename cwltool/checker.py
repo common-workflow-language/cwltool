@@ -1,6 +1,16 @@
 """Static checking of CWL workflow connectivity."""
 from collections import namedtuple
-from typing import Any, Dict, List, MutableMapping, MutableSequence, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Sized,
+    Union,
+    cast,
+)
 
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
@@ -9,6 +19,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
+from .utils import CWLObjectType, CWLOutputAtomType, CWLOutputType, SinkType, aslist
 
 
 def _get_type(tp):
@@ -19,8 +30,12 @@ def _get_type(tp):
     return tp
 
 
-def check_types(srctype, sinktype, linkMerge, valueFrom):
-    # type: (Any, Any, Optional[str], Optional[str]) -> str
+def check_types(
+    srctype: SinkType,
+    sinktype: SinkType,
+    linkMerge: Optional[str],
+    valueFrom: Optional[str],
+) -> str:
     """
     Check if the source and sink types are correct.
 
@@ -48,17 +63,18 @@ def check_types(srctype, sinktype, linkMerge, valueFrom):
     raise WorkflowException("Unrecognized linkMerge enum '{}'".format(linkMerge))
 
 
-def merge_flatten_type(src):
-    # type: (Any) -> Any
+def merge_flatten_type(src: SinkType) -> CWLOutputType:
     """Return the merge flattened type of the source type."""
     if isinstance(src, MutableSequence):
-        return [merge_flatten_type(t) for t in src]
+        return [merge_flatten_type(cast(SinkType, t)) for t in src]
     if isinstance(src, MutableMapping) and src.get("type") == "array":
         return src
     return {"items": src, "type": "array"}
 
 
-def can_assign_src_to_sink(src: Any, sink: Any, strict: bool = False) -> bool:
+def can_assign_src_to_sink(
+    src: SinkType, sink: Optional[SinkType], strict: bool = False
+) -> bool:
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
@@ -74,38 +90,49 @@ def can_assign_src_to_sink(src: Any, sink: Any, strict: bool = False) -> bool:
         if sink.get("not_connected") and strict:
             return False
         if src["type"] == "array" and sink["type"] == "array":
-            return can_assign_src_to_sink(src["items"], sink["items"], strict)
+            return can_assign_src_to_sink(
+                cast(MutableSequence[CWLOutputAtomType], src["items"]),
+                cast(MutableSequence[CWLOutputAtomType], sink["items"]),
+                strict,
+            )
         if src["type"] == "record" and sink["type"] == "record":
             return _compare_records(src, sink, strict)
         if src["type"] == "File" and sink["type"] == "File":
-            for sinksf in sink.get("secondaryFiles", []):
+            for sinksf in cast(List[CWLObjectType], sink.get("secondaryFiles", [])):
                 if not [
-                    1 for srcsf in src.get("secondaryFiles", []) if sinksf == srcsf
+                    1
+                    for srcsf in cast(
+                        List[CWLObjectType], src.get("secondaryFiles", [])
+                    )
+                    if sinksf == srcsf
                 ]:
                     if strict:
                         return False
             return True
-        return can_assign_src_to_sink(src["type"], sink["type"], strict)
+        return can_assign_src_to_sink(
+            cast(str, src["type"]), cast(str, sink["type"]), strict
+        )
     if isinstance(src, MutableSequence):
         if strict:
             for this_src in src:
-                if not can_assign_src_to_sink(this_src, sink):
+                if not can_assign_src_to_sink(cast(SinkType, this_src), sink):
                     return False
             return True
         for this_src in src:
-            if can_assign_src_to_sink(this_src, sink):
+            if can_assign_src_to_sink(cast(SinkType, this_src), sink):
                 return True
         return False
     if isinstance(sink, MutableSequence):
         for this_sink in sink:
-            if can_assign_src_to_sink(src, this_sink):
+            if can_assign_src_to_sink(src, cast(SinkType, this_sink)):
                 return True
         return False
     return bool(src == sink)
 
 
-def _compare_records(src, sink, strict=False):
-    # type: (MutableMapping[str, Any], MutableMapping[str, Any], bool) -> bool
+def _compare_records(
+    src: CWLObjectType, sink: CWLObjectType, strict: bool = False
+) -> bool:
     """
     Compare two records, ensuring they have compatible fields.
 
@@ -153,18 +180,21 @@ def missing_subset(fullset: List[Any], subset: List[Any]) -> List[Any]:
 
 
 def static_checker(
-    workflow_inputs, workflow_outputs, step_inputs, step_outputs, param_to_step
-):
-    # type: (List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Dict[str, Any]]) -> None
+    workflow_inputs: List[CWLObjectType],
+    workflow_outputs: MutableSequence[CWLObjectType],
+    step_inputs: MutableSequence[CWLObjectType],
+    step_outputs: List[CWLObjectType],
+    param_to_step: Dict[str, CWLObjectType],
+) -> None:
     """Check if all source and sink types of a workflow are compatible before run time."""
     # source parameters: workflow_inputs and step_outputs
     # sink parameters: step_inputs and workflow_outputs
 
     # make a dictionary of source parameters, indexed by the "id" field
     src_parms = workflow_inputs + step_outputs
-    src_dict = {}
+    src_dict = {}  # type: Dict[str, CWLObjectType]
     for parm in src_parms:
-        src_dict[parm["id"]] = parm
+        src_dict[cast(str, parm["id"])] = parm
 
     step_inputs_val = check_all_types(src_dict, step_inputs, "source", param_to_step)
     workflow_outputs_val = check_all_types(
@@ -222,7 +252,10 @@ def static_checker(
                         param_to_step[sink["id"]]["run"],
                         ", ".join(
                             shortname(s["id"])
-                            for s in param_to_step[sink["id"]]["inputs"]
+                            for s in cast(
+                                List[Dict[str, str]],
+                                param_to_step[sink["id"]]["inputs"],
+                            )
                             if not s.get("not_connected")
                         ),
                     )
@@ -303,8 +336,12 @@ def static_checker(
 SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 
 
-def check_all_types(src_dict, sinks, sourceField, param_to_step):
-    # type: (Dict[str, Any], List[Dict[str, Any]], str, Dict[str, Dict[str, Any]]) -> Dict[str, List[SrcSink]]
+def check_all_types(
+    src_dict: Dict[str, CWLObjectType],
+    sinks: MutableSequence[CWLObjectType],
+    sourceField: str,
+    param_to_step: Dict[str, CWLObjectType],
+) -> Dict[str, List[SrcSink]]:
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
@@ -314,24 +351,31 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
     for sink in sinks:
         if sourceField in sink:
 
-            valueFrom = sink.get("valueFrom")
-            pickValue = sink.get("pickValue")
+            valueFrom = cast(str, sink.get("valueFrom"))
+            pickValue = cast(str, sink.get("pickValue"))
 
             extra_message = None
             if pickValue is not None:
                 extra_message = "pickValue is: %s" % pickValue
 
             if isinstance(sink[sourceField], MutableSequence):
-                linkMerge = sink.get(
-                    "linkMerge",
-                    ("merge_nested" if len(sink[sourceField]) > 1 else None),
-                )
+                linkMerge = cast(
+                    str,
+                    sink.get(
+                        "linkMerge",
+                        (
+                            "merge_nested"
+                            if len(cast(Sized, sink[sourceField])) > 1
+                            else None
+                        ),
+                    ),
+                )  # type: Optional[str]
 
                 if pickValue in ["first_non_null", "the_only_non_null"]:
                     linkMerge = None
 
-                srcs_of_sink = []  # type: List[Any]
-                for parm_id in sink[sourceField]:
+                srcs_of_sink = []  # type: List[CWLObjectType]
+                for parm_id in cast(MutableSequence[str], sink[sourceField]):
                     srcs_of_sink += [src_dict[parm_id]]
                     if (
                         is_conditional_step(param_to_step, parm_id)
@@ -346,7 +390,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
                             )
                         )
             else:
-                parm_id = sink[sourceField]
+                parm_id = cast(str, sink[sourceField])
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
 
@@ -361,17 +405,13 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
                     )
 
                 if is_conditional_step(param_to_step, parm_id):
-                    src_typ = srcs_of_sink[0]["type"]
+                    src_typ = aslist(srcs_of_sink[0]["type"])
                     snk_typ = sink["type"]
 
-                    if not isinstance(src_typ, list):
-                        src_typ = [src_typ]
                     if "null" not in src_typ:
-                        src_typ = ["null"] + src_typ
+                        src_typ = ["null"] + cast(List[Any], src_typ)
 
-                    if (
-                        "null" not in snk_typ
-                    ):  # Given our type names this works even if not a list
+                    if "null" not in cast(Union[List[str], CWLObjectType], snk_typ):  # Given our type names this works even if not a list
                         validation["warning"].append(
                             SrcSink(
                                 src_dict[parm_id],
@@ -397,7 +437,7 @@ def check_all_types(src_dict, sinks, sourceField, param_to_step):
     return validation
 
 
-def is_conditional_step(param_to_step: Dict[str, Dict[str, Any]], parm_id: str) -> bool:
+def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
     source_step = param_to_step.get(parm_id)
     if source_step is not None:
         if source_step.get("when") is not None:
