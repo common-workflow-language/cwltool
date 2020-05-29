@@ -10,20 +10,18 @@ import subprocess  # nosec
 import sys
 import threading
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import List, Optional, Tuple, cast
 
 from pkg_resources import resource_stream
 from schema_salad.utils import json_dumps
 
 from .loghandler import _logger
-from .utils import onWindows, processes_to_kill
+from .utils import CWLOutputType, onWindows, processes_to_kill
 
 
 class JavascriptException(Exception):
     pass
 
-
-JSON = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
 
 localdata = threading.local()
 
@@ -33,8 +31,7 @@ have_node_slim = False
 minimum_node_version_str = "0.10.26"
 
 
-def check_js_threshold_version(working_alias):
-    # type: (str) -> bool
+def check_js_threshold_version(working_alias: str) -> bool:
     """
     Check if the nodeJS engine version on the system with the allowed minimum version.
 
@@ -153,13 +150,12 @@ PROCESS_FINISHED_STR = "r1cepzbhUTxtykz5XTC4\n"
 
 
 def exec_js_process(
-    js_text,  # type: str
-    timeout=default_timeout,  # type: float
-    js_console=False,  # type: bool
-    context=None,  # type: Optional[str]
-    force_docker_pull=False,  # type: bool
-):
-    # type: (...) -> Tuple[int, str, str]
+    js_text: str,
+    timeout: float = default_timeout,
+    js_console: bool = False,
+    context: Optional[str] = None,
+    force_docker_pull: bool = False,
+) -> Tuple[int, str, str]:
 
     if not hasattr(localdata, "procs"):
         localdata.procs = {}
@@ -201,7 +197,7 @@ def exec_js_process(
 
     killed = []
 
-    def terminate():  # type: () -> None
+    def terminate() -> None:
         """Kill the node process if it exceeds timeout limit."""
         try:
             killed.append(True)
@@ -225,7 +221,7 @@ def exec_js_process(
     rselect = [nodejs.stdout, nodejs.stderr]  # type: List[BytesIO]
     wselect = [nodejs.stdin]  # type: List[BytesIO]
 
-    def process_finished():  # type: () -> bool
+    def process_finished() -> bool:
         return stdout_buf.getvalue().decode("utf-8").endswith(
             PROCESS_FINISHED_STR
         ) and stderr_buf.getvalue().decode("utf-8").endswith(PROCESS_FINISHED_STR)
@@ -342,8 +338,7 @@ def exec_js_process(
     return returncode, stdoutdata.decode("utf-8"), stderrdata.decode("utf-8")
 
 
-def code_fragment_to_js(jscript, jslib=""):
-    # type: (str, str) -> str
+def code_fragment_to_js(jscript: str, jslib: str = "") -> str:
     if isinstance(jscript, str) and len(jscript) > 1 and jscript[0] == "{":
         inner_js = jscript
     else:
@@ -353,13 +348,13 @@ def code_fragment_to_js(jscript, jslib=""):
 
 
 def execjs(
-    js,  # type: str
-    jslib,  # type: str
-    timeout,  # type: float
-    force_docker_pull=False,  # type: bool
-    debug=False,  # type: bool
-    js_console=False,  # type: bool
-):  # type: (...) -> JSON
+    js: str,
+    jslib: str,
+    timeout: float,
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+) -> CWLOutputType:
 
     fn = code_fragment_to_js(js, jslib)
 
@@ -378,12 +373,12 @@ def execjs(
             )
             _logger.info("----------------------------------------")
 
-    def stdfmt(data):  # type: (str) -> str
+    def stdfmt(data: str) -> str:
         if "\n" in data:
             return "\n" + data.strip()
         return data
 
-    def fn_linenum():  # type: () -> str
+    def fn_linenum() -> str:
         lines = fn.splitlines()
         ofs = 0
         maxlines = 99
@@ -413,7 +408,7 @@ def execjs(
             raise JavascriptException(info)
 
     try:
-        return cast(JSON, json.loads(stdout))
+        return cast(CWLOutputType, json.loads(stdout))
     except ValueError as err:
         raise JavascriptException(
             "{}\nscript was:\n{}\nstdout was: '{}'\nstderr was: '{}'\n".format(
