@@ -44,7 +44,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
     from .pathmapper import PathMapper
 
 
