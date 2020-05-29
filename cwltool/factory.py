@@ -1,17 +1,16 @@
 import os
-from typing import Any
-from typing import Callable as tCallable
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 from . import load_tool
 from .context import LoadingContext, RuntimeContext
 from .errors import WorkflowException
-from .executors import SingleJobExecutor
+from .executors import JobExecutor, SingleJobExecutor
 from .process import Process
+from .utils import CWLObjectType
 
 
 class WorkflowStatus(Exception):
-    def __init__(self, out: Optional[Dict[str, Any]], status: str) -> None:
+    def __init__(self, out: Optional[CWLObjectType], status: str) -> None:
         """Signaling exception for the status of a Workflow."""
         super(WorkflowStatus, self).__init__("Completed %s" % status)
         self.out = out
@@ -25,7 +24,7 @@ class Callable(object):
         self.factory = factory
 
     def __call__(self, **kwargs):
-        # type: (**Any) -> Union[str, Optional[Dict[str, Any]]]
+        # type: (**Any) -> Union[str, Optional[CWLObjectType]]
         runtime_context = self.factory.runtime_context.copy()
         runtime_context.basedir = os.getcwd()
         out, status = self.factory.executor(self.t, kwargs, runtime_context)
@@ -38,7 +37,7 @@ class Callable(object):
 class Factory(object):
     def __init__(
         self,
-        executor: Optional[tCallable[..., Tuple[Optional[Dict[str, Any]], str]]] = None,
+        executor: Optional[JobExecutor] = None,
         loading_context: Optional[LoadingContext] = None,
         runtime_context: Optional[RuntimeContext] = None,
     ) -> None:
