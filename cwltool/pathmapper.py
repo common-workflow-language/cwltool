@@ -5,7 +5,6 @@ import stat
 import urllib
 import uuid
 from typing import (
-    Any,
     Callable,
     Dict,
     Iterator,
@@ -28,7 +27,7 @@ from .loghandler import _logger
 from .stdfsaccess import abspath
 from .utils import (
     CWLObjectType,
-    Directory,
+    DirectoryType,
     adjustDirObjs,
     adjustFileObjs,
     convert_pathsep_to_unix,
@@ -183,7 +182,7 @@ class PathMapper(object):
                 staged=staged,
             )
 
-    def setup(self, referenced_files: List[Any], basedir: str) -> None:
+    def setup(self, referenced_files: List[CWLObjectType], basedir: str) -> None:
 
         # Go through each file and set the target to its own directory along
         # with any secondary files.
@@ -192,7 +191,11 @@ class PathMapper(object):
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
             self.visit(
-                fob, stagedir, basedir, copy=fob.get("writable", False), staged=True
+                fob,
+                stagedir,
+                basedir,
+                copy=cast(bool, fob.get("writable", False)),
+                staged=True,
             )
 
     def mapper(self, src: str) -> MapperEnt:
