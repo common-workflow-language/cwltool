@@ -8,11 +8,9 @@ import threading
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 from typing import (
-    Any,
     Dict,
     Iterable,
     List,
-    MutableMapping,
     MutableSequence,
     Optional,
     Set,
@@ -45,14 +43,19 @@ class JobExecutor(object, metaclass=ABCMeta):
 
     def __init__(self) -> None:
         """Initialize."""
-        self.final_output = (
-            []
-        )  # type: MutableSequence[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]]]
+        self.final_output = []  # type: MutableSequence[Optional[CWLObjectType]]
         self.final_status = []  # type: List[str]
         self.output_dirs = set()  # type: Set[str]
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.execute(*args, **kwargs)
+    def __call__(
+        self,
+        process: Process,
+        job_order_object: CWLObjectType,
+        runtime_context: RuntimeContext,
+        logger: logging.Logger = _logger,
+    ) -> Tuple[Optional[CWLObjectType], str]:
+
+        return self.execute(process, job_order_object, runtime_context, logger)
 
     def output_callback(
         self, out: Optional[CWLObjectType], process_status: str
@@ -77,12 +80,12 @@ class JobExecutor(object, metaclass=ABCMeta):
         job_order_object: CWLObjectType,
         runtime_context: RuntimeContext,
         logger: logging.Logger = _logger,
-    ) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:
+    ) -> Tuple[Union[Optional[CWLObjectType]], str]:
         """Execute the process."""
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
 
-        def check_for_abstract_op(tool: MutableMapping[str, Any]) -> None:
+        def check_for_abstract_op(tool: CWLObjectType) -> None:
             if tool["class"] == "Operation":
                 raise SourceLine(tool, "class", WorkflowException).makeError(
                     "Workflow has unrunnable abstract Operation"
@@ -122,7 +125,7 @@ class JobExecutor(object, metaclass=ABCMeta):
         elif (
             "cwl:defaults" in process.metadata
             and "https://w3id.org/cwl/cwl#requirements"
-            in process.metadata["cwl:defaults"]
+            in cast(CWLObjectType, process.metadata["cwl:defaults"])
         ):
             if (
                 process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion")
@@ -133,9 +136,12 @@ class JobExecutor(object, metaclass=ABCMeta):
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
                     "can set the cwlVersion to v1.1"
                 )
-            job_reqs = process.metadata["cwl:defaults"][
-                "https://w3id.org/cwl/cwl#requirements"
-            ]
+            job_reqs = cast(
+                Optional[List[CWLObjectType]],
+                cast(CWLObjectType, process.metadata["cwl:defaults"])[
+                    "https://w3id.org/cwl/cwl#requirements"
+                ],
+            )
         if job_reqs is not None:
             for req in job_reqs:
                 process.requirements.append(req)
@@ -159,10 +165,10 @@ class JobExecutor(object, metaclass=ABCMeta):
 
         if runtime_context.rm_tmpdir:
             if runtime_context.cachedir is None:
-                output_dirs = self.output_dirs  # type: Iterable[Any]
+                output_dirs = self.output_dirs  # type: Iterable[str]
             else:
                 output_dirs = filter(
-                    lambda x: not x.startswith(runtime_context.cachedir),
+                    lambda x: not x.startswith(runtime_context.cachedir),  # type: ignore
                     self.output_dirs,
                 )
             cleanIntermediate(output_dirs)
@@ -279,16 +285,16 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = int(psutil.virtual_memory().available / 2 ** 20)
-        self.max_cores = psutil.cpu_count()
-        self.allocated_ram = 0
-        self.allocated_cores = 0
+        self.max_cores = float(psutil.cpu_count())
+        self.allocated_ram = float(0)
+        self.allocated_cores = float(0)
 
     def select_resources(
         self, request, runtime_context
     ):  # pylint: disable=unused-argument
-        # type: (Dict[str, int], RuntimeContext) -> Dict[str, int]
+        # type: (Dict[str, Union[int, float]], RuntimeContext) -> Dict[str, Union[int, float]]
         """Naïve check for available cpu cores and memory."""
-        result = {}  # type: Dict[str, int]
+        result = {}  # type: Dict[str, Union[int, float]]
         maxrsc = {"cores": self.max_cores, "ram": self.max_ram}
         for rsc in ("cores", "ram"):
             if request[rsc + "Min"] > maxrsc[rsc]:
@@ -328,7 +334,9 @@ class MultithreadedJobExecutor(JobExecutor):
                         self.allocated_cores -= job.builder.resources["cores"]
                     runtime_context.workflow_eval_lock.notifyAll()
 
-    def run_job(self, job: JobsType, runtime_context: RuntimeContext,) -> None:
+    def run_job(
+        self, job: Optional[JobsType], runtime_context: RuntimeContext,
+    ) -> None:
         """Execute a single Job in a seperate thread."""
         if job is not None:
             with self.pending_jobs_lock:
@@ -452,5 +460,5 @@ class NoopJobExecutor(JobExecutor):
         job_order_object: CWLObjectType,
         runtime_context: RuntimeContext,
         logger: Optional[logging.Logger] = None,
-    ) -> Tuple[Union[Optional[CWLObjectType], MutableSequence[CWLObjectType]], str]:
+    ) -> Tuple[Optional[CWLObjectType], str]:
         return {}, "success"
