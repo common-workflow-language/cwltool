@@ -1,7 +1,7 @@
 """Shared context objects that replace use of kwargs."""
 import copy
 import threading
-from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
@@ -19,9 +19,7 @@ from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, ResolverType
 
 if TYPE_CHECKING:
     from .process import Process
-    from .provenance import (
-        ResearchObject,  # pylint: disable=unused-import
-    )
+    from .provenance import ResearchObject  # pylint: disable=unused-import
     from .provenance_profile import ProvenanceProfile
 
 
@@ -47,10 +45,10 @@ class LoadingContext(ContextBase):
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the LoadingContext from the kwargs."""
         self.debug = False  # type: bool
-        self.metadata = {}  # type: Dict[str, Any]
+        self.metadata = {}  # type: CWLObjectType
         self.requirements = None  # type: Optional[List[CWLObjectType]]
         self.hints = None  # type: Optional[List[CWLObjectType]]
-        self.overrides_list = []  # type: List[Dict[str, Any]]
+        self.overrides_list = []  # type: List[CWLObjectType]
         self.loader = None  # type: Optional[Loader]
         self.avsc_names = None  # type: Optional[Names]
         self.disable_js_validation = False  # type: bool
@@ -130,7 +128,7 @@ class RuntimeContext(ContextBase):
         self.eval_timeout = 20  # type: float
         self.postScatterEval = (
             None
-        )  # type: Optional[Callable[[MutableMapping[str, Any]], Optional[MutableMapping[str, Any]]]]
+        )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
 
