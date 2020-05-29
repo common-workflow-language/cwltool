@@ -79,7 +79,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything

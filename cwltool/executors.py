@@ -32,9 +32,10 @@ from .job import JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
-from .provenance import ProvenanceProfile
+from .provenance_profile import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, JobsType
-from .workflow import Workflow, WorkflowJob, WorkflowJobStep
+from .workflow import Workflow
+from .workflow_job import WorkflowJob, WorkflowJobStep
 
 TMPDIR_LOCK = Lock()
 

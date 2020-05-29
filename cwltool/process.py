@@ -72,7 +72,7 @@ from .utils import (
 from .validate_js import validate_js_expressions
 
 if TYPE_CHECKING:
-    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class LogAsDebugFilter(logging.Filter):

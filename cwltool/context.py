@@ -21,8 +21,8 @@ if TYPE_CHECKING:
     from .process import Process
     from .provenance import (
         ResearchObject,  # pylint: disable=unused-import
-        ProvenanceProfile,
     )
+    from .provenance_profile import ProvenanceProfile
 
 
 class ContextBase(object):
