@@ -273,8 +273,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         return os.path.abspath(cast(str, r["dockerImageId"]))
 
     @staticmethod
-    def append_volume(runtime, source, target, writable=False):
-        # type: (List[str], str, str, bool) -> None
+    def append_volume(
+        runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
         runtime.append("--bind")
         runtime.append(
             "{}:{}:{}".format(
@@ -302,11 +303,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_file_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         if host_outdir_tgt is not None:
             # workaround for lack of overlapping mounts in Singularity
             # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
@@ -336,11 +337,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_directory_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         if volume.resolved.startswith("_:"):
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
