@@ -13,7 +13,6 @@ import threading
 import urllib
 from functools import cmp_to_key, partial
 from typing import (
-    IO,
     Any,
     Callable,
     Dict,
@@ -24,6 +23,7 @@ from typing import (
     MutableSequence,
     Optional,
     Set,
+    TextIO,
     Union,
     cast,
 )
@@ -60,6 +60,7 @@ from .udocker import UDockerCommandLineJob
 from .utils import (
     CWLObjectType,
     CWLOutputType,
+    DirectoryType,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -130,9 +131,20 @@ class ExpressionJob(object):
         try:
             normalizeFilesDirs(self.builder.job)
             ev = self.builder.do_eval(self.script)
-            normalizeFilesDirs(ev)
+            normalizeFilesDirs(
+                cast(
+                    Optional[
+                        Union[
+                            MutableSequence[MutableMapping[str, Any]],
+                            MutableMapping[str, Any],
+                            DirectoryType,
+                        ]
+                    ],
+                    ev,
+                )
+            )
             if self.output_callback:
-                self.output_callback(ev, "success")
+                self.output_callback(cast(Optional[CWLObjectType], ev), "success")
         except WorkflowException as err:
             _logger.warning(
                 "Failed to evaluate expression:\n%s",
@@ -385,7 +397,7 @@ class CommandLineTool(Process):
 
     def make_path_mapper(
         self,
-        reffiles: List[Any],
+        reffiles: List[CWLObjectType],
         stagedir: str,
         runtimeContext: RuntimeContext,
         separateDirs: bool,
@@ -561,7 +573,7 @@ class CommandLineTool(Process):
 
                 def update_status_output_callback(
                     output_callbacks: OutputCallbackType,
-                    jobcachelock: IO[Any],
+                    jobcachelock: TextIO,
                     outputs: Optional[CWLObjectType],
                     processStatus: str,
                 ) -> None:
@@ -620,9 +632,11 @@ class CommandLineTool(Process):
 
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
         if initialWorkdir is not None:
-            ls = []  # type: List[Dict[str, Any]]
+            ls = []  # type: List[CWLObjectType]
             if isinstance(initialWorkdir["listing"], str):
-                ls = builder.do_eval(initialWorkdir["listing"])
+                ls = cast(
+                    List[CWLObjectType], builder.do_eval(initialWorkdir["listing"])
+                )
             else:
                 for t in cast(
                     MutableSequence[Union[str, CWLObjectType]],
@@ -644,13 +658,13 @@ class CommandLineTool(Process):
                             if et["entry"] is not None:
                                 ls.append(et)
                     else:
-                        initwd_item = builder.do_eval(cast(str, t))
+                        initwd_item = builder.do_eval(t)
                         if not initwd_item:
                             continue
                         if isinstance(initwd_item, MutableSequence):
-                            ls.extend(initwd_item)
+                            ls.extend(cast(List[CWLObjectType], initwd_item))
                         else:
-                            ls.append(initwd_item)
+                            ls.append(cast(CWLObjectType, initwd_item))
             for i, t2 in enumerate(ls):
                 if "entry" in t2:
                     if isinstance(t2["entry"], str):
@@ -663,10 +677,11 @@ class CommandLineTool(Process):
                     else:
                         if t2.get("entryname") or t2.get("writable"):
                             t2 = copy.deepcopy(t2)
+                            t2entry = cast(CWLObjectType, t2["entry"])
                             if t2.get("entryname"):
-                                t2["entry"]["basename"] = t2["entryname"]
-                            t2["entry"]["writable"] = t2.get("writable")
-                        ls[i] = t2["entry"]
+                                t2entry["basename"] = t2["entryname"]
+                            t2entry["writable"] = t2.get("writable")
+                        ls[i] = cast(CWLObjectType, t2["entry"])
             j.generatefiles["listing"] = ls
             for entry in ls:
                 self.updatePathmap(builder.outdir, builder.pathmapper, entry)
@@ -689,13 +704,13 @@ class CommandLineTool(Process):
 
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", ValidationException, debug):
-                j.stdin = builder.do_eval(self.tool["stdin"])
+                j.stdin = cast(str, builder.do_eval(self.tool["stdin"]))
                 if j.stdin:
                     reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
             with SourceLine(self.tool, "stderr", ValidationException, debug):
-                j.stderr = builder.do_eval(self.tool["stderr"])
+                j.stderr = cast(str, builder.do_eval(self.tool["stderr"]))
                 if j.stderr:
                     if os.path.isabs(j.stderr) or ".." in j.stderr:
                         raise ValidationException(
@@ -704,7 +719,7 @@ class CommandLineTool(Process):
 
         if self.tool.get("stdout"):
             with SourceLine(self.tool, "stdout", ValidationException, debug):
-                j.stdout = builder.do_eval(self.tool["stdout"])
+                j.stdout = cast(str, builder.do_eval(self.tool["stdout"]))
                 if j.stdout:
                     if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
                         raise ValidationException(
@@ -738,21 +753,21 @@ class CommandLineTool(Process):
             j.inplace_update = cast(bool, inplaceUpdateReq["inplaceUpdate"])
         normalizeFilesDirs(j.generatefiles)
 
-        readers = {}  # type: Dict[str, Any]
+        readers = {}  # type: Dict[str, CWLObjectType]
         muts = set()  # type: Set[str]
 
         if builder.mutation_manager is not None:
 
-            def register_mut(f):  # type: (Dict[str, Any]) -> None
+            def register_mut(f: CWLObjectType) -> None:
                 mm = cast(MutationManager, builder.mutation_manager)
-                muts.add(f["location"])
+                muts.add(cast(str, f["location"]))
                 mm.register_mutation(j.name, f)
 
-            def register_reader(f):  # type: (Dict[str, Any]) -> None
+            def register_reader(f: CWLObjectType) -> None:
                 mm = cast(MutationManager, builder.mutation_manager)
-                if f["location"] not in muts:
+                if cast(str, f["location"]) not in muts:
                     mm.register_reader(j.name, f)
-                    readers[f["location"]] = copy.deepcopy(f)
+                    readers[cast(str, f["location"])] = copy.deepcopy(f)
 
             for li in j.generatefiles["listing"]:
                 if li.get("writable") and j.inplace_update:
@@ -770,8 +785,9 @@ class CommandLineTool(Process):
         timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
             with SourceLine(timelimit, "timelimit", ValidationException, debug):
-                j.timelimit = builder.do_eval(
-                    cast(Union[int, str], timelimit["timelimit"])
+                j.timelimit = cast(
+                    Optional[int],
+                    builder.do_eval(cast(Union[int, str], timelimit["timelimit"])),
                 )
                 if not isinstance(j.timelimit, int) or j.timelimit < 0:
                     raise WorkflowException(
@@ -781,8 +797,11 @@ class CommandLineTool(Process):
         networkaccess, _ = self.get_requirement("NetworkAccess")
         if networkaccess is not None:
             with SourceLine(networkaccess, "networkAccess", ValidationException, debug):
-                j.networkaccess = builder.do_eval(
-                    cast(Union[bool, str], networkaccess["networkAccess"])
+                j.networkaccess = cast(
+                    bool,
+                    builder.do_eval(
+                        cast(Union[bool, str], networkaccess["networkAccess"])
+                    ),
                 )
                 if not isinstance(j.networkaccess, bool):
                     raise WorkflowException(
@@ -792,8 +811,10 @@ class CommandLineTool(Process):
         j.environment = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
         if evr is not None:
-            for t2 in cast(List[Dict[str, str]], evr["envDef"]):
-                j.environment[t2["envName"]] = builder.do_eval(t2["envValue"])
+            for t3 in cast(List[Dict[str, str]], evr["envDef"]):
+                j.environment[t3["envName"]] = cast(
+                    str, builder.do_eval(t3["envValue"])
+                )
 
         shellcmd, _ = self.get_requirement("ShellCommandRequirement")
         if shellcmd is not None:
@@ -822,13 +843,13 @@ class CommandLineTool(Process):
 
     def collect_output_ports(
         self,
-        ports: Union[CommentedSeq, Set[Dict[str, Any]]],
+        ports: Union[CommentedSeq, Set[CWLObjectType]],
         builder: Builder,
         outdir: str,
         rcode: int,
         compute_checksum: bool = True,
         jobname: str = "",
-        readers: Optional[Dict[str, Any]] = None,
+        readers: Optional[MutableMapping[str, CWLObjectType]] = None,
     ) -> OutputPortsType:
         ret = {}  # type: OutputPortsType
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -869,9 +890,7 @@ class CommandLineTool(Process):
             if ret:
                 revmap = partial(revmap_file, builder, outdir)
                 adjustDirObjs(ret, trim_listing)
-                visit_class(
-                    ret, ("File", "Directory"), cast(Callable[[Any], Any], revmap)
-                )
+                visit_class(ret, ("File", "Directory"), revmap)
                 visit_class(ret, ("File", "Directory"), remove_path)
                 normalizeFilesDirs(ret)
                 visit_class(
@@ -915,7 +934,10 @@ class CommandLineTool(Process):
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
         if "outputBinding" in schema:
-            binding = cast(Dict[str, Any], schema["outputBinding"])
+            binding = cast(
+                MutableMapping[str, Union[bool, str, List[str]]],
+                schema["outputBinding"],
+            )
             globpatterns = []  # type: List[str]
 
             revmap = partial(revmap_file, builder, outdir)
@@ -1015,8 +1037,8 @@ class CommandLineTool(Process):
             if "outputEval" in binding:
                 with SourceLine(binding, "outputEval", WorkflowException, debug):
                     result = builder.do_eval(
-                        binding["outputEval"], context=r
-                    )  # type: CWLOutputType
+                        cast(CWLOutputType, binding["outputEval"]), context=r
+                    )
             else:
                 result = cast(CWLOutputType, r)
 
@@ -1088,7 +1110,7 @@ class CommandLineTool(Process):
             if "format" in schema:
                 for primary in aslist(result):
                     primary["format"] = builder.do_eval(
-                        cast(Union[str, List[str]], schema["format"]), context=primary
+                        schema["format"], context=primary
                     )
 
             # Ensure files point to local references outside of the run environment
@@ -1108,8 +1130,8 @@ class CommandLineTool(Process):
             and schema["type"]["type"] == "record"
         ):
             out = {}
-            for field in cast(List[Dict[str, Any]], schema["type"]["fields"]):
-                out[shortname(field["name"])] = self.collect_output(
+            for field in cast(List[CWLObjectType], schema["type"]["fields"]):
+                out[shortname(cast(str, field["name"]))] = self.collect_output(
                     field, builder, outdir, fs_access, compute_checksum=compute_checksum
                 )
             return out
