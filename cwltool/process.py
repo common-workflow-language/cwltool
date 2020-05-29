@@ -467,21 +467,11 @@ def fill_in_defaults(
                 )
 
 
-AvroizableType = TypeVar(
-    "AvroizableType",
-    CWLObjectType,
-    CWLOutputType,
-    None,
-    MutableSequence[CWLOutputType],
-    MutableSequence[CWLObjectType],
-)
-
-
-def avroize_type(field_type: AvroizableType, name_prefix: str = "") -> AvroizableType:
+def avroize_type(field_type: Union[CWLObjectType, MutableSequence[CWLOutputType], CWLOutputType, None], name_prefix: str = "") -> None:
     """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
         for field in field_type:
-            avroize_type(field, name_prefix)  # type: ignore
+            avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
@@ -497,7 +487,6 @@ def avroize_type(field_type: AvroizableType, name_prefix: str = "") -> Avroizabl
         if isinstance(field_type["type"], MutableSequence):
             for ctype in field_type["type"]:
                 avroize_type(cast(CWLOutputType, ctype), name_prefix)
-    return field_type
 
 
 def get_overrides(
@@ -628,7 +617,8 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
         if sd is not None:
-            sdtypes = avroize_type(cast(MutableSequence[CWLObjectType], sd["types"]))
+            sdtypes = cast(MutableSequence[CWLObjectType], sd["types"])
+            avroize_type(cast(MutableSequence[CWLOutputType], sdtypes))
             av = make_valid_avro(
                 sdtypes,
                 {cast(str, t["name"]): cast(Dict[str, Any], t) for t in sdtypes},
@@ -667,7 +657,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     c["type"] = nullable
                 else:
                     c["type"] = c["type"]
-                c["type"] = avroize_type(c["type"], c["name"])
+                avroize_type(c["type"], c["name"])
                 if key == "inputs":
                     cast(
                         List[CWLObjectType], self.inputs_record_schema["fields"]
