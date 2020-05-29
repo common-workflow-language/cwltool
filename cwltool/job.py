@@ -5,7 +5,6 @@ import logging
 import os
 import re
 import shutil
-import stat
 import subprocess  # nosec
 import sys
 import tempfile
@@ -17,8 +16,6 @@ from io import IOBase
 from threading import Timer
 from typing import (
     IO,
-    Any,
-    AnyStr,
     Callable,
     Dict,
     Iterable,
@@ -27,6 +24,7 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
+    TextIO,
     Tuple,
     Union,
     cast,
@@ -50,7 +48,8 @@ from .secrets import SecretStore
 from .utils import (
     DEFAULT_TMP_PREFIX,
     CWLObjectType,
-    Directory,
+    CWLOutputType,
+    DirectoryType,
     OutputCallbackType,
     bytes2str_in_dicts,
     copytree_with_merge,
@@ -130,21 +129,6 @@ with open(sys.argv[1], "r") as f:
 """
 
 
-def deref_links(outputs: Any) -> None:
-    if isinstance(outputs, MutableMapping):
-        if outputs.get("class") == "File":
-            st = os.lstat(outputs["path"])
-            if stat.S_ISLNK(st.st_mode):
-                outputs["basename"] = os.path.basename(outputs["path"])
-                outputs["path"] = os.readlink(outputs["path"])
-        else:
-            for v in outputs.values():
-                deref_links(v)
-    if isinstance(outputs, MutableSequence):
-        for output in outputs:
-            deref_links(output)
-
-
 def relink_initialworkdir(
     pathmapper: PathMapper,
     host_outdir: str,
@@ -192,6 +176,9 @@ def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str
     return None
 
 
+CollectOutputsType = Union[Callable[[str, int], CWLObjectType], functools.partial]
+
+
 class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
@@ -221,9 +208,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.generatemapper = None  # type: Optional[PathMapper]
 
         # set in CommandLineTool.job(i)
-        self.collect_outputs = cast(
-            Callable[[str, int], MutableMapping[str, Any]], None
-        )  # type: Union[Callable[[str, int], MutableMapping[str, Any]], functools.partial[MutableMapping[str, Any]]]
+        self.collect_outputs = cast(CollectOutputsType, None)
         self.output_callback = None  # type: Optional[OutputCallbackType]
         self.outdir = ""
         self.tmpdir = ""
@@ -233,7 +218,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             "class": "Directory",
             "listing": [],
             "basename": "",
-        }  # type: Directory
+        }  # type: DirectoryType
         self.stagedir = None  # type: Optional[str]
         self.inplace_update = False
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
@@ -269,7 +254,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             runtimeContext = runtimeContext.copy()
             runtimeContext.outdir = self.outdir
             self.generatemapper = self.make_path_mapper(
-                cast(List[Any], self.generatefiles["listing"]),
+                self.generatefiles["listing"],
                 self.builder.outdir,
                 runtimeContext,
                 False,
@@ -331,7 +316,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "or prov_obj is missing from runtimeContext: "
                     "{}".format(runtimeContext)
                 )
-        outputs = {}  # type: MutableMapping[str,Any]
+        outputs = {}  # type: CWLObjectType
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -361,8 +346,14 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
-                commands = runtimeContext.secret_store.retrieve(commands)
-                env = runtimeContext.secret_store.retrieve(env)
+                commands = cast(
+                    List[str],
+                    runtimeContext.secret_store.retrieve(cast(CWLOutputType, commands)),
+                )
+                env = cast(
+                    MutableMapping[str, str],
+                    runtimeContext.secret_store.retrieve(cast(CWLOutputType, env)),
+                )
 
             job_script_contents = None  # type: Optional[str]
             builder = getattr(self, "builder", None)  # type: Builder
@@ -653,10 +644,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 os.path.basename(volume.target),
             )
         writable = True if volume.type == "CreateWritableFile" else False
+        contents = volume.resolved
         if secret_store:
-            contents = secret_store.retrieve(volume.resolved)
-        else:
-            contents = volume.resolved
+            contents = cast(str, secret_store.retrieve(volume.resolved))
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
@@ -918,15 +908,15 @@ def _job_popen(
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
-        stdin = subprocess.PIPE  # type: Union[IO[Any], int]
+        stdin = subprocess.PIPE  # type: Union[IO[bytes], int]
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = sys.stderr  # type: IO[Any]
+        stdout = sys.stderr  # type: Union[IO[bytes], TextIO]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = sys.stderr  # type: IO[Any]
+        stderr = sys.stderr  # type: Union[IO[bytes], TextIO]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -986,7 +976,7 @@ def _job_popen(
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
-        key = None  # type: Any
+        key = None  # type: Optional[str]
         for key in env:
             env_copy[key] = env[key]
 

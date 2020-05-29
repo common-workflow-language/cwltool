@@ -55,10 +55,6 @@ CONTENT_LIMIT = 64 * 1024
 
 windows_default_container_id = "frolvlad/alpine-bash"
 
-Directory = TypedDict(
-    "Directory", {"class": str, "listing": List[Dict[str, Any]], "basename": str}
-)
-
 DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen[str]]
