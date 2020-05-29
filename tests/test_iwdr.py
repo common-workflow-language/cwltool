@@ -1,5 +1,6 @@
 import os
 import tempfile
+from pathlib import Path
 
 from cwltool.main import main
 
@@ -30,10 +31,12 @@ def test_empty_file_creation() -> None:
 
 
 @needs_docker  # type: ignore
-def test_directory_literal_with_real_inputs_inside() -> None:
+def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     """Cope with unmoveable files in the output directory created by Docker+IWDR."""
     err_code, _, _ = get_main_output(
         [
+            "--out",
+            str(tmp_path),
             get_data("tests/iwdr_dir_literal_real_file.cwl"),
             "--example={}".format(get_data("tests/__init__.py")),
         ]
