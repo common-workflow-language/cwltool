@@ -4,7 +4,7 @@ import subprocess  # nosec
 from typing import List, Optional, Tuple
 
 
-def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
+def docker_vm_id() -> Tuple[Optional[int], Optional[int]]:
     """
     Return the User ID and Group ID of the default docker user inside the VM.
 
@@ -21,7 +21,7 @@ def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
     return (None, None)
 
 
-def check_output_and_strip(cmd):  # type: (List[str]) -> Optional[str]
+def check_output_and_strip(cmd: List[str]) -> Optional[str]:
     """
     Pass a command list to subprocess.check_output.
 
@@ -41,7 +41,7 @@ def check_output_and_strip(cmd):  # type: (List[str]) -> Optional[str]
         return None
 
 
-def docker_machine_name():  # type: () -> Optional[str]
+def docker_machine_name() -> Optional[str]:
     """
     Get the machine name of the active docker-machine machine.
 
@@ -50,8 +50,7 @@ def docker_machine_name():  # type: () -> Optional[str]
     return check_output_and_strip(["docker-machine", "active"])
 
 
-def cmd_output_matches(check_cmd, expected_status):
-    # type: (List[str], str) -> bool
+def cmd_output_matches(check_cmd: List[str], expected_status: str) -> bool:
     """
     Run a command and compares output to expected.
 
@@ -62,7 +61,7 @@ def cmd_output_matches(check_cmd, expected_status):
     return check_output_and_strip(check_cmd) == expected_status
 
 
-def boot2docker_running():  # type: () -> bool
+def boot2docker_running() -> bool:
     """
     Check if boot2docker CLI reports that boot2docker vm is running.
 
@@ -71,7 +70,7 @@ def boot2docker_running():  # type: () -> bool
     return cmd_output_matches(["boot2docker", "status"], "running")
 
 
-def docker_machine_running():  # type: () -> bool
+def docker_machine_running() -> bool:
     """
     Ask docker-machine for the active machine and checks if its VM is running.
 
@@ -83,7 +82,7 @@ def docker_machine_running():  # type: () -> bool
     return cmd_output_matches(["docker-machine", "status", machine_name], "Running")
 
 
-def cmd_output_to_int(cmd):  # type: (List[str]) -> Optional[int]
+def cmd_output_to_int(cmd: List[str]) -> Optional[int]:
     """
     Run the provided command and returns the integer value of the result.
 
@@ -100,7 +99,7 @@ def cmd_output_to_int(cmd):  # type: (List[str]) -> Optional[int]
     return None
 
 
-def boot2docker_id():  # type: () -> Tuple[Optional[int], Optional[int]]
+def boot2docker_id() -> Tuple[Optional[int], Optional[int]]:
     """
     Get the UID and GID of the docker user inside a running boot2docker vm.
 
@@ -111,7 +110,7 @@ def boot2docker_id():  # type: () -> Tuple[Optional[int], Optional[int]]
     return (uid, gid)
 
 
-def docker_machine_id():  # type: () -> Tuple[Optional[int], Optional[int]]
+def docker_machine_id() -> Tuple[Optional[int], Optional[int]]:
     """
     Ask docker-machine for active machine and gets the UID of the docker user.
 

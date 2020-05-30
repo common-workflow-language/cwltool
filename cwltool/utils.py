@@ -14,12 +14,12 @@ import urllib
 import uuid
 from functools import partial
 from itertools import zip_longest
+from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile
 from types import ModuleType
 from typing import (
     IO,
     Any,
-    AnyStr,
     Callable,
     Dict,
     Generator,
@@ -27,6 +27,7 @@ from typing import (
     List,
     MutableMapping,
     MutableSequence,
+    NamedTuple,
     Optional,
     Set,
     Union,
@@ -44,7 +45,7 @@ from typing_extensions import TYPE_CHECKING, Deque
 
 if TYPE_CHECKING:
     from .job import CommandLineJob, JobBase
-    from .workflow import WorkflowJob
+    from .workflow_job import WorkflowJob
     from .command_line_tool import ExpressionJob, CallbackJob
     from .stdfsaccess import StdFsAccess
 
@@ -53,10 +54,6 @@ __random_outdir = None  # type: Optional[str]
 CONTENT_LIMIT = 64 * 1024
 
 windows_default_container_id = "frolvlad/alpine-bash"
-
-Directory = TypedDict(
-    "Directory", {"class": str, "listing": List[Dict[str, Any]], "basename": str}
-)
 
 DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
@@ -90,14 +87,33 @@ CWLOutputType = Union[
 ]
 CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
 JobsType = Union[
-    "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob", None
+    "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"
 ]
-JobsGeneratorType = Generator[JobsType, None, None]
+JobsGeneratorType = Generator[Optional[JobsType], None, None]
 OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
 ResolverType = Callable[["Loader", str], Optional[str]]
 DestinationsType = MutableMapping[str, Optional[CWLOutputType]]
 ScatterDestinationsType = MutableMapping[str, List[Optional[CWLOutputType]]]
 ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]
+SinkType = Union[CWLOutputType, CWLObjectType]
+DirectoryType = TypedDict(
+    "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
+)
+JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
+JSONType = Union[
+    Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None
+]
+WorkflowStateItem = NamedTuple(
+    "WorkflowStateItem",
+    [
+        ("parameter", CWLObjectType),
+        ("value", Optional[CWLOutputType]),
+        ("success", str),
+    ],
+)
+
+ParametersType = List[CWLObjectType]
+StepType = CWLObjectType  # WorkflowStep
 
 
 def versionstring() -> str:
@@ -366,23 +382,27 @@ def dedup(listing: List[CWLObjectType]) -> List[CWLObjectType]:
 
 
 def get_listing(
-    fs_access: "StdFsAccess", rec: MutableMapping[str, Any], recursive: bool = True
+    fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True
 ) -> None:
     if rec.get("class") != "Directory":
-        finddirs = []  # type: List[MutableMapping[str, str]]
+        finddirs = []  # type: List[CWLObjectType]
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
             get_listing(fs_access, f, recursive=recursive)
         return
     if "listing" in rec:
         return
-    listing = []
-    loc = rec["location"]
+    listing = []  # type: List[CWLOutputAtomType]
+    loc = cast(str, rec["location"])
     for ld in fs_access.listdir(loc):
         parse = urllib.parse.urlparse(ld)
         bn = os.path.basename(urllib.request.url2pathname(parse.path))
         if fs_access.isdir(ld):
-            ent = {"class": "Directory", "location": ld, "basename": bn}
+            ent = {
+                "class": "Directory",
+                "location": ld,
+                "basename": bn,
+            }  # type: MutableMapping[str, Any]
             if recursive:
                 get_listing(fs_access, ent, recursive)
             listing.append(ent)
@@ -466,7 +486,13 @@ def ensure_non_writable(path):  # type: (str) -> None
 
 
 def normalizeFilesDirs(
-    job: Optional[Union[List[Dict[str, Any]], MutableMapping[str, Any], Directory]]
+    job: Optional[
+        Union[
+            MutableSequence[MutableMapping[str, Any]],
+            MutableMapping[str, Any],
+            DirectoryType,
+        ]
+    ]
 ) -> None:
     def addLocation(d):  # type: (Dict[str, Any]) -> None
         if "location" not in d:
@@ -526,3 +552,11 @@ def normalizeFilesDirs(
                     )
 
     visit_class(job, ("File", "Directory"), addLocation)
+
+
+def posix_path(local_path: str) -> str:
+    return str(PurePosixPath(Path(local_path)))
+
+
+def local_path(posix_path: str) -> str:
+    return str(Path(posix_path))

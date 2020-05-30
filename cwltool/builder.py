@@ -30,6 +30,7 @@ from . import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager
+from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
 from .utils import (
     CONTENT_LIMIT,
@@ -44,7 +45,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
     from .pathmapper import PathMapper
 
 
@@ -108,10 +109,10 @@ def formatSubclassOf(
 
 
 def check_format(
-    actual_file,  # type: Union[Dict[str, Any], List[Dict[str, Any]], str]
-    input_formats,  # type: Union[List[str], str]
-    ontology,  # type: Optional[Graph]
-):  # type: (...) -> None
+    actual_file: Union[CWLObjectType, List[CWLObjectType]],
+    input_formats: Union[List[str], str],
+    ontology: Optional[Graph],
+) -> None:
     """Confirm that the format present is valid for the allowed formats."""
     for afile in aslist(actual_file):
         if not afile:
@@ -154,16 +155,16 @@ class Builder(HasReqsHints):
         job: CWLObjectType,
         files: List[CWLObjectType],
         bindings: List[CWLObjectType],
-        schemaDefs: Dict[str, CWLObjectType],
+        schemaDefs: MutableMapping[str, CWLObjectType],
         names: Names,
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
-        resources: Dict[str, int],
+        resources: Dict[str, Union[int, float]],
         mutation_manager: Optional[MutationManager],
         formatgraph: Optional[Graph],
         make_fs_access: Type[StdFsAccess],
         fs_access: StdFsAccess,
-        job_script_provider: Optional[Any],
+        job_script_provider: Optional[DependenciesConfiguration],
         timeout: float,
         debug: bool,
         js_console: bool,
@@ -208,21 +209,18 @@ class Builder(HasReqsHints):
         self.find_default_container = None  # type: Optional[Callable[[], str]]
 
     def build_job_script(self, commands: List[str]) -> Optional[str]:
-        build_job_script_method = getattr(
-            self.job_script_provider, "build_job_script", None
-        )  # type: Optional[Callable[[Builder, Union[List[str],List[str]]], str]]
-        if build_job_script_method is not None:
-            return build_job_script_method(self, commands)
+        if self.job_script_provider is not None:
+            return self.job_script_provider.build_job_script(self, commands)
         return None
 
     def bind_input(
         self,
-        schema: MutableMapping[str, Any],
-        datum: Any,
+        schema: CWLObjectType,
+        datum: Union[CWLObjectType, List[CWLObjectType]],
         discover_secondaryFiles: bool,
         lead_pos: Optional[Union[int, List[int]]] = None,
         tail_pos: Optional[Union[str, List[int]]] = None,
-    ) -> List[MutableMapping[str, Any]]:
+    ) -> List[MutableMapping[str, Union[str, List[int]]]]:
 
         if tail_pos is None:
             tail_pos = []
@@ -267,9 +265,9 @@ class Builder(HasReqsHints):
                 elif (
                     isinstance(t, MutableMapping)
                     and "name" in t
-                    and self.names.has_name(t["name"], None)
+                    and self.names.has_name(cast(str, t["name"]), None)
                 ):
-                    avsc = self.names.get_name(t["name"], None)
+                    avsc = self.names.get_name(cast(str, t["name"]), None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
                 if validate(avsc, datum):
@@ -329,30 +327,35 @@ class Builder(HasReqsHints):
                 )
         else:
             if schema["type"] in self.schemaDefs:
-                schema = self.schemaDefs[schema["type"]]
+                schema = self.schemaDefs[cast(str, schema["type"])]
 
             if schema["type"] == "record":
-                for f in schema["fields"]:
-                    if f["name"] in datum and datum[f["name"]] is not None:
+                datum = cast(CWLObjectType, datum)
+                for f in cast(List[CWLObjectType], schema["fields"]):
+                    name = cast(str, f["name"])
+                    if name in datum and datum[name] is not None:
                         bindings.extend(
                             self.bind_input(
                                 f,
-                                datum[f["name"]],
+                                cast(CWLObjectType, datum[name]),
                                 lead_pos=lead_pos,
-                                tail_pos=f["name"],
+                                tail_pos=name,
                                 discover_secondaryFiles=discover_secondaryFiles,
                             )
                         )
                     else:
-                        datum[f["name"]] = f.get("default")
+                        datum[name] = f.get("default")
 
             if schema["type"] == "array":
-                for n, item in enumerate(datum):
+                for n, item in enumerate(cast(MutableSequence[CWLObjectType], datum)):
                     b2 = None
                     if binding:
-                        b2 = copy.deepcopy(binding)
+                        b2 = cast(CWLObjectType, copy.deepcopy(binding))
                         b2["datum"] = item
-                    itemschema = {"type": schema["items"], "inputBinding": b2}
+                    itemschema = {
+                        "type": schema["items"],
+                        "inputBinding": b2,
+                    }  # type: CWLObjectType
                     for k in ("secondaryFiles", "format", "streamable"):
                         if k in schema:
                             itemschema[k] = schema[k]
@@ -367,17 +370,18 @@ class Builder(HasReqsHints):
                     )
                 binding = {}
 
-            def _capture_files(f):  # type: (CWLObjectType) -> CWLObjectType
+            def _capture_files(f: CWLObjectType) -> CWLObjectType:
                 self.files.append(f)
                 return f
 
             if schema["type"] == "File":
+                datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
                 if (binding and binding.get("loadContents")) or schema.get(
                     "loadContents"
                 ):
-                    with self.fs_access.open(datum["location"], "rb") as f:
-                        datum["contents"] = content_limit_respected_read(f)
+                    with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
+                        datum["contents"] = content_limit_respected_read(f2)
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -391,7 +395,9 @@ class Builder(HasReqsHints):
                         if "$(" in sf["pattern"] or "${" in sf["pattern"]:
                             sfpath = self.do_eval(sf["pattern"], context=datum)
                         else:
-                            sfpath = substitute(datum["basename"], sf["pattern"])
+                            sfpath = substitute(
+                                cast(str, datum["basename"]), sf["pattern"]
+                            )
 
                         for sfname in aslist(sfpath):
                             if not sfname:
@@ -400,8 +406,8 @@ class Builder(HasReqsHints):
 
                             if isinstance(sfname, str):
                                 sf_location = (
-                                    datum["location"][
-                                        0 : datum["location"].rindex("/") + 1
+                                    cast(str, datum["location"])[
+                                        0 : cast(str, datum["location"]).rindex("/") + 1
                                     ]
                                     + sfname
                                 )
@@ -415,7 +421,10 @@ class Builder(HasReqsHints):
                                     % (type(sfname))
                                 )
 
-                            for d in datum["secondaryFiles"]:
+                            for d in cast(
+                                MutableSequence[MutableMapping[str, str]],
+                                datum["secondaryFiles"],
+                            ):
                                 if not d.get("basename"):
                                     d["basename"] = d["location"][
                                         d["location"].rindex("/") + 1 :
@@ -426,8 +435,8 @@ class Builder(HasReqsHints):
                             if not found:
 
                                 def addsf(
-                                    files: MutableSequence[MutableMapping[str, Any]],
-                                    newsf: MutableMapping[str, Any],
+                                    files: MutableSequence[CWLObjectType],
+                                    newsf: CWLObjectType,
                                 ) -> None:
                                     for f in files:
                                         if f["location"] == newsf["location"]:
@@ -436,12 +445,21 @@ class Builder(HasReqsHints):
                                     files.append(newsf)
 
                                 if isinstance(sfname, MutableMapping):
-                                    addsf(datum["secondaryFiles"], sfname)
+                                    addsf(
+                                        cast(
+                                            MutableSequence[CWLObjectType],
+                                            datum["secondaryFiles"],
+                                        ),
+                                        sfname,
+                                    )
                                 elif discover_secondaryFiles and self.fs_access.exists(
                                     sf_location
                                 ):
                                     addsf(
-                                        datum["secondaryFiles"],
+                                        cast(
+                                            MutableSequence[CWLObjectType],
+                                            datum["secondaryFiles"],
+                                        ),
                                         {
                                             "location": sf_location,
                                             "basename": sfname,
@@ -454,12 +472,16 @@ class Builder(HasReqsHints):
                                         % (sfname, json_dumps(datum, indent=4))
                                     )
 
-                    normalizeFilesDirs(datum["secondaryFiles"])
+                    normalizeFilesDirs(
+                        cast(MutableSequence[CWLObjectType], datum["secondaryFiles"])
+                    )
 
                 if "format" in schema:
                     try:
                         check_format(
-                            datum, self.do_eval(schema["format"]), self.formatgraph
+                            datum,
+                            cast(Union[List[str], str], self.do_eval(schema["format"])),
+                            self.formatgraph,
                         )
                     except ValidationException as ve:
                         raise WorkflowException(
@@ -474,9 +496,12 @@ class Builder(HasReqsHints):
                 )
 
             if schema["type"] == "Directory":
+                datum = cast(CWLObjectType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
-                    get_listing(self.fs_access, datum, (ll == "deep_listing"))
+                    get_listing(
+                        self.fs_access, datum, (ll == "deep_listing"),
+                    )
                 self.files.append(datum)
 
             if schema["type"] == "Any":
@@ -576,13 +601,11 @@ class Builder(HasReqsHints):
 
     def do_eval(
         self,
-        ex: Union[
-            str, float, bool, None, MutableMapping[str, str], MutableSequence[str]
-        ],
+        ex: Optional[CWLOutputType],
         context: Optional[Any] = None,
         recursive: bool = False,
         strip_whitespace: bool = True,
-    ) -> Any:
+    ) -> Optional[CWLOutputType]:
         if recursive:
             if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive) for k, v in ex.items()}

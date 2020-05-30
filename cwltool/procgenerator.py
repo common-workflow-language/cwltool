@@ -1,6 +1,5 @@
 import copy
 from typing import (
-    Any,
     Callable,
     Dict,
     Generator,
@@ -129,7 +128,7 @@ class ProcessGenerator(Process):
             )
 
         if "runInputs" in jobout:
-            runinputs = cast(MutableMapping[str, Any], jobout["runInputs"])
+            runinputs = cast(CWLObjectType, jobout["runInputs"])
         else:
             runinputs = copy.deepcopy(job_order)
             for i in self.embedded_tool.tool["inputs"]:

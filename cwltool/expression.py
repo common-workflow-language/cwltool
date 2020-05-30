@@ -10,6 +10,7 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
+    Tuple,
     Union,
     cast,
 )
@@ -19,12 +20,15 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import CWLObjectType, bytes2str_in_dicts, docker_windows_path_adjust
+from .utils import (
+    CWLObjectType,
+    CWLOutputType,
+    bytes2str_in_dicts,
+    docker_windows_path_adjust,
+)
 
 
-def jshead(engine_config, rootvars):
-    # type: (List[str], Dict[str, Any]) -> str
-
+def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
     # make sure all the byte strings are converted
     # to str in `rootvars` dict.
 
@@ -47,14 +51,12 @@ segment_re = re.compile(segments, flags=re.UNICODE)
 param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
 param_re = re.compile(param_str, flags=re.UNICODE)
 
-JSON = Union[Dict[Any, Any], List[Any], str, int, float, bool, None]
-
 
 class SubstitutionError(Exception):
     pass
 
 
-def scanner(scan):  # type: (str) -> List[int]
+def scanner(scan: str) -> Optional[Tuple[int, int]]:
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -78,7 +80,7 @@ def scanner(scan):  # type: (str) -> List[int]
         elif state == BACKSLASH:
             stack.pop()
             if stack[-1] == DEFAULT:
-                return [i - 1, i + 1]
+                return (i - 1, i + 1)
         elif state == DOLLAR:
             if c == "(":
                 start = i - 1
@@ -94,7 +96,7 @@ def scanner(scan):  # type: (str) -> List[int]
             elif c == ")":
                 stack.pop()
                 if stack[-1] == DOLLAR:
-                    return [start, i + 1]
+                    return (start, i + 1)
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
             elif c == '"':
@@ -105,7 +107,7 @@ def scanner(scan):  # type: (str) -> List[int]
             elif c == "}":
                 stack.pop()
                 if stack[-1] == DOLLAR:
-                    return [start, i + 1]
+                    return (start, i + 1)
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
             elif c == '"':
@@ -129,12 +131,12 @@ def scanner(scan):  # type: (str) -> List[int]
             )
         )
     else:
-        return []
+        return None
 
 
 def next_seg(
-    parsed_string, remaining_string, current_value
-):  # type: (str, str, JSON) -> JSON
+    parsed_string: str, remaining_string: str, current_value: CWLOutputType
+) -> CWLOutputType:
     if remaining_string:
         m = segment_re.match(remaining_string)
         if not m:
@@ -183,7 +185,7 @@ def next_seg(
                 return next_seg(
                     parsed_string + remaining_string,
                     remaining_string[m.end(0) :],
-                    current_value[key],
+                    cast(CWLOutputType, current_value[cast(str, key)]),
                 )
             except KeyError:
                 raise WorkflowException(
@@ -209,16 +211,15 @@ def next_seg(
 
 
 def evaluator(
-    ex,  # type: str
-    jslib,  # type: str
-    obj,  # type: Dict[str, Any]
-    timeout,  # type: float
-    fullJS=False,  # type: bool
-    force_docker_pull=False,  # type: bool
-    debug=False,  # type: bool
-    js_console=False,  # type: bool
-):
-    # type: (...) -> JSON
+    ex: str,
+    jslib: str,
+    obj: CWLObjectType,
+    timeout: float,
+    fullJS: bool = False,
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+) -> Optional[CWLOutputType]:
     match = param_re.match(ex)
 
     expression_parse_exception = None
@@ -234,7 +235,11 @@ def evaluator(
             if obj.get(first_symbol) is None:
                 raise WorkflowException("%s is not defined" % first_symbol)
 
-            return next_seg(first_symbol, ex[first_symbol_end:-1], obj[first_symbol])
+            return next_seg(
+                first_symbol,
+                ex[first_symbol_end:-1],
+                cast(CWLOutputType, obj[first_symbol]),
+            )
         except WorkflowException as werr:
             expression_parse_exception = werr
         else:
@@ -265,16 +270,16 @@ def evaluator(
 
 
 def interpolate(
-    scan,  # type: str
-    rootvars,  # type: Dict[str, Any]
-    timeout=default_timeout,  # type: float
-    fullJS=False,  # type: bool
-    jslib="",  # type: str
-    force_docker_pull=False,  # type: bool
-    debug=False,  # type: bool
-    js_console=False,  # type: bool
-    strip_whitespace=True,  # type: bool
-):  # type: (...) -> JSON
+    scan: str,
+    rootvars: CWLObjectType,
+    timeout: float = default_timeout,
+    fullJS: bool = False,
+    jslib: str = "",
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+    strip_whitespace: bool = True,
+) -> Optional[CWLOutputType]:
     if strip_whitespace:
         scan = scan.strip()
     parts = []
@@ -309,34 +314,33 @@ def interpolate(
     return "".join(parts)
 
 
-def needs_parsing(snippet):  # type: (Any) -> bool
+def needs_parsing(snippet: Any) -> bool:
     return isinstance(snippet, str) and ("$(" in snippet or "${" in snippet)
 
 
 def do_eval(
-    ex: Union[str, float, bool, None, MutableMapping[str, str], MutableSequence[str]],
+    ex: Optional[CWLOutputType],
     jobinput: CWLObjectType,
     requirements: List[CWLObjectType],
     outdir: Optional[str],
     tmpdir: Optional[str],
-    resources: Dict[str, int],
-    context: Any = None,
+    resources: Dict[str, Union[float, int]],
+    context: Optional[CWLOutputType] = None,
     timeout: float = default_timeout,
     force_docker_pull: bool = False,
     debug: bool = False,
     js_console: bool = False,
     strip_whitespace: bool = True,
-) -> Any:
+) -> Optional[CWLOutputType]:
 
-    runtime = copy.deepcopy(resources)  # type: Dict[str, Any]
+    runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
     runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
     runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
 
-    rootvars = {"inputs": jobinput, "self": context, "runtime": runtime}
-
-    # TODO: need to make sure the `rootvars dict`
-    # contains no bytes type in the first place.
-    rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
+    rootvars = cast(
+        CWLObjectType,
+        bytes2str_in_dicts({"inputs": jobinput, "self": context, "runtime": runtime}),
+    )
 
     if isinstance(ex, str) and needs_parsing(ex):
         fullJS = False
