@@ -162,7 +162,7 @@ mypy: ${PYSOURCES}
 		 cwltool
 
 mypyc: ${PYSOURCES}
-	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 python setup.py test
+	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
 
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
