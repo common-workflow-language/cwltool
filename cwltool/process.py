@@ -399,7 +399,11 @@ def relocateOutputs(
     stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
     def _check_adjust(a_file):  # type: (Dict[str, str]) -> Dict[str, str]
-        a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
+        url=urllib.parse.urlparse( a_file["location"] )
+        if url.scheme == "" : 
+            a_file["location"] = file_uri(pm.mapper(a_file["location"])[1]) # return the locatio of the file on the filesystem
+        else:
+            a_file["location"] = pm.mapper(a_file["location"])[0] # keep the original uri (e.g. s3, http, ftp, gs etc)
         if "contents" in a_file:
             del a_file["contents"]
         return a_file

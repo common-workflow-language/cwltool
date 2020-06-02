@@ -16,7 +16,7 @@ from typing import (
 )
 
 from schema_salad.ref_resolver import file_uri
-
+import urllib
 from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
@@ -656,15 +656,30 @@ class FSAction(argparse.Action):
         values,  # type: Union[AnyStr, Sequence[Any], None]
         option_string=None,  # type: Optional[str]
     ):  # type: (...) -> None
-        setattr(
-            namespace,
-            self.dest,
-            {
-                "class": self.objclass,
-                "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
-            },
-        )
-
+        url= urllib.parse.urlparse( values )
+        #print("FSAction: __call__ : self.dest {}, values {}".format(self.dest, values))
+        if url.scheme == '':
+            setattr(
+                namespace,
+                self.dest,
+                {
+                    "class": self.objclass,
+                    "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
+                },
+            )
+        else:
+            setattr(
+                namespace,
+                self.dest,
+                {
+                    "class": self.objclass,
+                    "location": values,
+                },
+            )
+        
+            
+            
+        #print("FSAction: __call__ : self.dest {}, values {} ".format(self.dest, values ))
 
 class FSAppendAction(argparse.Action):
     objclass = None  # type: str
@@ -687,12 +702,24 @@ class FSAppendAction(argparse.Action):
         if not g:
             g = []
             setattr(namespace, self.dest, g)
-        g.append(
-            {
-                "class": self.objclass,
-                "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
-            }
-        )
+        url= urllib.parse.urlparse( values )
+        
+        if url.scheme ==  "" :
+            g.append(
+                {
+                    "class": self.objclass,
+                    "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
+                }
+            )
+        else:
+            g.append(
+                {
+                    "class": self.objclass,
+                    "location":  values,
+                }
+            )    
+            
+            
 
 
 class FileAction(FSAction):
