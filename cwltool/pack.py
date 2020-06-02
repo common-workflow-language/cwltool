@@ -16,37 +16,19 @@ from typing import (
 )
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Loader, SubLoader
-from schema_salad.sourceline import cmap
+from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
+from .utils import CWLObjectType, CWLOutputType
 
-
-def flatten_deps(d, files):  # type: (Any, Set[str]) -> None
-    if isinstance(d, MutableSequence):
-        for s in d:
-            flatten_deps(s, files)
-    elif isinstance(d, MutableMapping):
-        if d["class"] == "File":
-            files.add(d["location"])
-        if "secondaryFiles" in d:
-            flatten_deps(d["secondaryFiles"], files)
-        if "listing" in d:
-            flatten_deps(d["listing"], files)
-
-
-LoadRefType = Callable[
-    [Optional[str], str], Union[Dict[str, Any], List[Dict[str, Any]], str, None]
-]
+LoadRefType = Callable[[Optional[str], str], ResolveType]
 
 
 def find_run(
-    d,  # type: Any
-    loadref,  # type: LoadRefType
-    runs,  # type: Set[str]
-):  # type: (...) -> None
+    d: Union[CWLObjectType, ResolveType], loadref: LoadRefType, runs: Set[str],
+) -> None:
     if isinstance(d, MutableSequence):
         for s in d:
             find_run(s, loadref, runs)
@@ -59,20 +41,22 @@ def find_run(
             find_run(s, loadref, runs)
 
 
-def find_ids(d, ids):  # type: (Any, Set[str]) -> None
+def find_ids(
+    d: Union[CWLObjectType, CWLOutputType, MutableSequence[CWLObjectType], None],
+    ids: Set[str],
+) -> None:
     if isinstance(d, MutableSequence):
         for s in d:
-            find_ids(s, ids)
+            find_ids(cast(CWLObjectType, s), ids)
     elif isinstance(d, MutableMapping):
         for i in ("id", "name"):
             if i in d and isinstance(d[i], str):
-                ids.add(d[i])
-        for s in d.values():
-            find_ids(s, ids)
+                ids.add(cast(str, d[i]))
+        for s2 in d.values():
+            find_ids(cast(CWLOutputType, s2), ids)
 
 
-def replace_refs(d, rewrite, stem, newstem):
-    # type: (Any, Dict[str, str], str, str) -> None
+def replace_refs(d: Any, rewrite: Dict[str, str], stem: str, newstem: str) -> None:
     if isinstance(d, MutableSequence):
         for s, v in enumerate(d):
             if isinstance(v, str):
@@ -84,49 +68,52 @@ def replace_refs(d, rewrite, stem, newstem):
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, MutableMapping):
-        for s, v in d.items():
-            if isinstance(v, str):
-                if v in rewrite:
-                    d[s] = rewrite[v]
-                elif v.startswith(stem):
-                    id_ = v[len(stem) :]
+        for key, val in d.items():
+            if isinstance(val, str):
+                if val in rewrite:
+                    d[key] = rewrite[val]
+                elif val.startswith(stem):
+                    id_ = val[len(stem) :]
                     # prevent appending newstems if tool is already packed
                     if id_.startswith(newstem.strip("#")):
-                        d[s] = "#" + id_
+                        d[key] = "#" + id_
                     else:
-                        d[s] = newstem + id_
-                    rewrite[v] = d[s]
-            replace_refs(v, rewrite, stem, newstem)
+                        d[key] = newstem + id_
+                    rewrite[val] = d[key]
+            replace_refs(val, rewrite, stem, newstem)
 
 
-def import_embed(d, seen):
-    # type: (Any, Set[str]) -> None
+def import_embed(
+    d: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType],
+    seen: Set[str],
+) -> None:
     if isinstance(d, MutableSequence):
         for v in d:
-            import_embed(v, seen)
+            import_embed(cast(CWLOutputType, v), seen)
     elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
                 if isinstance(d[n], str):
-                    if d[n] in seen:
-                        this = d[n]
+                    ident = cast(str, d[n])
+                    if ident in seen:
+                        this = ident
                         d.clear()
                         d["$import"] = this
                     else:
-                        this = d[n]
+                        this = ident
                         seen.add(this)
                         break
 
         for k in sorted(d.keys()):
-            import_embed(d[k], seen)
+            import_embed(cast(CWLOutputType, d[k]), seen)
 
 
 def pack(
     loadingContext: LoadingContext,
-    uri,  # type: str
-    rewrite_out=None,  # type: Optional[Dict[str, str]]
-    loader=None,  # type: Optional[Loader]
-):  # type: (...) -> Dict[str, Any]
+    uri: str,
+    rewrite_out: Optional[Dict[str, str]] = None,
+    loader: Optional[Loader] = None,
+) -> CWLObjectType:
 
     # The workflow document we have in memory right now may have been
     # updated to the internal CWL version.  We need to reload the
@@ -164,8 +151,7 @@ def pack(
             document_loader.idx[po["id"]] = CommentedMap(po.items())
         document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
-    def loadref(base, uri):
-        # type: (Optional[str], str) -> Union[Dict[str, Any], List[Dict[str, Any]], str, None]
+    def loadref(base: Optional[str], uri: str) -> ResolveType:
         return document_loader.resolve_ref(uri, base_url=base)[0]
 
     ids = set()  # type: Set[str]
@@ -185,8 +171,7 @@ def pack(
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(r, mainuri):
-        # type: (str, str) -> None
+    def rewrite_id(r: str, mainuri: str) -> None:
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):

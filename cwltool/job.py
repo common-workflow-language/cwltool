@@ -5,7 +5,6 @@ import logging
 import os
 import re
 import shutil
-import stat
 import subprocess  # nosec
 import sys
 import tempfile
@@ -13,19 +12,19 @@ import threading
 import time
 import uuid
 from abc import ABCMeta, abstractmethod
-from io import IOBase, open  # pylint: disable=redefined-builtin
+from io import IOBase
 from threading import Timer
 from typing import (
     IO,
-    Any,
-    AnyStr,
     Callable,
     Dict,
     Iterable,
     List,
+    Match,
     MutableMapping,
     MutableSequence,
     Optional,
+    TextIO,
     Tuple,
     Union,
     cast,
@@ -33,30 +32,35 @@ from typing import (
 
 import psutil
 import shellescape
-from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
+from prov.model import PROV
+
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
-from .errors import WorkflowException
-from .expression import JSON
+from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
-from .pathmapper import MapperEnt, PathMapper, ensure_non_writable, ensure_writable
-from .process import UnsupportedRequirement, stage_files
+from .pathmapper import MapperEnt, PathMapper
+from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
     DEFAULT_TMP_PREFIX,
-    Directory,
+    CWLObjectType,
+    CWLOutputType,
+    DirectoryType,
+    OutputCallbackType,
     bytes2str_in_dicts,
     copytree_with_merge,
+    ensure_non_writable,
+    ensure_writable,
     onWindows,
     processes_to_kill,
 )
 
 if TYPE_CHECKING:
-    from .provenance import ProvenanceProfile  # pylint: disable=unused-import
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
@@ -125,27 +129,12 @@ with open(sys.argv[1], "r") as f:
 """
 
 
-def deref_links(outputs):  # type: (Any) -> None
-    if isinstance(outputs, MutableMapping):
-        if outputs.get("class") == "File":
-            st = os.lstat(outputs["path"])
-            if stat.S_ISLNK(st.st_mode):
-                outputs["basename"] = os.path.basename(outputs["path"])
-                outputs["path"] = os.readlink(outputs["path"])
-        else:
-            for v in outputs.values():
-                deref_links(v)
-    if isinstance(outputs, MutableSequence):
-        for output in outputs:
-            deref_links(output)
-
-
 def relink_initialworkdir(
-    pathmapper,  # type: PathMapper
-    host_outdir,  # type: str
-    container_outdir,  # type: str
-    inplace_update=False,  # type: bool
-):  # type: (...) -> None
+    pathmapper: PathMapper,
+    host_outdir: str,
+    container_outdir: str,
+    inplace_update: bool = False,
+) -> None:
     for _, vol in pathmapper.items():
         if not vol.staged:
             continue
@@ -183,17 +172,25 @@ def relink_initialworkdir(
                     pass
 
 
+def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
+    return None
+
+
+CollectOutputsType = Union[Callable[[str, int], CWLObjectType], functools.partial]
+
+
 class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
         builder: Builder,
-        joborder: JSON,
+        joborder: CWLObjectType,
         make_path_mapper: Callable[..., PathMapper],
-        requirements: List[Dict[str, str]],
-        hints: List[Dict[str, str]],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
         name: str,
     ) -> None:
         """Initialize the job object."""
+        super(JobBase, self).__init__()
         self.builder = builder
         self.joborder = joborder
         self.stdin = None  # type: Optional[str]
@@ -211,10 +208,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.generatemapper = None  # type: Optional[PathMapper]
 
         # set in CommandLineTool.job(i)
-        self.collect_outputs = cast(
-            Callable[[str, int], MutableMapping[str, Any]], None
-        )  # type: Union[Callable[[str, int], MutableMapping[str, Any]], functools.partial[MutableMapping[str, Any]]]
-        self.output_callback = cast(Callable[[Any, Any], Any], None)
+        self.collect_outputs = cast(CollectOutputsType, None)
+        self.output_callback = None  # type: Optional[OutputCallbackType]
         self.outdir = ""
         self.tmpdir = ""
 
@@ -223,7 +218,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             "class": "Directory",
             "listing": [],
             "basename": "",
-        }  # type: Directory
+        }  # type: DirectoryType
         self.stagedir = None  # type: Optional[str]
         self.inplace_update = False
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
@@ -244,7 +239,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     ) -> None:
         pass
 
-    def _setup(self, runtimeContext):  # type: (RuntimeContext) -> None
+    def _setup(self, runtimeContext: RuntimeContext) -> None:
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -260,7 +255,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             runtimeContext = runtimeContext.copy()
             runtimeContext.outdir = self.outdir
             self.generatemapper = self.make_path_mapper(
-                cast(List[Any], self.generatefiles["listing"]),
+                self.generatefiles["listing"],
                 self.builder.outdir,
                 runtimeContext,
                 False,
@@ -286,13 +281,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
     ) -> None:
 
-        scr, _ = self.get_requirement("ShellCommandRequirement")
+        scr = self.get_requirement("ShellCommandRequirement")[0]
 
-        shouldquote = needs_shell_quoting_re.search  # type: Callable[[Any], Any]
+        shouldquote = needs_shell_quoting_re.search
         if scr is not None:
-
-            def shouldquote(x: Any) -> bool:
-                return False
+            shouldquote = neverquote
 
         # If mpi_procs (is not None and > 0) then prepend the
         # appropriate MPI job launch command and flags before the
@@ -334,7 +327,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "or prov_obj is missing from runtimeContext: "
                     "{}".format(runtimeContext)
                 )
-        outputs = {}  # type: MutableMapping[str,Any]
+        outputs = {}  # type: CWLObjectType
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -364,8 +357,14 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
-                commands = runtimeContext.secret_store.retrieve(commands)
-                env = runtimeContext.secret_store.retrieve(env)
+                commands = cast(
+                    List[str],
+                    runtimeContext.secret_store.retrieve(cast(CWLOutputType, commands)),
+                )
+                env = cast(
+                    MutableMapping[str, str],
+                    runtimeContext.secret_store.retrieve(cast(CWLOutputType, env)),
+                )
 
             job_script_contents = None  # type: Optional[str]
             builder = getattr(self, "builder", None)  # type: Builder
@@ -428,7 +427,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         except WorkflowException as err:
             _logger.error("[job %s] Job error:\n%s", self.name, str(err))
             processStatus = "permanentFail"
-        except Exception as e:
+        except Exception:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
         if (
@@ -472,8 +471,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 "runtimeContext.workflow_eval_lock must not be None"
             )
 
-        with runtimeContext.workflow_eval_lock:
-            self.output_callback(outputs, processStatus)
+        if self.output_callback:
+            with runtimeContext.workflow_eval_lock:
+                self.output_callback(outputs, processStatus)
 
         if self.stagedir is not None and os.path.exists(self.stagedir):
             _logger.debug(
@@ -489,14 +489,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             )
             shutil.rmtree(self.tmpdir, True)
 
-    def process_monitor(
-        self, sproc  # type: subprocess.Popen[str]
-    ) -> None:
+    def process_monitor(self, sproc):  # type: (subprocess.Popen[str]) -> None
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
-        memory_usage = [None]
+        memory_usage = [None]  # type: MutableSequence[Optional[int]]
 
-        def get_tree_mem_usage(memory_usage):  # type: (List[int]) -> None
+        def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):
@@ -527,9 +525,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 class CommandLineJob(JobBase):
     def run(
         self,
-        runtimeContext,  # type: RuntimeContext
-        tmpdir_lock=None,  # type: Optional[threading.Lock]
-    ):  # type: (...) -> None
+        runtimeContext: RuntimeContext,
+        tmpdir_lock: Optional[threading.Lock] = None,
+    ) -> None:
 
         if tmpdir_lock:
             with tmpdir_lock:
@@ -595,7 +593,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     @abstractmethod
     def get_from_requirements(
         self,
-        r: Dict[str, str],
+        r: CWLObjectType,
         pull_image: bool,
         force_pull: bool = False,
         tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
@@ -604,48 +602,42 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     @abstractmethod
     def create_runtime(
-        self,
-        env,  # type: MutableMapping[str, str]
-        runtime_context,  # type: RuntimeContext
-    ):  # type: (...) -> Tuple[List[str], Optional[str]]
+        self, env: MutableMapping[str, str], runtime_context: RuntimeContext,
+    ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
-        pass
 
     @staticmethod
     @abstractmethod
-    def append_volume(runtime, source, target, writable=False):
-        # type: (List[str], str, str, bool) -> None
+    def append_volume(
+        runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
         """Add binding arguments to the runtime list."""
-        pass
 
     @abstractmethod
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
-        pass
 
     @abstractmethod
     def add_writable_file_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable file mapping to the runtime option list."""
-        pass
 
     @abstractmethod
     def add_writable_directory_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         """Append a writable directory mapping to the runtime option list."""
-        pass
 
     def create_file_and_add_volume(
         self,
@@ -663,10 +655,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 os.path.basename(volume.target),
             )
         writable = True if volume.type == "CreateWritableFile" else False
+        contents = volume.resolved
         if secret_store:
-            contents = secret_store.retrieve(volume.resolved)
-        else:
-            contents = volume.resolved
+            contents = cast(str, secret_store.retrieve(volume.resolved))
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
@@ -682,12 +673,12 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     def add_volumes(
         self,
-        pathmapper,  # type: PathMapper
-        runtime,  # type: List[str]
-        tmpdir_prefix,  # type: str
-        secret_store=None,  # type: Optional[SecretStore]
-        any_path_okay=False,  # type: bool
-    ):  # type: (...) -> None
+        pathmapper: PathMapper,
+        runtime: List[str],
+        tmpdir_prefix: str,
+        secret_store: Optional[SecretStore] = None,
+        any_path_okay: bool = False,
+    ) -> None:
         """Append volume mappings to the runtime option list."""
         container_outdir = self.builder.outdir
         for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
@@ -720,9 +711,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     def run(
         self,
-        runtimeContext,  # type: RuntimeContext
-        tmpdir_lock=None,  # type: Optional[threading.Lock]
-    ):  # type: (...) -> None
+        runtimeContext: RuntimeContext,
+        tmpdir_lock: Optional[threading.Lock] = None,
+    ) -> None:
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -855,7 +846,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid = None
+        cid = None  # type: Optional[str]
         while cid is None:
             time.sleep(1)
             if process.returncode is not None:
@@ -875,8 +866,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
+        stats_file_name = stats_file.name
         try:
-            with open(stats_file.name, mode="w") as stats_file_handle:
+            with open(stats_file_name, mode="w") as stats_file_handle:
                 stats_proc = subprocess.Popen(  # nosec
                     ["docker", "stats", "--no-trunc", "--format", "{{.MemPerc}}", cid],
                     stdout=stats_file_handle,
@@ -887,9 +879,13 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         except OSError as exc:
             _logger.warn("Ignored error with docker stats: %s", exc)
             return
-        max_mem_percent = 0
-        with open(stats_file.name, mode="r") as stats:
-            for line in stats:
+        max_mem_percent = 0  # type: float
+        mem_percent = 0  # type: float
+        with open(stats_file_name, mode="r") as stats:
+            while True:
+                line = stats.readline()
+                if not line:
+                    break
                 try:
                     mem_percent = float(
                         re.sub(CONTROL_CODE_RE, "", line).replace("%", "")
@@ -923,15 +919,15 @@ def _job_popen(
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
-        stdin = subprocess.PIPE  # type: Union[IO[Any], int]
+        stdin = subprocess.PIPE  # type: Union[IO[bytes], int]
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = sys.stderr  # type: IO[Any]
+        stdout = sys.stderr  # type: Union[IO[bytes], TextIO]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = sys.stderr  # type: IO[Any]
+        stderr = sys.stderr  # type: Union[IO[bytes], TextIO]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -991,7 +987,7 @@ def _job_popen(
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
         env_copy = {}
-        key = None  # type: Any
+        key = None  # type: Optional[str]
         for key in env:
             env_copy[key] = env[key]
 

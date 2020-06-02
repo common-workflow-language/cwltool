@@ -5,48 +5,118 @@ import os
 import platform
 import random
 import shutil
+import stat
 import string
 import subprocess  # nosec
 import sys
 import tempfile
 import urllib
+import uuid
 from functools import partial
 from itertools import zip_longest
+from pathlib import Path, PurePosixPath
+from tempfile import NamedTemporaryFile
+from types import ModuleType
 from typing import (
     IO,
     Any,
-    AnyStr,
     Callable,
     Dict,
+    Generator,
     Iterable,
     List,
     MutableMapping,
     MutableSequence,
+    NamedTuple,
     Optional,
+    Set,
     Union,
+    cast,
 )
 
 import pkg_resources
+import requests
+from cachecontrol import CacheControl
+from cachecontrol.caches import FileCache
 from mypy_extensions import TypedDict
-from pathlib2 import Path
-from typing_extensions import Deque
+from schema_salad.exceptions import ValidationException
+from schema_salad.ref_resolver import Loader
+from typing_extensions import TYPE_CHECKING, Deque
 
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
+if TYPE_CHECKING:
+    from .job import CommandLineJob, JobBase
+    from .workflow_job import WorkflowJob
+    from .command_line_tool import ExpressionJob, CallbackJob
+    from .stdfsaccess import StdFsAccess
 
+__random_outdir = None  # type: Optional[str]
+
+CONTENT_LIMIT = 64 * 1024
 
 windows_default_container_id = "frolvlad/alpine-bash"
-
-Directory = TypedDict(
-    "Directory", {"class": str, "listing": List[Dict[str, str]], "basename": str}
-)
 
 DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen[str]]
 
+CWLOutputAtomType = Union[
+    None,
+    bool,
+    str,
+    int,
+    float,
+    MutableSequence[
+        Union[
+            None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]
+        ]
+    ],
+    MutableMapping[
+        str,
+        Union[
+            None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]
+        ],
+    ],
+]
+CWLOutputType = Union[
+    bool,
+    str,
+    int,
+    float,
+    MutableSequence[CWLOutputAtomType],
+    MutableMapping[str, CWLOutputAtomType],
+]
+CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
+JobsType = Union[
+    "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"
+]
+JobsGeneratorType = Generator[Optional[JobsType], None, None]
+OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
+ResolverType = Callable[["Loader", str], Optional[str]]
+DestinationsType = MutableMapping[str, Optional[CWLOutputType]]
+ScatterDestinationsType = MutableMapping[str, List[Optional[CWLOutputType]]]
+ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]
+SinkType = Union[CWLOutputType, CWLObjectType]
+DirectoryType = TypedDict(
+    "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
+)
+JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
+JSONType = Union[
+    Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None
+]
+WorkflowStateItem = NamedTuple(
+    "WorkflowStateItem",
+    [
+        ("parameter", CWLObjectType),
+        ("value", Optional[CWLOutputType]),
+        ("success", str),
+    ],
+)
 
-def versionstring():
-    # type: () -> str
+ParametersType = List[CWLObjectType]
+StepType = CWLObjectType  # WorkflowStep
+
+
+def versionstring() -> str:
     """Version of CWLtool used to execute the workflow."""
     pkg = pkg_resources.require("cwltool")
     if pkg:
@@ -54,14 +124,14 @@ def versionstring():
     return "%s %s" % (sys.argv[0], "unknown version")
 
 
-def aslist(thing):  # type: (Any) -> MutableSequence[Any]
+def aslist(thing: Any) -> MutableSequence[Any]:
     """Wrap any non-MutableSequence/list in a list."""
     if isinstance(thing, MutableSequence):
         return thing
     return [thing]
 
 
-def copytree_with_merge(src, dst):  # type: (str, str) -> None
+def copytree_with_merge(src: str, dst: str) -> None:
     if not os.path.exists(dst):
         os.makedirs(dst)
         shutil.copystat(src, dst)
@@ -75,8 +145,7 @@ def copytree_with_merge(src, dst):  # type: (str, str) -> None
             shutil.copy2(spath, dpath)
 
 
-def docker_windows_path_adjust(path):
-    # type: (str) -> str
+def docker_windows_path_adjust(path: str) -> str:
     r"""
     Adjust only windows paths for Docker.
 
@@ -100,8 +169,7 @@ def docker_windows_path_adjust(path):
     return path
 
 
-def docker_windows_reverse_path_adjust(path):
-    # type: (str) -> (str)
+def docker_windows_reverse_path_adjust(path: str) -> str:
     r"""
     Change docker path (only on windows os) appropriately back to Windows path.
 
@@ -118,8 +186,7 @@ def docker_windows_reverse_path_adjust(path):
     return path
 
 
-def docker_windows_reverse_fileuri_adjust(fileuri):
-    # type: (str) -> (str)
+def docker_windows_reverse_fileuri_adjust(fileuri: str) -> str:
     r"""
     Convert fileuri to be MS Windows comptabile, if needed.
 
@@ -138,13 +205,12 @@ def docker_windows_reverse_fileuri_adjust(fileuri):
     return fileuri
 
 
-def onWindows():
-    # type: () -> (bool)
+def onWindows() -> bool:
     """Check if we are on Windows OS."""
     return os.name == "nt"
 
 
-def convert_pathsep_to_unix(path):  # type: (str) -> (str)
+def convert_pathsep_to_unix(path: str) -> str:
     """
     Convert path seperators to unix style.
 
@@ -191,7 +257,7 @@ def cmp_like_py2(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> int:
 
 
 def bytes2str_in_dicts(
-    inp,  # type: Union[MutableMapping[str, Any], MutableSequence[Any], Any]
+    inp: Union[MutableMapping[str, Any], MutableSequence[Any], Any],
 ):
     # type: (...) -> Union[str, MutableSequence[Any], MutableMapping[str, Any]]
     """
@@ -220,9 +286,7 @@ def bytes2str_in_dicts(
     return inp
 
 
-def visit_class(
-    rec: Any, cls: Iterable[Any], op  # type: Union[Callable[..., Any], partial[Any]]
-) -> None:
+def visit_class(rec: Any, cls: Iterable[Any], op: Callable[..., Any]) -> None:
     """Apply a function to with "class" in cls."""
     if isinstance(rec, MutableMapping):
         if "class" in rec and rec.get("class") in cls:
@@ -234,8 +298,7 @@ def visit_class(
             visit_class(d, cls, op)
 
 
-def visit_field(rec, field, op):
-    # type: (Any, str, Union[Callable[..., Any], partial[Any]]) -> None
+def visit_field(rec: Any, field: str, op: Callable[..., Any]) -> None:
     """Apply a function to mapping with 'field'."""
     if isinstance(rec, MutableMapping):
         if field in rec:
@@ -247,34 +310,253 @@ def visit_field(rec, field, op):
             visit_field(d, field, op)
 
 
-def random_outdir():  # type: () -> str
+def random_outdir() -> str:
     """Return the random directory name chosen to use for tool / workflow output."""
-    # compute this once and store it as a function attribute - each subsequent call will return the same value
-    if not hasattr(random_outdir, "outdir"):
-        random_outdir.outdir = "/" + "".join(  # type: ignore
+    global __random_outdir
+    if not __random_outdir:
+        __random_outdir = "/" + "".join(
             [random.choice(string.ascii_letters) for _ in range(6)]  # nosec
         )
-    return random_outdir.outdir  # type: ignore
+        return __random_outdir
+    return __random_outdir
 
 
 #
 # Simple multi-platform (fcntl/msvrt) file locking wrapper
 #
+fcntl = None  # type: Optional[ModuleType]
+msvcrt = None  # type: Optional[ModuleType]
 try:
-    import fcntl
-
-    def shared_file_lock(fd):  # type: (IO[Any]) -> None
-        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
-
-    def upgrade_lock(fd):  # type: (IO[Any]) -> None
-        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
-
-
+    import fcntl  # type: ignore
 except ImportError:
-    import msvcrt
+    import msvcrt  # type: ignore
 
-    def shared_file_lock(fd):  # type: (IO[Any]) -> None
+
+def shared_file_lock(fd: IO[Any]) -> None:
+    if fcntl:
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
+    elif msvcrt:
         msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
 
-    def upgrade_lock(fd):  # type: (IO[Any]) -> None
+
+def upgrade_lock(fd: IO[Any]) -> None:
+    if fcntl:
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
+    elif msvcrt:
         pass
+
+
+def adjustFileObjs(
+    rec, op
+):  # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply an update function to each File object in the object `rec`."""
+    visit_class(rec, ("File",), op)
+
+
+def adjustDirObjs(rec, op):
+    # type: (Any, Union[Callable[..., Any], partial[Any]]) -> None
+    """Apply an update function to each Directory object in the object `rec`."""
+    visit_class(rec, ("Directory",), op)
+
+
+def dedup(listing: List[CWLObjectType]) -> List[CWLObjectType]:
+    marksub = set()
+
+    def mark(d: Dict[str, str]) -> None:
+        marksub.add(d["location"])
+
+    for entry in listing:
+        if entry["class"] == "Directory":
+            for e in cast(List[CWLObjectType], entry.get("listing", [])):
+                adjustFileObjs(e, mark)
+                adjustDirObjs(e, mark)
+
+    dd = []
+    markdup = set()  # type: Set[str]
+    for r in listing:
+        if r["location"] not in marksub and r["location"] not in markdup:
+            dd.append(r)
+            markdup.add(cast(str, r["location"]))
+
+    return dd
+
+
+def get_listing(
+    fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True
+) -> None:
+    if rec.get("class") != "Directory":
+        finddirs = []  # type: List[CWLObjectType]
+        visit_class(rec, ("Directory",), finddirs.append)
+        for f in finddirs:
+            get_listing(fs_access, f, recursive=recursive)
+        return
+    if "listing" in rec:
+        return
+    listing = []  # type: List[CWLOutputAtomType]
+    loc = cast(str, rec["location"])
+    for ld in fs_access.listdir(loc):
+        parse = urllib.parse.urlparse(ld)
+        bn = os.path.basename(urllib.request.url2pathname(parse.path))
+        if fs_access.isdir(ld):
+            ent = {
+                "class": "Directory",
+                "location": ld,
+                "basename": bn,
+            }  # type: MutableMapping[str, Any]
+            if recursive:
+                get_listing(fs_access, ent, recursive)
+            listing.append(ent)
+        else:
+            listing.append({"class": "File", "location": ld, "basename": bn})
+    rec["listing"] = listing
+
+
+def trim_listing(obj):  # type: (Dict[str, Any]) -> None
+    """
+    Remove 'listing' field from Directory objects that are file references.
+
+    It redundant and potentially expensive to pass fully enumerated Directory
+    objects around if not explicitly needed, so delete the 'listing' field when
+    it is safe to do so.
+    """
+    if obj.get("location", "").startswith("file://") and "listing" in obj:
+        del obj["listing"]
+
+
+def downloadHttpFile(httpurl):
+    # type: (str) -> str
+    cache_session = None
+    if "XDG_CACHE_HOME" in os.environ:
+        directory = os.environ["XDG_CACHE_HOME"]
+    elif "HOME" in os.environ:
+        directory = os.environ["HOME"]
+    else:
+        directory = os.path.expanduser("~")
+
+    cache_session = CacheControl(
+        requests.Session(),
+        cache=FileCache(os.path.join(directory, ".cache", "cwltool")),
+    )
+
+    r = cache_session.get(httpurl, stream=True)
+    with NamedTemporaryFile(mode="wb", delete=False) as f:
+        for chunk in r.iter_content(chunk_size=16384):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+    r.close()
+    return str(f.name)
+
+
+def ensure_writable(path):  # type: (str) -> None
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode | stat.S_IWUSR)
+            for name in dirs:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode | stat.S_IWUSR)
+    else:
+        st = os.stat(path)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(path, mode | stat.S_IWUSR)
+
+
+def ensure_non_writable(path):  # type: (str) -> None
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+            for name in dirs:
+                j = os.path.join(root, name)
+                st = os.stat(j)
+                mode = stat.S_IMODE(st.st_mode)
+                os.chmod(j, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+    else:
+        st = os.stat(path)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(path, mode & ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH)
+
+
+def normalizeFilesDirs(
+    job: Optional[
+        Union[
+            MutableSequence[MutableMapping[str, Any]],
+            MutableMapping[str, Any],
+            DirectoryType,
+        ]
+    ]
+) -> None:
+    def addLocation(d):  # type: (Dict[str, Any]) -> None
+        if "location" not in d:
+            if d["class"] == "File" and ("contents" not in d):
+                raise ValidationException(
+                    "Anonymous file object must have 'contents' and 'basename' fields."
+                )
+            if d["class"] == "Directory" and (
+                "listing" not in d or "basename" not in d
+            ):
+                raise ValidationException(
+                    "Anonymous directory object must have 'listing' and 'basename' fields."
+                )
+            d["location"] = "_:" + str(uuid.uuid4())
+            if "basename" not in d:
+                d["basename"] = d["location"][2:]
+
+        parse = urllib.parse.urlparse(d["location"])
+        path = parse.path
+        # strip trailing slash
+        if path.endswith("/"):
+            if d["class"] != "Directory":
+                raise ValidationException(
+                    "location '%s' ends with '/' but is not a Directory" % d["location"]
+                )
+            path = path.rstrip("/")
+            d["location"] = urllib.parse.urlunparse(
+                (
+                    parse.scheme,
+                    parse.netloc,
+                    path,
+                    parse.params,
+                    parse.query,
+                    parse.fragment,
+                )
+            )
+
+        if not d.get("basename"):
+            if path.startswith("_:"):
+                d["basename"] = str(path[2:])
+            else:
+                d["basename"] = str(os.path.basename(urllib.request.url2pathname(path)))
+
+        if d["class"] == "File":
+            nr, ne = os.path.splitext(d["basename"])
+            if d.get("nameroot") != nr:
+                d["nameroot"] = str(nr)
+            if d.get("nameext") != ne:
+                d["nameext"] = str(ne)
+
+            contents = d.get("contents")
+            if contents and len(contents) > CONTENT_LIMIT:
+                if len(contents) > CONTENT_LIMIT:
+                    raise ValidationException(
+                        "File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)"
+                        % CONTENT_LIMIT
+                    )
+
+    visit_class(job, ("File", "Directory"), addLocation)
+
+
+def posix_path(local_path: str) -> str:
+    return str(PurePosixPath(Path(local_path)))
+
+
+def local_path(posix_path: str) -> str:
+    return str(Path(posix_path))

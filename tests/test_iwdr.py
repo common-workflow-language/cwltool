@@ -1,7 +1,7 @@
 import os
 import tempfile
+from pathlib import Path
 
-from cwltool import load_tool
 from cwltool.main import main
 
 from .util import (
@@ -15,26 +15,28 @@ from .util import (
 )
 
 
-@windows_needs_docker
-def test_newline_in_entry():
+@windows_needs_docker  # type: ignore
+def test_newline_in_entry() -> None:
     """Files in a InitialWorkingDirectory are created with a newline character."""
     factory = get_windows_safe_factory()
     echo = factory.make(get_data("tests/wf/iwdr-entry.cwl"))
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
 
 
-@needs_docker
-def test_empty_file_creation():
+@needs_docker  # type: ignore
+def test_empty_file_creation() -> None:
     """An empty file can be created in InitialWorkingDirectory."""
     err_code, _, _ = get_main_output([get_data("tests/wf/iwdr-empty.cwl")])
     assert err_code == 0
 
 
-@needs_docker
-def test_directory_literal_with_real_inputs_inside():
+@needs_docker  # type: ignore
+def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     """Cope with unmoveable files in the output directory created by Docker+IWDR."""
     err_code, _, _ = get_main_output(
         [
+            "--out",
+            str(tmp_path),
             get_data("tests/iwdr_dir_literal_real_file.cwl"),
             "--example={}".format(get_data("tests/__init__.py")),
         ]
@@ -42,8 +44,8 @@ def test_directory_literal_with_real_inputs_inside():
     assert err_code == 0
 
 
-@needs_docker
-def test_iwdr_permutations():
+@needs_docker  # type: ignore
+def test_iwdr_permutations() -> None:
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
@@ -87,8 +89,8 @@ def test_iwdr_permutations():
     tempfile.tempdir = saved_tempdir
 
 
-@needs_docker
-def test_iwdr_permutations_inplace():
+@needs_docker  # type: ignore
+def test_iwdr_permutations_inplace() -> None:
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
         tempfile.tempdir = os.path.realpath(misc)
@@ -137,8 +139,8 @@ def test_iwdr_permutations_inplace():
     tempfile.tempdir = saved_tempdir
 
 
-@needs_singularity
-def test_iwdr_permutations_singularity():
+@needs_singularity  # type: ignore
+def test_iwdr_permutations_singularity() -> None:
     with temp_dir() as fifth:
         with temp_dir() as sixth:
             with temp_dir() as seventh:
@@ -179,8 +181,8 @@ def test_iwdr_permutations_singularity():
                                         )
 
 
-@needs_singularity
-def test_iwdr_permutations_singularity_inplace():
+@needs_singularity  # type: ignore
+def test_iwdr_permutations_singularity_inplace() -> None:
     with temp_dir() as fifth:
         with temp_dir() as sixth:
             with temp_dir() as seventh:

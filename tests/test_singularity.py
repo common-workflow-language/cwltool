@@ -1,9 +1,9 @@
 import distutils.spawn
 import os
 import sys
+from pathlib import Path
 
-import pytest
-import schema_salad.validate
+import py.path
 
 from cwltool.main import main
 
@@ -18,8 +18,8 @@ from .util import (
 sys.argv = [""]
 
 
-@needs_singularity_2_6
-def test_singularity_pullfolder(tmp_path):
+@needs_singularity_2_6  # type: ignore
+def test_singularity_pullfolder(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
     os.chdir(str(workdir))
@@ -43,8 +43,8 @@ def test_singularity_pullfolder(tmp_path):
     assert image.exists()
 
 
-@needs_singularity
-def test_singularity_workflow(tmpdir):
+@needs_singularity  # type: ignore
+def test_singularity_workflow(tmpdir: py.path.local) -> None:
     with working_directory(str(tmpdir)):
         error_code, _, stderr = get_main_output(
             [
@@ -61,7 +61,7 @@ def test_singularity_workflow(tmpdir):
     assert error_code == 0
 
 
-def test_singularity_iwdr():
+def test_singularity_iwdr() -> None:
     result_code = main(
         [
             "--singularity",
@@ -79,8 +79,8 @@ def test_singularity_iwdr():
         assert result_code != 0
 
 
-@needs_singularity
-def test_singularity_incorrect_image_pull():
+@needs_singularity  # type: ignore
+def test_singularity_incorrect_image_pull() -> None:
     result_code, _, stderr = get_main_output(
         [
             "--singularity",
@@ -94,8 +94,8 @@ def test_singularity_incorrect_image_pull():
     assert result_code != 0
 
 
-@needs_singularity
-def test_singularity_local(tmp_path):
+@needs_singularity  # type: ignore
+def test_singularity_local(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     os.chdir(str(workdir))
@@ -110,8 +110,8 @@ def test_singularity_local(tmp_path):
     assert result_code == 0
 
 
-@needs_singularity_2_6
-def test_singularity_docker_image_id_in_tool(tmp_path):
+@needs_singularity_2_6  # type: ignore
+def test_singularity_docker_image_id_in_tool(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     os.chdir(str(workdir))

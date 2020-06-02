@@ -1,33 +1,28 @@
 import json
-import ntpath
 import os
-import posixpath
+import pickle
 import shutil
 import sys
 import tempfile
 import urllib
-from io import open
+from pathlib import Path
+from typing import Any, Generator, cast
 
 import arcp
 import bagit
-import pytest
-from rdflib import Graph, Literal, Namespace, URIRef
+import py.path
+import pytest  # type: ignore
+from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
+from rdflib.term import Literal
 
 # Module to be tested
-from cwltool import load_tool, provenance
-from cwltool.context import RuntimeContext
+from cwltool import provenance
 from cwltool.main import main
-from cwltool.resolver import Path
+from cwltool.provenance import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, temp_dir, working_directory
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
@@ -40,18 +35,16 @@ CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
 
 
-@pytest.fixture
-def folder(tmpdir):
+@pytest.fixture  # type: ignore
+def folder(tmpdir: py.path.local) -> Generator[str, None, None]:
     directory = str(tmpdir)
-    if os.environ.get("DEBUG"):
-        print("%s folder: %s" % (__loader__.fullname, folder))
     yield directory
 
     if not os.environ.get("DEBUG"):
         shutil.rmtree(directory)
 
 
-def cwltool(folder, *args):
+def cwltool(folder: str, *args: Any) -> None:
     new_args = ["--provenance", folder]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
@@ -61,8 +54,8 @@ def cwltool(folder, *args):
             assert status == 0, "Failed: cwltool.main(%r)" % (args)
 
 
-@needs_docker
-def test_hello_workflow(folder):
+@needs_docker  # type: ignore
+def test_hello_workflow(folder: str) -> None:
     cwltool(
         folder,
         get_data("tests/wf/hello-workflow.cwl"),
@@ -72,16 +65,16 @@ def test_hello_workflow(folder):
     check_provenance(folder)
 
 
-@needs_docker
-def test_hello_single_tool(folder):
+@needs_docker  # type: ignore
+def test_hello_single_tool(folder: str) -> None:
     cwltool(
         folder, get_data("tests/wf/hello_single_tool.cwl"), "--message", "Hello tool"
     )
     check_provenance(folder, single_tool=True)
 
 
-@needs_docker
-def test_revsort_workflow(folder):
+@needs_docker  # type: ignore
+def test_revsort_workflow(folder: str) -> None:
     cwltool(
         folder, get_data("tests/wf/revsort.cwl"), get_data("tests/wf/revsort-job.json")
     )
@@ -89,14 +82,14 @@ def test_revsort_workflow(folder):
     check_provenance(folder)
 
 
-@needs_docker
-def test_nested_workflow(folder):
+@needs_docker  # type: ignore
+def test_nested_workflow(folder: str) -> None:
     cwltool(folder, get_data("tests/wf/nested.cwl"))
     check_provenance(folder, nested=True)
 
 
-@needs_docker
-def test_secondary_files_implicit(folder, tmpdir):
+@needs_docker  # type: ignore
+def test_secondary_files_implicit(folder: str, tmpdir: py.path.local) -> None:
     file1 = tmpdir.join("foo1.txt")
     file1idx = tmpdir.join("foo1.txt.idx")
 
@@ -111,8 +104,8 @@ def test_secondary_files_implicit(folder, tmpdir):
     check_secondary_files(folder)
 
 
-@needs_docker
-def test_secondary_files_explicit(folder, tmpdir):
+@needs_docker  # type: ignore
+def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
     orig_tempdir = tempfile.tempdir
     tempfile.tempdir = str(tmpdir)
     # Deliberately do NOT have common basename or extension
@@ -146,8 +139,8 @@ def test_secondary_files_explicit(folder, tmpdir):
     tempfile.tempdir = orig_tempdir
 
 
-@needs_docker
-def test_secondary_files_output(folder):
+@needs_docker  # type: ignore
+def test_secondary_files_output(folder: str) -> None:
     # secondary will be picked up by .idx
     cwltool(folder, get_data("tests/wf/sec-wf-out.cwl"))
     check_provenance(folder, secondary_files=True)
@@ -155,8 +148,8 @@ def test_secondary_files_output(folder):
     # self.check_secondary_files()
 
 
-@needs_docker
-def test_directory_workflow(folder, tmpdir):
+@needs_docker  # type: ignore
+def test_directory_workflow(folder: str, tmpdir: py.path.local) -> None:
     dir2 = tmpdir.join("dir2")
     os.makedirs(str(dir2))
     sha1 = {
@@ -195,7 +188,7 @@ def test_directory_workflow(folder, tmpdir):
         assert os.path.isfile(p), "Could not find %s as %s" % (l, p)
 
 
-def check_output_object(base_path):
+def check_output_object(base_path: str) -> None:
     output_obj = os.path.join(base_path, "workflow", "primary-output.json")
     compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
     compare_location = "../data/b9/b9214658cc453331b62c2282b772a5c063dbd284"
@@ -206,7 +199,7 @@ def check_output_object(base_path):
     assert f1["location"] == compare_location
 
 
-def check_secondary_files(base_path):
+def check_secondary_files(base_path: str) -> None:
     foo_data = os.path.join(
         base_path,
         "data",
@@ -238,8 +231,12 @@ def check_secondary_files(base_path):
 
 
 def check_provenance(
-    base_path, nested=False, single_tool=False, directory=False, secondary_files=False
-):
+    base_path: str,
+    nested: bool = False,
+    single_tool: bool = False,
+    directory: bool = False,
+    secondary_files: bool = False,
+) -> None:
     check_folders(base_path)
     check_bagit(base_path)
     check_ro(base_path, nested=nested)
@@ -252,7 +249,7 @@ def check_provenance(
     )
 
 
-def check_folders(base_path):
+def check_folders(base_path: str) -> None:
     required_folders = [
         "data",
         "snapshot",
@@ -265,7 +262,7 @@ def check_folders(base_path):
         assert os.path.isdir(os.path.join(base_path, folder))
 
 
-def check_bagit(base_path):
+def check_bagit(base_path: str) -> None:
     # check bagit structure
     required_files = [
         "bagit.txt",
@@ -291,16 +288,16 @@ def check_bagit(base_path):
     assert arcp.is_arcp_uri(bag.info.get("External-Identifier"))
 
 
-def find_arcp(base_path):
+def find_arcp(base_path: str) -> str:
     # First try to find External-Identifier
     bag = bagit.Bag(base_path)
     ext_id = bag.info.get("External-Identifier")
     if arcp.is_arcp_uri(ext_id):
-        return ext_id
+        return cast(str, ext_id)
     raise Exception("Can't find External-Identifier")
 
 
-def _arcp2file(base_path, uri):
+def _arcp2file(base_path: str, uri: str) -> str:
     parsed = arcp.parse_arcp(uri)
     # arcp URIs, ensure they are local to our RO
     assert (
@@ -313,7 +310,7 @@ def _arcp2file(base_path, uri):
     return os.path.join(base_path, lpath)
 
 
-def check_ro(base_path, nested=False):
+def check_ro(base_path: str, nested: bool = False) -> None:
     manifest_file = os.path.join(base_path, "metadata", "manifest.json")
     assert os.path.isfile(manifest_file), "Can't find " + manifest_file
     arcp_root = find_arcp(base_path)
@@ -323,8 +320,8 @@ def check_ro(base_path, nested=False):
     # Avoid resolving JSON-LD context https://w3id.org/bundle/context
     # so this test works offline
     context = Path(get_data("tests/bundle-context.jsonld")).as_uri()
-    with open(manifest_file, "r", encoding="UTF-8") as f:
-        jsonld = f.read()
+    with open(manifest_file, "r", encoding="UTF-8") as fh:
+        jsonld = fh.read()
         # replace with file:/// URI
         jsonld = jsonld.replace("https://w3id.org/bundle/context", context)
     g.parse(data=jsonld, format="json-ld", publicID=base)
@@ -435,8 +432,12 @@ def check_ro(base_path, nested=False):
 
 
 def check_prov(
-    base_path, nested=False, single_tool=False, directory=False, secondary_files=False
-):
+    base_path: str,
+    nested: bool = False,
+    single_tool: bool = False,
+    directory: bool = False,
+    secondary_files: bool = False,
+) -> None:
     prov_file = os.path.join(base_path, "metadata", "provenance", "primary.cwlprov.nt")
     assert os.path.isfile(prov_file), "Can't find " + prov_file
     arcp_root = find_arcp(base_path)
@@ -546,10 +547,10 @@ def check_prov(
                 # Which file?
                 entities = set(g.objects(entry, PROV.pairEntity))
                 assert entities
-                f = entities.pop()
-                files.add(f)
-                assert (entry, ORE.proxyFor, f) in g
-                assert (f, RDF.type, PROV.Entity) in g
+                ef = entities.pop()
+                files.add(ef)
+                assert (entry, ORE.proxyFor, ef) in g
+                assert (ef, RDF.type, PROV.Entity) in g
 
             if not files:
                 assert (d, RDF.type, PROV.EmptyCollection) in g
@@ -578,27 +579,27 @@ def check_prov(
             assert str(prim_basename) == "%s%s" % (prim_nameroot, prim_nameext)
 
 
-@pytest.fixture
-def research_object():
-    re_ob = provenance.ResearchObject(StdFsAccess(""))
+@pytest.fixture  # type: ignore
+def research_object() -> Generator[ResearchObject, None, None]:
+    re_ob = ResearchObject(StdFsAccess(""))
     yield re_ob
     re_ob.close()
 
 
-def test_absolute_path_fails(research_object):
+def test_absolute_path_fails(research_object: ResearchObject) -> None:
     with pytest.raises(ValueError):
         research_object.write_bag_file("/absolute/path/fails")
 
 
-def test_climboutfails(research_object):
+def test_climboutfails(research_object: ResearchObject) -> None:
     with pytest.raises(ValueError):
         research_object.write_bag_file("../../outside-ro")
 
 
-def test_writable_string(research_object):
-    with research_object.write_bag_file("file.txt") as file:
-        assert file.writable()
-        file.write("Hello\n")
+def test_writable_string(research_object: ResearchObject) -> None:
+    with research_object.write_bag_file("file.txt") as fh:
+        assert fh.writable()
+        fh.write("Hello\n")
         # TODO: Check Windows does not modify \n to \r\n here
 
     sha1 = os.path.join(research_object.folder, "tagmanifest-sha1.txt")
@@ -628,54 +629,54 @@ def test_writable_string(research_object):
     assert os.path.isfile(sha512)
 
 
-def test_writable_unicode_string(research_object):
-    with research_object.write_bag_file("file.txt") as file:
-        assert file.writable()
-        file.write("Here is a snowman: \u2603 \n")
+def test_writable_unicode_string(research_object: ResearchObject) -> None:
+    with research_object.write_bag_file("file.txt") as fh:
+        assert fh.writable()
+        fh.write("Here is a snowman: \u2603 \n")
 
 
-def test_writable_bytes(research_object):
+def test_writable_bytes(research_object: ResearchObject) -> None:
     string = "Here is a snowman: \u2603 \n".encode("UTF-8")
-    with research_object.write_bag_file("file.txt", encoding=None) as file:
-        file.write(string)
+    with research_object.write_bag_file("file.txt", encoding=None) as fh:
+        fh.write(string)
 
 
-def test_data(research_object):
-    with research_object.write_bag_file("data/file.txt") as file:
-        assert file.writable()
-        file.write("Hello\n")
+def test_data(research_object: ResearchObject) -> None:
+    with research_object.write_bag_file("data/file.txt") as fh:
+        assert fh.writable()
+        fh.write("Hello\n")
     # TODO: Check Windows does not modify \n to \r\n here
 
     # Because this is under data/ it should add to manifest
     # rather than tagmanifest
     sha1 = os.path.join(research_object.folder, "manifest-sha1.txt")
     assert os.path.isfile(sha1)
-    with open(sha1, "r", encoding="UTF-8") as file:
-        stripped_sha = file.readline().strip()
+    with open(sha1, "r", encoding="UTF-8") as fh2:
+        stripped_sha = fh2.readline().strip()
         assert stripped_sha.endswith("data/file.txt")
 
 
-def test_not_seekable(research_object):
-    with research_object.write_bag_file("file.txt") as file:
-        assert not file.seekable()
+def test_not_seekable(research_object: ResearchObject) -> None:
+    with research_object.write_bag_file("file.txt") as fh:
+        assert not fh.seekable()
         with pytest.raises(IOError):
-            file.seek(0)
+            fh.seek(0)
 
 
-def test_not_readable(research_object):
-    with research_object.write_bag_file("file.txt") as file:
-        assert not file.readable()
+def test_not_readable(research_object: ResearchObject) -> None:
+    with research_object.write_bag_file("file.txt") as fh:
+        assert not fh.readable()
         with pytest.raises(IOError):
-            file.read()
+            fh.read()
 
 
-def test_truncate_fails(research_object):
-    with research_object.write_bag_file("file.txt") as file:
-        file.write("Hello there")
-        file.truncate()  # OK as we're always at end
+def test_truncate_fails(research_object: ResearchObject) -> None:
+    with research_object.write_bag_file("file.txt") as fh:
+        fh.write("Hello there")
+        fh.truncate()  # OK as we're always at end
         # Will fail because the checksum can't rewind
         with pytest.raises(IOError):
-            file.truncate(0)
+            fh.truncate(0)
 
 
 mod_validness = [
@@ -697,8 +698,8 @@ mod_validness = [
 ]
 
 
-@pytest.mark.parametrize("mod11,valid", mod_validness)
-def test_check_mod_11_2(mod11, valid):
+@pytest.mark.parametrize("mod11,valid", mod_validness)  # type: ignore
+def test_check_mod_11_2(mod11: str, valid: bool) -> None:
     assert provenance._check_mod_11_2(mod11) == valid
 
 
@@ -716,8 +717,8 @@ orcid_uris = [
 ]
 
 
-@pytest.mark.parametrize("orcid,expected", orcid_uris)
-def test_valid_orcid(orcid, expected):
+@pytest.mark.parametrize("orcid,expected", orcid_uris)  # type: ignore
+def test_valid_orcid(orcid: str, expected: str) -> None:
     assert provenance._valid_orcid(orcid) == expected
 
 
@@ -742,19 +743,19 @@ invalid_orcids = [
 ]
 
 
-@pytest.mark.parametrize("orcid", invalid_orcids)
-def test_invalid_orcid(orcid):
+@pytest.mark.parametrize("orcid", invalid_orcids)  # type: ignore
+def test_invalid_orcid(orcid: str) -> None:
     with pytest.raises(ValueError):
         provenance._valid_orcid(orcid)
 
 
-def test_whoami():
+def test_whoami() -> None:
     username, fullname = provenance._whoami()
     assert username and isinstance(username, str)
     assert fullname and isinstance(fullname, str)
 
 
-def test_research_object():
+def test_research_object() -> None:
     # TODO: Test ResearchObject methods
     pass
 
@@ -762,5 +763,5 @@ def test_research_object():
 # Reasearch object may need to be pickled (for Toil)
 
 
-def test_research_object_picklability(research_object):
+def test_research_object_picklability(research_object: ResearchObject) -> None:
     assert pickle.dumps(research_object) is not None
