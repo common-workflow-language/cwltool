@@ -12,7 +12,7 @@ from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
 from prov.identifier import Identifier
-from prov.model import PROV, PROV_TYPE, ProvDocument, ProvEntity, PROV_LABEL, PROV_VALUE
+from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 
 from .errors import WorkflowException
 from .loghandler import _logger
