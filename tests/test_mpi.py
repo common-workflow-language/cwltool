@@ -350,3 +350,10 @@ def test_docker_mpi_both_required(schema_ext11: Names) -> None:
         lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
         clt = CommandLineTool(tool, lc)
         jr = clt.make_job_runner(rc)
+
+def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
+    # Both hinted - error
+    with pytest.raises(cwltool.errors.UnsupportedRequirement):
+        lc, rc, tool = mk_tool(schema_ext11, [], hints=[mpiReq, containerReq])
+        clt = CommandLineTool(tool, lc)
+        jr = clt.make_job_runner(rc)

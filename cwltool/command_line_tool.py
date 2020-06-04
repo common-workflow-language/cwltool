@@ -407,10 +407,15 @@ class CommandLineTool(Process):
                         self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
                         return CommandLineJob
                 else:
+                    if dockerRequired:
                         _logger.warning(
                             "Docker has been required while MPI is hinted, discarding MPI hint(s)"
                         )
                         self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
+                    else:
+                        raise UnsupportedRequirement(
+                            "Both Docker and MPI have been hinted - don't know what to do"
+                        )
             return DockerCommandLineJob
         if dockerRequired:
             raise UnsupportedRequirement(
