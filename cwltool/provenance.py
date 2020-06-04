@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import (
     IO,
     Any,
+    BinaryIO,
     Callable,
     Dict,
     Generator,
@@ -427,7 +428,7 @@ class ResearchObject:
             # encoding: match Tag-File-Character-Encoding: UTF-8
             # newline: ensure LF also on Windows
             return TextIOWrapper(
-                cast(IO[bytes], bag_file), encoding=encoding, newline="\n"
+                cast(BinaryIO, bag_file), encoding=encoding, newline="\n"
             )
         return bag_file
 
