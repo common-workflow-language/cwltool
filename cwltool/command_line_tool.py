@@ -361,16 +361,21 @@ class CommandLineTool(Process):
         self.prov_obj = loadingContext.prov_obj
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> Type[JobBase]:
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq, dockerRequired = self.get_requirement("DockerRequirement")
+        mpiReq, mpiRequired = self.get_requirement(MPIRequirementName)
+
         if not dockerReq and runtimeContext.use_container:
             if runtimeContext.find_default_container is not None:
                 default_container = runtimeContext.find_default_container(self)
                 if default_container is not None:
-                    self.requirements.insert(
-                        0,
-                        {"class": "DockerRequirement", "dockerPull": default_container},
-                    )
-                    dockerReq = self.requirements[0]
+                    dockerReq = {"class": "DockerRequirement", "dockerPull": default_container}
+                    if mpiRequired:
+                        self.hints.insert(0, dockerReq)
+                        dockerRequired = False
+                    else:
+                        self.requirements.insert(0, dockerReq)
+                        dockerRequired = True
+
                     if (
                         default_container == windows_default_container_id
                         and runtimeContext.use_container
@@ -383,17 +388,35 @@ class CommandLineTool(Process):
                         )
 
         if dockerReq is not None and runtimeContext.use_container:
+            if mpiReq is not None:
+                _logger.warning(
+                    "MPIRequirement with containers is a beta feature"
+                )
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
             elif runtimeContext.user_space_docker_cmd:
                 return UDockerCommandLineJob
+            if mpiReq is not None:
+                if mpiRequired:
+                    if dockerRequired:
+                        raise UnsupportedRequirement("No support for Docker and MPIRequirement both being required")
+                    else:
+                        _logger.warning(
+                            "MPI has been required while Docker is hinted, discarding Docker hint(s)"
+                        )
+                        self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
+                        return CommandLineJob
+                else:
+                        _logger.warning(
+                            "Docker has been required while MPI is hinted, discarding MPI hint(s)"
+                        )
+                        self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
             return DockerCommandLineJob
-        for t in reversed(self.requirements):
-            if t["class"] == "DockerRequirement":
-                raise UnsupportedRequirement(
-                    "--no-container, but this CommandLineTool has "
-                    "DockerRequirement under 'requirements'."
-                )
+        if dockerRequired:
+            raise UnsupportedRequirement(
+                "--no-container, but this CommandLineTool has "
+                "DockerRequirement under 'requirements'."
+            )
         return CommandLineJob
 
     def make_path_mapper(

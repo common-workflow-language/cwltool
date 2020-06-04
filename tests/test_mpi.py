@@ -1,16 +1,28 @@
+import pytest  # type: ignore
+
 import sys
 import os.path
 from io import StringIO
-import pytest
 from ruamel import yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 import json
+from pathlib import Path
+from typing import Any, Optional, List, MutableMapping, Generator, Tuple, cast
+import pkg_resources
+from schema_salad.avro.schema import Names
+
 from .util import get_data, working_directory, windows_needs_docker
 
-from cwltool.mpi import MpiConfig
+from cwltool.command_line_tool import CommandLineTool
+from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
+from cwltool.mpi import MpiConfig, MPIRequirementName
+import cwltool.singularity
+import cwltool.udocker
+import cwltool.load_tool
 
 
-def test_mpi_conf_defaults():
+def test_mpi_conf_defaults() -> None:
     mpi = MpiConfig()
     assert mpi.runner == "mpirun"
     assert mpi.nproc_flag == "-n"
@@ -21,13 +33,13 @@ def test_mpi_conf_defaults():
     assert mpi.env_set == {}
 
 
-def test_mpi_conf_unknownkeys():
+def test_mpi_conf_unknownkeys() -> None:
     with pytest.raises(TypeError):
         MpiConfig(runner="mpiexec", foo="bar")
 
 
-@pytest.fixture(scope="class")
-def fake_mpi_conf(tmp_path_factory):
+@pytest.fixture(scope="class")  # type: ignore
+def fake_mpi_conf(tmp_path_factory: Any) -> Generator[str, None, None]:
     """Make a super simple mpirun-alike for applications that don't actually use MPI.
     It just runs the command multiple times (in serial).
 
@@ -98,19 +110,19 @@ if __name__ == "__main__":
     mpitmp.rmdir()
 
 
-def make_processes_input(np, tmp_path):
+def make_processes_input(np: int, tmp_path: Path) -> Path:
     input_file = tmp_path / "input.yml"
     with input_file.open("w") as f:
         f.write("processes: %d\n" % np)
     return input_file
 
 
-def cwltool_args(fake_mpi_conf):
+def cwltool_args(fake_mpi_conf: str) -> List[str]:
     return ["--enable-ext", "--enable-dev", "--mpi-config-file", fake_mpi_conf]
 
 
 class TestMpiRun:
-    def test_fake_mpi_config(self, fake_mpi_conf):
+    def test_fake_mpi_config(self, fake_mpi_conf: str) -> None:
         conf_obj = MpiConfig.load(fake_mpi_conf)
         runner = conf_obj.runner
         assert os.path.dirname(runner) == os.path.dirname(fake_mpi_conf)
@@ -119,8 +131,8 @@ class TestMpiRun:
         assert conf_obj.default_nproc == 1
         assert conf_obj.extra_flags == ["--no-fail"]
 
-    @windows_needs_docker
-    def test_simple_mpi_tool(self, fake_mpi_conf, tmp_path):
+    @windows_needs_docker  # type: ignore
+    def test_simple_mpi_tool(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         stdout = StringIO()
         stderr = StringIO()
         with working_directory(tmp_path):
@@ -138,8 +150,8 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == 2
 
-    @windows_needs_docker
-    def test_simple_mpi_nproc_expr(self, fake_mpi_conf, tmp_path):
+    @windows_needs_docker  # type: ignore
+    def test_simple_mpi_nproc_expr(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 4
         input_file = make_processes_input(np, tmp_path)
         stdout = StringIO()
@@ -159,8 +171,8 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == np
 
-    @windows_needs_docker
-    def test_mpi_workflow(self, fake_mpi_conf, tmp_path):
+    @windows_needs_docker  # type: ignore
+    def test_mpi_workflow(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 3
         input_file = make_processes_input(np, tmp_path)
         stdout = StringIO()
@@ -180,8 +192,10 @@ class TestMpiRun:
                 lc = int(lc_file.read())
                 assert lc == np
 
-    @windows_needs_docker
-    def test_environment(self, fake_mpi_conf, tmp_path, monkeypatch):
+    @windows_needs_docker  # type: ignore
+    def test_environment(
+        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: Any
+    ) -> None:
         stdout = StringIO()
         stderr = StringIO()
         monkeypatch.setenv("USER", "tester")
@@ -204,10 +218,12 @@ class TestMpiRun:
             assert e["TEST_MPI_FOO"] == "bar"
 
 
-def test_env_passing(monkeypatch):
+def test_env_passing(monkeypatch: Any) -> None:
     config = MpiConfig(
         env_pass=["A", "B", "LONG_NAME"], env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
+
+    env = {}  # type: MutableMapping[str, str]
 
     with monkeypatch.context() as m:
         m.setattr(os, "environ", {})
@@ -259,3 +275,78 @@ def test_env_passing(monkeypatch):
         config.pass_through_env_vars(env)
         # Cos we are matching not searching
         assert env == {"MPI_A_CONF": "A", "MPI_B_CONF": "B"}
+
+
+# Reading the schema is super slow - cache for the session
+@pytest.fixture(scope="session")  # type: ignore
+def schema_ext11() -> Generator[Names, None, None]:
+    with pkg_resources.resource_stream("cwltool", "extensions-v1.1.yml") as res:
+        ext11 = res.read().decode("utf-8")
+        cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+        yield cwltool.process.get_schema("v1.1")[1]
+
+
+mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})
+containerReq = CommentedMap({"class": "DockerRequirement"})
+basetool = CommentedMap(
+    {"cwlVersion": "v1.1", "inputs": CommentedSeq(), "outputs": CommentedSeq()}
+)
+
+
+def mk_tool(
+    schema: Names,
+    opts: List[str],
+    reqs: Optional[List[CommentedMap]] = None,
+    hints: Optional[List[CommentedMap]] = None,
+) -> Tuple[LoadingContext, RuntimeContext, CommentedMap]:
+    tool = basetool.copy()
+
+    if reqs is not None:
+        tool["requirements"] = CommentedSeq(reqs)
+    if hints is not None:
+        tool["hints"] = CommentedSeq(hints)
+
+    args = cwltool.argparser.arg_parser().parse_args(opts)
+    args.enable_ext = True
+    rc = RuntimeContext(vars(args))
+    lc = cwltool.main.setup_loadingContext(None, rc, args)
+    lc.avsc_names = schema
+    return lc, rc, tool
+
+
+def test_singularity(schema_ext11: Names) -> None:
+    lc, rc, tool = mk_tool(schema_ext11, ["--singularity"], reqs=[mpiReq, containerReq])
+    clt = CommandLineTool(tool, lc)
+    jr = clt.make_job_runner(rc)
+    assert jr is cwltool.singularity.SingularityCommandLineJob
+
+
+def test_udocker(schema_ext11: Names) -> None:
+    lc, rc, tool = mk_tool(schema_ext11, ["--udocker"], reqs=[mpiReq, containerReq])
+    clt = CommandLineTool(tool, lc)
+    jr = clt.make_job_runner(rc)
+    assert jr is cwltool.udocker.UDockerCommandLineJob
+
+
+def test_docker_hint(schema_ext11: Names) -> None:
+    # Docker hint, MPI required
+    lc, rc, tool = mk_tool(schema_ext11, [], hints=[containerReq], reqs=[mpiReq])
+    clt = CommandLineTool(tool, lc)
+    jr = clt.make_job_runner(rc)
+    assert jr is cwltool.job.CommandLineJob
+
+
+def test_docker_required(schema_ext11: Names) -> None:
+    # Docker required, MPI hinted
+    lc, rc, tool = mk_tool(schema_ext11, [], reqs=[containerReq], hints=[mpiReq])
+    clt = CommandLineTool(tool, lc)
+    jr = clt.make_job_runner(rc)
+    assert jr is cwltool.docker.DockerCommandLineJob
+
+
+def test_docker_mpi_both_required(schema_ext11: Names) -> None:
+    # Both required - error
+    with pytest.raises(cwltool.errors.UnsupportedRequirement):
+        lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
+        clt = CommandLineTool(tool, lc)
+        jr = clt.make_job_runner(rc)
