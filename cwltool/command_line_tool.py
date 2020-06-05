@@ -1108,7 +1108,7 @@ class CommandLineTool(Process):
                         if isinstance(primary, MutableMapping):
                             primary.setdefault("secondaryFiles", [])
                             pathprefix = primary["path"][
-                                0 : primary["path"].rindex("/") + 1
+                                0 : primary["path"].rindex(os.sep) + 1
                             ]
                             for sf in aslist(schema["secondaryFiles"]):
                                 if "required" in sf:
