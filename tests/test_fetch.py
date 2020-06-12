@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+from urllib.parse import urljoin, urlsplit
 
 import pytest  # type: ignore
-from schema_salad.tests.other_fetchers import CWLTestFetcher
+import requests
+from schema_salad.fetcher import Fetcher
+from schema_salad.utils import CacheType
 
 from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
@@ -13,6 +16,37 @@ from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
 
 from .util import get_data, working_directory
+
+
+class CWLTestFetcher(Fetcher):
+    def __init__(
+        self, cache: CacheType, session: Optional[requests.sessions.Session],
+    ) -> None:
+        pass
+
+    def fetch_text(self, url):  # type: (str) -> str
+        if url == "baz:bar/foo.cwl":
+            return """
+cwlVersion: v1.0
+class: CommandLineTool
+baseCommand: echo
+inputs: []
+outputs: []
+"""
+        raise RuntimeError("Not foo.cwl, was %s" % url)
+
+    def check_exists(self, url):  # type: (str) -> bool
+        return url == "baz:bar/foo.cwl"
+
+    def urljoin(self, base: str, url: str) -> str:
+        urlsp = urlsplit(url)
+        if urlsp.scheme:
+            return url
+        basesp = urlsplit(base)
+
+        if basesp.scheme == "keep":
+            return base + "/" + url
+        return urljoin(base, url)
 
 
 def test_fetcher() -> None:

@@ -21,18 +21,17 @@ from typing import (
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.ref_resolver import (
-    ContextType,
-    Fetcher,
-    FetcherCallableType,
-    IdxResultType,
-    Loader,
-    ResolveType,
-    file_uri,
-)
+from schema_salad.fetcher import Fetcher
+from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
-from schema_salad.utils import json_dumps
+from schema_salad.utils import (
+    ContextType,
+    FetcherCallableType,
+    IdxResultType,
+    ResolveType,
+    json_dumps,
+)
 
 from . import process, update
 from .context import LoadingContext
