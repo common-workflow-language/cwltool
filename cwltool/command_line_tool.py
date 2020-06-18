@@ -45,6 +45,7 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
 from .loghandler import _logger
+from .mpi import MPIRequirementName
 from .mutation import MutationManager
 from .pathmapper import PathMapper
 from .process import (
@@ -360,16 +361,21 @@ class CommandLineTool(Process):
         self.prov_obj = loadingContext.prov_obj
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> Type[JobBase]:
-        dockerReq, _ = self.get_requirement("DockerRequirement")
+        dockerReq, dockerRequired = self.get_requirement("DockerRequirement")
+        mpiReq, mpiRequired = self.get_requirement(MPIRequirementName)
+
         if not dockerReq and runtimeContext.use_container:
             if runtimeContext.find_default_container is not None:
                 default_container = runtimeContext.find_default_container(self)
                 if default_container is not None:
-                    self.requirements.insert(
-                        0,
-                        {"class": "DockerRequirement", "dockerPull": default_container},
-                    )
-                    dockerReq = self.requirements[0]
+                    dockerReq = {"class": "DockerRequirement", "dockerPull": default_container}
+                    if mpiRequired:
+                        self.hints.insert(0, dockerReq)
+                        dockerRequired = False
+                    else:
+                        self.requirements.insert(0, dockerReq)
+                        dockerRequired = True
+
                     if (
                         default_container == windows_default_container_id
                         and runtimeContext.use_container
@@ -382,17 +388,40 @@ class CommandLineTool(Process):
                         )
 
         if dockerReq is not None and runtimeContext.use_container:
+            if mpiReq is not None:
+                _logger.warning(
+                    "MPIRequirement with containers is a beta feature"
+                )
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
             elif runtimeContext.user_space_docker_cmd:
                 return UDockerCommandLineJob
+            if mpiReq is not None:
+                if mpiRequired:
+                    if dockerRequired:
+                        raise UnsupportedRequirement("No support for Docker and MPIRequirement both being required")
+                    else:
+                        _logger.warning(
+                            "MPI has been required while Docker is hinted, discarding Docker hint(s)"
+                        )
+                        self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
+                        return CommandLineJob
+                else:
+                    if dockerRequired:
+                        _logger.warning(
+                            "Docker has been required while MPI is hinted, discarding MPI hint(s)"
+                        )
+                        self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
+                    else:
+                        raise UnsupportedRequirement(
+                            "Both Docker and MPI have been hinted - don't know what to do"
+                        )
             return DockerCommandLineJob
-        for t in reversed(self.requirements):
-            if t["class"] == "DockerRequirement":
-                raise UnsupportedRequirement(
-                    "--no-container, but this CommandLineTool has "
-                    "DockerRequirement under 'requirements'."
-                )
+        if dockerRequired:
+            raise UnsupportedRequirement(
+                "--no-container, but this CommandLineTool has "
+                "DockerRequirement under 'requirements'."
+            )
         return CommandLineJob
 
     def make_path_mapper(
@@ -839,6 +868,19 @@ class CommandLineTool(Process):
         )
         j.output_callback = output_callbacks
 
+        mpi, _ = self.get_requirement(MPIRequirementName)
+
+        if mpi is not None:
+            np = cast(  # From the schema for MPIRequirement.processes
+                Union[int, str],
+                mpi.get('processes', runtimeContext.mpi_config.default_nproc)
+            )
+            if isinstance(np, str):
+                tmp = builder.do_eval(np)
+                if not isinstance(tmp, int):
+                    raise TypeError("{} needs 'processes' to evaluate to an int, got {}".format(MPIRequirementName, type(np)))
+                np = tmp
+            j.mpi_procs = np
         yield j
 
     def collect_output_ports(

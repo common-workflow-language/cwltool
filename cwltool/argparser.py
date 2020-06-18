@@ -616,6 +616,15 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--mpi-config-file",
+        type=str,
+        default=None,
+        help="Platform specific configuration for MPI (parallel "
+        "launcher, its flag etc). See README section 'Running MPI-"
+        "based tools' for details of the format.",
+    )
+
+    parser.add_argument(
         "workflow",
         type=str,
         nargs="?",

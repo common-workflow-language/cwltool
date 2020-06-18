@@ -99,7 +99,7 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
-
+from .mpi import MpiConfig
 
 def _terminate_processes() -> None:
     """Kill all spawned processes.
@@ -632,16 +632,15 @@ def setup_schema(
     if custom_schema_callback is not None:
         custom_schema_callback()
     elif args.enable_ext:
-        res = pkg_resources.resource_stream(__name__, "extensions.yml")
-        ext10 = res.read().decode("utf-8")
-        res = pkg_resources.resource_stream(__name__, "extensions-v1.1.yml")
-        ext11 = res.read().decode("utf-8")
+        with pkg_resources.resource_stream(__name__, "extensions.yml") as res:
+            ext10 = res.read().decode("utf-8")
+        with pkg_resources.resource_stream(__name__, "extensions-v1.1.yml") as res:
+            ext11 = res.read().decode("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
-        res.close()
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
@@ -887,6 +886,9 @@ def main(
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries
         if not args.enable_ga4gh_tool_registry:
             del ga4gh_tool_registries[:]
+
+        if args.mpi_config_file is not None:
+            runtimeContext.mpi_config = MpiConfig.load(args.mpi_config_file)
 
         setup_schema(args, custom_schema_callback)
 

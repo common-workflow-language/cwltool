@@ -10,6 +10,7 @@ from schema_salad.ref_resolver import FetcherCallableType, Loader
 from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
+from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pathmapper import PathMapper
 from .secrets import SecretStore
@@ -78,7 +79,7 @@ class LoadingContext(ContextBase):
 
 class RuntimeContext(ContextBase):
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
-        """Initializet the RuntimeContext from the kwargs."""
+        """Initialize the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[  # pylint: disable=unused-variable
             [Dict[str, Union[int, float]], RuntimeContext], Dict[str, Union[int, float]]
         ]
@@ -141,6 +142,8 @@ class RuntimeContext(ContextBase):
         self.cwl_full_name = ""  # type: str
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.mpi_config = MpiConfig()  # type: MpiConfig
+
         super(RuntimeContext, self).__init__(kwargs)
 
     def copy(self):
