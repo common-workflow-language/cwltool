@@ -917,9 +917,8 @@ def _job_popen(
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
     monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
-
-    default_stdout = None,  # type: Optional[Union[IO[bytes], TextIO]]
-    default_stderr = None,  # type: Optional[Union[IO[bytes], TextIO]]
+    default_stdout=None,  # type: Optional[Union[IO[bytes], TextIO]]
+    default_stderr=None,  # type: Optional[Union[IO[bytes], TextIO]]
 ) -> int:
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
