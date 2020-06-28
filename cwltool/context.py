@@ -143,8 +143,8 @@ class RuntimeContext(ContextBase):
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.mpi_config = MpiConfig()  # type: MpiConfig
-        self.default_stdout: Optional[Union[IO[bytes], TextIO]] = None
-        self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
+        self.default_stdout = None  # type: Optional[Union[IO[bytes], TextIO]]
+        self.default_stderr = None  # type: Optional[Union[IO[bytes], TextIO]]
         super(RuntimeContext, self).__init__(kwargs)
 
     def copy(self):
