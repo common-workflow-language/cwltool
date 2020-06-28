@@ -1,7 +1,7 @@
 import subprocess
 
 from cwltool.context import RuntimeContext
-from tests.util import get_windows_safe_factory, get_data
+from .util import get_windows_safe_factory, get_data
 
 
 def test_replace_default_stdout_stderr():
