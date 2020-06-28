@@ -1,9 +1,10 @@
 import subprocess
 
 from cwltool.context import RuntimeContext
-from .util import get_windows_safe_factory, get_data
+from .util import get_windows_safe_factory, get_data, windows_needs_docker
 
 
+@windows_needs_docker
 def test_replace_default_stdout_stderr():
     import sys
     # break stdout & stderr
