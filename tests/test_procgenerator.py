@@ -1,14 +1,12 @@
 import os
 
-import pytest
-
 from cwltool.main import main
 
 from .util import get_data, windows_needs_docker
 
 
-@windows_needs_docker
-def test_missing_enable_ext():
+@windows_needs_docker  # type: ignore
+def test_missing_enable_ext() -> None:
     # Requires --enable-ext and --enable-dev
     try:
         opt = os.environ.get("CWLTOOL_OPTIONS")

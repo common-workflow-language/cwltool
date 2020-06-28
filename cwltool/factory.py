@@ -1,17 +1,16 @@
 import os
-from typing import Any
-from typing import Callable as tCallable
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 from . import load_tool
 from .context import LoadingContext, RuntimeContext
-from .executors import SingleJobExecutor
+from .errors import WorkflowException
+from .executors import JobExecutor, SingleJobExecutor
 from .process import Process
+from .utils import CWLObjectType
 
 
 class WorkflowStatus(Exception):
-    def __init__(self, out, status):
-        # type: (Dict[str,Any], str) -> None
+    def __init__(self, out: Optional[CWLObjectType], status: str) -> None:
         """Signaling exception for the status of a Workflow."""
         super(WorkflowStatus, self).__init__("Completed %s" % status)
         self.out = out
@@ -19,13 +18,13 @@ class WorkflowStatus(Exception):
 
 
 class Callable(object):
-    def __init__(self, t, factory):  # type: (Process, Factory) -> None
+    def __init__(self, t: Process, factory: "Factory") -> None:
         """Initialize."""
         self.t = t
         self.factory = factory
 
     def __call__(self, **kwargs):
-        # type: (**Any) -> Union[str, Dict[str, str]]
+        # type: (**Any) -> Union[str, Optional[CWLObjectType]]
         runtime_context = self.factory.runtime_context.copy()
         runtime_context.basedir = os.getcwd()
         out, status = self.factory.executor(self.t, kwargs, runtime_context)
@@ -38,7 +37,7 @@ class Callable(object):
 class Factory(object):
     def __init__(
         self,
-        executor: Optional[tCallable[..., Tuple[Dict[str, Any], str]]] = None,
+        executor: Optional[JobExecutor] = None,
         loading_context: Optional[LoadingContext] = None,
         runtime_context: Optional[RuntimeContext] = None,
     ) -> None:
@@ -54,9 +53,9 @@ class Factory(object):
         else:
             self.runtime_context = runtime_context
 
-    def make(self, cwl):  # type: (Union[str, Dict[str, Any]]) -> Callable
+    def make(self, cwl: Union[str, Dict[str, Any]]) -> Callable:
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):
-            raise Exception("Error loading tool")
+            raise WorkflowException("Error loading tool")
         return Callable(load, self)

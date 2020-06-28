@@ -395,10 +395,17 @@ def arg_parser() -> argparse.ArgumentParser:
     dockergroup.add_argument(
         "--user-space-docker-cmd",
         metavar="CMD",
-        help="(Linux/OS X only) Specify a user space docker "
-        "command (like udocker or dx-docker) that will be "
-        "used to call 'pull' and 'run'",
+        help="(Linux/OS X only) Specify the path to udocker. Implies --udocker",
     )
+    dockergroup.add_argument(
+        "--udocker",
+        help="(Linux/OS X only) Use the udocker runtime for running containers "
+        "(equivalent to --user-space-docker-cmd=udocker).",
+        action="store_const",
+        const="udocker",
+        dest="user_space_docker_cmd",
+    )
+
     dockergroup.add_argument(
         "--singularity",
         action="store_true",
@@ -609,6 +616,15 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--mpi-config-file",
+        type=str,
+        default=None,
+        help="Platform specific configuration for MPI (parallel "
+        "launcher, its flag etc). See README section 'Running MPI-"
+        "based tools' for details of the format.",
+    )
+
+    parser.add_argument(
         "workflow",
         type=str,
         nargs="?",
@@ -631,8 +647,7 @@ def arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_default_args():
-    # type: () -> Dict[str, Any]
+def get_default_args() -> Dict[str, Any]:
     """Get default values of cwltool's command line options."""
     ap = arg_parser()
     args = ap.parse_args([])
@@ -642,8 +657,9 @@ def get_default_args():
 class FSAction(argparse.Action):
     objclass = None  # type: str
 
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[str], str, Any, **Any) -> None
+    def __init__(
+        self, option_strings: List[str], dest: str, nargs: Any = None, **kwargs: Any
+    ) -> None:
         """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
@@ -651,11 +667,11 @@ class FSAction(argparse.Action):
 
     def __call__(
         self,
-        parser,  # type: argparse.ArgumentParser
-        namespace,  # type: argparse.Namespace
-        values,  # type: Union[AnyStr, Sequence[Any], None]
-        option_string=None,  # type: Optional[str]
-    ):  # type: (...) -> None
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Union[AnyStr, Sequence[Any], None],
+        option_string: Optional[str] = None,
+    ) -> None:
         setattr(
             namespace,
             self.dest,
@@ -669,8 +685,9 @@ class FSAction(argparse.Action):
 class FSAppendAction(argparse.Action):
     objclass = None  # type: str
 
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        # type: (List[str], str, Any, **Any) -> None
+    def __init__(
+        self, option_strings: List[str], dest: str, nargs: Any = None, **kwargs: Any
+    ) -> None:
         """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
@@ -678,11 +695,11 @@ class FSAppendAction(argparse.Action):
 
     def __call__(
         self,
-        parser,  # type: argparse.ArgumentParser
-        namespace,  # type: argparse.Namespace
-        values,  # type: Union[AnyStr, Sequence[Any], None]
-        option_string=None,  # type: Optional[str]
-    ):  # type: (...) -> None
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Union[AnyStr, Sequence[Any], None],
+        option_string: Optional[str] = None,
+    ) -> None:
         g = getattr(namespace, self.dest)
         if not g:
             g = []
@@ -712,15 +729,14 @@ class DirectoryAppendAction(FSAppendAction):
 
 
 def add_argument(
-    toolparser,
-    name,
-    inptype,
-    records,
-    description="",
-    default=None,
-    input_required=True,
-):
-    # type: (argparse.ArgumentParser, str, Any, List[str], str, Any, bool) -> None
+    toolparser: argparse.ArgumentParser,
+    name: str,
+    inptype: Any,
+    records: List[str],
+    description: str = "",
+    default: Any = None,
+    input_required: bool = True,
+) -> None:
     if len(name) == 1:
         flag = "-"
     else:

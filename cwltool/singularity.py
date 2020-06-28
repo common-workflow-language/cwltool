@@ -7,7 +7,6 @@ import shutil
 import sys
 import tempfile
 from distutils import spawn
-from io import open  # pylint: disable=redefined-builtin
 from subprocess import (  # nosec
     DEVNULL,
     PIPE,
@@ -16,23 +15,28 @@ from subprocess import (  # nosec
     check_call,
     check_output,
 )
-from typing import Dict, List, MutableMapping, Optional, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 
 from schema_salad.sourceline import SourceLine
 
+from .builder import Builder
 from .context import RuntimeContext
-from .errors import WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
-from .pathmapper import MapperEnt, ensure_non_writable, ensure_writable
-from .process import UnsupportedRequirement
-from .utils import docker_windows_path_adjust
+from .pathmapper import MapperEnt, PathMapper
+from .utils import (
+    CWLObjectType,
+    docker_windows_path_adjust,
+    ensure_non_writable,
+    ensure_writable,
+)
 
-_USERNS = None
+_USERNS = None  # type: Optional[bool]
 _SINGULARITY_VERSION = ""
 
 
-def _singularity_supports_userns():  # type: ()->bool
+def _singularity_supports_userns() -> bool:
     global _USERNS  # pylint: disable=global-statement
     if _USERNS is None:
         try:
@@ -49,7 +53,7 @@ def _singularity_supports_userns():  # type: ()->bool
     return _USERNS
 
 
-def get_version():  # type: ()->str
+def get_version() -> str:
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     if not _SINGULARITY_VERSION:
         _SINGULARITY_VERSION = check_output(  # nosec
@@ -60,35 +64,45 @@ def get_version():  # type: ()->str
     return _SINGULARITY_VERSION
 
 
-def is_version_2_6():  # type: ()->bool
+def is_version_2_6() -> bool:
     return get_version().startswith("2.6")
 
 
-def is_version_3_or_newer():  # type: ()->bool
+def is_version_3_or_newer() -> bool:
     return int(get_version()[0]) >= 3
 
 
-def is_version_3_1_or_newer():  # type: ()->bool
+def is_version_3_1_or_newer() -> bool:
     version = get_version().split(".")
     return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 1)
 
 
-def _normalize_image_id(string):  # type: (str)->str
+def _normalize_image_id(string: str) -> str:
     return string.replace("/", "_") + ".img"
 
 
-def _normalize_sif_id(string):  # type: (str)->str
+def _normalize_sif_id(string: str) -> str:
     return string.replace("/", "_") + ".sif"
 
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: CWLObjectType,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        name: str,
+    ) -> None:
+        super(SingularityCommandLineJob, self).__init__(
+            builder, joborder, make_path_mapper, requirements, hints, name
+        )
+
     @staticmethod
     def get_image(
-        dockerRequirement,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-    ):
-        # type: (...) -> bool
+        dockerRequirement: Dict[str, str], pull_image: bool, force_pull: bool = False,
+    ) -> bool:
         """
         Acquire the software container image in the specified dockerRequirement.
 
@@ -238,12 +252,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def get_from_requirements(
         self,
-        r,  # type: Dict[str, str]
-        pull_image,  # type: bool
-        force_pull=False,  # type: bool
-        tmp_outdir_prefix=None,  # type: Optional[str]
-    ):
-        # type: (...) -> Optional[str]
+        r: CWLObjectType,
+        pull_image: bool,
+        force_pull: bool = False,
+        tmp_outdir_prefix: Optional[str] = None,
+    ) -> Optional[str]:
         """
         Return the filename of the Singularity image.
 
@@ -252,16 +265,17 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not bool(spawn.find_executable("singularity")):
             raise WorkflowException("singularity executable is not available")
 
-        if not self.get_image(r, pull_image, force_pull):
+        if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
             raise WorkflowException(
                 "Container image {} not " "found".format(r["dockerImageId"])
             )
 
-        return os.path.abspath(r["dockerImageId"])
+        return os.path.abspath(cast(str, r["dockerImageId"]))
 
     @staticmethod
-    def append_volume(runtime, source, target, writable=False):
-        # type: (List[str], str, str, bool) -> None
+    def append_volume(
+        runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
         runtime.append("--bind")
         runtime.append(
             "{}:{}:{}".format(
@@ -289,11 +303,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_file_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         if host_outdir_tgt is not None:
             # workaround for lack of overlapping mounts in Singularity
             # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
@@ -323,11 +337,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_directory_volume(
         self,
-        runtime,  # type: List[str]
-        volume,  # type: MapperEnt
-        host_outdir_tgt,  # type: Optional[str]
-        tmpdir_prefix,  # type: str
-    ):  # type: (...) -> None
+        runtime: List[str],
+        volume: MapperEnt,
+        host_outdir_tgt: Optional[str],
+        tmpdir_prefix: str,
+    ) -> None:
         if volume.resolved.startswith("_:"):
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt

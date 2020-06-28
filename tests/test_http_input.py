@@ -1,13 +1,12 @@
 import os
 import tempfile
+from typing import List
 
 from cwltool.pathmapper import PathMapper
+from cwltool.utils import CWLObjectType
 
 
-def test_http_path_mapping():
-    class SubPathMapper(PathMapper):
-        def __init__(self, referenced_files, basedir, stagedir):
-            super(SubPathMapper, self).__init__(referenced_files, basedir, stagedir)
+def test_http_path_mapping() -> None:
 
     input_file_path = "https://raw.githubusercontent.com/common-workflow-language/cwltool/master/tests/2.fasta"
     tempdir = tempfile.mkdtemp()
@@ -17,8 +16,8 @@ def test_http_path_mapping():
             "location": "https://raw.githubusercontent.com/common-workflow-language/cwltool/master/tests/2.fasta",
             "basename": "chr20.fa",
         }
-    ]
-    pathmap = SubPathMapper(base_file, os.getcwd(), tempdir)._pathmap
+    ]  # type: List[CWLObjectType]
+    pathmap = PathMapper(base_file, os.getcwd(), tempdir)._pathmap
 
     assert input_file_path in pathmap
     assert os.path.exists(pathmap[input_file_path].resolved)

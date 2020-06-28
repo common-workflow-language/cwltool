@@ -42,7 +42,7 @@ _T = TypeVar('_T')
 class CompletedProcess(Generic[_T]):
     # morally: _CMD
     args: Any
-    returncode: int
+    returncode: Optional[int]
     # These are really both Optional, but requiring checks would be tedious
     # and writing all the overloads would be horrific.
     stdout: _T
@@ -814,7 +814,7 @@ class TimeoutExpired(SubprocessError):
 
 
 class CalledProcessError(Exception):
-    returncode: int
+    returncode: Optional[int]
     # morally: _CMD
     cmd: Any
     # morally: Optional[_TXT]
@@ -836,7 +836,7 @@ class Popen(Generic[AnyStr]):
     stdout: IO[AnyStr]
     stderr: IO[AnyStr]
     pid: int
-    returncode: int
+    returncode: Optional[int]
 
     # Technically it is wrong that Popen provides __new__ instead of __init__
     # but this shouldn't come up hopefully?
@@ -1162,7 +1162,7 @@ class Popen(Generic[AnyStr]):
                     input: Optional[AnyStr] = ...,
                     timeout: Optional[float] = ...,
                     # morally this should be optional
-                    ) -> Tuple[AnyStr, AnyStr]: ...
+                    ) -> Tuple[Optional[AnyStr], AnyStr]: ...
     def send_signal(self, signal: int) -> None: ...
     def terminate(self) -> None: ...
     def kill(self) -> None: ...

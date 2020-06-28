@@ -3,7 +3,6 @@
 import glob
 import os
 import urllib
-from io import open
 from typing import IO, Any, List
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -11,9 +10,9 @@ from schema_salad.ref_resolver import file_uri, uri_file_path
 from .utils import onWindows
 
 
-def abspath(src, basedir):  # type: (str, str) -> str
+def abspath(src: str, basedir: str) -> str:
     if src.startswith("file://"):
-        abpath = str(uri_file_path(str(src)))
+        abpath = uri_file_path(src)
     elif urllib.parse.urlsplit(src).scheme in ["http", "https"]:
         return src
     else:
@@ -27,44 +26,47 @@ def abspath(src, basedir):  # type: (str, str) -> str
 class StdFsAccess(object):
     """Local filesystem implementation."""
 
-    def __init__(self, basedir):  # type: (str) -> None
+    def __init__(self, basedir: str) -> None:
         """Perform operations with respect to a base directory."""
         self.basedir = basedir
 
-    def _abs(self, p):  # type: (str) -> str
+    def _abs(self, p: str) -> str:
         return abspath(p, self.basedir)
 
-    def glob(self, pattern):  # type: (str) -> List[str]
-        return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
+    def glob(self, pattern: str) -> List[str]:
+        return [
+            file_uri(str(self._abs(line))) for line in glob.glob(self._abs(pattern))
+        ]
 
-    def open(self, fn, mode):  # type: (str, str) -> IO[Any]
+    def open(self, fn: str, mode: str) -> IO[Any]:
         return open(self._abs(fn), mode)
 
-    def exists(self, fn):  # type: (str) -> bool
+    def exists(self, fn: str) -> bool:
         return os.path.exists(self._abs(fn))
 
-    def size(self, fn):  # type: (str) -> int
+    def size(self, fn: str) -> int:
         return os.stat(self._abs(fn)).st_size
 
-    def isfile(self, fn):  # type: (str) -> bool
+    def isfile(self, fn: str) -> bool:
         return os.path.isfile(self._abs(fn))
 
-    def isdir(self, fn):  # type: (str) -> bool
+    def isdir(self, fn: str) -> bool:
         return os.path.isdir(self._abs(fn))
 
-    def listdir(self, fn):  # type: (str) -> List[str]
+    def listdir(self, fn: str) -> List[str]:
         return [
-            abspath(urllib.parse.quote(str(l)), fn) for l in os.listdir(self._abs(fn))
+            abspath(urllib.parse.quote(entry), fn)
+            for entry in os.listdir(self._abs(fn))
         ]
 
     def join(self, path, *paths):  # type: (str, *str) -> str
         return os.path.join(path, *paths)
 
-    def realpath(self, path):  # type: (str) -> str
+    def realpath(self, path: str) -> str:
         return os.path.realpath(path)
 
     # On windows os.path.realpath appends unecessary Drive, here we would avoid that
-    def docker_compatible_realpath(self, path):  # type: (str) -> str
+    def docker_compatible_realpath(self, path: str) -> str:
         if onWindows():
             if path.startswith("/"):
                 return path
