@@ -307,12 +307,12 @@ def interpolate(
             parts.append(leaf)
         elif scan[w[0]] == "\\":
             # Backslash quoting requires a three character lookahead.
-            e = scan[w[0] : w[1]+1]
+            e = scan[w[0] : w[1] + 1]
             if e in ("\\$(", "\\${"):
                 # Suppress start of a parameter reference, drop the
                 # backslash.
                 parts.append(e[1:])
-                w = [w[0], w[1]+1]
+                w = (w[0], w[1] + 1)
             elif e[1] == "\\":
                 # Double backslash, becomes a single backslash
                 parts.append("\\")
