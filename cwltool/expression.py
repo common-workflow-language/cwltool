@@ -15,6 +15,7 @@ from typing import (
     cast,
 )
 
+import json
 from schema_salad.utils import json_dumps
 
 from .errors import WorkflowException
@@ -90,6 +91,7 @@ def scanner(scan: str) -> Optional[Tuple[int, int]]:
                 stack.append(BRACE)
             else:
                 stack.pop()
+                i -= 1
         elif state == PAREN:
             if c == "(":
                 stack.append(PAREN)
@@ -124,14 +126,13 @@ def scanner(scan: str) -> Optional[Tuple[int, int]]:
                 stack.append(BACKSLASH)
         i += 1
 
-    if len(stack) > 1:
+    if len(stack) > 1 and not (len(stack) == 2 and stack[1] in (BACKSLASH, DOLLAR)):
         raise SubstitutionError(
-            "Substitution error, unfinished block starting at position {}: {}".format(
-                start, scan[start:]
+            "Substitution error, unfinished block starting at position {}: '{}' stack was {}".format(
+                start, scan[start:], stack
             )
         )
-    else:
-        return None
+    return None
 
 
 def next_seg(
@@ -302,11 +303,23 @@ def interpolate(
                 return e
             leaf = json_dumps(e, sort_keys=True)
             if leaf[0] == '"':
-                leaf = leaf[1:-1]
+                leaf = json.loads(leaf)
             parts.append(leaf)
         elif scan[w[0]] == "\\":
-            e = scan[w[1] - 1]
-            parts.append(e)
+            # Backslash quoting requires a three character lookahead.
+            e = scan[w[0] : w[1]+1]
+            if e in ("\\$(", "\\${"):
+                # Suppress start of a parameter reference, drop the
+                # backslash.
+                parts.append(e[1:])
+                w = [w[0], w[1]+1]
+            elif e[1] == "\\":
+                # Double backslash, becomes a single backslash
+                parts.append("\\")
+            else:
+                # Some other text, add it as-is (including the
+                # backslash) and resume scanning.
+                parts.append(e[:2])
 
         scan = scan[w[1] :]
         w = scanner(scan)
