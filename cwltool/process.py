@@ -416,15 +416,14 @@ def relocateOutputs(
 
     def _check_adjust(a_file: CWLObjectType) -> CWLObjectType:
         location = cast(str, a_file["location"])
-        a_file["location"] = file_uri(pm.mapper(location)[1])
-#         if urllib.parse.urlparse(os.path.splitdrive(a_file["location"])[1] ).scheme == "" :
-#             a_file["location"] = file_uri(
-#                 pm.mapper(location)[1]
-#             )  # return the location of the file on the filesystem
-#         else:
-#             a_file["location"] = pm.mapper(location)[
-#                 0
-#             ]  # keep the original uri (e.g. s3, http, ftp, gs etc)
+        if urllib.parse.urlparse(os.path.splitdrive(a_file["location"])[1] ).scheme == "" :
+            a_file["location"] = file_uri(
+                pm.mapper(location)[1]
+            )  # return the location of the file on the filesystem
+        else:
+            a_file["location"] = pm.mapper(location)[
+                0
+            ]  # keep the original uri (e.g. s3, http, ftp, gs etc)
         if "contents" in a_file:
             del a_file["contents"]
         return a_file
