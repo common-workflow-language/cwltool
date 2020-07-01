@@ -368,7 +368,10 @@ class CommandLineTool(Process):
             if runtimeContext.find_default_container is not None:
                 default_container = runtimeContext.find_default_container(self)
                 if default_container is not None:
-                    dockerReq = {"class": "DockerRequirement", "dockerPull": default_container}
+                    dockerReq = {
+                        "class": "DockerRequirement",
+                        "dockerPull": default_container,
+                    }
                     if mpiRequired:
                         self.hints.insert(0, dockerReq)
                         dockerRequired = False
@@ -389,9 +392,7 @@ class CommandLineTool(Process):
 
         if dockerReq is not None and runtimeContext.use_container:
             if mpiReq is not None:
-                _logger.warning(
-                    "MPIRequirement with containers is a beta feature"
-                )
+                _logger.warning("MPIRequirement with containers is a beta feature")
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
             elif runtimeContext.user_space_docker_cmd:
@@ -399,19 +400,25 @@ class CommandLineTool(Process):
             if mpiReq is not None:
                 if mpiRequired:
                     if dockerRequired:
-                        raise UnsupportedRequirement("No support for Docker and MPIRequirement both being required")
+                        raise UnsupportedRequirement(
+                            "No support for Docker and MPIRequirement both being required"
+                        )
                     else:
                         _logger.warning(
                             "MPI has been required while Docker is hinted, discarding Docker hint(s)"
                         )
-                        self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
+                        self.hints = [
+                            h for h in self.hints if h["class"] != "DockerRequirement"
+                        ]
                         return CommandLineJob
                 else:
                     if dockerRequired:
                         _logger.warning(
                             "Docker has been required while MPI is hinted, discarding MPI hint(s)"
                         )
-                        self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
+                        self.hints = [
+                            h for h in self.hints if h["class"] != MPIRequirementName
+                        ]
                     else:
                         raise UnsupportedRequirement(
                             "Both Docker and MPI have been hinted - don't know what to do"
@@ -873,12 +880,16 @@ class CommandLineTool(Process):
         if mpi is not None:
             np = cast(  # From the schema for MPIRequirement.processes
                 Union[int, str],
-                mpi.get('processes', runtimeContext.mpi_config.default_nproc)
+                mpi.get("processes", runtimeContext.mpi_config.default_nproc),
             )
             if isinstance(np, str):
                 tmp = builder.do_eval(np)
                 if not isinstance(tmp, int):
-                    raise TypeError("{} needs 'processes' to evaluate to an int, got {}".format(MPIRequirementName, type(np)))
+                    raise TypeError(
+                        "{} needs 'processes' to evaluate to an int, got {}".format(
+                            MPIRequirementName, type(np)
+                        )
+                    )
                 np = tmp
             j.mpi_procs = np
         yield j

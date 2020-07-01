@@ -280,6 +280,7 @@ def interpolate(
     debug: bool = False,
     js_console: bool = False,
     strip_whitespace: bool = True,
+    escaping_behavior: int = 1,
 ) -> Optional[CWLOutputType]:
     if strip_whitespace:
         scan = scan.strip()
@@ -306,20 +307,27 @@ def interpolate(
                 leaf = json.loads(leaf)
             parts.append(leaf)
         elif scan[w[0]] == "\\":
-            # Backslash quoting requires a three character lookahead.
-            e = scan[w[0] : w[1] + 1]
-            if e in ("\\$(", "\\${"):
-                # Suppress start of a parameter reference, drop the
-                # backslash.
-                parts.append(e[1:])
-                w = (w[0], w[1] + 1)
-            elif e[1] == "\\":
-                # Double backslash, becomes a single backslash
-                parts.append("\\")
+            if escaping_behavior == 1:
+                # Old behavior.  Just skip the next character.
+                e = scan[w[1] - 1]
+                parts.append(e)
+            elif escaping_behavior == 2:
+                # Backslash quoting requires a three character lookahead.
+                e = scan[w[0] : w[1] + 1]
+                if e in ("\\$(", "\\${"):
+                    # Suppress start of a parameter reference, drop the
+                    # backslash.
+                    parts.append(e[1:])
+                    w = (w[0], w[1] + 1)
+                elif e[1] == "\\":
+                    # Double backslash, becomes a single backslash
+                    parts.append("\\")
+                else:
+                    # Some other text, add it as-is (including the
+                    # backslash) and resume scanning.
+                    parts.append(e[:2])
             else:
-                # Some other text, add it as-is (including the
-                # backslash) and resume scanning.
-                parts.append(e[:2])
+                raise Exception("Unknown escaping behavior %s" % escaping_behavior)
 
         scan = scan[w[1] :]
         w = scanner(scan)
@@ -344,6 +352,7 @@ def do_eval(
     debug: bool = False,
     js_console: bool = False,
     strip_whitespace: bool = True,
+    cwlVersion: str = "",
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
@@ -375,6 +384,17 @@ def do_eval(
                 debug=debug,
                 js_console=js_console,
                 strip_whitespace=strip_whitespace,
+                escaping_behavior=1
+                if cwlVersion
+                in (
+                    "v1.0",
+                    "v1.1.0-dev1",
+                    "v1.1",
+                    "v1.2.0-dev1",
+                    "v1.2.0-dev2",
+                    "v1.2.0-dev3",
+                )
+                else 2,
             )
 
         except Exception as e:
