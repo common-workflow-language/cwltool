@@ -280,7 +280,7 @@ def interpolate(
     debug: bool = False,
     js_console: bool = False,
     strip_whitespace: bool = True,
-    escaping_behavior: int = 1,
+    escaping_behavior: int = 2,
 ) -> Optional[CWLOutputType]:
     if strip_whitespace:
         scan = scan.strip()
