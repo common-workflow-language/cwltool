@@ -1,27 +1,25 @@
-from __future__ import absolute_import
-
 from typing import Any, Callable, List, cast
 
 # http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
 
 
-def flatten(l, ltypes=(list, tuple)):
+def flatten(thing, ltypes=(list, tuple)):
     # type: (Any, Any) -> List[Any]
-    if l is None:
+    if thing is None:
         return []
-    if not isinstance(l, ltypes):
-        return [l]
+    if not isinstance(thing, ltypes):
+        return [thing]
 
-    ltype = type(l)
-    l = list(l)
+    ltype = type(thing)
+    thing_list = list(thing)
     i = 0
-    while i < len(l):
-        while isinstance(l[i], ltypes):
-            if not l[i]:
-                l.pop(i)
+    while i < len(thing_list):
+        while isinstance(thing_list[i], ltypes):
+            if not thing_list[i]:
+                thing_list.pop(i)
                 i -= 1
                 break
             else:
-                l[i:i + 1] = l[i]
+                thing_list[i : i + 1] = thing_list[i]
         i += 1
-    return cast(Callable[[Any], List], ltype)(l)
+    return cast(Callable[[Any], List[Any]], ltype)(thing_list)

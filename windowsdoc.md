@@ -23,7 +23,7 @@ You can install cwltool using pip or directly from source code.
 
 Before installing cwltool, please install:
 
-* [Python 2 or 3](https://www.python.org/downloads/windows/)
+* [Python 3](https://www.python.org/downloads/windows/)
 * [Docker](https://docs.docker.com/docker-for-windows/install/)
 * [Node.js](https://nodejs.org/en/download/) (optional, please install if your
   workflows or tools contain [Javascript Expressions](http://www.commonwl.org/v1.0/CommandLineTool.html#InlineJavascriptRequirement))
@@ -62,13 +62,13 @@ There are two types of tests available for cwltool: unit tests and conformance t
 
 To run cwltool's unit tests, run the following command:
 ```
-python -m pytest --pyarg cwltool
+python3 -m pytest --pyarg cwltool
 ```
 
 Or go to the checkout of the cwltool Git repository on your system and run:
 
 ```
-python setup.py test
+python3 setup.py test
 ```
 
 
@@ -78,7 +78,7 @@ python setup.py test
 To run the CWL conformance tests, follow these instructions:
 
 ```
-pip install cwltest mock
+pip install cwltest
 git clone https://github.com/common-workflow-language/common-workflow-language.git
 cd common-workflow-language/v1.0
 cwltest --test conformance_test_v1.0.yaml -j 4 --tool cwltool

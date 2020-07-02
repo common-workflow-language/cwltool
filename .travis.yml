@@ -1,10 +1,6 @@
-dist: trusty
-sudo: true
+dist: xenial
 services:
   - docker
-
-env:
-  - SINGVER=2.5.1
 
 before_install:
 - wget -O- http://neuro.debian.net/lists/trusty.us-nh.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
@@ -17,19 +13,37 @@ cache:
   pip: true
   directories:
     - .mypy_cache
-python:
-  - 2.7
-  - 3.4
-  - 3.5
-  - 3.6
+
 os:
   - linux
 install:
   - pip install tox-travis
 jobs:
   include:
-    - stage: release-test
+    - python: "3.5"
+    - python: "3.6"
+    - python: "3.7"
+    - python: "3.8"
+    - python: "3.8"
+      name: "CWL v1.0 conformance tests"
+      script: ${TRAVIS_BUILD_DIR}/travis.bash
+      env:
+       - version=v1.0
+    - python: "3.8"
+      name: "CWL v1.1 conformance tests"
+      env:
+       - version=v1.1
+      script: ${TRAVIS_BUILD_DIR}/travis.bash
+    - python: "3.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+    - python: "3.8"
+      name: "CWL v1.2 conformance tests"
+      env:
+       - version=v1.2.0-dev3
+      script: ${TRAVIS_BUILD_DIR}/travis.bash
+  allow_failures:
+    - python: "3.8"
+      name: "CWL v1.2 conformance tests"
 script: tox
 branches:
   only:

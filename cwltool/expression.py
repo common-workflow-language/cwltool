@@ -1,32 +1,44 @@
-from __future__ import absolute_import
+"""Parse CWL expressions."""
 
 import copy
-import logging
 import re
-from typing import (Any, AnyStr, Dict, List,  # pylint: disable=unused-import
-                    Mapping, Optional, Text, Union)
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
-import six
-from six import string_types, u
+from schema_salad.utils import json_dumps
 
-from . import sandboxjs
 from .errors import WorkflowException
-from .utils import bytes2str_in_dicts, docker_windows_path_adjust, json_dumps
+from .loghandler import _logger
+from .sandboxjs import JavascriptException, default_timeout, execjs
+from .utils import (
+    CWLObjectType,
+    CWLOutputType,
+    bytes2str_in_dicts,
+    docker_windows_path_adjust,
+)
 
 
-def jshead(engine_config, rootvars):
-    # type: (List[Text], Dict[Text, Any]) -> Text
-
+def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
     # make sure all the byte strings are converted
     # to str in `rootvars` dict.
-    # TODO: need to make sure the `rootvars dict`
-    # contains no bytes type in the first place.
-    if six.PY3:
-        rootvars = bytes2str_in_dicts(rootvars)  # type: ignore
 
-    return u"\n".join(
-        engine_config + [u"var {} = {};".format(k, json_dumps(v, indent=4))
-                         for k, v in rootvars.items()])
+    return "\n".join(
+        engine_config
+        + [
+            "var {} = {};".format(k, json_dumps(v, indent=4))
+            for k, v in rootvars.items()
+        ]
+    )
 
 
 # decode all raw strings to unicode
@@ -35,18 +47,16 @@ seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
 segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
-segment_re = re.compile(u(segments), flags=re.UNICODE)
+segment_re = re.compile(segments, flags=re.UNICODE)
 param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
-param_re = re.compile(u(param_str), flags=re.UNICODE)
-
-JSON = Union[Dict[Any, Any], List[Any], Text, int, float, bool, None]
+param_re = re.compile(param_str, flags=re.UNICODE)
 
 
 class SubstitutionError(Exception):
     pass
 
 
-def scanner(scan):  # type: (Text) -> Optional[List[int]]
+def scanner(scan: str) -> Optional[Tuple[int, int]]:
     DEFAULT = 0
     DOLLAR = 1
     PAREN = 2
@@ -63,41 +73,41 @@ def scanner(scan):  # type: (Text) -> Optional[List[int]]
         c = scan[i]
 
         if state == DEFAULT:
-            if c == '$':
+            if c == "$":
                 stack.append(DOLLAR)
-            elif c == '\\':
+            elif c == "\\":
                 stack.append(BACKSLASH)
         elif state == BACKSLASH:
             stack.pop()
             if stack[-1] == DEFAULT:
-                return [i - 1, i + 1]
+                return (i - 1, i + 1)
         elif state == DOLLAR:
-            if c == '(':
+            if c == "(":
                 start = i - 1
                 stack.append(PAREN)
-            elif c == '{':
+            elif c == "{":
                 start = i - 1
                 stack.append(BRACE)
             else:
                 stack.pop()
         elif state == PAREN:
-            if c == '(':
+            if c == "(":
                 stack.append(PAREN)
-            elif c == ')':
+            elif c == ")":
                 stack.pop()
                 if stack[-1] == DOLLAR:
-                    return [start, i + 1]
+                    return (start, i + 1)
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
             elif c == '"':
                 stack.append(DOUBLE_QUOTE)
         elif state == BRACE:
-            if c == '{':
+            if c == "{":
                 stack.append(BRACE)
-            elif c == '}':
+            elif c == "}":
                 stack.pop()
                 if stack[-1] == DOLLAR:
-                    return [start, i + 1]
+                    return (start, i + 1)
             elif c == "'":
                 stack.append(SINGLE_QUOTE)
             elif c == '"':
@@ -105,76 +115,117 @@ def scanner(scan):  # type: (Text) -> Optional[List[int]]
         elif state == SINGLE_QUOTE:
             if c == "'":
                 stack.pop()
-            elif c == '\\':
+            elif c == "\\":
                 stack.append(BACKSLASH)
         elif state == DOUBLE_QUOTE:
             if c == '"':
                 stack.pop()
-            elif c == '\\':
+            elif c == "\\":
                 stack.append(BACKSLASH)
         i += 1
 
     if len(stack) > 1:
         raise SubstitutionError(
-            "Substitution error, unfinished block starting at position {}: {}".format(start, scan[start:]))
+            "Substitution error, unfinished block starting at position {}: {}".format(
+                start, scan[start:]
+            )
+        )
     else:
         return None
 
 
-def next_seg(parsed_string, remaining_string, current_value):  # type: (Text, Text, Any) -> Any
+def next_seg(
+    parsed_string: str, remaining_string: str, current_value: CWLOutputType
+) -> CWLOutputType:
     if remaining_string:
         m = segment_re.match(remaining_string)
         if not m:
             return current_value
         next_segment_str = m.group(0)
 
-        key = None  # type: Optional[Union[Text, int]]
-        if next_segment_str[0] == '.':
+        key = None  # type: Optional[Union[str, int]]
+        if next_segment_str[0] == ".":
             key = next_segment_str[1:]
         elif next_segment_str[1] in ("'", '"'):
             key = next_segment_str[2:-2].replace("\\'", "'").replace('\\"', '"')
 
-        if key:
-            if isinstance(current_value, list) and key == "length" and not remaining_string[m.end(0):]:
+        if key is not None:
+            if (
+                isinstance(current_value, MutableSequence)
+                and key == "length"
+                and not remaining_string[m.end(0) :]
+            ):
                 return len(current_value)
-            if not isinstance(current_value, dict):
-                raise WorkflowException("%s is a %s, cannot index on string '%s'" % (parsed_string, type(current_value).__name__, key))
+            if not isinstance(current_value, MutableMapping):
+                raise WorkflowException(
+                    "%s is a %s, cannot index on string '%s'"
+                    % (parsed_string, type(current_value).__name__, key)
+                )
             if key not in current_value:
-                raise WorkflowException("%s does not contain key '%s'" % (parsed_string, key))
+                raise WorkflowException(
+                    "%s does not contain key '%s'" % (parsed_string, key)
+                )
         else:
             try:
                 key = int(next_segment_str[1:-1])
             except ValueError as v:
-                raise WorkflowException(u(str(v)))
-            if not isinstance(current_value, list):
-                raise WorkflowException("%s is a %s, cannot index on int '%s'" % (parsed_string, type(current_value).__name__, key))
-            if key >= len(current_value):
-                raise WorkflowException("%s list index %i out of range" % (parsed_string, key))
+                raise WorkflowException(str(v)) from v
+            if not isinstance(current_value, MutableSequence):
+                raise WorkflowException(
+                    "%s is a %s, cannot index on int '%s'"
+                    % (parsed_string, type(current_value).__name__, key)
+                )
+            if key and key >= len(current_value):
+                raise WorkflowException(
+                    "%s list index %i out of range" % (parsed_string, key)
+                )
 
-        try:
-            return next_seg(parsed_string + remaining_string, remaining_string[m.end(0):], current_value[key])
-        except KeyError:
-            raise WorkflowException("%s doesn't have property %s" % (parsed_string, key))
+        if isinstance(current_value, Mapping):
+            try:
+                return next_seg(
+                    parsed_string + remaining_string,
+                    remaining_string[m.end(0) :],
+                    cast(CWLOutputType, current_value[cast(str, key)]),
+                )
+            except KeyError:
+                raise WorkflowException(
+                    "%s doesn't have property %s" % (parsed_string, key)
+                )
+        elif isinstance(current_value, list) and isinstance(key, int):
+            try:
+                return next_seg(
+                    parsed_string + remaining_string,
+                    remaining_string[m.end(0) :],
+                    current_value[key],
+                )
+            except KeyError:
+                raise WorkflowException(
+                    "%s doesn't have property %s" % (parsed_string, key)
+                )
+        else:
+            raise WorkflowException(
+                "%s doesn't have property %s" % (parsed_string, key)
+            )
     else:
         return current_value
 
 
-def evaluator(ex,                       # type: Text
-              jslib,                    # type: Text
-              obj,                      # type: Dict[Text, Any]
-              fullJS=False,             # type: bool
-              timeout=None,             # type: float
-              force_docker_pull=False,  # type: bool
-              debug=False,              # type: bool
-              js_console=False          # type: bool
-             ):
-    # type: (...) -> JSON
+def evaluator(
+    ex: str,
+    jslib: str,
+    obj: CWLObjectType,
+    timeout: float,
+    fullJS: bool = False,
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+) -> Optional[CWLOutputType]:
     match = param_re.match(ex)
 
     expression_parse_exception = None
     expression_parse_succeeded = False
 
-    if match:
+    if match is not None:
         first_symbol = match.group(1)
         first_symbol_end = match.end(1)
 
@@ -184,115 +235,137 @@ def evaluator(ex,                       # type: Text
             if obj.get(first_symbol) is None:
                 raise WorkflowException("%s is not defined" % first_symbol)
 
-            return next_seg(first_symbol, ex[first_symbol_end:-1], obj[first_symbol])
+            return next_seg(
+                first_symbol,
+                ex[first_symbol_end:-1],
+                cast(CWLOutputType, obj[first_symbol]),
+            )
         except WorkflowException as werr:
             expression_parse_exception = werr
         else:
             expression_parse_succeeded = True
 
     if fullJS and not expression_parse_succeeded:
-        return sandboxjs.execjs(
-            ex, jslib, timeout=timeout, force_docker_pull=force_docker_pull,
-            debug=debug, js_console=js_console)
+        return execjs(
+            ex,
+            jslib,
+            timeout,
+            force_docker_pull=force_docker_pull,
+            debug=debug,
+            js_console=js_console,
+        )
     else:
         if expression_parse_exception is not None:
-            raise sandboxjs.JavascriptException(
+            raise JavascriptException(
                 "Syntax error in parameter reference '%s': %s. This could be "
                 "due to using Javascript code without specifying "
-                "InlineJavascriptRequirement." % \
-                    (ex[1:-1], expression_parse_exception))
+                "InlineJavascriptRequirement." % (ex[1:-1], expression_parse_exception)
+            )
         else:
-            raise sandboxjs.JavascriptException(
+            raise JavascriptException(
                 "Syntax error in parameter reference '%s'. This could be due "
                 "to using Javascript code without specifying "
-                "InlineJavascriptRequirement." % ex)
+                "InlineJavascriptRequirement." % ex
+            )
 
 
-def interpolate(scan,                     # type: Text
-                rootvars,                 # type: Dict[Text, Any]
-                timeout=None,             # type: float
-                fullJS=False,             # type: bool
-                jslib="",                 # type: Text
-                force_docker_pull=False,  # type: bool
-                debug=False,              # type: bool
-                js_console=False,         # type: bool
-                strip_whitespace=True     # type: bool
-               ):  # type: (...) -> JSON
+def interpolate(
+    scan: str,
+    rootvars: CWLObjectType,
+    timeout: float = default_timeout,
+    fullJS: bool = False,
+    jslib: str = "",
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+    strip_whitespace: bool = True,
+) -> Optional[CWLOutputType]:
     if strip_whitespace:
         scan = scan.strip()
     parts = []
     w = scanner(scan)
     while w:
-        parts.append(scan[0:w[0]])
+        parts.append(scan[0 : w[0]])
 
-        if scan[w[0]] == '$':
-            e = evaluator(scan[w[0] + 1:w[1]], jslib, rootvars, fullJS=fullJS,
-                          timeout=timeout, force_docker_pull=force_docker_pull,
-                          debug=debug, js_console=js_console)
+        if scan[w[0]] == "$":
+            e = evaluator(
+                scan[w[0] + 1 : w[1]],
+                jslib,
+                rootvars,
+                timeout,
+                fullJS=fullJS,
+                force_docker_pull=force_docker_pull,
+                debug=debug,
+                js_console=js_console,
+            )
             if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                 return e
             leaf = json_dumps(e, sort_keys=True)
             if leaf[0] == '"':
                 leaf = leaf[1:-1]
             parts.append(leaf)
-        elif scan[w[0]] == '\\':
+        elif scan[w[0]] == "\\":
             e = scan[w[1] - 1]
             parts.append(e)
 
-        scan = scan[w[1]:]
+        scan = scan[w[1] :]
         w = scanner(scan)
     parts.append(scan)
-    return ''.join(parts)
+    return "".join(parts)
 
-def needs_parsing(snippet):  # type: (Any) -> bool
-    return isinstance(snippet, string_types) \
-        and ("$(" in snippet or "${" in snippet)
 
-def do_eval(ex,                       # type: Union[Text, Dict]
-            jobinput,                 # type: Dict[Text, Union[Dict, List, Text]]
-            requirements,             # type: List[Dict[Text, Any]]
-            outdir,                   # type: Optional[Text]
-            tmpdir,                   # type: Optional[Text]
-            resources,                # type: Dict[Text, int]
-            context=None,             # type: Any
-            timeout=None,             # type: float
-            force_docker_pull=False,  # type: bool
-            debug=False,              # type: bool
-            js_console=False,         # type: bool
-            strip_whitespace=True     # type: bool
-           ):  # type: (...) -> Any
+def needs_parsing(snippet: Any) -> bool:
+    return isinstance(snippet, str) and ("$(" in snippet or "${" in snippet)
 
-    runtime = copy.copy(resources)  # type: Dict[Text, Any]
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir)
-    runtime["outdir"] = docker_windows_path_adjust(outdir)
 
-    rootvars = {
-        u"inputs": jobinput,
-        u"self": context,
-        u"runtime": runtime}
+def do_eval(
+    ex: Optional[CWLOutputType],
+    jobinput: CWLObjectType,
+    requirements: List[CWLObjectType],
+    outdir: Optional[str],
+    tmpdir: Optional[str],
+    resources: Dict[str, Union[float, int]],
+    context: Optional[CWLOutputType] = None,
+    timeout: float = default_timeout,
+    force_docker_pull: bool = False,
+    debug: bool = False,
+    js_console: bool = False,
+    strip_whitespace: bool = True,
+) -> Optional[CWLOutputType]:
 
-    if needs_parsing(ex):
-        assert isinstance(ex, string_types)
+    runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
+    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
+    runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
+
+    rootvars = cast(
+        CWLObjectType,
+        bytes2str_in_dicts({"inputs": jobinput, "self": context, "runtime": runtime}),
+    )
+
+    if isinstance(ex, str) and needs_parsing(ex):
         fullJS = False
-        jslib = u""
+        jslib = ""
         for r in reversed(requirements):
             if r["class"] == "InlineJavascriptRequirement":
                 fullJS = True
-                jslib = jshead(r.get("expressionLib", []), rootvars)
+                jslib = jshead(cast(List[str], r.get("expressionLib", [])), rootvars)
                 break
 
         try:
-            return interpolate(ex,
-                               rootvars,
-                               timeout=timeout,
-                               fullJS=fullJS,
-                               jslib=jslib,
-                               force_docker_pull=force_docker_pull,
-                               debug=debug,
-                               js_console=js_console,
-                               strip_whitespace=strip_whitespace)
+            return interpolate(
+                ex,
+                rootvars,
+                timeout=timeout,
+                fullJS=fullJS,
+                jslib=jslib,
+                force_docker_pull=force_docker_pull,
+                debug=debug,
+                js_console=js_console,
+                strip_whitespace=strip_whitespace,
+            )
 
         except Exception as e:
-            raise WorkflowException("Expression evaluation error:\n%s" % e)
+            _logger.exception(e)
+            raise WorkflowException("Expression evaluation error:\n%s" % str(e)) from e
     else:
         return ex

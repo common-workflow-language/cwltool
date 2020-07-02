@@ -1,8 +1,12 @@
+#!/usr/bin/env cwl-runner
 class: Workflow
 cwlVersion: v1.0
 inputs:
   file1:
     type: File
+    secondaryFiles:
+      - .idx
+
 outputs: []
 steps:
   step1:

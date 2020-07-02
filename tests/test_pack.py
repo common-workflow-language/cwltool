@@ -1,157 +1,247 @@
-from __future__ import absolute_import
-
 import json
 import os
 import tempfile
-import unittest
 from functools import partial
+from io import StringIO
+from tempfile import NamedTemporaryFile
+from typing import Dict
 
-import pytest
-from six import StringIO
+import py.path
+import pytest  # type: ignore
+from ruamel import yaml
 
 import cwltool.pack
 import cwltool.workflow
-from cwltool import load_tool
-from cwltool.load_tool import fetch_document, validate_document
+from cwltool.context import LoadingContext
+from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
-from cwltool.pathmapper import adjustDirObjs, adjustFileObjs
 from cwltool.resolver import tool_resolver
+from cwltool.utils import adjustDirObjs, adjustFileObjs
 
 from .util import get_data, needs_docker
 
 
-class TestPack(unittest.TestCase):
-    maxDiff = None
+def test_pack() -> None:
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
 
-    def test_pack(self):
-        load_tool.loaders = {}
+    with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
+        expect_packed = yaml.main.safe_load(packed_file)
 
-        document_loader, workflowobj, uri = fetch_document(
-            get_data("tests/wf/revsort.cwl"))
-        document_loader, avsc_names, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
-        packed = cwltool.pack.pack(document_loader, processobj, uri, metadata)
-        with open(get_data("tests/wf/expect_packed.cwl")) as f:
-            expect_packed = json.load(f)
-        adjustFileObjs(packed, partial(make_relative,
-            os.path.abspath(get_data("tests/wf"))))
-        adjustDirObjs(packed, partial(make_relative,
-            os.path.abspath(get_data("tests/wf"))))
-        self.assertIn("$schemas", packed)
-        del packed["$schemas"]
-        del expect_packed["$schemas"]
+    packed = cwltool.pack.pack(loadingContext, uri)
+    adjustFileObjs(
+        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
+    )
+    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
-        self.assertEqual(expect_packed, packed)
+    assert "$schemas" in packed
+    assert len(packed["$schemas"]) == len(expect_packed["$schemas"])
+    del packed["$schemas"]
+    del expect_packed["$schemas"]
+
+    assert packed == expect_packed
 
 
-    def test_pack_rewrites(self):
-        load_tool.loaders = {}
+def test_pack_input_named_name() -> None:
+    loadingContext, workflowobj, uri = fetch_document(
+        get_data("tests/wf/trick_revsort.cwl")
+    )
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    loader = loadingContext.loader
+    assert loader
+    loader.resolve_ref(uri)[0]
 
-        document_loader, workflowobj, uri = fetch_document(get_data("tests/wf/default-wf5.cwl"))
-        document_loader, avsc_names, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
-        rewrites = {}
-        packed = cwltool.pack.pack(document_loader, processobj, uri, metadata, rewrite_out=rewrites)
-        self.assertEqual(6, len(rewrites))
+    with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
+        expect_packed = yaml.main.round_trip_load(packed_file)
 
-    def test_pack_missing_cwlVersion(self):
-        """Test to ensure the generated pack output is not missing
-        the `cwlVersion` in case of single tool workflow and single step workflow"""
+    packed = cwltool.pack.pack(loadingContext, uri)
+    adjustFileObjs(
+        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
+    )
+    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
-        # Testing single tool workflow
-        document_loader, workflowobj, uri = fetch_document(
-            get_data("tests/wf/hello_single_tool.cwl"))
-        document_loader, _, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
+    assert "$schemas" in packed
+    assert len(packed["$schemas"]) == len(expect_packed["$schemas"])
+    del packed["$schemas"]
+    del expect_packed["$schemas"]
+
+    assert packed == expect_packed
+
+
+def test_pack_single_tool() -> None:
+    loadingContext, workflowobj, uri = fetch_document(
+        get_data("tests/wf/formattest.cwl")
+    )
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    loader = loadingContext.loader
+    assert loader
+    loader.resolve_ref(uri)[0]
+
+    packed = cwltool.pack.pack(loadingContext, uri)
+    assert "$schemas" in packed
+
+
+def test_pack_fragment() -> None:
+    with open(get_data("tests/wf/scatter2_subwf.cwl")) as packed_file:
+        expect_packed = yaml.main.safe_load(packed_file)
+
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
+    packed = cwltool.pack.pack(loadingContext, uri + "#scatterstep/mysub")
+    adjustFileObjs(
+        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
+    )
+    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
+
+    assert json.dumps(packed, sort_keys=True, indent=2) == json.dumps(
+        expect_packed, sort_keys=True, indent=2
+    )
+
+
+def test_pack_rewrites() -> None:
+    rewrites = {}  # type: Dict[str, str]
+
+    loadingContext, workflowobj, uri = fetch_document(
+        get_data("tests/wf/default-wf5.cwl")
+    )
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    loader = loadingContext.loader
+    assert loader
+    loader.resolve_ref(uri)[0]
+
+    cwltool.pack.pack(
+        loadingContext, uri, rewrite_out=rewrites,
+    )
+
+    assert len(rewrites) == 6
+
+
+cwl_missing_version_paths = [
+    "tests/wf/hello_single_tool.cwl",
+    "tests/wf/hello-workflow.cwl",
+]
+
+
+@pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)  # type: ignore
+def test_pack_missing_cwlVersion(cwl_path: str) -> None:
+    """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
+    # Testing single tool workflow
+    loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    loader = loadingContext.loader
+    assert loader
+    loader.resolve_ref(uri)[0]
+
+    # generate pack output dict
+    packed = json.loads(print_pack(loadingContext, uri))
+
+    assert packed["cwlVersion"] == "v1.0"
+
+
+def test_pack_idempotence_tool() -> None:
+    """Ensure that pack produces exactly the same document for an already packed CommandLineTool."""
+    _pack_idempotently("tests/wf/hello_single_tool.cwl")
+
+
+def test_pack_idempotence_workflow() -> None:
+    """Ensure that pack produces exactly the same document for an already packed workflow."""
+    _pack_idempotently("tests/wf/count-lines1-wf.cwl")
+
+
+def _pack_idempotently(document: str) -> None:
+    loadingContext, workflowobj, uri = fetch_document(get_data(document))
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    loader = loadingContext.loader
+    assert loader
+    loader.resolve_ref(uri)[0]
+
+    # generate pack output dict
+    packed_text = print_pack(loadingContext, uri)
+    packed = json.loads(packed_text)
+
+    tmp = NamedTemporaryFile(mode="w", delete=False)
+    try:
+        tmp.write(packed_text)
+        tmp.flush()
+        tmp.close()
+
+        loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
+        loadingContext.do_update = False
+        loadingContext, uri2 = resolve_and_validate_document(
+            loadingContext, workflowobj, uri2
+        )
+        loader2 = loadingContext.loader
+        assert loader2
+        loader2.resolve_ref(uri2)[0]
+
         # generate pack output dict
-        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+        packed_text = print_pack(loadingContext, uri2)
+        double_packed = json.loads(packed_text)
+    finally:
+        os.remove(tmp.name)
 
-        self.assertEqual('v1.0', packed["cwlVersion"])
+    assert uri != uri2
+    assert packed == double_packed
 
-        # Testing single step workflow
-        document_loader, workflowobj, uri = fetch_document(
-            get_data("tests/wf/hello-workflow.cwl"))
-        document_loader, _, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
-        # generate pack output dict
-        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
 
-        self.assertEqual('v1.0', packed["cwlVersion"])
+cwl_to_run = [
+    ("tests/wf/count-lines1-wf.cwl", "tests/wf/wc-job.json", False),
+    ("tests/wf/formattest.cwl", "tests/wf/formattest-job.json", True),
+]
 
-    def test_pack_idempotence_tool(self):
-        """Test to ensure that pack produces exactly the same document for
-           an already packed document"""
 
-        # Testing single tool
-        self._pack_idempotently("tests/wf/hello_single_tool.cwl")
+@needs_docker  # type: ignore
+@pytest.mark.parametrize("wf_path,job_path,namespaced", cwl_to_run)  # type: ignore
+def test_packed_workflow_execution(
+    wf_path: str, job_path: str, namespaced: bool, tmpdir: py.path.local
+) -> None:
+    loadingContext = LoadingContext()
+    loadingContext.resolver = tool_resolver
+    loadingContext, workflowobj, uri = fetch_document(get_data(wf_path), loadingContext)
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+    loader = loadingContext.loader
+    assert loader
+    loader.resolve_ref(uri)[0]
+    packed = json.loads(print_pack(loadingContext, uri))
 
-    def test_pack_idempotence_workflow(self):
-        """Test to ensure that pack produces exactly the same document for
-           an already packed document"""
+    assert not namespaced or "$namespaces" in packed
 
-        # Testing workflow
-        self._pack_idempotently("tests/wf/count-lines1-wf.cwl")
+    wf_packed_handle, wf_packed_path = tempfile.mkstemp()
+    with open(wf_packed_path, "w") as temp_file:
+        json.dump(packed, temp_file)
 
-    def _pack_idempotently(self, document):
-        document_loader, workflowobj, uri = fetch_document(
-            get_data(document))
-        document_loader, avsc_names, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
-        # generate pack output dict
-        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
+    normal_output = StringIO()
+    packed_output = StringIO()
 
-        document_loader, workflowobj, uri2 = fetch_document(packed)
-        document_loader, avsc_names, processobj, metadata, uri2 = validate_document(
-            document_loader, workflowobj, uri)
-        double_packed = json.loads(print_pack(document_loader, processobj, uri2, metadata))
-        self.assertEqual(packed, double_packed)
+    normal_params = ["--outdir", str(tmpdir), get_data(wf_path), get_data(job_path)]
+    packed_params = [
+        "--outdir",
+        str(tmpdir),
+        "--debug",
+        wf_packed_path,
+        get_data(job_path),
+    ]
 
-    @needs_docker
-    def test_packed_workflow_execution(self):
-        load_tool.loaders = {}
-        test_wf = "tests/wf/count-lines1-wf.cwl"
-        test_wf_job = "tests/wf/wc-job.json"
-        document_loader, workflowobj, uri = fetch_document(
-            get_data(test_wf), resolver=tool_resolver)
-        document_loader, avsc_names, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
-        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
-        temp_packed_handle, temp_packed_path = tempfile.mkstemp()
-        with open(temp_packed_path, 'w') as f:
-            json.dump(packed, f)
-        normal_output = StringIO()
-        packed_output = StringIO()
-        self.assertEquals(main(['--debug', get_data(temp_packed_path),
-                                get_data(test_wf_job)],
-                               stdout=packed_output), 0)
-        self.assertEquals(main([get_data(test_wf),
-                                get_data(test_wf_job)],
-                               stdout=normal_output), 0)
-        self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
-        os.close(temp_packed_handle)
-        os.remove(temp_packed_path)
+    assert main(normal_params, stdout=normal_output) == 0
+    assert main(packed_params, stdout=packed_output) == 0
 
-    @needs_docker
-    def test_preserving_namespaces(self):
-        test_wf = "tests/wf/formattest.cwl"
-        test_wf_job = "tests/wf/formattest-job.json"
-        document_loader, workflowobj, uri = fetch_document(
-            get_data(test_wf))
-        document_loader, avsc_names, processobj, metadata, uri = validate_document(
-            document_loader, workflowobj, uri)
-        packed = json.loads(print_pack(document_loader, processobj, uri, metadata))
-        assert "$namespaces" in packed
-        temp_packed_handle, temp_packed_path = tempfile.mkstemp()
-        with open(temp_packed_path, 'w') as f:
-            json.dump(packed, f)
-        normal_output = StringIO()
-        packed_output = StringIO()
-        self.assertEquals(main(['--debug', get_data(temp_packed_path),
-                                get_data(test_wf_job)],
-                               stdout=packed_output), 0)
-        self.assertEquals(main([get_data(test_wf),
-                                get_data(test_wf_job)],
-                               stdout=normal_output), 0)
-        self.assertEquals(json.loads(packed_output.getvalue()), json.loads(normal_output.getvalue()))
-        os.close(temp_packed_handle)
-        os.remove(temp_packed_path)
+    assert json.loads(packed_output.getvalue()) == json.loads(normal_output.getvalue())
+
+    os.close(wf_packed_handle)
+    os.remove(wf_packed_path)

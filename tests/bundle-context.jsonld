@@ -1,0 +1,141 @@
+{
+  "dct:license": "http://www.apache.org/licenses/LICENSE-2.0",
+  "prov:alternateOf": "https://w3id.org/bundle/context",
+  "dc:rights": "Copyright 2013-2018 The University of Manchester.  Licensed under the Apache License, Version 2.0 (the 'License'); you may not use this file except in compliance with the License.  You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-2.0>. Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.  ",
+  "@context": {
+    "ao": "http://purl.org/ao/",
+    "oa": "http://www.w3.org/ns/oa#",
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "dct": "http://purl.org/dc/terms/",
+    "ore": "http://www.openarchives.org/ore/terms/",
+    "ro": "http://purl.org/wf4ever/ro#",
+    "roterms": "http://purl.org/wf4ever/roterms#",
+    "bundle": "http://purl.org/wf4ever/bundle#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "pav": "http://purl.org/pav/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "doi": "https://doi.org/",
+
+    "uri": "@id",
+    "id": {
+      "@id": "owl:sameAs",
+      "@type": "@id" },
+    "file": {
+      "@id": "owl:sameAs",
+      "@type": "@id" },
+    "annotation": {
+      "@id": "owl:sameAs",
+      "@type": "@id" },
+
+    "manifest": {
+        "@id": "ore:isDescribedBy",
+        "@type": "@id"
+    },
+
+    "createdOn": {
+        "@id": "pav:createdOn",
+        "@type": "xsd:dateTime"
+    },
+    "createdBy": {
+        "@id": "pav:createdBy",
+        "@type": "@id"
+    },
+    "aggregatedOn": {
+        "@id": "pav:createdOn",
+        "@type": "xsd:dateTime"
+    },
+    "aggregatedBy": {
+        "@id": "pav:createdBy",
+        "@type": "@id"
+    },
+    "authoredOn": {
+        "@id": "pav:authoredOn",
+        "@type": "xsd:dateTime"
+    },
+    "authoredBy": {
+        "@id": "pav:authoredBy",
+        "@type": "@id"
+    },
+    "curatedOn": {
+        "@id": "pav:curatedOn",
+        "@type": "xsd:dateTime"
+    },
+    "curatedBy": {
+        "@id": "pav:curatedBy",
+        "@type": "@id"
+    },
+    "contributedOn": {
+        "@id": "pav:contributedOn",
+        "@type": "xsd:dateTime"
+    },
+    "contributedBy": {
+        "@id": "pav:contributedBy",
+        "@type": "@id"
+    },
+    "retrievedOn": {
+        "@id": "pav:retrievedOn",
+        "@type": "xsd:dateTime"
+    },
+    "retrievedBy": {
+        "@id": "pav:retrievedBy",
+        "@type": "@id"
+    },
+    "retrievedFrom": {
+        "@id": "pav:retrievedFrom",
+        "@type": "@id"
+    },
+    "name": {
+        "@id": "foaf:name"
+    },
+    "orcid": {
+        "@id": "roterms:orcid",
+        "@type": "@id"
+    },
+
+    "history": {
+        "@id": "prov:has_provenance",
+        "@type": "@id"
+    },
+    "aggregates": {
+      "@id": "ore:aggregates",
+      "@type": "@id"
+    },
+    "mediatype": {
+        "@id": "dc:format"
+    },
+    "folder": {
+      "@id": "bundle:inFolder",
+      "@type": "@id"
+    },
+    "filename": {
+        "@id": "ro:entryName"
+    },
+    "proxy": {
+      "@id": "bundle:hasProxy",
+      "@type": "@id"
+    },
+    "bundledAs": {
+        "@id": "bundle:bundledAs",
+        "@type": "@id"
+    },
+    "conformsTo": {
+        "@id": "dct:conformsTo",
+        "@type": "@id"
+    },
+    "annotations": {
+      "@id": "bundle:hasAnnotation",
+      "@type": "@id"
+    },
+    "content": {
+       "@id": "oa:hasBody",
+       "@type": "@id"
+    },
+    "about": {
+       "@id": "oa:hasTarget",
+       "@type": "@id"
+    }
+
+  }
+}

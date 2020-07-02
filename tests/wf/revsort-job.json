@@ -1,6 +1,7 @@
 {
-  "input": {
+  "workflow_input": {
     "class": "File",
-    "location": "whale.txt"
+    "location": "whale.txt",
+    "format": "https://www.iana.org/assignments/media-types/text/plain"
   }
 }

@@ -1,29 +1,28 @@
-from __future__ import absolute_import
+from typing import Any, cast
 
-import unittest
+import pytest  # type: ignore
+from ruamel.yaml.comments import CommentedMap
+from schema_salad.sourceline import cmap
 
-from mock import mock
+from cwltool import command_line_tool
+from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.utils import onWindows, windows_default_container_id
 
-from cwltool.command_line_tool import DEFAULT_CONTAINER_MSG, CommandLineTool
-from cwltool.utils import windows_default_container_id
-from cwltool.context import RuntimeContext
 
-class TestDefaultDockerWarning(unittest.TestCase):
+@pytest.mark.skip(not onWindows(), reason="MS Windows only")  # type: ignore
+def test_default_docker_warning(mocker: Any) -> None:
+    """Check warning when default docker Container is used on Windows."""
+    mocker.patch("cwltool.command_line_tool._logger")
 
-    # Test to check warning when default docker Container is used on Windows
-    @mock.patch("cwltool.command_line_tool.onWindows",return_value = True)
-    @mock.patch("cwltool.command_line_tool._logger")
-    def test_default_docker_warning(self,mock_logger,mock_windows):
+    tool = command_line_tool.CommandLineTool(
+        cast(CommentedMap, cmap({"inputs": [], "outputs": []})), LoadingContext()
+    )
+    tool.make_job_runner(
+        RuntimeContext({"find_default_container": lambda x: "frolvlad/alpine-bash"})
+    )
 
-        class TestCommandLineTool(CommandLineTool):
-            def __init__(self, **kwargs):
-                self.requirements=[]
-                self.hints=[]
-
-            def find_default_container(args, builder):
-                return windows_default_container_id
-
-        TestObject = TestCommandLineTool()
-        TestObject.make_job_runner(RuntimeContext({
-            "find_default_container": lambda x: "frolvlad/alpine-bash"}))
-        mock_logger.warning.assert_called_with(DEFAULT_CONTAINER_MSG%(windows_default_container_id, windows_default_container_id))
+    command_line_tool._logger.warning.assert_called_with(  # type: ignore
+        command_line_tool.DEFAULT_CONTAINER_MSG,
+        windows_default_container_id,
+        windows_default_container_id,
+    )

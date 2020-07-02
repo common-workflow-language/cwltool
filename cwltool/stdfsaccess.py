@@ -1,75 +1,74 @@
-from __future__ import absolute_import
+"""Abstracted IO access."""
 
 import glob
 import os
-from io import open
-from typing import (IO, BinaryIO, List,  # pylint: disable=unused-import
-                    Text, Union, overload)
+import urllib
+from typing import IO, Any, List
 
-import six
-from six.moves import urllib
 from schema_salad.ref_resolver import file_uri, uri_file_path
 
 from .utils import onWindows
 
 
-def abspath(src, basedir):  # type: (Text, Text) -> Text
-    if src.startswith(u"file://"):
-        ab = six.text_type(uri_file_path(str(src)))
-    elif urllib.parse.urlsplit(src).scheme in ['http','https']:
+def abspath(src: str, basedir: str) -> str:
+    if src.startswith("file://"):
+        abpath = uri_file_path(src)
+    elif urllib.parse.urlsplit(src).scheme in ["http", "https"]:
         return src
     else:
-        if basedir.startswith(u"file://"):
-            ab = src if os.path.isabs(src) else basedir+ '/'+ src
+        if basedir.startswith("file://"):
+            abpath = src if os.path.isabs(src) else basedir + "/" + src
         else:
-            ab = src if os.path.isabs(src) else os.path.join(basedir, src)
-    return ab
+            abpath = src if os.path.isabs(src) else os.path.join(basedir, src)
+    return abpath
+
 
 class StdFsAccess(object):
-    def __init__(self, basedir):  # type: (Text) -> None
+    """Local filesystem implementation."""
+
+    def __init__(self, basedir: str) -> None:
+        """Perform operations with respect to a base directory."""
         self.basedir = basedir
 
-    def _abs(self, p):  # type: (Text) -> Text
+    def _abs(self, p: str) -> str:
         return abspath(p, self.basedir)
 
-    def glob(self, pattern):  # type: (Text) -> List[Text]
-        return [file_uri(str(self._abs(l))) for l in glob.glob(self._abs(pattern))]
+    def glob(self, pattern: str) -> List[str]:
+        return [
+            file_uri(str(self._abs(line))) for line in glob.glob(self._abs(pattern))
+        ]
 
-    # overload is related to mypy type checking and in no way
-    # modifies the behaviour of the function.
-    @overload
-    def open(self, fn, mode='rb'):  # type: (Text, str) -> IO[bytes]
-        pass
-
-    @overload
-    def open(self, fn, mode='r'):  # type: (Text, str) -> IO[str]
-        pass
-
-    def open(self, fn, mode):
+    def open(self, fn: str, mode: str) -> IO[Any]:
         return open(self._abs(fn), mode)
 
-    def exists(self, fn):  # type: (Text) -> bool
+    def exists(self, fn: str) -> bool:
         return os.path.exists(self._abs(fn))
 
-    def isfile(self, fn):  # type: (Text) -> bool
+    def size(self, fn: str) -> int:
+        return os.stat(self._abs(fn)).st_size
+
+    def isfile(self, fn: str) -> bool:
         return os.path.isfile(self._abs(fn))
 
-    def isdir(self, fn):  # type: (Text) -> bool
+    def isdir(self, fn: str) -> bool:
         return os.path.isdir(self._abs(fn))
 
-    def listdir(self, fn):  # type: (Text) -> List[Text]
-        return [abspath(urllib.parse.quote(str(l)), fn) for l in os.listdir(self._abs(fn))]
+    def listdir(self, fn: str) -> List[str]:
+        return [
+            abspath(urllib.parse.quote(entry), fn)
+            for entry in os.listdir(self._abs(fn))
+        ]
 
-    def join(self, path, *paths):  # type: (Text, *Text) -> Text
+    def join(self, path, *paths):  # type: (str, *str) -> str
         return os.path.join(path, *paths)
 
-    def realpath(self, path):  # type: (Text) -> Text
+    def realpath(self, path: str) -> str:
         return os.path.realpath(path)
 
     # On windows os.path.realpath appends unecessary Drive, here we would avoid that
-    def docker_compatible_realpath(self, path):  # type: (Text) -> Text
+    def docker_compatible_realpath(self, path: str) -> str:
         if onWindows():
-            if path.startswith('/'):
+            if path.startswith("/"):
                 return path
-            return '/'+path
+            return "/" + path
         return self.realpath(path)
