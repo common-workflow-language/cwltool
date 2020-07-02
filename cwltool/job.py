@@ -386,6 +386,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 timelimit=self.timelimit,
                 name=self.name,
                 monitor_function=monitor_function,
+                default_stdout=runtimeContext.default_stdout,
+                default_stderr=runtimeContext.default_stderr,
             )
 
             if rcode in self.successCodes:
@@ -915,6 +917,8 @@ def _job_popen(
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
     monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
+    default_stdout=None,  # type: Optional[Union[IO[bytes], TextIO]]
+    default_stderr=None,  # type: Optional[Union[IO[bytes], TextIO]]
 ) -> int:
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
@@ -923,11 +927,11 @@ def _job_popen(
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = sys.stderr  # type: Union[IO[bytes], TextIO]
+        stdout = default_stdout if default_stdout is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = sys.stderr  # type: Union[IO[bytes], TextIO]
+        stderr = default_stderr if default_stderr is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -972,13 +976,13 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase):
+        if isinstance(stdin, IOBase) and hasattr(stdin, 'close'):
             stdin.close()
 
-        if stdout is not sys.stderr:
+        if stdout is not sys.stderr and hasattr(stdout, 'close'):
             stdout.close()
 
-        if stderr is not sys.stderr:
+        if stderr is not sys.stderr and hasattr(stderr, 'close'):
             stderr.close()
 
         return rcode

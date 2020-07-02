@@ -42,6 +42,7 @@ lib/
 .cache/
 cache/
 .coverage
+.coverage.*
 coverage.xml
 htmlcov
 output

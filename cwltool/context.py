@@ -1,7 +1,7 @@
 """Shared context objects that replace use of kwargs."""
 import copy
 import threading
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union, IO, TextIO
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
@@ -143,7 +143,8 @@ class RuntimeContext(ContextBase):
         self.process_run_id = None  # type: Optional[str]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.mpi_config = MpiConfig()  # type: MpiConfig
-
+        self.default_stdout = None  # type: Optional[Union[IO[bytes], TextIO]]
+        self.default_stderr = None  # type: Optional[Union[IO[bytes], TextIO]]
         super(RuntimeContext, self).__init__(kwargs)
 
     def copy(self):
