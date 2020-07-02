@@ -461,6 +461,71 @@ class CommandLineTool(Process):
                 os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls
             )
 
+    def _initialworkdir(self, j, builder):
+        initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
+        if initialWorkdir is None:
+            return
+
+        ls = []  # type: List[CWLObjectType]
+        if isinstance(initialWorkdir["listing"], str):
+            ls = cast(
+                List[CWLObjectType], builder.do_eval(initialWorkdir["listing"])
+            )
+        else:
+            for t in cast(
+                MutableSequence[Union[str, CWLObjectType]],
+                initialWorkdir["listing"],
+            ):
+                if isinstance(t, Mapping) and "entry" in t:
+                    entry_exp = builder.do_eval(
+                        cast(str, t["entry"]), strip_whitespace=False
+                    )
+                    for entry in aslist(entry_exp):
+                        et = {"entry": entry}
+                        if "entryname" in t:
+                            et["entryname"] = builder.do_eval(
+                                cast(str, t["entryname"])
+                            )
+                        else:
+                            et["entryname"] = None
+                        et["writable"] = t.get("writable", False)
+                        if et["entry"] is not None:
+                            ls.append(et)
+                else:
+                    initwd_item = builder.do_eval(t)
+                    if not initwd_item:
+                        continue
+                    if isinstance(initwd_item, MutableSequence):
+                        ls.extend(cast(List[CWLObjectType], initwd_item))
+                    else:
+                        ls.append(cast(CWLObjectType, initwd_item))
+
+        for i, t2 in enumerate(ls):
+            if "entry" in t2:
+                if isinstance(t2["entry"], str):
+                    ls[i] = {
+                        "class": "File",
+                        "basename": t2["entryname"],
+                        "contents": t2["entry"],
+                        "writable": t2.get("writable"),
+                    }
+                else:
+                    if t2.get("entryname") or t2.get("writable"):
+                        t2 = copy.deepcopy(t2)
+                        t2entry = cast(CWLObjectType, t2["entry"])
+                        if t2.get("entryname"):
+                            t2entry["basename"] = t2["entryname"]
+                        t2entry["writable"] = t2.get("writable")
+                    ls[i] = cast(CWLObjectType, t2["entry"])
+        j.generatefiles["listing"] = ls
+        for entry in ls:
+            self.updatePathmap(builder.outdir, builder.pathmapper, entry)
+
+        visit_class(
+            [builder.files, builder.bindings], ("File", "Directory"), partial(check_adjust, builder)
+        )
+
+
     def job(
         self,
         job_order: CWLObjectType,
@@ -666,64 +731,7 @@ class CommandLineTool(Process):
             [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
         )
 
-        initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
-        if initialWorkdir is not None:
-            ls = []  # type: List[CWLObjectType]
-            if isinstance(initialWorkdir["listing"], str):
-                ls = cast(
-                    List[CWLObjectType], builder.do_eval(initialWorkdir["listing"])
-                )
-            else:
-                for t in cast(
-                    MutableSequence[Union[str, CWLObjectType]],
-                    initialWorkdir["listing"],
-                ):
-                    if isinstance(t, Mapping) and "entry" in t:
-                        entry_exp = builder.do_eval(
-                            cast(str, t["entry"]), strip_whitespace=False
-                        )
-                        for entry in aslist(entry_exp):
-                            et = {"entry": entry}
-                            if "entryname" in t:
-                                et["entryname"] = builder.do_eval(
-                                    cast(str, t["entryname"])
-                                )
-                            else:
-                                et["entryname"] = None
-                            et["writable"] = t.get("writable", False)
-                            if et["entry"] is not None:
-                                ls.append(et)
-                    else:
-                        initwd_item = builder.do_eval(t)
-                        if not initwd_item:
-                            continue
-                        if isinstance(initwd_item, MutableSequence):
-                            ls.extend(cast(List[CWLObjectType], initwd_item))
-                        else:
-                            ls.append(cast(CWLObjectType, initwd_item))
-            for i, t2 in enumerate(ls):
-                if "entry" in t2:
-                    if isinstance(t2["entry"], str):
-                        ls[i] = {
-                            "class": "File",
-                            "basename": t2["entryname"],
-                            "contents": t2["entry"],
-                            "writable": t2.get("writable"),
-                        }
-                    else:
-                        if t2.get("entryname") or t2.get("writable"):
-                            t2 = copy.deepcopy(t2)
-                            t2entry = cast(CWLObjectType, t2["entry"])
-                            if t2.get("entryname"):
-                                t2entry["basename"] = t2["entryname"]
-                            t2entry["writable"] = t2.get("writable")
-                        ls[i] = cast(CWLObjectType, t2["entry"])
-            j.generatefiles["listing"] = ls
-            for entry in ls:
-                self.updatePathmap(builder.outdir, builder.pathmapper, entry)
-            visit_class(
-                [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
-            )
+        self._initialworkdir(j, builder)
 
         if debug:
             _logger.debug(
