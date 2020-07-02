@@ -1,119 +1,136 @@
 import copy
-from .process import Process, shortname
-from .load_tool import load_tool
-from schema_salad import validate
+from typing import (
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
+
+from ruamel.yaml.comments import CommentedMap
+from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import indent
+
+from .context import LoadingContext, RuntimeContext
 from .errors import WorkflowException
-from .context import RuntimeContext, LoadingContext
-from typing import (Any, Callable, Dict, Generator, Iterable, List,
-                    Mapping, MutableMapping, MutableSequence,
-                    Optional, Tuple, Union, cast)
+from .load_tool import load_tool
 from .loghandler import _logger
-from typing_extensions import Text  # pylint: disable=unused-import
+from .process import Process, shortname
+from .utils import CWLObjectType, JobsGeneratorType, OutputCallbackType
+
 
 class ProcessGeneratorJob(object):
-    def __init__(self, procgenerator):
-        # type: (ProcessGenerator) -> None
+    def __init__(self, procgenerator: "ProcessGenerator") -> None:
         self.procgenerator = procgenerator
-        self.jobout = None         # type: Optional[Dict[Text, Any]]
-        self.processStatus = None  # type: Optional[Text]
+        self.jobout = None  # type: Optional[CWLObjectType]
+        self.processStatus = None  # type: Optional[str]
 
-    def receive_output(self, jobout, processStatus):
-        # type: (Dict[Text, Any], Text) -> None
+    def receive_output(
+        self, jobout: Optional[CWLObjectType], processStatus: str
+    ) -> None:
         self.jobout = jobout
         self.processStatus = processStatus
 
-    def job(self,
-            job_order,         # type: Mapping[Text, Any]
-            output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext     # type: RuntimeContext
-           ):  # type: (...) -> Generator[Any, None, None]
-        # FIXME: Declare base type for what Generator yields
+    def job(
+        self,
+        job_order: CWLObjectType,
+        output_callbacks: Optional[OutputCallbackType],
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
 
         try:
             for tool in self.procgenerator.embedded_tool.job(
-                    job_order,
-                    self.receive_output,
-                    runtimeContext):
+                job_order, self.receive_output, runtimeContext
+            ):
                 yield tool
 
             while self.processStatus is None:
                 yield None
 
-            if self.processStatus != "success":
+            if self.processStatus != "success" and output_callbacks:
                 output_callbacks(self.jobout, self.processStatus)
                 return
 
             if self.jobout is None:
                 raise WorkflowException("jobout should not be None")
 
-            created_tool, runinputs = self.procgenerator.result(job_order, self.jobout, runtimeContext)
+            created_tool, runinputs = self.procgenerator.result(
+                job_order, self.jobout, runtimeContext
+            )
 
-            for tool in created_tool.job(
-                    runinputs,
-                    output_callbacks,
-                    runtimeContext):
+            for tool in created_tool.job(runinputs, output_callbacks, runtimeContext):
                 yield tool
 
         except WorkflowException:
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(Text(exc))
+            raise WorkflowException(str(exc))
 
 
 class ProcessGenerator(Process):
-    def __init__(self,
-                 toolpath_object,      # type: MutableMapping[Text, Any]
-                 loadingContext        # type: LoadingContext
-    ):  # type: (...) -> None
-        super(ProcessGenerator, self).__init__(
-            toolpath_object, loadingContext)
+    def __init__(
+        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+    ) -> None:
+        super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:
-            if isinstance(toolpath_object["run"], MutableMapping):
+            if isinstance(toolpath_object["run"], CommentedMap):
                 self.embedded_tool = loadingContext.construct_tool_object(
-                    toolpath_object["run"], loadingContext)  # type: Process
+                    toolpath_object["run"], loadingContext
+                )  # type: Process
             else:
                 loadingContext.metadata = {}
-                self.embedded_tool = load_tool(
-                    toolpath_object["run"], loadingContext)
-        except validate.ValidationException as vexc:
+                self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)
+        except ValidationException as vexc:
             if loadingContext.debug:
                 _logger.exception("Validation exception")
             raise WorkflowException(
-                u"Tool definition %s failed validation:\n%s" %
-                (toolpath_object["run"], indent(str(vexc))))
+                "Tool definition %s failed validation:\n%s"
+                % (toolpath_object["run"], indent(str(vexc)))
+            )
 
-    def job(self,
-            job_order,         # type: Mapping[Text, Text]
-            output_callbacks,  # type: Callable[[Any, Any], Any]
-            runtimeContext     # type: RuntimeContext
-           ):  # type: (...) -> Generator[Any, None, None]
-        # FIXME: Declare base type for what Generator yields
-        return ProcessGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)
+    def job(
+        self,
+        job_order: CWLObjectType,
+        output_callbacks: Optional[OutputCallbackType],
+        runtimeContext: RuntimeContext,
+    ) -> JobsGeneratorType:
+        return ProcessGeneratorJob(self).job(
+            job_order, output_callbacks, runtimeContext
+        )
 
-    def result(self,
-            job_order,      # type: Mapping[Text, Any]
-            jobout,         # type: Mapping[Text, Any]
-            runtimeContext  # type: RuntimeContext
-    ):  # type: (...) -> Tuple[Process, MutableMapping[Text, Any]]
+    def result(
+        self,
+        job_order: CWLObjectType,
+        jobout: CWLObjectType,
+        runtimeContext: RuntimeContext,
+    ) -> Tuple[Process, CWLObjectType]:
         try:
             loadingContext = self.loadingContext.copy()
             loadingContext.metadata = {}
             embedded_tool = load_tool(
-                jobout["runProcess"]["location"], loadingContext)
-        except validate.ValidationException as vexc:
+                cast(Dict[str, str], jobout["runProcess"])["location"], loadingContext
+            )
+        except ValidationException as vexc:
             if runtimeContext.debug:
                 _logger.exception("Validation exception")
             raise WorkflowException(
-                u"Tool definition %s failed validation:\n%s" %
-                (jobout["runProcess"], indent(str(vexc))))
+                "Tool definition %s failed validation:\n%s"
+                % (jobout["runProcess"], indent(str(vexc)))
+            )
 
         if "runInputs" in jobout:
-            runinputs = cast(MutableMapping[Text, Any], jobout["runInputs"])
+            runinputs = cast(CWLObjectType, jobout["runInputs"])
         else:
-            runinputs = cast(MutableMapping[Text, Any], copy.deepcopy(job_order))
+            runinputs = copy.deepcopy(job_order)
             for i in self.embedded_tool.tool["inputs"]:
                 if shortname(i["id"]) in runinputs:
                     del runinputs[shortname(i["id"])]

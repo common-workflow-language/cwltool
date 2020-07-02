@@ -1,31 +1,33 @@
 import json
 
+import py.path
+
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
-from cwltool import load_tool
 
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 
-@windows_needs_docker
-def test_sequential_workflow(tmpdir):
+@windows_needs_docker  # type: ignore
+def test_sequential_workflow(tmpdir: py.path.local) -> None:
     test_file = "tests/wf/count-lines1-wf.cwl"
     executor = MultithreadedJobExecutor()
     runtime_context = RuntimeContext()
     runtime_context.outdir = str(tmpdir)
     runtime_context.select_resources = executor.select_resources
     factory = get_windows_safe_factory(
-        executor=executor, runtime_context=runtime_context)
+        executor=executor, runtime_context=runtime_context
+    )
     echo = factory.make(get_data(test_file))
-    file_contents = {"class": "File",
-                     "location": get_data("tests/wf/whale.txt")}
-    assert  echo(file1=file_contents) == {"count_output": 16}
+    file_contents = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+    assert echo(file1=file_contents) == {"count_output": 16}
 
-@windows_needs_docker
-def test_scattered_workflow():
+
+@windows_needs_docker  # type: ignore
+def test_scattered_workflow() -> None:
     test_file = "tests/wf/scatter-wf4.cwl"
     job_file = "tests/wf/scatter-job2.json"
     factory = get_windows_safe_factory(executor=MultithreadedJobExecutor())
     echo = factory.make(get_data(test_file))
     with open(get_data(job_file)) as job:
-        assert echo(**json.load(job)) == {'out': ['foo one three', 'foo two four']}
+        assert echo(**json.load(job)) == {"out": ["foo one three", "foo two four"]}
