@@ -515,7 +515,7 @@ class CommandLineTool(Process):
 
         for i, t2 in enumerate(ls):
             if not isinstance(t2, Mapping):
-                raise SourceLine(initialWorkdir, "listing", WorkflowError).makeError(
+                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
                     "Entry at index %s of listing is not a record, was %s" % (i, type(t2)))
 
             if "entry" not in t2:
@@ -524,8 +524,8 @@ class CommandLineTool(Process):
             # Dirent
             if isinstance(t2["entry"], str):
                 if not t2["entryname"]:
-                    raise SourceLine(initialWorkdir, "listing", WorkflowError).makeError(
-                        "Entry at index %s of listing missing entryname %s" % (i))
+                    raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
+                        "Entry at index %s of listing missing entryname" % (i))
                 ls[i] = {
                     "class": "File",
                     "basename": t2["entryname"],
@@ -535,11 +535,11 @@ class CommandLineTool(Process):
                 continue
 
             if not isinstance(t2["entry"], Mapping):
-                raise SourceLine(initialWorkdir, "listing", WorkflowError).makeError(
+                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
                     "Entry at index %s of listing is not a record, was %s" % (i, type(t2["entry"])))
 
             if t2["entry"].get("class") not in ("File", "Directory"):
-                raise SourceLine(initialWorkdir, "listing", WorkflowError).makeError(
+                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
                     "Entry at index %s of listing is not a File or Directory object, was %s" % (i, t2))
 
             if t2.get("entryname") or t2.get("writable"):
@@ -554,7 +554,7 @@ class CommandLineTool(Process):
         for i, t3 in enumerate(ls):
             if t3.get("class") not in ("File", "Directory"):
                 # Check that every item is a File or Directory object now
-                raise SourceLine(initialWorkdir, "listing", WorkflowError).makeError(
+                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
                     "Entry at index %s of listing is not a Dirent, File or Directory object, was %s" % (i, t2))
 
         j.generatefiles["listing"] = ls
