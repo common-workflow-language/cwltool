@@ -53,8 +53,7 @@ def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException(
-            "file is too large, loadContents limited to %d bytes"
-            % CONTENT_LIMIT
+            "file is too large, loadContents limited to %d bytes" % CONTENT_LIMIT
         )
     return contents
 
@@ -388,9 +387,13 @@ class Builder(HasReqsHints):
                     loadContents_sourceline = schema
 
                 if loadContents_sourceline and loadContents_sourceline["loadContents"]:
-                    with SourceLine(loadContents_sourceline, "loadContents", WorkflowException):
+                    with SourceLine(
+                        loadContents_sourceline, "loadContents", WorkflowException
+                    ):
                         try:
-                            with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
+                            with self.fs_access.open(
+                                cast(str, datum["location"]), "rb"
+                            ) as f2:
                                 datum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
                             raise Exception("Reading %s\n%s" % (datum["location"], e))

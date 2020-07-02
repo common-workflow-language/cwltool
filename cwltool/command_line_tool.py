@@ -471,15 +471,12 @@ class CommandLineTool(Process):
             # "listing" is just a string (must be an expression) so
             # just evaluate it and use the result as if it was in
             # listing
-            ls = cast(
-                List[CWLObjectType], builder.do_eval(initialWorkdir["listing"])
-            )
+            ls = cast(List[CWLObjectType], builder.do_eval(initialWorkdir["listing"]))
         else:
             # "listing" is an array of either expressions or Dirent so
             # evaluate each item
             for t in cast(
-                MutableSequence[Union[str, CWLObjectType]],
-                initialWorkdir["listing"],
+                MutableSequence[Union[str, CWLObjectType]], initialWorkdir["listing"],
             ):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
@@ -489,15 +486,20 @@ class CommandLineTool(Process):
                     if entry is None:
                         continue
 
-                    if isinstance(entry, Mapping) and entry.get("class") in ("File", "Directory"):
+                    if isinstance(entry, Mapping) and entry.get("class") in (
+                        "File",
+                        "Directory",
+                    ):
                         et = {"entry": entry}
                     else:
-                        et = {"entry": entry if isinstance(entry, str) else json_dumps(entry, sort_keys=True)}
+                        et = {
+                            "entry": entry
+                            if isinstance(entry, str)
+                            else json_dumps(entry, sort_keys=True)
+                        }
 
                     if "entryname" in t:
-                        et["entryname"] = builder.do_eval(
-                            cast(str, t["entryname"])
-                        )
+                        et["entryname"] = builder.do_eval(cast(str, t["entryname"]))
                     else:
                         et["entryname"] = None
                     et["writable"] = t.get("writable", False)
@@ -515,8 +517,12 @@ class CommandLineTool(Process):
 
         for i, t2 in enumerate(ls):
             if not isinstance(t2, Mapping):
-                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
-                    "Entry at index %s of listing is not a record, was %s" % (i, type(t2)))
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a record, was %s"
+                    % (i, type(t2))
+                )
 
             if "entry" not in t2:
                 continue
@@ -524,8 +530,9 @@ class CommandLineTool(Process):
             # Dirent
             if isinstance(t2["entry"], str):
                 if not t2["entryname"]:
-                    raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
-                        "Entry at index %s of listing missing entryname" % (i))
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError("Entry at index %s of listing missing entryname" % (i))
                 ls[i] = {
                     "class": "File",
                     "basename": t2["entryname"],
@@ -535,12 +542,20 @@ class CommandLineTool(Process):
                 continue
 
             if not isinstance(t2["entry"], Mapping):
-                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
-                    "Entry at index %s of listing is not a record, was %s" % (i, type(t2["entry"])))
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a record, was %s"
+                    % (i, type(t2["entry"]))
+                )
 
             if t2["entry"].get("class") not in ("File", "Directory"):
-                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
-                    "Entry at index %s of listing is not a File or Directory object, was %s" % (i, t2))
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a File or Directory object, was %s"
+                    % (i, t2)
+                )
 
             if t2.get("entryname") or t2.get("writable"):
                 t2 = copy.deepcopy(t2)
@@ -554,17 +569,22 @@ class CommandLineTool(Process):
         for i, t3 in enumerate(ls):
             if t3.get("class") not in ("File", "Directory"):
                 # Check that every item is a File or Directory object now
-                raise SourceLine(initialWorkdir, "listing", WorkflowException).makeError(
-                    "Entry at index %s of listing is not a Dirent, File or Directory object, was %s" % (i, t2))
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
+                    % (i, t2)
+                )
 
         j.generatefiles["listing"] = ls
         for entry in ls:
             self.updatePathmap(builder.outdir, builder.pathmapper, entry)
 
         visit_class(
-            [builder.files, builder.bindings], ("File", "Directory"), partial(check_adjust, builder)
+            [builder.files, builder.bindings],
+            ("File", "Directory"),
+            partial(check_adjust, builder),
         )
-
 
     def job(
         self,
