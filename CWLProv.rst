@@ -230,7 +230,7 @@ These set which vocabularies ("namespaces") are used by the CWLProv statements::
     prefix wf <arcp://uuid,0e6cb79e-fe70-4807-888c-3a61b9bf232a/workflow/packed.cwl#>
     prefix foaf <http://xmlns.com/foaf/0.1/>
 
-Note that the `arcp <https://tools.ietf.org/id/draft-soilandreyes-arcp-03.html>`__  base URI will correspond to the UUID of each master workflow run.
+Note that the `arcp <https://tools.ietf.org/id/draft-soilandreyes-arcp-03.html>`__  base URI will correspond to the UUID of each main workflow run.
 
 Account who launched cwltool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
