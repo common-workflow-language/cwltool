@@ -1,3 +1,4 @@
+include README.rst
 include MANIFEST.in
 include LICENSE.txt
 include *requirements.txt
@@ -10,6 +11,7 @@ include tests/override/*
 include tests/checker_wf/*
 include tests/subgraph/*
 include tests/trs/*
+include tests/wf/generator/*
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
@@ -23,12 +25,22 @@ include cwltool/schemas/v1.1.0-dev1/*.yml
 include cwltool/schemas/v1.1.0-dev1/*.md
 include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2.0-dev2/*.yml
+include cwltool/schemas/v1.2.0-dev2/*.md
+include cwltool/schemas/v1.2.0-dev2/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2.0-dev2/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2.0-dev3/*.yml
+include cwltool/schemas/v1.2.0-dev3/*.md
+include cwltool/schemas/v1.2.0-dev3/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2.0-dev3/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
 include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/cwlNodeEngineWithContext.js
 include cwltool/extensions.yml
+include cwltool/extensions-v1.1.yml
 include cwltool/jshint/jshint_wrapper.js
 include cwltool/jshint/jshint.js
+include cwltool/hello.simg
 prune cwltool/schemas/v1.0/salad/typeshed
 prune cwltool/schemas/v1.0/salad/schema_salad/tests
 prune cwltool/schemas/v1.1.0-dev1/salad/typeshed

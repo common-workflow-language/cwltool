@@ -6,7 +6,6 @@ inputs:
   script:
     type: string
     default: |
-      from __future__ import print_function
       import sys
       print(sys.argv[1])
       if sys.argv[1] == "2":

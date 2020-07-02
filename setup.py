@@ -1,6 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Setup for the reference implementation of the CWL standards."""
-from __future__ import print_function
 import os
 import sys
 
@@ -8,7 +7,7 @@ import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
 
 SETUP_DIR = os.path.dirname(__file__)
-README = os.path.join(SETUP_DIR, 'README.rst')
+README = os.path.join(SETUP_DIR, "README.rst")
 
 try:
     import gittaggers
@@ -17,111 +16,142 @@ try:
 except ImportError:
     Tagger = egg_info_cmd.egg_info
 
-NEEDS_PYTEST = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-PYTEST_RUNNER = ['pytest-runner', 'pytest-cov'] if NEEDS_PYTEST else []
+NEEDS_PYTEST = {"pytest", "test", "ptr"}.intersection(sys.argv)
+PYTEST_RUNNER = ["pytest-runner", "pytest-cov"] if NEEDS_PYTEST else []
+USE_MYPYC = False
+# To compile with mypyc, a mypyc checkout must be present on the PYTHONPATH
+if len(sys.argv) > 1 and sys.argv[1] == "--use-mypyc":
+    sys.argv.pop(1)
+    USE_MYPYC = True
+if os.getenv("CWLTOOL_USE_MYPYC", None) == "1":
+    USE_MYPYC = True
 
-if sys.version_info < (3, 0):
-    print("""
-DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020.
-Please upgrade your Python as the Python 2.7 version of cwltool won't be
-maintained after that date.
-""", file=sys.stderr)
+if USE_MYPYC:
+    mypyc_targets = [
+        "cwltool/argparser.py",
+        "cwltool/builder.py",
+        "cwltool/checker.py",
+        "cwltool/command_line_tool.py",
+        # "cwltool/context.py",  # monkeypatching
+        "cwltool/cwlrdf.py",
+        "cwltool/docker_id.py",
+        "cwltool/docker.py",
+        "cwltool/udocker.py",
+        "cwltool/errors.py",
+        "cwltool/executors.py",
+        "cwltool/expression.py",
+        "cwltool/factory.py",
+        "cwltool/flatten.py",
+        # "cwltool/__init__.py",
+        "cwltool/job.py",
+        "cwltool/load_tool.py",
+        # "cwltool/loghandler.py",  # so we can monkeypatch the logger from tests
+        # "cwltool/__main__.py",
+        "cwltool/main.py",
+        "cwltool/mutation.py",
+        "cwltool/pack.py",
+        # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
+        "cwltool/process.py",
+        "cwltool/procgenerator.py",
+        # "cwltool/provenance.py",  # WritableBag is having issues
+        "cwltool/resolver.py",
+        # "cwltool/sandboxjs.py",  # probably not speed critical, tests need to mock components
+        "cwltool/secrets.py",
+        "cwltool/singularity.py",
+        "cwltool/software_requirements.py",
+        "cwltool/stdfsaccess.py",
+        "cwltool/subgraph.py",
+        "cwltool/update.py",
+        "cwltool/utils.py",
+        "cwltool/validate_js.py",
+        "cwltool/workflow.py",
+    ]
 
-setup(name='cwltool',
-      version='1.0',
-      description='Common workflow language reference implementation',
-      long_description=open(README).read(),
-      long_description_content_type="text/x-rst",
-      author='Common workflow language working group',
-      author_email='common-workflow-language@googlegroups.com',
-      url="https://github.com/common-workflow-language/cwltool",
-      download_url="https://github.com/common-workflow-language/cwltool",
-      # platforms='',  # empty as is conveyed by the classifier below
-      # license='',  # empty as is conveyed by the classifier below
-      packages=["cwltool", 'cwltool.tests'],
-      package_dir={'cwltool.tests': 'tests'},
-      package_data={'cwltool': [
-          'schemas/v1.0/*.yml',
-          'schemas/v1.0/*.md',
-          'schemas/v1.0/salad/schema_salad/metaschema/*.yml',
-          'schemas/v1.0/salad/schema_salad/metaschema/*.md',
-          'schemas/v1.1.0-dev1/*.yml',
-          'schemas/v1.1.0-dev1/*.md',
-          'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.yml',
-          'schemas/v1.1.0-dev1/salad/schema_salad/metaschema/*.md',
-          'schemas/v1.1/*.yml',
-          'schemas/v1.1/*.md',
-          'schemas/v1.1/salad/schema_salad/metaschema/*.yml',
-          'schemas/v1.1/salad/schema_salad/metaschema/*.md',
-          'cwlNodeEngine.js',
-          'cwlNodeEngineJSConsole.js',
-          'extensions.yml',
-          'hello.simg']},
-      include_package_data=True,
-      install_requires=[
-          'setuptools',
-          'requests >= 2.6.1',  # >= 2.6.1 to workaround
-          # https://github.com/ionrock/cachecontrol/issues/137
-          'ruamel.yaml >= 0.12.4, <= 0.15.97',
-          'rdflib >= 4.2.2, < 4.3.0',
-          'shellescape >= 3.4.1, < 3.5',
-          'schema-salad >= 4.5, < 5',
-          'mypy-extensions',
-          'six >= 1.9.0',  # >= 1.9.0 required by prov
-          'psutil',
-          'scandir',
-          'prov == 1.5.1',
-          'bagit >= 1.6.4',
-          'typing-extensions',
-          'coloredlogs',
-          'future',
-          'pathlib2 != 2.3.1'
-      ],
-      extras_require={
-          ':os.name=="posix" and python_version<"3.5"': ['subprocess32 >= 3.5.0'],
-          ':python_version<"3.6"': ['typing >= 3.5.3'],
-          'deps': ["galaxy-lib >= 17.09.9, <= 18.9.2 "]
-      },
-      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
-      setup_requires=PYTEST_RUNNER,
-      test_suite='tests',
-      tests_require=['pytest < 4.3.0', 'mock >= 2.0.0', 'pytest-mock >= 1.10.0',
-                     'arcp >= 0.2.0', 'rdflib-jsonld >= 0.4.0'],
-      entry_points={
-          'console_scripts': ["cwltool=cwltool.main:run"]
-      },
-      zip_safe=True,
-      cmdclass={'egg_info': Tagger},
-      classifiers=[
-          'Development Status :: 5 - Production/Stable',
-          'Environment :: Console',
-          'Intended Audience :: Developers',
-          'Intended Audience :: Science/Research',
-          'Intended Audience :: Healthcare Industry',
-          'License :: OSI Approved :: Apache Software License',
-          'Natural Language :: English',
-          'Operating System :: MacOS :: MacOS X',
-          'Operating System :: POSIX',
-          'Operating System :: POSIX :: Linux',
-          'Operating System :: OS Independent',
-          'Operating System :: Microsoft :: Windows',
-          'Operating System :: Microsoft :: Windows :: Windows 10',
-          'Operating System :: Microsoft :: Windows :: Windows 8.1',
-          # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
-          # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
-          'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.7',
-          'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.5',
-          'Programming Language :: Python :: 3.6',
-          'Programming Language :: Python :: 3.7',
-          'Topic :: Scientific/Engineering',
-          'Topic :: Scientific/Engineering :: Bio-Informatics',
-          'Topic :: Scientific/Engineering :: Astronomy',
-          'Topic :: Scientific/Engineering :: Atmospheric Science',
-          'Topic :: Scientific/Engineering :: Information Analysis',
-          'Topic :: Scientific/Engineering :: Medical Science Apps.',
-          'Topic :: System :: Distributed Computing',
-          'Topic :: Utilities',
-      ]
-     )
+    from mypyc.build import mypycify
+
+    opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
+    ext_modules = mypycify(mypyc_targets, opt_level=opt_level)
+else:
+    ext_modules = []
+
+setup(
+    name="cwltool",
+    version="3.0",
+    description="Common workflow language reference implementation",
+    long_description=open(README).read(),
+    long_description_content_type="text/x-rst",
+    author="Common workflow language working group",
+    author_email="common-workflow-language@googlegroups.com",
+    url="https://github.com/common-workflow-language/cwltool",
+    download_url="https://github.com/common-workflow-language/cwltool",
+    ext_modules=ext_modules,
+    # platforms='',  # empty as is conveyed by the classifier below
+    # license='',  # empty as is conveyed by the classifier below
+    packages=["cwltool", "cwltool.tests"],
+    package_dir={"cwltool.tests": "tests"},
+    include_package_data=True,
+    install_requires=[
+        "setuptools",
+        "requests >= 2.6.1",  # >= 2.6.1 to workaround
+        # https://github.com/ionrock/cachecontrol/issues/137
+        "ruamel.yaml >= 0.12.4, <= 0.16.5",
+        "rdflib >= 4.2.2, < 4.3.0",
+        "shellescape >= 3.4.1, < 3.5",
+        "schema-salad >= 7, < 8",
+        "mypy-extensions",
+        "psutil",
+        "prov == 1.5.1",
+        "bagit >= 1.6.4",
+        "typing-extensions",
+        "coloredlogs",
+    ],
+    extras_require={
+        ':python_version<"3.6"': ["typing >= 3.5.3"],
+        "deps": ["galaxy-tool-util"],
+        "docs": ["sphinx >= 2.2", "sphinx-rtd-theme"],
+    },
+    python_requires=">=3.5, <4",
+    setup_requires=PYTEST_RUNNER,
+    test_suite="tests",
+    tests_require=[
+        "pytest < 6",
+        "mock >= 2.0.0",
+        "pytest-mock >= 1.10.0",
+        "arcp >= 0.2.0",
+        "rdflib-jsonld >= 0.4.0",
+    ],
+    entry_points={"console_scripts": ["cwltool=cwltool.main:run"]},
+    zip_safe=True,
+    cmdclass={"egg_info": Tagger},
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Environment :: Console",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Healthcare Industry",
+        "License :: OSI Approved :: Apache Software License",
+        "Natural Language :: English",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: POSIX",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: OS Independent",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: Microsoft :: Windows :: Windows 10",
+        "Operating System :: Microsoft :: Windows :: Windows 8.1",
+        # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
+        # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Scientific/Engineering :: Astronomy",
+        "Topic :: Scientific/Engineering :: Atmospheric Science",
+        "Topic :: Scientific/Engineering :: Information Analysis",
+        "Topic :: Scientific/Engineering :: Medical Science Apps.",
+        "Topic :: System :: Distributed Computing",
+        "Topic :: Utilities",
+    ],
+)
