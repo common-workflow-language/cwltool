@@ -55,6 +55,8 @@ $graph:
           [ResourceRequirement](#ResourceRequirement) may now request fractional CPUs.
       * (CommandLineTool)[#CommandLineTool] can now express `intent`
         with an identifier for the type of computational operation.
+      * Added conformance tests for order of operations evaluating `secondaryFiles` on input
+        and ensure that input and output secondaryFiles expressions can return a File object.
       * Note that only enum and record types can be typedef-ed
       * Added conformance tests for order of operations evaluating `secondaryFiles` on input
         and ensure that input and output secondaryFiles expressions can return a File object.

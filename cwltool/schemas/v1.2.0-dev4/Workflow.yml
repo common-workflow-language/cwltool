@@ -503,7 +503,7 @@ $graph:
           output arrays must be flattened to a single level, but otherwise listed in the
           order that the input arrays are listed in the `scatter` field.
 
-    # Conditional execution
+    # Conditional execution (Optional)
 
     Conditional execution makes execution of a step conditional on an
     expression.  A step that is not executed is "skipped".  A skipped
@@ -520,6 +520,12 @@ $graph:
     input object (or individual scatter job), and returns a boolean
     value.  It is an error if this expression returns a value other
     than `true` or `false`.
+
+    Conditionals in CWL are an optional feature and are not required
+    to be implemented by all consumers of CWL documents.  An
+    implementation that does not support conditionals must return a
+    fatal error when attempting execute a workflow that uses
+    conditional constructs the implementation does not support.
 
     # Subworkflows
 
