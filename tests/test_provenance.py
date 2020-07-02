@@ -451,10 +451,10 @@ def check_prov(
         g.serialize(sys.stdout, format="ttl")
     runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
 
-    # master workflow run URI (as urn:uuid:) should correspond to arcp uuid part
+    # main workflow run URI (as urn:uuid:) should correspond to arcp uuid part
     uuid = arcp.parse_arcp(arcp_root).uuid
-    master_run = URIRef(uuid.urn)
-    assert master_run in runs, "Can't find run %s in %s" % (master_run, runs)
+    main_run = URIRef(uuid.urn)
+    assert main_run in runs, "Can't find run %s in %s" % (main_run, runs)
     # TODO: we should not need to parse arcp, but follow
     # the has_provenance annotations in manifest.json instead
 
@@ -466,7 +466,7 @@ def check_prov(
     engine = engines.pop()
 
     assert (
-        master_run,
+        main_run,
         PROV.wasAssociatedWith,
         engine,
     ) in g, "Wf run not associated with wf engine"
@@ -483,15 +483,15 @@ def check_prov(
         # than the tool run
         # (NOTE: the WorkflowEngine is also activity, but not declared explicitly)
     else:
-        # Check all process runs were started by the master worklow
+        # Check all process runs were started by the main worklow
         stepActivities = set(g.subjects(RDF.type, WFPROV.ProcessRun))
         # Although semantically a WorkflowEngine is also a ProcessRun,
         # we don't declare that,
         # thus only the step activities should be in this set.
-        assert master_run not in stepActivities
+        assert main_run not in stepActivities
         assert stepActivities, "No steps executed in workflow"
         for step in stepActivities:
-            # Let's check it was started by the master_run. Unfortunately, unlike PROV-N
+            # Let's check it was started by the main_run. Unfortunately, unlike PROV-N
             # in PROV-O RDF we have to check through the n-ary qualifiedStart relation
             starts = set(g.objects(step, PROV.qualifiedStart))
             assert starts, "Could not find qualifiedStart of step %s" % step
@@ -500,8 +500,8 @@ def check_prov(
             assert (
                 start,
                 PROV.hadActivity,
-                master_run,
-            ) in g, "Step activity not started by master activity"
+                main_run,
+            ) in g, "Step activity not started by main activity"
             # Tip: Any nested workflow step executions should not be in this prov file,
             # but in separate file
     if nested:
