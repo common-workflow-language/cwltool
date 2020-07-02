@@ -24,49 +24,49 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 .. |Downloads| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
 
-.. |CommandLineTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/command_line_tool.json
+.. |CommandLineTool Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/command_line_tool.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |DockerRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/docker.json
+.. |DockerRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/docker.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |EnvVarRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/env_var.json
+.. |EnvVarRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/env_var.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ExpressionTool Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/expression_tool.json
+.. |ExpressionTool Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/expression_tool.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |InitialWorkDirRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/initial_work_dir.json
+.. |InitialWorkDirRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/initial_work_dir.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |InlineJavascriptRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/inline_javascript.json
+.. |InlineJavascriptRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/inline_javascript.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |MultipleInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/multiple_input.json
+.. |MultipleInputRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/multiple_input.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |Core Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/required.json
+.. |Core Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/required.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ResourceRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/resource.json
+.. |ResourceRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/resource.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ScatterRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/scatter.json
+.. |ScatterRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/scatter.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |SchemaDefRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/schema_def.json
+.. |SchemaDefRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/schema_def.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |ShellCommandequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/shell_command.json
+.. |ShellCommandequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/shell_command.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |StepInputRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/step_input.json
+.. |StepInputRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/step_input.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |SubWorkflowRequirement Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/subworkflow.json
+.. |SubWorkflowRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/subworkflow.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
-.. |Workflow Support| image:: https://flat.badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/workflow.json
+.. |Workflow Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/workflow.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
 
 
@@ -75,7 +75,7 @@ intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for
-`Python <https://www.python.org/>`_ ``2.7 and 3.x {x = 5, 6, 7, 8}``
+`Python <https://www.python.org/>`_ ``3.x {x = 5, 6, 7, 8}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -85,10 +85,12 @@ The ``cwlref-runner`` package is optional and provides an additional entry point
 under the alias ``cwl-runner``, which is the implementation-agnostic name for the
 default CWL interpreter installed on a host.
 
+``cwltool`` is provided by the CWL project, `a member project of Software Freedom Conservancy <https://sfconservancy.org/news/2018/apr/11/cwl-new-member-project/>`_ and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
+
 Install
 -------
 
-Your operating system may offer cwltool directly. For [Debian](https://tracker.debian.org/pkg/cwltool "Debian cwltool package tracker") or [Ubuntu](https://launchpad.net/ubuntu/+source/cwltool "Ubuntu Launchpad overview for cwltool") try
+Your operating system may offer cwltool directly. For `Debian <https://tracker.debian.org/pkg/cwltool>`_  or `Ubuntu <https://launchpad.net/ubuntu/+source/cwltool>`_ try
 
 .. code:: bash
 
@@ -100,7 +102,7 @@ it is recommended to do the following:
 
 .. code:: bash
 
-  virtualenv -p python2 venv   # Create a virtual environment, can use `python3` as well
+  virtualenv -p python3 venv   # Create a virtual environment
   source venv/bin/activate     # Activate environment before installing `cwltool`
 
 Installing the official package from PyPi (will install "cwltool" package as
@@ -479,11 +481,11 @@ mapping, execute the following command from the cwltool root directory::
 
 The previous examples demonstrated leveraging existing infrastructure to
 provide requirements for CWL tools. If instead a real package manager is used
-cwltool has the oppertunity to install requirements as needed. While initial
+cwltool has the opportunity to install requirements as needed. While initial
 support for Homebrew/Linuxbrew plugins is available, the most developed such
 plugin is for the `Conda <https://conda.io/docs/#>`__ package manager. Conda has the nice properties
 of allowing multiple versions of a package to be installed simultaneously,
-not requiring evalated permissions to install Conda itself or packages using
+not requiring evaluated permissions to install Conda itself or packages using
 Conda, and being cross platform. For these reasons, cwltool may run as a normal
 user, install its own Conda environment and manage multiple versions of Conda packages
 on both Linux and Mac OS X.
@@ -523,8 +525,8 @@ The example can be executed using the command::
   cwltool --beta-conda-dependencies tests/seqtk_seq_wrong_name.cwl tests/seqtk_seq_job.json
 
 The plugin framework for managing resolution of these software requirements
-as maintained as part of `galaxy-lib <https://github.com/galaxyproject/galaxy-lib>`__ - a small, portable subset of the Galaxy
-project. More information on configuration and implementation can be found
+as maintained as part of `galaxy-tool-util <https://github.com/galaxyproject/galaxy/tree/dev/packages/tool_util>`__ - a small,
+portable subset of the Galaxy project. More information on configuration and implementation can be found
 at the following links:
 
 - `Dependency Resolvers in Galaxy <https://docs.galaxyproject.org/en/latest/admin/dependency_resolvers.html>`__
@@ -555,6 +557,80 @@ For this example, grab the test.json (and input file) from https://github.com/Ca
 
 
 .. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
+
+Running MPI-based tools that need to be launched
+------------------------------------------------
+
+Cwltool supports an extension to the CWL spec
+``http://commonwl.org/cwltool#MPIRequirement``. When the tool
+definition has this in its ``requirements``/``hints`` section, and
+cwltool has been run with ``--enable-ext``, then the tool's command
+line will be extended with the commands needed to launch it with
+``mpirun`` or similar. You can specify the number of processes to
+start as either a literal integer or an expression (that will result
+in an integer). For example::
+
+  #!/usr/bin/env cwl-runner
+  cwlVersion: v1.1
+  class: CommandLineTool
+  $namespaces:
+    cwltool: "http://commonwl.org/cwltool#"
+  requirements:
+    cwltool:MPIRequirement:
+      processes: $(inputs.nproc)
+  inputs:
+    nproc:
+      type: int
+
+Interaction with containers: the MPIRequirement currently prepends its
+commands to the front of the command line that is constructed. If you
+wish to run a containerised application in parallel, for simple use
+cases this does work with Singularity, depending upon the platform
+setup. However this combination should be considered "alpha" -- please
+do report any issues you have! This does not work with Docker at the
+moment. (More precisely, you get `n` copies of the same single process
+image run at the same time that cannot communicate with each other.)
+
+The host-specific parameters are configured in a simple YAML file
+(specified with the ``--mpi-config-file`` flag). The allowed keys are
+given in the following table; all are optional.
+
++----------------+------------------+----------+------------------------------+
+| Key            | Type             | Default  | Description                  |
++================+==================+==========+==============================+
+| runner         | str              | "mpirun" | The primary command to use.  |
++----------------+------------------+----------+------------------------------+
+| nproc_flag     | str              | "-n"     | Flag to set number of        |
+|                |                  |          | processes to start.          |
++----------------+------------------+----------+------------------------------+
+| default_nproc  | int              | 1        | Default number of processes. |
++----------------+------------------+----------+------------------------------+
+| extra_flags    | List[str]        | []       | A list of any other flags to |
+|                |                  |          | be added to the runner's     |
+|                |                  |          | command line before          |
+|                |                  |          | the ``baseCommand``.         |
++----------------+------------------+----------+------------------------------+
+| env_pass       | List[str]        | []       | A list of environment        |
+|                |                  |          | variables that should be     |
+|                |                  |          | passed from the host         |
+|                |                  |          | environment through to the   |
+|                |                  |          | tool (e.g. giving the        |
+|                |                  |          | nodelist as set by your      |
+|                |                  |          | scheduler).                  |
++----------------+------------------+----------+------------------------------+
+| env_pass_regex | List[str]        | []       | A list of python regular     |
+|                |                  |          | expressions that will be     |
+|                |                  |          | matched against the host's   |
+|                |                  |          | environment. Those that match|
+|                |                  |          | will be passed through.      |
++----------------+------------------+----------+------------------------------+
+| env_set        | Mapping[str,str] | {}       | A dictionary whose keys are  |
+|                |                  |          | the environment variables set|
+|                |                  |          | and the values being the     |
+|                |                  |          | values.                      |
++----------------+------------------+----------+------------------------------+
+
+
 
 ===========
 Development

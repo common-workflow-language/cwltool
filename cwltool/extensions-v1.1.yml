@@ -1,0 +1,66 @@
+$base: http://commonwl.org/cwltool#
+$namespaces:
+  cwl: "https://w3id.org/cwl/cwl#"
+$graph:
+- $import: https://w3id.org/cwl/CommonWorkflowLanguage.yml
+
+- name: Secrets
+  type: record
+  inVocab: false
+  extends: cwl:ProcessRequirement
+  fields:
+    class:
+      type: string
+      doc: "Always 'Secrets'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    secrets:
+      type: string[]
+      doc: |
+        List one or more input parameters that are sensitive (such as passwords)
+        which will be deliberately obscured from logging.
+      jsonldPredicate:
+        "_type": "@id"
+        refScope: 0
+
+
+- name: ProcessGenerator
+  type: record
+  inVocab: true
+  extends: cwl:Process
+  documentRoot: true
+  fields:
+    - name: class
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+      type: string
+    - name: run
+      type: [string, cwl:Process]
+      jsonldPredicate:
+        _id: "cwl:run"
+        _type: "@id"
+        subscope: run
+      doc: |
+        Specifies the process to run.
+
+- name: MPIRequirement
+  type: record
+  inVocab: false
+  extends: cwl:ProcessRequirement
+  doc: |
+    Indicates that a process requires an MPI runtime.
+  fields:
+    - name: class
+      type: string
+      doc: "Always 'MPIRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: processes
+      type: [int, string]
+      doc: |
+        The number of MPI processes to start. If you give a string,
+        this will be evaluated as a CWL Expression and it must
+        evaluate to an integer.
